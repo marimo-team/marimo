@@ -116,13 +116,13 @@ jobs:
       - name: Test with minimal dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          hatch test -py ${{ matrix.python-version }} --exclude feature=optional -v tests/ -k "not test_cli" --durations=10
+          hatch test -py ${{ matrix.python-version }} -v -k "not test_cli" --durations=10
 
       # Test with optional dependencies
       - name: Test with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
-          hatch test -py ${{ matrix.python-version }} -v -k "not test_cli" --durations=10
+          hatch run +py=${{ matrix.python-version }} optional:test -v -k "not test_cli" --durations=10
 
   # Only run coverage on `main` so it is not blocking
   test_coverage:

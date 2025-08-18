@@ -169,6 +169,7 @@ docs = [
 
 optional = [
     "marimo[recommended,lsp]",
+    "pytest",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
     "vegafusion",
@@ -244,7 +245,7 @@ check = "mypy marimo --exclude=marimo/_tutorials/"
 tutorials = "mypy marimo/_tutorials"
 
 [tool.hatch.envs.hatch-test]
-groups = ["optional"]
+installer = "uv"
 extra-dependencies = [
     "hypothesis~=6.102.1",
     # For server testing
@@ -269,8 +270,23 @@ test-narwhals = """
         tests/_utils/test_narwhals_utils.py
 """
 
+
+[tool.hatch.envs.optional]
+template = "hatch-test"
+installer = "uv"
+groups = [ "optional" ]
+type = "uvenv"
+
+[[tool.hatch.envs.optional.matrix]]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+
+[tool.hatch.envs.optional.scripts]
+test = "pytest"
+
+
 [tool.hatch.envs.docs]
-features = ["docs"]
+groups = ["docs"]
+type = "uvenv"
 dependencies = [
     "marimo_docs @ file://docs",
 ]
