@@ -831,12 +831,10 @@ class TestFindSQLRefs:
 
     def test_read_file_and_urls(self) -> None:
         sql = "SELECT * FROM 'file.csv'"
-        assert find_sql_refs(sql) == {SQLRef(table="file.csv")}
+        assert find_sql_refs(sql) == set()
 
         sql = "SELECT * FROM 'https://example.com/file.csv'"
-        assert find_sql_refs(sql) == {
-            SQLRef(table="https://example.com/file.csv")
-        }
+        assert find_sql_refs(sql) == set()
 
         sql = "SELECT * FROM read_csv('/dev/stdin')"
         assert find_sql_refs(sql) == set()
