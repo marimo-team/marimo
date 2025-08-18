@@ -112,7 +112,7 @@ export const AIModelDropdown = ({
         className={`flex items-center justify-between px-2 py-0.5 border rounded-md
             hover:bg-accent hover:text-accent-foreground ${triggerClassName}`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 truncate">
           {currentValue ? (
             <>
               <AiProviderIcon

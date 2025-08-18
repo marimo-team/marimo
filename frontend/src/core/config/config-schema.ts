@@ -51,6 +51,20 @@ const AiConfigSchema = z
   })
   .passthrough();
 
+const AiModelsSchema = z.object({
+  chat_model: z.string().nullish(),
+  edit_model: z.string().nullish(),
+  autocomplete_model: z.string().nullish(),
+  displayed_models: z.array(z.string()).default([]),
+  custom_models: z.array(z.string()).default([]),
+});
+
+// Extract the model key type from the schema
+export type AIModelKey = keyof Pick<
+  z.infer<typeof AiModelsSchema>,
+  "chat_model" | "edit_model" | "autocomplete_model"
+>;
+
 export const UserConfigSchema = z
   .object({
     completion: z
@@ -158,18 +172,10 @@ export const UserConfigSchema = z
             aws_secret_access_key: z.string().optional(),
           })
           .optional(),
-        models: z
-          .object({
-            chat_model: z.string().nullish(),
-            edit_model: z.string().nullish(),
-            autocomplete_model: z.string().nullish(),
-            displayed_models: z.array(z.string()).default([]),
-            custom_models: z.array(z.string()).default([]),
-          })
-          .default({
-            displayed_models: [],
-            custom_models: [],
-          }),
+        models: AiModelsSchema.default({
+          displayed_models: [],
+          custom_models: [],
+        }),
       })
       .passthrough()
       .default({}),

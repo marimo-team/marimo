@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { addMessageToChat } from "@/core/ai/chat-utils";
-import type { QualifiedModelId } from "@/core/ai/ids/ids";
+import { useModelChange } from "@/core/ai/config";
 import {
   activeChatAtom,
   type Chat,
@@ -44,8 +44,8 @@ import {
   chatStateAtom,
 } from "@/core/ai/state";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
-import { aiAtom, aiEnabledAtom, userConfigAtom } from "@/core/config/config";
-import { DEFAULT_AI_MODEL, type UserConfig } from "@/core/config/config-schema";
+import { aiAtom, aiEnabledAtom } from "@/core/config/config";
+import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
@@ -248,10 +248,9 @@ const DEFAULT_MODE = "manual";
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
   ({ input, onSendClick, isLoading, onStop }) => {
     const ai = useAtomValue(aiAtom);
-    const [userConfig, setUserConfig] = useAtom(userConfigAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
     const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
-    const { saveUserConfig } = useRequestClient();
+    const { saveModeChange, saveModelChange } = useModelChange();
 
     const modeOptions = [
       {
@@ -266,44 +265,11 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       },
     ];
 
-    const handleModeChange = async (newMode: "ask" | "manual") => {
-      const newConfig: UserConfig = {
-        ...userConfig,
-        ai: {
-          ...userConfig.ai,
-          mode: newMode,
-        },
-      };
-      saveConfig(newConfig);
-    };
-
-    const handleModelChange = async (newModel: QualifiedModelId) => {
-      const newConfig: UserConfig = {
-        ...userConfig,
-        ai: {
-          ...userConfig.ai,
-          models: {
-            custom_models: [],
-            displayed_models: [],
-            ...userConfig.ai?.models,
-            chat_model: newModel,
-          },
-        },
-      };
-      saveConfig(newConfig);
-    };
-
-    const saveConfig = async (newConfig: UserConfig) => {
-      await saveUserConfig({ config: newConfig }).then(() => {
-        setUserConfig(newConfig);
-      });
-    };
-
     return (
       <div className="px-3 py-2 border-t border-border/20 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FeatureFlagged feature="mcp_docs">
-            <Select value={currentMode} onValueChange={handleModeChange}>
+            <Select value={currentMode} onValueChange={saveModeChange}>
               <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
                 <SelectValue placeholder="manual" />
               </SelectTrigger>
@@ -328,7 +294,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
           <AIModelDropdown
             value={currentModel}
             placeholder="Model"
-            onSelect={handleModelChange}
+            onSelect={(model) => saveModelChange(model, "chat")}
             triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
             iconSize="small"
             showAddCustomModelDocs={true}
