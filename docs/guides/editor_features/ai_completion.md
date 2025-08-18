@@ -6,7 +6,7 @@ marimo is an AI-native editor, with support for full-cell AI code generation:
 * refactoring existing cells from a prompt
 * generating entire notebooks
 
-as well as inline copilots (like GitHub Copilot).
+as well as inline autocompletion (like GitHub Copilot).
 
 marimo's AI assistant is specialized for working with data: unlike traditional
 assistants that only have access to the text of your program, marimo's assistant
@@ -132,7 +132,17 @@ For plotting:
 ### Connecting to an LLM
 
 You can connect to an LLM through the notebook settings menu, or by manually editing
-your `marimo.toml` configuration file. Prefer going through the notebook settings.
+your `marimo.toml` configuration file. **Prefer going through the notebook settings menu.**
+
+You can configure the following providers:
+
+* OpenAI
+* Anthropic
+* AWS Bedrock
+* Google AI
+* GitHub
+* Ollama
+* and any OpenAI-compatible provider
 
 To locate your configuration file, run:
 
@@ -141,6 +151,32 @@ marimo config show
 ```
 
 At the top, the path to your `marimo.toml` file will be shown.
+
+#### Model roles and provider routing
+
+marimo supports three different AI model roles, each serving a specific purpose:
+
+* **`chat_model`**: Used for the chat panel
+* **`edit_model`**: Used for refactoring existing cells (Ctrl/Cmd-Shift-E) and generating new cells with the "Generate with AI" button.
+* **`autocomplete_model`**: Used for inline code autocompletion
+
+Models are specified using the format `provider/model-name`, where the provider prefix routes the request to the appropriate configuration section:
+
+```toml title="marimo.toml"
+[ai.models]
+chat_model = "openai/gpt-4o-mini"           # Routes to OpenAI config
+edit_model = "anthropic/claude-3-sonnet"    # Routes to Anthropic config
+autocomplete_model = "ollama/codellama"     # Routes to Ollama config
+```
+
+#### Custom models
+
+You can also add custom models to appear in the model selection dropdown.
+
+```toml title="marimo.toml"
+[ai.models]
+custom_models = ["ollama/somemodel"]
+```
 
 Below we describe how to connect marimo to your AI provider.
 
@@ -151,15 +187,20 @@ Below we describe how to connect marimo to your AI provider.
 2. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
+[ai.models]
+# Choose for chat
+chat_model = "openai/gpt-4o-mini"
+# Or choose for edit
+edit_model = "openai/gpt-4o-mini"
+
 [ai.open_ai]
 # Get your API key from https://platform.openai.com/account/api-keys
 api_key = "sk-proj-..."
-# Choose a model, we recommend "gpt-4-turbo"
-model = "gpt-4-turbo"
-# Available models: gpt-4-turbo-preview, gpt-4, gpt-3.5-turbo
+# Available models: gpt-4o-mini, gpt-4o, gpt-4, gpt-3.5-turbo
 # See https://platform.openai.com/docs/models for all available models
 
 # Change the base_url if you are using a different OpenAI-compatible API
+# different from one of the providers listed below
 base_url = "https://api.openai.com/v1"
 ```
 
@@ -171,8 +212,8 @@ To use Anthropic with marimo:
 2. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
-[ai.open_ai]
-model = "claude-3-7-sonnet-20250219"
+[ai.models]
+chat_model = "anthropic/claude-3-7-sonnet-latest"
 # or any model from https://docs.anthropic.com/en/docs/about-claude/models
 
 [ai.anthropic]
@@ -195,14 +236,8 @@ To use AWS Bedrock with marimo:
 5. Add the following to your `marimo.toml`:
 
 ```toml title="marimo.toml"
-[ai.open_ai]
-model = "bedrock/anthropic.claude-3-sonnet-20240229"
-# Models are identified by bedrock/provider.model_name
-# Examples:
-# - bedrock/anthropic.claude-3-sonnet-20240229
-# - bedrock/meta.llama3-8b-instruct-v1:0
-# - bedrock/amazon.titan-text-express-v1
-# - bedrock/cohere.command-r-plus-v1
+[ai.models]
+chat_model = "bedrock/anthropic.claude-3-sonnet-latest"
 
 [ai.bedrock]
 region_name = "us-east-1" # AWS region where Bedrock is available
@@ -221,8 +256,8 @@ To use Google AI with marimo:
 3. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
-[ai.open_ai]
-model = "gemini-2.5-flash-preview-05-20"
+[ai.models]
+chat_model = "google/gemini-2.5-pro"
 # or any model from https://ai.google.dev/gemini-api/docs/models/gemini
 
 [ai.google]
@@ -238,10 +273,11 @@ You can use your GitHub Copilot for code refactoring or the chat panel. This req
 3. Add the token to your `marimo.toml` (or configure in the UI settings in the editor).
 
 ```toml title="marimo.toml"
-[ai.open_ai]
-model = "gpt-4o-mini"
+[ai.models]
+chat_model = "github/gpt-4o-mini"
+
+[ai.github]
 api_key = "gho_..."
-base_url = "https://api.githubcopilot.com/"
 ```
 
 ??? question "My token starts with `ghp_` instead of `gho_`?"
@@ -251,7 +287,7 @@ base_url = "https://api.githubcopilot.com/"
     > bad request: Personal Access Tokens are not supported for this endpoint
 
     To resolve this issue, you could switch to an _OAuth_ access token (`gho_...`):
-    
+
     1. Re-authenticate by running `gh auth login`.
     2. Choose _Login with a web browser_ (instead of _Paste an authentication token_) this time.
 
@@ -292,20 +328,20 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
    marimo edit notebook.py
    ```
 
-!!! warning "Important: Use the `/v1` endpoint"
+??? warning "Important: Use the `/v1` endpoint"
 
     marimo requires Ollama's OpenAI-compatible API endpoint. Always ensure your `base_url` includes the `/v1` path:
-    
+
     ```toml
-    [ai.open_ai]
+    [ai.ollama]
     base_url = "http://127.0.0.1:11434/v1"  # ✅ Correct - includes /v1
     ```
-    
+
     **Common mistake:**
     ```toml
     base_url = "http://127.0.0.1:11434"     # ❌ Will cause 404 errors
     ```
-    
+
     If you encounter 404 errors, verify your model is installed with `ollama ls` and test the endpoint:
     ```bash
     curl http://127.0.0.1:11434/v1/models
@@ -314,10 +350,10 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
 7. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
-[ai.open_ai]
-api_key = "ollama" # This is not used, but required
-model = "codellama" # or another model from `ollama ls`
-base_url = "http://127.0.0.1:11434/v1"
+[ai.models]
+chat_model = "ollama/llama3.1:latest"
+edit_model = "ollama/codellama"
+autocomplete_model = "ollama/codellama" # or another model from `ollama ls`
 ```
 
 #### Other AI providers
@@ -325,17 +361,6 @@ base_url = "http://127.0.0.1:11434/v1"
 marimo supports OpenAI's API by default. Many providers offer OpenAI API-compatible endpoints, which can be used by simply changing the `base_url` in your configuration. For example, providers like [GROQ](https://console.groq.com/docs/openai) and [DeepSeek](https://platform.deepseek.com) follow this pattern.
 
 ??? tip "Using OpenAI-compatible providers (e.g., DeepSeek)"
-
-    === "Via marimo.toml"
-
-        Add the following configuration to your `marimo.toml` file:
-
-        ```toml
-        [ai.open_ai]
-        api_key = "dsk-..." # Your provider's API key
-        model = "deepseek-chat" # or "deepseek-reasoner"
-        base_url = "https://api.deepseek.com/"
-        ```
 
     === "Via UI Settings"
 
@@ -345,6 +370,19 @@ marimo supports OpenAI's API by default. Many providers offer OpenAI API-compati
         4. Under AI Assist settings:
            - Set Base URL to your provider's endpoint (e.g., `https://api.deepseek.com`)
            - Set Model to your chosen model (e.g., `deepseek-chat` or `deepseek-reasoner`)
+
+    === "Via marimo.toml"
+
+        Add the following configuration to your `marimo.toml` file:
+
+        ```toml
+        [ai.models]
+        chat_model = "deepseek/deepseek-chat" # or "deepseek-reasoner"
+
+        [ai.open_ai_compatible]
+        api_key = "dsk-..." # Your provider's API key
+        base_url = "https://api.deepseek.com/"
+        ```
 
 For a comprehensive list of compatible providers and their configurations, please refer to the [liteLLM Providers documentation](https://litellm.vercel.app/docs/providers).
 
@@ -365,21 +403,21 @@ marimo using `pip`/`uv` if you need Copilot._
 
 ### Windsurf Copilot
 
-[Windsurf](https://windsurf.com/) (formerly codeium) provides tab-completion tooling that can also be used from within marimo. 
+[Windsurf](https://windsurf.com/) (formerly codeium) provides tab-completion tooling that can also be used from within marimo.
 
 To set up Windsurf:
 
 1. Go to [windsurf.com](https://windsurf.com/) website and sign up for an account.
 2. Download the [Windsurf app](https://windsurf.com/download).
-3. After installing Windsurf and authenticating, open up the command palette, via <kbd>cmd</kbd>+<kbd>shift</kbd>+<kbd>p</kbd>, and ask it to copy the api key to your clipboard. 
+3. After installing Windsurf and authenticating, open up the command palette, via <kbd>cmd</kbd>+<kbd>shift</kbd>+<kbd>p</kbd>, and ask it to copy the api key to your clipboard.
 
 ![Copy Windsurf API key](/_static/windsurf-api.png)
 
-4a. Configure the UI settings in the editor to use Windsurf. 
+4a. Configure the UI settings in the editor to use Windsurf.
 
 ![Paste Windsurf API key](/_static/windsurf-settings.png)
 
-4b. Alternatively you can also configure the api key from the marimo config file. 
+4b. Alternatively you can also configure the api key from the marimo config file.
 
 ```toml title="marimo.toml"
 [completion]
@@ -389,7 +427,7 @@ codeium_api_key = ""
 
 ### Custom copilots
 
-marimo also supports integrating with custom LLM providers for code completion suggestions. This allows you to use your own LLM service to provide in-line code suggestions based on internal providers or local models (e.g. Ollama). You may also use OpenAI, Anthropic, or Google AI by providing your own API keys.
+marimo also supports integrating with custom LLM providers for code completion suggestions. This allows you to use your own LLM service to provide in-line code suggestions based on internal providers or local models (e.g. Ollama). You may also use OpenAI, Anthropic, Google, or any other providers by providing your own API keys and configuration.
 
 To configure a custom copilot:
 
@@ -397,15 +435,14 @@ To configure a custom copilot:
 2. Add the following configuration to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
+[ai.models]
+autocomplete_model = "provider/model-name"
+
 [completion]
 copilot = "custom"
-api_key = "your-llm-api-key"
-model = "your-llm-model-name"
-base_url = "http://127.0.0.1:11434/v1" # or https://your-llm-api-endpoint.com
 ```
 
 The configuration options include:
 
-* `api_key`: Your LLM provider's API key. This may not be required for local models, so you can set it to any random string.
-* `model`: The specific model to use for completion suggestions.
-* `base_url`: The endpoint URL for your LLM provider's API
+* `autocomplete_model`: The specific model to use for inline autocompletion.
+* `copilot`: The name of the copilot to use for code generation.
