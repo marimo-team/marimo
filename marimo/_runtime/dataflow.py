@@ -286,7 +286,7 @@ class DirectedGraph:
                 ) - set((cell_id,))
 
                 # Handle SQL fuzzy matching for hierarchical references
-                name_map = {}
+                name_map: dict[Name, Name] = {}
                 ref_data = cell.refs_data[name]
                 if (
                     ref_data.language == "sql"
