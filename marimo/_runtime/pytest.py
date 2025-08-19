@@ -44,7 +44,7 @@ class MarimoPytestResult:
         )
 
 
-def _get_name(default="notebook.py") -> str:
+def _get_name(default: str = "notebook.py") -> str:
     filename = default
     ctx = safe_get_context()
     if ctx and ctx.filename is not None:
