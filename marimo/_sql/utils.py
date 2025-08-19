@@ -67,12 +67,12 @@ def try_convert_to_polars(
 
     try:
         df = pl.read_database(query=query, connection=connection)
-        return df.lazy() if lazy else df, None
+        return (df.lazy(), None) if lazy else (df, None)
     except (
         pl.exceptions.PanicException,
         pl.exceptions.ComputeError,
     ) as e:
-        return None, e
+        return (None, str(e))
 
 
 def convert_to_output(
