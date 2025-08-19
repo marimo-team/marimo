@@ -1580,20 +1580,23 @@ describe("useCellNavigationProps", () => {
   });
 });
 
+// Mock isPlatformWindows for testing
+const mockIsPlatformWindows = vi.hoisted(() => vi.fn());
+vi.mock("@/core/hotkeys/shortcuts", async (importOriginal) => ({
+  ...(await importOriginal()),
+  isPlatformWindows: mockIsPlatformWindows,
+}));
+
 describe("useCellEditorNavigationProps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
     // Reset config overrides
     store.set(configOverridesAtom, {});
-  });
 
-  // Mock isPlatformWindows for testing
-  const mockIsPlatformWindows = vi.hoisted(() => vi.fn());
-  vi.mock("@/core/hotkeys/shortcuts", async (importOriginal) => ({
-    ...(await importOriginal()),
-    isPlatformWindows: mockIsPlatformWindows,
-  }));
+    // Reset platform mock to default (non-Windows)
+    mockIsPlatformWindows.mockReturnValue(false);
+  });
 
   describe("keyboard shortcuts", () => {
     it("should focus cell when Escape is pressed", () => {
@@ -1736,7 +1739,7 @@ describe("useCellEditorNavigationProps", () => {
         expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
       });
 
-      it("should not focus cell when Escape (without Ctrl) is pressed in vim mode", () => {
+      it("should focus cell when Escape (without Ctrl) is pressed in vim mode", () => {
         const mockEditorView = { current: null };
         const { result } = renderWithProvider(() =>
           useCellEditorNavigationProps(mockCellId, mockEditorView),
@@ -1748,7 +1751,7 @@ describe("useCellEditorNavigationProps", () => {
           result.current.onKeyDown?.(mockEvent);
         });
 
-        expect(focusCell).not.toHaveBeenCalled();
+        expect(focusCell).toHaveBeenCalledWith(mockCellId);
         expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
       });
     });
@@ -1777,7 +1780,7 @@ describe("useCellEditorNavigationProps", () => {
         expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
       });
 
-      it("should not focus cell when Ctrl+Escape is pressed in vim mode on Windows", () => {
+      it("should focus cell when Ctrl+Escape is pressed in vim mode on Windows", () => {
         const mockEditorView = { current: null };
         const { result } = renderWithProvider(() =>
           useCellEditorNavigationProps(mockCellId, mockEditorView),
@@ -1789,11 +1792,11 @@ describe("useCellEditorNavigationProps", () => {
           result.current.onKeyDown?.(mockEvent);
         });
 
-        expect(focusCell).not.toHaveBeenCalled();
+        expect(focusCell).toHaveBeenCalledWith(mockCellId);
         expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
       });
 
-      it("should not focus cell when Escape (without Shift) is pressed in vim mode on Windows", () => {
+      it("should focus cell when Escape (without Shift) is pressed in vim mode on Windows", () => {
         const mockEditorView = { current: null };
         const { result } = renderWithProvider(() =>
           useCellEditorNavigationProps(mockCellId, mockEditorView),
@@ -1805,7 +1808,7 @@ describe("useCellEditorNavigationProps", () => {
           result.current.onKeyDown?.(mockEvent);
         });
 
-        expect(focusCell).not.toHaveBeenCalled();
+        expect(focusCell).toHaveBeenCalledWith(mockCellId);
         expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
       });
     });
