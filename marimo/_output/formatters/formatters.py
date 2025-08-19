@@ -84,6 +84,72 @@ NATIVE_FACTORIES: Sequence[FormatterFactory] = [
 ]
 
 
+def patch_finder(
+    finder: Any,
+    third_party_factories: dict[str, FormatterFactory] | None = None,
+    theme: Theme = "light",
+) -> None:
+    if third_party_factories is None:
+        third_party_factories = THIRD_PARTY_FACTORIES
+    # Note: "Vendored" dependencies may not have a find_spec method.
+    # E.g. `six` bundled with a project.
+    original_find_spec = getattr(finder, "find_spec", None)
+    if original_find_spec is None:
+        return
+
+    # We include `original_find_spec` as a kwarg to force it to be bound
+    # to the new `find_spec` method; this is needed because closures are
+    # late-binding and we're in a for loop ...
+    def find_spec(  # type:ignore[no-untyped-def]
+        self,
+        fullname,
+        path=None,
+        target=None,
+        original_find_spec=original_find_spec,
+    ) -> Any:
+        del self
+        spec = original_find_spec(fullname, path, target)
+        if spec is None:
+            return spec
+
+        if spec.loader is not None and fullname in third_party_factories:
+            # We're now in the process of importing a module with
+            # an associated formatter factory. We'll hook into its
+            # loader to register the formatters.
+            original_exec_module = spec.loader.exec_module
+            factory = THIRD_PARTY_FACTORIES[fullname]
+
+            # Once again, we use kwargs instead of closing over the
+            # variables `original_exec_module` and `factory` to force
+            # binding.
+            def exec_module(
+                module: Any,
+                original_exec_module: Callable[
+                    ..., Any
+                ] = original_exec_module,
+                factory: FormatterFactory = factory,
+            ) -> Any:
+                loader_return_value = original_exec_module(module)
+                factory.register()
+                factory.apply_theme_safe(theme)
+                return loader_return_value
+
+            spec.loader.exec_module = exec_module
+
+        return spec
+
+    # Recursive wrap can lead to a stack overflow in long running apps.
+    # `find_spec` is dynamic, so just compare the __module__s
+    module_name = getattr(finder.find_spec, "__module__", None)
+    if hasattr(finder.find_spec, "__func__"):
+        module_name = finder.find_spec.__module__
+
+    if module_name != find_spec.__module__:
+        # Use the __get__ descriptor to bind find_spec to this finder object,
+        # to make sure self/cls gets passed
+        finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]  # noqa: E501
+
+
 def register_formatters(theme: Theme = "light") -> None:
     """Register formatters with marimo.
 
@@ -137,64 +203,11 @@ def register_formatters(theme: Theme = "light") -> None:
     # Because Python's import system caches modules, our formatters'
     # register methods will be called at most once.
     for finder in sys.meta_path:
-        # Note: "Vendored" dependencies may not have a find_spec method.
-        # E.g. `six` bundled with a project.
-        original_find_spec = getattr(finder, "find_spec", None)
-        if original_find_spec is None:
-            continue
-
-        # We include `original_find_spec` as a kwarg to force it to be bound
-        # to the new `find_spec` method; this is needed because closures are
-        # late-binding and we're in a for loop ...
-        def find_spec(  # type:ignore[no-untyped-def]
-            self,
-            fullname,
-            path=None,
-            target=None,
-            original_find_spec=original_find_spec,
-        ) -> Any:
-            del self
-
-            spec = original_find_spec(fullname, path, target)
-            if spec is None:
-                return spec
-
-            if spec.loader is not None and fullname in third_party_factories:
-                # We're now in the process of importing a module with
-                # an associated formatter factory. We'll hook into its
-                # loader to register the formatters.
-                original_exec_module = spec.loader.exec_module
-                factory = THIRD_PARTY_FACTORIES[fullname]
-
-                # Once again, we use kwargs instead of closing over the
-                # variables `original_exec_module` and `factory` to force
-                # binding.
-                def exec_module(
-                    module: Any,
-                    original_exec_module: Callable[
-                        ..., Any
-                    ] = original_exec_module,
-                    factory: FormatterFactory = factory,
-                ) -> Any:
-                    loader_return_value = original_exec_module(module)
-                    factory.register()
-                    factory.apply_theme_safe(theme)
-                    return loader_return_value
-
-                spec.loader.exec_module = exec_module
-
-            return spec
-
-        # Recursive wrap can lead to a stack overflow in long running apps.
-        # `find_spec` is dynamic, so just compare the __module__s
-        module_name = getattr(finder.find_spec, "__module__", None)
-        if hasattr(finder.find_spec, "__func__"):
-            module_name = finder.find_spec.__module__
-
-        if module_name != find_spec.__module__:
-            # Use the __get__ descriptor to bind find_spec to this finder object,
-            # to make sure self/cls gets passed
-            finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]  # noqa: E501
+        patch_finder(
+            finder,
+            third_party_factories=third_party_factories,
+            theme=theme,
+        )
 
     # These factories are for builtins or other things that don't require a
     # package import. So we can register them at program start-up.
