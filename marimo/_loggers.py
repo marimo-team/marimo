@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo._utils.log_formatter import LogFormatter
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 # This file manages and creates loggers used throughout marimo.
 #
@@ -179,3 +183,15 @@ def _file_handler() -> logging.FileHandler:
     file_handler.setLevel(min(_LOG_LEVEL, logging.INFO))
 
     return file_handler
+
+
+@contextmanager
+def suppress_warnings_logs(name: str) -> Generator[None, None, None]:
+    """Suppress logs for a given logger."""
+    logger = get_logger(name)
+    original_level = logger.level
+    logger.setLevel(logging.ERROR)
+    try:
+        yield
+    finally:
+        logger.setLevel(original_level)

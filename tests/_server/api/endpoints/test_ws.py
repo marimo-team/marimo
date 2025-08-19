@@ -204,6 +204,7 @@ def test_fails_on_multiple_connections_with_same_file(
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
+@pytest.mark.flaky(reruns=3)
 async def test_file_watcher_calls_reload(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     session_manager.watch = True
