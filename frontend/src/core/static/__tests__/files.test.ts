@@ -4,6 +4,7 @@
 import http from "node:http";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createLoader } from "@/plugins/impl/vega/vega-loader";
+import { Functions } from "@/utils/functions";
 import type { DataURLString } from "@/utils/json/base64";
 import { patchFetch, patchVegaLoader } from "../files";
 
@@ -171,7 +172,9 @@ describe("patchFetch", () => {
     const unpatch = patchFetch(virtualFiles);
 
     // Mock Logger.error to avoid console output during tests
-    const loggerSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const loggerSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(Functions.NOOP);
 
     // This should fallback to original fetch and potentially fail
     await expect(window.fetch("invalid://url")).rejects.toThrow();
@@ -472,7 +475,9 @@ describe("error handling and edge cases", () => {
     const unpatch = patchFetch(virtualFiles);
 
     // Mock Logger.error to avoid test output
-    const loggerSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const loggerSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(Functions.NOOP);
 
     // This should catch the error and fallback to original fetch
     try {
