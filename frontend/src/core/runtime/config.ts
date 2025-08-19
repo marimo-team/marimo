@@ -19,7 +19,7 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
 export const runtimeConfigAtom = atom<RuntimeConfig>(DEFAULT_RUNTIME_CONFIG);
 const runtimeManagerAtom = atom<RuntimeManager>((get) => {
   const config = get(runtimeConfigAtom);
-  // "lazy" means that the runtime manager will attempt to connect to a
+  // "lazy" means that the runtime manager will not attempt to connect to a
   // server, which in the case of a static notebook, will not be available.
   const lazy = isStaticNotebook();
   return new RuntimeManager(config, lazy);
