@@ -36,5 +36,10 @@ export function asRemoteURL(path: string): URL {
   if (path.startsWith("http")) {
     return new URL(path);
   }
-  return new URL(path, getRuntimeManager().httpURL.toString());
+  let base = getRuntimeManager().httpURL.toString();
+  if (base.startsWith("blob:")) {
+    // Remove leading blob:
+    base = base.replace("blob:", "");
+  }
+  return new URL(path, base);
 }

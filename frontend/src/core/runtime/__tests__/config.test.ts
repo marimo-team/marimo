@@ -100,6 +100,18 @@ describe("runtime config", () => {
     });
   });
 
+  describe("asRemoteURL with blob", () => {
+    it("should handle blob URLs", () => {
+      const customRuntimeManager = {
+        httpURL: new URL("blob:http://localhost:8080"),
+      } as RuntimeManager;
+      mockedStore.get.mockReturnValue(customRuntimeManager);
+
+      const result = asRemoteURL("./path/to/file.txt");
+      expect(result.toString()).toBe("http://localhost:8080/path/to/file.txt");
+    });
+  });
+
   describe("getRuntimeManager", () => {
     it("should return runtime manager from store", () => {
       const result = getRuntimeManager();
