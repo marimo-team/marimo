@@ -1076,17 +1076,26 @@ class table(
         result = self._manager
 
         if filters:
-            data = unwrap_narwhals_dataframe(result.data)
-            handler = get_handler_for_dataframe(data)
-            data = handler.handle_filter_rows(
-                data,
-                FilterRowsTransform(
-                    type=TransformType.FILTER_ROWS,
-                    where=filters,
-                    operation="keep_rows",
-                ),
-            )
-            result = get_table_manager(data)
+            # Filter out conditions for columns that don't exist
+            existing_columns = set(result.get_column_names())
+            valid_filters = [
+                condition
+                for condition in filters
+                if condition.column_id in existing_columns
+            ]
+
+            if valid_filters:
+                data = unwrap_narwhals_dataframe(result.data)
+                handler = get_handler_for_dataframe(data)
+                data = handler.handle_filter_rows(
+                    data,
+                    FilterRowsTransform(
+                        type=TransformType.FILTER_ROWS,
+                        where=valid_filters,
+                        operation="keep_rows",
+                    ),
+                )
+                result = get_table_manager(data)
 
         if query:
             result = result.search(query)
