@@ -16,10 +16,11 @@ import ReactCodeMirror, {
   type ReactCodeMirrorRef,
 } from "@uiw/react-codemirror";
 import { useCompletion } from "ai/react";
-import { useAtom, useStore } from "jotai";
+import { useAtom, useAtomValue, useStore } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import {
   ChevronsUpDown,
+  DatabaseIcon,
   Loader2Icon,
   SendHorizontal,
   SparklesIcon,
@@ -27,22 +28,28 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
+import { useModelChange } from "@/core/ai/config";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
+import { aiAtom } from "@/core/config/config";
+import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRuntimeManager } from "@/core/runtime/config";
-import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
+import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
 import { useCellActions } from "../../../core/cells/cells";
+import { PythonIcon } from "../cell/code/icons";
 import {
   getAICompletionBody,
   mentionsCompletionSource,
@@ -71,6 +78,10 @@ export const AddCellWithAI: React.FC<{
   const [language, setLanguage] = useAtom(languageAtom);
   const { theme } = useTheme();
   const runtimeManager = useRuntimeManager();
+
+  const ai = useAtomValue(aiAtom);
+  const editModel = ai?.models?.edit_model || DEFAULT_AI_MODEL;
+  const { saveModelChange } = useModelChange();
 
   const {
     completion,
@@ -109,32 +120,50 @@ export const AddCellWithAI: React.FC<{
     }
   };
 
+  const pythonIcon = (
+    <>
+      <PythonIcon className="size-4 mr-2" />
+      Python
+    </>
+  );
+
+  const sqlIcon = (
+    <>
+      <DatabaseIcon className="size-4 mr-2" />
+      SQL
+    </>
+  );
+
+  const languageDropdown = (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild={true}>
+        <Button
+          variant="text"
+          className="ml-2"
+          size="xs"
+          data-testid="language-button"
+        >
+          {language === "python" ? pythonIcon : sqlIcon}
+          <ChevronsUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/70" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="center">
+        <div className="px-2 py-1 font-semibold">Select language</div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setLanguage("python")}>
+          {pythonIcon}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setLanguage("sql")}>
+          {sqlIcon}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const inputComponent = (
     <div className="flex items-center px-3">
-      <SparklesIcon className="size-4 text-(--blue-11)" />
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild={true}>
-          <Button
-            variant="text"
-            className="ml-2"
-            size="xs"
-            data-testid="language-button"
-          >
-            {language === "python" ? "Python" : "SQL"}
-            <ChevronsUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/70" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="center">
-          <DropdownMenuItem onClick={() => setLanguage("python")}>
-            Python
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setLanguage("sql")}>
-            SQL
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <SparklesIcon className="size-4 text-(--blue-11) mr-2" />
       <PromptInput
-        theme={theme}
         onClose={() => {
           setCompletion("");
           onClose();
@@ -158,33 +187,10 @@ export const AddCellWithAI: React.FC<{
           Stop
         </Button>
       )}
-      {!isLoading && completion && (
-        <Button
-          data-testid="accept-completion-button"
-          variant="text"
-          size="sm"
-          className="mb-0"
-          disabled={isLoading}
-          onClick={() => {
-            createNewCell({
-              cellId: "__end__",
-              before: false,
-              code:
-                language === "python"
-                  ? completion
-                  : SQLLanguageAdapter.fromQuery(completion),
-            });
-            setCompletion("");
-            onClose();
-          }}
-        >
-          <span className="text-(--grass-11) opacity-100">Accept</span>
-        </Button>
-      )}
       <Button variant="text" size="sm" onClick={submit} title="Submit">
         <SendHorizontal className="size-4" />
       </Button>
-      <Button variant="text" size="sm" className="mb-0" onClick={onClose}>
+      <Button variant="text" size="sm" className="mb-0 px-1" onClick={onClose}>
         <XIcon className="size-4" />
       </Button>
     </div>
@@ -193,16 +199,65 @@ export const AddCellWithAI: React.FC<{
   return (
     <div className={cn("flex flex-col w-full gap-2 py-2")}>
       {inputComponent}
-      {!completion && (
-        <span className="text-xs text-muted-foreground px-3 flex flex-col gap-1">
-          <span>
-            You can mention <span className="text-(--cyan-11)">@dataframe</span>{" "}
-            or <span className="text-(--cyan-11)">@sql_table</span> to pull
-            additional context such as column names.
+      <div className="flex flex-row justify-between -mt-1 ml-1 mr-3">
+        {!completion && (
+          <span className="text-xs text-muted-foreground px-3 flex flex-col gap-1">
+            <span>
+              You can mention{" "}
+              <span className="text-(--cyan-11)">@dataframe</span> or{" "}
+              <span className="text-(--cyan-11)">@sql_table</span> to pull
+              additional context such as column names.
+            </span>
+            <span>Code from other cells is automatically included.</span>
           </span>
-          <span>Code from other cells is automatically included.</span>
-        </span>
-      )}
+        )}
+        {completion && (
+          <>
+            <Button
+              data-testid="accept-completion-button"
+              variant="text"
+              size="sm"
+              className="mb-0"
+              onClick={() => {
+                createNewCell({
+                  cellId: "__end__",
+                  before: false,
+                  code:
+                    language === "python"
+                      ? completion
+                      : SQLLanguageAdapter.fromQuery(completion),
+                });
+                setCompletion("");
+                onClose();
+              }}
+            >
+              <span className="text-(--grass-11)">Accept</span>
+            </Button>
+            <Button
+              data-testid="decline-completion-button"
+              variant="text"
+              size="sm"
+              className="mb-0 pl-1"
+              onClick={() => setCompletion("")}
+            >
+              <span className="text-(--red-10)">Reject</span>
+            </Button>
+          </>
+        )}
+        <div className="ml-auto flex items-center gap-1">
+          {languageDropdown}
+          <AIModelDropdown
+            value={editModel}
+            onSelect={(model) => {
+              saveModelChange(model, "edit");
+            }}
+            triggerClassName="h-7 text-xs max-w-64"
+            iconSize="small"
+            forRole="edit"
+          />
+        </div>
+      </div>
+
       {completion && (
         <ReactCodeMirror
           value={completion}
@@ -230,7 +285,6 @@ interface PromptInputProps {
   onChange: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   additionalCompletions?: AdditionalCompletions;
-  theme: ResolvedTheme;
   maxHeight?: string;
 }
 
@@ -249,12 +303,12 @@ export const PromptInput = ({
   onSubmit,
   onClose,
   additionalCompletions,
-  theme,
   maxHeight,
 }: PromptInputProps) => {
   const handleSubmit = onSubmit;
   const handleEscape = onClose;
   const store = useStore();
+  const { theme } = useTheme();
 
   const additionalCompletionsSource: CompletionSource = useEvent(
     (context: CompletionContext) => {

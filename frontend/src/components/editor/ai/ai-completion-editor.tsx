@@ -150,7 +150,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
             <SparklesIcon className="text-(--blue-10) shrink-0" size={16} />
             <PromptInput
               inputRef={inputRef}
-              theme={theme}
               onClose={() => {
                 declineChange();
                 setCompletion("");
@@ -178,20 +177,33 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 Stop
               </Button>
             )}
-            {!isLoading && completion && (
-              <Button
-                data-testid="accept-completion-button"
-                variant="text"
-                size="xs"
-                className="mb-0"
-                disabled={isLoading}
-                onClick={() => {
-                  acceptChange(completion);
-                  setCompletion("");
-                }}
-              >
-                <span className="text-(--grass-11) opacity-100">Accept</span>
-              </Button>
+            {completion && (
+              <>
+                <Button
+                  data-testid="accept-completion-button"
+                  variant="text"
+                  size="xs"
+                  className="mb-0"
+                  disabled={isLoading}
+                  onClick={() => {
+                    acceptChange(completion);
+                    setCompletion("");
+                  }}
+                >
+                  <span className="text-(--grass-11) opacity-100">Accept</span>
+                </Button>
+                <Button
+                  data-testid="decline-completion-button"
+                  variant="text"
+                  size="xs"
+                  className="mb-0 pl-1"
+                  onClick={() => {
+                    setCompletion("");
+                  }}
+                >
+                  <span className="text-(--red-10)">Reject</span>
+                </Button>
+              </>
             )}
             <div className="h-full w-px bg-border mx-2" />
             <Tooltip content="Include code from other cells">
