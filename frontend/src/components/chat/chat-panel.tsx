@@ -50,7 +50,6 @@ import { FeatureFlagged } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
@@ -390,7 +389,6 @@ const ChatPanelBody = () => {
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();
 
