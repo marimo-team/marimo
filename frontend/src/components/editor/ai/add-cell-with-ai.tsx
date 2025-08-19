@@ -234,6 +234,7 @@ export const AddCellWithAI: React.FC<{
               <span className="text-(--grass-11)">Accept</span>
             </Button>
             <Button
+              data-testid="decline-completion-button"
               variant="text"
               size="sm"
               className="mb-0 pl-1"
