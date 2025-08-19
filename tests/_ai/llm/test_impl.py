@@ -952,6 +952,9 @@ class TestBedrock:
 
         assert model.profile_name == "test-profile"
 
+    @pytest.mark.xfail(
+        reason="latest litellm and openai are not compatible",
+    )
     def test_call(self, mock_litellm_completion, test_messages, test_config):
         """Test calling the bedrock class with LiteLLM client."""
         model_name = "anthropic.claude-3-sonnet-20240229"
