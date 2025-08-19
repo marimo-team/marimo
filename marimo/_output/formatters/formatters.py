@@ -89,17 +89,17 @@ def patch_finder(
     third_party_factories: dict[str, FormatterFactory] | None = None,
     theme: Theme = "light",
 ) -> None:
-    """ Patch a MetaPathFinder to register formatters for third-parties
+    """Patch a MetaPathFinder to register formatters for third-parties.
     Python's import logic has roughly the following logic:
       1. search for a module; if found, create a "module spec" that knows
          how to create and load the module.
       2. use the spec's loader to load the module.
-    
+
     We monkey-patch the first step to check if a searched-for module
     has a registered formatter. If a registered formatter is found,
     our patch in turn patches the loader to run the formatter after
     the module is exec'd.
-    
+
     Because Python's import system caches modules, our formatters'
     register methods will be called at most once.
     """
@@ -111,7 +111,7 @@ def patch_finder(
     if original_find_spec is None:
         return
 
-    # Method stub ignoring typing for "self" to allow binding
+    # Method stub ignores typing for "self" to allow binding.
     def find_spec(  # type:ignore[no-untyped-def]
         self,
         fullname,
@@ -130,9 +130,8 @@ def patch_finder(
             original_exec_module = spec.loader.exec_module
             factory = third_party_factories[fullname]
 
-            # Once again, we use kwargs instead of closing over the
-            # variables `original_exec_module` and `factory` to force
-            # binding.
+            # We use kwargs instead of closing over the variables
+            # `original_exec_module` and `factory` to force binding.
             def exec_module(
                 module: Any,
                 original_exec_module: Callable[
@@ -155,7 +154,7 @@ def patch_finder(
     if hasattr(finder.find_spec, "__func__"):
         module_name = finder.find_spec.__module__
 
-    # Only patch the finder if the module it was defined in is
+    # Only patch the finder if the module it was defined in a
     # different from the current module (`find_spec.__module__`)
     # i.e., only patch the finder if it isn't already patched
     if module_name != find_spec.__module__:
