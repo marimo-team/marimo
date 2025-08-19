@@ -155,6 +155,9 @@ def patch_finder(
     if hasattr(finder.find_spec, "__func__"):
         module_name = finder.find_spec.__module__
 
+    # Only patch the finder if the module it was defined in is
+    # different from the current module (`find_spec.__module__`)
+    # i.e., only patch the finder if it isn't already patched
     if module_name != find_spec.__module__:
         # Use the __get__ descriptor to bind find_spec to this finder object,
         # to make sure self/cls gets passed
