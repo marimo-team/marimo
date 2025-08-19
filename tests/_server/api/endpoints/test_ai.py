@@ -4,7 +4,7 @@ from __future__ import annotations
 import unittest
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -99,7 +99,7 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_completion_without_code(
         client: TestClient, openai_mock: Any
     ) -> None:
@@ -108,11 +108,15 @@ class TestOpenAiEndpoints:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="import pandas as pd"))]
             )
-        ]
+
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         with patch.object(
             user_config_manager,
@@ -140,7 +144,7 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_completion_with_code(
         client: TestClient, openai_mock: Any
     ) -> None:
@@ -149,11 +153,15 @@ class TestOpenAiEndpoints:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="import pandas as pd"))]
             )
-        ]
+
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         with patch.object(
             user_config_manager,
@@ -178,7 +186,7 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_completion_with_custom_model(
         client: TestClient, openai_mock: Any
     ) -> None:
@@ -187,11 +195,15 @@ class TestOpenAiEndpoints:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="import pandas as pd"))]
             )
-        ]
+
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         with patch.object(
             user_config_manager,
@@ -214,7 +226,7 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_completion_with_custom_base_url(
         client: TestClient, openai_mock: Any
     ) -> None:
@@ -223,11 +235,15 @@ class TestOpenAiEndpoints:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="import pandas as pd"))]
             )
-        ]
+
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         with patch.object(
             user_config_manager,
@@ -253,18 +269,22 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_inline_completion(client: TestClient, openai_mock: Any) -> None:
         user_config_manager = get_session_config_manager(client)
 
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="df = pd.DataFrame()"))]
             )
-        ]
+
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         with patch.object(
             user_config_manager, "get_config", return_value=_openai_config()
@@ -325,7 +345,7 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_inline_completion_different_language(
         client: TestClient, openai_mock: Any
     ) -> None:
@@ -334,9 +354,15 @@ class TestOpenAiEndpoints:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(choices=[Choice(delta=Delta(content="SELECT 1;"))])
-        ]
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
+                choices=[Choice(delta=Delta(content="SELECT 1;"))]
+            )
+
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         with patch.object(
             user_config_manager, "get_config", return_value=_openai_config()
@@ -398,7 +424,7 @@ class TestAnthropicAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("anthropic.Client")
+    @patch("anthropic.AsyncClient")
     def test_anthropic_completion_with_code(
         client: TestClient, anthropic_mock: Any
     ) -> None:
@@ -407,9 +433,13 @@ class TestAnthropicAiEndpoints:
         anthropic_client = MagicMock()
         anthropic_mock.return_value = anthropic_client
 
-        anthropic_client.messages.create.return_value = [
-            RawContentBlockDeltaEvent(TextDelta("import pandas as pd"))
-        ]
+        # Mock async stream
+        async def mock_stream():
+            yield RawContentBlockDeltaEvent(TextDelta("import pandas as pd"))
+
+        anthropic_client.messages.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         with patch.object(
             user_config_manager, "get_config", return_value=_anthropic_config()
@@ -435,7 +465,7 @@ class TestAnthropicAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("anthropic.Client")
+    @patch("anthropic.AsyncClient")
     def test_anthropic_inline_completion(
         client: TestClient, anthropic_mock: Any
     ) -> None:
@@ -444,9 +474,13 @@ class TestAnthropicAiEndpoints:
         anthropic_client = MagicMock()
         anthropic_mock.return_value = anthropic_client
 
-        anthropic_client.messages.create.return_value = [
-            RawContentBlockDeltaEvent(TextDelta("df = pd.DataFrame()"))
-        ]
+        # Mock async stream
+        async def mock_stream():
+            yield RawContentBlockDeltaEvent(TextDelta("df = pd.DataFrame()"))
+
+        anthropic_client.messages.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         with patch.object(
             user_config_manager, "get_config", return_value=_anthropic_config()
@@ -480,7 +514,7 @@ class TestAnthropicAiEndpoints:
 class TestGoogleAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.AsyncClient")
+    @patch("google.genai.client.AsyncClient")
     def test_google_ai_completion_with_code(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -489,12 +523,16 @@ class TestGoogleAiEndpoints:
         google_client = MagicMock()
         google_ai_mock.return_value = google_client
 
-        google_client.models.generate_content_stream.return_value = [
-            MagicMock(
+        # Mock async stream
+        async def mock_stream():
+            yield MagicMock(
                 text="import pandas as pd",
                 thought=None,
             )
-        ]
+
+        google_client.models.generate_content_stream = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         config = {
             "ai": {
@@ -531,7 +569,7 @@ class TestGoogleAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.AsyncClient")
+    @patch("google.genai.client.AsyncClient")
     def test_google_ai_completion_without_token(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -564,7 +602,7 @@ class TestGoogleAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.AsyncClient")
+    @patch("google.genai.client.AsyncClient")
     def test_google_ai_inline_completion(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -573,12 +611,16 @@ class TestGoogleAiEndpoints:
         google_client = MagicMock()
         google_ai_mock.return_value = google_client
 
-        google_client.models.generate_content_stream.return_value = [
-            MagicMock(
+        # Mock async stream
+        async def mock_stream():
+            yield MagicMock(
                 text="df = pd.DataFrame()",
                 thought=None,
             )
-        ]
+
+        google_client.models.generate_content_stream = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         with patch.object(
             user_config_manager, "get_config", return_value=_google_ai_config()
@@ -699,17 +741,21 @@ def _google_ai_config():
 def test_chat_without_code(client: TestClient) -> None:
     user_config_manager = get_session_config_manager(client)
 
-    with patch("openai.OpenAI") as openai_mock:
+    with patch("openai.AsyncOpenAI") as openai_mock:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[
                     Choice(delta=Delta(content="Hello, how can I help you?"))
                 ]
             )
-        ]
+
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         with patch.object(
             user_config_manager, "get_config", return_value=_openai_config()
@@ -738,15 +784,19 @@ def test_chat_without_code(client: TestClient) -> None:
 def test_chat_with_code(client: TestClient) -> None:
     user_config_manager = get_session_config_manager(client)
 
-    with patch("openai.OpenAI") as openai_mock:
+    with patch("openai.AsyncOpenAI") as openai_mock:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="import pandas as pd"))]
             )
-        ]
+
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         with patch.object(
             user_config_manager, "get_config", return_value=_openai_config()
@@ -940,8 +990,16 @@ class TestGetFinishReason(unittest.TestCase):
         ),
     ],
 )
-def test_without_wrapping_backticks(chunks: list[str], expected: str) -> None:
-    result = list(without_wrapping_backticks(iter(chunks)))
+async def test_without_wrapping_backticks(
+    chunks: list[str], expected: str
+) -> None:
+    async def async_iter(items):
+        for item in items:
+            yield item
+
+    result = []
+    async for chunk in without_wrapping_backticks(async_iter(chunks)):
+        result.append(chunk)
     assert "".join(result) == expected
 
 
