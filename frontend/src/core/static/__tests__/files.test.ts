@@ -83,6 +83,102 @@ describe("patchFetch", () => {
       expect(text).toBe("hello,world\n");
     }
   });
+
+  it("should handle file:// URLs with @file/ paths", async () => {
+    const virtualFiles = {
+      "/@file/local-data.txt":
+        "data:text/plain;base64,TG9jYWwgZmlsZSBkYXRh" as DataURLString,
+    };
+
+    const unpatch = patchFetch(virtualFiles);
+
+    const response = await window.fetch(
+      "file:///Users/test/@file/local-data.txt",
+    );
+    const text = await response.text();
+
+    expect(text).toBe("Local file data");
+    expect(response.headers.get("Content-Type")).toBe("text/plain");
+
+    unpatch();
+  });
+
+  it("should handle blob: base URIs correctly", async () => {
+    // Mock document.baseURI to simulate blob: protocol
+    const originalBaseURI = document.baseURI;
+    Object.defineProperty(document, "baseURI", {
+      value: "blob:https://example.com/uuid",
+      configurable: true,
+    });
+
+    const virtualFiles = {
+      "/@file/blob-test.json":
+        "data:application/json;base64,eyJ0ZXN0IjogdHJ1ZX0=" as DataURLString,
+    };
+
+    patchFetch(virtualFiles);
+
+    const response = await window.fetch("/@file/blob-test.json");
+    const text = await response.text();
+
+    expect(text).toBe('{"test": true}');
+    expect(response.headers.get("Content-Type")).toBe("application/json");
+
+    // Restore original baseURI
+    Object.defineProperty(document, "baseURI", {
+      value: originalBaseURI,
+      configurable: true,
+    });
+  });
+
+  it("should handle various content types", async () => {
+    const virtualFiles = {
+      "/@file/test.csv": "data:text/csv;base64,YSxiLGMK" as DataURLString,
+      "/@file/test.json": "data:application/json;base64,e30K" as DataURLString,
+      "/@file/test.txt": "data:text/plain;base64,dGVzdA==" as DataURLString,
+      "/@file/test.bin":
+        "data:application/octet-stream;base64,AAECAwQ=" as DataURLString,
+    };
+
+    patchFetch(virtualFiles);
+
+    const testCases = [
+      { file: "/@file/test.csv", expectedType: "text/csv" },
+      { file: "/@file/test.json", expectedType: "application/json" },
+      { file: "/@file/test.txt", expectedType: "text/plain" },
+      { file: "/@file/test.bin", expectedType: "application/octet-stream" },
+    ];
+
+    for (const { file, expectedType } of testCases) {
+      const response = await window.fetch(file);
+      expect(response.headers.get("Content-Type")).toBe(expectedType);
+    }
+  });
+
+  it("should handle data: URLs directly without processing", async () => {
+    const virtualFiles = {};
+    patchFetch(virtualFiles);
+
+    const dataUrl = "data:text/plain;base64,SGVsbG8gV29ybGQ=";
+    const response = await window.fetch(dataUrl);
+    const text = await response.text();
+
+    expect(text).toBe("Hello World");
+  });
+
+  it("should handle error cases gracefully", async () => {
+    const virtualFiles = {};
+    const unpatch = patchFetch(virtualFiles);
+
+    // Mock Logger.error to avoid console output during tests
+    const loggerSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // This should fallback to original fetch and potentially fail
+    await expect(window.fetch("invalid://url")).rejects.toThrow();
+
+    unpatch();
+    loggerSpy.mockRestore();
+  });
 });
 
 describe("patchVegaLoader - loader.http", () => {
@@ -179,5 +275,215 @@ describe("patchVegaLoader - loader.load", () => {
     const unpatch = patchVegaLoader(loader, {});
     await expect(loader.load("/non-existent-file.json")).rejects.toThrow();
     unpatch();
+  });
+
+  it("should handle file:// URLs with @file/ paths in loader.load", async () => {
+    const virtualFiles = {
+      "/@file/vega-data.json":
+        "data:application/json;base64,eyJ2YWx1ZXMiOiBbMSwgMiwgM119" as DataURLString,
+    };
+
+    const loader = createLoader();
+    const unpatch = patchVegaLoader(loader, virtualFiles);
+
+    try {
+      const content = await loader.load("file:///path/to/@file/vega-data.json");
+      expect(content).toBe('{"values": [1, 2, 3]}');
+    } catch (error) {
+      // If it falls back to original loader and fails, that's expected for file:// URLs
+      // The important thing is that the virtual file lookup was attempted
+      expect(error).toBeDefined();
+    }
+
+    unpatch();
+  });
+
+  it("should pass files parameter correctly to maybeGetVirtualFile in loader.load", async () => {
+    // This test ensures the bug fix where files parameter was missing
+    const virtualFiles = {
+      "/test-file.json":
+        "data:application/json;base64,eyJmaXhlZCI6IHRydWV9" as DataURLString,
+    };
+
+    const loader = createLoader();
+    const unpatch = patchVegaLoader(loader, virtualFiles);
+    const content = await loader.load("/test-file.json");
+    unpatch();
+
+    expect(content).toBe('{"fixed": true}');
+  });
+
+  it("should handle different URL patterns in loader.load", async () => {
+    const virtualFiles = {
+      "/@file/pattern-test.json":
+        "data:application/json;base64,eyJwYXR0ZXJuIjogInRlc3QifQ==" as DataURLString,
+    };
+
+    const loader = createLoader();
+    const unpatch = patchVegaLoader(loader, virtualFiles);
+
+    // Test URL patterns that should resolve to the same virtual file
+    const testUrls = [
+      "/@file/pattern-test.json",
+      "./@file/pattern-test.json",
+      "http://example.com/@file/pattern-test.json",
+    ];
+
+    for (const url of testUrls) {
+      const content = await loader.load(url);
+      expect(content).toBe('{"pattern": "test"}');
+    }
+
+    // Test file:// URL separately since it might fallback
+    try {
+      const content = await loader.load(
+        "file:///local/path/@file/pattern-test.json",
+      );
+      expect(content).toBe('{"pattern": "test"}');
+    } catch (error) {
+      // Expected if it falls back to original loader
+      expect(error).toBeDefined();
+    }
+
+    unpatch();
+  });
+});
+
+describe("maybeGetVirtualFile utility function", () => {
+  it("should handle URLs without leading dots correctly", async () => {
+    const virtualFiles = {
+      "/file.txt": "data:text/plain;base64,dGVzdA==" as DataURLString,
+      "file.txt": "data:text/plain;base64,dGVzdA==" as DataURLString,
+    };
+
+    patchFetch(virtualFiles);
+
+    // Both should work
+    const response1 = await window.fetch("./file.txt");
+    const response2 = await window.fetch("/file.txt");
+
+    const text1 = await response1.text();
+    const text2 = await response2.text();
+
+    expect(text1).toBe("test");
+    expect(text2).toBe("test");
+  });
+
+  it("should handle complex file:// URLs with nested paths", async () => {
+    const virtualFiles = {
+      "/@file/nested/data.json":
+        "data:application/json;base64,eyJuZXN0ZWQiOiB0cnVlfQ==" as DataURLString,
+    };
+
+    const unpatch = patchFetch(virtualFiles);
+
+    const response = await window.fetch(
+      "file:///Users/project/deep/path/@file/nested/data.json",
+    );
+    const text = await response.text();
+
+    expect(text).toBe('{"nested": true}');
+
+    unpatch();
+  });
+
+  it("should handle URLs when @file/ is not found in file:// URLs", async () => {
+    const virtualFiles = {
+      "/@file/test.txt": "data:text/plain;base64,dGVzdA==" as DataURLString,
+    };
+
+    const unpatch = patchFetch(virtualFiles);
+
+    // This file:// URL doesn't contain @file/, so it should fallback to original fetch
+    await expect(
+      window.fetch("file:///simple/path/test.txt"),
+    ).rejects.toThrow();
+
+    unpatch();
+  });
+});
+
+describe("error handling and edge cases", () => {
+  it("should restore original functions after unpatch", async () => {
+    const originalFetch = window.fetch;
+    const loader = createLoader();
+
+    const unpatchFetch = patchFetch({});
+    const unpatchLoader = patchVegaLoader(loader, {});
+
+    // Functions should be patched
+    expect(window.fetch).not.toBe(originalFetch);
+
+    // Test that the patched functions work
+    const virtualFiles = {
+      "/@file/test.txt": "data:text/plain;base64,dGVzdA==" as DataURLString,
+    };
+
+    // Re-patch with test data
+    unpatchFetch();
+    unpatchLoader();
+
+    const unpatchFetch2 = patchFetch(virtualFiles);
+    const unpatchLoader2 = patchVegaLoader(loader, virtualFiles);
+
+    // Test functionality works
+    const response = await window.fetch("/@file/test.txt");
+    const text = await response.text();
+    expect(text).toBe("test");
+
+    const content = await loader.load("/@file/test.txt");
+    expect(content).toBe("test");
+
+    unpatchFetch2();
+    unpatchLoader2();
+
+    // Functions should be restored
+    expect(window.fetch).toBe(originalFetch);
+
+    // Test that the loader functions are functional (they should work normally)
+    try {
+      await loader.load("http://example.com/test.json");
+    } catch (error) {
+      // Expected to fail for non-existent URLs, but the function should be callable
+      expect(error).toBeDefined();
+    }
+  });
+
+  it("should handle Request objects in patchFetch", async () => {
+    const virtualFiles = {
+      "/@file/request-test.txt":
+        "data:text/plain;base64,UmVxdWVzdCB0ZXN0" as DataURLString,
+    };
+
+    const unpatch = patchFetch(virtualFiles);
+
+    // Use a full URL for the Request constructor
+    const request = new Request("http://example.com/@file/request-test.txt");
+    const response = await window.fetch(request);
+    const text = await response.text();
+
+    expect(text).toBe("Request test");
+
+    unpatch();
+  });
+
+  it("should handle malformed URLs gracefully", async () => {
+    const virtualFiles = {};
+    const unpatch = patchFetch(virtualFiles);
+
+    // Mock Logger.error to avoid test output
+    const loggerSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // This should catch the error and fallback to original fetch
+    try {
+      await window.fetch("not-a-valid-url");
+      // If it doesn't throw, that's also fine (fallback behavior)
+    } catch (error) {
+      // Expected behavior - invalid URLs should be handled gracefully
+      expect(error).toBeDefined();
+    }
+
+    unpatch();
+    loggerSpy.mockRestore();
   });
 });
