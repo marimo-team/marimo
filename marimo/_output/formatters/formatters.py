@@ -89,6 +89,20 @@ def patch_finder(
     third_party_factories: dict[str, FormatterFactory] | None = None,
     theme: Theme = "light",
 ) -> None:
+    """ Patch a MetaPathFinder to register formatters for third-parties
+    Python's import logic has roughly the following logic:
+      1. search for a module; if found, create a "module spec" that knows
+         how to create and load the module.
+      2. use the spec's loader to load the module.
+    
+    We monkey-patch the first step to check if a searched-for module
+    has a registered formatter. If a registered formatter is found,
+    our patch in turn patches the loader to run the formatter after
+    the module is exec'd.
+    
+    Because Python's import system caches modules, our formatters'
+    register methods will be called at most once.
+    """
     if third_party_factories is None:
         third_party_factories = THIRD_PARTY_FACTORIES
     # Note: "Vendored" dependencies may not have a find_spec method.
@@ -97,15 +111,12 @@ def patch_finder(
     if original_find_spec is None:
         return
 
-    # We include `original_find_spec` as a kwarg to force it to be bound
-    # to the new `find_spec` method; this is needed because closures are
-    # late-binding and we're in a for loop ...
+    # Method stub ignoring typing for "self" to allow binding
     def find_spec(  # type:ignore[no-untyped-def]
         self,
         fullname,
         path=None,
         target=None,
-        original_find_spec=original_find_spec,
     ) -> Any:
         del self
         spec = original_find_spec(fullname, path, target)
@@ -117,7 +128,7 @@ def patch_finder(
             # an associated formatter factory. We'll hook into its
             # loader to register the formatters.
             original_exec_module = spec.loader.exec_module
-            factory = THIRD_PARTY_FACTORIES[fullname]
+            factory = third_party_factories[fullname]
 
             # Once again, we use kwargs instead of closing over the
             # variables `original_exec_module` and `factory` to force
@@ -189,19 +200,6 @@ def register_formatters(theme: Theme = "light") -> None:
     # formatters whenever a supported third-party package is imported (in
     # particular, when its module is exec'd). This ensures that formatters are
     # loaded at the last possible moment: when its package is imported.
-    #
-    # Python's import logic has roughly the following logic:
-    #   1. search for a module; if found, create a "module spec" that knows
-    #      how to create and load the module.
-    #   2. use the spec's loader to load the module.
-    #
-    # We monkey-patch the first step to check if a searched-for module
-    # has a registered formatter. If a registered formatter is found,
-    # our patch in turn patches the loader to run the formatter after
-    # the module is exec'd.
-    #
-    # Because Python's import system caches modules, our formatters'
-    # register methods will be called at most once.
     for finder in sys.meta_path:
         patch_finder(
             finder,
