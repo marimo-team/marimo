@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import abc
-import re
 from dataclasses import dataclass
 from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
@@ -38,19 +37,6 @@ class TableCell:
         if key not in ["row", "column", "value"]:
             raise KeyError(f"Invalid key: {key}")
         return getattr(self, key)
-
-
-def has_box_drawing_characters(values: list[Any]) -> bool:
-    """
-    Check if any of the values contain box drawing characters.
-    Common in EXPLAIN QUERY PLAN output.
-    """
-    box_drawing_pattern = re.compile(r"[─│┌┐└┘├┤┬┴]")
-
-    for value in values:
-        if isinstance(value, str) and box_drawing_pattern.search(value):
-            return True
-    return False
 
 
 class TableManager(abc.ABC, Generic[T]):
