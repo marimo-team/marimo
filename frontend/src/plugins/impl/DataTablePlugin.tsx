@@ -66,6 +66,7 @@ import { Logger } from "@/utils/Logger";
 import {
   generateColumns,
   inferFieldTypes,
+  overrideFieldTypes,
 } from "../../components/data-table/columns";
 import { DataTable } from "../../components/data-table/data-table";
 import { createPlugin } from "../core/builder";
@@ -744,7 +745,9 @@ const DataTableComponent = ({
     );
   }, [fieldTypes, columnSummaries]);
 
-  const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
+  const fieldTypesOrInferred = fieldTypes
+    ? overrideFieldTypes(fieldTypes, data)
+    : inferFieldTypes(data);
 
   const memoizedUnclampedFieldTypes =
     useDeepCompareMemoize(fieldTypesOrInferred);

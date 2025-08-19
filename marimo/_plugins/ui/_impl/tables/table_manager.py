@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
 from marimo._data.models import (
-    BOX_DRAWING_EXTERNAL_TYPE,
     BinValue,
     ColumnStats,
     DataType,
@@ -155,18 +154,10 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     def get_field_types(self) -> FieldTypes:
-        # Box drawings are only supported for small tables
-        check_box_drawing = self.get_num_columns() <= 3
-
-        field_types = []
-        for column_name in self.get_column_names():
-            field_type, external_type = self.get_field_type(column_name)
-            if check_box_drawing and has_box_drawing_characters(
-                self.get_sample_values(column_name)
-            ):
-                external_type = BOX_DRAWING_EXTERNAL_TYPE
-            field_types.append((column_name, (field_type, external_type)))
-        return field_types
+        return [
+            (column_name, self.get_field_type(column_name))
+            for column_name in self.get_column_names()
+        ]
 
     @abc.abstractmethod
     def take(self, count: int, offset: int) -> TableManager[Any]:
