@@ -2063,6 +2063,59 @@ def test_max_columns_not_provided_with_filters():
     assert len(result_data[0].keys()) == 101  # +1 for marimo_row_id
 
 
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_filters_with_nonexistent_columns():
+    """Test that filters for non-existent columns are filtered out gracefully."""
+    import pandas as pd
+
+    data = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]})
+    table = ui.table(data)
+
+    # Test with filters containing both existing and non-existent columns
+    search_args = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        filters=[
+            Condition(column_id="a", operator="==", value=1),  # exists
+            Condition(
+                column_id="nonexistent", operator="==", value=10
+            ),  # doesn't exist
+            Condition(column_id="b", operator=">=", value=4),  # exists
+            Condition(
+                column_id="missing_col", operator="!=", value=0
+            ),  # doesn't exist
+        ],
+    )
+
+    # Should not raise an error and should apply only the valid filters
+    response = table._search(search_args)
+
+    # Should return 1 row (where a==1 and b>=4)
+    assert response.total_rows == 1
+    result_data = json.loads(response.data)
+    assert len(result_data) == 1
+    assert result_data[0]["a"] == 1
+    assert result_data[0]["b"] == 4
+    assert result_data[0]["c"] == 7
+
+    # Test with all non-existent columns (should return all rows)
+    search_args_all_invalid = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        filters=[
+            Condition(column_id="nonexistent1", operator="==", value=1),
+            Condition(column_id="nonexistent2", operator="!=", value=2),
+        ],
+    )
+
+    response = table._search(search_args_all_invalid)
+    assert response.total_rows == 3  # All rows returned since no valid filters
+    result_data = json.loads(response.data)
+    assert len(result_data) == 3
+
+
 def test_show_page_size_selector_property():
     """Test the show_page_size_selector property behavior."""
     data = {"a": list(range(20))}  # 20 rows to ensure pagination
