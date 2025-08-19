@@ -50,7 +50,6 @@ import { FeatureFlagged } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
@@ -147,7 +146,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 interface ChatMessageProps {
   message: Message;
   index: number;
-  theme: ResolvedTheme;
   onEdit: (index: number, newValue: string) => void;
   setChatState: Dispatch<SetStateAction<ChatState>>;
   chatState: ChatState;
@@ -156,7 +154,7 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = memo(
-  ({ message, index, theme, onEdit, isStreamingReasoning, totalMessages }) => (
+  ({ message, index, onEdit, isStreamingReasoning, totalMessages }) => (
     <div
       className={cn(
         "flex group relative",
@@ -168,7 +166,6 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
           <PromptInput
             key={message.id}
             value={message.content}
-            theme={theme}
             placeholder="Type your message..."
             onChange={() => {
               // noop
@@ -325,14 +322,13 @@ interface ChatInputProps {
   input: string;
   setInput: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
-  theme: ResolvedTheme;
   inputRef: React.RefObject<ReactCodeMirrorRef | null>;
   isLoading: boolean;
   onStop: () => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = memo(
-  ({ input, setInput, onSubmit, theme, inputRef, isLoading, onStop }) => {
+  ({ input, setInput, onSubmit, inputRef, isLoading, onStop }) => {
     const handleSendClick = () => {
       if (input.trim()) {
         onSubmit(undefined, input);
@@ -347,7 +343,6 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onChange={setInput}
             onSubmit={onSubmit}
             onClose={() => inputRef.current?.editor?.blur()}
-            theme={theme}
             placeholder="Type your message..."
           />
         </div>
@@ -394,7 +389,6 @@ const ChatPanelBody = () => {
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();
 
@@ -653,7 +647,6 @@ const ChatPanelBody = () => {
                 key="new-thread-input"
                 value={newThreadInput}
                 placeholder="Ask anything, @ to include context about tables or dataframes"
-                theme={theme}
                 onClose={handleOnCloseThread}
                 onChange={setNewThreadInput}
                 onSubmit={handleNewThreadSubmit}
@@ -673,7 +666,6 @@ const ChatPanelBody = () => {
             key={idx}
             message={message}
             index={idx}
-            theme={theme}
             onEdit={handleMessageEdit}
             setChatState={setChatState}
             chatState={chatState}
@@ -713,7 +705,6 @@ const ChatPanelBody = () => {
           input={input}
           setInput={setInput}
           onSubmit={handleChatInputSubmit}
-          theme={theme}
           inputRef={newMessageInputRef}
           isLoading={isLoading}
           onStop={stop}

@@ -45,7 +45,7 @@ import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql
 import { aiAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRuntimeManager } from "@/core/runtime/config";
-import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
+import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
 import { useCellActions } from "../../../core/cells/cells";
@@ -164,7 +164,6 @@ export const AddCellWithAI: React.FC<{
     <div className="flex items-center px-3">
       <SparklesIcon className="size-4 text-(--blue-11) mr-2" />
       <PromptInput
-        theme={theme}
         onClose={() => {
           setCompletion("");
           onClose();
@@ -188,29 +187,6 @@ export const AddCellWithAI: React.FC<{
           Stop
         </Button>
       )}
-      {!isLoading && completion && (
-        <Button
-          data-testid="accept-completion-button"
-          variant="text"
-          size="sm"
-          className="mb-0"
-          disabled={isLoading}
-          onClick={() => {
-            createNewCell({
-              cellId: "__end__",
-              before: false,
-              code:
-                language === "python"
-                  ? completion
-                  : SQLLanguageAdapter.fromQuery(completion),
-            });
-            setCompletion("");
-            onClose();
-          }}
-        >
-          <span className="text-(--grass-11) opacity-100">Accept</span>
-        </Button>
-      )}
       <Button variant="text" size="sm" onClick={submit} title="Submit">
         <SendHorizontal className="size-4" />
       </Button>
@@ -223,7 +199,7 @@ export const AddCellWithAI: React.FC<{
   return (
     <div className={cn("flex flex-col w-full gap-2 py-2")}>
       {inputComponent}
-      <div className="flex items-start pr-2">
+      <div className="flex flex-row justify-between -mt-1 ml-1 mr-3">
         {!completion && (
           <span className="text-xs text-muted-foreground px-3 flex flex-col gap-1">
             <span>
@@ -235,7 +211,40 @@ export const AddCellWithAI: React.FC<{
             <span>Code from other cells is automatically included.</span>
           </span>
         )}
-        <div className="ml-auto flex items-center gap-1 -mt-1">
+        {completion && (
+          <>
+            <Button
+              data-testid="accept-completion-button"
+              variant="text"
+              size="sm"
+              className="mb-0"
+              onClick={() => {
+                createNewCell({
+                  cellId: "__end__",
+                  before: false,
+                  code:
+                    language === "python"
+                      ? completion
+                      : SQLLanguageAdapter.fromQuery(completion),
+                });
+                setCompletion("");
+                onClose();
+              }}
+            >
+              <span className="text-(--grass-11)">Accept</span>
+            </Button>
+            <Button
+              data-testid="decline-completion-button"
+              variant="text"
+              size="sm"
+              className="mb-0 pl-1"
+              onClick={() => setCompletion("")}
+            >
+              <span className="text-(--red-10)">Reject</span>
+            </Button>
+          </>
+        )}
+        <div className="ml-auto flex items-center gap-1">
           {languageDropdown}
           <AIModelDropdown
             value={editModel}
@@ -276,7 +285,6 @@ interface PromptInputProps {
   onChange: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   additionalCompletions?: AdditionalCompletions;
-  theme: ResolvedTheme;
   maxHeight?: string;
 }
 
@@ -295,12 +303,12 @@ export const PromptInput = ({
   onSubmit,
   onClose,
   additionalCompletions,
-  theme,
   maxHeight,
 }: PromptInputProps) => {
   const handleSubmit = onSubmit;
   const handleEscape = onClose;
   const store = useStore();
+  const { theme } = useTheme();
 
   const additionalCompletionsSource: CompletionSource = useEvent(
     (context: CompletionContext) => {
