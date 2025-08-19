@@ -43,7 +43,6 @@ import { toast } from "@/components/ui/use-toast";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { renderHTML } from "@/plugins/core/RenderHTML";
-import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
@@ -74,7 +73,6 @@ export const Chatbot: React.FC<Props> = (props) => {
   const formRef = useRef<HTMLFormElement>(null);
   const codeMirrorInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
 
   const { data: initialMessages } = useAsyncData(async () => {
     const chatMessages = await props.get_chat_history({});
@@ -374,7 +372,6 @@ export const Chatbot: React.FC<Props> = (props) => {
           placeholder={promptInputPlaceholder}
           value={input}
           inputRef={codeMirrorInputRef}
-          theme={theme}
           maxHeight={props.maxHeight ? `${props.maxHeight / 2}px` : undefined}
           onChange={setInput}
           onSubmit={(_evt, newValue) => {
