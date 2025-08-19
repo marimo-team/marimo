@@ -7,6 +7,7 @@ import sys
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Callable, Literal, Optional, Union
 from uuid import uuid4
 
@@ -155,6 +156,13 @@ NamedNode = Union[
     "ast.ParamSpec",  # type: ignore
     "ast.TypeVarTuple",  # type: ignore
 ]
+
+
+# Cache SQL refs to avoid parsing the same SQL statement multiple times
+# since this can be called for each SQL cell on save.
+@lru_cache(maxsize=200)
+def find_sql_refs_cached(sql_statement: str) -> list[str]:
+    return find_sql_refs(sql_statement)
 
 
 class ScopedVisitor(ast.NodeVisitor):
@@ -636,7 +644,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         # TODO(akshayka): more comprehensive parsing
                         # of the statement -- schemas can show up in
                         # joins, queries, ...
-                        from_targets = find_sql_refs(statement.query)
+                        from_targets = find_sql_refs_cached(statement.query)
                     except (duckdb.ProgrammingError, duckdb.IOException):
                         LOGGER.debug(
                             "Error parsing SQL statement: %s", statement.query
