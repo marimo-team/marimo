@@ -143,7 +143,13 @@ del Loader; del MetaPathFinder
     # append the finder to the end of meta_path, in case the user
     # already has a package called micropip
     exec(
-        "import sys; sys.meta_path.append(_MicropipFinder()); del sys",
+        textwrap.dedent(r"""
+import sys
+# If micropip is already in sys.meta_path, we don't need to add it
+# again.
+if not sys.meta_path or sys.meta_path[-1].__class__.__name__ != '_MicropipFinder':
+    sys.meta_path.append(_MicropipFinder())
+del sys"""),
         glbls,
     )
 

@@ -185,9 +185,16 @@ def register_formatters(theme: Theme = "light") -> None:
 
             return spec
 
-        # Use the __get__ descriptor to bind find_spec to this finder object,
-        # to make sure self/cls gets passed
-        finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]  # noqa: E501
+        # Recursive wrap can lead to a stack overflow in long running apps.
+        # `find_spec` is dynamic, so just compare the __module__s
+        module_name = getattr(finder.find_spec, "__module__", None)
+        if hasattr(finder.find_spec, "__func__"):
+            module_name = finder.find_spec.__module__
+
+        if module_name != find_spec.__module__:
+            # Use the __get__ descriptor to bind find_spec to this finder object,
+            # to make sure self/cls gets passed
+            finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]  # noqa: E501
 
     # These factories are for builtins or other things that don't require a
     # package import. So we can register them at program start-up.

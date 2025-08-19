@@ -32,6 +32,21 @@ class TestMicropip:
         assert "micropip" in executing_kernel.globals
 
     @staticmethod
+    async def test_micropip_once(
+        executing_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await executing_kernel.run([exec_req.get("import sys")])
+        assert (
+            executing_kernel.globals["sys"].meta_path[-1].__class__.__name__
+            == "_MicropipFinder"
+        )
+        # Double patched at this point, barring explicit fix.
+        assert (
+            executing_kernel.globals["sys"].meta_path[-2].__class__.__name__
+            != "_MicropipFinder"
+        )
+
+    @staticmethod
     async def test_micropip_install(
         executing_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
