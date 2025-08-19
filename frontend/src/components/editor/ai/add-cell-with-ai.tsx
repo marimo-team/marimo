@@ -9,7 +9,6 @@ import {
 import { markdown } from "@codemirror/lang-markdown";
 import { sql } from "@codemirror/lang-sql";
 import { Prec } from "@codemirror/state";
-import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
 import ReactCodeMirror, {
   EditorView,
   keymap,
@@ -35,6 +34,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
