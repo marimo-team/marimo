@@ -231,7 +231,7 @@ class CellImpl:
         """
         return self._get_sqls()
 
-    @property
+    @cached_property
     def raw_sqls(self) -> list[str]:
         """Returns unparsed SQL statements from this cell.
 
