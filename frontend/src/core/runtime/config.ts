@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtomValue } from "jotai";
+import { isStaticNotebook } from "@/core/static/static-state";
 import { store } from "../state/jotai";
 import { RuntimeManager } from "./runtime";
 import type { RuntimeConfig } from "./types";
-import { isStaticNotebook } from "@/core/static/static-state";
 
 function getBaseURI(): string {
   const url = new URL(document.baseURI);
