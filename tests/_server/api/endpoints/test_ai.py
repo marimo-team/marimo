@@ -480,7 +480,7 @@ class TestAnthropicAiEndpoints:
 class TestGoogleAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.Client")
+    @patch("google.genai.AsyncClient")
     def test_google_ai_completion_with_code(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -531,7 +531,7 @@ class TestGoogleAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.Client")
+    @patch("google.genai.AsyncClient")
     def test_google_ai_completion_without_token(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -564,7 +564,7 @@ class TestGoogleAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.Client")
+    @patch("google.genai.AsyncClient")
     def test_google_ai_inline_completion(
         client: TestClient, google_ai_mock: Any
     ) -> None:

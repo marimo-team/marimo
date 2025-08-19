@@ -120,7 +120,7 @@ async def ai_completion(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,
     )
-    response = provider.stream_completion(
+    response = await provider.stream_completion(
         messages=[ChatMessage(role="user", content=prompt)],
         system_prompt=system_prompt,
         max_tokens=get_max_tokens(config),
@@ -176,7 +176,7 @@ async def ai_chat(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,
     )
-    response = provider.stream_completion(
+    response = await provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,
         max_tokens=max_tokens,
@@ -236,14 +236,19 @@ async def ai_inline_completion(
         provider_config.tools.clear()
 
     provider = get_completion_provider(provider_config, model=model)
-    response = provider.stream_completion(
+    response = await provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,
         max_tokens=INLINE_COMPLETION_MAX_TOKENS,
     )
 
+    content = await provider.collect_stream(response)
+
+    # Filter out `<|file_separator|>` which is sometimes returned FIM models
+    content = content.replace("<|file_separator|>", "")
+
     return PlainTextResponse(
-        content=provider.collect_stream(response),
+        content=content,
         media_type="text/plain",
     )
 

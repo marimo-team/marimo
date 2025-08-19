@@ -26,7 +26,7 @@ from marimo._server.ai.providers import (
         ),
     ],
 )
-def test_anyprovider_for_model(model_name, provider_name):
+def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
     """Test that the correct config is returned for a given model."""
     ai_config = AiConfig(
         open_ai={
@@ -67,7 +67,7 @@ def test_anyprovider_for_model(model_name, provider_name):
         ),
     ],
 )
-def test_get_completion_provider(model_name, provider_type):
+def test_get_completion_provider(model_name: str, provider_type: type) -> None:
     """Test that the correct provider is returned for a given model."""
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
     provider = get_completion_provider(config, model_name)

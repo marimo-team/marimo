@@ -5,7 +5,7 @@ import json
 import os
 import uuid
 from abc import ABC, abstractmethod
-from collections.abc import Generator, Iterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -38,14 +38,14 @@ from marimo._server.api.status import HTTPStatus
 
 if TYPE_CHECKING:
     from anthropic import (  # type: ignore[import-not-found]
-        Client,
-        Stream as AnthropicStream,
+        AsyncClient,
+        AsyncStream as AnthropicStream,
     )
     from anthropic.types import (  # type: ignore[import-not-found]
         RawMessageStreamEvent,
     )
     from google.genai.client import (  # type: ignore[import-not-found]
-        Client as GoogleClient,
+        AsyncClient as GoogleClient,
     )
     from google.genai.types import (  # type: ignore[import-not-found]
         GenerateContentConfig,
@@ -60,8 +60,8 @@ if TYPE_CHECKING:
         ModelResponseStream as LitellmStreamResponse,
     )
     from openai import (  # type: ignore[import-not-found]
-        OpenAI,
-        Stream as OpenAiStream,
+        AsyncOpenAI,
+        AsyncStream as OpenAiStream,
     )
     from openai.types.chat import (  # type: ignore[import-not-found]
         ChatCompletionChunk,
@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 
 
 ResponseT = TypeVar("ResponseT")
-StreamT = TypeVar("StreamT")
+StreamT = TypeVar("StreamT", bound=AsyncIterator[Any])
 FinishReason = Literal["tool_calls", "stop"]
 
 # Types for extract_content method return
@@ -112,7 +112,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         self.config = config
 
     @abstractmethod
-    def stream_completion(
+    async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
@@ -148,11 +148,14 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
             return convert_to_ai_sdk_messages(content_text, content_type)
         return ""
 
-    def collect_stream(self, response: StreamT) -> str:
+    async def collect_stream(self, response: StreamT) -> str:
         """Collect a stream into a single string."""
-        return "".join(
-            self.as_stream_response(response, StreamOptions(text_only=True))
-        )
+        result: list[str] = []
+        async for chunk in self.as_stream_response(
+            response, StreamOptions(text_only=True)
+        ):
+            result.append(chunk)
+        return "".join(result)
 
     def _content_to_string(
         self, content_data: Union[str, dict[str, Any]]
@@ -212,10 +215,10 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
                 detail=f"Invalid tool call arguments: malformed JSON: {tool_call_args}",
             ) from e
 
-    def as_stream_response(
+    async def as_stream_response(
         self, response: StreamT, options: Optional[StreamOptions] = None
-    ) -> Generator[str, None, None]:
-        """Convert a stream to a generator of strings."""
+    ) -> AsyncGenerator[str, None]:
+        """Convert a stream to an async generator of strings."""
         original_content = ""
         buffer = ""
         options = options or StreamOptions()
@@ -228,7 +231,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         # Finish reason collected from the last chunk
         finish_reason: Optional[FinishReason] = None
 
-        for chunk in cast(Generator[ResponseT, None, None], response):
+        async for chunk in response:
             # Always check for finish reason first, before checking content
             # Some chunks (like RawMessageDeltaEvent) contain finish reasons but no extractable content
             # If we check content first, these chunks get skipped and finish reason is never detected
@@ -326,14 +329,14 @@ class OpenAIProvider(
         # only o-series models support reasoning
         return model.startswith("o")
 
-    def get_client(self, config: AnyProviderConfig) -> OpenAI:
+    def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         DependencyManager.openai.require(why="for AI assistance with OpenAI")
 
         import ssl
         from pathlib import Path
 
         import httpx
-        from openai import OpenAI
+        from openai import AsyncOpenAI
 
         base_url = config.base_url or None
         key = config.api_key
@@ -378,29 +381,29 @@ class OpenAIProvider(
 
             # if ssl context was created by the above statements
             if ctx:
-                client = httpx.Client(verify=ctx)
+                client = httpx.AsyncClient(verify=ctx)
             else:
                 pass
         else:
-            client = httpx.Client(verify=False)
+            client = httpx.AsyncClient(verify=False)
 
-        # if client is created, either with a custom context or with verify=False, use it as the http_client object in `OpenAI`
+        # if client is created, either with a custom context or with verify=False, use it as the http_client object in `AsyncOpenAI`
         if client:
-            return OpenAI(
+            return AsyncOpenAI(
                 default_headers={"api-key": key},
                 api_key=key,
                 base_url=base_url,
                 http_client=client,
             )
 
-        # if not, return bog standard OpenAI object
-        return OpenAI(
+        # if not, return bog standard AsyncOpenAI object
+        return AsyncOpenAI(
             default_headers={"api-key": key},
             api_key=key,
             base_url=base_url,
         )
 
-    def stream_completion(
+    async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
@@ -427,7 +430,7 @@ class OpenAIProvider(
             create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
         return cast(
             "OpenAiStream[ChatCompletionChunk]",
-            client.chat.completions.create(**create_params),
+            await client.chat.completions.create(**create_params),
         )
 
     def extract_content(
@@ -504,10 +507,10 @@ class OpenAIProvider(
 
 
 class AzureOpenAIProvider(OpenAIProvider):
-    def get_client(self, config: AnyProviderConfig) -> OpenAI:
+    def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         from urllib.parse import parse_qs, urlparse
 
-        from openai import AzureOpenAI
+        from openai import AsyncAzureOpenAI
 
         base_url = config.base_url or None
         key = config.api_key
@@ -517,7 +520,7 @@ class AzureOpenAIProvider(OpenAIProvider):
         deployment_model = cast(str, parsed_url.path).split("/")[3]
         api_version = parse_qs(cast(str, parsed_url.query))["api-version"][0]
 
-        return AzureOpenAI(
+        return AsyncAzureOpenAI(
             api_key=key,
             api_version=api_version,
             azure_deployment=deployment_model,
@@ -560,15 +563,15 @@ class AnthropicProvider(
             else self.DEFAULT_TEMPERATURE
         )
 
-    def get_client(self, config: AnyProviderConfig) -> Client:
+    def get_client(self, config: AnyProviderConfig) -> AsyncClient:
         DependencyManager.anthropic.require(
             why="for AI assistance with Anthropic"
         )
-        from anthropic import Client
+        from anthropic import AsyncClient
 
-        return Client(api_key=config.api_key)
+        return AsyncClient(api_key=config.api_key)
 
-    def stream_completion(
+    async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
@@ -594,7 +597,7 @@ class AnthropicProvider(
             }
         return cast(
             "AnthropicStream[RawMessageStreamEvent]",
-            client.messages.create(**create_params),
+            await client.messages.create(**create_params),
         )
 
     def extract_content(
@@ -658,7 +661,9 @@ class AnthropicProvider(
 
 
 class GoogleProvider(
-    CompletionProvider["GenerateContentResponse", "GenerateContentResponse"]
+    CompletionProvider[
+        "GenerateContentResponse", "AsyncIterator[GenerateContentResponse]"
+    ]
 ):
     # Based on the docs:
     # https://cloud.google.com/vertex-ai/generative-ai/docs/thinking
@@ -696,23 +701,20 @@ class GoogleProvider(
             )
             from google import genai  # type: ignore
 
-        return genai.Client(api_key=config.api_key)
+        return genai.Client(api_key=config.api_key).aio
 
-    def stream_completion(
+    async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
-    ) -> Iterator[GenerateContentResponse]:
+    ) -> AsyncIterator[GenerateContentResponse]:
         client = self.get_client(self.config)
-        return cast(
-            "Iterator[GenerateContentResponse]",
-            client.models.generate_content_stream(
-                model=self.model,
-                contents=convert_to_google_messages(messages),
-                config=self.get_config(
-                    system_prompt=system_prompt, max_tokens=max_tokens
-                ),
+        return await client.models.generate_content_stream(
+            model=self.model,
+            contents=convert_to_google_messages(messages),
+            config=self.get_config(
+                system_prompt=system_prompt, max_tokens=max_tokens
             ),
         )
 
@@ -770,8 +772,11 @@ class GoogleProvider(
     def get_finish_reason(
         self, response: GenerateContentResponse
     ) -> Optional[FinishReason]:
-        if response.candidates and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
+        if not response.candidates:
+            return None
+        first_candidate = response.candidates[0]
+        if first_candidate.content and first_candidate.content.parts:
+            for part in first_candidate.content.parts:
                 if part.function_call:
                     return "tool_calls"
         if response.candidates and response.candidates[0].finish_reason:
@@ -804,7 +809,7 @@ class BedrockProvider(
                 detail="Error setting up AWS credentials",
             ) from e
 
-    def stream_completion(
+    async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
@@ -812,11 +817,11 @@ class BedrockProvider(
     ) -> LitellmStream:
         DependencyManager.litellm.require(why="for AI assistance with Bedrock")
         DependencyManager.boto3.require(why="for AI assistance with Bedrock")
-        from litellm import completion as litellm_completion
+        from litellm import acompletion as litellm_completion
 
         self.setup_credentials(self.config)
 
-        return litellm_completion(
+        return await litellm_completion(
             model=self.model,
             messages=cast(
                 Any,
@@ -907,10 +912,12 @@ def get_completion_provider(
         return OpenAIProvider(model_id.model, config)
 
 
-def merge_backticks(chunks: Iterator[str]) -> Generator[str, None, None]:
+async def merge_backticks(
+    chunks: AsyncIterator[str],
+) -> AsyncGenerator[str, None]:
     buffer: Optional[str] = None
 
-    for chunk in chunks:
+    async for chunk in chunks:
         if buffer is None:
             buffer = chunk
         else:
@@ -932,14 +939,14 @@ def merge_backticks(chunks: Iterator[str]) -> Generator[str, None, None]:
         yield buffer
 
 
-def without_wrapping_backticks(
-    chunks: Iterator[str],
-) -> Generator[str, None, None]:
+async def without_wrapping_backticks(
+    chunks: AsyncIterator[str],
+) -> AsyncGenerator[str, None]:
     """
     Removes the first and last backticks (```) from a stream of text chunks.
 
     Args:
-        chunks: An iterator of text chunks
+        chunks: An async iterator of text chunks
 
     Yields:
         Text chunks with the first and last backticks removed if they exist
@@ -954,7 +961,7 @@ def without_wrapping_backticks(
     buffer: Optional[str] = None
     has_starting_backticks = False
 
-    for chunk in chunks:
+    async for chunk in chunks:
         # Handle the first chunk
         if first_chunk:
             first_chunk = False
