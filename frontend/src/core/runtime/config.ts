@@ -3,6 +3,7 @@ import { atom, useAtomValue } from "jotai";
 import { store } from "../state/jotai";
 import { RuntimeManager } from "./runtime";
 import type { RuntimeConfig } from "./types";
+import { isStaticNotebook } from "@/core/static/static-state";
 
 function getBaseURI(): string {
   const url = new URL(document.baseURI);
@@ -18,7 +19,10 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
 export const runtimeConfigAtom = atom<RuntimeConfig>(DEFAULT_RUNTIME_CONFIG);
 const runtimeManagerAtom = atom<RuntimeManager>((get) => {
   const config = get(runtimeConfigAtom);
-  return new RuntimeManager(config);
+  // "lazy" means that the runtime manager will attempt to connect to a
+  // server, which in the case of a static notebook, will not be available.
+  const lazy = isStaticNotebook();
+  return new RuntimeManager(config, lazy);
 });
 
 export function useRuntimeManager(): RuntimeManager {
