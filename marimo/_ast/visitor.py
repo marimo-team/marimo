@@ -171,7 +171,7 @@ NamedNode = Union[
 # Cache SQL refs to avoid parsing the same SQL statement multiple times
 # since this can be called for each SQL cell on save.
 @lru_cache(maxsize=200)
-def find_sql_refs_cached(sql_statement: str) -> list[str]:
+def find_sql_refs_cached(sql_statement: str) -> set[SQLRef]:
     return find_sql_refs(sql_statement)
 
 
@@ -662,7 +662,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     sql_refs: set[SQLRef] = set()
                     # Parse the refs and defs of each statement
                     try:
-                        sql_refs = find_sql_refs(statement.query)
+                        sql_refs = find_sql_refs_cached(statement.query)
                     except (duckdb.ProgrammingError, duckdb.IOException):
                         LOGGER.debug(
                             "Error parsing SQL statement: %s", statement.query
