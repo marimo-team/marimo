@@ -19,6 +19,8 @@ if os.name == "posix":
 elif os.name == "nt":
     # for Windows
     ROOT_DIR = Path.home() / ".marimo"
+else:
+    ROOT_DIR = ".marimo"
 
 T = TypeVar("T")
 
