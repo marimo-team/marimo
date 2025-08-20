@@ -3,13 +3,20 @@ from __future__ import annotations
 
 import os
 from dataclasses import asdict
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Optional, TypeVar
 
 from marimo._utils.parse_dataclass import parse_raw
 from marimo._utils.toml import is_toml_error, read_toml
 
-ROOT_DIR = os.environ.get("MARIMO_ROOT_DIR", ".marimo")
+if os.name == "posix":
+    # for Linux/macOS/Unix
+    _state_home = os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")
+    ROOT_DIR = Path(_state_home) / "marimo"
+elif os.name == "nt":
+    # for Windows
+    ROOT_DIR = Path.home() / ".marimo"
 
 T = TypeVar("T")
 
