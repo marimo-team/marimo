@@ -217,14 +217,15 @@ const ProviderDropdownContent = ({
               </p>
 
               <p className="text-sm text-muted-foreground p-2 pt-0">
-                You can find more information about this provider{" "}
+                For more information, see the{" "}
                 <a
                   href={maybeProviderInfo.url}
                   target="_blank"
                   className="underline"
                   rel="noreferrer"
+                  aria-label="Provider details"
                 >
-                  here
+                  provider details
                 </a>
                 .
               </p>
@@ -238,7 +239,7 @@ const ProviderDropdownContent = ({
               <DropdownMenuItem
                 key={qualifiedModelId}
                 className="flex items-center gap-2"
-                onSelect={(e) => {
+                onSelect={() => {
                   onSelect(qualifiedModelId);
                 }}
               >
