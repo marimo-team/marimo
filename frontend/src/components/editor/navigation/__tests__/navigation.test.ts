@@ -65,8 +65,7 @@ const mockUseCellClipboard = vi.mocked(
 ).useCellClipboard;
 
 afterAll(() => {
-  vi.clearAllMocks();
-  vi.restoreAllMocks();
+  vi.resetAllMocks();
 });
 
 import { defaultUserConfig } from "@/core/config/config-schema";
