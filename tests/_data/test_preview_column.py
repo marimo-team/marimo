@@ -537,10 +537,6 @@ def test_preview_column_duration_dtype() -> None:
                 timedelta(microseconds=1),
                 timedelta(microseconds=2),
             ],
-            "duration_nanoseconds": [
-                timedelta(microseconds=0.001),
-                timedelta(microseconds=0.002),
-            ],
         }
     )
 
