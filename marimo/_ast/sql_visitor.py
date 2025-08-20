@@ -376,12 +376,11 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
 
         # Check if the table name looks like a URL or has a file extension.
         # These are often not actual table references, so we skip them.
-        if re.match(r"^(http|https|ftp)://", table_name):
-            return None
-        if re.search(
-            r"\.(csv|parquet|json|txt|db|tsv|xlsx?)$",
-            table_name,
-            re.IGNORECASE,
+        # Note that they can be valid table refs, but for now we skip them.
+        if table_name.startswith(
+            ("http://", "https://", "ftp://")
+        ) or table_name.endswith(
+            (".csv", ".parquet", ".json", ".txt", ".db", ".tsv", ".xlsx")
         ):
             return None
 

@@ -584,6 +584,25 @@ class TestSQL:
         multiply_defined = graph.get_multiply_defined()
         assert multiply_defined == []
 
+    @pytest.mark.xfail(reason="TODO: A bug in finding multiply defined names")
+    def test_sql_table_schema_to_python_ref(self):
+        graph = dataflow.DirectedGraph()
+        code = 'df = mo.sql("CREATE TABLE schema1.t1 (i INTEGER, j INTEGER)")'
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        code = "t1 = 123"
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+        }
+
+        multiply_defined = graph.get_multiply_defined()
+        assert multiply_defined == []
+
     def test_no_sql_table_to_python_ref(self):
         graph = dataflow.DirectedGraph()
         code = 'df = mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")'

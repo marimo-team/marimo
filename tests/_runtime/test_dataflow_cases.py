@@ -193,7 +193,7 @@ SQL_CASES = [
         expected_defs={"0": ["df"], "1": ["df"]},
     ),
     GraphTestCase(
-        name="python and sql not related because has schema",
+        name="sql should not reference python variables when schema",
         enabled=HAS_DUCKDB,
         code={
             "0": "df = pd.read_csv('data.csv')",
@@ -300,7 +300,7 @@ SQL_CASES = [
             "1": ["mo"],
             "2": ["mo", "schema_one.my_table"],
         },
-        # What should the defs be?
+        # TODO: What should the defs be?
         expected_defs={"0": ["my_table"], "1": ["my_table"], "2": []},
         xfail=True,
     ),
