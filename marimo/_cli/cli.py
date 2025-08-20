@@ -224,7 +224,10 @@ sandbox_message = (
 )
 
 
-@click.group(help=main_help_msg)
+@click.group(
+    help=main_help_msg,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 @click.version_option(version=__version__, message="%(version)s")
 @click.option(
     "-l",
