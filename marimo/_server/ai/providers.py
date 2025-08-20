@@ -421,13 +421,15 @@ class OpenAIProvider(
                     + messages
                 ),
             ),
-            "max_completion_tokens": max_tokens,
             "stream": True,
             "timeout": 15,
             "tools": convert_to_openai_tools(self.config.tools),
         }
         if self._is_reasoning_model(self.model):
             create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
+            create_params["max_completion_tokens"] = max_tokens
+        else:
+            create_params["max_tokens"] = max_tokens
         return cast(
             "OpenAiStream[ChatCompletionChunk]",
             await client.chat.completions.create(**create_params),
