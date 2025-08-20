@@ -327,7 +327,7 @@ class OpenAIProvider(
 
     def _is_reasoning_model(self, model: str) -> bool:
         # only o-series models support reasoning
-        return model.startswith("o")
+        return model.startswith("o") or model.startswith("gpt-5")
 
     def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         DependencyManager.openai.require(why="for AI assistance with OpenAI")
