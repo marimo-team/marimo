@@ -54,9 +54,9 @@ class AnnotationData:
     refs: set[Name] = field(default_factory=set)
 
 
-# TODO: Rename?
 @dataclass
 class RefsData:
+    # Data accompanying a ref
     language: Language
     # Only applicable for SQL cell refs
     sql_ref: Optional[SQLRef] = None
