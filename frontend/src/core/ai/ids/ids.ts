@@ -11,6 +11,7 @@ export const PROVIDERS = [
   "deepseek",
   "azure",
   "github",
+  "marimo",
 ] as const;
 export type ProviderId = (typeof PROVIDERS)[number];
 
