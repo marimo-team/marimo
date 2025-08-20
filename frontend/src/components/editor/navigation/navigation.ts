@@ -4,6 +4,7 @@ import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { EditorSelection } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
+import { useMemo } from "react";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
@@ -609,6 +610,12 @@ export function useCellEditorNavigationProps(
 ) {
   const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
   const keymapPreset = useAtomValue(keymapPresetAtom);
+  const hotkeys = useAtomValue(hotkeysAtom);
+
+  const vimCommandModeShortcut = useMemo(() => {
+    const shortcut = hotkeys.getHotkey("command.vimEnterCommandMode");
+    return parseShortcut(shortcut.key);
+  }, [hotkeys]);
 
   const exitToCommandMode = () => {
     setTemporarilyShownCode(false);
@@ -648,18 +655,13 @@ export function useCellEditorNavigationProps(
 
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
-      // For vim mode, require Ctrl+Escape (or Cmd+Escape on Mac) to exit to command mode
-      if (keymapPreset === "vim") {
-        if (evt.key === "Escape" && (evt.ctrlKey || evt.metaKey)) {
-          handleEscape();
-        }
-      } else {
+      // For vim mode, use configurable shortcut
+      if (keymapPreset === "vim" && vimCommandModeShortcut(evt)) {
+        handleEscape();
+      } else if (evt.key === "Escape") {
         // For non-vim mode, regular Escape exits to command mode
-        if (evt.key === "Escape") {
-          handleEscape();
-        }
+        handleEscape();
       }
-
       evt.continuePropagation();
     },
   });
