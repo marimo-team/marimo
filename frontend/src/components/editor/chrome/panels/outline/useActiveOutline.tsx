@@ -133,7 +133,7 @@ export function findOutlineElements(items: OutlineItem[]) {
 export function scrollToOutlineItem(item: OutlineItem, index: number) {
   const element = findOutlineItem(item, index);
   if (!element) {
-    Logger.warn("Could not find element for outline-solid item", item);
+    Logger.warn("Could not find element for outline item", item);
     return;
   }
 
