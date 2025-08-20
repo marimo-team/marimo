@@ -83,16 +83,21 @@ class TestStdoutStderr:
         stderr = self.MockStderr()
         assert stderr.name == "stderr"
 
+    def test_not_stoppable(self) -> None:
+        stdout = self.MockStdout()
+        assert not hasattr(stdout, "stop")
+        stderr = self.MockStderr()
+        assert not hasattr(stderr, "stop")
+
 
 class TestStdin:
     def test_stdin_name(self) -> None:
         stdin = Stdin()
         assert stdin.name == "stdin"
 
-    def test_stdin_stop(self) -> None:
+    def test_not_stoppable(self) -> None:
         stdin = Stdin()
-        # Should not raise any exceptions
-        stdin.stop()
+        assert not hasattr(stdin, "stop")
 
 
 class TestKernelMessage:

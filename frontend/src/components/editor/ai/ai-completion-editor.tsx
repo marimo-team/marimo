@@ -150,6 +150,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
             <SparklesIcon className="text-(--blue-10) shrink-0" size={16} />
             <PromptInput
               inputRef={inputRef}
+              className="h-full my-0 py-1.5"
               onClose={() => {
                 declineChange();
                 setCompletion("");

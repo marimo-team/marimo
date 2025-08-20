@@ -32,3 +32,8 @@
   id: github
   description: GitHub's API for GPT models with GitHub-hosted models.
   url: https://github.com/features/copilot
+
+- name: marimo
+  id: marimo
+  description: marimo's hosted models.
+  url: https://docs.marimo.io/guides/editor_features/ai_completion/

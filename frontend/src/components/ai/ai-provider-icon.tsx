@@ -12,6 +12,7 @@ import { BotIcon } from "lucide-react";
 import * as React from "react";
 import type { ProviderId } from "@/core/ai/ids/ids";
 import { cn } from "@/utils/cn";
+import marimoIcon from "../../assets/icon-32x32.png?inline";
 
 const icons: Record<ProviderId, string> = {
   openai: OpenAIIcon,
@@ -22,6 +23,7 @@ const icons: Record<ProviderId, string> = {
   bedrock: BedrockIcon,
   deepseek: DeepseekIcon,
   github: GitHubIcon,
+  marimo: marimoIcon,
 };
 
 export interface AiProviderIconProps
