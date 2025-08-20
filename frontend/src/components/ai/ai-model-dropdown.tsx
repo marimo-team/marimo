@@ -158,7 +158,7 @@ export const AIModelDropdown = ({
             <DropdownMenuItem className="flex items-center gap-2">
               <a
                 className="flex items-center gap-1"
-                href="https://docs.marimo.io/guides/editor_features/ai_completion/?h=models#other-ai-providers"
+                href="https://links.marimo.app/custom-models"
                 target="_blank"
                 rel="noreferrer"
               >
