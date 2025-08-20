@@ -388,6 +388,13 @@ def _sanitize_data(
                             .dt.total_minutes()
                             .alias(column_name)
                         )
+                    elif total_seconds >= 1:
+                        # Use seconds if range is at least a second
+                        column_data = column_data.with_columns(
+                            nw.col(column_name)
+                            .dt.total_seconds()
+                            .alias(column_name)
+                        )
                     elif total_seconds >= 0.001:
                         # Use milliseconds if range is at least a millisecond
                         column_data = column_data.with_columns(
@@ -407,13 +414,6 @@ def _sanitize_data(
                         column_data = column_data.with_columns(
                             nw.col(column_name)
                             .dt.total_nanoseconds()
-                            .alias(column_name)
-                        )
-                    else:
-                        # Use seconds otherwise
-                        column_data = column_data.with_columns(
-                            nw.col(column_name)
-                            .dt.total_seconds()
                             .alias(column_name)
                         )
             except Exception as e:
