@@ -5,7 +5,7 @@ import type { EditorView } from "@codemirror/view";
 import { act, renderHook } from "@testing-library/react";
 import { Provider } from "jotai";
 import React, { createRef } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
@@ -63,6 +63,10 @@ const mockUseRunCells = vi.mocked(
 const mockUseCellClipboard = vi.mocked(
   await import("../clipboard"),
 ).useCellClipboard;
+
+afterAll(() => {
+  vi.resetAllMocks();
+});
 
 import { defaultUserConfig } from "@/core/config/config-schema";
 import { MultiColumn } from "@/utils/id-tree";
