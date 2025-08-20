@@ -35,7 +35,7 @@ interface ResolvedHotkey {
 }
 
 type ModKey = "Cmd" | "Ctrl";
-type Platform = "mac" | "windows" | "linux";
+export type Platform = "mac" | "windows" | "linux";
 
 export type HotkeyGroup =
   | "Running Cells"
@@ -508,8 +508,9 @@ export class OverridingHotkeyProvider extends HotkeyProvider {
     private readonly overrides: Partial<
       Record<HotkeyAction, string | undefined>
     >,
+    platform?: Platform,
   ) {
-    super(DEFAULT_HOT_KEY);
+    super(DEFAULT_HOT_KEY, platform);
   }
 
   override getHotkey(action: HotkeyAction): ResolvedHotkey {

@@ -655,12 +655,16 @@ export function useCellEditorNavigationProps(
 
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
-      // For vim mode, use configurable shortcut
-      if (keymapPreset === "vim" && vimCommandModeShortcut(evt)) {
-        handleEscape();
-      } else if (evt.key === "Escape") {
+      if (keymapPreset === "vim") {
+        // For vim mode, use configurable shortcut
+        if (vimCommandModeShortcut(evt)) {
+          handleEscape();
+        }
+      } else {
         // For non-vim mode, regular Escape exits to command mode
-        handleEscape();
+        if (evt.key === "Escape") {
+          handleEscape();
+        }
       }
       evt.continuePropagation();
     },

@@ -2,6 +2,7 @@
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { merge } from "lodash-es";
 import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";
+import { isPlatformMac, isPlatformWindows } from "../hotkeys/shortcuts";
 import { store } from "../state/jotai";
 import {
   type AppConfig,
@@ -31,9 +32,23 @@ export const hotkeyOverridesAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).keymap.overrides ?? {};
 });
 
+// Platform detection atom - can be overridden for testing
+function detectPlatform(): "mac" | "windows" | "linux" {
+  if (isPlatformMac()) {
+    return "mac";
+  }
+  if (isPlatformWindows()) {
+    return "windows";
+  }
+  return "linux";
+}
+
+export const platformAtom = atom<"mac" | "windows" | "linux">(detectPlatform());
+
 export const hotkeysAtom = atom((get) => {
   const overrides = get(hotkeyOverridesAtom);
-  return new OverridingHotkeyProvider(overrides);
+  const platform = get(platformAtom);
+  return new OverridingHotkeyProvider(overrides, platform);
 });
 
 export const autoSaveConfigAtom = atom((get) => {
