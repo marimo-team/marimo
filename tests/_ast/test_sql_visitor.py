@@ -474,25 +474,27 @@ def test_find_sql_defs_duckdb_not_available() -> None:
 class TestSQLRefsConvertName:
     def test_simple(self) -> None:
         ref = SQLRef(table="test_table")
-        assert ref.convert_to_name() == "test_table"
+        assert ref.get_qualified_name() == "test_table"
 
     def test_with_catalog(self) -> None:
         ref = SQLRef(table="test_table", catalog="test_catalog")
-        assert ref.convert_to_name() == "test_catalog.test_table"
+        assert ref.get_qualified_name() == "test_catalog.test_table"
 
     def test_with_schema(self) -> None:
         ref = SQLRef(table="test_table", schema="test_schema")
-        assert ref.convert_to_name() == "test_schema.test_table"
+        assert ref.get_qualified_name() == "test_schema.test_table"
 
     def test_with_catalog_and_schema(self) -> None:
         ref = SQLRef(
             table="test_table", catalog="test_catalog", schema="test_schema"
         )
-        assert ref.convert_to_name() == "test_catalog.test_schema.test_table"
+        assert (
+            ref.get_qualified_name() == "test_catalog.test_schema.test_table"
+        )
 
     def test_with_catalog_and_table(self) -> None:
         ref = SQLRef(table="test_table", catalog="test_catalog")
-        assert ref.convert_to_name() == "test_catalog.test_table"
+        assert ref.get_qualified_name() == "test_catalog.test_table"
 
 
 @pytest.mark.skipif(not HAS_SQLGLOT, reason="Missing sqlglot")

@@ -319,15 +319,17 @@ class SQLRef:
     schema: Optional[str] = None
     catalog: Optional[str] = None
 
-    def convert_to_name(self) -> str:
-        """Convert a SQLRef to a name to be used as a reference in the visitor"""
-        name = ""
+    def get_qualified_name(self) -> str:
+        """Convert a SQLRef to a fully qualified name to be used as a reference in the visitor"""
+        parts = []
         if self.catalog is not None:
-            name += self.catalog + "."
+            parts.append(self.catalog)
         if self.schema is not None:
-            name += self.schema + "."
-        if self.table is not None:
-            name += self.table
+            parts.append(self.schema)
+
+        # Table is always required
+        parts.append(self.table)
+        name = ".".join(parts)
         return name
 
 
