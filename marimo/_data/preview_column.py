@@ -267,7 +267,7 @@ def _get_altair_chart(
     if isinstance(column_data, nw.LazyFrame):
         column_data = column_data.collect()
 
-    column_data = _sanitize_dtypes(column_data, column_name)
+    column_data = _sanitize_data(column_data, column_name)
 
     error: Optional[str] = None
     missing_packages: Optional[list[str]] = None
@@ -330,10 +330,13 @@ def _get_chart_spec(
         )
 
 
-def _sanitize_dtypes(
+def _sanitize_data(
     column_data: nw.DataFrame[Any] | Any, column_name: str
 ) -> nw.DataFrame[Any] | Any:
-    """Sanitize dtypes for vegafusion"""
+    """
+    Sanitize data for vegafusion.
+    Vegafusion doesn't support all data types so we convert them to supported types.
+    """
     try:
         dtype = column_data.schema[column_name]
         if dtype == nw.Categorical or dtype == nw.Enum:
@@ -349,6 +352,75 @@ def _sanitize_dtypes(
             column_data = column_data.with_columns(
                 nw.col(column_name).cast(nw.UInt64)
             )
+        elif dtype == nw.Duration:
+            # Convert Duration to numeric values for better charting support
+            try:
+                min_value = column_data[column_name].min()
+                max_value = column_data[column_name].max()
+                if min_value is not None and max_value is not None:
+                    diff = max_value - min_value
+                    total_seconds = diff.total_seconds()
+                    if total_seconds >= 604800:
+                        # Use weeks if range is at least a week
+                        column_data = column_data.with_columns(
+                            (
+                                nw.col(column_name).dt.total_seconds() / 604800
+                            ).alias(column_name)
+                        )
+                    if total_seconds >= 86400:
+                        # Use days if range is at least a day
+                        column_data = column_data.with_columns(
+                            (
+                                nw.col(column_name).dt.total_seconds() / 86400
+                            ).alias(column_name)
+                        )
+                    elif total_seconds >= 3600:
+                        # Use hours if range is at least an hour
+                        column_data = column_data.with_columns(
+                            (
+                                nw.col(column_name).dt.total_seconds() / 3600
+                            ).alias(column_name)
+                        )
+                    elif total_seconds >= 60:
+                        # Use minutes if range is at least a minute
+                        column_data = column_data.with_columns(
+                            nw.col(column_name)
+                            .dt.total_minutes()
+                            .alias(column_name)
+                        )
+                    elif total_seconds >= 0.001:
+                        # Use milliseconds if range is at least a millisecond
+                        column_data = column_data.with_columns(
+                            nw.col(column_name)
+                            .dt.total_milliseconds()
+                            .alias(column_name)
+                        )
+                    elif total_seconds >= 0.000001:
+                        # Use microseconds if range is at least a microsecond
+                        column_data = column_data.with_columns(
+                            nw.col(column_name)
+                            .dt.total_microseconds()
+                            .alias(column_name)
+                        )
+                    elif total_seconds >= 0.000000001:
+                        # Use nanoseconds if range is at least a nanosecond
+                        column_data = column_data.with_columns(
+                            nw.col(column_name)
+                            .dt.total_nanoseconds()
+                            .alias(column_name)
+                        )
+                    else:
+                        # Use seconds otherwise
+                        column_data = column_data.with_columns(
+                            nw.col(column_name)
+                            .dt.total_seconds()
+                            .alias(column_name)
+                        )
+            except Exception as e:
+                LOGGER.warning("Failed to infer duration precision: %s", e)
+                column_data = column_data.with_columns(
+                    nw.col(column_name).dt.total_seconds().alias(column_name)
+                )
     except Exception as e:
         LOGGER.warning(f"Failed to sanitize dtypes: {e}")
     return column_data
