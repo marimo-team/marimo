@@ -8,6 +8,7 @@ import sys
 import textwrap
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
+from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
@@ -39,6 +40,8 @@ BRACES: dict[Literal["(", "["], tuple[str, str]] = {
 }
 
 Decorators = Literal["cell", "function", "class_definition"]
+
+LOGGER = _loggers.marimo_logger()
 
 
 def pop_setup_cell(
@@ -210,7 +213,16 @@ def to_functiondef(
     # already in globals)
     if allowed_refs is None:
         allowed_refs = BUILTINS
-    refs = tuple(ref for ref in sorted(cell.refs) if ref not in allowed_refs)
+
+    # Filter out refs that are not valid Python identifiers
+    refs: tuple[str, ...] = tuple()
+    sorted_refs = sorted(cell.refs)
+    for ref in sorted_refs:
+        if ref not in allowed_refs:
+            if not ref.isidentifier():
+                LOGGER.debug(f"Found non-identifier ref: {ref}")
+                continue
+            refs += (ref,)
 
     # Check to see if any of the refs have an explicit type assigned to them.
     annotation_lookups = to_annotated_string(
