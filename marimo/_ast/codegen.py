@@ -214,12 +214,14 @@ def to_functiondef(
     if allowed_refs is None:
         allowed_refs = BUILTINS
 
-    # Filter out refs that are not valid Python identifiers
     refs: tuple[str, ...] = tuple()
     sorted_refs = sorted(cell.refs)
     for ref in sorted_refs:
         if ref not in allowed_refs:
             if not ref.isidentifier():
+                # Filter out refs that are not valid Python identifiers
+                # If not, function signatures will have invalid parameters
+                # eg. `def _(mo, my_schema.my_table):`
                 LOGGER.debug(f"Found non-identifier ref: {ref}")
                 continue
             refs += (ref,)

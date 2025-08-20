@@ -311,7 +311,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     )
 
 
-@dataclass(frozen=True, init=True)
+@dataclass(frozen=True)
 class SQLRef:
     # Tables are synonymous with views,
     # since we can't know the difference in queries
@@ -329,9 +329,6 @@ class SQLRef:
         if self.table is not None:
             name += self.table
         return name
-
-    def has_only_table_name(self) -> bool:
-        return self.schema is None and self.catalog is None
 
 
 def find_sql_refs(sql_statement: str) -> set[SQLRef]:
