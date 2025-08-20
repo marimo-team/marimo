@@ -40,19 +40,13 @@ class Function(Generic[S, T]):
         arg_cls: type[S],
         function: Callable[[S], T],
     ) -> None:
-        from marimo._runtime.context import (
-            ContextNotInitializedError,
-            get_context,
-        )
+        from marimo._runtime.context import safe_get_context
 
         self.name = name
         self.arg_cls = arg_cls
         self.function = function
 
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
-            ctx = None
+        ctx = safe_get_context()
 
         if ctx is not None and ctx.execution_context is not None:
             self.cell_id = ctx.execution_context.cell_id

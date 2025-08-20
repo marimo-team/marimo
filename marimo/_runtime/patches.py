@@ -75,6 +75,20 @@ def patch_recursion_limit(limit: int) -> None:
 def patch_micropip(glbls: dict[Any, Any]) -> None:
     """Mock micropip with no-ops"""
 
+    # If micropip is already in sys.meta_path, we don't need to add it
+    # again.
+    had_sys = "sys" in glbls
+    if not had_sys:
+        exec("import sys", glbls)
+
+    if eval(
+        "bool(sys.meta_path and sys.meta_path[-1].__class__.__name__ == '_MicropipFinder')",
+        glbls,
+    ):
+        if not had_sys:
+            del glbls["sys"]
+        return
+
     definitions = textwrap.dedent(
         """\
 from importlib.abc import Loader, MetaPathFinder
@@ -143,9 +157,16 @@ del Loader; del MetaPathFinder
     # append the finder to the end of meta_path, in case the user
     # already has a package called micropip
     exec(
-        "import sys; sys.meta_path.append(_MicropipFinder()); del sys",
+        "sys.meta_path.append(_MicropipFinder());",
         glbls,
     )
+
+    from marimo._output.formatters.formatters import patch_finder
+
+    patch_finder(glbls)
+
+    if not had_sys:
+        del glbls["sys"]
 
 
 def create_main_module(
