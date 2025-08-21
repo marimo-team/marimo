@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, Optional, Protocol
 
 from marimo import _loggers
@@ -100,6 +101,11 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
         - rollback() method
         - close() method
         """
+
+        # Imports like duckdb should not be treated as DB-API connections
+        if isinstance(var, ModuleType):
+            return False
+
         try:
             required_methods = ["cursor", "commit", "rollback", "close"]
             has_required_methods = all(
