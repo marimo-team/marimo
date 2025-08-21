@@ -483,7 +483,7 @@ class SharingConfig(TypedDict):
 class StoreConfig(TypedDict, total=False):
     """Configuration for cache stores."""
 
-    storetype: StoreKey
+    type: StoreKey
     args: dict[str, Any]
 
 
