@@ -164,6 +164,10 @@ class DirectedGraph:
         """
         For SQL references like "schema.table" or "catalog.schema.table", find cells
         that define the table, schema, or catalog components.
+
+        Returns:
+        - set of cell ids that define the table, schema, or catalog components
+        - mapping from the original name to the name of the cell that defines it
         """
         name_map = {}
         matching_cell_ids = set()
@@ -285,7 +289,7 @@ class DirectedGraph:
                     else set()
                 ) - set((cell_id,))
 
-                # Handle SQL fuzzy matching for hierarchical references
+                # Handle SQL matching for hierarchical references
                 name_map: dict[Name, Name] = {}
                 ref_data = cell.refs_data[name]
                 if (
