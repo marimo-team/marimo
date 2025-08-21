@@ -122,6 +122,9 @@ class RuntimeConfig(TypedDict):
     - `on_cell_change`: if `lazy`, cells will be marked stale when their
       ancestors run but won't autorun; if `autorun`, cells will automatically
       run when their ancestors run.
+    - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
+      if `strict` marimo will clone cell declarations by default, avoiding
+      hidden potential state build up.
     - `watcher_on_save`: how to handle file changes when saving. `"lazy"` marks
         affected cells as stale, `"autorun"` automatically runs affected cells.
     - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
@@ -485,7 +488,6 @@ class StoreConfig(TypedDict, total=False):
 CacheConfig = Union[list[StoreConfig], StoreConfig]
 
 
-@mddoc
 @dataclass
 class ExperimentalConfig(TypedDict, total=False):
     """
