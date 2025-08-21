@@ -133,7 +133,10 @@ class DirectedGraph:
     def _matches_hierarchical_ref(
         self, name: Name, ref: Name, sql_ref: SQLRef
     ) -> bool:
-        """Check if a hierarchical reference matches the given name."""
+        """
+        SQL cells may have hierarchical structures eg. `catalog.schema.table`.
+        Check if a hierarchical reference matches the given name.
+        """
         parts = ref.split(".")
 
         if len(parts) == 2:
@@ -141,13 +144,10 @@ class DirectedGraph:
             catalog_or_schema = parts[0]
             # Check if it matches either catalog or schema
             # Because SQLRef doesn't know whether it references a catalog or schema
-            return (
-                sql_ref.catalog is None
-                and catalog_or_schema == sql_ref.schema == name
-            ) or (
-                sql_ref.catalog is not None
-                and catalog_or_schema == sql_ref.catalog == name
-            )
+            if sql_ref.catalog is None:
+                return catalog_or_schema == sql_ref.schema == name
+            else:
+                return catalog_or_schema == sql_ref.catalog == name
         elif len(parts) == 3:
             # Format: catalog.schema.table
             catalog, schema = parts[0], parts[1]
@@ -161,8 +161,7 @@ class DirectedGraph:
     def _find_sql_hierarchical_matches(
         self, name: Name
     ) -> tuple[set[CellId_t], dict[Name, Name]]:
-        """Find SQL hierarchical reference matches and return cell IDs and name mapping.
-
+        """
         For SQL references like "schema.table" or "catalog.schema.table", find cells
         that define the table, schema, or catalog components.
         """
@@ -179,7 +178,8 @@ class DirectedGraph:
             # Get the variable kind from the first cell that defines it
             # TODO: This doesn't capture views/tables in other schemas in the same catalog
             cell_id_for_def = next(iter(cell_ids))
-            kind = self.cells[cell_id_for_def].variable_data[def_name][-1].kind
+            variable_data = self.cells[cell_id_for_def].variable_data[def_name]
+            kind = variable_data[-1].kind
 
             # Match table/view definitions
             if kind in ("table", "view") and def_name == table:
