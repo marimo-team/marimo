@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { isPlatformMac, isPlatformWindows } from "@/core/hotkeys/shortcuts";
+import { type Platform, resolvePlatform } from "@/core/hotkeys/shortcuts";
 import { Objects } from "@/utils/objects";
 
 export const NOT_SET: unique symbol = Symbol("NOT_SET");
@@ -35,7 +35,6 @@ interface ResolvedHotkey {
 }
 
 type ModKey = "Cmd" | "Ctrl";
-export type Platform = "mac" | "windows" | "linux";
 
 export type HotkeyGroup =
   | "Running Cells"
@@ -508,9 +507,9 @@ export class OverridingHotkeyProvider extends HotkeyProvider {
     private readonly overrides: Partial<
       Record<HotkeyAction, string | undefined>
     >,
-    platform?: Platform,
+    options: HotkeyProviderOptions = {},
   ) {
-    super(DEFAULT_HOT_KEY, platform);
+    super(DEFAULT_HOT_KEY, options);
   }
 
   override getHotkey(action: HotkeyAction): ResolvedHotkey {
@@ -521,14 +520,4 @@ export class OverridingHotkeyProvider extends HotkeyProvider {
       key,
     };
   }
-}
-
-function resolvePlatform(): Platform {
-  if (isPlatformMac()) {
-    return "mac";
-  }
-  if (isPlatformWindows()) {
-    return "windows";
-  }
-  return "linux";
 }

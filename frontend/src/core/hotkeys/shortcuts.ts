@@ -132,3 +132,15 @@ export function parseShortcut(
   const keys = shortcut.split(separator).map(normalizeKey);
   return (e: IKeyboardEvent) => areKeysPressed(keys, e);
 }
+
+export type Platform = "mac" | "windows" | "linux";
+
+export function resolvePlatform(): Platform {
+  if (isPlatformMac()) {
+    return "mac";
+  }
+  if (isPlatformWindows()) {
+    return "windows";
+  }
+  return "linux";
+}
