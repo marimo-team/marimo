@@ -489,10 +489,10 @@ def test_sanitize_dtypes() -> None:
 
     # Sanitize the dtypes
     result = _sanitize_data(nw_df, "cat_col")
-    assert result.schema["cat_col"] == nw.String
+    assert result.collect_schema()["cat_col"] == nw.String
 
     result = _sanitize_data(nw_df, "int128_col")
-    assert result.schema["int128_col"] == nw.Int64
+    assert result.collect_schema()["int128_col"] == nw.Int64
 
 
 @pytest.mark.skipif(
