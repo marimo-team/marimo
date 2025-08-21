@@ -87,7 +87,7 @@ class AnyProviderConfig:
         fallback_key: Optional[str] = None,
         fallback_base_url: Optional[str] = None,
     ) -> AnyProviderConfig:
-        ai_config = _get_ai_config(config, key, name)
+        ai_config = _get_ai_config(config, key)
         key = _get_key(ai_config, name, fallback_key=fallback_key)
 
         kwargs: dict[str, Any] = {
@@ -109,7 +109,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_anthropic(cls, config: AiConfig) -> AnyProviderConfig:
-        ai_config = _get_ai_config(config, "anthropic", "Anthropic")
+        ai_config = _get_ai_config(config, "anthropic")
         fallback_key = cls.os_key("ANTHROPIC_API_KEY")
         key = _get_key(
             ai_config,
@@ -127,7 +127,7 @@ class AnyProviderConfig:
         fallback_key = cls.os_key("GEMINI_API_KEY") or cls.os_key(
             "GOOGLE_API_KEY"
         )
-        ai_config = _get_ai_config(config, "google", "Google AI")
+        ai_config = _get_ai_config(config, "google")
         key = _get_key(
             ai_config,
             "Google AI",
@@ -141,7 +141,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_bedrock(cls, config: AiConfig) -> AnyProviderConfig:
-        ai_config = _get_ai_config(config, "bedrock", "Bedrock")
+        ai_config = _get_ai_config(config, "bedrock")
         key = _get_key(ai_config, "Bedrock")
         return cls(
             base_url=_get_base_url(ai_config),

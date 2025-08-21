@@ -737,7 +737,7 @@ class TestGetAiConfig:
         """Test successful retrieval of AI config."""
         config: AiConfig = {"open_ai": {"api_key": "test-key"}}
 
-        result = _get_ai_config(config, "open_ai", "OpenAI")
+        result = _get_ai_config(config, "open_ai")
 
         assert result == {"api_key": "test-key"}
 
@@ -745,7 +745,7 @@ class TestGetAiConfig:
         """Test that _get_ai_config returns empty dict when AI config key is missing."""
         config: AiConfig = {}
 
-        result = _get_ai_config(config, "open_ai", "OpenAI")
+        result = _get_ai_config(config, "open_ai")
 
         assert result == {}
 
