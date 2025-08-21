@@ -432,18 +432,33 @@ export interface IHotkeyProvider {
   getHotkey(action: HotkeyAction): ResolvedHotkey;
 }
 
+interface HotkeyProviderOptions {
+  /**
+   * The target platform for the key provider.
+   *
+   * If `undefined`, the platform is detected at runtime.
+   * An explicit value is generally only provided in tests.
+   */
+  platform?: Platform;
+}
+
 export class HotkeyProvider implements IHotkeyProvider {
   private mod: ModKey;
+  private platform: Platform;
 
+  /**
+   * @param platform - See {@link HotkeyProviderOptions.platform}.
+   */
   static create(platform?: Platform): HotkeyProvider {
-    return new HotkeyProvider(DEFAULT_HOT_KEY, platform);
+    return new HotkeyProvider(DEFAULT_HOT_KEY, { platform });
   }
 
   constructor(
     private hotkeys: Record<HotkeyAction, Hotkey>,
-    private platform: Platform = resolvePlatform(),
+    options: HotkeyProviderOptions = {},
   ) {
-    this.mod = platform === "mac" ? "Cmd" : "Ctrl";
+    this.platform = options.platform ?? resolvePlatform();
+    this.mod = this.platform === "mac" ? "Cmd" : "Ctrl";
   }
 
   iterate(): HotkeyAction[] {

@@ -39,13 +39,13 @@ describe("HotkeyProvider platform separation", () => {
     });
 
     // Create providers for each platform
-    const windowsProvider = new HotkeyProvider(hotkeys, "windows");
-    const linuxProvider = new HotkeyProvider(hotkeys, "linux");
-    const macProvider = new HotkeyProvider(hotkeys, "mac");
+    const windows = new HotkeyProvider(hotkeys, { platform: "windows" });
+    const linux = new HotkeyProvider(hotkeys, { platform: "linux" });
+    const mac = new HotkeyProvider(hotkeys, { platform: "mac" });
 
-    expect(windowsProvider.getHotkey("cell.run").key).toBe("Alt-Enter");
-    expect(linuxProvider.getHotkey("cell.run").key).toBe("Ctrl-Enter");
-    expect(macProvider.getHotkey("cell.run").key).toBe("Ctrl-Enter");
+    expect(windows.getHotkey("cell.run").key).toBe("Alt-Enter");
+    expect(linux.getHotkey("cell.run").key).toBe("Ctrl-Enter");
+    expect(mac.getHotkey("cell.run").key).toBe("Ctrl-Enter");
   });
 
   it("should allow each platform to have distinct keybindings", () => {
@@ -62,13 +62,13 @@ describe("HotkeyProvider platform separation", () => {
       },
     });
 
-    const windowsProvider = new HotkeyProvider(hotkeys, "windows");
-    const linuxProvider = new HotkeyProvider(hotkeys, "linux");
-    const macProvider = new HotkeyProvider(hotkeys, "mac");
+    const windows = new HotkeyProvider(hotkeys, { platform: "windows" });
+    const linux = new HotkeyProvider(hotkeys, { platform: "linux" });
+    const mac = new HotkeyProvider(hotkeys, { platform: "mac" });
 
     // Each platform should get its own specific override
-    expect(macProvider.getHotkey("cell.format").key).toBe("Cmd-Option-F");
-    expect(windowsProvider.getHotkey("cell.format").key).toBe("Ctrl-Alt-F");
-    expect(linuxProvider.getHotkey("cell.format").key).toBe("Ctrl-Shift-L");
+    expect(mac.getHotkey("cell.format").key).toBe("Cmd-Option-F");
+    expect(windows.getHotkey("cell.format").key).toBe("Ctrl-Alt-F");
+    expect(linux.getHotkey("cell.format").key).toBe("Ctrl-Shift-L");
   });
 });
