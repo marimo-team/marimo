@@ -2,12 +2,7 @@
 
 import type { Role } from "@marimo-team/llm-info";
 import { capitalize } from "lodash-es";
-import {
-  BotIcon,
-  BrainIcon,
-  ChevronDownIcon,
-  CircleHelpIcon,
-} from "lucide-react";
+import { ChevronDownIcon, CircleHelpIcon } from "lucide-react";
 import {
   AiModelId,
   isKnownAIProvider,
@@ -27,7 +22,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { Tooltip } from "../ui/tooltip";
 import { AiProviderIcon } from "./ai-provider-icon";
 
 interface AIModelDropdownProps {
@@ -101,14 +95,12 @@ export const AIModelDropdown = ({
         </div>
 
         <div className="ml-auto flex gap-1">
-          <Tooltip content={getTagTooltip(role)}>
-            <span
-              key={role}
-              className={`text-xs px-1.5 py-0.5 rounded font-medium ${getTagColour(role)}`}
-            >
-              {role}
-            </span>
-          </Tooltip>
+          <span
+            key={role}
+            className={`text-xs px-1.5 py-0.5 rounded font-medium ${getTagColour(role)}`}
+          >
+            {role}
+          </span>
         </div>
       </div>
     );
@@ -185,11 +177,13 @@ const ProviderDropdownContent = ({
   provider,
   onSelect,
   models,
+  customModelIcon,
   iconSizeClass,
 }: {
   provider: ProviderId;
   onSelect: (modelId: QualifiedModelId) => void;
   models: AiModel[];
+  customModelIcon?: React.ReactNode;
   iconSizeClass: string;
 }) => {
   const iconProvider = isKnownAIProvider(provider)
@@ -242,123 +236,27 @@ const ProviderDropdownContent = ({
             const qualifiedModelId =
               `${provider}/${model.model}` as QualifiedModelId;
             return (
-              <DropdownMenuSub key={qualifiedModelId}>
-                <DropdownMenuSubTrigger showChevron={false} className="py-2">
-                  <div
-                    className="flex items-center gap-2 w-full cursor-pointer"
-                    onClick={() => {
-                      onSelect(qualifiedModelId);
-                    }}
-                  >
-                    <AiModelDropdownItem model={model} provider={provider} />
-                  </div>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent
-                  className="p-4 w-80"
-                  sideOffset={2}
-                  alignOffset={-4}
-                >
-                  <AiModelInfoDisplay model={model} provider={provider} />
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
+              <DropdownMenuItem
+                key={qualifiedModelId}
+                className="flex items-center gap-2"
+                onSelect={() => {
+                  onSelect(qualifiedModelId);
+                }}
+              >
+                <AiProviderIcon provider={iconProvider} className="h-4 w-4" />
+                <div className="pl-1 flex flex-col">
+                  <span>{model.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {model.model}
+                  </span>
+                </div>
+                {model.custom && customModelIcon}
+              </DropdownMenuItem>
             );
           })}
         </DropdownMenuSubContent>
       </DropdownMenuPortal>
     </DropdownMenuSub>
-  );
-};
-
-const AiModelDropdownItem = ({
-  model,
-  provider,
-}: {
-  model: AiModel;
-  provider: ProviderId;
-}) => {
-  const iconProvider = isKnownAIProvider(provider)
-    ? provider
-    : "openai-compatible";
-
-  return (
-    <>
-      <AiProviderIcon provider={iconProvider} className="h-4 w-4" />
-      <div className="flex flex-row w-full items-center">
-        <span>{model.name}</span>
-        <div className="ml-auto">
-          {model.thinking && (
-            <Tooltip content="Reasoning model">
-              <BrainIcon
-                className={`h-5 w-5 rounded-md p-1 ${getTagColour("thinking")}`}
-              />
-            </Tooltip>
-          )}
-        </div>
-      </div>
-      {model.custom && (
-        <Tooltip content="Custom model">
-          <BotIcon className="h-5 w-5" />
-        </Tooltip>
-      )}
-    </>
-  );
-};
-
-const AiModelInfoDisplay = ({
-  model,
-  provider,
-}: {
-  model: AiModel;
-  provider: ProviderId;
-}) => {
-  return (
-    <div className="space-y-3">
-      <div>
-        <h4 className="font-semibold text-base text-foreground">
-          {model.name}
-        </h4>
-        <p className="text-xs text-muted-foreground font-mono">{model.model}</p>
-      </div>
-
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        {model.description}
-      </p>
-
-      {model.roles.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2">
-            Capabilities:
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {model.roles.map((role) => (
-              <span
-                key={role}
-                className={`px-2 py-1 text-xs rounded-md font-medium ${getTagColour(role)}`}
-                title={getTagTooltip(role)}
-              >
-                {role}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {model.thinking && (
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-          <span className="text-xs text-muted-foreground">
-            Supports thinking mode
-          </span>
-        </div>
-      )}
-
-      <div className="flex items-center gap-2 pt-2 border-t border-border">
-        <AiProviderIcon provider={provider} className="h-4 w-4" />
-        <span className="text-xs text-muted-foreground">
-          {getProviderLabel(provider)}
-        </span>
-      </div>
-    </div>
   );
 };
 
@@ -370,7 +268,7 @@ function getProviderLabel(provider: ProviderId): string {
   return capitalize(provider);
 }
 
-function getTagColour(role: Role | "thinking"): string {
+function getTagColour(role: Role): string {
   switch (role) {
     case "chat":
       return "bg-[var(--purple-3)] text-[var(--purple-11)]";
@@ -378,23 +276,6 @@ function getTagColour(role: Role | "thinking"): string {
       return "bg-[var(--green-3)] text-[var(--green-11)]";
     case "edit":
       return "bg-[var(--blue-3)] text-[var(--blue-11)]";
-    case "thinking":
-      return "bg-[var(--purple-4)] text-[var(--purple-12)]";
   }
   return "bg-[var(--mauve-3)] text-[var(--mauve-11)]";
-}
-
-function getTagTooltip(role: Role): string {
-  switch (role) {
-    case "chat":
-      return "Current model used for chat conversations";
-    case "autocomplete":
-      return "Current model used for autocomplete autocomplete";
-    case "edit":
-      return "Current model used for code edits";
-    case "rerank":
-      return "Current model used for reranking completions";
-    case "embed":
-      return "Current model used for embedding";
-  }
 }
