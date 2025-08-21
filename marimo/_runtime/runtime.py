@@ -612,9 +612,7 @@ class Kernel:
         self.reactive_execution_mode: OnCellChangeType = user_config[
             "runtime"
         ]["on_cell_change"]
-        self.execution_type: ExecutionType = user_config.get(
-            "experimental", {}
-        ).get("execution_type", "relaxed")
+        self.execution_type: ExecutionType = "relaxed"
         self._update_runtime_from_user_config(user_config)
 
         # initializers to override construction of ui elements

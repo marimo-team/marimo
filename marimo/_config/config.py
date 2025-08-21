@@ -100,6 +100,7 @@ WidthType = Literal["normal", "compact", "medium", "full", "columns"]
 Theme = Literal["light", "dark", "system"]
 ExportType = Literal["html", "markdown", "ipynb"]
 SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
+StoreKey = Literal["file", "redis", "rest", "tiered"]
 
 
 @mddoc
@@ -121,9 +122,6 @@ class RuntimeConfig(TypedDict):
     - `on_cell_change`: if `lazy`, cells will be marked stale when their
       ancestors run but won't autorun; if `autorun`, cells will automatically
       run when their ancestors run.
-    - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
-      if `strict` marimo will clone cell declarations by default, avoiding
-      hidden potential state build up.
     - `watcher_on_save`: how to handle file changes when saving. `"lazy"` marks
         affected cells as stale, `"autorun"` automatically runs affected cells.
     - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
@@ -478,6 +476,30 @@ class SharingConfig(TypedDict):
     wasm: NotRequired[bool]
 
 
+class StoreConfig(TypedDict, total=False):
+    type: StoreKey
+    args: dict[str, Any]
+
+
+@mddoc
+@dataclass
+class ExperimentalConfig(TypedDict, total=False):
+    """
+    Configuration for experimental features. The same as the frontend config.
+    """
+
+    markdown: bool  # Used in playground (community cloud)
+    inline_ai_tooltip: bool
+    wasm_layouts: bool  # Used in playground (community cloud)
+    rtc_v2: bool
+    performant_table_charts: bool
+    mcp_docs: bool
+    sql_linter: bool
+
+    # Internal feature flags
+    cache: Union[list[StoreConfig], StoreConfig]
+
+
 @mddoc
 @dataclass
 class MarimoConfig(TypedDict):
@@ -494,7 +516,7 @@ class MarimoConfig(TypedDict):
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
     diagnostics: NotRequired[DiagnosticsConfig]
-    experimental: NotRequired[dict[str, Any]]
+    experimental: NotRequired[ExperimentalConfig]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]

@@ -18,7 +18,7 @@ from marimo._runtime.context.types import (
 )
 
 # Set of thread ids for running mo.Threads
-THREADS = set()
+THREADS: set[int] = set()
 
 
 class Thread(threading.Thread):
