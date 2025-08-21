@@ -19,25 +19,6 @@ export interface AiModel extends AiModelType {
   custom: boolean;
 }
 
-const getKnownModelMap = once((): ReadonlyMap<QualifiedModelId, AiModel> => {
-  const modelMap = new Map<QualifiedModelId, AiModel>();
-  for (const model of models) {
-    const modelId = model.model as ShortModelId;
-    const modelInfo: AiModel = {
-      ...model,
-      roles: model.roles.map((role) => role as Role),
-      providers: model.providers as ProviderId[],
-      custom: false,
-    };
-
-    for (const provider of modelInfo.providers) {
-      const qualifiedModelId: QualifiedModelId = `${provider}/${modelId}`;
-      modelMap.set(qualifiedModelId, modelInfo);
-    }
-  }
-  return modelMap;
-});
-
 const getProviderMap = once((): ReadonlyMap<ProviderId, AiProvider> => {
   const providerMap = new Map<ProviderId, AiProvider>();
   for (const provider of providers) {
@@ -82,37 +63,16 @@ export class AiModelRegistry {
 
   /**
    * Builds the maps of models by provider and custom models.
-   * Custom models are added first as they are specified by the user, so we want to surface them first.
    */
   private buildMaps() {
     const displayedModels = this.displayedModels;
     const hasDisplayedModels = displayedModels.size > 0;
-    const knownModelMap = getKnownModelMap();
-    let modelsMap = new Map<QualifiedModelId, AiModel>();
+    const modelsMap = new Map<QualifiedModelId, AiModel>();
 
-    // Start with known models
-    if (hasDisplayedModels) {
-      for (const model of displayedModels) {
-        if (knownModelMap.has(model)) {
-          const knownModel = knownModelMap.get(model);
-          if (knownModel) {
-            modelsMap.set(model, knownModel);
-          }
-        }
-      }
-    } else {
-      modelsMap = new Map(knownModelMap);
-    }
-
-    // Add custom models
+    // Start with custom models as they are specified by the user, so we want to surface them first
     for (const model of this.customModels) {
-      // Skip custom models that are not displayed
+      // Skip models that are not included in displayed list
       if (hasDisplayedModels && !displayedModels.has(model)) {
-        continue;
-      }
-
-      // If custom model conflicts with a known model, skip it
-      if (modelsMap.has(model)) {
         continue;
       }
 
@@ -127,6 +87,33 @@ export class AiModelRegistry {
         custom: true,
       };
       modelsMap.set(model, modelInfo);
+    }
+
+    // Process models from the default list
+    for (const model of models) {
+      const modelId = model.model as ShortModelId;
+      const modelInfo: AiModel = {
+        ...model,
+        roles: model.roles.map((role) => role as Role),
+        providers: model.providers as ProviderId[],
+        custom: false,
+      };
+
+      // Model can have multiple providers
+      for (const provider of modelInfo.providers) {
+        const qualifiedModelId: QualifiedModelId = `${provider}/${modelId}`;
+
+        if (hasDisplayedModels && !displayedModels.has(qualifiedModelId)) {
+          continue;
+        }
+
+        // Skip if already added (e.g., by a custom model)
+        if (modelsMap.has(qualifiedModelId)) {
+          continue;
+        }
+
+        modelsMap.set(qualifiedModelId, modelInfo);
+      }
     }
 
     // Group by provider
