@@ -2,6 +2,7 @@
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { merge } from "lodash-es";
 import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";
+import { type Platform, resolvePlatform } from "../hotkeys/shortcuts";
 import { store } from "../state/jotai";
 import {
   type AppConfig,
@@ -31,9 +32,12 @@ export const hotkeyOverridesAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).keymap.overrides ?? {};
 });
 
+export const platformAtom = atom<Platform>(resolvePlatform());
+
 export const hotkeysAtom = atom((get) => {
   const overrides = get(hotkeyOverridesAtom);
-  return new OverridingHotkeyProvider(overrides);
+  const platform = get(platformAtom);
+  return new OverridingHotkeyProvider(overrides, { platform });
 });
 
 export const autoSaveConfigAtom = atom((get) => {
