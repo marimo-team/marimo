@@ -476,16 +476,23 @@ class SharingConfig(TypedDict):
     wasm: NotRequired[bool]
 
 
+@mddoc
+@dataclass
 class StoreConfig(TypedDict, total=False):
     type: StoreKey
     args: dict[str, Any]
+
+
+CacheConfig = Union[list[StoreConfig], StoreConfig]
 
 
 @mddoc
 @dataclass
 class ExperimentalConfig(TypedDict, total=False):
     """
-    Configuration for experimental features. The same as the frontend config.
+    Configuration for experimental features.
+
+    Features exposed on the frontend must match the frontend config.
     """
 
     markdown: bool  # Used in playground (community cloud)
@@ -496,8 +503,8 @@ class ExperimentalConfig(TypedDict, total=False):
     mcp_docs: bool
     sql_linter: bool
 
-    # Internal feature flags
-    cache: Union[list[StoreConfig], StoreConfig]
+    # Internal features
+    cache: CacheConfig
 
 
 @mddoc

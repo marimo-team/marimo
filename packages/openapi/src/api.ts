@@ -3222,7 +3222,22 @@ export interface components {
         theme: "light" | "dark" | "system";
       };
       experimental?: {
-        [key: string]: unknown;
+        cache?:
+          | {
+              args?: {
+                [key: string]: unknown;
+              };
+              /** @enum {string} */
+              type?: "file" | "redis" | "rest" | "tiered";
+            }[]
+          | components["schemas"]["StoreConfig"];
+        inline_ai_tooltip?: boolean;
+        markdown?: boolean;
+        mcp_docs?: boolean;
+        performant_table_charts?: boolean;
+        rtc_v2?: boolean;
+        sql_linter?: boolean;
+        wasm_layouts?: boolean;
       };
       formatting: {
         line_length: number;
@@ -3637,6 +3652,13 @@ export interface components {
       text: string;
     };
     StopRequest: Record<string, never>;
+    StoreConfig: {
+      args?: {
+        [key: string]: unknown;
+      };
+      /** @enum {string} */
+      type?: "file" | "redis" | "rest" | "tiered";
+    };
     SuccessResponse: {
       success: boolean;
     };
