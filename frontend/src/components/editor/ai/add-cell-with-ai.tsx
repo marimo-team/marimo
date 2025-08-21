@@ -51,6 +51,10 @@ import { prettyError } from "@/utils/errors";
 import { useCellActions } from "../../../core/cells/cells";
 import { PythonIcon } from "../cell/code/icons";
 import {
+  CompletionActions,
+  createAiCompletionOnKeydown,
+} from "./completion-handlers";
+import {
   getAICompletionBody,
   mentionsCompletionSource,
 } from "./completion-utils";
@@ -160,6 +164,23 @@ export const AddCellWithAI: React.FC<{
     </DropdownMenu>
   );
 
+  const handleAcceptCompletion = () => {
+    createNewCell({
+      cellId: "__end__",
+      before: false,
+      code:
+        language === "python"
+          ? completion
+          : SQLLanguageAdapter.fromQuery(completion),
+    });
+    setCompletion("");
+    onClose();
+  };
+
+  const handleDeclineCompletion = () => {
+    setCompletion("");
+  };
+
   const inputComponent = (
     <div className="flex items-center px-3">
       <SparklesIcon className="size-4 text-(--blue-11) mr-2" />
@@ -174,6 +195,12 @@ export const AddCellWithAI: React.FC<{
           setCompletionBody(getAICompletionBody({ input: newValue }));
         }}
         onSubmit={submit}
+        onKeyDown={createAiCompletionOnKeydown({
+          handleAcceptCompletion,
+          handleDeclineCompletion,
+          isLoading,
+          completion,
+        })}
       />
       {isLoading && (
         <Button
@@ -212,37 +239,12 @@ export const AddCellWithAI: React.FC<{
           </span>
         )}
         {completion && (
-          <>
-            <Button
-              data-testid="accept-completion-button"
-              variant="text"
-              size="sm"
-              className="mb-0"
-              onClick={() => {
-                createNewCell({
-                  cellId: "__end__",
-                  before: false,
-                  code:
-                    language === "python"
-                      ? completion
-                      : SQLLanguageAdapter.fromQuery(completion),
-                });
-                setCompletion("");
-                onClose();
-              }}
-            >
-              <span className="text-(--grass-11)">Accept</span>
-            </Button>
-            <Button
-              data-testid="decline-completion-button"
-              variant="text"
-              size="sm"
-              className="mb-0 pl-1"
-              onClick={() => setCompletion("")}
-            >
-              <span className="text-(--red-10)">Reject</span>
-            </Button>
-          </>
+          <CompletionActions
+            isLoading={isLoading}
+            onAccept={handleAcceptCompletion}
+            onDecline={handleDeclineCompletion}
+            size="sm"
+          />
         )}
         <div className="ml-auto flex items-center gap-1">
           {languageDropdown}
@@ -281,6 +283,7 @@ interface PromptInputProps {
   placeholder?: string;
   value: string;
   className?: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   onClose: () => void;
   onChange: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
@@ -301,6 +304,7 @@ export const PromptInput = ({
   className,
   onChange,
   onSubmit,
+  onKeyDown,
   onClose,
   additionalCompletions,
   maxHeight,
@@ -416,6 +420,7 @@ export const PromptInput = ({
       basicSetup={false}
       extensions={extensions}
       onChange={onChange}
+      onKeyDown={onKeyDown}
       theme={theme === "dark" ? "dark" : "light"}
       placeholder={placeholder || "Generate with AI"}
     />
