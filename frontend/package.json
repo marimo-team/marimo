@@ -49,7 +49,7 @@
     "@lezer/lr": "^1.4.2",
     "@lezer/markdown": "^1.4.3",
     "@lezer/python": "^1.1.18",
-    "@marimo-team/codemirror-ai": "^0.3.1",
+    "@marimo-team/codemirror-ai": "^0.3.2",
     "@marimo-team/codemirror-languageserver": "^1.15.24",
     "@marimo-team/codemirror-mcp": "^0.1.5",
     "@marimo-team/llm-info": "workspace:*",

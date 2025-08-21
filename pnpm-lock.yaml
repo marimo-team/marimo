@@ -128,8 +128,8 @@ importers:
         specifier: ^1.1.18
         version: 1.1.18
       '@marimo-team/codemirror-ai':
-        specifier: ^0.3.1
-        version: 0.3.1(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+        specifier: ^0.3.2
+        version: 0.3.2(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
       '@marimo-team/codemirror-languageserver':
         specifier: ^1.15.24
         version: 1.15.24(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
@@ -1794,8 +1794,8 @@ packages:
   '@marijn/find-cluster-break@1.0.2':
     resolution: {integrity: sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g==}
 
-  '@marimo-team/codemirror-ai@0.3.1':
-    resolution: {integrity: sha512-mkDM9BVfVCVX9Plf8TsqX36zMLvgzN++dzAR//HF3BhGrT9IvUvcwkzFWHUeN7iZIY8Hb/yh4MuoxrjuBrOZsg==}
+  '@marimo-team/codemirror-ai@0.3.2':
+    resolution: {integrity: sha512-zsKrTpUWYP/SkvfP+UIhdY2I4qVKfe+hILELTFaILhAnOqZsJJJEPq1ntHnquHPbSNseubCO1n5nCG/B1tdOCg==}
     peerDependencies:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
@@ -11204,7 +11204,7 @@ snapshots:
 
   '@marijn/find-cluster-break@1.0.2': {}
 
-  '@marimo-team/codemirror-ai@0.3.1(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+  '@marimo-team/codemirror-ai@0.3.2(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.1
