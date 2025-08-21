@@ -424,8 +424,9 @@ class OpenAIProvider(
             ),
             "stream": True,
             "timeout": 15,
-            "tools": convert_to_openai_tools(tools) if tools else None,
         }
+        if tools:
+            create_params["tools"] = convert_to_openai_tools(tools)
         if self._is_reasoning_model(self.model):
             create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
             create_params["max_completion_tokens"] = max_tokens
@@ -589,11 +590,12 @@ class AnthropicProvider(
                 Any,
                 convert_to_anthropic_messages(messages),
             ),
-            "tools": convert_to_anthropic_tools(tools) if tools else None,
             "system": system_prompt,
             "stream": True,
             "temperature": self.get_temperature(),
         }
+        if tools:
+            create_params["tools"] = convert_to_anthropic_tools(tools)
         if self.is_extended_thinking_model(self.model):
             create_params["thinking"] = {
                 "type": "enabled",
@@ -689,8 +691,9 @@ class GoogleProvider(
             "system_instruction": system_prompt,
             "temperature": 0,
             "max_output_tokens": max_tokens,
-            "tools": convert_to_google_tools(tools) if tools else None,
         }
+        if tools:
+            config["tools"] = convert_to_google_tools(tools)
         if self.is_thinking_model(self.model):
             config["thinking_config"] = {
                 "include_thoughts": True,
@@ -827,20 +830,23 @@ class BedrockProvider(
         self.setup_credentials(self.config)
         tools = self.config.tools
 
-        return await litellm_completion(
-            model=self.model,
-            messages=cast(
+        config = {
+            "model": self.model,
+            "messages": cast(
                 Any,
                 convert_to_openai_messages(
                     [ChatMessage(role="system", content=system_prompt)]
                     + messages
                 ),
             ),
-            max_completion_tokens=max_tokens,
-            stream=True,
-            timeout=15,
-            tools=convert_to_openai_tools(tools) if tools else None,
-        )
+            "max_completion_tokens": max_tokens,
+            "stream": True,
+            "timeout": 15,
+        }
+        if tools:
+            config["tools"] = convert_to_openai_tools(tools)
+
+        return await litellm_completion(**config)
 
     def extract_content(
         self,
