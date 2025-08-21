@@ -156,6 +156,7 @@ def _read_toml(filepath: str) -> Optional[dict[str, Any]]:
     return read_toml(filepath)
 
 
+@contextlib.contextmanager
 def _write_temp_notebook(notebook: str) -> Generator[str, None, None]:
     tmp_dir = tempfile.TemporaryDirectory()
     tmp_file = os.path.join(tmp_dir.name, "notebook.py")
@@ -171,7 +172,7 @@ def _write_temp_notebook(notebook: str) -> Generator[str, None, None]:
 
 @pytest.fixture
 def temp_marimo_file_with_inline_metadata() -> Generator[str, None, None]:
-    return _write_temp_notebook(
+    with _write_temp_notebook(
         """
         # /// script
         # requires-python = ">=3.11"
@@ -194,12 +195,13 @@ def temp_marimo_file_with_inline_metadata() -> Generator[str, None, None]:
         if __name__ == "__main__":
             app.run()
         """
-    )
+    ) as temp_file:
+        yield temp_file
 
 
 @pytest.fixture
 def temp_non_marimo_file() -> Generator[str, None, None]:
-    return _write_temp_notebook(
+    with _write_temp_notebook(
         """
         import numpy as np
 
@@ -208,12 +210,13 @@ def temp_non_marimo_file() -> Generator[str, None, None]:
         if __name__ == "__main__":
             print("This is a non-marimo file.")
         """
-    )
+    ) as temp_file:
+        yield temp_file
 
 
 @pytest.fixture
 def temp_non_marimo_file_with_marimo() -> Generator[str, None, None]:
-    return _write_temp_notebook(
+    with _write_temp_notebook(
         """
         import numpy as np
         import marimo as mo
@@ -221,16 +224,18 @@ def temp_non_marimo_file_with_marimo() -> Generator[str, None, None]:
         if __name__ == "__main__":
             print("This is a non-marimo file with a marimo import.")
         """
-    )
+    ) as temp_file:
+        yield temp_file
 
 
 @pytest.fixture
 def temp_text_file() -> Generator[str, None, None]:
-    return _write_temp_notebook(
+    with _write_temp_notebook(
         """
         This is a syntax invalid file.
         """
-    )
+    ) as temp_file:
+        yield temp_file
 
 
 @pytest.fixture(
@@ -242,7 +247,7 @@ def temp_text_file() -> Generator[str, None, None]:
     ]
 )
 def temp_possible_file(request: Any) -> str:
-    return next(request.getfixturevalue(request.param))
+    return request.getfixturevalue(request.param)
 
 
 def test_cli_help_exit_code() -> None:
