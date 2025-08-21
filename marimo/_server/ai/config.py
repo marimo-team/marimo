@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import (
     Any,
     Optional,
@@ -32,7 +32,14 @@ class AnyProviderConfig:
     ssl_verify: Optional[bool] = None
     ca_bundle_path: Optional[str] = None
     client_pem: Optional[str] = None
-    tools: list[Tool] = field(default_factory=list)
+    tools: Optional[list[Tool]] = None
+
+    def __post_init__(self) -> None:
+        # Only include tools if they are available
+        # Empty tools list causes an error with deepseek
+        # https://discord.com/channels/1059888774789730424/1387766267792068821
+        if not self.tools:
+            self.tools = None
 
     @classmethod
     def for_openai(cls, config: AiConfig) -> AnyProviderConfig:
@@ -96,14 +103,8 @@ class AnyProviderConfig:
             "ssl_verify": ai_config.get("ssl_verify", True),
             "ca_bundle_path": ai_config.get("ca_bundle_path", None),
             "client_pem": ai_config.get("client_pem", None),
+            "tools": _get_tools(config.get("mode", "manual")),
         }
-
-        # Only include tools if they are available
-        # Empty tools list causes an error with deepseek
-        # https://discord.com/channels/1059888774789730424/1387766267792068821
-        tools = _get_tools(config.get("mode", "manual"))
-        if len(tools) > 0:
-            kwargs["tools"] = tools
 
         return AnyProviderConfig(**kwargs)
 

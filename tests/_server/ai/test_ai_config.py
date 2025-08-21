@@ -314,7 +314,7 @@ class TestAnyProviderConfig:
 
         provider_config = AnyProviderConfig.for_openai(config)
 
-        assert provider_config.tools == []
+        assert provider_config.tools is None
 
 
 class TestOsKey:
@@ -749,6 +749,17 @@ class TestGetAiConfig:
 
         assert result == {}
 
+    def test_get_ai_config_empty_tools(self):
+        """Test that _get_ai_config returns empty dict when AI config key is missing."""
+        config: AiConfig = {
+            "open_ai": {"api_key": "test-key"},
+            "mode": "manual",
+        }
+
+        result = _get_ai_config(config, "open_ai")
+
+        assert result == {"api_key": "test-key"}
+
 
 class TestUtilityFunctions:
     """Tests for utility functions."""
@@ -919,7 +930,7 @@ class TestUtilityFunctions:
         )
 
         assert provider_config.api_key == "test-key"
-        assert provider_config.tools == []  # Autocomplete should have no tools
+        assert provider_config.tools is None
 
 
 class TestEdgeCases:
@@ -1009,3 +1020,12 @@ class TestEdgeCases:
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
         assert "GitHub API key not configured" in str(exc_info.value.detail)
+
+    def test_tools_empty_list(self):
+        """Test that tools are not included when empty list."""
+        provider_config = AnyProviderConfig(
+            tools=[],
+            api_key="test-key",
+            base_url="test-base-url",
+        )
+        assert provider_config.tools is None
