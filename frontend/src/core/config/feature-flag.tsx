@@ -43,7 +43,10 @@ function setFeatureFlag(
 ) {
   const userConfig = getResolvedMarimoConfig();
   userConfig.experimental = userConfig.experimental ?? {};
-  userConfig.experimental[feature] = value;
+  // Note experimental set by attributes, effectively
+  // userConfig.experimental[feature] = value;
+  Object.assign(userConfig.experimental, {[feature]: value});
+
   getRequestClient().saveUserConfig({ config: userConfig });
 }
 
