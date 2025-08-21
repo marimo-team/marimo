@@ -12,13 +12,9 @@ from marimo._utils.toml import is_toml_error, read_toml
 
 if os.name == "posix":
     # for Linux/macOS/Unix
-    _state_home = os.environ.get(
-        "XDG_STATE_HOME", Path.home() / ".local/state"
-    )
-    ROOT_DIR = Path(_state_home) / "marimo"
-elif os.name == "nt":
-    # for Windows
-    ROOT_DIR = Path.home() / ".marimo"
+    _user_home = Path.home()
+    _state_home = os.environ.get("XDG_STATE_HOME", _user_home / ".local/state")
+    ROOT_DIR = Path(_state_home).relative_to(_user_home) / "marimo"
 else:
     ROOT_DIR = ".marimo"
 
