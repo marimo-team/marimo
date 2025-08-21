@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Extension } from "@codemirror/state";
-import { type EditorView, keymap, ViewPlugin } from "@codemirror/view";
+import { EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import {
   type CodeMirror,
   type CodeMirrorV,
@@ -97,6 +97,18 @@ export function vimKeymapExtension(): Extension[] {
       };
     }),
     ViewPlugin.define((view) => new VimCursorVisibilityPlugin({ view })),
+    // FIXME: The vim extension swallows `Ctrl+Escape` events, preventing them
+    // from bubbling to parent elements where react-aria's useKeyboard is listening.
+    // Re-dispatch the event to ensure it propagates up for vim mode transitions.
+    EditorView.domEventHandlers({
+      keydown(event, view) {
+        if (event.ctrlKey && event.key === "Escape") {
+          view.dom.dispatchEvent(new KeyboardEvent(event.type, event));
+          return true;
+        }
+        return false;
+      },
+    }),
   ];
 }
 
