@@ -410,6 +410,7 @@ class OpenAIProvider(
         max_tokens: int,
     ) -> OpenAiStream[ChatCompletionChunk]:
         client = self.get_client(self.config)
+        tools = self.config.tools
         create_params = {
             "model": self.model,
             "messages": cast(
@@ -423,7 +424,7 @@ class OpenAIProvider(
             ),
             "stream": True,
             "timeout": 15,
-            "tools": convert_to_openai_tools(self.config.tools),
+            "tools": convert_to_openai_tools(tools) if tools else None,
         }
         if self._is_reasoning_model(self.model):
             create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
@@ -580,6 +581,7 @@ class AnthropicProvider(
         max_tokens: int,
     ) -> AnthropicStream[RawMessageStreamEvent]:
         client = self.get_client(self.config)
+        tools = self.config.tools
         create_params = {
             "model": self.model,
             "max_tokens": max_tokens,
@@ -587,7 +589,7 @@ class AnthropicProvider(
                 Any,
                 convert_to_anthropic_messages(messages),
             ),
-            "tools": convert_to_anthropic_tools(self.config.tools),
+            "tools": convert_to_anthropic_tools(tools) if tools else None,
             "system": system_prompt,
             "stream": True,
             "temperature": self.get_temperature(),
@@ -682,11 +684,12 @@ class GoogleProvider(
     def get_config(
         self, system_prompt: str, max_tokens: int
     ) -> GenerateContentConfig:
+        tools = self.config.tools
         config = {
             "system_instruction": system_prompt,
             "temperature": 0,
             "max_output_tokens": max_tokens,
-            "tools": convert_to_google_tools(self.config.tools),
+            "tools": convert_to_google_tools(tools) if tools else None,
         }
         if self.is_thinking_model(self.model):
             config["thinking_config"] = {
@@ -822,6 +825,7 @@ class BedrockProvider(
         from litellm import acompletion as litellm_completion
 
         self.setup_credentials(self.config)
+        tools = self.config.tools
 
         return await litellm_completion(
             model=self.model,
@@ -835,7 +839,7 @@ class BedrockProvider(
             max_completion_tokens=max_tokens,
             stream=True,
             timeout=15,
-            tools=convert_to_openai_tools(self.config.tools),
+            tools=convert_to_openai_tools(tools) if tools else None,
         )
 
     def extract_content(
