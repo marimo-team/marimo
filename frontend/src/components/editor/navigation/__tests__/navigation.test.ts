@@ -1700,10 +1700,11 @@ describe("useCellEditorNavigationProps", () => {
       });
     });
     describe("Mac", () => {
-      it("should focus cell when Cmd+Escape is pressed in vim mode", () => {
-        // Set platform to mac for this test
+      beforeEach(() => {
         store.set(platformAtom, "mac");
+      });
 
+      it("should focus cell when Cmd+Escape is pressed in vim mode", () => {
         const mockEditorView = { current: null };
         const { result } = renderWithProvider(() =>
           useCellEditorNavigationProps(mockCellId, mockEditorView),
@@ -1721,10 +1722,11 @@ describe("useCellEditorNavigationProps", () => {
     });
 
     describe("Linux", () => {
-      it("should focus cell when Ctrl+Escape is pressed in vim mode", () => {
-        // Set platform to linux for this test
+      beforeEach(() => {
         store.set(platformAtom, "linux");
+      });
 
+      it("should focus cell when Ctrl+Escape is pressed in vim mode", () => {
         const mockEditorView = { current: null };
         const { result } = renderWithProvider(() =>
           useCellEditorNavigationProps(mockCellId, mockEditorView),
@@ -1742,10 +1744,11 @@ describe("useCellEditorNavigationProps", () => {
     });
 
     describe("Windows", () => {
-      it("should focus cell when Shift+Escape is pressed in vim mode on Windows", () => {
-        // Set platform to windows for this test
+      beforeEach(() => {
         store.set(platformAtom, "windows");
+      });
 
+      it("should focus cell when Shift+Escape is pressed in vim mode on Windows", () => {
         const mockEditorView = { current: null };
         const { result } = renderWithProvider(() =>
           useCellEditorNavigationProps(mockCellId, mockEditorView),
