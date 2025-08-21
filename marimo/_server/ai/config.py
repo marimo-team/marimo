@@ -56,13 +56,13 @@ class AnyProviderConfig:
 
     @classmethod
     def for_ollama(cls, config: AiConfig) -> AnyProviderConfig:
+        default_base_url = "http://127.0.0.1:11434/v1"
         return cls._for_openai_like(
             config,
             "ollama",
             "Ollama",
             fallback_key="ollama-placeholder",
-            # Default base URL for Ollama
-            fallback_base_url="http://127.0.0.1:11434/v1",
+            fallback_base_url=default_base_url,
         )
 
     @classmethod
@@ -87,7 +87,7 @@ class AnyProviderConfig:
         fallback_key: Optional[str] = None,
         fallback_base_url: Optional[str] = None,
     ) -> AnyProviderConfig:
-        ai_config = _get_ai_config(config, key, name)
+        ai_config = _get_ai_config(config, key)
         key = _get_key(ai_config, name, fallback_key=fallback_key)
 
         kwargs: dict[str, Any] = {
@@ -109,11 +109,12 @@ class AnyProviderConfig:
 
     @classmethod
     def for_anthropic(cls, config: AiConfig) -> AnyProviderConfig:
-        ai_config = _get_ai_config(config, "anthropic", "Anthropic")
+        ai_config = _get_ai_config(config, "anthropic")
+        fallback_key = cls.os_key("ANTHROPIC_API_KEY")
         key = _get_key(
             ai_config,
             "Anthropic",
-            fallback_key=cls.os_key("ANTHROPIC_API_KEY"),
+            fallback_key=fallback_key,
         )
         return cls(
             base_url=_get_base_url(ai_config),
@@ -126,7 +127,7 @@ class AnyProviderConfig:
         fallback_key = cls.os_key("GEMINI_API_KEY") or cls.os_key(
             "GOOGLE_API_KEY"
         )
-        ai_config = _get_ai_config(config, "google", "Google AI")
+        ai_config = _get_ai_config(config, "google")
         key = _get_key(
             ai_config,
             "Google AI",
@@ -140,7 +141,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_bedrock(cls, config: AiConfig) -> AnyProviderConfig:
-        ai_config = _get_ai_config(config, "bedrock", "Bedrock")
+        ai_config = _get_ai_config(config, "bedrock")
         key = _get_key(ai_config, "Bedrock")
         return cls(
             base_url=_get_base_url(ai_config),
@@ -186,12 +187,9 @@ def _get_tools(mode: CopilotMode) -> list[Tool]:
     return tool_manager.get_tools_for_mode(mode)
 
 
-def _get_ai_config(config: AiConfig, key: str, name: str) -> dict[str, Any]:
+def _get_ai_config(config: AiConfig, key: str) -> dict[str, Any]:
     if key not in config:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=f"{name} config not found",
-        )
+        return {}
     return cast(dict[str, Any], config.get(key, {}))
 
 
@@ -242,7 +240,7 @@ def _get_key(
     if not isinstance(config, dict):
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail="Invalid config",
+            detail=f"Invalid config for {name}. Go to Settings > AI to configure.",
         )
 
     config = cast(dict[str, Any], config)
@@ -273,17 +271,23 @@ def _get_key(
 
     raise HTTPException(
         status_code=HTTPStatus.BAD_REQUEST,
-        detail=f"{name} API key not configured",
+        detail=f"{name} API key not configured. Go to Settings > AI to configure.",
     )
 
 
 def _get_base_url(config: Any, name: str = "") -> Optional[str]:
     """Get the base URL for a given provider."""
     if not isinstance(config, dict):
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail="Invalid config",
-        )
+        if name:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=f"{name} is not configured. Go to Settings > AI to configure.",
+            )
+        else:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Invalid config. Go to Settings > AI to configure.",
+            )
 
     if name == "Bedrock":
         if "region_name" in config:

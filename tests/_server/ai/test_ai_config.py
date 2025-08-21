@@ -110,6 +110,13 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-ollama-key"
         assert provider_config.base_url == "http://localhost:11434"
 
+    def test_for_ollama_empty(self):
+        config: AiConfig = {}
+        provider_config = AnyProviderConfig.for_ollama(config)
+        assert isinstance(provider_config, AnyProviderConfig)
+        assert provider_config.api_key == "ollama-placeholder"
+        assert provider_config.base_url == "http://127.0.0.1:11434/v1"
+
     def test_for_ollama_placeholder_key(self):
         """Test Ollama configuration with default URL gets placeholder key."""
         config: AiConfig = {
@@ -342,6 +349,13 @@ class TestProviderConfigWithFallback:
 
         provider_config = AnyProviderConfig.for_openai(config)
 
+        assert provider_config.api_key == "env-openai-key"
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "env-openai-key"})
+    def test_for_openai_empty(self) -> None:
+        """Test OpenAI config uses fallback key when config is missing api_key and config is empty."""
+        config: AiConfig = {}
+        provider_config = AnyProviderConfig.for_openai(config)
         assert provider_config.api_key == "env-openai-key"
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "env-openai-key"})
@@ -723,19 +737,17 @@ class TestGetAiConfig:
         """Test successful retrieval of AI config."""
         config: AiConfig = {"open_ai": {"api_key": "test-key"}}
 
-        result = _get_ai_config(config, "open_ai", "OpenAI")
+        result = _get_ai_config(config, "open_ai")
 
         assert result == {"api_key": "test-key"}
 
     def test_get_ai_config_missing_key(self):
-        """Test error when AI config key is missing."""
+        """Test that _get_ai_config returns empty dict when AI config key is missing."""
         config: AiConfig = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            _get_ai_config(config, "open_ai", "OpenAI")
+        result = _get_ai_config(config, "open_ai")
 
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "OpenAI config not found" in str(exc_info.value.detail)
+        assert result == {}
 
 
 class TestUtilityFunctions:
@@ -921,7 +933,7 @@ class TestEdgeCases:
             AnyProviderConfig.for_openai(config)
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "OpenAI config not found" in str(exc_info.value.detail)
+        assert "OpenAI API key not configured" in str(exc_info.value.detail)
 
     def test_anthropic_config_missing(self):
         """Test error when Anthropic config is missing."""
@@ -931,7 +943,7 @@ class TestEdgeCases:
             AnyProviderConfig.for_anthropic(config)
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Anthropic config not found" in str(exc_info.value.detail)
+        assert "Anthropic API key not configured" in str(exc_info.value.detail)
 
     def test_google_config_missing(self):
         """Test error when Google config is missing."""
@@ -941,17 +953,17 @@ class TestEdgeCases:
             AnyProviderConfig.for_google(config)
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Google AI config not found" in str(exc_info.value.detail)
+        assert "Google AI API key not configured" in str(exc_info.value.detail)
 
     def test_bedrock_config_missing(self):
-        """Test error when Bedrock config is missing."""
+        """Test when Bedrock config is missing, should not error since could use environment variables."""
         config: AiConfig = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_bedrock(config)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Bedrock config not found" in str(exc_info.value.detail)
+        provider_config = AnyProviderConfig.for_bedrock(config)
+        assert provider_config == AnyProviderConfig(
+            base_url=None,
+            api_key="",
+        )
 
     def test_azure_config_missing(self):
         """Test error when Azure config is missing."""
@@ -961,17 +973,20 @@ class TestEdgeCases:
             AnyProviderConfig.for_azure(config)
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Azure OpenAI config not found" in str(exc_info.value.detail)
+        assert "Azure OpenAI API key not configured" in str(
+            exc_info.value.detail
+        )
 
     def test_ollama_config_missing(self):
-        """Test error when Ollama config is missing."""
+        """Test should not error when Ollama config is missing."""
         config: AiConfig = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_ollama(config)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Ollama config not found" in str(exc_info.value.detail)
+        provider_config = AnyProviderConfig.for_ollama(config)
+        assert provider_config == AnyProviderConfig(
+            base_url="http://127.0.0.1:11434/v1",
+            api_key="ollama-placeholder",
+            ssl_verify=True,
+        )
 
     def test_openai_compatible_config_missing(self):
         """Test error when OpenAI Compatible config is missing."""
@@ -981,7 +996,7 @@ class TestEdgeCases:
             AnyProviderConfig.for_openai_compatible(config)
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "OpenAI Compatible config not found" in str(
+        assert "OpenAI Compatible API key not configured" in str(
             exc_info.value.detail
         )
 
@@ -993,4 +1008,4 @@ class TestEdgeCases:
             AnyProviderConfig.for_github(config)
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "GitHub config not found" in str(exc_info.value.detail)
+        assert "GitHub API key not configured" in str(exc_info.value.detail)
