@@ -242,42 +242,123 @@ const ProviderDropdownContent = ({
             const qualifiedModelId =
               `${provider}/${model.model}` as QualifiedModelId;
             return (
-              <DropdownMenuItem
-                key={qualifiedModelId}
-                className="flex items-center gap-2 pr-3"
-                onSelect={() => {
-                  onSelect(qualifiedModelId);
-                }}
-              >
-                <AiProviderIcon provider={iconProvider} className="h-4 w-4" />
-                <div className="flex flex-row w-full items-center">
-                  <div className="pl-1 flex flex-col">
-                    <span>{model.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {model.model}
-                    </span>
+              <DropdownMenuSub key={qualifiedModelId}>
+                <DropdownMenuSubTrigger showChevron={false} className="py-2">
+                  <div
+                    className="flex items-center gap-2 w-full cursor-pointer"
+                    onClick={() => {
+                      onSelect(qualifiedModelId);
+                    }}
+                  >
+                    <AiModelDropdownItem model={model} provider={provider} />
                   </div>
-                  <div className="ml-auto">
-                    {model.thinking && (
-                      <Tooltip content="Reasoning model">
-                        <BrainIcon
-                          className={`h-6 w-6 rounded-md p-1 ${getTagColour("thinking")}`}
-                        />
-                      </Tooltip>
-                    )}
-                  </div>
-                </div>
-                {model.custom && (
-                  <Tooltip content="Custom model">
-                    <BotIcon className="h-6 w-6" />
-                  </Tooltip>
-                )}
-              </DropdownMenuItem>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent
+                  className="p-4 w-80"
+                  sideOffset={2}
+                  alignOffset={-4}
+                >
+                  <AiModelInfoDisplay model={model} provider={provider} />
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             );
           })}
         </DropdownMenuSubContent>
       </DropdownMenuPortal>
     </DropdownMenuSub>
+  );
+};
+
+const AiModelDropdownItem = ({
+  model,
+  provider,
+}: {
+  model: AiModel;
+  provider: ProviderId;
+}) => {
+  const iconProvider = isKnownAIProvider(provider)
+    ? provider
+    : "openai-compatible";
+
+  return (
+    <>
+      <AiProviderIcon provider={iconProvider} className="h-4 w-4" />
+      <div className="flex flex-row w-full items-center">
+        <span>{model.name}</span>
+        <div className="ml-auto">
+          {model.thinking && (
+            <Tooltip content="Reasoning model">
+              <BrainIcon
+                className={`h-5 w-5 rounded-md p-1 ${getTagColour("thinking")}`}
+              />
+            </Tooltip>
+          )}
+        </div>
+      </div>
+      {model.custom && (
+        <Tooltip content="Custom model">
+          <BotIcon className="h-5 w-5" />
+        </Tooltip>
+      )}
+    </>
+  );
+};
+
+const AiModelInfoDisplay = ({
+  model,
+  provider,
+}: {
+  model: AiModel;
+  provider: ProviderId;
+}) => {
+  return (
+    <div className="space-y-3">
+      <div>
+        <h4 className="font-semibold text-base text-foreground">
+          {model.name}
+        </h4>
+        <p className="text-xs text-muted-foreground font-mono">{model.model}</p>
+      </div>
+
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        {model.description}
+      </p>
+
+      {model.roles.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-2">
+            Capabilities:
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {model.roles.map((role) => (
+              <span
+                key={role}
+                className={`px-2 py-1 text-xs rounded-md font-medium ${getTagColour(role)}`}
+                title={getTagTooltip(role)}
+              >
+                {role}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {model.thinking && (
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+          <span className="text-xs text-muted-foreground">
+            Supports thinking mode
+          </span>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 pt-2 border-t border-border">
+        <AiProviderIcon provider={provider} className="h-4 w-4" />
+        <span className="text-xs text-muted-foreground">
+          {getProviderLabel(provider)}
+        </span>
+      </div>
+    </div>
   );
 };
 
