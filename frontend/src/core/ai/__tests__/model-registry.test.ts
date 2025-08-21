@@ -66,14 +66,6 @@ describe("AiModelRegistry", () => {
 
       expect(registry.getCustomModels()).toEqual(new Set(customModels));
       expect(registry.getDisplayedModels()).toEqual(new Set());
-
-      // Expect custom models to appear first
-      expect(registry.getModelsByProvider("openai")[0].name).toBe(
-        "openai/custom-gpt",
-      );
-      expect(registry.getModelsByProvider("anthropic")[0].name).toBe(
-        "anthropic/custom-claude",
-      );
     });
 
     it("should create registry with displayed models", () => {
