@@ -95,7 +95,9 @@ class TestOpenAiEndpoints:
                 },
             )
         assert response.status_code == 400, response.text
-        assert response.json() == {"detail": "OpenAI API key not configured"}
+        assert response.json() == {
+            "detail": "OpenAI API key not configured. Go to Settings > AI to configure."
+        }
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -341,7 +343,9 @@ class TestOpenAiEndpoints:
                 },
             )
         assert response.status_code == 400, response.text
-        assert response.json() == {"detail": "OpenAI API key not configured"}
+        assert response.json() == {
+            "detail": "OpenAI API key not configured. Go to Settings > AI to configure."
+        }
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -419,7 +423,7 @@ class TestAnthropicAiEndpoints:
             )
         assert response.status_code == 400, response.text
         assert response.json() == {
-            "detail": "Anthropic API key not configured"
+            "detail": "Anthropic API key not configured. Go to Settings > AI to configure."
         }
 
     @staticmethod
@@ -597,7 +601,7 @@ class TestGoogleAiEndpoints:
             )
         assert response.status_code == 400, response.text
         assert response.json() == {
-            "detail": "Google AI API key not configured"
+            "detail": "Google AI API key not configured. Go to Settings > AI to configure."
         }
 
     @staticmethod
