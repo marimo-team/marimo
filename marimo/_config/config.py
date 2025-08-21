@@ -505,6 +505,7 @@ class ExperimentalConfig(TypedDict, total=False):
 
     # Internal features
     cache: CacheConfig
+    execution_type: ExecutionType
 
 
 @mddoc
