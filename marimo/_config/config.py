@@ -596,7 +596,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
     diagnostics: NotRequired[DiagnosticsConfig]
-    experimental: NotRequired[dict[str, Any]]
+    experimental: NotRequired[ExperimentalConfig]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
