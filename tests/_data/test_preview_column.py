@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 
 from marimo._data.preview_column import (
-    _sanitize_dtypes,
+    _sanitize_data,
     get_column_preview_dataset,
     get_column_preview_for_dataframe,
     get_column_preview_for_duckdb,
@@ -488,11 +488,11 @@ def test_sanitize_dtypes() -> None:
     nw_df = nw.from_native(df)
 
     # Sanitize the dtypes
-    result = _sanitize_dtypes(nw_df, "cat_col")
-    assert result.schema["cat_col"] == nw.String
+    result = _sanitize_data(nw_df, "cat_col")
+    assert result.collect_schema()["cat_col"] == nw.String
 
-    result = _sanitize_dtypes(nw_df, "int128_col")
-    assert result.schema["int128_col"] == nw.Int64
+    result = _sanitize_data(nw_df, "int128_col")
+    assert result.collect_schema()["int128_col"] == nw.Int64
 
 
 @pytest.mark.skipif(
@@ -511,5 +511,41 @@ def test_sanitize_dtypes_enum() -> None:
     )
     nw_df = nw.from_native(df)
 
-    result = _sanitize_dtypes(nw_df, "enum_col")
+    result = _sanitize_data(nw_df, "enum_col")
     assert result.schema["enum_col"] == nw.String
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
+def test_preview_column_duration_dtype() -> None:
+    import polars as pl
+
+    # Test days conversion
+    df = pl.DataFrame(
+        {
+            "duration_weeks": [timedelta(weeks=1), timedelta(weeks=2)],
+            "duration_days": [timedelta(days=1), timedelta(days=2)],
+            "duration_hours": [timedelta(hours=1), timedelta(hours=2)],
+            "duration_minutes": [timedelta(minutes=1), timedelta(minutes=2)],
+            "duration_seconds": [timedelta(seconds=1), timedelta(seconds=2)],
+            "duration_milliseconds": [
+                timedelta(milliseconds=1),
+                timedelta(milliseconds=2),
+            ],
+            "duration_microseconds": [
+                timedelta(microseconds=1),
+                timedelta(microseconds=2),
+            ],
+        }
+    )
+
+    for column_name in df.columns:
+        result = get_column_preview_dataset(
+            table=get_table_manager(df),
+            table_name="table",
+            column_name=column_name,
+        )
+    assert result is not None
+    assert result.chart_code is not None
+    assert result.chart_spec is not None

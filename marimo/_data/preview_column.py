@@ -264,10 +264,9 @@ def _get_altair_chart(
 
     # Filter the data to the column we want
     column_data = table.select_columns([column_name]).data
+    column_data = _sanitize_data(column_data, column_name)
     if isinstance(column_data, nw.LazyFrame):
         column_data = column_data.collect()
-
-    column_data = _sanitize_dtypes(column_data, column_name)
 
     error: Optional[str] = None
     missing_packages: Optional[list[str]] = None
@@ -330,25 +329,87 @@ def _get_chart_spec(
         )
 
 
-def _sanitize_dtypes(
-    column_data: nw.DataFrame[Any] | Any, column_name: str
-) -> nw.DataFrame[Any] | Any:
-    """Sanitize dtypes for vegafusion"""
+def _sanitize_data(
+    column_data: nw.DataFrame[Any] | nw.LazyFrame[Any] | Any, column_name: str
+) -> nw.DataFrame[Any] | nw.LazyFrame[Any] | Any:
+    """
+    Sanitize data for vegafusion.
+    Vegafusion doesn't support all data types so we convert them to supported types.
+    """
     try:
-        dtype = column_data.schema[column_name]
+        frame = column_data.lazy()
+        col = nw.col(column_name)
+        dtype = column_data.collect_schema()[column_name]
+
         if dtype == nw.Categorical or dtype == nw.Enum:
-            column_data = column_data.with_columns(
-                nw.col(column_name).cast(nw.String)
-            )
+            column_data = frame.with_columns(col.cast(nw.String))
         # Int128 and UInt128 are not supported by datafusion
         elif dtype == nw.Int128:
-            column_data = column_data.with_columns(
-                nw.col(column_name).cast(nw.Int64)
-            )
+            column_data = frame.with_columns(col.cast(nw.Int64))
         elif dtype == nw.UInt128:
-            column_data = column_data.with_columns(
-                nw.col(column_name).cast(nw.UInt64)
-            )
+            column_data = frame.with_columns(col.cast(nw.UInt64))
+        elif dtype == nw.Duration:
+            # Convert Duration to numeric values for better charting support
+            try:
+                result = (
+                    frame.select(
+                        col.min().alias("min"), col.max().alias("max")
+                    )
+                    .collect()
+                    .rows(named=True)[0]
+                )
+                min_value = result["min"]
+                max_value = result["max"]
+                if min_value is not None and max_value is not None:
+                    diff = max_value - min_value
+                    total_seconds = diff.total_seconds()
+                    if total_seconds >= 604800:
+                        # Use weeks if range is at least a week
+                        column_data = column_data.with_columns(
+                            (col.dt.total_seconds() / 604800).alias(
+                                column_name
+                            )
+                        )
+                    elif total_seconds >= 86400:
+                        # Use days if range is at least a day
+                        column_data = column_data.with_columns(
+                            (col.dt.total_seconds() / 86400).alias(column_name)
+                        )
+                    elif total_seconds >= 3600:
+                        # Use hours if range is at least an hour
+                        column_data = column_data.with_columns(
+                            (col.dt.total_seconds() / 3600).alias(column_name)
+                        )
+                    elif total_seconds >= 60:
+                        # Use minutes if range is at least a minute
+                        column_data = column_data.with_columns(
+                            col.dt.total_minutes().alias(column_name)
+                        )
+                    elif total_seconds >= 1:
+                        # Use seconds if range is at least a second
+                        column_data = column_data.with_columns(
+                            col.dt.total_seconds().alias(column_name)
+                        )
+                    elif total_seconds >= 0.001:
+                        # Use milliseconds if range is at least a millisecond
+                        column_data = column_data.with_columns(
+                            col.dt.total_milliseconds().alias(column_name)
+                        )
+                    elif total_seconds >= 0.000001:
+                        # Use microseconds if range is at least a microsecond
+                        column_data = column_data.with_columns(
+                            col.dt.total_microseconds().alias(column_name)
+                        )
+                    elif total_seconds >= 0.000000001:
+                        # Use nanoseconds if range is at least a nanosecond
+                        column_data = column_data.with_columns(
+                            col.dt.total_nanoseconds().alias(column_name)
+                        )
+            except Exception as e:
+                LOGGER.warning("Failed to infer duration precision: %s", e)
+                column_data = column_data.with_columns(
+                    col.dt.total_seconds().alias(column_name)
+                )
     except Exception as e:
         LOGGER.warning(f"Failed to sanitize dtypes: {e}")
     return column_data
