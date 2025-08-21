@@ -6,6 +6,7 @@ import dataclasses
 import inspect
 import os
 from collections.abc import Awaitable, Mapping
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from marimo import _loggers
@@ -147,11 +148,6 @@ class CellOutput:
     output: Any = None
 
 
-@dataclasses.dataclass
-class ParsedSQLStatements:
-    parsed: Optional[list[str]] = None
-
-
 @dataclasses.dataclass(frozen=True)
 class CellImpl:
     # hash of code
@@ -189,13 +185,6 @@ class CellImpl:
     _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)
     # cells can optionally hold a reference to their output
     _output: CellOutput = dataclasses.field(default_factory=CellOutput)
-    # parsed sql statements
-    _sqls: ParsedSQLStatements = dataclasses.field(
-        default_factory=ParsedSQLStatements
-    )
-    _raw_sqls: ParsedSQLStatements = dataclasses.field(
-        default_factory=ParsedSQLStatements
-    )
     # Whether this cell can be executed as a test cell.
     _test: bool = False
 
@@ -233,31 +222,23 @@ class CellImpl:
         except Exception:
             return []
 
-    @property
+    @cached_property
     def sqls(self) -> list[str]:
         """Returns parsed SQL statements from this cell.
 
         Returns:
             list[str]: List of SQL statement strings parsed from the cell code.
         """
-        if self._sqls.parsed is not None:
-            return self._sqls.parsed
+        return self._get_sqls()
 
-        self._sqls.parsed = self._get_sqls()
-        return self._sqls.parsed
-
-    @property
+    @cached_property
     def raw_sqls(self) -> list[str]:
         """Returns unparsed SQL statements from this cell.
 
         Returns:
             list[str]: List of SQL statements verbatim from the cell code.
         """
-        if self._raw_sqls.parsed is not None:
-            return self._raw_sqls.parsed
-
-        self._raw_sqls.parsed = self._get_sqls(raw=True)
-        return self._raw_sqls.parsed
+        return self._get_sqls(raw=True)
 
     @property
     def stale(self) -> bool:
@@ -270,7 +251,7 @@ class CellImpl:
     @property
     def imports(self) -> Iterable[ImportData]:
         """Return a set of import data for this cell."""
-        import_data = []
+        import_data: list[ImportData] = []
         for data in self.variable_data.values():
             import_data.extend(
                 [

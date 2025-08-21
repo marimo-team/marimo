@@ -1,3 +1,5 @@
+@reference "../../css/globals.css";
+
 .multi-icon .second-icon {
   @apply bg-background;
 }

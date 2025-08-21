@@ -323,7 +323,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             ("I", ("string", "str")),
             ("J", ("string", "str")),
             ("K", ("date", "date")),
-            ("L", ("time", "Time")),
+            ("L", ("time", "time")),
         ]
         assert (
             self.factory.create()(complex_data).get_field_types()
@@ -875,7 +875,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "datetime",
             "datetime[μs]",
         )
-        assert manager.get_field_type("time_col") == ("time", "Time")
+        assert manager.get_field_type("time_col") == ("time", "time")
 
     @pytest.mark.skipif(
         not DependencyManager.pillow.has(), reason="pillow not installed"

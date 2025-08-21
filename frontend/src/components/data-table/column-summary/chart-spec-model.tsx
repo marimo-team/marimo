@@ -28,7 +28,7 @@ import {
   getLegacyNumericSpec,
   getLegacyTemporalSpec,
 } from "./legacy-chart-spec";
-import { getPartialTimeTooltip } from "./utils";
+import { calculateBinStep, getPartialTimeTooltip } from "./utils";
 
 // We rely on vega's built-in binning to determine bar widths.
 const MAX_BAR_HEIGHT = 20; // px
@@ -198,6 +198,8 @@ export class ColumnChartSpecModel<T> {
           return getLegacyTemporalSpec(column, type, base, scale);
         }
 
+        const binStep = calculateBinStep(binValues || []);
+
         const tooltip = getPartialTimeTooltip(binValues || []);
         const singleValue = binValues?.length === 1;
 
@@ -261,7 +263,7 @@ export class ColumnChartSpecModel<T> {
                 x: {
                   field: "bin_start",
                   type: "temporal",
-                  bin: { binned: true, step: 2 },
+                  bin: { binned: true, step: binStep },
                   axis: null,
                 },
                 x2: {
@@ -295,13 +297,13 @@ export class ColumnChartSpecModel<T> {
                 x: {
                   field: "bin_start",
                   type: "temporal",
-                  bin: { binned: true, step: 2 },
+                  bin: { binned: true, step: binStep },
                   axis: null,
                 },
                 x2: {
                   field: "bin_end",
                   type: "temporal",
-                  bin: { binned: true, step: 2 },
+                  bin: { binned: true, step: binStep },
                   axis: null,
                 },
                 y: {
@@ -428,6 +430,7 @@ export class ColumnChartSpecModel<T> {
       case "number": {
         // Create a histogram spec that properly handles null values
         const format = type === "integer" ? ",d" : ".2f";
+        const binStep = calculateBinStep(binValues || []);
 
         if (!usePreComputedValues) {
           return getLegacyNumericSpec(column, format, base);
@@ -461,7 +464,7 @@ export class ColumnChartSpecModel<T> {
                 x: {
                   field: "bin_start",
                   type: "quantitative",
-                  bin: { binned: true, step: 2 },
+                  bin: { binned: true, step: binStep },
                 },
                 x2: {
                   field: "bin_end",
@@ -493,7 +496,7 @@ export class ColumnChartSpecModel<T> {
                 x: {
                   field: "bin_start",
                   type: "quantitative",
-                  bin: { binned: true, step: 2 },
+                  bin: { binned: true, step: binStep },
                   axis: {
                     title: null,
                     labelFontSize: 8.5,

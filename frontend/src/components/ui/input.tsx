@@ -35,8 +35,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <input
           type={type}
           className={cn(
-            "shadow-xsSolid hover:shadow-smSolid disabled:shadow-xsSolid focus-visible:shadow-mdSolid",
-            "flex h-6 w-full mb-1 rounded-sm border border-input bg-background px-1.5 py-1 text-sm font-code ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50",
+            "shadow-xs-solid hover:shadow-sm-solid disabled:shadow-xs-solid focus-visible:shadow-md-solid",
+            "flex h-6 w-full mb-1 rounded-sm border border-input bg-background px-1.5 py-1 text-sm font-code ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50",
             icon && "pl-7",
             endAdornment && "pr-10",
             className,
@@ -135,7 +135,7 @@ export const SearchInput = React.forwardRef<
           id={inputId}
           ref={ref}
           className={cn(
-            "placeholder:text-foreground-muted flex h-7 m-1 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50",
+            "placeholder:text-foreground-muted flex h-7 m-1 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
             className,
           )}
           {...props}

@@ -82,7 +82,7 @@ export async function takeScreenshot(page: Page, filename: string) {
  */
 export async function pressShortcut(page: Page, action: HotkeyAction) {
   const isMac = await page.evaluate(() => navigator.userAgent.includes("Mac"));
-  const provider = HotkeyProvider.create(isMac);
+  const provider = HotkeyProvider.create();
   const key = provider.getHotkey(action);
   // playwright uses "Meta" for command key on mac, "Control" for windows/linux
   // we also need to capitalize the first letter of each key

@@ -2,16 +2,18 @@
 from __future__ import annotations
 
 import unittest
-from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
-from marimo._config.manager import UserConfigManager
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._server.ai.prompts import FILL_ME_TAG
+from marimo._server.ai.prompts import (
+    FIM_MIDDLE_TAG,
+    FIM_PREFIX_TAG,
+    FIM_SUFFIX_TAG,
+)
 from marimo._server.ai.providers import (
     AnyProviderConfig,
     OpenAIProvider,
@@ -78,7 +80,11 @@ class TestOpenAiEndpoints:
         del openai_mock
         user_config_manager = get_session_config_manager(client)
 
-        with no_openai_config(user_config_manager):
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_no_openai_config(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -89,11 +95,13 @@ class TestOpenAiEndpoints:
                 },
             )
         assert response.status_code == 400, response.text
-        assert response.json() == {"detail": "OpenAI API key not configured"}
+        assert response.json() == {
+            "detail": "OpenAI API key not configured. Go to Settings > AI to configure."
+        }
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_completion_without_code(
         client: TestClient, openai_mock: Any
     ) -> None:
@@ -102,13 +110,21 @@ class TestOpenAiEndpoints:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="import pandas as pd"))]
             )
-        ]
 
-        with openai_config(user_config_manager):
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_openai_config(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -130,7 +146,7 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_completion_with_code(
         client: TestClient, openai_mock: Any
     ) -> None:
@@ -139,13 +155,21 @@ class TestOpenAiEndpoints:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="import pandas as pd"))]
             )
-        ]
 
-        with openai_config(user_config_manager):
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_openai_config(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -164,7 +188,7 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_completion_with_custom_model(
         client: TestClient, openai_mock: Any
     ) -> None:
@@ -173,13 +197,21 @@ class TestOpenAiEndpoints:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="import pandas as pd"))]
             )
-        ]
 
-        with openai_config_custom_model(user_config_manager):
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_openai_config_custom_model(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -196,7 +228,7 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_completion_with_custom_base_url(
         client: TestClient, openai_mock: Any
     ) -> None:
@@ -205,13 +237,21 @@ class TestOpenAiEndpoints:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="import pandas as pd"))]
             )
-        ]
 
-        with openai_config_custom_base_url(user_config_manager):
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_openai_config_custom_base_url(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -231,20 +271,26 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_inline_completion(client: TestClient, openai_mock: Any) -> None:
         user_config_manager = get_session_config_manager(client)
 
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="df = pd.DataFrame()"))]
             )
-        ]
 
-        with openai_config(user_config_manager):
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=_openai_config()
+        ):
             response = client.post(
                 "/api/ai/inline_completion",
                 headers=HEADERS,
@@ -259,12 +305,18 @@ class TestOpenAiEndpoints:
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
             ][1]["content"]
-            assert prompt == f"import pandas as pd\n{FILL_ME_TAG}\ndf.head()"
-            # Assert the system prompt includes language-specific instructions
+            assert (
+                prompt
+                == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
+            )
+            # Assert the system prompt for FIM models
             system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
             ][0]["content"]
-            assert "python" in system_prompt
+            assert (
+                system_prompt
+                == f"You are a python code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
+            )
             # Assert the model it was called with
             model = oaiclient.chat.completions.create.call_args.kwargs["model"]
             assert model == "gpt-marimo-for-inline-completion"
@@ -278,7 +330,9 @@ class TestOpenAiEndpoints:
         del openai_mock
         user_config_manager = get_session_config_manager(client)
 
-        with no_openai_config(user_config_manager):
+        with patch.object(
+            user_config_manager, "get_config", return_value=_no_openai_config()
+        ):
             response = client.post(
                 "/api/ai/inline_completion",
                 headers=HEADERS,
@@ -290,12 +344,12 @@ class TestOpenAiEndpoints:
             )
         assert response.status_code == 400, response.text
         assert response.json() == {
-            "detail": "AI completion API key not configured"
+            "detail": "OpenAI API key not configured. Go to Settings > AI to configure."
         }
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
+    @patch("openai.AsyncOpenAI")
     def test_inline_completion_different_language(
         client: TestClient, openai_mock: Any
     ) -> None:
@@ -304,11 +358,19 @@ class TestOpenAiEndpoints:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(choices=[Choice(delta=Delta(content="SELECT 1;"))])
-        ]
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
+                choices=[Choice(delta=Delta(content="SELECT 1;"))]
+            )
 
-        with openai_config(user_config_manager):
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=_openai_config()
+        ):
             response = client.post(
                 "/api/ai/inline_completion",
                 headers=HEADERS,
@@ -319,11 +381,14 @@ class TestOpenAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Assert the system prompt includes language-specific instructions
+            # Assert the system prompt for FIM models
             system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
             ][0]["content"]
-            assert "sql" in system_prompt
+            assert (
+                system_prompt
+                == f"You are a sql code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
+            )
             # Assert model
             model = oaiclient.chat.completions.create.call_args.kwargs["model"]
             assert model == "gpt-marimo-for-inline-completion"
@@ -342,7 +407,11 @@ class TestAnthropicAiEndpoints:
         del anthropic_mock
         user_config_manager = get_session_config_manager(client)
 
-        with no_anthropic_config(user_config_manager):
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_no_anthropic_config(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -354,12 +423,12 @@ class TestAnthropicAiEndpoints:
             )
         assert response.status_code == 400, response.text
         assert response.json() == {
-            "detail": "Anthropic API key not configured"
+            "detail": "Anthropic API key not configured. Go to Settings > AI to configure."
         }
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("anthropic.Client")
+    @patch("anthropic.AsyncClient")
     def test_anthropic_completion_with_code(
         client: TestClient, anthropic_mock: Any
     ) -> None:
@@ -368,11 +437,17 @@ class TestAnthropicAiEndpoints:
         anthropic_client = MagicMock()
         anthropic_mock.return_value = anthropic_client
 
-        anthropic_client.messages.create.return_value = [
-            RawContentBlockDeltaEvent(TextDelta("import pandas as pd"))
-        ]
+        # Mock async stream
+        async def mock_stream():
+            yield RawContentBlockDeltaEvent(TextDelta("import pandas as pd"))
 
-        with anthropic_config(user_config_manager):
+        anthropic_client.messages.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=_anthropic_config()
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -394,7 +469,7 @@ class TestAnthropicAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("anthropic.Client")
+    @patch("anthropic.AsyncClient")
     def test_anthropic_inline_completion(
         client: TestClient, anthropic_mock: Any
     ) -> None:
@@ -403,11 +478,17 @@ class TestAnthropicAiEndpoints:
         anthropic_client = MagicMock()
         anthropic_mock.return_value = anthropic_client
 
-        anthropic_client.messages.create.return_value = [
-            RawContentBlockDeltaEvent(TextDelta("df = pd.DataFrame()"))
-        ]
+        # Mock async stream
+        async def mock_stream():
+            yield RawContentBlockDeltaEvent(TextDelta("df = pd.DataFrame()"))
 
-        with anthropic_config(user_config_manager):
+        anthropic_client.messages.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=_anthropic_config()
+        ):
             response = client.post(
                 "/api/ai/inline_completion",
                 headers=HEADERS,
@@ -422,7 +503,10 @@ class TestAnthropicAiEndpoints:
             prompt: str = anthropic_client.messages.create.call_args.kwargs[
                 "messages"
             ][0]["content"]
-            assert prompt == f"import pandas as pd\n{FILL_ME_TAG}\ndf.head()"
+            assert (
+                prompt
+                == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
+            )
             # Assert the model it was called with
             model = anthropic_client.messages.create.call_args.kwargs["model"]
             assert model == "claude-3.5-for-inline-completion"
@@ -434,7 +518,7 @@ class TestAnthropicAiEndpoints:
 class TestGoogleAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.Client")
+    @patch("google.genai.client.AsyncClient")
     def test_google_ai_completion_with_code(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -443,14 +527,30 @@ class TestGoogleAiEndpoints:
         google_client = MagicMock()
         google_ai_mock.return_value = google_client
 
-        google_client.models.generate_content_stream.return_value = [
-            MagicMock(
+        # Mock async stream
+        async def mock_stream():
+            yield MagicMock(
                 text="import pandas as pd",
                 thought=None,
             )
-        ]
 
-        with google_ai_config(user_config_manager):
+        google_client.models.generate_content_stream = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        config = {
+            "ai": {
+                "open_ai": {"model": "gemini-1.5-pro"},
+                "google": {"api_key": "fake-key"},
+                "models": {
+                    "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+                },
+            },
+        }
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=config
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -473,14 +573,23 @@ class TestGoogleAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.Client")
+    @patch("google.genai.client.AsyncClient")
     def test_google_ai_completion_without_token(
         client: TestClient, google_ai_mock: Any
     ) -> None:
         del google_ai_mock
         user_config_manager = get_session_config_manager(client)
 
-        with no_google_ai_config(user_config_manager):
+        config = {
+            "ai": {
+                "open_ai": {"model": "gemini-1.5-pro"},
+                "google": {"api_key": ""},
+            },
+        }
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=config
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -492,12 +601,12 @@ class TestGoogleAiEndpoints:
             )
         assert response.status_code == 400, response.text
         assert response.json() == {
-            "detail": "Google AI API key not configured"
+            "detail": "Google AI API key not configured. Go to Settings > AI to configure."
         }
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.Client")
+    @patch("google.genai.client.AsyncClient")
     def test_google_ai_inline_completion(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -506,14 +615,20 @@ class TestGoogleAiEndpoints:
         google_client = MagicMock()
         google_ai_mock.return_value = google_client
 
-        google_client.models.generate_content_stream.return_value = [
-            MagicMock(
+        # Mock async stream
+        async def mock_stream():
+            yield MagicMock(
                 text="df = pd.DataFrame()",
                 thought=None,
             )
-        ]
 
-        with google_ai_config(user_config_manager):
+        google_client.models.generate_content_stream = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=_google_ai_config()
+        ):
             response = client.post(
                 "/api/ai/inline_completion",
                 headers=HEADERS,
@@ -532,196 +647,123 @@ class TestGoogleAiEndpoints:
             )
             assert (
                 prompt[0]["parts"][0]["text"]
-                == f"import pandas as pd\n{FILL_ME_TAG}\ndf.head()"
+                == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
             )
 
 
-@contextmanager
-def openai_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {
-                        "api_key": "fake-api",
-                        "model": "some-openai-model",
-                    }
-                },
-                "completion": {
-                    "model": "gpt-marimo-for-inline-completion",
-                    "api_key": "fake-api",
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+def _openai_config():
+    return {
+        "ai": {
+            "open_ai": {
+                "api_key": "fake-api",
+                "model": "openai/some-openai-model",
+            },
+            "models": {
+                "autocomplete_model": "gpt-marimo-for-inline-completion",
+            },
+        },
+    }
 
 
-@contextmanager
-def openai_config_custom_model(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {
-                        "api_key": "fake-api",
-                        "model": "gpt-marimo",
-                    }
-                },
-                "completion": {
-                    "model": "gpt-marimo-for-inline-completion",
-                    "api_key": "fake-api",
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+def _openai_config_custom_model():
+    return {
+        "ai": {
+            "open_ai": {
+                "api_key": "fake-api",
+                "model": "gpt-marimo",
+            },
+            "models": {
+                "autocomplete_model": "gpt-marimo-for-inline-completion",
+            },
+        },
+    }
 
 
-@contextmanager
-def openai_config_custom_base_url(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {
-                        "api_key": "fake-api",
-                        "base_url": "https://my-openai-instance.com",
-                        "model": "some-openai-model-with-base-url",
-                    }
-                },
-                "completion": {
-                    "model": "gpt-marimo-for-inline-completion",
-                    "api_key": "fake-api",
-                    "base_url": "https://my-openai-instance.com",
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+def _openai_config_custom_base_url():
+    return {
+        "ai": {
+            "open_ai": {
+                "api_key": "fake-api",
+                "base_url": "https://my-openai-instance.com",
+                "model": "openai/some-openai-model-with-base-url",
+            },
+            "models": {
+                "autocomplete_model": "gpt-marimo-for-inline-completion",
+            },
+        },
+    }
 
 
-@contextmanager
-def no_openai_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {"open_ai": {"api_key": "", "model": ""}},
-                "completion": {
-                    "model": "gpt-marimo-for-inline-completion",
-                    "api_key": "",
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+def _no_openai_config():
+    return {
+        "ai": {
+            "open_ai": {"api_key": "", "model": ""},
+            "models": {
+                "autocomplete_model": "gpt-marimo-for-inline-completion",
+            },
+        },
+    }
 
 
-@contextmanager
-def no_anthropic_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {"model": "claude-3.5"},
-                    "anthropic": {"api_key": ""},
-                },
-                "completion": {
-                    "model": "claude-3.5-for-inline-completion",
-                    "api_key": "",
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+def _no_anthropic_config():
+    return {
+        "ai": {
+            "open_ai": {"model": "claude-3.5"},
+            "anthropic": {"api_key": ""},
+            "models": {
+                "autocomplete_model": "claude-3.5-for-inline-completion",
+            },
+        },
+    }
 
 
-@contextmanager
-def anthropic_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {"model": "claude-3.5"},
-                    "anthropic": {"api_key": "fake-key"},
-                },
-                "completion": {
-                    "model": "claude-3.5-for-inline-completion",
-                    "api_key": "fake-key",
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+def _anthropic_config():
+    return {
+        "ai": {
+            "open_ai": {"model": "claude-3.5"},
+            "anthropic": {"api_key": "fake-key"},
+            "models": {
+                "autocomplete_model": "anthropic/claude-3.5-for-inline-completion",
+            },
+        },
+    }
 
 
-@contextmanager
-def google_ai_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {"model": "gemini-1.5-pro"},
-                    "google": {"api_key": "fake-key"},
-                },
-                "completion": {
-                    "model": "gemini-1.5-pro-for-inline-completion",
-                    "api_key": "fake-key",
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
-
-
-@contextmanager
-def no_google_ai_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {"model": "gemini-1.5-pro"},
-                    "google": {"api_key": ""},
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+def _google_ai_config():
+    return {
+        "ai": {
+            "open_ai": {"model": "gemini-1.5-pro"},
+            "google": {"api_key": "fake-key"},
+            "models": {
+                "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+            },
+        },
+    }
 
 
 @with_session(SESSION_ID)
 def test_chat_without_code(client: TestClient) -> None:
     user_config_manager = get_session_config_manager(client)
 
-    with patch("openai.OpenAI") as openai_mock:
+    with patch("openai.AsyncOpenAI") as openai_mock:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[
                     Choice(delta=Delta(content="Hello, how can I help you?"))
                 ]
             )
-        ]
 
-        with openai_config(user_config_manager):
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=_openai_config()
+        ):
             response = client.post(
                 "/api/ai/chat",
                 headers=HEADERS,
@@ -746,17 +788,23 @@ def test_chat_without_code(client: TestClient) -> None:
 def test_chat_with_code(client: TestClient) -> None:
     user_config_manager = get_session_config_manager(client)
 
-    with patch("openai.OpenAI") as openai_mock:
+    with patch("openai.AsyncOpenAI") as openai_mock:
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
 
-        oaiclient.chat.completions.create.return_value = [
-            FakeChoices(
+        # Mock async stream
+        async def mock_stream():
+            yield FakeChoices(
                 choices=[Choice(delta=Delta(content="import pandas as pd"))]
             )
-        ]
 
-        with openai_config(user_config_manager):
+        oaiclient.chat.completions.create = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=_openai_config()
+        ):
             response = client.post(
                 "/api/ai/chat",
                 headers=HEADERS,
@@ -946,8 +994,16 @@ class TestGetFinishReason(unittest.TestCase):
         ),
     ],
 )
-def test_without_wrapping_backticks(chunks: list[str], expected: str) -> None:
-    result = list(without_wrapping_backticks(iter(chunks)))
+async def test_without_wrapping_backticks(
+    chunks: list[str], expected: str
+) -> None:
+    async def async_iter(items):
+        for item in items:
+            yield item
+
+    result = []
+    async for chunk in without_wrapping_backticks(async_iter(chunks)):
+        result.append(chunk)
     assert "".join(result) == expected
 
 

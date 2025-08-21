@@ -286,6 +286,7 @@ class StopRequest:
 class CodeCompletionRequest:
     id: CompletionRequestId
     document: str
+    """Source code found in the cell up to the cursor position."""
     cell_id: CellId_t
 
     def __repr__(self) -> str:

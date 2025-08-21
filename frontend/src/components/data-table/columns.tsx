@@ -3,10 +3,11 @@
 
 import { PopoverClose } from "@radix-ui/react-popover";
 import type { Column, ColumnDef } from "@tanstack/react-table";
+import { formatDate } from "date-fns";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
-import { exactDateTime } from "@/utils/dates";
+import { type DateFormat, exactDateTime, getDateFormat } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
 import { Objects } from "@/utils/objects";
@@ -306,7 +307,7 @@ const PopoutColumn = ({
     <EmotionCacheProvider container={null}>
       <Popover>
         <PopoverTrigger
-          className={cn(cellStyles, "w-fit outline-none")}
+          className={cn(cellStyles, "w-fit outline-hidden")}
           onClick={selectCell}
           onMouseDown={(e) => {
             // Prevent cell underneath from being selected
@@ -380,7 +381,7 @@ function getCellStyleClass(
   return cn(
     canSelectCell && "cursor-pointer",
     isSelected &&
-      "relative before:absolute before:inset-0 before:bg-[var(--blue-3)] before:rounded before:-z-10 before:mx-[-4px] before:my-[-2px]",
+      "relative before:absolute before:inset-0 before:bg-(--blue-3) before:rounded before:-z-10 before:mx-[-4px] before:my-[-2px]",
     "w-full",
     "text-left",
     "truncate",
@@ -406,12 +407,18 @@ function renderDate(
   value: Date,
   dataType?: DataType,
   dtype?: string,
+  format?: DateFormat | null,
 ): React.ReactNode {
   const type = dataType === "date" ? "date" : "datetime";
   const timezone = extractTimezone(dtype);
+
+  const exactValue = format
+    ? formatDate(value, format)
+    : exactDateTime(value, timezone);
+
   return (
     <DatePopover date={value} type={type}>
-      {exactDateTime(value, timezone)}
+      {exactValue}
     </DatePopover>
   );
 }
@@ -432,7 +439,8 @@ export function renderCellValue<TData, TValue>(
   if (dataType === "datetime" && typeof value === "string") {
     try {
       const date = new Date(value);
-      return renderDate(date, dataType, dtype);
+      const format = getDateFormat(value);
+      return renderDate(date, dataType, dtype, format);
     } catch (error) {
       Logger.error("Error parsing datetime, fallback to string", error);
     }

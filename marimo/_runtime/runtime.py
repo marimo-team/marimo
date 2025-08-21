@@ -378,9 +378,13 @@ def notebook_dir() -> pathlib.Path | None:
         # return the current working directory
         return pathlib.Path().absolute()
 
-    filename = ctx.filename
+    # NB: __file__ is patched by runner, so always bound to be correct.
+    filename = ctx.globals.get("__file__", None) or ctx.filename
     if filename is not None:
-        return pathlib.Path(filename).parent.absolute()
+        path = pathlib.Path(filename).resolve()
+        while not path.is_dir():
+            path = path.parent
+        return path
 
     return None
 
@@ -642,11 +646,11 @@ class Kernel:
     def teardown(self) -> None:
         """Teardown resources owned by the kernel."""
         if self.stdout is not None:
-            self.stdout.stop()
+            self.stdout._stop()
         if self.stderr is not None:
-            self.stderr.stop()
+            self.stderr._stop()
         if self.stdin is not None:
-            self.stdin.stop()
+            self.stdin._stop()
         self.stream.stop()
 
         if self.module_watcher is not None:
@@ -758,6 +762,15 @@ class Kernel:
     def _install_execution_context(
         self, cell_id: CellId_t, setting_element_value: bool = False
     ) -> Iterator[ExecutionContext]:
+        """NB: When installed, KeyboardInterrupts may be raised, which MUST be caught.
+
+        try:
+            with self._install_execution_context():
+                # Keyboard interrupts may be raised!
+                ...
+        except KeyboardInterrupt:
+            ...
+        """
         ctx = get_context()
         assert isinstance(ctx, KernelRuntimeContext)
         ctx.execution_context = (

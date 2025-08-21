@@ -30,7 +30,7 @@ export const FloatingOutline: React.FC = () => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        "fixed top-[25vh] right-8 z-[10000]",
+        "fixed top-[25vh] right-8 z-10000",
         // Hide on small screens
         "hidden md:block",
       )}

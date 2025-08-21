@@ -1,0 +1,7 @@
+{
+  "extends": "@marimo-team/tsconfig/library.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  }
+}

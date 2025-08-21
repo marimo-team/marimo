@@ -36,7 +36,7 @@ import {
   rectangularSelection,
   tooltips,
 } from "@codemirror/view";
-import { aiExtension } from "@marimo-team/codemirror-ai";
+import { aiExtension, triggerOptions } from "@marimo-team/codemirror-ai";
 import type { Theme } from "../../theme/useTheme";
 import type { CellId } from "../cells/ids";
 import type {
@@ -129,17 +129,22 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     diagnosticsConfig?.enabled ? lintGutter() : [],
     // AI edit inline
     enableAI && getFeatureFlag("inline_ai_tooltip")
-      ? aiExtension({
-          prompt: (req) => {
-            return requestEditCompletion({
-              prompt: req.prompt,
-              selection: req.selection,
-              codeBefore: req.codeBefore,
-              codeAfter: req.codeAfter,
-              language: getCurrentLanguageAdapter(req.editorView),
-            });
-          },
-        })
+      ? [
+          aiExtension({
+            prompt: (req) => {
+              return requestEditCompletion({
+                prompt: req.prompt,
+                selection: req.selection,
+                codeBefore: req.codeBefore,
+                codeAfter: req.codeAfter,
+                language: getCurrentLanguageAdapter(req.editorView),
+              });
+            },
+          }),
+          triggerOptions.of({
+            hideOnBlur: true,
+          }),
+        ]
       : [],
     // Readonly extension
     dynamicReadonly(store),

@@ -9,7 +9,10 @@ module.exports = {
     "selector-id-pattern": null,
     "no-descending-specificity": null,
     // Turn off rules from the standard config
-    "at-rule-no-unknown": [true, { ignoreAtRules: ["tailwind"] }],
+    "at-rule-no-unknown": [
+      true,
+      { ignoreAtRules: ["tailwind", "reference", "config", "theme"] },
+    ],
     "font-family-no-missing-generic-family-keyword": null,
     "number-max-precision": null,
     // Force font-size to be in rem

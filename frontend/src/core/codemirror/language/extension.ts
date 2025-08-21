@@ -28,7 +28,7 @@ import { historyCompartment } from "../editing/extensions";
 import { formattingChangeEffect } from "../format";
 import { createPanel } from "../react-dom/createPanel";
 import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
-import { initializeSQLDialect } from "./languages/sql";
+import { initializeSQLDialect } from "./languages/sql/sql";
 import type { LanguageMetadata } from "./metadata";
 import { languageMetadataField, setLanguageMetadata } from "./metadata";
 import { LanguagePanelComponent } from "./panel/panel";

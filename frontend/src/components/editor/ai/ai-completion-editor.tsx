@@ -3,7 +3,7 @@
 import { useCompletion } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
 import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { Button } from "@/components/ui/button";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
@@ -25,6 +25,10 @@ import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
 import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
+import {
+  CompletionActions,
+  createAiCompletionOnKeydown,
+} from "./completion-handlers";
 import { getAICompletionBody } from "./completion-utils";
 
 const Original = CodeMirrorMerge.Original;
@@ -68,6 +72,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const [includeOtherCells, setIncludeOtherCells] = useAtom(
     includeOtherCellsAtom,
   );
+  const includeOtherCellsCheckboxId = useId();
 
   const runtimeManager = useRuntimeManager();
 
@@ -135,6 +140,15 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const { theme } = useTheme();
 
+  const handleAcceptCompletion = () => {
+    acceptChange(completion);
+    setCompletion("");
+  };
+
+  const handleDeclineCompletion = () => {
+    setCompletion("");
+  };
+
   return (
     <div className={cn("flex flex-col w-full rounded-[inherit]", className)}>
       <div
@@ -146,13 +160,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
       >
         {enabled && (
           <>
-            <SparklesIcon
-              className="text-[var(--blue-10)] flex-shrink-0"
-              size={16}
-            />
+            <SparklesIcon className="text-(--blue-10) shrink-0" size={16} />
             <PromptInput
               inputRef={inputRef}
-              theme={theme}
+              className="h-full my-0 py-1.5"
               onClose={() => {
                 declineChange();
                 setCompletion("");
@@ -167,6 +178,12 @@ export const AiCompletionEditor: React.FC<Props> = ({
                   handleSubmit();
                 }
               }}
+              onKeyDown={createAiCompletionOnKeydown({
+                handleAcceptCompletion,
+                handleDeclineCompletion,
+                isLoading,
+                completion,
+              })}
             />
             {isLoading && (
               <Button
@@ -180,36 +197,27 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 Stop
               </Button>
             )}
-            {!isLoading && completion && (
-              <Button
-                data-testid="accept-completion-button"
-                variant="text"
+            {completion && (
+              <CompletionActions
+                isLoading={isLoading}
+                onAccept={handleAcceptCompletion}
+                onDecline={handleDeclineCompletion}
                 size="xs"
-                className="mb-0"
-                disabled={isLoading}
-                onClick={() => {
-                  acceptChange(completion);
-                  setCompletion("");
-                }}
-              >
-                <span className="text-[var(--grass-11)] opacity-100">
-                  Accept
-                </span>
-              </Button>
+              />
             )}
             <div className="h-full w-px bg-border mx-2" />
             <Tooltip content="Include code from other cells">
               <div className="flex flex-row items-start gap-1 overflow-hidden">
                 <Checkbox
                   data-testid="include-other-cells-checkbox"
-                  id="include-other-cells"
+                  id={includeOtherCellsCheckboxId}
                   checked={includeOtherCells}
                   onCheckedChange={(checked) =>
                     setIncludeOtherCells(Boolean(checked))
                   }
                 />
                 <Label
-                  htmlFor="include-other-cells"
+                  htmlFor={includeOtherCellsCheckboxId}
                   className="text-muted-foreground text-xs whitespace-nowrap ellipsis"
                 >
                   Include all code
@@ -227,7 +235,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 setCompletion("");
               }}
             >
-              <XIcon className="text-[var(--red-10)]" size={16} />
+              <XIcon className="text-(--red-10)" size={16} />
             </Button>
           </>
         )}

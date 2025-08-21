@@ -36,7 +36,7 @@ export const StaticBanner: React.FC = () => {
 
   return (
     <div
-      className="px-4 py-2 bg-[var(--sky-2)] border-b border-[var(--sky-7)] text-[var(--sky-11)] flex justify-between items-center gap-4 no-print text-sm"
+      className="px-4 py-2 bg-(--sky-2) border-b border-(--sky-7) text-(--sky-11) flex justify-between items-center gap-4 no-print text-sm"
       data-testid="static-notebook-banner"
     >
       <span>
@@ -44,13 +44,13 @@ export const StaticBanner: React.FC = () => {
         <a
           href={Constants.githubPage}
           target="_blank"
-          className="text-[var(--sky-11)] font-medium underline"
+          className="text-(--sky-11) font-medium underline"
         >
           marimo
         </a>{" "}
         notebook - Run or edit for full interactivity
       </span>
-      <span className="flex-shrink-0">
+      <span className="shrink-0">
         <StaticBannerDialog code={code} />
       </span>
     </div>
@@ -88,15 +88,15 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
               <a
                 href={Constants.githubPage}
                 target="_blank"
-                className="text-[var(--sky-11)] hover:underline font-medium"
+                className="text-(--sky-11) hover:underline font-medium"
               >
                 marimo
               </a>{" "}
               notebook. To run interactively:
             </p>
 
-            <div className="rounded-lg p-3 border bg-[var(--sky-2)] border-[var(--sky-7)]">
-              <div className="font-mono text-[var(--sky-11)] leading-relaxed">
+            <div className="rounded-lg p-3 border bg-(--sky-2) border-(--sky-7)">
+              <div className="font-mono text-(--sky-11) leading-relaxed">
                 pip install marimo
                 <br />
                 marimo edit {filename}
@@ -104,29 +104,29 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
             </div>
 
             {!href.endsWith(".html") && (
-              <div className="rounded-lg p-3 border bg-[var(--sky-2)] border-[var(--sky-7)]">
-                <div className="text-sm text-[var(--sky-12)] mb-1">
+              <div className="rounded-lg p-3 border bg-(--sky-2) border-(--sky-7)">
+                <div className="text-sm text-(--sky-12) mb-1">
                   Or run directly from URL:
                 </div>
-                <div className="font-mono text-[var(--sky-11)] break-all">
+                <div className="font-mono text-(--sky-11) break-all">
                   marimo edit {window.location.href}
                 </div>
               </div>
             )}
 
-            <div className="pt-3 border-t border-[var(--sky-7)]">
-              <p className="text-sm text-[var(--sky-12)] mb-2">
+            <div className="pt-3 border-t border-(--sky-7)">
+              <p className="text-sm text-(--sky-12) mb-2">
                 <strong>Try in browser with WebAssembly:</strong>{" "}
                 <a
                   href={wasmLink}
                   target="_blank"
-                  className="text-[var(--sky-11)] hover:underline break-all"
+                  className="text-(--sky-11) hover:underline break-all"
                   rel="noreferrer"
                 >
                   {wasmLink.slice(0, 50)}...
                 </a>
               </p>
-              <p className="text-sm text-[var(--sky-12)]">
+              <p className="text-sm text-(--sky-12)">
                 Note: WebAssembly may not work for all notebooks. Additionally,
                 some dependencies may not be available in the browser.
               </p>

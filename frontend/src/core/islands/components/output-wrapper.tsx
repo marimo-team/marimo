@@ -16,7 +16,7 @@ import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import type { CellRuntimeState } from "@/core/cells/types";
-import { sendRun } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { useEventListener } from "@/hooks/useEventListener";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
@@ -53,6 +53,7 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
   alwaysShowRun,
   children,
 }) => {
+  const { sendRun } = useRequestClient();
   const [pressed, setPressed] = useState<boolean>(alwaysShowRun);
   const selector = useCallback(
     (s: NotebookState) => s.cellRuntime[cellId],

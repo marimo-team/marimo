@@ -7,6 +7,7 @@ import DataEditor, {
   type GridCell,
   GridCellKind,
   type GridColumn,
+  GridColumnIcon,
   type GridKeyEventArgs,
   type GridSelection,
   type Item,
@@ -56,6 +57,7 @@ interface GlideDataEditorProps<T> {
   setData: (data: T[] | ((prev: T[]) => T[])) => void;
   columnFields: FieldTypes;
   setColumnFields: React.Dispatch<React.SetStateAction<FieldTypes>>;
+  editableColumns: string[] | "all";
   edits: Edits["edits"];
   onAddEdits: (edits: Edits["edits"]) => void;
   onAddRows: (newRows: object[]) => void;
@@ -70,6 +72,7 @@ export const GlideDataEditor = <T,>({
   setData,
   columnFields,
   setColumnFields,
+  editableColumns,
   edits,
   onAddEdits,
   onAddRows,
@@ -186,19 +189,30 @@ export const GlideDataEditor = <T,>({
   const columns: ModifiedGridColumn[] = useMemo(() => {
     const columns: ModifiedGridColumn[] = [];
     for (const [columnName, fieldType] of Object.entries(columnFields)) {
+      const editable =
+        editableColumns === "all" || editableColumns.includes(columnName);
+
       columns.push({
         id: columnName,
         title: columnName,
         width: columnWidths[columnName], // Enables resizing
-        icon: getColumnHeaderIcon(fieldType),
+        icon: editable
+          ? getColumnHeaderIcon(fieldType)
+          : GridColumnIcon.ProtectedColumnOverlay,
+        style: "normal",
         kind: getColumnKind(fieldType),
         dataType: fieldType,
         hasMenu: true,
+        themeOverride: editable
+          ? undefined
+          : {
+              bgCell: theme === "light" ? "#F9F9FA" : "#1e1e21",
+            },
       });
     }
 
     return columns;
-  }, [columnFields, columnWidths]);
+  }, [columnFields, columnWidths, editableColumns, theme]);
 
   const getCellContent = useCallback(
     (cell: Item): GridCell => {
@@ -207,13 +221,16 @@ export const GlideDataEditor = <T,>({
 
       const dataItem = dataRow[columns[col].title as keyof T];
       const columnKind = columns[col].kind;
+      const editable =
+        editableColumns === "all" ||
+        editableColumns.includes(columns[col].title);
 
       if (columnKind === GridCellKind.Boolean) {
         const value = Boolean(dataItem);
         return {
           kind: GridCellKind.Boolean,
           allowOverlay: false,
-          readonly: false,
+          readonly: !editable,
           data: value,
         };
       }
@@ -221,8 +238,8 @@ export const GlideDataEditor = <T,>({
       if (columnKind === GridCellKind.Number && typeof dataItem === "number") {
         return {
           kind: GridCellKind.Number,
-          allowOverlay: true,
-          readonly: false,
+          allowOverlay: editable,
+          readonly: !editable,
           displayData: String(dataItem),
           data: dataItem,
         };
@@ -230,13 +247,13 @@ export const GlideDataEditor = <T,>({
 
       return {
         kind: GridCellKind.Text,
-        allowOverlay: true,
-        readonly: false,
+        allowOverlay: editable,
+        readonly: !editable,
         displayData: String(dataItem),
         data: String(dataItem),
       };
     },
-    [columns, data],
+    [columns, data, editableColumns],
   );
 
   const onCellEdited = useCallback(
@@ -318,6 +335,7 @@ export const GlideDataEditor = <T,>({
           data,
           setData,
           columns,
+          editableColumns,
           onAddEdits,
         });
         return;
@@ -335,7 +353,7 @@ export const GlideDataEditor = <T,>({
         return;
       }
     },
-    [columns, data, onAddEdits, selection, setData],
+    [columns, data, editableColumns, onAddEdits, selection, setData],
   );
 
   const onRowAppend = useCallback(() => {
@@ -502,6 +520,10 @@ export const GlideDataEditor = <T,>({
 
   const isLargeDataset = data.length > 100_000;
 
+  // For now, only allow renaming and deleting if all columns are editable
+  // Users who set specific columns usually will not want to rename or delete columns
+  const allowRenameDelete = editableColumns === "all";
+
   const renderDropdownMenu = () => {
     if (!isMenuOpen) {
       return;
@@ -509,11 +531,13 @@ export const GlideDataEditor = <T,>({
 
     const bulkEditItems = (
       <>
-        <RenameColumnSub
-          currentColumnName={columns[menu.col].title}
-          onRename={handleRenameColumn}
-          onCancel={() => setMenu(undefined)}
-        />
+        {allowRenameDelete && (
+          <RenameColumnSub
+            currentColumnName={columns[menu.col].title}
+            onRename={handleRenameColumn}
+            onCancel={() => setMenu(undefined)}
+          />
+        )}
 
         <DropdownMenuSeparator />
 
@@ -536,7 +560,7 @@ export const GlideDataEditor = <T,>({
         <DropdownMenuSeparator />
 
         {/* There is a bug `undefined (reading 'headerRowMarkerDisabled')` when deleting the last column. So we temporarily disable it. */}
-        {!isLastColumn && (
+        {!isLastColumn && allowRenameDelete && (
           <DropdownMenuItem
             onClick={handleDeleteColumn}
             className="text-destructive focus:text-destructive"

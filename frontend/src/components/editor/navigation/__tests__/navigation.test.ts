@@ -5,13 +5,15 @@ import type { EditorView } from "@codemirror/view";
 import { act, renderHook } from "@testing-library/react";
 import { Provider } from "jotai";
 import React, { createRef } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 import { MockNotebook } from "@/__mocks__/notebook";
+import { MockRequestClient } from "@/__mocks__/requests";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import type { CellActions } from "@/core/cells/cells";
 import { notebookAtom } from "@/core/cells/cells";
 import { configOverridesAtom, userConfigAtom } from "@/core/config/config";
+import { requestClientAtom } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import type { CellActionsDropdownHandle } from "../../cell/cell-actions";
 import {
@@ -47,10 +49,6 @@ vi.mock("../focus-utils", () => ({
   focusCell: vi.fn(),
 }));
 
-vi.mock("@/core/network/requests", () => ({
-  saveCellConfig: vi.fn(),
-}));
-
 // Get mocked functions
 const mockUseCellActions = vi.mocked(
   await import("@/core/cells/cells"),
@@ -66,8 +64,11 @@ const mockUseCellClipboard = vi.mocked(
   await import("../clipboard"),
 ).useCellClipboard;
 
+afterAll(() => {
+  vi.resetAllMocks();
+});
+
 import { defaultUserConfig } from "@/core/config/config-schema";
-import { saveCellConfig } from "@/core/network/requests";
 import { MultiColumn } from "@/utils/id-tree";
 import { focusCell, focusCellEditor } from "../focus-utils";
 import {
@@ -107,7 +108,7 @@ const mockCellActions = MockNotebook.cellActions({
   undoDeleteCell: vi.fn(),
 });
 
-const mockSaveCellConfig = vi.mocked(saveCellConfig);
+const mockRequestClient = MockRequestClient.create();
 
 // Helper to setup selection
 const setupSelection = () => {
@@ -127,6 +128,9 @@ const mockCellId = cellId1;
 describe("useCellNavigationProps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Set the request client in the store
+    store.set(requestClientAtom, mockRequestClient);
 
     // Setup mocks
     mockUseSaveNotebook.mockReturnValue({
@@ -1040,7 +1044,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
         configs: {
           [cellId1]: { hide_code: true },
         },
@@ -1063,7 +1067,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
         configs: {
           [cellId3]: { hide_code: false },
         },
@@ -1093,7 +1097,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
         configs: {
           [cellId1]: { hide_code: true },
           [cellId2]: { hide_code: true },
@@ -1580,12 +1584,22 @@ describe("useCellNavigationProps", () => {
   });
 });
 
+// Mock isPlatformWindows for testing
+const mockIsPlatformWindows = vi.hoisted(() => vi.fn());
+vi.mock("@/core/hotkeys/shortcuts", async (importOriginal) => ({
+  ...(await importOriginal()),
+  isPlatformWindows: mockIsPlatformWindows,
+}));
+
 describe("useCellEditorNavigationProps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
     // Reset config overrides
     store.set(configOverridesAtom, {});
+
+    // Reset platform mock to default (non-Windows)
+    mockIsPlatformWindows.mockReturnValue(false);
   });
 
   describe("keyboard shortcuts", () => {
@@ -1635,7 +1649,7 @@ describe("useCellEditorNavigationProps", () => {
       const mockEditorView = {
         current: {
           state: {
-            selection: { main: { from: 5, to: 5 } },
+            selection: { main: { from: 5, to: 5, empty: true } },
             field: vi.fn().mockReturnValue({ active: [{ state: 1 }] }), // Mock active completion
           },
           dispatch: vi.fn(),
@@ -1692,52 +1706,115 @@ describe("useCellEditorNavigationProps", () => {
       });
     });
 
-    it("should focus cell when Ctrl+Escape is pressed in vim mode", () => {
-      const mockEditorView = { current: null };
-      const { result } = renderWithProvider(() =>
-        useCellEditorNavigationProps(mockCellId, mockEditorView),
-      );
-
-      const mockEvent = Mocks.keyboardEvent({ key: "Escape", ctrlKey: true });
-
-      act(() => {
-        result.current.onKeyDown?.(mockEvent);
+    describe("non-Windows platforms", () => {
+      beforeEach(() => {
+        mockIsPlatformWindows.mockReturnValue(false);
       });
 
-      expect(focusCell).toHaveBeenCalledWith(mockCellId);
-      expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+      it("should focus cell when Ctrl+Escape is pressed in vim mode", () => {
+        const mockEditorView = { current: null };
+        const { result } = renderWithProvider(() =>
+          useCellEditorNavigationProps(mockCellId, mockEditorView),
+        );
+
+        const mockEvent = Mocks.keyboardEvent({ key: "Escape", ctrlKey: true });
+
+        act(() => {
+          result.current.onKeyDown?.(mockEvent);
+        });
+
+        expect(focusCell).toHaveBeenCalledWith(mockCellId);
+        expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+      });
+
+      it("should focus cell when Cmd+Escape (metaKey) is pressed in vim mode", () => {
+        const mockEditorView = { current: null };
+        const { result } = renderWithProvider(() =>
+          useCellEditorNavigationProps(mockCellId, mockEditorView),
+        );
+
+        const mockEvent = Mocks.keyboardEvent({ key: "Escape", metaKey: true });
+
+        act(() => {
+          result.current.onKeyDown?.(mockEvent);
+        });
+
+        expect(focusCell).toHaveBeenCalledWith(mockCellId);
+        expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+      });
+
+      it("should focus cell when Escape (without Ctrl) is pressed in vim mode", () => {
+        const mockEditorView = { current: null };
+        const { result } = renderWithProvider(() =>
+          useCellEditorNavigationProps(mockCellId, mockEditorView),
+        );
+
+        const mockEvent = Mocks.keyboardEvent({ key: "Escape" });
+
+        act(() => {
+          result.current.onKeyDown?.(mockEvent);
+        });
+
+        expect(focusCell).toHaveBeenCalledWith(mockCellId);
+        expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+      });
     });
 
-    it("should focus cell when Cmd+Escape (metaKey) is pressed in vim mode", () => {
-      const mockEditorView = { current: null };
-      const { result } = renderWithProvider(() =>
-        useCellEditorNavigationProps(mockCellId, mockEditorView),
-      );
-
-      const mockEvent = Mocks.keyboardEvent({ key: "Escape", metaKey: true });
-
-      act(() => {
-        result.current.onKeyDown?.(mockEvent);
+    describe("Windows platform", () => {
+      beforeEach(() => {
+        mockIsPlatformWindows.mockReturnValue(true);
       });
 
-      expect(focusCell).toHaveBeenCalledWith(mockCellId);
-      expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
-    });
+      it("should focus cell when Shift+Escape is pressed in vim mode on Windows", () => {
+        const mockEditorView = { current: null };
+        const { result } = renderWithProvider(() =>
+          useCellEditorNavigationProps(mockCellId, mockEditorView),
+        );
 
-    it("should not focus cell when Escape (without Ctrl) is pressed in vim mode", () => {
-      const mockEditorView = { current: null };
-      const { result } = renderWithProvider(() =>
-        useCellEditorNavigationProps(mockCellId, mockEditorView),
-      );
+        const mockEvent = Mocks.keyboardEvent({
+          key: "Escape",
+          shiftKey: true,
+        });
 
-      const mockEvent = Mocks.keyboardEvent({ key: "Escape" });
+        act(() => {
+          result.current.onKeyDown?.(mockEvent);
+        });
 
-      act(() => {
-        result.current.onKeyDown?.(mockEvent);
+        expect(focusCell).toHaveBeenCalledWith(mockCellId);
+        expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
       });
 
-      expect(focusCell).not.toHaveBeenCalled();
-      expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+      it("should focus cell when Ctrl+Escape is pressed in vim mode on Windows", () => {
+        const mockEditorView = { current: null };
+        const { result } = renderWithProvider(() =>
+          useCellEditorNavigationProps(mockCellId, mockEditorView),
+        );
+
+        const mockEvent = Mocks.keyboardEvent({ key: "Escape", ctrlKey: true });
+
+        act(() => {
+          result.current.onKeyDown?.(mockEvent);
+        });
+
+        expect(focusCell).toHaveBeenCalledWith(mockCellId);
+        expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+      });
+
+      it("should focus cell when Escape (without Shift) is pressed in vim mode on Windows", () => {
+        const mockEditorView = { current: null };
+        const { result } = renderWithProvider(() =>
+          useCellEditorNavigationProps(mockCellId, mockEditorView),
+        );
+
+        const mockEvent = Mocks.keyboardEvent({ key: "Escape" });
+
+        act(() => {
+          result.current.onKeyDown?.(mockEvent);
+        });
+
+        expect(focusCell).toHaveBeenCalledWith(mockCellId);
+        expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+      });
     });
   });
 });

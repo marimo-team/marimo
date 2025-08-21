@@ -28,10 +28,7 @@ import {
 } from "@/core/alerts/state";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import type { PackageInstallationStatus } from "@/core/kernel/messages";
-import {
-  saveUserConfig,
-  sendInstallMissingPackages,
-} from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { usePackageMetadata } from "@/hooks/usePackageMetadata";
 import { Banner } from "@/plugins/impl/common/error-banner";
@@ -95,7 +92,7 @@ export const PackageAlert: React.FC = () => {
 
   if (isMissingPackageAlert(packageAlert)) {
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-[200] opacity-95">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95">
         <Banner
           kind="danger"
           className="flex flex-col rounded py-3 px-5 animate-in slide-in-from-left"
@@ -203,7 +200,7 @@ export const PackageAlert: React.FC = () => {
     }
 
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-[200] opacity-95">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95">
         <Banner
           kind={status === "failed" ? "danger" : "info"}
           className="flex flex-col rounded pt-3 pb-4 px-5"
@@ -326,6 +323,7 @@ const InstallPackagesButton = ({
   versions: Record<string, string>;
   clearPackageAlert: () => void;
 }) => {
+  const { sendInstallMissingPackages } = useRequestClient();
   return (
     <Button
       variant="outline"
@@ -356,6 +354,7 @@ const InstallPackagesButton = ({
 
 const PackageManagerForm: React.FC = () => {
   const [config, setConfig] = useResolvedMarimoConfig();
+  const { saveUserConfig } = useRequestClient();
 
   // Create form
   const form = useForm<UserConfig>({
@@ -520,7 +519,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
               )}
               title={canSelectExtras ? "Add extras" : "Loading extras..."}
             >
-              <PlusIcon className="w-3 h-3 flex-shrink-0" />
+              <PlusIcon className="w-3 h-3 shrink-0" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent

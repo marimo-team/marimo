@@ -45,6 +45,10 @@ test("default UserConfig - empty", () => {
     {
       "ai": {
         "mode": "manual",
+        "models": {
+          "custom_models": [],
+          "displayed_models": [],
+        },
         "rules": "",
       },
       "completion": {
@@ -105,6 +109,10 @@ test("default UserConfig - one level", () => {
     {
       "ai": {
         "mode": "manual",
+        "models": {
+          "custom_models": [],
+          "displayed_models": [],
+        },
         "rules": "",
       },
       "completion": {

@@ -8,7 +8,7 @@ import { updateQueryParams } from "@/utils/urls";
 import { getAppConfig } from "../config/config";
 import { KnownQueryParams } from "../constants";
 import { connectionAtom } from "../network/connection";
-import { sendRename } from "../network/requests";
+import { useRequestClient } from "../network/requests";
 import { WebSocketState } from "../websocket/types";
 import { filenameAtom } from "./file-state";
 
@@ -20,6 +20,7 @@ export function useUpdateFilename() {
   const [connection] = useAtom(connectionAtom);
   const setFilename = useSetAtom(filenameAtom);
   const { openAlert } = useImperativeModal();
+  const { sendRename } = useRequestClient();
 
   const handleFilenameChange = useEvent(async (name: string) => {
     const appConfig = getAppConfig();

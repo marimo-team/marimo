@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/form";
 import { useAppConfig } from "@/core/config/config";
 import { getAppWidths } from "@/core/config/widths";
-import { saveAppConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { arrayToggle } from "@/utils/arrays";
 import {
   type AppConfig,
@@ -34,6 +34,7 @@ import {
 
 export const AppConfigForm: React.FC = () => {
   const [config, setConfig] = useAppConfig();
+  const { saveAppConfig } = useRequestClient();
 
   // Create form
   const form = useForm<AppConfig>({
@@ -138,7 +139,7 @@ export const AppConfigForm: React.FC = () => {
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className="flex flex-row items-center space-x-1 space-y-0">
-                    <FormLabel className="flex-shrink-0">Custom CSS</FormLabel>
+                    <FormLabel className="shrink-0">Custom CSS</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
@@ -169,7 +170,7 @@ export const AppConfigForm: React.FC = () => {
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className="flex flex-row items-center space-x-1 space-y-0">
-                    <FormLabel className="flex-shrink-0">HTML Head</FormLabel>
+                    <FormLabel className="shrink-0">HTML Head</FormLabel>
                     <FormControl>
                       <Input
                         {...field}

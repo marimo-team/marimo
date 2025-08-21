@@ -2,7 +2,7 @@ fail_fast: false
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-yaml
 
@@ -31,7 +31,7 @@ repos:
         pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.5
+    rev: v0.12.9
     hooks:
       # Run the linter
       - id: ruff
@@ -40,7 +40,7 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/biomejs/pre-commit
-    rev: v2.1.2
+    rev: v2.2.0
     hooks:
       - id: biome-check
         args: [--config-path, biome.jsonc, --diagnostic-level, warn]

@@ -1,15 +1,28 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { render } from "@testing-library/react";
+import { createStore, Provider } from "jotai";
 import { beforeAll, describe, expect, it } from "vitest";
+import { MockNotebook } from "@/__mocks__/notebook";
+import { MockRequestClient } from "@/__mocks__/requests";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { createCellRuntimeState } from "@/core/cells/types";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { AppMode } from "@/core/mode";
-import { WebSocketState } from "@/core/websocket/types";
-import { Functions } from "@/utils/functions";
-import { Cell, type CellComponentActions } from "../Cell";
+import { requestClientAtom } from "@/core/network/requests";
+import { Cell } from "../Cell";
 import { OutputArea } from "../Output";
+
+function createTestWrapper() {
+  const store = createStore();
+  store.set(requestClientAtom, MockRequestClient.create());
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <Provider store={store}>{children}</Provider>
+  );
+  return { wrapper, store };
+}
 
 beforeAll(() => {
   global.ResizeObserver = class ResizeObserver {
@@ -32,6 +45,7 @@ describe("Cell data attributes", () => {
   it.each(["edit", "read", "present"])(
     "should render cell with data-cell-id and data-cell-name in %s mode",
     (mode) => {
+      const { store, wrapper } = createTestWrapper();
       const cellId = "test" as CellId;
       const cellName = "test_cell";
 
@@ -73,44 +87,54 @@ describe("Cell data attributes", () => {
         ai: {},
       } as UserConfig;
 
-      const { container } = render(
-        <TooltipProvider>
-          <Cell
-            id={cellId}
-            name={cellName}
-            code=""
-            output={null}
-            consoleOutputs={[]}
-            status="idle"
-            edited={false}
-            interrupted={false}
-            errored={false}
-            stopped={false}
-            staleInputs={false}
-            runStartTimestamp={null}
-            lastRunStartTimestamp={null}
-            runElapsedTimeMs={null}
-            serializedEditorState={null}
-            mode={mode as AppMode}
-            debuggerActive={false}
-            connectionState={WebSocketState.OPEN}
-            canDelete={true}
-            actions={{} as CellComponentActions}
-            userConfig={userConfig}
-            outline={null}
-            isCollapsed={false}
-            collapseCount={0}
-            deleteCell={Functions.NOOP}
-            config={{
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId]: {
+            code: "",
+            name: cellName,
+            edited: false,
+            serializedEditorState: null,
+            config: {
               disabled: false,
               hide_code: false,
               column: null,
-            }}
+            },
+          },
+        },
+      });
+
+      notebook.cellRuntime[cellId] = createCellRuntimeState({
+        status: "idle",
+        output: null,
+        consoleOutputs: [],
+        interrupted: false,
+        errored: false,
+        stopped: false,
+        staleInputs: false,
+        runStartTimestamp: null,
+        lastRunStartTimestamp: null,
+        runElapsedTimeMs: null,
+        debuggerActive: false,
+        outline: null,
+      });
+
+      store.set(notebookAtom, notebook);
+
+      const { container } = render(
+        <TooltipProvider>
+          <Cell
+            cellId={cellId}
+            mode={mode as AppMode}
+            canDelete={true}
+            userConfig={userConfig}
+            isCollapsed={false}
+            collapseCount={0}
             canMoveX={false}
             theme="light"
             showPlaceholder={false}
           />
         </TooltipProvider>,
+        { wrapper },
       );
 
       const cellElement = container.querySelector(`[data-cell-id="${cellId}"]`);

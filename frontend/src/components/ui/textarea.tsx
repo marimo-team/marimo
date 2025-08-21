@@ -17,8 +17,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       <div className="relative">
         <textarea
           className={cn(
-            "shadow-xsSolid hover:shadow-smSolid disabled:shadow-xsSolid focus-visible:shadow-mdSolid",
-            "flex w-full mb-1 rounded-sm border border-input bg-background px-3 py-2 text-sm font-code ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-accent disabled:cursor-not-allowed disabled:opacity-50 min-h-[1.5rem]",
+            "shadow-xs-solid hover:shadow-sm-solid disabled:shadow-xs-solid focus-visible:shadow-md-solid",
+            "flex w-full mb-1 rounded-sm border border-input bg-background px-3 py-2 text-sm font-code ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-accent disabled:cursor-not-allowed disabled:opacity-50 min-h-6",
             className,
           )}
           onClick={Events.stopPropagation()}

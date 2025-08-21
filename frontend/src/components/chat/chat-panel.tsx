@@ -31,11 +31,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { addMessageToChat } from "@/core/ai/chat-utils";
+import { useModelChange } from "@/core/ai/config";
 import {
   activeChatAtom,
   type Chat,
@@ -43,18 +45,17 @@ import {
   chatStateAtom,
 } from "@/core/ai/state";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
-import { aiAtom, aiEnabledAtom, userConfigAtom } from "@/core/config/config";
-import type { UserConfig } from "@/core/config/config-schema";
+import { aiAtom, aiEnabledAtom } from "@/core/config/config";
+import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
-import { invokeAiTool, saveUserConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
 import { generateUUID } from "@/utils/uuid";
-import { KNOWN_AI_MODELS } from "../app-config/constants";
+import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import { getAICompletionBody } from "../editor/ai/completion-utils";
@@ -81,7 +82,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { handleClick } = useOpenSettingsToTab();
 
   return (
-    <div className="flex border-b px-2 py-1 justify-between flex-shrink-0 items-center">
+    <div className="flex border-b px-2 py-1 justify-between shrink-0 items-center">
       <Tooltip content="New chat">
         <Button variant="text" size="icon" onClick={onNewChat}>
           <PlusIcon className="h-4 w-4" />
@@ -146,7 +147,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 interface ChatMessageProps {
   message: Message;
   index: number;
-  theme: ResolvedTheme;
   onEdit: (index: number, newValue: string) => void;
   setChatState: Dispatch<SetStateAction<ChatState>>;
   chatState: ChatState;
@@ -155,7 +155,7 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = memo(
-  ({ message, index, theme, onEdit, isStreamingReasoning, totalMessages }) => (
+  ({ message, index, onEdit, isStreamingReasoning, totalMessages }) => (
     <div
       className={cn(
         "flex group relative",
@@ -167,7 +167,6 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
           <PromptInput
             key={message.id}
             value={message.content}
-            theme={theme}
             placeholder="Type your message..."
             onChange={() => {
               // noop
@@ -242,107 +241,67 @@ interface ChatInputFooterProps {
   onStop: () => void;
 }
 
+const DEFAULT_MODE = "manual";
+
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
   ({ input, onSendClick, isLoading, onStop }) => {
     const ai = useAtomValue(aiAtom);
-    const [userConfig, setUserConfig] = useAtom(userConfigAtom);
-    const currentMode = ai?.mode || "manual";
-    const currentModel = ai?.open_ai?.model || "o4-mini";
+    const currentMode = ai?.mode || DEFAULT_MODE;
+    const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
+    const { saveModeChange, saveModelChange } = useModelChange();
 
     const modeOptions = [
       {
         value: "ask",
         label: "Ask",
-        subtitle: "Read-only tools",
+        subtitle:
+          "Use AI with access to read-only tools like documentation search",
       },
       {
         value: "manual",
         label: "Manual",
-        subtitle: "No tools",
+        subtitle: "Pure chat, no tool usage",
       },
     ];
-
-    const handleModeChange = async (newMode: "ask" | "manual") => {
-      const newConfig: UserConfig = {
-        ...userConfig,
-        ai: {
-          ...userConfig.ai,
-          mode: newMode,
-        },
-      };
-      saveConfig(newConfig);
-    };
-
-    const handleModelChange = async (newModel: string) => {
-      const newConfig: UserConfig = {
-        ...userConfig,
-        ai: {
-          ...userConfig.ai,
-          open_ai: {
-            ...userConfig.ai?.open_ai,
-            model: newModel,
-          },
-        },
-      };
-      saveConfig(newConfig);
-    };
-
-    const saveConfig = async (newConfig: UserConfig) => {
-      await saveUserConfig({ config: newConfig }).then(() => {
-        setUserConfig(newConfig);
-      });
-    };
 
     return (
       <div className="px-3 py-2 border-t border-border/20 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FeatureFlagged feature="mcp_docs">
-            <Select value={currentMode} onValueChange={handleModeChange}>
-              <SelectTrigger className="h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
-                <SelectValue placeholder="manual" />
+            <Select value={currentMode} onValueChange={saveModeChange}>
+              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
+                {currentMode}
               </SelectTrigger>
               <SelectContent>
-                {modeOptions.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="text-xs"
-                    subtitle={
-                      <div className="text-muted-foreground text-xs pl-2">
-                        {option.subtitle}
+                <SelectGroup>
+                  <SelectLabel>AI Mode</SelectLabel>
+                  {modeOptions.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      className="text-xs"
+                    >
+                      <div className="flex flex-col">
+                        {option.label}
+                        <div className="text-muted-foreground text-xs pt-1 block">
+                          {option.subtitle}
+                        </div>
                       </div>
-                    }
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </FeatureFlagged>
-          <Select value={currentModel} onValueChange={handleModelChange}>
-            <SelectTrigger className="h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
-              <SelectValue placeholder="Model" />
-            </SelectTrigger>
-            <SelectContent>
-              {/* Show current model if it's not in the known models list */}
-              {!(KNOWN_AI_MODELS as readonly string[]).includes(
-                currentModel,
-              ) && (
-                <SelectItem
-                  key={currentModel}
-                  value={currentModel}
-                  className="text-sm"
-                >
-                  {currentModel}
-                </SelectItem>
-              )}
-              {KNOWN_AI_MODELS.map((model) => (
-                <SelectItem key={model} value={model} className="text-sm">
-                  {model}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <AIModelDropdown
+            value={currentModel}
+            placeholder="Model"
+            onSelect={(model) => saveModelChange(model, "chat")}
+            triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
+            iconSize="small"
+            showAddCustomModelDocs={true}
+            forRole="chat"
+          />
         </div>
         <Button
           variant="ghost"
@@ -368,14 +327,13 @@ interface ChatInputProps {
   input: string;
   setInput: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
-  theme: ResolvedTheme;
   inputRef: React.RefObject<ReactCodeMirrorRef | null>;
   isLoading: boolean;
   onStop: () => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = memo(
-  ({ input, setInput, onSubmit, theme, inputRef, isLoading, onStop }) => {
+  ({ input, setInput, onSubmit, inputRef, isLoading, onStop }) => {
     const handleSendClick = () => {
       if (input.trim()) {
         onSubmit(undefined, input);
@@ -383,14 +341,13 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     };
 
     return (
-      <div className="border-t relative flex-shrink-0 min-h-[80px] flex flex-col">
+      <div className="border-t relative shrink-0 min-h-[80px] flex flex-col">
         <div className="px-2 py-3 flex-1">
           <PromptInput
             value={input}
             onChange={setInput}
             onSubmit={onSubmit}
             onClose={() => inputRef.current?.editor?.blur()}
-            theme={theme}
             placeholder="Type your message..."
           />
         </div>
@@ -437,8 +394,8 @@ const ChatPanelBody = () => {
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
   const runtimeManager = useRuntimeManager();
+  const { invokeAiTool } = useRequestClient();
 
   const {
     messages,
@@ -685,7 +642,7 @@ const ChatPanelBody = () => {
       </TooltipProvider>
 
       <div
-        className="flex-1 px-3 bg-[var(--slate-1)] gap-4 py-3 flex flex-col overflow-y-auto"
+        className="flex-1 px-3 bg-(--slate-1) gap-4 py-3 flex flex-col overflow-y-auto"
         ref={scrollContainerRef}
       >
         {(!messages || messages.length === 0) && (
@@ -695,7 +652,6 @@ const ChatPanelBody = () => {
                 key="new-thread-input"
                 value={newThreadInput}
                 placeholder="Ask anything, @ to include context about tables or dataframes"
-                theme={theme}
                 onClose={handleOnCloseThread}
                 onChange={setNewThreadInput}
                 onSubmit={handleNewThreadSubmit}
@@ -715,7 +671,6 @@ const ChatPanelBody = () => {
             key={idx}
             message={message}
             index={idx}
-            theme={theme}
             onEdit={handleMessageEdit}
             setChatState={setChatState}
             chatState={chatState}
@@ -755,7 +710,6 @@ const ChatPanelBody = () => {
           input={input}
           setInput={setInput}
           onSubmit={handleChatInputSubmit}
-          theme={theme}
           inputRef={newMessageInputRef}
           isLoading={isLoading}
           onStop={stop}

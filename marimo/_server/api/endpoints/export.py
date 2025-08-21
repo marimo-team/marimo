@@ -4,8 +4,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
+from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException
-from starlette.responses import HTMLResponse, PlainTextResponse
+from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from marimo import _loggers
 from marimo._server.api.deps import AppState
@@ -94,7 +95,7 @@ async def export_as_html(
 async def auto_export_as_html(
     *,
     request: Request,
-) -> SuccessResponse | PlainTextResponse:
+) -> JSONResponse | PlainTextResponse:
     """
     requestBody:
         content:
@@ -135,22 +136,26 @@ async def auto_export_as_html(
         LOGGER.info("No outputs to export")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
-    html, _filename = Exporter().export_as_html(
-        app=session.app_file_manager.app,
-        filename=session.app_file_manager.filename,
-        session_view=session_view,
-        display_config=session.config_manager.get_config()["display"],
-        request=body,
-    )
+    async def _background_export() -> None:
+        html, _filename = Exporter().export_as_html(
+            app=session.app_file_manager.app,
+            filename=session.app_file_manager.filename,
+            session_view=session_view,
+            display_config=session.config_manager.get_config()["display"],
+            request=body,
+        )
 
-    # Save the HTML file to disk, at `.marimo/<filename>.html`
-    await auto_exporter.save_html(
-        filename=session.app_file_manager.filename,
-        html=html,
-    )
-    session_view.mark_auto_export_html()
+        # Save the HTML file to disk, at `.marimo/<filename>.html`
+        await auto_exporter.save_html(
+            filename=session.app_file_manager.filename,
+            html=html,
+        )
+        session_view.mark_auto_export_html()
 
-    return SuccessResponse()
+    return JSONResponse(
+        content=SuccessResponse().as_camel_case(),
+        background=BackgroundTask(_background_export),
+    )
 
 
 @router.post("/script")
@@ -252,7 +257,7 @@ async def export_as_markdown(
 async def auto_export_as_markdown(
     *,
     request: Request,
-) -> SuccessResponse | PlainTextResponse:
+) -> JSONResponse | PlainTextResponse:
     """
     requestBody:
         content:
@@ -284,22 +289,26 @@ async def auto_export_as_markdown(
         LOGGER.debug("Already auto-exported to Markdown")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
-    # Reload the file manager to get the latest state
-    session.app_file_manager.reload()
+    async def _background_export() -> None:
+        # Reload the file manager to get the latest state
+        session.app_file_manager.reload()
 
-    markdown, _filename = Exporter().export_as_md(
-        notebook=session.app_file_manager.app.to_ir(),
-        filename=session.app_file_manager.filename,
+        markdown, _filename = Exporter().export_as_md(
+            notebook=session.app_file_manager.app.to_ir(),
+            filename=session.app_file_manager.filename,
+        )
+
+        # Save the Markdown file to disk, at `.marimo/<filename>.md`
+        await auto_exporter.save_md(
+            filename=session.app_file_manager.filename,
+            markdown=markdown,
+        )
+        session_view.mark_auto_export_md()
+
+    return JSONResponse(
+        content=SuccessResponse().as_camel_case(),
+        background=BackgroundTask(_background_export),
     )
-
-    # Save the Markdown file to disk, at `.marimo/<filename>.md`
-    await auto_exporter.save_md(
-        filename=session.app_file_manager.filename,
-        markdown=markdown,
-    )
-    session_view.mark_auto_export_md()
-
-    return SuccessResponse()
 
 
 @router.post("/auto_export/ipynb")
@@ -307,7 +316,7 @@ async def auto_export_as_markdown(
 async def auto_export_as_ipynb(
     *,
     request: Request,
-) -> SuccessResponse | PlainTextResponse:
+) -> JSONResponse | PlainTextResponse:
     """
     requestBody:
         content:
@@ -339,21 +348,25 @@ async def auto_export_as_ipynb(
         LOGGER.debug("Already auto-exported to IPYNB")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
-    # Reload the file manager to get the latest state
-    session.app_file_manager.reload()
+    async def _background_export() -> None:
+        # Reload the file manager to get the latest state
+        session.app_file_manager.reload()
 
-    ipynb, _filename = Exporter().export_as_ipynb(
-        app=session.app_file_manager.app,
-        filename=session.app_file_manager.filename,
-        sort_mode="top-down",
-        session_view=session_view,
+        ipynb, _filename = Exporter().export_as_ipynb(
+            app=session.app_file_manager.app,
+            filename=session.app_file_manager.filename,
+            sort_mode="top-down",
+            session_view=session_view,
+        )
+
+        # Save the IPYNB file to disk, at `.marimo/<filename>.ipynb`
+        await auto_exporter.save_ipynb(
+            filename=session.app_file_manager.filename,
+            ipynb=ipynb,
+        )
+        session_view.mark_auto_export_ipynb()
+
+    return JSONResponse(
+        content=SuccessResponse().as_camel_case(),
+        background=BackgroundTask(_background_export),
     )
-
-    # Save the IPYNB file to disk, at `.marimo/<filename>.ipynb`
-    await auto_exporter.save_ipynb(
-        filename=session.app_file_manager.filename,
-        ipynb=ipynb,
-    )
-    session_view.mark_auto_export_ipynb()
-
-    return SuccessResponse()

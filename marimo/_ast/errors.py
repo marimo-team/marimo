@@ -15,9 +15,5 @@ class MultipleDefinitionError(Exception):
     pass
 
 
-class DeleteNonlocalError(Exception):
-    pass
-
-
 class UnparsableError(Exception):
     pass

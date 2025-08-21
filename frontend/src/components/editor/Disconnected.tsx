@@ -52,7 +52,7 @@ export const Disconnected = ({
                 onClick={handleTakeover}
                 variant="outline"
                 data-testid="takeover-button"
-                className="flex-shrink-0"
+                className="shrink-0"
               >
                 <ArrowRightSquareIcon className="w-4 h-4 mr-2" />
                 Take over session
@@ -65,7 +65,7 @@ export const Disconnected = ({
   }
 
   return (
-    <div className="font-mono text-center text-base text-[var(--red-11)]">
+    <div className="font-mono text-center text-base text-(--red-11)">
       <p>{reason}</p>
     </div>
   );

@@ -30,7 +30,8 @@ def classify_sql_statement(
 
     sql_statement = sql_statement.strip().lower()
     try:
-        expression_list = parse(sql_statement, dialect=dialect)
+        with _loggers.suppress_warnings_logs("sqlglot"):
+            expression_list = parse(sql_statement, dialect=dialect)
     except ParseError as e:
         LOGGER.debug(f"Unable to parse SQL. Error: {e}")
         return "unknown"

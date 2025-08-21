@@ -21,9 +21,9 @@ from typing import (
     cast,
     overload,
 )
-from uuid import uuid4
 
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.cell_id import external_prefix
 from marimo._ast.variables import BUILTINS
 from marimo._convert.converters import MarimoConvert
 from marimo._schemas.serialization import (
@@ -45,7 +45,6 @@ from marimo._ast.cell import Cell, CellConfig, CellImpl
 from marimo._ast.cell_manager import CellManager
 from marimo._ast.errors import (
     CycleError,
-    DeleteNonlocalError,
     MultipleDefinitionError,
     SetupRootError,
     UnparsableError,
@@ -236,7 +235,7 @@ class App:
             # nested applications get a unique cell prefix to disambiguate
             # their graph from other graphs
             get_context()
-            cell_prefix = str(uuid4())
+            cell_prefix = external_prefix()
         else:
             cell_prefix = ""
 
@@ -282,7 +281,8 @@ class App:
             A new `app` object with the same code.
         """
         app = App()
-        app._cell_manager = CellManager(prefix=str(uuid4()))
+        app._filename = self._filename
+        app._cell_manager = CellManager(prefix=external_prefix())
         for cell_id, code, name, config in zip(
             self._cell_manager.cell_ids(),
             self._cell_manager.codes(),
@@ -567,13 +567,6 @@ class App:
                     "This app can't be run because it has multiple "
                     f"definitions of the name {multiply_defined_names[0]}"
                 )
-            deleted_nonlocal_refs = self._graph.get_deleted_nonlocal_ref()
-            if deleted_nonlocal_refs:
-                raise DeleteNonlocalError(
-                    "This app can't be run because at least one cell "
-                    "deletes one of its refs (the ref's name is "
-                    f"{deleted_nonlocal_refs[0]})"
-                )
             self._execution_order = dataflow.topological_sort(
                 self._graph, list(self._cell_manager.valid_cell_ids())
             )
@@ -761,6 +754,10 @@ class InternalApp:
     @property
     def cell_manager(self) -> CellManager:
         return self._app._cell_manager
+
+    @property
+    def filename(self) -> str | None:
+        return self._app._filename
 
     @property
     def graph(self) -> dataflow.DirectedGraph:

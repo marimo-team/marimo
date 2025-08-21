@@ -1,3 +1,5 @@
+@reference "../../css/globals.css";
+
 .cm-tooltip .documentation,
 .docs-documentation {
   line-height: normal;

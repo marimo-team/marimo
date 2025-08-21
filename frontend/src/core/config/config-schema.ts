@@ -37,10 +37,33 @@ const VALID_SQL_OUTPUT_FORMATS = [
 ] as const;
 export type SqlOutputType = (typeof VALID_SQL_OUTPUT_FORMATS)[number];
 
+export const DEFAULT_AI_MODEL = "openai/gpt-4o";
+
 /**
  * Export types for auto download
  */
 const AUTO_DOWNLOAD_FORMATS = ["html", "markdown", "ipynb"] as const;
+
+const AiConfigSchema = z
+  .object({
+    api_key: z.string().optional(),
+    base_url: z.string().optional(),
+  })
+  .passthrough();
+
+const AiModelsSchema = z.object({
+  chat_model: z.string().nullish(),
+  edit_model: z.string().nullish(),
+  autocomplete_model: z.string().nullish(),
+  displayed_models: z.array(z.string()).default([]),
+  custom_models: z.array(z.string()).default([]),
+});
+
+// Extract the model key type from the schema
+export type AIModelKey = keyof Pick<
+  z.infer<typeof AiModelsSchema>,
+  "chat_model" | "edit_model" | "autocomplete_model"
+>;
 
 export const UserConfigSchema = z
   .object({
@@ -135,23 +158,12 @@ export const UserConfigSchema = z
       .object({
         rules: z.string().default(""),
         mode: z.enum(["manual", "ask"]).default("manual"),
-        open_ai: z
-          .object({
-            api_key: z.string().optional(),
-            base_url: z.string().optional(),
-            model: z.string().optional(),
-          })
-          .optional(),
-        anthropic: z
-          .object({
-            api_key: z.string().optional(),
-          })
-          .optional(),
-        google: z
-          .object({
-            api_key: z.string().optional(),
-          })
-          .optional(),
+        open_ai: AiConfigSchema.optional(),
+        anthropic: AiConfigSchema.optional(),
+        google: AiConfigSchema.optional(),
+        ollama: AiConfigSchema.optional(),
+        open_ai_compatible: AiConfigSchema.optional(),
+        azure: AiConfigSchema.optional(),
         bedrock: z
           .object({
             region_name: z.string().optional(),
@@ -160,6 +172,10 @@ export const UserConfigSchema = z
             aws_secret_access_key: z.string().optional(),
           })
           .optional(),
+        models: AiModelsSchema.default({
+          displayed_models: [],
+          custom_models: [],
+        }),
       })
       .passthrough()
       .default({}),
@@ -196,6 +212,7 @@ export const UserConfigSchema = z
       rules: "",
       mode: "manual",
       open_ai: {},
+      models: {},
     },
   });
 export type UserConfig = MarimoConfig;

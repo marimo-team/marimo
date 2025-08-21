@@ -1,11 +1,11 @@
 # Runtime configuration
 
-Through the notebook settings menu, you can configure how and when marimo
-runs cells.
+Through the notebook settings menu, you can configure how and when marimo runs
+cells.
 
 <video controls width="100%" height="100%" align="center" src="/_static/docs-runtime-config.mp4"> </video>
 
-## On startup
+## Disable autorun on startup
 
 By default, marimo notebooks run automatically on startup; just how the command
 
@@ -26,7 +26,9 @@ Disable this behavior by unchecking "Autorun on startup".
 _When sharing a notebook as an app with `marimo run`, this setting has
 no effect._
 
-## On cell change
+## Disable autorun on cell change (lazy execution)
+
+<video controls width="100%" height="100%" align="center" src="/_static/docs-lazy-execution.mp4"> </video>
 
 By default, when a cell is run or a UI element is interacted with, marimo
 automatically runs cells that reference any of its variables. **You can disable

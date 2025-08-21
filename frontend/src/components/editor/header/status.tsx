@@ -39,7 +39,7 @@ const topLeftStatus = "no-print pointer-events-auto hover:cursor-pointer";
 const DisconnectedIcon = () => (
   <Tooltip content="App disconnected">
     <div className={topLeftStatus}>
-      <UnlinkIcon className="w-[25px] h-[25px] text-[var(--red-11)]" />
+      <UnlinkIcon className="w-[25px] h-[25px] text-(--red-11)" />
     </div>
   </Tooltip>
 );
@@ -47,7 +47,7 @@ const DisconnectedIcon = () => (
 const LockedIcon = () => (
   <Tooltip content="Notebook locked">
     <div className={topLeftStatus}>
-      <LockIcon className="w-[25px] h-[25px] text-[var(--blue-11)]" />
+      <LockIcon className="w-[25px] h-[25px] text-(--blue-11)" />
     </div>
   </Tooltip>
 );

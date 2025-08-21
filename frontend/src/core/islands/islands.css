@@ -7,6 +7,8 @@
 @import url("../../css/md-tooltip.css");
 @import url("../../css/table.css");
 
+@reference "../../css/globals.css";
+
 .marimo {
   @apply bg-background text-foreground;
 }

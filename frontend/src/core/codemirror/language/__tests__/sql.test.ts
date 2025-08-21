@@ -6,6 +6,7 @@ import type {
 } from "@codemirror/autocomplete";
 import { PostgreSQL } from "@codemirror/lang-sql";
 import { EditorState, type Extension } from "@codemirror/state";
+import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DataSourceConnection } from "@/core/datasets/data-source-connections";
 import {
@@ -16,12 +17,11 @@ import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
 import { store } from "@/core/state/jotai";
+import { TestSQLCompletionStore } from "../languages/sql/completion-store";
 import {
-  SQLCompletionStore,
   SQLLanguageAdapter,
   type SQLLanguageAdapterMetadata,
-} from "../languages/sql";
-import { DuckDBDialect } from "../languages/sql-dialects/duckdb";
+} from "../languages/sql/sql";
 import { languageMetadataField } from "../metadata";
 
 const adapter = new SQLLanguageAdapter();
@@ -618,7 +618,7 @@ _df = mo.sql(
 
 describe("tablesCompletionSource", () => {
   const mockStore = store;
-  const completionStore = new SQLCompletionStore();
+  const completionStore = new TestSQLCompletionStore();
 
   beforeEach(() => {
     // Reset the adapter engine
@@ -1184,7 +1184,7 @@ describe("tablesCompletionSource", () => {
     ];
 
     describe("SQL Completions", () => {
-      const completionStore = new SQLCompletionStore();
+      const completionStore = new TestSQLCompletionStore();
 
       beforeEach(() => {
         // Reset state

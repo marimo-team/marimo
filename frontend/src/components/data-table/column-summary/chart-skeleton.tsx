@@ -44,11 +44,11 @@ export const ChartSkeleton: React.FC<Props> = ({ seed, width, height }) => {
   const barWidth = width / numBars;
   const heights = generateHeights({ numBars, maxHeight: height - 15, seed });
   return (
-    <div className="flex items-end gap-[1px] pb-2" style={{ width, height }}>
+    <div className="flex items-end gap-px pb-2" style={{ width, height }}>
       {heights.map((barHeight, index) => (
         <div
           key={index}
-          className="bg-[var(--slate-5)] animate-pulse"
+          className="bg-(--slate-5) animate-pulse"
           style={{ width: barWidth - 2, height: barHeight }}
         />
       ))}

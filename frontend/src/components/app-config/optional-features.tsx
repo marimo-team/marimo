@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import { addPackage, getPackageList } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
@@ -102,6 +102,7 @@ if (!isWasm()) {
 export const OptionalFeatures: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
+  const { getPackageList } = useRequestClient();
   const { data, error, refetch, isPending } = useAsyncData(
     () => getPackageList(),
     [packageManager],
@@ -157,12 +158,12 @@ export const OptionalFeatures: React.FC = () => {
                 <TableCell>
                   {isInstalled ? (
                     <div className="flex items-center">
-                      <CheckCircleIcon className="h-4 w-4 text-[var(--grass-10)] mr-2" />
+                      <CheckCircleIcon className="h-4 w-4 text-(--grass-10) mr-2" />
                       <span>Installed</span>
                     </div>
                   ) : (
                     <div className="flex items-center">
-                      <XCircleIcon className="h-4 w-4 text-[var(--red-10)] mr-2" />
+                      <XCircleIcon className="h-4 w-4 text-(--red-10) mr-2" />
                       <InstallButton
                         packageSpecs={[
                           ...dep.packagesRequired,
@@ -191,6 +192,7 @@ const InstallButton: React.FC<{
   onSuccess: () => void;
 }> = ({ packageSpecs, packageManager, onSuccess }) => {
   const [loading, setLoading] = React.useState(false);
+  const { addPackage } = useRequestClient();
 
   const handleInstall = async () => {
     try {

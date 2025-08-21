@@ -70,9 +70,11 @@ export function pasteCells<T>(options: {
   data: T[];
   setData: (updater: (prev: T[]) => T[]) => void;
   columns: ModifiedGridColumn[];
+  editableColumns: string[] | "all";
   onAddEdits: (edits: Edits["edits"]) => void;
 }) {
-  const { selection, data, setData, onAddEdits, columns } = options;
+  const { selection, data, setData, onAddEdits, columns, editableColumns } =
+    options;
   if (!selection.current) {
     return;
   }
@@ -127,7 +129,14 @@ export function pasteCells<T>(options: {
             break;
           }
 
-          const columnType = columns[targetColIdx].dataType;
+          const column = columns[targetColIdx];
+          const columnType = column.dataType;
+          const editable =
+            editableColumns === "all" || editableColumns.includes(column.title);
+
+          if (!editable) {
+            continue;
+          }
 
           // Convert the value based on the cell type
           let convertedValue: unknown = cellValue;

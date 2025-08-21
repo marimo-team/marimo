@@ -48,7 +48,7 @@ import type {
   DataTable,
   DataTableColumn,
 } from "@/core/kernel/messages";
-import { previewDataSourceConnection } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -143,7 +143,7 @@ export const DataSources: React.FC = () => {
 
   return (
     <Command
-      className="border-b bg-background rounded-none h-full pb-10 overflow-auto outline-none"
+      className="border-b bg-background rounded-none h-full pb-10 overflow-auto outline-hidden"
       shouldFilter={false}
     >
       <div className="flex items-center w-full">
@@ -228,6 +228,7 @@ const Engine: React.FC<{
   // The internal duckdb connection is updated automatically, so we do not need to refresh.
   const internalEngine = connection.name === DUCKDB_ENGINE;
   const engineName = internalEngine ? "In-Memory" : connection.name;
+  const { previewDataSourceConnection } = useRequestClient();
 
   const [isSpinning, setIsSpinning] = React.useState(false);
 
@@ -760,7 +761,7 @@ const DatasetColumnItem: React.FC<{
         </span>
       </CommandItem>
       {isExpanded && (
-        <div className="pl-10 pr-2 py-2 bg-[var(--slate-1)] shadow-inner border-b">
+        <div className="pl-10 pr-2 py-2 bg-(--slate-1) shadow-inner border-b">
           <ErrorBoundary>
             <DatasetColumnPreview
               table={table}

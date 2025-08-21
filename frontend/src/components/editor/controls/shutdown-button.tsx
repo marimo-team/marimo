@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { XIcon } from "lucide-react";
-import { sendShutdown } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { useImperativeModal } from "../../modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "../../ui/alert-dialog";
@@ -20,6 +20,7 @@ export const ShutdownButton: React.FC<Props> = ({
   tooltip = "Shutdown",
 }) => {
   const { openConfirm, closeModal } = useImperativeModal();
+  const { sendShutdown } = useRequestClient();
   const handleShutdown = () => {
     sendShutdown();
     // Let the shutdown process start before closing the window.
@@ -50,7 +51,7 @@ export const ShutdownButton: React.FC<Props> = ({
             variant: "destructive",
             confirmAction: (
               <AlertDialogDestructiveAction
-                onClick={(e) => {
+                onClick={() => {
                   handleShutdown();
                   closeModal();
                 }}

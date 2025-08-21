@@ -1,77 +1,112 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { createStore, Provider } from "jotai";
+import { createRef } from "react";
+import { type NotebookState, notebookAtom } from "@/core/cells/cells";
+import {
+  type CellRuntimeState,
+  createCellRuntimeState,
+} from "@/core/cells/types";
 import { defaultUserConfig } from "@/core/config/config-schema";
+import { connectionAtom } from "@/core/network/connection";
+import type { CellConfig } from "@/core/network/types";
 import { WebSocketState } from "@/core/websocket/types";
-import { Logger } from "@/utils/Logger";
+import { MultiColumn } from "@/utils/id-tree";
 import type { Milliseconds, Seconds } from "@/utils/time";
-import { Cell, type CellProps } from "../components/editor/Cell";
+import { Cell as EditorCell } from "../components/editor/Cell";
 import { TooltipProvider } from "../components/ui/tooltip";
 import type { CellId } from "../core/cells/ids";
 
-const meta: Meta<typeof Cell> = {
+type Story = StoryObj<typeof Cell>;
+
+const Cell: React.FC<{
+  overrides?: {
+    runElapsedTimeMs?: Milliseconds;
+    output?: CellRuntimeState["output"];
+    edited?: boolean;
+    interrupted?: boolean;
+    errored?: boolean;
+    status?: CellRuntimeState["status"];
+    staleInputs?: boolean;
+    config?: CellConfig;
+  };
+}> = ({ overrides = {} }) => {
+  const cellId = "1" as CellId;
+  const notebook: NotebookState = {
+    cellData: {
+      [cellId]: {
+        id: cellId,
+        name: "cell_1",
+        code: "import marimo as mo",
+        edited: overrides.edited ?? false,
+        serializedEditorState: null,
+        config: {
+          hide_code: overrides.config?.hide_code ?? false,
+          disabled: overrides.config?.disabled ?? false,
+          column: null,
+        },
+        lastCodeRun: null,
+        lastExecutionTime: null,
+      },
+    },
+    cellIds: MultiColumn.from([[cellId]]),
+    cellRuntime: {
+      [cellId]: createCellRuntimeState({
+        output: overrides.output ?? null,
+        runElapsedTimeMs: overrides.runElapsedTimeMs ?? (10 as Milliseconds),
+        status: overrides.status ?? "idle",
+        consoleOutputs: [],
+        interrupted: overrides.interrupted ?? false,
+        errored: overrides.errored ?? false,
+        stopped: false,
+        staleInputs: overrides.staleInputs ?? false,
+        runStartTimestamp: 0 as Seconds,
+        lastRunStartTimestamp: 0 as Seconds,
+        debuggerActive: false,
+        outline: null,
+      }),
+    },
+    cellHandles: {
+      [cellId]: createRef(),
+    },
+    cellLogs: [],
+    history: [],
+    scrollKey: null,
+    untouchedNewCells: new Set(),
+  };
+
+  const store = createStore();
+  store.set(notebookAtom, notebook);
+  store.set(connectionAtom, { state: WebSocketState.OPEN });
+  return (
+    <Provider store={store}>
+      <TooltipProvider>
+        <EditorCell
+          cellId={cellId}
+          theme={"light"}
+          showPlaceholder={false}
+          mode={"edit"}
+          canDelete={true}
+          isCollapsed={false}
+          collapseCount={0}
+          canMoveX={false}
+          userConfig={defaultUserConfig()}
+        />
+      </TooltipProvider>
+    </Provider>
+  );
+};
+
+export default {
   title: "Cell",
   component: Cell,
   args: {},
-};
-
-export default meta;
-type Story = StoryObj<typeof Cell>;
-
-const props: CellProps = {
-  theme: "light",
-  showPlaceholder: false,
-  id: "1" as CellId,
-  code: "import marimo as mo",
-  output: null,
-  consoleOutputs: [],
-  status: "idle",
-  edited: false,
-  interrupted: false,
-  errored: false,
-  stopped: false,
-  staleInputs: false,
-  runStartTimestamp: 0 as Seconds,
-  runElapsedTimeMs: 10 as Milliseconds,
-  lastRunStartTimestamp: 0 as Seconds,
-  serializedEditorState: null,
-  mode: "edit",
-  name: "cell_1",
-  connectionState: WebSocketState.OPEN,
-  canDelete: true,
-  debuggerActive: false,
-  isCollapsed: false,
-  collapseCount: 0,
-  outline: null,
-  deleteCell: Logger.log,
-  actions: {
-    updateCellCode: Logger.log,
-    clearCellConsoleOutput: Logger.log,
-    collapseCell: Logger.log,
-    expandCell: Logger.log,
-    createNewCell: Logger.log,
-    focusCell: Logger.log,
-    moveCell: Logger.log,
-    moveToNextCell: Logger.log,
-    sendToBottom: Logger.log,
-    sendToTop: Logger.log,
-    updateCellConfig: Logger.log,
-    setStdinResponse: Logger.log,
-    clearSerializedEditorState: Logger.log,
-  },
-  canMoveX: false,
-  config: {
-    hide_code: false,
-    disabled: false,
-  },
-  userConfig: defaultUserConfig(),
-};
+} satisfies Meta<typeof Cell>;
 
 export const Primary: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
-      <TooltipProvider>
-        <Cell {...props} />
-      </TooltipProvider>
+      <Cell />
     </div>
   ),
 };
@@ -79,18 +114,17 @@ export const Primary: Story = {
 export const WithOutput: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
-      <TooltipProvider>
-        <Cell
-          {...props}
-          runElapsedTimeMs={20 as Milliseconds}
-          output={{
+      <Cell
+        overrides={{
+          runElapsedTimeMs: 20 as Milliseconds,
+          output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
             timestamp: 1_686_863_688,
-          }}
-        />
-      </TooltipProvider>
+          },
+        }}
+      />
     </div>
   ),
 };
@@ -98,20 +132,19 @@ export const WithOutput: Story = {
 export const WithLargeOutput: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
-      <TooltipProvider>
-        <Cell
-          {...props}
-          runElapsedTimeMs={20 as Milliseconds}
-          output={{
+      <Cell
+        overrides={{
+          runElapsedTimeMs: 20 as Milliseconds,
+          output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>".repeat(
               10,
             ),
             mimetype: "text/html",
             timestamp: 1_686_863_688,
-          }}
-        />
-      </TooltipProvider>
+          },
+        }}
+      />
     </div>
   ),
 };
@@ -121,14 +154,15 @@ export const UnsavedEditsOutput: Story = {
     <div className="p-20 max-w-4xl">
       <TooltipProvider>
         <Cell
-          {...props}
-          runElapsedTimeMs={20 as Milliseconds}
-          edited={true}
-          output={{
-            channel: "output",
-            data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
-            mimetype: "text/html",
-            timestamp: 1_686_863_688,
+          overrides={{
+            runElapsedTimeMs: 20 as Milliseconds,
+            edited: true,
+            output: {
+              channel: "output",
+              data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
+              mimetype: "text/html",
+              timestamp: 1_686_863_688,
+            },
           }}
         />
       </TooltipProvider>
@@ -141,14 +175,15 @@ export const InterruptedOutput: Story = {
     <div className="p-20 max-w-4xl">
       <TooltipProvider>
         <Cell
-          {...props}
-          runElapsedTimeMs={20 as Milliseconds}
-          interrupted={true}
-          output={{
-            channel: "output",
-            data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
-            mimetype: "text/html",
-            timestamp: 1_686_863_688,
+          overrides={{
+            runElapsedTimeMs: 20 as Milliseconds,
+            interrupted: true,
+            output: {
+              channel: "output",
+              data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
+              mimetype: "text/html",
+              timestamp: 1_686_863_688,
+            },
           }}
         />
       </TooltipProvider>
@@ -159,19 +194,18 @@ export const InterruptedOutput: Story = {
 export const WithError: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
-      <TooltipProvider>
-        <Cell
-          {...props}
-          runElapsedTimeMs={20 as Milliseconds}
-          errored={true}
-          output={{
+      <Cell
+        overrides={{
+          runElapsedTimeMs: 20 as Milliseconds,
+          errored: true,
+          output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
             timestamp: 1_686_863_688,
-          }}
-        />
-      </TooltipProvider>
+          },
+        }}
+      />
     </div>
   ),
 };
@@ -179,22 +213,21 @@ export const WithError: Story = {
 export const Disabled: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
-      <TooltipProvider>
-        <Cell
-          {...props}
-          runElapsedTimeMs={20 as Milliseconds}
-          config={{
+      <Cell
+        overrides={{
+          runElapsedTimeMs: 20 as Milliseconds,
+          config: {
             disabled: true,
             hide_code: false,
-          }}
-          output={{
+          },
+          output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
             timestamp: 1_686_863_688,
-          }}
-        />
-      </TooltipProvider>
+          },
+        }}
+      />
     </div>
   ),
 };
@@ -202,19 +235,18 @@ export const Disabled: Story = {
 export const DisabledTransitively: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
-      <TooltipProvider>
-        <Cell
-          {...props}
-          runElapsedTimeMs={20 as Milliseconds}
-          status="disabled-transitively"
-          output={{
+      <Cell
+        overrides={{
+          runElapsedTimeMs: 20 as Milliseconds,
+          status: "disabled-transitively",
+          output: {
             channel: "output",
             data: "This data is stale because a parent is disabled",
             mimetype: "text/html",
             timestamp: 1_686_863_688,
-          }}
-        />
-      </TooltipProvider>
+          },
+        }}
+      />
     </div>
   ),
 };
@@ -222,20 +254,19 @@ export const DisabledTransitively: Story = {
 export const StaleStatus: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
-      <TooltipProvider>
-        <Cell
-          {...props}
-          runElapsedTimeMs={20 as Milliseconds}
-          status="disabled-transitively"
-          staleInputs={true}
-          output={{
+      <Cell
+        overrides={{
+          runElapsedTimeMs: 20 as Milliseconds,
+          status: "disabled-transitively",
+          staleInputs: true,
+          output: {
             channel: "output",
             data: "This data is stale because a parent is disabled",
             mimetype: "text/html",
             timestamp: 1_686_863_688,
-          }}
-        />
-      </TooltipProvider>
+          },
+        }}
+      />
     </div>
   ),
 };
@@ -243,20 +274,20 @@ export const StaleStatus: Story = {
 export const StaleAndEditedStatus: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
-      <TooltipProvider>
-        <Cell
-          {...props}
-          runElapsedTimeMs={20 as Milliseconds}
-          status="disabled-transitively"
-          staleInputs={true}
-          output={{
+      <Cell
+        overrides={{
+          runElapsedTimeMs: 20 as Milliseconds,
+          status: "disabled-transitively",
+          staleInputs: true,
+          edited: true,
+          output: {
             channel: "output",
             data: "This data is stale because a parent is disabled, but this cell has been edited since.",
             mimetype: "text/html",
             timestamp: 1_686_863_688,
-          }}
-        />
-      </TooltipProvider>
+          },
+        }}
+      />
     </div>
   ),
 };
@@ -264,24 +295,23 @@ export const StaleAndEditedStatus: Story = {
 export const DisabledAndStaleStatus: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
-      <TooltipProvider>
-        <Cell
-          {...props}
-          runElapsedTimeMs={20 as Milliseconds}
-          config={{
+      <Cell
+        overrides={{
+          runElapsedTimeMs: 20 as Milliseconds,
+          config: {
             disabled: true,
             hide_code: false,
-          }}
-          status="disabled-transitively"
-          staleInputs={true}
-          output={{
+          },
+          status: "disabled-transitively",
+          staleInputs: true,
+          output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
             timestamp: 1_686_863_688,
-          }}
-        />
-      </TooltipProvider>
+          },
+        }}
+      />
     </div>
   ),
 };
@@ -289,19 +319,18 @@ export const DisabledAndStaleStatus: Story = {
 export const Running: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
-      <TooltipProvider>
-        <Cell
-          {...props}
-          runElapsedTimeMs={20 as Milliseconds}
-          status="running"
-          output={{
+      <Cell
+        overrides={{
+          runElapsedTimeMs: 20 as Milliseconds,
+          status: "running",
+          output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
             timestamp: 1_686_863_688,
-          }}
-        />
-      </TooltipProvider>
+          },
+        }}
+      />
     </div>
   ),
 };

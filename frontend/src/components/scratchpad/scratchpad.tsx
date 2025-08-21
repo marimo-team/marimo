@@ -21,7 +21,7 @@ import { HTMLCellId } from "@/core/cells/ids";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import { sendRunScratchpad } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";
@@ -53,6 +53,7 @@ export const ScratchPad: React.FC = () => {
   const ref = useRef<EditorView | null>(null);
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell, updateCellCode } = useCellActions();
+  const { sendRunScratchpad } = useRequestClient();
 
   const cellId = SCRATCH_CELL_ID;
   const cellRuntime = notebookState.cellRuntime[cellId];
@@ -127,7 +128,7 @@ export const ScratchPad: React.FC = () => {
     // so we don't have to re-render the entire editor and outputs.
     return (
       <>
-        <div className="overflow-auto flex-shrink-0 max-h-[40%]">
+        <div className="overflow-auto shrink-0 max-h-[40%]">
           <CellEditor
             theme={theme}
             showPlaceholder={false}
@@ -148,7 +149,7 @@ export const ScratchPad: React.FC = () => {
             setLanguageAdapter={setLanguageAdapter}
           />
         </div>
-        <div className="flex-1 overflow-auto flex-shrink-0">
+        <div className="flex-1 overflow-auto shrink-0">
           <OutputArea
             allowExpand={false}
             output={output}
@@ -158,7 +159,7 @@ export const ScratchPad: React.FC = () => {
             loading={false}
           />
         </div>
-        <div className="overflow-auto flex-shrink-0 max-h-[35%]">
+        <div className="overflow-auto shrink-0 max-h-[35%]">
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             className="overflow-auto"
@@ -217,14 +218,14 @@ export const ScratchPad: React.FC = () => {
         scratchpad aren't saved to notebook memory, and the code is not saved in
         the notebook file.
       </p>
-      <div className="flex items-center flex-shrink-0">
+      <div className="flex items-center shrink-0">
         <Tooltip content={renderShortcut("cell.run")}>
           <Button
             data-testid="scratchpad-run-button"
             onClick={handleRun}
             disabled={historyVisible}
             variant="text"
-            // className="bg-[var(--grass-3)] hover:bg-[var(--grass-4)] rounded-none"
+            // className="bg-(--grass-3) hover:bg-(--grass-4) rounded-none"
             size="xs"
           >
             <PlayIcon color="var(--grass-11)" size={16} />
@@ -262,7 +263,7 @@ export const ScratchPad: React.FC = () => {
           <Button
             size="xs"
             variant="text"
-            className={cn(historyVisible && "bg-[var(--sky-3)] rounded-none")}
+            className={cn(historyVisible && "bg-(--sky-3) rounded-none")}
             onClick={() => setHistoryVisible(!historyVisible)}
             disabled={history.length === 0}
           >

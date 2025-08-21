@@ -52,6 +52,54 @@ components:
       - code
       - language
       type: object
+    AiConfig:
+      properties:
+        anthropic:
+          $ref: '#/components/schemas/AnthropicConfig'
+        azure:
+          $ref: '#/components/schemas/OpenAiConfig'
+        bedrock:
+          $ref: '#/components/schemas/BedrockConfig'
+        github:
+          $ref: '#/components/schemas/GitHubConfig'
+        google:
+          $ref: '#/components/schemas/GoogleAiConfig'
+        max_tokens:
+          type: integer
+        mode:
+          enum:
+          - ask
+          - manual
+          type: string
+        models:
+          properties:
+            autocomplete_model:
+              type: string
+            chat_model:
+              type: string
+            custom_models:
+              items:
+                type: string
+              type: array
+            displayed_models:
+              items:
+                type: string
+              type: array
+            edit_model:
+              type: string
+          required:
+          - displayed_models
+          - custom_models
+          type: object
+        ollama:
+          $ref: '#/components/schemas/OpenAiConfig'
+        open_ai:
+          $ref: '#/components/schemas/OpenAiConfig'
+        open_ai_compatible:
+          $ref: '#/components/schemas/OpenAiConfig'
+        rules:
+          type: string
+      type: object
     AiInlineCompletionRequest:
       properties:
         language:
@@ -89,6 +137,11 @@ components:
       - description
       - name
       type: object
+    AnthropicConfig:
+      properties:
+        api_key:
+          type: string
+      type: object
     Banner:
       properties:
         action:
@@ -120,6 +173,17 @@ components:
           type: boolean
       required:
       - success
+      type: object
+    BedrockConfig:
+      properties:
+        aws_access_key_id:
+          type: string
+        aws_secret_access_key:
+          type: string
+        profile_name:
+          type: string
+        region_name:
+          type: string
       type: object
     CellChannel:
       enum:
@@ -707,23 +771,6 @@ components:
       required:
       - cellId
       type: object
-    DeleteNonlocalError:
-      properties:
-        cells:
-          items:
-            type: string
-          type: array
-        name:
-          type: string
-        type:
-          enum:
-          - delete-nonlocal
-          type: string
-      required:
-      - name
-      - cells
-      - type
-      type: object
     DeleteSecretRequest:
       properties:
         key:
@@ -765,7 +812,6 @@ components:
       - $ref: '#/components/schemas/CycleError'
       - $ref: '#/components/schemas/MultipleDefinitionError'
       - $ref: '#/components/schemas/ImportStarError'
-      - $ref: '#/components/schemas/DeleteNonlocalError'
       - $ref: '#/components/schemas/MarimoAncestorStoppedError'
       - $ref: '#/components/schemas/MarimoAncestorPreventedError'
       - $ref: '#/components/schemas/MarimoExceptionRaisedError'
@@ -1112,6 +1158,18 @@ components:
       - function_call_id
       - status
       - name
+      type: object
+    GitHubConfig:
+      properties:
+        api_key:
+          type: string
+        base_url:
+          type: string
+      type: object
+    GoogleAiConfig:
+      properties:
+        api_key:
+          type: string
       type: object
     HTTPRequest:
       type: 'null'
@@ -1462,53 +1520,7 @@ components:
     MarimoConfig:
       properties:
         ai:
-          properties:
-            anthropic:
-              properties:
-                api_key:
-                  type: string
-              type: object
-            bedrock:
-              properties:
-                aws_access_key_id:
-                  type: string
-                aws_secret_access_key:
-                  type: string
-                profile_name:
-                  type: string
-                region_name:
-                  type: string
-              type: object
-            google:
-              properties:
-                api_key:
-                  type: string
-              type: object
-            max_tokens:
-              type: integer
-            mode:
-              enum:
-              - ask
-              - manual
-              type: string
-            open_ai:
-              properties:
-                api_key:
-                  type: string
-                base_url:
-                  type: string
-                ca_bundle_path:
-                  type: string
-                client_pem:
-                  type: string
-                model:
-                  type: string
-                ssl_verify:
-                  type: boolean
-              type: object
-            rules:
-              type: string
-          type: object
+          $ref: '#/components/schemas/AiConfig'
         completion:
           properties:
             activate_on_typing:
@@ -1994,6 +2006,21 @@ components:
       - type: boolean
       - format: byte
         type: string
+    OpenAiConfig:
+      properties:
+        api_key:
+          type: string
+        base_url:
+          type: string
+        ca_bundle_path:
+          type: string
+        client_pem:
+          type: string
+        model:
+          type: string
+        ssl_verify:
+          type: boolean
+      type: object
     OpenTutorialRequest:
       properties:
         tutorialId:
@@ -2749,7 +2776,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.15
+  version: 0.14.17
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

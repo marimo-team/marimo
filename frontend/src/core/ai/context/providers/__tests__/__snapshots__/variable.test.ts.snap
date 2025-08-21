@@ -1,0 +1,378 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`VariableContextProvider > formatContext > should format context for basic variable > basic-variable-context 1`] = `
+"Variable: username
+Type: str
+Preview: "\\"alice\\"""
+`;
+
+exports[`VariableContextProvider > formatContext > should format context for dataframe variable > dataframe-variable-context 1`] = `
+"Variable: sales_df
+Type: pandas.DataFrame
+Preview: "<DataFrame shape: (1000, 8)>\\n   date    product  quantity  price\\n0  2023-01-01  Widget A    10    29.99\\n1  2023-01-02  Widget B     5    49.99\\n...""
+`;
+
+exports[`VariableContextProvider > formatContext > should format context for variable with complex value > complex-value-variable-context 1`] = `
+"Variable: complex_data
+Type: dict
+Preview: "{\\"users\\": [{\\"id\\": 1, \\"name\\": \\"Alice\\"}, {\\"id\\": 2, \\"name\\": \\"Bob\\"}], \\"total\\": 2}""
+`;
+
+exports[`VariableContextProvider > formatContext > should format context for variable without dataType > no-datatype-variable-context 1`] = `
+"Variable: mystery_var
+Type: unknown
+Preview: "some_value""
+`;
+
+exports[`VariableContextProvider > getItems > should handle complex data types > complex-data-types 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "pandas.DataFrame",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "df",
+        "usedBy": [
+          "cell2",
+          "cell3",
+        ],
+        "value": "<DataFrame shape: (100, 5)>",
+      },
+    },
+    "dataType": "pandas.DataFrame",
+    "description": "pandas.DataFrame",
+    "name": "df",
+    "type": "variable",
+    "uri": "variable://df",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "sklearn.linear_model._base.LinearRegression",
+        "declaredBy": [
+          "cell4",
+        ],
+        "name": "model",
+        "usedBy": [
+          "cell5",
+        ],
+        "value": "<sklearn.linear_model.LinearRegression>",
+      },
+    },
+    "dataType": "sklearn.linear_model._base.LinearRegression",
+    "description": "sklearn.linear_model._base.LinearRegression",
+    "name": "model",
+    "type": "variable",
+    "uri": "variable://model",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "numpy.ndarray",
+        "declaredBy": [
+          "cell2",
+        ],
+        "name": "array",
+        "usedBy": [
+          "cell3",
+        ],
+        "value": "array([1, 2, 3, 4, 5])",
+      },
+    },
+    "dataType": "numpy.ndarray",
+    "description": "numpy.ndarray",
+    "name": "array",
+    "type": "variable",
+    "uri": "variable://array",
+  },
+]
+`;
+
+exports[`VariableContextProvider > getItems > should handle variables with null/undefined values > null-undefined-variables 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "NoneType",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "null_var",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": null,
+      },
+    },
+    "dataType": "NoneType",
+    "description": "NoneType",
+    "name": "null_var",
+    "type": "variable",
+    "uri": "variable://null_var",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": null,
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "undefined_var",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": undefined,
+      },
+    },
+    "dataType": null,
+    "description": "",
+    "name": "undefined_var",
+    "type": "variable",
+    "uri": "variable://undefined_var",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "str",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "empty_string",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": """",
+      },
+    },
+    "dataType": "str",
+    "description": "str",
+    "name": "empty_string",
+    "type": "variable",
+    "uri": "variable://empty_string",
+  },
+]
+`;
+
+exports[`VariableContextProvider > getItems > should handle variables with special characters in names > special-chars-variables 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "int",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "_private_var",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": "42",
+      },
+    },
+    "dataType": "int",
+    "description": "int",
+    "name": "_private_var",
+    "type": "variable",
+    "uri": "variable://_private_var",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "str",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "var_with_numbers123",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": ""test"",
+      },
+    },
+    "dataType": "str",
+    "description": "str",
+    "name": "var_with_numbers123",
+    "type": "variable",
+    "uri": "variable://var_with_numbers123",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "float",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "CONSTANT_VAR",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": "3.14159",
+      },
+    },
+    "dataType": "float",
+    "description": "float",
+    "name": "CONSTANT_VAR",
+    "type": "variable",
+    "uri": "variable://CONSTANT_VAR",
+  },
+]
+`;
+
+exports[`VariableContextProvider > getItems > should return empty array when no variables > empty-variables 1`] = `[]`;
+
+exports[`VariableContextProvider > getItems > should return variable items for multiple variables with different types > multiple-variables 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "int",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "user_id",
+        "usedBy": [
+          "cell2",
+          "cell3",
+        ],
+        "value": "123",
+      },
+    },
+    "dataType": "int",
+    "description": "int",
+    "name": "user_id",
+    "type": "variable",
+    "uri": "variable://user_id",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "bool",
+        "declaredBy": [
+          "cell2",
+        ],
+        "name": "is_active",
+        "usedBy": [],
+        "value": "True",
+      },
+    },
+    "dataType": "bool",
+    "description": "bool",
+    "name": "is_active",
+    "type": "variable",
+    "uri": "variable://is_active",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "list",
+        "declaredBy": [
+          "cell3",
+        ],
+        "name": "scores",
+        "usedBy": [
+          "cell4",
+        ],
+        "value": "[1, 2, 3, 4, 5]",
+      },
+    },
+    "dataType": "list",
+    "description": "list",
+    "name": "scores",
+    "type": "variable",
+    "uri": "variable://scores",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "dict",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "config",
+        "usedBy": [
+          "cell2",
+          "cell4",
+        ],
+        "value": "{"debug": true, "timeout": 30}",
+      },
+    },
+    "dataType": "dict",
+    "description": "dict",
+    "name": "config",
+    "type": "variable",
+    "uri": "variable://config",
+  },
+]
+`;
+
+exports[`VariableContextProvider > getItems > should return variable items for single variable > single-variable 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "str",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "user_name",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": ""John Doe"",
+      },
+    },
+    "dataType": "str",
+    "description": "str",
+    "name": "user_name",
+    "type": "variable",
+    "uri": "variable://user_name",
+  },
+]
+`;
+
+exports[`VariableContextProvider > integration with tables > should work with both variables and tables > variables-with-tables-items 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "pandas.DataFrame",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "df",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": "<DataFrame shape: (50, 3)>",
+      },
+    },
+    "dataType": "pandas.DataFrame",
+    "description": "pandas.DataFrame",
+    "name": "df",
+    "type": "variable",
+    "uri": "variable://df",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "str",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "connection_string",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": ""postgresql://localhost:5432/mydb"",
+      },
+    },
+    "dataType": "str",
+    "description": "str",
+    "name": "connection_string",
+    "type": "variable",
+    "uri": "variable://connection_string",
+  },
+]
+`;

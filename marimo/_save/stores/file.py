@@ -15,7 +15,9 @@ def _valid_path(path: Path) -> bool:
 class FileStore(Store):
     def __init__(self, save_path: Optional[str] = None) -> None:
         self.save_path = Path(save_path or self._default_save_path())
-        self._init_save_path()
+        # NB. construction may be called on store import, so do not create
+        # directories until needed.
+        self._initialized = False
 
     def _default_save_path(self) -> Path:
         if (root := notebook_dir()) is not None:
@@ -27,6 +29,9 @@ class FileStore(Store):
         self.save_path.mkdir(parents=True, exist_ok=True)
 
     def get(self, key: str) -> Optional[bytes]:
+        if not self._initialized:
+            self._init_save_path()
+        self._initialized = True
         path = self.save_path / key
         if not _valid_path(path):
             return None
@@ -35,6 +40,7 @@ class FileStore(Store):
     def put(self, key: str, value: bytes) -> bool:
         path = self.save_path / key
         path.parent.mkdir(parents=True, exist_ok=True)
+        self._initialized = True
         path.write_bytes(value)
         return True
 

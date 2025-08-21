@@ -1,20 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 export const COLORS = [
-  "bg-[var(--amber-6)]",
-  "bg-[var(--blue-6)]",
-  "bg-[var(--crimson-6)]",
-  "bg-[var(--cyan-6)]",
-  "bg-[var(--grass-6)]",
-  "bg-[var(--gray-6)]",
-  "bg-[var(--green-6)]",
-  "bg-[var(--lime-6)]",
-  "bg-[var(--orange-6)]",
-  "bg-[var(--purple-6)]",
-  "bg-[var(--red-6)]",
-  "bg-[var(--sage-6)]",
-  "bg-[var(--sky-6)]",
-  "bg-[var(--slate-6)]",
+  "bg-(--amber-6)",
+  "bg-(--blue-6)",
+  "bg-(--crimson-6)",
+  "bg-(--cyan-6)",
+  "bg-(--grass-6)",
+  "bg-(--gray-6)",
+  "bg-(--green-6)",
+  "bg-(--lime-6)",
+  "bg-(--orange-6)",
+  "bg-(--purple-6)",
+  "bg-(--red-6)",
+  "bg-(--sage-6)",
+  "bg-(--sky-6)",
+  "bg-(--slate-6)",
 ] as const;
 
 /**

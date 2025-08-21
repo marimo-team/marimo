@@ -5,14 +5,262 @@ from __future__ import annotations
 import sys
 import textwrap
 import warnings
+from unittest.mock import patch
 
 import pytest
 
 import marimo
 from marimo._ast.app import App
+from marimo._plugins.ui._impl.input import dropdown
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
-from tests.conftest import ExecReqProvider
+from marimo._save.cache import Cache, ModuleStub, UIElementStub
+from tests.conftest import ExecReqProvider, TestableModuleStub
+
+
+class TestCache:
+    @staticmethod
+    def test_cache_basic_update() -> None:
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
+        scope = {}
+        ret = 1
+        cache.update(scope, {"return": ret})
+        assert cache.meta["return"] == ret
+
+    @staticmethod
+    def test_cache_recursive_update() -> None:
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
+        scope = {}
+        ret = []
+        ret.append(ret)
+        cache.update(scope, {"return": ret})
+
+        stored = cache.meta["return"]
+        assert isinstance(stored, list)
+        assert len(stored) == 1
+        assert stored[0] is stored  # Self-reference maintained
+
+    @staticmethod
+    def test_cache_scope_recursive() -> None:
+        _list = []
+        _list.append(_list)
+        d = {}
+        d["self"] = d
+        scope = {
+            "_list": _list,
+            "_dict": d,
+        }
+        cache = Cache(
+            defs=scope,
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
+
+        # Force update to trigger stubbing.
+        cache.update(scope, {"return": None})
+        assert "_list" in cache.defs
+        assert "_dict" in cache.defs
+
+    @staticmethod
+    @patch("marimo._save._cache_module.ModuleStub", TestableModuleStub)
+    def test_cache_iterable() -> None:
+        scope = {
+            "_tuple": (1, 2, 3, marimo),
+            "_set": {1, 2, 3, marimo},
+        }
+        cache = Cache(
+            defs=scope,
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
+
+        # Force update to trigger stubbing.
+        cache.update(scope, {"return": None})
+        assert "_tuple" in cache.defs
+        assert "_set" in cache.defs
+        assert isinstance(cache.defs["_tuple"][-1], ModuleStub)
+        assert TestableModuleStub(marimo) in cache.defs["_set"]
+
+        cache.restore(scope)
+        assert marimo == cache.defs["_tuple"][-1]
+        assert marimo in cache.defs["_set"]
+
+    @staticmethod
+    def test_cache_preserves_ref() -> None:
+        _set = {1, 2, 3, marimo}
+        _list = [1, 2, 3, _set]
+        _dict = {"_set": _set, "_list": _list}
+        scope = {
+            "_list": _list,
+            "_set": _set,
+            "_dict": _dict,
+        }
+        cache = Cache(
+            defs=scope,
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
+
+        cache.update(scope, {"return": None})
+        assert "_list" in cache.defs
+        assert "_dict" in cache.defs
+        assert "_set" in cache.defs
+        assert id(cache.defs["_set"]) == id(_set)
+        assert id(cache.defs["_list"]) == id(_list)
+        assert id(cache.defs["_dict"]) == id(_dict)
+
+    @staticmethod
+    def test_cache_ui_element_update() -> None:
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
+        scope = {}
+        ret = dropdown(options=[1, 2, 3])
+        cache.update(scope, {"return": ret})
+
+        stub = cache.meta["return"]
+
+        assert isinstance(stub, UIElementStub)
+
+        assert stub.load().options == ret.options
+        assert stub.load().value == ret.value
+
+    @staticmethod
+    def test_cache_basic_restore() -> None:
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={"return": 42},
+        )
+        scope = {}
+        cache.restore(scope)
+        assert cache.meta["return"] == 42
+
+    @staticmethod
+    def test_cache_recursive_restore() -> None:
+        # Create a self-referential list
+        ret = []
+        ret.append(ret)
+
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={"return": ret},
+        )
+        scope = {}
+        cache.restore(scope)
+
+        # After restoration, should maintain the self-reference
+        restored = cache.meta["return"]
+        assert isinstance(restored, list)
+        assert len(restored) == 1
+        assert restored[0] is restored  # Self-reference maintained
+
+    @staticmethod
+    def test_cache_ui_element_restore() -> None:
+        # Create a UIElement and convert it to a stub
+        original_dropdown = dropdown(options=[1, 2, 3])
+        stub = UIElementStub(original_dropdown)
+
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={"return": stub},
+        )
+        scope = {}
+        cache.restore(scope)
+
+        # After restoration, should have a new UIElement instance with same properties
+        restored = cache.meta["return"]
+        assert isinstance(restored, type(original_dropdown))
+        assert restored is not original_dropdown  # Different instance
+        assert restored.options == original_dropdown.options
+        assert restored.value == original_dropdown.value
+
+    @staticmethod
+    def test_cache_nested_ui_element_restore() -> None:
+        # Create nested structure with UIElements
+        slider = dropdown(options=["a", "b", "c"])
+        button = dropdown(options=[1, 2, 3])
+        nested = {
+            "controls": [slider, button],
+            "primary": slider,
+            "secondary": button,
+        }
+
+        # Convert to stubs
+        slider_stub = UIElementStub(slider)
+        button_stub = UIElementStub(button)
+        nested_with_stubs = {
+            "controls": [slider_stub, button_stub],
+            "primary": slider_stub,
+            "secondary": button_stub,
+        }
+
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={"return": nested_with_stubs},
+        )
+        scope = {}
+        cache.restore(scope)
+
+        # After restoration, should have new UIElement instances but preserve structure
+        restored = cache.meta["return"]
+        assert isinstance(restored, dict)
+        assert len(restored["controls"]) == 2
+
+        # Should be same instances within the structure (shared references preserved)
+        assert restored["primary"] is restored["controls"][0]
+        assert restored["secondary"] is restored["controls"][1]
+
+        # But different from originals
+        assert restored["primary"] is not slider
+        assert restored["secondary"] is not button
+
+        # Properties should match
+        assert restored["primary"].options == slider.options
+        assert restored["secondary"].options == button.options
 
 
 class TestScriptCache:

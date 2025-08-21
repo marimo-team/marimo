@@ -12,7 +12,7 @@ from marimo._ast.pytest import MARIMO_TEST_STUB_NAME
 from marimo._cli.print import bold, green
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.capture import capture_stdout
-from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._runtime.context import safe_get_context
 
 MARIMO_TEST_BLOCK_REGEX = re.compile(rf"{MARIMO_TEST_STUB_NAME}_\d+[(?::)\.]+")
 
@@ -44,14 +44,11 @@ class MarimoPytestResult:
         )
 
 
-def _maybe_name() -> str:
-    try:
-        ctx: Any = get_context()
-        if ctx.filename is not None:
-            filename = ctx.filename
-    except ContextNotInitializedError:
-        filename = "notebook.py"
-    assert isinstance(filename, str)
+def _get_name(default: str = "notebook.py") -> str:
+    filename = default
+    ctx = safe_get_context()
+    if ctx and ctx.filename is not None:
+        filename = ctx.filename
     return filename
 
 
@@ -63,7 +60,7 @@ def _to_marimo_uri(uri: str) -> str:
         return uri
     cell_id = uri.split("_")[6]
 
-    notebook = os.path.relpath(_maybe_name(), marimo.notebook_location())
+    notebook = os.path.relpath(_get_name(), marimo.notebook_location())
     return f"marimo://{notebook}#cell_id={cell_id}"
 
 
@@ -249,7 +246,7 @@ def run_pytest(
 
     if not notebook_path:
         # Translate name to python module
-        notebook_path = _maybe_name()
+        notebook_path = _get_name()
     notebook_path = str(notebook_path)
 
     # Hold on to modules since we want to refresh them in order to enable

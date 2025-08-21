@@ -31,7 +31,7 @@ export const LoadingTable = ({
               <TableRow key={i}>
                 {Array.from({ length: NUM_COLUMNS }).map((_, j) => (
                   <TableHead key={j}>
-                    <div className="h-4 bg-[var(--slate-5)] animate-pulse rounded-md w-[70%]" />
+                    <div className="h-4 bg-(--slate-5) animate-pulse rounded-md w-[70%]" />
                   </TableHead>
                 ))}
               </TableRow>
@@ -42,7 +42,7 @@ export const LoadingTable = ({
               <TableRow key={i}>
                 {Array.from({ length: NUM_COLUMNS }).map((_, j) => (
                   <TableCell key={j}>
-                    <div className="h-4 bg-[var(--slate-5)] animate-pulse rounded-md w-[90%]" />
+                    <div className="h-4 bg-(--slate-5) animate-pulse rounded-md w-[90%]" />
                   </TableCell>
                 ))}
               </TableRow>
@@ -50,7 +50,7 @@ export const LoadingTable = ({
           </TableBody>
         </Table>
       </div>
-      <div className="flex align-items justify-between flex-shrink-0 h-8" />
+      <div className="flex align-items justify-between shrink-0 h-8" />
     </div>
   );
 };

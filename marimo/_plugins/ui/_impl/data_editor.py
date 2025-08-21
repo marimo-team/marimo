@@ -163,12 +163,13 @@ class data_editor(
             Can be a Pandas dataframe, a list of dicts, or a dict of lists.
         label (str): Markdown label for the element.
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
-        column_sizing_mode (Literal["auto", "fit"]): The column sizing mode for the table.
-            `auto` will size columns based on the content, `fit` will size columns to fit the view.
+        editable_columns (Union[list[str], Literal["all"]]): A list of column names to be editable.
+            If "all", all columns are editable. Pass an empty list to make all columns read-only. Defaults to "all".
 
     Deprecated:
         pagination (bool): Whether to enable pagination.
         page_size (int): The number of rows to display per page.
+        column_sizing_mode (Literal["auto", "fit"]): The column sizing mode for the table.
     """
 
     _name: Final[str] = "marimo-data-editor"
@@ -177,8 +178,6 @@ class data_editor(
         self,
         data: Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
         *,
-        pagination: bool = True,  # Deprecated, TODO: Remove
-        page_size: int = 50,  # Deprecated
         label: str = "",
         on_change: Optional[
             Callable[
@@ -186,14 +185,37 @@ class data_editor(
                 None,
             ]
         ] = None,
-        column_sizing_mode: Literal["auto", "fit"] = "auto",
+        editable_columns: Union[list[str], Literal["all"]] = "all",
+        column_sizing_mode: Optional[Literal["auto", "fit"]] = None,
+        pagination: Optional[bool] = None,
+        page_size: Optional[int] = None,
     ) -> None:
-        del pagination, page_size
+        # These attributes are deprecated, but we keep them for backwards compatibility
+        if pagination:
+            LOGGER.warning(
+                "pagination is deprecated and will be removed in a future version"
+            )
+        if page_size:
+            LOGGER.warning(
+                "page_size is deprecated and will be removed in a future version"
+            )
+        if column_sizing_mode:
+            LOGGER.warning("column_sizing_mode is deprecated")
+
         table_manager = get_table_manager(data)
 
         self._data = data
         self._edits: DataEdits | None = None
         field_types = table_manager.get_field_types()
+
+        column_names = table_manager.get_column_names()
+
+        if isinstance(editable_columns, list):
+            for col in editable_columns:
+                if col not in column_names:
+                    raise ValueError(f"Column {col} is not in the data")
+        elif editable_columns is None:
+            editable_columns = []
 
         super().__init__(
             component_name=data_editor._name,
@@ -202,7 +224,8 @@ class data_editor(
             args={
                 "data": mo_data.csv(table_manager.to_csv()).url,
                 "field-types": field_types or None,
-                "column-sizing-mode": column_sizing_mode,
+                "editable-columns": editable_columns,
+                "column-sizing-mode": "auto",
             },
             on_change=on_change,
         )

@@ -1,3 +1,5 @@
+@reference "../../css/globals.css";
+
 .react-flow__pane.react-flow__pane {
   cursor: default;
 }

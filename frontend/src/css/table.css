@@ -1,3 +1,5 @@
+@reference "../css/globals.css";
+
 .markdown table,
 table.dataframe {
   display: block;

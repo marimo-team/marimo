@@ -21,6 +21,23 @@ export function isPlatformMac() {
   return /mac/i.test(platform);
 }
 
+/**
+ * Check if the current platform is Windows
+ */
+export function isPlatformWindows() {
+  if (typeof window === "undefined") {
+    Logger.warn("isPlatformWindows() called without window");
+    return false;
+  }
+  // @ts-expect-error typescript does not have types for experimental userAgentData property
+  const platform = window.navigator.userAgentData
+    ? // @ts-expect-error typescript does not have types for experimental userAgentData property
+      window.navigator.userAgentData.platform
+    : window.navigator.platform;
+
+  return /win/i.test(platform);
+}
+
 type IKeyboardEvent = Pick<
   KeyboardEvent,
   "key" | "shiftKey" | "ctrlKey" | "metaKey" | "altKey" | "code"

@@ -64,6 +64,8 @@ interface FileInfo {
 type PluginFunctions = {
   list_directory: (req: { path: string }) => Promise<{
     files: FileInfo[];
+    total_count: number;
+    is_truncated: boolean;
   }>;
 };
 
@@ -97,6 +99,8 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
               is_directory: z.boolean(),
             }),
           ),
+          total_count: z.number(),
+          is_truncated: z.boolean(),
         }),
       ),
   })
@@ -409,7 +413,7 @@ export const FileBrowser = ({
 
     if (multiple) {
       return (
-        <div className="grid grid-cols-2 items-center border-1">
+        <div className="grid grid-cols-2 items-center border">
           <div className="justify-self-start mb-1">{labelText}</div>
           <div className="justify-self-end">
             <Button
@@ -447,6 +451,15 @@ export const FileBrowser = ({
           </option>
         ))}
       </NativeSelect>
+
+      {data && typeof data.total_count === "number" && (
+        <div className="text-xs text-muted-foreground mt-1 px-1">
+          {data.is_truncated
+            ? `Showing ${files.length} of ${data.total_count} items`
+            : `${data.total_count} ${data.total_count === 1 ? "item" : "items"}`}
+        </div>
+      )}
+
       <div
         className="mt-3 overflow-y-auto w-full border"
         style={{ height: "14rem" }}

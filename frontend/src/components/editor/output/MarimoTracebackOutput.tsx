@@ -30,7 +30,7 @@ import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { insertDebuggerAtLine } from "@/core/codemirror/editing/debugging";
 import { aiEnabledAtom } from "@/core/config/config";
-import { sendPdb } from "@/core/network/requests";
+import { getRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { copyToClipboard } from "@/utils/copy";
@@ -56,7 +56,6 @@ const KEY = "item";
 export const MarimoTracebackOutput = ({
   onRefactorWithAI,
   traceback,
-  cellId,
 }: Props): JSX.Element => {
   const htmlTraceback = renderHTML({
     html: traceback,
@@ -88,7 +87,7 @@ export const MarimoTracebackOutput = ({
           >
             <ChevronDown
               className={cn(
-                "h-4 w-4 text-muted-foreground transition-transform duration-200 flex-shrink-0",
+                "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
                 expanded ? "rotate-180" : "rotate-0",
               )}
             />
@@ -115,7 +114,7 @@ export const MarimoTracebackOutput = ({
               size="xs"
               variant="outline"
               onClick={() => {
-                sendPdb({ cellId: tracebackInfo.cellId });
+                getRequestClient().sendPdb({ cellId: tracebackInfo.cellId });
               }}
             >
               <BugPlayIcon className="h-3 w-3 mr-2" />

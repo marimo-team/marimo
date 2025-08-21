@@ -3,6 +3,8 @@ import pytest
 from marimo._convert.converters import MarimoConvert
 from marimo._convert.non_marimo_python_script import (
     convert_non_marimo_python_script_to_notebook_ir,
+    convert_non_marimo_script_to_notebook_ir,
+    convert_python_block_to_notebook_ir,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from tests.mocks import snapshotter
@@ -10,6 +12,140 @@ from tests.mocks import snapshotter
 HAS_JUPYTEXT = DependencyManager.has("jupytext")
 
 snapshot_test = snapshotter(__file__)
+
+
+class TestConvertNonMarimoScriptToNotebookIr:
+    """Test the convert_non_marimo_script_to_notebook_ir function."""
+
+    def test_python_script_success(self) -> None:
+        """Test successful Python script conversion."""
+        source = '''"""A simple Python script."""
+
+x = 5
+y = 10
+print(x + y)
+'''
+        ir = convert_non_marimo_script_to_notebook_ir(source)
+        assert ir.app is not None
+        assert len(ir.cells) == 1
+        # CellDef objects don't have cell_type attribute
+        assert "print(x + y)" in ir.cells[0].code
+
+    @pytest.mark.skipif(not HAS_JUPYTEXT, reason="jupytext not installed")
+    def test_pypercent_script_success(self) -> None:
+        """Test successful pypercent script conversion."""
+        source = '''"""Pypercent format notebook."""
+
+# %%
+x = 1
+print(x)
+'''
+        ir = convert_non_marimo_script_to_notebook_ir(source)
+        assert ir.app is not None
+        assert len(ir.cells) > 0
+
+    @pytest.mark.skipif(
+        HAS_JUPYTEXT,
+        reason="Check failure occurs when jupytext is not available",
+    )
+    def test_pypercent_script_without_jupytext(self) -> None:
+        """Test pypercent script when jupytext is not available."""
+        source = '''"""Pypercent format notebook."""
+
+# %%
+x = 1
+print(x)
+'''
+        # Should fall back to Python block conversion
+        ir = convert_non_marimo_script_to_notebook_ir(source)
+        assert ir.app is not None
+        assert len(ir.cells) == 1
+        # CellDef objects don't have cell_type attribute
+        assert "print(x)" in ir.cells[0].code
+
+    def test_invalid_python_syntax(self) -> None:
+        """Test script with invalid Python syntax."""
+        source = """This is not valid Python code
+def incomplete_function(
+    # Missing closing parenthesis
+"""
+        ir = convert_non_marimo_script_to_notebook_ir(source)
+        assert ir.app is not None
+        assert len(ir.cells) == 1
+        # Should be an UnparsableCell
+        assert hasattr(ir.cells[0], "code")
+        # Strip trailing newlines for comparison
+        assert ir.cells[0].code.rstrip() == source.rstrip()
+
+    def test_bash_script(self) -> None:
+        """Test non-Python script (bash)."""
+        source = """#!/bin/bash
+echo "Hello World"
+for i in {1..5}; do
+    echo "Count: $i"
+done
+"""
+        ir = convert_non_marimo_script_to_notebook_ir(source)
+        assert ir.app is not None
+        assert len(ir.cells) == 1
+        # Should be an UnparsableCell
+        assert hasattr(ir.cells[0], "code")
+        # Strip trailing newlines for comparison
+        assert ir.cells[0].code.rstrip() == source.rstrip()
+
+    def test_markdown_text(self) -> None:
+        """Test markdown text as script."""
+        source = """# My Document
+
+This is a markdown document with some content.
+
+## Section 1
+
+- Item 1
+- Item 2
+- Item 3
+
+## Section 2
+
+Some more content here.
+"""
+        ir = convert_non_marimo_script_to_notebook_ir(source)
+        assert ir.app is not None
+        assert len(ir.cells) == 1
+        # Should be an UnparsableCell
+        assert hasattr(ir.cells[0], "code")
+        # Strip trailing newlines for comparison
+        assert ir.cells[0].code.rstrip() == source.rstrip()
+
+    def test_empty_python_block(self) -> None:
+        """Test empty Python block conversion."""
+        source = ""
+        ir = convert_python_block_to_notebook_ir(source)
+        assert ir.app is not None
+        assert len(ir.cells) == 1
+        # CellDef objects don't have cell_type attribute
+        assert ir.cells[0].code.strip() == ""
+
+    def test_basic_script_block(self) -> None:
+        """Test basic script block conversion."""
+        source = "This is some arbitrary text that is not Python code"
+        ir = MarimoConvert.from_plain_text(source).to_ir()
+        assert ir.app is not None
+        assert ir.header.value == ""
+        assert len(ir.cells) == 1
+        assert ir.cells[0].code == source
+
+    def test_script_block_with_special_characters(self) -> None:
+        """Test script block with special characters."""
+        source = """#!/bin/bash
+echo "Hello World"
+# This is a bash script, not Python
+"""
+        ir = MarimoConvert.from_non_marimo_python_script(
+            source, aggressive=True
+        ).to_ir()
+        assert len(ir.cells) == 1
+        assert ir.cells[0].code.strip() == source.strip()
 
 
 class TestConvertNonMarimoPython:

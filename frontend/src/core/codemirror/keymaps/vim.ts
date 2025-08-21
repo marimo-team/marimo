@@ -9,7 +9,7 @@ import {
   Vim,
 } from "@replit/codemirror-vim";
 import { resolvedMarimoConfigAtom } from "@/core/config/config";
-import { sendFileDetails } from "@/core/network/requests";
+import { getRequestClient } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { onIdle } from "@/utils/idle";
 import { invariant } from "@/utils/invariant";
@@ -61,8 +61,9 @@ export function vimKeymapExtension(): Extension[] {
     keymap.of([
       {
         // Ctrl-[ by default is to dedent
-        // But for Vim (on Linux), it should exit insert mode when in Insert mode
+        // But for Vim (on Linux and Windows), it should exit insert mode when in Insert mode
         linux: "Ctrl-[",
+        win: "Ctrl-[",
         run: (ev) => {
           const cm = getCM(ev);
           if (!cm) {
@@ -123,10 +124,9 @@ const loadVimrcOnce = once(async () => {
   if (!vimrc) {
     return;
   }
-
   try {
     Logger.log(`Loading vimrc from ${vimrc}`);
-    const response = await sendFileDetails({ path: vimrc });
+    const response = await getRequestClient().sendFileDetails({ path: vimrc });
     const content = response.contents;
     if (!content) {
       Logger.error(`Failed to load vimrc from ${vimrc}`);

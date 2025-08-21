@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { isPlatformMac } from "@/core/hotkeys/shortcuts";
+import { isPlatformMac, isPlatformWindows } from "@/core/hotkeys/shortcuts";
 import { Objects } from "@/utils/objects";
 
 export const NOT_SET: unique symbol = Symbol("NOT_SET");
 
-interface Hotkey {
+export interface Hotkey {
   name: string;
   /**
    * Grouping for the command palette and keyboard shortcuts page.
@@ -34,6 +34,7 @@ interface ResolvedHotkey {
   key: string;
 }
 
+type ModKey = "Cmd" | "Ctrl";
 type Platform = "mac" | "windows" | "linux";
 
 export type HotkeyGroup =
@@ -388,6 +389,14 @@ const DEFAULT_HOT_KEY = {
   },
 
   // Command mode (edit a cell, not the editor)
+  "command.vimEnterCommandMode": {
+    name: "Enter command mode (vim)",
+    group: "Command",
+    key: {
+      main: "Mod-Escape",
+      windows: "Shift-Escape",
+    },
+  },
   "command.createCellBefore": {
     name: "Create a cell before current cell",
     group: "Command",
@@ -423,22 +432,33 @@ export interface IHotkeyProvider {
   getHotkey(action: HotkeyAction): ResolvedHotkey;
 }
 
+interface HotkeyProviderOptions {
+  /**
+   * The target platform for the key provider.
+   *
+   * If `undefined`, the platform is detected at runtime.
+   * An explicit value is generally only provided in tests.
+   */
+  platform?: Platform;
+}
+
 export class HotkeyProvider implements IHotkeyProvider {
-  private mod: string;
+  private mod: ModKey;
   private platform: Platform;
 
-  static create(isMac?: boolean): HotkeyProvider {
-    return new HotkeyProvider(DEFAULT_HOT_KEY, isMac);
+  /**
+   * @param platform - See {@link HotkeyProviderOptions.platform}.
+   */
+  static create(platform?: Platform): HotkeyProvider {
+    return new HotkeyProvider(DEFAULT_HOT_KEY, { platform });
   }
 
   constructor(
     private hotkeys: Record<HotkeyAction, Hotkey>,
-    isMac?: boolean,
+    options: HotkeyProviderOptions = {},
   ) {
-    isMac = isMac ?? isPlatformMac();
-
-    this.mod = isMac ? "Cmd" : "Ctrl";
-    this.platform = isMac ? "mac" : "windows";
+    this.platform = options.platform ?? resolvePlatform();
+    this.mod = this.platform === "mac" ? "Cmd" : "Ctrl";
   }
 
   iterate(): HotkeyAction[] {
@@ -500,4 +520,14 @@ export class OverridingHotkeyProvider extends HotkeyProvider {
       key,
     };
   }
+}
+
+function resolvePlatform(): Platform {
+  if (isPlatformMac()) {
+    return "mac";
+  }
+  if (isPlatformWindows()) {
+    return "windows";
+  }
+  return "linux";
 }

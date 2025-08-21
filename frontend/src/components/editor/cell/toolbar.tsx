@@ -8,17 +8,16 @@ import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 
 const toolbarItemVariants = cva(
-  "rounded-full shadow-xsSolid border p-[5px] transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&>svg]:size-3 active:shadow-none bg-background",
+  "rounded-full shadow-xs-solid border p-[5px] transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 [&>svg]:size-3 active:shadow-none bg-background",
   {
     variants: {
       variant: {
         default: "hover:bg-accent hover:text-accent-foreground",
-        stale:
-          "bg-[var(--yellow-3)] hover:bg-[var(--yellow-4)] text-[var(--yellow-11)]",
+        stale: "bg-(--yellow-3) hover:bg-(--yellow-4) text-(--yellow-11)",
         green:
-          "hover:bg-[var(--grass-2)] hover:text-[var(--grass-11)] hover:border-[var(--grass-7)],",
+          "hover:bg-(--grass-2) hover:text-(--grass-11) hover:border-[var(--grass-7)],",
         disabled: "opacity-50 cursor-not-allowed",
-        danger: "hover:bg-[var(--red-3)] hover:text-[var(--red-11)]",
+        danger: "hover:bg-(--red-3) hover:text-(--red-11)",
       },
     },
     defaultVariants: {

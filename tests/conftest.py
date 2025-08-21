@@ -33,6 +33,7 @@ from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
+from marimo._save.cache import ModuleStub
 from marimo._server.model import SessionMode
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
@@ -631,6 +632,17 @@ def app() -> Generator[App, None, None]:
     app._pytest_rewrite = True
     yield app
     app.run()
+
+
+class TestableModuleStub(ModuleStub):
+    def __eq__(self, other: Any) -> bool:
+        # Used for testing, equality otherwise not useful.
+        if not isinstance(other, ModuleStub):
+            return False
+        return self.name == other.name
+
+    def __hash__(self) -> int:
+        return hash(self.name) + hash("module")
 
 
 # A pytest hook to fail when raw marimo cells are not collected.

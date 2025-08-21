@@ -55,7 +55,7 @@ You can create SQL cells in one of three ways:
 
 <div align="center">
   <figure>
-    <img src="/_static/docs-sql-cell.png"/>
+    <img src="/_static/docs-sql-cell-demo.png"/>
     <figcaption>Add SQL Cell</figcaption>
   </figure>
 </div>

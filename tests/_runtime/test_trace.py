@@ -271,7 +271,7 @@ class TestAppTrace:
             )
         else:
             assert (
-                "marimo came across the undefined variable `C` during runtime."
+                "Name `C` is not defined."
                 in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
             )
             assert "NameError" in k.stderr.messages[0]

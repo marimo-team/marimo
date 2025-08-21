@@ -32,13 +32,14 @@ import { isInVimMode } from "../utils";
 import { COPILOT_FILENAME, copilotServer, getCopilotClient } from "./client";
 import { getCodes } from "./getCodes";
 import { isCopilotEnabled } from "./state";
+import { trimAutocompleteResponse } from "./trim-utils";
 
 const copilotCompartment = new Compartment();
 
 const logger = Logger.get("@github/copilot-language-server");
 
 const commonInlineCompletionConfig = {
-  delay: 500, // default is 500ms
+  delay: 300, // default is 500ms
   includeKeymap: true,
   events: {
     // Only show suggestions when the editor is focused
@@ -78,8 +79,13 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
     extensions.push(
       inlineCompletion({
         ...commonInlineCompletionConfig,
-        fetchFn: async (state) => {
+        fetchFn: async (state, _abortSignal, view) => {
+          const currentPosition = state.selection.main.head;
           if (!isCopilotEnabled()) {
+            return "";
+          }
+
+          if (!view.hasFocus) {
             return "";
           }
 
@@ -96,6 +102,12 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
           const request = getCopilotRequest(state, allCode);
           const response = await getCopilotClient().getCompletion(request);
 
+          // If we are at a new position, ignore the response
+          if (currentPosition !== view.state.selection.main.head) {
+            Logger.debug("ignoring response because of new position");
+            return "";
+          }
+
           const suggestion = getSuggestion(response, request.position, state);
           return suggestion;
         },
@@ -107,12 +119,18 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
     extensions.push(
       inlineCompletion({
         ...commonInlineCompletionConfig,
-        fetchFn: async (state) => {
+        fetchFn: async (state, _abortSignal, view) => {
+          const currentPosition = state.selection.main.head;
+
           if (state.doc.length === 0) {
             return "";
           }
 
           // If not focused, don't fetch
+          if (!view.hasFocus) {
+            return "";
+          }
+
           const prefix = state.doc.sliceString(0, state.selection.main.head);
           const suffix = state.doc.sliceString(
             state.selection.main.head,
@@ -130,13 +148,14 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
             { prefix, suffix, language },
           );
 
+          // If we are at a new position, ignore the response
+          if (currentPosition !== view.state.selection.main.head) {
+            Logger.debug("ignoring response because of new position");
+            return "";
+          }
+
           // Sometimes the prefix might get included in the response, so we need to trim it
-          if (prefix && res.startsWith(prefix)) {
-            res = res.slice(prefix.length);
-          }
-          if (suffix && res.endsWith(suffix)) {
-            res = res.slice(0, -suffix.length);
-          }
+          res = trimAutocompleteResponse({ response: res, prefix, suffix });
 
           return res;
         },

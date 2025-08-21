@@ -29,23 +29,7 @@ export function keymapBundle(
 ): Extension[] {
   switch (config.preset) {
     case "default":
-      return [
-        keymap.of(defaultKeymap()),
-        keymap.of(overrideKeymap(hotkeys)),
-        // Should be the last thing to close when Escape is pressed
-        Prec.low(
-          keymap.of([
-            {
-              key: "Escape",
-              preventDefault: true,
-              run: (cm) => {
-                cm.contentDOM.blur();
-                return true;
-              },
-            },
-          ]),
-        ),
-      ];
+      return [keymap.of(defaultKeymap()), keymap.of(overrideKeymap(hotkeys))];
     case "vim":
       return [
         keymap.of(defaultVimKeymap()),

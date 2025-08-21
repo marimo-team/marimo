@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtomValue } from "jotai";
+import { isStaticNotebook } from "@/core/static/static-state";
 import { store } from "../state/jotai";
 import { RuntimeManager } from "./runtime";
 import type { RuntimeConfig } from "./types";
@@ -18,7 +19,10 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
 export const runtimeConfigAtom = atom<RuntimeConfig>(DEFAULT_RUNTIME_CONFIG);
 const runtimeManagerAtom = atom<RuntimeManager>((get) => {
   const config = get(runtimeConfigAtom);
-  return new RuntimeManager(config);
+  // "lazy" means that the runtime manager will not attempt to connect to a
+  // server, which in the case of a static notebook, will not be available.
+  const lazy = isStaticNotebook();
+  return new RuntimeManager(config, lazy);
 });
 
 export function useRuntimeManager(): RuntimeManager {
@@ -36,5 +40,10 @@ export function asRemoteURL(path: string): URL {
   if (path.startsWith("http")) {
     return new URL(path);
   }
-  return new URL(path, getRuntimeManager().httpURL.toString());
+  let base = getRuntimeManager().httpURL.toString();
+  if (base.startsWith("blob:")) {
+    // Remove leading blob:
+    base = base.replace("blob:", "");
+  }
+  return new URL(path, base);
 }

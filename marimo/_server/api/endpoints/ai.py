@@ -15,19 +15,24 @@ from starlette.responses import (
 from marimo import _loggers
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
+from marimo._server.ai.config import (
+    AnyProviderConfig,
+    get_autocomplete_model,
+    get_chat_model,
+    get_edit_model,
+    get_max_tokens,
+)
 from marimo._server.ai.prompts import (
-    FILL_ME_TAG,
+    FIM_MIDDLE_TAG,
+    FIM_PREFIX_TAG,
+    FIM_SUFFIX_TAG,
     get_chat_system_prompt,
     get_inline_system_prompt,
     get_refactor_or_insert_notebook_cell_system_prompt,
 )
 from marimo._server.ai.providers import (
-    DEFAULT_MODEL,
-    AnyProviderConfig,
     StreamOptions,
     get_completion_provider,
-    get_max_tokens,
-    get_model,
     without_wrapping_backticks,
 )
 from marimo._server.ai.tools import get_tool_manager
@@ -110,12 +115,12 @@ async def ai_completion(
     )
     prompt = body.prompt
 
-    model = get_model(ai_config)
+    model = get_edit_model(ai_config)
     provider = get_completion_provider(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,
     )
-    response = provider.stream_completion(
+    response = await provider.stream_completion(
         messages=[ChatMessage(role="user", content=prompt)],
         system_prompt=system_prompt,
         max_tokens=get_max_tokens(config),
@@ -166,12 +171,12 @@ async def ai_chat(
 
     max_tokens = get_max_tokens(config)
 
-    model = body.model or get_model(ai_config)
+    model = body.model or get_chat_model(ai_config)
     provider = get_completion_provider(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,
     )
-    response = provider.stream_completion(
+    response = await provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,
         max_tokens=max_tokens,
@@ -213,7 +218,8 @@ async def ai_inline_completion(
     body = await parse_request(
         request, cls=AiInlineCompletionRequest, allow_unknown_keys=True
     )
-    prompt = f"{body.prefix}{FILL_ME_TAG}{body.suffix}"
+    # Use FIM (Fill-In-Middle) format for inline completion
+    prompt = f"{FIM_PREFIX_TAG}{body.prefix}{FIM_SUFFIX_TAG}{body.suffix}{FIM_MIDDLE_TAG}"
     messages = [ChatMessage(role="user", content=prompt)]
     system_prompt = get_inline_system_prompt(language=body.language)
 
@@ -221,23 +227,28 @@ async def ai_inline_completion(
     # of 4096, since it is smaller/faster for inline completions
     INLINE_COMPLETION_MAX_TOKENS = 1024
 
-    try:
-        model = config["completion"]["model"] or DEFAULT_MODEL
-    except Exception:
-        model = DEFAULT_MODEL
+    ai_config = get_ai_config(config)
 
-    provider = get_completion_provider(
-        AnyProviderConfig.for_completion(config["completion"]),
-        model=model,
-    )
-    response = provider.stream_completion(
+    model = get_autocomplete_model(config)
+    provider_config = AnyProviderConfig.for_model(model, ai_config)
+    # Inline completion never uses tools
+    if provider_config.tools:
+        provider_config.tools.clear()
+
+    provider = get_completion_provider(provider_config, model=model)
+    response = await provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,
         max_tokens=INLINE_COMPLETION_MAX_TOKENS,
     )
 
+    content = await provider.collect_stream(response)
+
+    # Filter out `<|file_separator|>` which is sometimes returned FIM models
+    content = content.replace("<|file_separator|>", "")
+
     return PlainTextResponse(
-        content=provider.collect_stream(response),
+        content=content,
         media_type="text/plain",
     )
 

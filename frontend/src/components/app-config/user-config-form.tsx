@@ -12,8 +12,8 @@ import {
   MonitorIcon,
   PackageIcon,
 } from "lucide-react";
-import React, { useRef } from "react";
-import { type FieldPath, useForm } from "react-hook-form";
+import React, { useId, useRef } from "react";
+import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -25,12 +25,10 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { NumberField } from "@/components/ui/number-field";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { useUserConfig } from "@/core/config/config";
@@ -41,7 +39,7 @@ import {
 } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
 import { marimoVersionAtom } from "@/core/meta/state";
-import { saveUserConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
@@ -50,11 +48,10 @@ import { cn } from "@/utils/cn";
 import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
 import { Badge } from "../ui/badge";
 import { ExternalLink } from "../ui/links";
-import { Textarea } from "../ui/textarea";
 import { Tooltip } from "../ui/tooltip";
+import { AiConfig } from "./ai-config";
 import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
-import { AWS_REGIONS, KNOWN_AI_MODELS } from "./constants";
-import { useIsConfigOverridden } from "./is-overridden";
+import { IsOverridden } from "./is-overridden";
 import { OptionalFeatures } from "./optional-features";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
@@ -63,25 +60,25 @@ const categories = [
     id: "editor",
     label: "Editor",
     Icon: EditIcon,
-    className: "bg-[var(--blue-4)]",
+    className: "bg-(--blue-4)",
   },
   {
     id: "display",
     label: "Display",
     Icon: MonitorIcon,
-    className: "bg-[var(--grass-4)]",
+    className: "bg-(--grass-4)",
   },
   {
     id: "packageManagement",
     label: "Package Management",
     Icon: PackageIcon,
-    className: "bg-[var(--red-4)]",
+    className: "bg-(--red-4)",
   },
   {
     id: "runtime",
     label: "Runtime",
     Icon: CpuIcon,
-    className: "bg-[var(--amber-4)]",
+    className: "bg-(--amber-4)",
   },
   {
     id: "ai",
@@ -93,13 +90,13 @@ const categories = [
     id: "optionalDeps",
     label: "Optional Dependencies",
     Icon: FolderCog2,
-    className: "bg-[var(--orange-4)]",
+    className: "bg-(--orange-4)",
   },
   {
     id: "labs",
     label: "Labs",
     Icon: FlaskConicalIcon,
-    className: "bg-[var(--slate-4)]",
+    className: "bg-(--slate-4)",
   },
 ] as const;
 
@@ -118,6 +115,7 @@ export const UserConfigForm: React.FC = () => {
   );
   const capabilities = useAtomValue(capabilitiesAtom);
   const marimoVersion = useAtomValue(marimoVersionAtom);
+  const { saveUserConfig } = useRequestClient();
 
   // Create form
   const form = useForm<UserConfig>({
@@ -132,125 +130,8 @@ export const UserConfigForm: React.FC = () => {
   };
 
   const isWasmRuntime = isWasm();
-
-  const renderCopilotProvider = () => {
-    const copilot = form.getValues("completion.copilot");
-    if (copilot === false) {
-      return null;
-    }
-
-    if (copilot === "codeium") {
-      return (
-        <>
-          <p className="text-sm text-muted-secondary">
-            To get a Windsurf API key, follow{" "}
-            <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#windsurf-copilot">
-              these instructions
-            </ExternalLink>
-            .
-          </p>
-          <FormField
-            control={form.control}
-            name="completion.codeium_api_key"
-            render={({ field }) => (
-              <FormItem className={formItemClasses}>
-                <FormLabel>API Key</FormLabel>
-                <FormControl>
-                  <Input
-                    data-testid="codeium-api-key-input"
-                    className="m-0 inline-flex"
-                    placeholder="key"
-                    {...field}
-                    value={field.value || ""}
-                  />
-                </FormControl>
-                <FormMessage />
-                <IsOverridden
-                  userConfig={config}
-                  name="completion.codeium_api_key"
-                />
-              </FormItem>
-            )}
-          />
-        </>
-      );
-    }
-
-    if (copilot === "github") {
-      return <CopilotConfig />;
-    }
-
-    if (copilot === "custom") {
-      return (
-        <>
-          <p className="text-sm text-muted-secondary">
-            Configure your custom AI completion provider with the following
-            settings.
-          </p>
-          <FormField
-            control={form.control}
-            name="completion.model"
-            render={({ field }) => (
-              <FormItem className={formItemClasses}>
-                <FormLabel>Model</FormLabel>
-                <FormControl>
-                  <Input
-                    data-testid="custom-model-input"
-                    className="m-0 inline-flex"
-                    placeholder="Qwen2.5-Coder-7B"
-                    {...field}
-                    value={field.value || ""}
-                  />
-                </FormControl>
-                <FormMessage />
-                <IsOverridden userConfig={config} name="completion.model" />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="completion.base_url"
-            render={({ field }) => (
-              <FormItem className={formItemClasses}>
-                <FormLabel>Base URL</FormLabel>
-                <FormControl>
-                  <Input
-                    data-testid="custom-base-url-input"
-                    className="m-0 inline-flex"
-                    placeholder="http://localhost:11434/v1"
-                    {...field}
-                    value={field.value || ""}
-                  />
-                </FormControl>
-                <FormMessage />
-                <IsOverridden userConfig={config} name="completion.base_url" />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="completion.api_key"
-            render={({ field }) => (
-              <FormItem className={formItemClasses}>
-                <FormLabel>API Key</FormLabel>
-                <FormControl>
-                  <Input
-                    data-testid="custom-api-key-input"
-                    className="m-0 inline-flex"
-                    placeholder="key"
-                    {...field}
-                    value={field.value || ""}
-                  />
-                </FormControl>
-                <FormMessage />
-                <IsOverridden userConfig={config} name="completion.api_key" />
-              </FormItem>
-            )}
-          />
-        </>
-      );
-    }
-  };
+  const htmlCheckboxId = useId();
+  const ipynbCheckboxId = useId();
 
   const renderBody = () => {
     switch (activeCategory) {
@@ -289,6 +170,7 @@ export const UserConfigForm: React.FC = () => {
                     <FormLabel>Autosave delay (seconds)</FormLabel>
                     <FormControl>
                       <NumberField
+                        aria-label="Autosave delay"
                         data-testid="autosave-delay-input"
                         className="m-0 w-24"
                         isDisabled={
@@ -311,6 +193,72 @@ export const UserConfigForm: React.FC = () => {
                       name="save.autosave_delay"
                     />
                   </FormItem>
+                )}
+              />
+              {/* auto_download is a runtime setting in the backend, but it makes
+               * more sense as an autosave setting. */}
+              <FormField
+                control={form.control}
+                name="runtime.default_auto_download"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Save cell outputs as</FormLabel>
+                      <FormControl>
+                        <div className="flex gap-4">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={htmlCheckboxId}
+                              checked={
+                                Array.isArray(field.value) &&
+                                field.value.includes("html")
+                              }
+                              onCheckedChange={() => {
+                                const currentValue = Array.isArray(field.value)
+                                  ? field.value
+                                  : [];
+                                field.onChange(
+                                  arrayToggle(currentValue, "html"),
+                                );
+                              }}
+                            />
+                            <FormLabel htmlFor={htmlCheckboxId}>HTML</FormLabel>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={ipynbCheckboxId}
+                              checked={
+                                Array.isArray(field.value) &&
+                                field.value.includes("ipynb")
+                              }
+                              onCheckedChange={() => {
+                                const currentValue = Array.isArray(field.value)
+                                  ? field.value
+                                  : [];
+                                field.onChange(
+                                  arrayToggle(currentValue, "ipynb"),
+                                );
+                              }}
+                            />
+                            <FormLabel htmlFor={ipynbCheckboxId}>
+                              IPYNB
+                            </FormLabel>
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="runtime.default_auto_download"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      When enabled, marimo will periodically save notebooks in
+                      your selected formats (HTML, IPYNB) to a folder named{" "}
+                      <Kbd className="inline">__marimo__</Kbd> next to your
+                      notebook file.
+                    </FormDescription>
+                  </div>
                 )}
               />
             </SettingGroup>
@@ -350,6 +298,7 @@ export const UserConfigForm: React.FC = () => {
                       <FormLabel>Line length</FormLabel>
                       <FormControl>
                         <NumberField
+                          aria-label="Line length"
                           data-testid="line-length-input"
                           className="m-0 w-24"
                           {...field}
@@ -665,7 +614,7 @@ export const UserConfigForm: React.FC = () => {
                           </div>
                         }
                       >
-                        <AlertTriangleIcon className="w-3 h-3 text-[var(--amber-11)]" />
+                        <AlertTriangleIcon className="w-3 h-3 text-(--amber-11)" />
                       </Tooltip>
                     </FormDescription>
 
@@ -771,6 +720,7 @@ export const UserConfigForm: React.FC = () => {
                     <FormControl>
                       <span className="inline-flex mr-2">
                         <NumberField
+                          aria-label="Code editor font size"
                           data-testid="code-editor-font-size-input"
                           className="m-0 w-24"
                           {...field}
@@ -903,6 +853,7 @@ export const UserConfigForm: React.FC = () => {
                       <FormLabel>Default table page size</FormLabel>
                       <FormControl>
                         <NumberField
+                          aria-label="Default table page size"
                           data-testid="default-table-page-size-input"
                           className="m-0 w-24"
                           {...field}
@@ -939,6 +890,7 @@ export const UserConfigForm: React.FC = () => {
                       <FormLabel>Default table max columns</FormLabel>
                       <FormControl>
                         <NumberField
+                          aria-label="Default table max columns"
                           data-testid="default-table-max-columns-input"
                           className="m-0 w-24"
                           {...field}
@@ -1026,102 +978,6 @@ export const UserConfigForm: React.FC = () => {
       case "runtime":
         return (
           <SettingGroup title="Runtime configuration">
-            <FormField
-              control={form.control}
-              name="runtime.default_sql_output"
-              render={({ field }) => (
-                <div className="flex flex-col space-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel>Default SQL output</FormLabel>
-                    <FormControl>
-                      <NativeSelect
-                        data-testid="user-config-sql-output-select"
-                        onChange={(e) => field.onChange(e.target.value)}
-                        value={field.value}
-                        disabled={field.disabled}
-                        className="inline-flex mr-2"
-                      >
-                        {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
-                          <option value={option.value} key={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    </FormControl>
-                    <FormMessage />
-                    <IsOverridden
-                      userConfig={config}
-                      name="runtime.default_sql_output"
-                    />
-                  </FormItem>
-
-                  <FormDescription>
-                    The default SQL output format for new notebooks; overridden
-                    by "sql_output" in the application config.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="runtime.default_auto_download"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel>Auto output formats</FormLabel>
-                    <FormControl>
-                      <div className="flex gap-4">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="html-checkbox"
-                            checked={
-                              Array.isArray(field.value) &&
-                              field.value.includes("html")
-                            }
-                            onCheckedChange={() => {
-                              const currentValue = Array.isArray(field.value)
-                                ? field.value
-                                : [];
-                              field.onChange(arrayToggle(currentValue, "html"));
-                            }}
-                          />
-                          <FormLabel htmlFor="html-checkbox">HTML</FormLabel>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="ipynb-checkbox"
-                            checked={
-                              Array.isArray(field.value) &&
-                              field.value.includes("ipynb")
-                            }
-                            onCheckedChange={() => {
-                              const currentValue = Array.isArray(field.value)
-                                ? field.value
-                                : [];
-                              field.onChange(
-                                arrayToggle(currentValue, "ipynb"),
-                              );
-                            }}
-                          />
-                          <FormLabel htmlFor="ipynb-checkbox">IPYNB</FormLabel>
-                        </div>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                    <IsOverridden
-                      userConfig={config}
-                      name="runtime.default_auto_download"
-                    />
-                  </FormItem>
-                  <FormDescription>
-                    When enabled, marimo will periodically save notebooks in
-                    your selected formats (HTML, IPYNB) to a folder named{" "}
-                    <Kbd className="inline">__marimo__</Kbd> next to your
-                    notebook file.
-                  </FormDescription>
-                </div>
-              )}
-            />
             <FormField
               control={form.control}
               name="runtime.auto_instantiate"
@@ -1230,6 +1086,44 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="runtime.default_sql_output"
+              render={({ field }) => (
+                <div className="flex flex-col space-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel>Default SQL output</FormLabel>
+                    <FormControl>
+                      <NativeSelect
+                        data-testid="user-config-sql-output-select"
+                        onChange={(e) => field.onChange(e.target.value)}
+                        value={field.value}
+                        disabled={field.disabled}
+                        className="inline-flex mr-2"
+                      >
+                        {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
+                          <option value={option.value} key={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="runtime.default_sql_output"
+                    />
+                  </FormItem>
+
+                  <FormDescription>
+                    The default SQL output type for new notebooks; overridden by
+                    "sql_output" in the application config.
+                  </FormDescription>
+                </div>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="runtime.reactive_tests"
@@ -1272,371 +1166,7 @@ export const UserConfigForm: React.FC = () => {
           </SettingGroup>
         );
       case "ai":
-        return (
-          <>
-            <SettingGroup title="AI Code Completion">
-              <p className="text-sm text-muted-secondary">
-                You may use GitHub Copilot, Codeium, or a custom provider (e.g.
-                Ollama) for AI code completion.
-              </p>
-
-              <FormField
-                control={form.control}
-                name="completion.copilot"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Provider</FormLabel>
-                      <FormControl>
-                        <NativeSelect
-                          data-testid="copilot-select"
-                          onChange={(e) => {
-                            if (e.target.value === "none") {
-                              field.onChange(false);
-                            } else {
-                              field.onChange(e.target.value);
-                            }
-                          }}
-                          value={
-                            field.value === true
-                              ? "github"
-                              : field.value === false
-                                ? "none"
-                                : field.value
-                          }
-                          disabled={field.disabled}
-                          className="inline-flex mr-2"
-                        >
-                          {["none", "github", "codeium", "custom"].map(
-                            (option) => (
-                              <option value={option} key={option}>
-                                {option}
-                              </option>
-                            ),
-                          )}
-                        </NativeSelect>
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="completion.copilot"
-                      />
-                    </FormItem>
-                  </div>
-                )}
-              />
-
-              {renderCopilotProvider()}
-            </SettingGroup>
-            <SettingGroup title="AI Keys">
-              <FormField
-                control={form.control}
-                name="ai.open_ai.api_key"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>OpenAI API Key</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="ai-openai-api-key-input"
-                          className="m-0 inline-flex"
-                          placeholder="sk-proj..."
-                          {...field}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            // Don't allow *
-                            if (!value.includes("*")) {
-                              field.onChange(value);
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.open_ai.api_key"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      Your OpenAI API key from{" "}
-                      <ExternalLink href="https://platform.openai.com/account/api-keys">
-                        platform.openai.com
-                      </ExternalLink>
-                      .
-                    </FormDescription>
-                  </div>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="ai.anthropic.api_key"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Anthropic API Key</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="ai-anthropic-api-key-input"
-                          className="m-0 inline-flex"
-                          placeholder="sk-ant..."
-                          {...field}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            // Don't allow *
-                            if (!value.includes("*")) {
-                              field.onChange(value);
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.anthropic.api_key"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      Your Anthropic API key from{" "}
-                      <ExternalLink href="https://console.anthropic.com/settings/keys">
-                        console.anthropic.com
-                      </ExternalLink>
-                      .
-                    </FormDescription>
-                  </div>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="ai.google.api_key"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Google AI API Key</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="ai-google-api-key-input"
-                          className="m-0 inline-flex"
-                          placeholder="AI..."
-                          {...field}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            // Don't allow *
-                            if (!value.includes("*")) {
-                              field.onChange(value);
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.google.api_key"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      Your Google AI API key from{" "}
-                      <ExternalLink href="https://aistudio.google.com/app/apikey">
-                        aistudio.google.com
-                      </ExternalLink>
-                      .
-                    </FormDescription>
-                  </div>
-                )}
-              />
-
-              <p className="text-sm font-semibold mt-3">
-                AWS Bedrock Configuration
-              </p>
-              <p className="text-sm text-muted-secondary mb-2">
-                To use AWS Bedrock, you need to configure AWS credentials and
-                region. See the{" "}
-                <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#aws-bedrock">
-                  documentation
-                </ExternalLink>{" "}
-                for more details.
-              </p>
-              <FormField
-                control={form.control}
-                disabled={isWasmRuntime}
-                name="ai.bedrock.region_name"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>AWS Region</FormLabel>
-                      <FormControl>
-                        <NativeSelect
-                          data-testid="bedrock-region-select"
-                          onChange={(e) => field.onChange(e.target.value)}
-                          value={
-                            typeof field.value === "string"
-                              ? field.value
-                              : "us-east-1"
-                          }
-                          disabled={field.disabled}
-                          className="inline-flex mr-2"
-                        >
-                          {AWS_REGIONS.map((option) => (
-                            <option value={option} key={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </NativeSelect>
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.bedrock.region_name"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      The AWS region where Bedrock service is available.
-                    </FormDescription>
-                  </div>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                disabled={isWasmRuntime}
-                name="ai.bedrock.profile_name"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>AWS Profile Name (Optional)</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="bedrock-profile-input"
-                          className="m-0 inline-flex"
-                          placeholder="default"
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.bedrock.profile_name"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      The AWS profile name from your ~/.aws/credentials file.
-                      Leave blank to use your default AWS credentials.
-                    </FormDescription>
-                  </div>
-                )}
-              />
-            </SettingGroup>
-
-            <SettingGroup title="AI Assist">
-              <p className="text-sm text-muted-secondary">
-                Add an API key to <Kbd className="inline">marimo.toml</Kbd> to
-                activate marimo's AI assistant; see{" "}
-                <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html">
-                  docs
-                </ExternalLink>{" "}
-                for more info.
-              </p>
-              <FormField
-                control={form.control}
-                disabled={isWasmRuntime}
-                name="ai.open_ai.base_url"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Base URL</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="ai-base-url-input"
-                          className="m-0 inline-flex"
-                          placeholder="https://api.openai.com/v1"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.open_ai.base_url"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      This URL can be any OpenAI-compatible API endpoint.
-                    </FormDescription>
-                  </div>
-                )}
-              />
-              <FormField
-                control={form.control}
-                disabled={isWasmRuntime}
-                name="ai.open_ai.model"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Model</FormLabel>
-                      <FormControl>
-                        <Input
-                          list="ai-model-datalist"
-                          data-testid="ai-model-input"
-                          className="m-0 inline-flex"
-                          placeholder="gpt-4-turbo"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.open_ai.model"
-                      />
-                    </FormItem>
-                    <datalist id="ai-model-datalist">
-                      {KNOWN_AI_MODELS.map((model) => (
-                        <option value={model} key={model}>
-                          {model}
-                        </option>
-                      ))}
-                    </datalist>
-                    <FormDescription>
-                      If the model starts with "claude-", we will use your
-                      Anthropic API key. If the model starts with "gemini-", we
-                      will use your Google AI API key. If the model starts with
-                      a "bedrock/" prefix followed by a model id (e.g.,
-                      "bedrock/anthropic.claude-3-sonnet-20240229"), we will use
-                      your AWS Bedrock configuration. Otherwise, we will use
-                      your OpenAI API key.
-                    </FormDescription>
-                  </div>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="ai.rules"
-                render={({ field }) => (
-                  <div className="flex flex-col">
-                    <FormItem>
-                      <FormLabel>Custom Rules</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          data-testid="ai-rules-input"
-                          className="m-0 inline-flex w-full h-32 p-2 text-sm"
-                          placeholder="e.g. Always use type hints; prefer polars over pandas"
-                          {...field}
-                          value={field.value}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden userConfig={config} name="ai.rules" />
-                    </FormItem>
-                    <FormDescription>
-                      Custom rules to include in all AI completion prompts.
-                    </FormDescription>
-                  </div>
-                )}
-              />
-            </SettingGroup>
-          </>
-        );
+        return <AiConfig form={form} config={config} onSubmit={onSubmit} />;
       case "optionalDeps":
         return <OptionalFeatures />;
       case "labs":
@@ -1724,6 +1254,31 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.sql_linter"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">SQL Linter</FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="sql-linter-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.sql_linter"
+                  />
+                  <FormDescription>
+                    Enable experimental SQL linting and autocompletion.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }
@@ -1764,7 +1319,7 @@ export const UserConfigForm: React.FC = () => {
                   <span
                     className={cn(
                       category.className,
-                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground flex-shrink-0",
+                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground shrink-0",
                     )}
                   >
                     <category.Icon className="w-4 h-4" />
@@ -1802,53 +1357,5 @@ const SettingGroup = ({
       <SettingSubtitle>{title}</SettingSubtitle>
       {children}
     </div>
-  );
-};
-
-const IsOverridden = ({
-  userConfig,
-  name,
-}: {
-  userConfig: UserConfig;
-  name: FieldPath<UserConfig>;
-}) => {
-  const { isOverridden, currentValue, overriddenValue } = useIsConfigOverridden(
-    userConfig,
-    name,
-  );
-
-  if (!isOverridden) {
-    return null;
-  }
-
-  return (
-    <Tooltip
-      content={
-        <>
-          <span>
-            This setting is overridden by{" "}
-            <Kbd className="inline">pyproject.toml</Kbd>.
-          </span>
-          <br />
-          <span>
-            Edit the <Kbd className="inline">pyproject.toml</Kbd> file directly
-            to change this setting.
-          </span>
-          <br />
-          <span>
-            User value: <strong>{String(currentValue)}</strong>
-          </span>
-          <br />
-          <span>
-            Project value: <strong>{String(overriddenValue)}</strong>
-          </span>
-        </>
-      }
-    >
-      <span className="text-[var(--amber-12)] text-xs flex items-center gap-1 border rounded px-2 py-1 bg-[var(--amber-2)] border-[var(--amber-6)] ml-1">
-        <FolderCog2 className="w-3 h-3" />
-        Overridden by pyproject.toml [{String(overriddenValue)}]
-      </span>
-    </Tooltip>
   );
 };

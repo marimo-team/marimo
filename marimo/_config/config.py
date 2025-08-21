@@ -40,9 +40,6 @@ class CompletionConfig(TypedDict):
     until the completion hotkey is entered
     - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
     - `codeium_api_key`: the Codeium API key
-    - `api_key`: the API key for the LLM provider, when `copilot` is `"custom"`
-    - `model`: the model to use, when `copilot` is `"custom"`
-    - `base_url`: the base URL for the API, when `copilot` is `"custom"`
     """
 
     activate_on_typing: bool
@@ -51,7 +48,7 @@ class CompletionConfig(TypedDict):
     # Codeium
     codeium_api_key: NotRequired[Optional[str]]
 
-    # Custom
+    # @deprecated: use `ai.models.autocomplete_model` instead
     api_key: NotRequired[Optional[str]]
     model: NotRequired[Optional[str]]
     base_url: NotRequired[Optional[str]]
@@ -233,6 +230,28 @@ class PackageManagementConfig(TypedDict):
 CopilotMode = Literal["ask", "manual"]
 
 
+@mddoc
+@dataclass
+class AiModelConfig(TypedDict):
+    """Configuration options for an AI model.
+
+    **Keys.**
+
+    - `chat_model`: the model to use for chat completions
+    - `edit_model`: the model to use for edit completions
+    - `autocomplete_model`: the model to use for code completion/autocomplete
+    - `displayed_models`: a list of models to display in the UI
+    - `custom_models`: a list of custom models to use that are not from the default list
+    """
+
+    chat_model: NotRequired[str]
+    edit_model: NotRequired[str]
+    autocomplete_model: NotRequired[str]
+
+    displayed_models: list[str]
+    custom_models: list[str]
+
+
 @dataclass
 class AiConfig(TypedDict, total=False):
     """Configuration options for AI.
@@ -242,19 +261,31 @@ class AiConfig(TypedDict, total=False):
     - `rules`: custom rules to include in all AI completion prompts
     - `max_tokens`: the maximum number of tokens to use in AI completions
     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+    - `models`: the models to use for AI completions
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
     - `google`: the Google AI config
     - `bedrock`: the Bedrock config
+    - `azure`: the Azure config
+    - `ollama`: the Ollama config
+    - `github`: the GitHub config
+    - `open_ai_compatible`: the OpenAI-compatible config
     """
 
     rules: NotRequired[str]
     max_tokens: NotRequired[int]
     mode: NotRequired[CopilotMode]
+    models: AiModelConfig
+
+    # providers
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
     google: GoogleAiConfig
     bedrock: BedrockConfig
+    azure: OpenAiConfig
+    ollama: OpenAiConfig
+    github: GitHubConfig
+    open_ai_compatible: OpenAiConfig
 
 
 @dataclass
@@ -264,8 +295,6 @@ class OpenAiConfig(TypedDict, total=False):
     **Keys.**
 
     - `api_key`: the OpenAI API key
-    - `model`: the model to use.
-        if model starts with `claude-` we use the AnthropicConfig
     - `base_url`: the base URL for the API
     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
     - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
@@ -273,11 +302,13 @@ class OpenAiConfig(TypedDict, total=False):
     """
 
     api_key: str
-    model: NotRequired[str]
     base_url: NotRequired[str]
     ssl_verify: NotRequired[bool]
     ca_bundle_path: NotRequired[str]
     client_pem: NotRequired[str]
+
+    # @deprecated: use `ai.models.chat_model` instead
+    model: NotRequired[str]
 
 
 @dataclass
@@ -320,6 +351,20 @@ class BedrockConfig(TypedDict, total=False):
     region_name: NotRequired[str]
     aws_access_key_id: NotRequired[str]
     aws_secret_access_key: NotRequired[str]
+
+
+@dataclass
+class GitHubConfig(TypedDict, total=False):
+    """Configuration options for GitHub.
+
+    **Keys.**
+
+    - `api_key`: the GitHub API token
+    - `base_url`: the base URL for the API
+    """
+
+    api_key: str
+    base_url: NotRequired[str]
 
 
 @dataclass
@@ -577,6 +622,12 @@ DEFAULT_CONFIG: MarimoConfig = {
             "enable_pyflakes": False,
         }
     },
+    "ai": {
+        "models": {
+            "displayed_models": [],
+            "custom_models": [],
+        }
+    },
     "snippets": {
         "custom_paths": [],
         "include_default_snippets": True,
@@ -632,5 +683,37 @@ def merge_config(
             merged["runtime"].get("auto_reload") == "detect"  # type:ignore[comparison-overlap]
         ):
             merged["runtime"]["auto_reload"] = "lazy"
+
+    # If missing ai.models.chat_model or ai.models.edit_model, use ai.open_ai.model
+    openai_model = merged.get("ai", {}).get("open_ai", {}).get("model")
+    chat_model = merged.get("ai", {}).get("models", {}).get("chat_model")
+    edit_model = merged.get("ai", {}).get("models", {}).get("edit_model")
+    if not chat_model and not edit_model and openai_model:
+        merged_ai_config = cast(dict[Any, Any], merged.get("ai", {}))
+        models_config = {
+            "models": {
+                "chat_model": chat_model or openai_model,
+                "edit_model": edit_model or openai_model,
+            }
+        }
+        merged["ai"] = cast(
+            AiConfig, deep_merge(merged_ai_config, models_config)
+        )
+
+    # Migrate completion.model to ai.models.autocomplete_model
+    completion_model = merged.get("completion", {}).get("model")
+    autocomplete_model = (
+        merged.get("ai", {}).get("models", {}).get("autocomplete_model")
+    )
+    if completion_model and not autocomplete_model:
+        merged_ai_config = cast(dict[Any, Any], merged.get("ai", {}))
+        models_config = {
+            "models": {
+                "autocomplete_model": completion_model,
+            }
+        }
+        merged["ai"] = cast(
+            AiConfig, deep_merge(merged_ai_config, models_config)
+        )
 
     return merged

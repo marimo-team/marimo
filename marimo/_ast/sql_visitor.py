@@ -351,7 +351,8 @@ def find_sql_refs(
                 refs.append(table.name)
 
     try:
-        expression_list = parse(sql_statement, dialect="duckdb")
+        with _loggers.suppress_warnings_logs("sqlglot"):
+            expression_list = parse(sql_statement, dialect="duckdb")
     except ParseError as e:
         LOGGER.error(f"Unable to parse SQL. Error: {e}")
         return []

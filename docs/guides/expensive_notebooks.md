@@ -41,15 +41,15 @@ def __():
 
 ## Configure how marimo runs cells
 
-### Disabling cell autorun
+### Disable cell autorun
 
 If you habitually work with very expensive notebooks, you can
 [disable automatic
-execution](../guides/configuration/runtime_configuration.md#on-cell-change). When
+execution](../guides/configuration/runtime_configuration.md#disable-autorun-on-cell-change-lazy-execution). When
 automatic execution is disabled, when you run a cell, marimo
 marks dependent cells as stale instead of running them automatically.
 
-### Disabling autorun on startup
+### Disable autorun on startup
 
 marimo autoruns notebooks on startup, with `marimo edit notebook.py` behaving
 analogously to `python notebook.py`. This can also be disabled through the
@@ -62,7 +62,77 @@ helpful when you want to edit one part of a notebook without triggering
 execution of other parts. See the
 [reactivity guide](../guides/reactivity.md#disabling-cells) for more info.
 
-## Automatic snapshotting as HTML or ipynb
+## Manage memory
+
+Here are a few tips for managing the memory consumption of your notebooks,
+on host or GPU.
+
+### Wrap intermediate computations in functions
+
+By default, global variables live in the kernel memory. Intermediate variables
+that are defined in functions are cleaned up automatically.
+
+For example, if `X` is a temporary:
+
+**Do this:**
+
+```python
+def _():
+    X = torch.randn(1e4, 1e4, device='cuda')
+    Y = f(X)
+    return Y
+```
+
+**Don't do this:**
+
+```python
+X = torch.randn(1e4, 1e4, device='cuda')
+Y = f(X)
+# X still lives in program memory!
+```
+
+### Use `del` to remove variables from kernel memory
+
+
+Use the `del` operator to remove variables from kernel memory.
+
+**In a single cell.** Prefer deleting variables in the cell they were defined
+in. For example,
+if `X` is a temporary that you don't need after computing `Y`:
+
+```python
+X = torch.randn(1e4, 1e4, device='cuda')
+Y = f(X)
+del X
+```
+
+**In another cell.** Sometimes, computations are spread across multiple cells,
+and you only realize later on that you need to free memory that you've already
+allocated. In such cases you can still use the `del` keyword. For example:
+
+```python
+data = load_large_dataset()
+```
+
+```python
+derived_data = f(data)
+```
+
+```python
+del data
+```
+
+marimo inserts control dependences to make sure that variables are not deleted
+before they are used. When `del` is used to delete a variable that was defined
+in a another cell, the cell where `del` was used becomes a child of all other
+cells that reference that variable. In this case, that means marimo knows to
+run the third cell after the second cell, since the second cell references
+`data` and the third cell deletes it. However, once `data` is deleted,
+attempting to manually run the second cell will raise a `NameError`, and you'll
+need to re-run the defining cell in order to get your notebook back to a
+consistent state.
+
+## Automatically snapshot outputs as HTML or IPYNB
 
 To keep a record of your cell outputs while working on your
 notebook, you can configure notebooks to automatically save as HTML or ipynb
@@ -72,116 +142,42 @@ notebook's `.py` file). Snapshots are saved to a folder called
 
 Learn more about exporting notebooks in our [exporting guide](../guides/exporting.md).
 
-## Caching
+## Cache expensive computations
 
-marimo provides two caching utilities to help you manage expensive computations:
+marimo provides two decorators to cache the return values of expensive functions:
 
 1. In-memory caching with [`mo.cache`][marimo.cache]
 2. Disk caching with [`mo.persistent_cache`][marimo.persistent_cache]
 
 Both utilities can be used as decorators or context managers.
 
-### In-memory caching
-
-Use [`mo.cache`][marimo.cache] to cache the return values of
-expensive functions, based on their arguments:
-
-/// tab | decorator
+/// tab | `mo.cache`
 
 ```python
 import marimo as mo
 
 @mo.cache
-def compute_predictions(problem_parameters):
-  # do some expensive computations and return a value
-  ...
-```
-
-///
-
-/// tab | context manager
-
-```python
-import marimo as mo
-
-with mo.cache("my_cache") as c:
-    predictions = compute_predictions(problem_parameters):
-```
-
-///
-
-
-When `compute_predictions` is called with a value of
-`problem_parameters` it hasn't seen, it will compute the predictions and store
-them in an in-memory cache. The next time it is called with the same
-parameters, instead of recomputing the predictions, it will return the
-previously computed value from the cache.
-
-??? note "Comparison to `functools.cache`"
-
-    [`mo.cache`][marimo.cache] is like `functools.cache` but smarter.
-    `functools` will sometimes evict values from the cache when it doesn't need to.
-
-    In particular, consider the case when a cell defining a `@mo.cache`-d function
-    re-runs due to an ancestor of it running, or a UI element value changing.
-    `mo.cache` will analyze the dataflow graph to determine whether or not the
-    decorated function has changed, and if it hasn't, it's cache won't be
-    invalidated. In contrast, on re-run a `functools` cache is always invalidated,
-    because `functools` has no knowledge about the structure of marimo's dataflow
-    graph.
-
-    Conversely, [`mo.cache`][marimo.cache] knows to invalidate the cache if
-    closed over variables change, whereas `functools.cache` doesn't, yielding
-    incorrect cache hits.
-
-    [`mo.cache`][marimo.cache] is slightly slower than `functools.cache`, but
-    in most applications the overhead is negligible. For performance critical code,
-    where the decorated function will be called in a tight loop, prefer
-    `functools.cache`.
-
-### Disk caching
-
-Use [`mo.persistent_cache`][marimo.persistent_cache] to cache variables to
-disk. The next time your run your notebook, the cached variables will be loaded
-from disk instead of being recomputed, letting you pick up where you left off.
-
-Reserve this for expensive computations that you would like to persist across
-notebook restarts. Cached outputs are automatically saved to `__marimo__/cache`.
-
-**Example.**
-
-/// tab | decorator
-
-```python
-import marimo as mo
-
-@mo.persistent_cache(name="my_cache")
-def compute_predictions(problem_parameters):
-    # do some expensive computations and return a value
-    ...
-```
-///
-
-
-/// tab | context manager
-
-```python
-import marimo as mo
-
-with mo.persistent_cache(name="my_cache"):
-    # This block of code and its computed variables will be cached to disk
-    # the first time it's run. The next time it's run, `predictions``
-    # will be loaded from disk.
-    predictions = compute_predictions(problem_parameters)
+def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.ndarray:
     ...
 ```
 
 ///
 
-Roughly speaking, [`mo.persistent_cache`][marimo.persistent_cache] registers a
-cache hit when the cell is not stale, meaning its code hasn't changed and
-neither have its ancestors. On cache hit the code block won't execute and
-instead variables will be loaded into memory.
+/// tab | `mo.persistent_cache`
+
+```python
+import marimo as mo
+
+@mo.persistent_cache
+def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.ndarray
+    ...
+```
+
+///
+
+
+See our [guide on caching](../api/caching.md) for details, including how the cache
+key is constructed, and limitations.
 
 ## Lazy-load expensive UIs
 

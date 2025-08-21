@@ -18,8 +18,9 @@ if TYPE_CHECKING:
         MessageParam,
     )
     from google.genai.types import (  # type: ignore[import-not-found]
-        Content,
-        Part,
+        ContentDict,
+        ContentUnionDict,
+        PartDict,
     )
     from openai.types.chat import (  # type: ignore[import-not-found]
         ChatCompletionMessageParam,
@@ -274,13 +275,13 @@ def convert_to_groq_messages(
 def get_google_messages_from_parts(
     role: Literal["system", "user", "assistant"],
     parts: list[Union[TextPart, ReasoningPart, ToolInvocationPart]],
-) -> list[Content]:
-    messages: list[Content] = []
+) -> list[ContentDict]:
+    messages: list[ContentDict] = []
 
     for part in parts:
         if isinstance(part, TextPart):
             # Create a message with text content
-            text_message: Content = {
+            text_message: ContentDict = {
                 "role": "user" if role == "user" else "model",
                 "parts": [{"text": part.text}],
             }
@@ -288,14 +289,14 @@ def get_google_messages_from_parts(
         elif isinstance(part, ReasoningPart):
             # Google uses the "thought" field for reasoning content
             # According to Google's thinking models documentation
-            reasoning_message: Content = {
+            reasoning_message: ContentDict = {
                 "role": "user" if role == "user" else "model",
                 "parts": [{"text": part.reasoning, "thought": True}],
             }
             messages.append(reasoning_message)
         elif isinstance(part, ToolInvocationPart):
             # Create function call message for Google
-            function_call_message: Content = {
+            function_call_message: ContentDict = {
                 "role": "model",
                 "parts": [
                     {
@@ -309,7 +310,7 @@ def get_google_messages_from_parts(
             messages.append(function_call_message)
 
             # Create function response message
-            function_response_message: Content = {
+            function_response_message: ContentDict = {
                 "role": "user",
                 "parts": [
                     {
@@ -329,8 +330,8 @@ def get_google_messages_from_parts(
 
 def convert_to_google_messages(
     messages: list[ChatMessage],
-) -> list[Content]:
-    google_messages: list[Content] = []
+) -> list[ContentUnionDict]:
+    google_messages: list[ContentUnionDict] = []
 
     for message in messages:
         # Handle message without attachments
@@ -350,7 +351,7 @@ def convert_to_google_messages(
             continue
 
         # Handle attachments
-        parts: list[Part] = []
+        parts: list[PartDict] = []
         if not message.parts or len(message.parts) == 0:
             parts.append({"text": str(message.content)})
         else:
@@ -358,7 +359,8 @@ def convert_to_google_messages(
             for parts_message in get_google_messages_from_parts(
                 message.role, message.parts
             ):
-                parts.extend(parts_message["parts"])
+                if "parts" in parts_message:
+                    parts.extend(parts_message["parts"] or [])
 
         for attachment in message.attachments:
             content_type = attachment.content_type or "text/plain"

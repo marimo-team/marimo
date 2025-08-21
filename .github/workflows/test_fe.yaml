@@ -1,4 +1,6 @@
 name: Test FE
+permissions:
+  contents: read
 
 on:
   push:
@@ -23,13 +25,71 @@ jobs:
           filters: |
             frontend:
               - 'frontend/**'
-              - 'lsp/**'
-              - 'openapi/**'
+              - 'packages/**'
+
+  lint_frontend:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    name: 🧹 Lint frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ./frontend
+        shell: bash
+
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Install repo
+        uses: ./.github/actions/install
+
+      - name: 📦 pnpm dedupe
+        if: github.event_name == 'pull_request'
+        run: pnpm dedupe --check
+
+      - name: 🧹 Lint
+        run: pnpm turbo lint
 
   test_frontend:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
-    name: 🖥️ Lint, test, build frontend
+    name: 🧪 Test frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ./frontend
+        shell: bash
+
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Install repo
+        uses: ./.github/actions/install
+
+      - name: 🔎 Type check
+        run: pnpm turbo typecheck
+
+      - name: 🧪 Test
+        run: pnpm test
+
+  build_frontend:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    name: 📦 Build frontend
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -44,32 +104,10 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # so we can run --since on the main branch and turbo can do faster cache hashing
+          fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-
-      - name: ⎔ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
-
-      - name: 📥 Install dependencies
-        run: pnpm install
-
-      - name: 📦 pnpm dedupe
-        if: github.event_name == 'pull_request'
-        run: pnpm dedupe --check
-
-      - name: 🧹 Lint
-        run: pnpm turbo lint
-
-      - name: 🔎 Type check
-        run: pnpm turbo typecheck
-
-      - name: 🧪 Test
-        run: pnpm test
+      - name: 📥 Install repo
+        uses: ./.github/actions/install
 
       - name: 🔍 Check pinned deps
         run: |

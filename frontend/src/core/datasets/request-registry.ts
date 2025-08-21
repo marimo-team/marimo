@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { SQLTableListPreview, SQLTablePreview } from "../kernel/messages";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
-import { previewSQLTable, previewSQLTableList } from "../network/requests";
+import { getRequestClient } from "../network/requests";
 import type {
   PreviewSQLTableListRequest,
   PreviewSQLTableRequest,
@@ -15,7 +15,8 @@ export const PreviewSQLTable = new DeferredRequestRegistry<
   Omit<PreviewSQLTableRequest, "requestId">,
   SQLTablePreview
 >("sql-table-preview", async (requestId, req) => {
-  await previewSQLTable({
+  const client = getRequestClient();
+  await client.previewSQLTable({
     requestId: requestId,
     ...req,
   });
@@ -25,7 +26,8 @@ export const PreviewSQLTableList = new DeferredRequestRegistry<
   Omit<PreviewSQLTableListRequest, "requestId">,
   SQLTableListPreview
 >("sql-table-list-preview", async (requestId, req) => {
-  await previewSQLTableList({
+  const client = getRequestClient();
+  await client.previewSQLTableList({
     requestId: requestId,
     ...req,
   });

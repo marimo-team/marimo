@@ -323,6 +323,93 @@ class Runner:
         """Get the next cell to run."""
         return self.cells_to_run.pop(0)
 
+    def _run_result_from_exception(
+        self,
+        output: Any,
+        unwrapped_exception: Optional[BaseException],
+        cell_id: CellId_t,
+    ) -> tuple[RunResult, Optional[BaseException]]:
+        exception: Optional[ErrorObjects] = unwrapped_exception
+        if isinstance(exception, MarimoMissingRefError):
+            ref, blamed_cell = self._get_blamed_cell(exception)
+            # All MarimoMissingRefErrors should be caused caused by
+            # NameErrors if they are the cause of MarimoRuntimeExceptions.
+            if exception.name_error is not None:
+                unwrapped_exception = exception.name_error
+            # Provide output context for said missing reference errors.
+            if self.execution_type == "strict":
+                output = MarimoExceptionRaisedError(
+                    f"marimo came across the undefined variable `{ref}` "
+                    "during runtime. This is possible in strict mode when "
+                    "static analysis is unable to properly resolve the "
+                    "reference due  to direct access (e.g. "
+                    "`globals()['var']`) or circuitous definitions (e.g.  "
+                    "by reassigning variables to different functions). If "
+                    "this failure is not the result of either of these "
+                    "cases, please consider reporting this issue to "
+                    "https://github.com/marimo-team/marimo/issues. "
+                    "Definition expected in cell : ",
+                    "NameError",
+                    blamed_cell,
+                )
+                exception = output
+            elif blamed_cell != cell_id:
+                possibly_deleted = any(
+                    ref in cell.deleted_refs
+                    for cell in self.graph.cells.values()
+                )
+
+                deleted_message = (
+                    " Another cell may have deleted it with the del operator."
+                    if possibly_deleted
+                    else ""
+                )
+                output = MarimoExceptionRaisedError(
+                    f"Name `{ref}` is not defined.{deleted_message} "
+                    "It was expected to be defined in ",
+                    "NameError",
+                    blamed_cell,
+                )
+                exception = output
+            else:
+                # Default to regular error for self reference in relaxed
+                # mode.
+                exception = unwrapped_exception
+        # Handle other special runtime errors.
+        elif isinstance(
+            unwrapped_exception,
+            (ModuleNotFoundError, ManyModulesNotFoundError),
+        ):
+            self.missing_packages = True
+
+            # If the user has a library and a file with the same name
+            # we should inform that this is a conflict.
+            if isinstance(unwrapped_exception, ModuleNotFoundError):
+                try:
+                    module_name = getattr(unwrapped_exception, "name", "")
+                    # Grab the base module name if it's a submodule
+                    module_name = module_name.split(".")[0]
+
+                    if Path(
+                        f"{module_name}.py"
+                    ).exists() and DependencyManager.has(module_name):
+                        error_message = f"There is a file named '{module_name}.py' which conflicts with the imported package. Please rename the file."
+                        output = MarimoExceptionRaisedError(
+                            error_message,
+                            unwrapped_exception.__class__.__name__,
+                            None,
+                        )
+                        LOGGER.error(error_message)
+                        exception = output
+                except Exception:
+                    pass
+        elif isinstance(unwrapped_exception, MarimoStopError):
+            output = unwrapped_exception.output
+            exception = unwrapped_exception
+        return RunResult(
+            output=output, exception=exception
+        ), unwrapped_exception
+
     async def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""
         if self.debugger is not None:
@@ -331,6 +418,7 @@ class Runner:
                 self.debugger._last_traceback = None
 
         cell = self.graph.cells[cell_id]
+        run_result = None
         try:
             if cell.is_coroutine():
                 return_value_future = asyncio.ensure_future(
@@ -387,88 +475,37 @@ class Runner:
             run_result = RunResult(output=name_output, exception=name_output)
         # Should cover all cell runtime exceptions.
         except MarimoRuntimeException as e:
-            print_traceback = True
             output: Any = None
             unwrapped_exception: Optional[BaseException] = e.__cause__
-            exception: Optional[ErrorObjects] = unwrapped_exception
+
+            # Interrupts are sometimes sent multiple times; in particular,
+            # it appears that polars forwards interrupts, so interrupting
+            # pl.read_parquet() causes two interrupts to be sent instead of one
+            # on macOS. This try/except is here to catch that extra
+            # interrupt.
+            #
+            # TODO(akshayka): Find a less brittle way of handling interrupts.
+            try:
+                run_result, unwrapped_exception = (
+                    self._run_result_from_exception(
+                        output, unwrapped_exception, cell_id
+                    )
+                )
+            except KeyboardInterrupt:
+                run_result = RunResult(
+                    output=None, exception=MarimoInterrupt()
+                )
 
             # Exceptions trigger cancellation of descendants.
+            #
+            # TODO(akshayka): Another interrupt will end up interrupting
+            # this call as well, so this should be lifted out of `run`.
             self.cancel(cell_id)
 
-            if isinstance(exception, MarimoMissingRefError):
-                ref, blamed_cell = self._get_blamed_cell(exception)
-                # All MarimoMissingRefErrors should be caused caused by
-                # NameErrors if they are the cause of MarimoRuntimeExceptions.
-                if exception.name_error is not None:
-                    unwrapped_exception = exception.name_error
-                # Provide output context for said missing reference errors.
-                if self.execution_type == "strict":
-                    output = MarimoExceptionRaisedError(
-                        f"marimo came across the undefined variable `{ref}` "
-                        "during runtime. This is possible in strict mode when "
-                        "static analysis is unable to properly resolve the "
-                        "reference due  to direct access (e.g. "
-                        "`globals()['var']`) or circuitous definitions (e.g.  "
-                        "by reassigning variables to different functions). If "
-                        "this failure is not the result of either of these "
-                        "cases, please consider reporting this issue to "
-                        "https://github.com/marimo-team/marimo/issues. "
-                        "Definition expected in cell : ",
-                        "NameError",
-                        blamed_cell,
-                    )
-                    exception = output
-                elif blamed_cell != cell_id:
-                    output = MarimoExceptionRaisedError(
-                        f"marimo came across the undefined variable `{ref}` "
-                        "during runtime. Definition expected in cell : ",
-                        "NameError",
-                        blamed_cell,
-                    )
-                    exception = output
-                else:
-                    # Default to regular error for self reference in relaxed
-                    # mode.
-                    exception = unwrapped_exception
-
-            # Handle other special runtime errors.
-            elif isinstance(
-                unwrapped_exception,
-                (ModuleNotFoundError, ManyModulesNotFoundError),
-            ):
-                self.missing_packages = True
-
-                # If the user has a library and a file with the same name
-                # we should inform that this is a conflict.
-                if isinstance(unwrapped_exception, ModuleNotFoundError):
-                    try:
-                        module_name = getattr(unwrapped_exception, "name", "")
-                        # Grab the base module name if it's a submodule
-                        module_name = module_name.split(".")[0]
-
-                        if Path(
-                            f"{module_name}.py"
-                        ).exists() and DependencyManager.has(module_name):
-                            error_message = f"There is a file named '{module_name}.py' which conflicts with the imported package. Please rename the file."
-                            output = MarimoExceptionRaisedError(
-                                error_message,
-                                unwrapped_exception.__class__.__name__,
-                                None,
-                            )
-                            LOGGER.error(error_message)
-                            exception = output
-                    except Exception as e:
-                        pass
-
-            elif isinstance(unwrapped_exception, MarimoStopError):
-                output = unwrapped_exception.output
-                exception = unwrapped_exception
-                # don't print a traceback, since quitting is the intended
-                # behavior (like sys.exit())
-                print_traceback = False
-
-            run_result = RunResult(output=output, exception=exception)
-            if print_traceback:
+            # Stop "errors" aren't actually errors but rather a control
+            # flow mechanism used by mo.stop() to stop execution; as such
+            # a traceback should not be shown for them.
+            if not isinstance(run_result.exception, MarimoStopError):
                 tmpio = io.StringIO()
                 # The executors explicitly raise cell exceptions from base
                 # exceptions such that the stack trace is cleaner.
@@ -504,6 +541,26 @@ class Runner:
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
         finally:
+            # TODO(akshayka): some of this logic should be lifted out
+            # of `run`, (in particular to where execution context is not set)
+            # so that it is not interruptible
+            if run_result is None:
+                LOGGER.error(
+                    """marimo encountered an internal error.
+
+                    marimo finished executing a cell, but did not produce
+                    a run result.
+
+                    Please copy this message and paste it in a GitHub issue:
+
+                    https://github.com/marimo-team/marimo/issues
+
+                    Any additional context of what caused this error, such
+                    as sample code to reproduce, will help us debug.
+                    """
+                )
+                run_result = RunResult(output=None, exception=None)
+
             # Mark as interrupted if the cell raised a MarimoInterrupt
             # Set here since failed async can also trigger an Interrupt.
             if isinstance(run_result.exception, MarimoInterrupt):
@@ -524,9 +581,9 @@ class Runner:
                         run_result.exception, "__traceback__"
                     ):
                         tb = run_result.exception.__traceback__
-                        assert isinstance(tb, TracebackType)
-                        self.debugger._last_traceback = tb
-                        self.debugger._last_tracebacks[cell_id] = tb
+                        if isinstance(tb, TracebackType):
+                            self.debugger._last_traceback = tb
+                            self.debugger._last_tracebacks[cell_id] = tb
             except Exception as debugger_error:
                 # This has never been hit, but just in case -- don't want
                 # to crash the kernel.
@@ -596,12 +653,22 @@ class Runner:
                 pre_hook(cell, self)
             LOGGER.debug("Running cell %s", cell_id)
             if self.execution_context is not None:
-                with self.execution_context(cell_id) as exc_ctx:
-                    run_result = await self.run(cell_id)
-                    run_result.accumulated_output = exc_ctx.output
-                    LOGGER.debug("Running post_execution hooks in context")
-                    for post_hook in self.post_execution_hooks:
-                        post_hook(cell, self, run_result)
+                try:
+                    # TODO(akshayka): The execution context should be pushed
+                    # down to as close to kernel execution as possible.
+                    with self.execution_context(cell_id) as exc_ctx:
+                        run_result = await self.run(cell_id)
+                        run_result.accumulated_output = exc_ctx.output
+                        LOGGER.debug("Running post_execution hooks in context")
+                        for post_hook in self.post_execution_hooks:
+                            post_hook(cell, self, run_result)
+                except KeyboardInterrupt:
+                    LOGGER.error(
+                        """
+                        A keyboard interrupt was raised but not handled by the runner.
+                        """
+                    )
+
             else:
                 run_result = await self.run(cell_id)
                 LOGGER.debug("Running post_execution hooks out of context")

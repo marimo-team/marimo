@@ -4,7 +4,12 @@ import { useAtom, useAtomValue } from "jotai";
 import { XIcon } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { useCellActions, useNotebook } from "@/core/cells/cells";
+import {
+  useCellActions,
+  useCellData,
+  useCellIds,
+  useCellRuntime,
+} from "@/core/cells/cells";
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
@@ -23,7 +28,6 @@ interface MinimapCellProps {
 }
 
 const MinimapCell: React.FC<MinimapCellProps> = (props) => {
-  const notebook = useNotebook();
   const focusState = useAtomValue(cellFocusAtom);
   const graphs = useAtomValue(cellGraphsAtom);
   const actions = useCellActions();
@@ -32,8 +36,8 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   const cell = {
     id: props.cellId,
     graph: graphs[props.cellId],
-    code: notebook.cellData[props.cellId].code,
-    hasError: notebook.cellRuntime[props.cellId].errored,
+    code: useCellData(props.cellId).code,
+    hasError: useCellRuntime(props.cellId).errored,
   };
 
   let selectedCell: undefined | { id: CellId; graph: CellGraph };
@@ -67,7 +71,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
         "h-[21px] pl-[51px] font-inherit",
         isSelected
           ? "text-primary-foreground"
-          : "text-[var(--gray-8)] hover:text-[var(--gray-9)]",
+          : "text-(--gray-8) hover:text-(--gray-9)",
       )}
       onClick={handleClick}
       // Prevent the default mousedown behavior to avoid blur events on the currently
@@ -77,7 +81,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
     >
       <div
         className={cn(
-          "group-hover:bg-[var(--gray-2)] flex h-full w-full px-0.5 items-center rounded",
+          "group-hover:bg-(--gray-2) flex h-full w-full px-0.5 items-center rounded",
           isSelected && "bg-primary group-hover:bg-primary",
         )}
       >
@@ -96,7 +100,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       </div>
       <svg
         className={cn(
-          "absolute overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)_+_17px)] pointer-events-none",
+          "absolute overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)+17px)] pointer-events-none",
           isSelected ? "z-30" : "z-20",
           getTextColor({ cell, selectedCell }),
         )}
@@ -125,13 +129,13 @@ const MinimapInternal: React.FC<{
   open: boolean;
   setOpen: (update: boolean) => void;
 }> = ({ open, setOpen }) => {
-  const notebook = useNotebook();
+  const cellIds = useCellIds();
   const cellPositions: Record<CellId, number> = Object.fromEntries(
-    notebook.cellIds.inOrderIds.map((id, idx) => [id, idx]),
+    cellIds.inOrderIds.map((id, idx) => [id, idx]),
   );
   const columnBoundaries: number[] = [];
   let cellCount = 0;
-  for (const [idx, column] of notebook.cellIds.getColumns().entries()) {
+  for (const [idx, column] of cellIds.getColumns().entries()) {
     if (idx > 0) {
       columnBoundaries.push(cellCount);
     }
@@ -140,7 +144,7 @@ const MinimapInternal: React.FC<{
   return (
     <div
       className={cn(
-        "fixed top-14 right-5 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg border shadow-lg w-64 flex flex-col max-h-[58vh]",
+        "fixed top-14 right-5 z-50 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60 rounded-lg border shadow-lg w-64 flex flex-col max-h-[58vh]",
         "motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-in-out",
         open ? "translate-x-0" : "translate-x-[calc(100%+20px)]",
       )}
@@ -158,14 +162,14 @@ const MinimapInternal: React.FC<{
       </div>
       <div className="overflow-y-auto overflow-x-hidden flex-1 scrollbar-none">
         <div className="py-3 pl-3 pr-4 relative min-h-full">
-          {notebook.cellIds.inOrderIds.map((cellId, idx) => {
+          {cellIds.inOrderIds.map((cellId, idx) => {
             const isColumnBoundary = columnBoundaries.includes(idx);
             return (
               <React.Fragment key={cellId}>
                 {/* Subtle visual divider between nodes */}
                 {isColumnBoundary && (
                   <div
-                    className="absolute left-5 w-[36px] h-px bg-[var(--gray-4)] pointer-events-none"
+                    className="absolute left-5 w-[36px] h-px bg-(--gray-4) pointer-events-none"
                     aria-hidden="true"
                   />
                 )}
@@ -424,7 +428,7 @@ function getTextColor({
     return "text-primary";
   }
 
-  return "text-[var(--gray-8)]";
+  return "text-(--gray-8)";
 }
 
 /**

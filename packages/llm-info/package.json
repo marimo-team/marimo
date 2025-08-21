@@ -1,0 +1,27 @@
+{
+  "name": "@marimo-team/llm-info",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "data/generated/*.json"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./icons/*": "./icons/*",
+    "./models.json": "./data/generated/models.json",
+    "./providers.json": "./data/generated/providers.json"
+  },
+  "scripts": {
+    "codegen": "node --experimental-transform-types src/generate.ts",
+    "test": "vitest",
+    "build": "echo 'No build step'"
+  },
+  "devDependencies": {
+    "@marimo-team/tsconfig": "workspace:*",
+    "yaml": "^2.8.1",
+    "vitest": "^3.2.4",
+    "zod": "^3.25.67"
+  }
+}

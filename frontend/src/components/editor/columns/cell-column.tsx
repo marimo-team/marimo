@@ -80,7 +80,7 @@ const ResizableComponent = ({
     return (
       <div
         ref={ref}
-        className={`w-[3px] cursor-col-resize transition-colors duration-200 z-[100]
+        className={`w-[3px] cursor-col-resize transition-colors duration-200 z-100
           relative before:content-[''] before:absolute before:inset-y-0 before:-left-[3px]
           before:right-[-3px] before:w-[9px] before:z-[-1]
           hover/column:bg-[var(--slate-3)] dark:hover/column:bg-[var(--slate-5)]

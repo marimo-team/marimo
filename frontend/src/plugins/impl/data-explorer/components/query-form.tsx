@@ -87,7 +87,7 @@ export const QueryForm: React.FC<Props> = ({ schema, mark }) => {
   );
 
   return (
-    <div className="grid gap-x-2 gap-y-4 justify-items-start py-3 pl-4 pr-2 bg-[var(--slate-1)] border rounded items-center grid-template-columns-[repeat(2,_minmax(0,_min-content))] self-start">
+    <div className="grid gap-x-2 gap-y-4 justify-items-start py-3 pl-4 pr-2 bg-(--slate-1) border rounded items-center grid-template-columns-[repeat(2,_minmax(0,_min-content))] self-start">
       <span className="col-span-2 flex items-center justify-between w-full">
         <div className="text-sm font-semibold">Encodings</div>
       </span>
@@ -156,7 +156,7 @@ const FieldSelect = ({
 
   return (
     <>
-      <Label className="text-[var(--slate-11)] font-semibold">{label}</Label>
+      <Label className="text-(--slate-11) font-semibold">{label}</Label>
       <div className="flex flex-row gap-1 h-[26px]">
         <Select
           value={field}

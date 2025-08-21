@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { render } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { Tracebacks } from "@/__mocks__/tracebacks";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
@@ -15,6 +15,10 @@ import {
 const cellId = "1" as CellId;
 
 describe("traceback component", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
   test("extracts cell-link", () => {
     const traceback = (
       <TooltipProvider>

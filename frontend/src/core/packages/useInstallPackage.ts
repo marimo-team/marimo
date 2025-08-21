@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useState } from "react";
-import { addPackage } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
+import { useRequestClient } from "../network/requests";
 import { showAddPackageToast } from "./toast-components";
 
 export function useInstallPackages(): {
@@ -13,6 +13,7 @@ export function useInstallPackages(): {
   loading: boolean;
 } {
   const [loading, setLoading] = useState(false);
+  const { addPackage } = useRequestClient();
 
   const handleInstallPackages = async (
     packages: string[],

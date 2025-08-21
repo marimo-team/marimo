@@ -170,6 +170,14 @@ for i in mo.status.progress_bar(range(10)):
 marimo comes with functions to display media, including images, audio,
 video, pdfs, and more. See the [API docs](../api/media/index.md) for more info.
 
+## Inspecting objects
+
+marimo has built-in formatters for many objects, but sometimes the default
+representation isn't useful (e.g., `<MyClass at 0x...>`). In these cases, use
+[`mo.inspect()`][marimo.inspect] to explore an object's attributes, methods,
+and documentation as an output. See the [API
+docs](../api/outputs.md#object-inspection) for more details.
+
 ## Imperatively adding outputs
 
 While a cell's output is its last expression, it can at times be helpful

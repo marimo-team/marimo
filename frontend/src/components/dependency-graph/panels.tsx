@@ -269,7 +269,7 @@ export const GraphSelectionPanel: React.FC<{
       position="bottom-left"
       className="max-h-[90%] flex flex-col w-[calc(100%-5rem)]"
     >
-      <div className="min-h-[100px] shadow-md rounded-md border max-w-[550px] border-primary/40 my-4 min-w-[240px] bg-[var(--slate-1)] text-muted-foreground/80 flex flex-col overflow-y-auto">
+      <div className="min-h-[100px] shadow-md rounded-md border max-w-[550px] border-primary/40 my-4 min-w-[240px] bg-(--slate-1) text-muted-foreground/80 flex flex-col overflow-y-auto">
         {renderSelection()}
       </div>
     </Panel>

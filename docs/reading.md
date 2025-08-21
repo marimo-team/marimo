@@ -9,10 +9,11 @@ videos might help you do just that.
 To dive deep into what we're building and why, check out these readings:
 
 * [Our HackerNews launch, the second most upvoted Python ShowHN of all time](https://news.ycombinator.com/item?id=38971966)
-* [Our r/machinelearning launch](https://news.ycombinator.com/item?id=38971966)
+* [Our r/machinelearning launch](https://www.reddit.com/r/MachineLearning/comments/191rdwq/p_i_built_marimo_an_opensource_reactive_python/)
 * [Lessons Learned Reinventing the Python Notebook](https://marimo.io/blog/lessons-learned)
 * [Why Stanford Scientists Needed a New Notebook](https://marimo.io/blog/slac-marimo)
 * [Reinventing Python Notebooks as Reusable Python Programs](https://marimo.io/blog/python-not-json)
+* [Representing Python Notebooks as Dataflow Graphs](https://marimo.io/blog/dataflow)
 * [Nature: a Notebook for Reproducible Code](https://www.nature.com/articles/d41586-025-01241-6)
 
 See [our blog](https://marimo.io/blog) for more.

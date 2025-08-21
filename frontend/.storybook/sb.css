@@ -1,3 +1,5 @@
+@reference "../src/css/globals.css";
+
 .sbdocs-content {
   display: flex;
   gap: 20px;

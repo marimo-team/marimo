@@ -46,16 +46,6 @@ class ImportStarError:
 
 
 @dataclass
-class DeleteNonlocalError:
-    name: str
-    cells: tuple[CellId_t, ...]
-    type: Literal["delete-nonlocal"] = "delete-nonlocal"
-
-    def describe(self) -> str:
-        return f"The variable '{self.name}' can't be deleted because it was defined by another cell"
-
-
-@dataclass
 class MarimoInterruptionError:
     type: Literal["interruption"] = "interruption"
 
@@ -174,7 +164,6 @@ Error = Union[
     CycleError,
     MultipleDefinitionError,
     ImportStarError,
-    DeleteNonlocalError,
     MarimoAncestorStoppedError,
     MarimoAncestorPreventedError,
     MarimoExceptionRaisedError,

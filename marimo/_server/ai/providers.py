@@ -5,8 +5,8 @@ import json
 import os
 import uuid
 from abc import ABC, abstractmethod
-from collections.abc import Generator, Iterator
-from dataclasses import dataclass, field
+from collections.abc import AsyncGenerator, AsyncIterator
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -31,25 +31,21 @@ from marimo._ai._convert import (
     convert_to_openai_tools,
 )
 from marimo._ai._types import ChatMessage
-from marimo._config.config import (
-    AiConfig,
-    CompletionConfig,
-    CopilotMode,
-    MarimoConfig,
-)
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.ai.config import AnyProviderConfig
+from marimo._server.ai.ids import AiModelId
 from marimo._server.api.status import HTTPStatus
 
 if TYPE_CHECKING:
     from anthropic import (  # type: ignore[import-not-found]
-        Client,
-        Stream as AnthropicStream,
+        AsyncClient,
+        AsyncStream as AnthropicStream,
     )
     from anthropic.types import (  # type: ignore[import-not-found]
         RawMessageStreamEvent,
     )
     from google.genai.client import (  # type: ignore[import-not-found]
-        Client as GoogleClient,
+        AsyncClient as GoogleClient,
     )
     from google.genai.types import (  # type: ignore[import-not-found]
         GenerateContentConfig,
@@ -64,17 +60,16 @@ if TYPE_CHECKING:
         ModelResponseStream as LitellmStreamResponse,
     )
     from openai import (  # type: ignore[import-not-found]
-        OpenAI,
-        Stream as OpenAiStream,
+        AsyncOpenAI,
+        AsyncStream as OpenAiStream,
     )
     from openai.types.chat import (  # type: ignore[import-not-found]
         ChatCompletionChunk,
     )
 
-from marimo._server.ai.tools import Tool, get_tool_manager
 
 ResponseT = TypeVar("ResponseT")
-StreamT = TypeVar("StreamT")
+StreamT = TypeVar("StreamT", bound=AsyncIterator[Any])
 FinishReason = Literal["tool_calls", "stop"]
 
 # Types for extract_content method return
@@ -102,155 +97,11 @@ StreamContent = Union[StreamTextContent, StreamDictContent, FinishContent]
 
 LOGGER = _loggers.marimo_logger()
 
-DEFAULT_MAX_TOKENS = 4096
-DEFAULT_MODEL = "gpt-4o-mini"
-
 
 @dataclass
 class StreamOptions:
     text_only: bool = False
     format_stream: bool = False
-
-
-@dataclass
-class AnyProviderConfig:
-    base_url: Optional[str]
-    api_key: str
-    ssl_verify: Optional[bool] = None
-    ca_bundle_path: Optional[str] = None
-    client_pem: Optional[str] = None
-    tools: list[Tool] = field(default_factory=list)
-
-    @staticmethod
-    def for_openai(config: AiConfig) -> AnyProviderConfig:
-        if "open_ai" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="OpenAI config not found",
-            )
-        key = _get_key(config["open_ai"], "OpenAI")
-
-        kwargs: dict[str, Any] = {
-            "base_url": _get_base_url(config["open_ai"]),
-            "api_key": key,
-            "ssl_verify": config["open_ai"].get("ssl_verify", True),
-            "ca_bundle_path": config["open_ai"].get("ca_bundle_path", None),
-            "client_pem": config["open_ai"].get("client_pem", None),
-        }
-
-        # Only include tools if they are available
-        # Empty tools list causes an error with deepseek
-        # https://discord.com/channels/1059888774789730424/1387766267792068821
-        tools = _get_tools(config.get("mode", "manual"))
-        if len(tools) > 0:
-            kwargs["tools"] = tools
-
-        return AnyProviderConfig(**kwargs)
-
-    @staticmethod
-    def for_anthropic(config: AiConfig) -> AnyProviderConfig:
-        if "anthropic" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Anthropic config not found",
-            )
-        key = _get_key(config["anthropic"], "Anthropic")
-        return AnyProviderConfig(
-            base_url=_get_base_url(config["anthropic"]),
-            api_key=key,
-            tools=_get_tools(config.get("mode", "manual")),
-        )
-
-    @staticmethod
-    def for_google(config: AiConfig) -> AnyProviderConfig:
-        if "google" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Google config not found",
-            )
-        key = _get_key(config["google"], "Google AI")
-        return AnyProviderConfig(
-            base_url=_get_base_url(config["google"]),
-            api_key=key,
-            tools=_get_tools(config.get("mode", "manual")),
-        )
-
-    @staticmethod
-    def for_bedrock(config: AiConfig) -> AnyProviderConfig:
-        if "bedrock" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Bedrock config not found",
-            )
-        key = _get_key(config["bedrock"], "Bedrock")
-        return AnyProviderConfig(
-            base_url=_get_base_url(config["bedrock"], "Bedrock"),
-            api_key=key,
-            tools=_get_tools(config.get("mode", "manual")),
-        )
-
-    @staticmethod
-    def for_completion(config: CompletionConfig) -> AnyProviderConfig:
-        key = _get_key(config, "AI completion")
-        return AnyProviderConfig(
-            base_url=_get_base_url(config),
-            api_key=key,
-            tools=[],  # Inline completion never uses tools
-        )
-
-    @staticmethod
-    def for_model(model: str, config: AiConfig) -> AnyProviderConfig:
-        if _model_is_anthropic(model):
-            return AnyProviderConfig.for_anthropic(config)
-        elif _model_is_google(model):
-            return AnyProviderConfig.for_google(config)
-        elif _model_is_bedrock(model):
-            return AnyProviderConfig.for_bedrock(config)
-        else:
-            # OpenAI has a default API that ollama also uses, that is
-            # why it is a catch all at the end here.
-            return AnyProviderConfig.for_openai(config)
-
-
-def _get_key(config: Any, name: str) -> str:
-    if name == "Bedrock":
-        if "profile_name" in config:
-            profile_name = config.get("profile_name", "")
-            return f"profile:{profile_name}"
-        elif (
-            "aws_access_key_id" in config and "aws_secret_access_key" in config
-        ):
-            return f"{config['aws_access_key_id']}:{config['aws_secret_access_key']}"
-        else:
-            return ""
-    if "api_key" in config:
-        key = config["api_key"]
-        if key:
-            return cast(str, key)
-    if "http://127.0.0.1:11434/" in config.get("base_url", ""):
-        # Ollama can be configured and in that case the api key is not needed.
-        # We send a placeholder value to prevent the user from being confused.
-        return "ollama-placeholder"
-    raise HTTPException(
-        status_code=HTTPStatus.BAD_REQUEST,
-        detail=f"{name} API key not configured",
-    )
-
-
-def _get_base_url(config: Any, name: str = "") -> Optional[str]:
-    if name == "Bedrock":
-        if "region_name" in config:
-            return cast(str, config["region_name"])
-        else:
-            return None
-    elif "base_url" in config:
-        return cast(str, config["base_url"])
-    return None
-
-
-def _get_tools(mode: CopilotMode) -> list[Tool]:
-    tool_manager = get_tool_manager()
-    return tool_manager.get_tools_for_mode(mode)
 
 
 class CompletionProvider(Generic[ResponseT, StreamT], ABC):
@@ -261,7 +112,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         self.config = config
 
     @abstractmethod
-    def stream_completion(
+    async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
@@ -297,9 +148,14 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
             return convert_to_ai_sdk_messages(content_text, content_type)
         return ""
 
-    def collect_stream(self, response: StreamT) -> str:
+    async def collect_stream(self, response: StreamT) -> str:
         """Collect a stream into a single string."""
-        return "".join(self.as_stream_response(response))
+        result: list[str] = []
+        async for chunk in self.as_stream_response(
+            response, StreamOptions(text_only=True)
+        ):
+            result.append(chunk)
+        return "".join(result)
 
     def _content_to_string(
         self, content_data: Union[str, dict[str, Any]]
@@ -359,10 +215,10 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
                 detail=f"Invalid tool call arguments: malformed JSON: {tool_call_args}",
             ) from e
 
-    def as_stream_response(
+    async def as_stream_response(
         self, response: StreamT, options: Optional[StreamOptions] = None
-    ) -> Generator[str, None, None]:
-        """Convert a stream to a generator of strings."""
+    ) -> AsyncGenerator[str, None]:
+        """Convert a stream to an async generator of strings."""
         original_content = ""
         buffer = ""
         options = options or StreamOptions()
@@ -375,7 +231,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         # Finish reason collected from the last chunk
         finish_reason: Optional[FinishReason] = None
 
-        for chunk in cast(Generator[ResponseT, None, None], response):
+        async for chunk in response:
             # Always check for finish reason first, before checking content
             # Some chunks (like RawMessageDeltaEvent) contain finish reasons but no extractable content
             # If we check content first, these chunks get skipped and finish reason is never detected
@@ -469,28 +325,26 @@ class OpenAIProvider(
     # https://openai.com/index/openai-o3-mini/
     DEFAULT_REASONING_EFFORT = "medium"
 
-    def is_reasoning_model(self, model: str) -> bool:
+    def _is_reasoning_model(self, model: str) -> bool:
         # only o-series models support reasoning
-        return model.startswith("o")
+        return model.startswith("o") or model.startswith("gpt-5")
 
-    def get_client(self, config: AnyProviderConfig) -> OpenAI:
+    def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         DependencyManager.openai.require(why="for AI assistance with OpenAI")
 
         import ssl
-
-        # library to check if paths exists
         from pathlib import Path
-        from urllib.parse import parse_qs, urlparse
 
-        # ssl related libs, httpx is a dependency of openai
         import httpx
-        from openai import AzureOpenAI, OpenAI
+        from openai import AsyncOpenAI
 
         base_url = config.base_url or None
         key = config.api_key
 
         # Add SSL parameters/values
-        ssl_verify: bool = config.ssl_verify or True
+        ssl_verify: bool = (
+            config.ssl_verify if config.ssl_verify is not None else True
+        )
         ca_bundle_path: Optional[str] = config.ca_bundle_path
         client_pem: Optional[str] = config.client_pem
 
@@ -510,67 +364,53 @@ class OpenAIProvider(
                     status_code=HTTPStatus.BAD_REQUEST,
                     detail="Client PEM is not a valid path or does not exist",
                 )
-        # Azure OpenAI clients are instantiated slightly differently
-        parsed_url = urlparse(base_url)
-        if parsed_url.hostname and cast(str, parsed_url.hostname).endswith(
-            ".openai.azure.com"
-        ):
-            deployment_model = cast(str, parsed_url.path).split("/")[3]
-            api_version = parse_qs(cast(str, parsed_url.query))["api-version"][
-                0
-            ]
-            return AzureOpenAI(
-                api_key=key,
-                api_version=api_version,
-                azure_deployment=deployment_model,
-                azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
-            )
-        else:
-            # the default httpx client uses ssl_verify=True by default under the hoood. We are checking if it's here, to see if the user overrides and uses false. If the ssl_verify argument isn't there, it is true by default
-            if ssl_verify:
-                ctx = None  # Initialize ctx to avoid UnboundLocalError
-                client = None  # Initialize client to avoid UnboundLocalError
-                if ca_bundle_path:
-                    ctx = ssl.create_default_context(cafile=ca_bundle_path)
-                if client_pem:
-                    # if ctx already exists from caBundlePath argument
-                    if ctx:
-                        ctx.load_cert_chain(certfile=client_pem)
-                    else:
-                        ctx = ssl.create_default_context()
-                        ctx.load_cert_chain(certfile=client_pem)
 
-                # if ssl context was created by the above statements
+        # the default httpx client uses ssl_verify=True by default under the hoood. We are checking if it's here, to see if the user overrides and uses false. If the ssl_verify argument isn't there, it is true by default
+        if ssl_verify:
+            ctx = None  # Initialize ctx to avoid UnboundLocalError
+            client = None  # Initialize client to avoid UnboundLocalError
+            if ca_bundle_path:
+                ctx = ssl.create_default_context(cafile=ca_bundle_path)
+            if client_pem:
+                # if ctx already exists from caBundlePath argument
                 if ctx:
-                    client = httpx.Client(verify=ctx)
+                    ctx.load_cert_chain(certfile=client_pem)
                 else:
-                    pass
-            else:
-                client = httpx.Client(verify=False)
+                    ctx = ssl.create_default_context()
+                    ctx.load_cert_chain(certfile=client_pem)
 
-            # if client is created, either with a custom context or with verify=False, use it as the http_client object in `OpenAI`
-            if client:
-                return OpenAI(
-                    default_headers={"api-key": key},
-                    api_key=key,
-                    base_url=base_url,
-                    http_client=client,
-                )
-            # if not, return bog standard OpenAI object
+            # if ssl context was created by the above statements
+            if ctx:
+                client = httpx.AsyncClient(verify=ctx)
             else:
-                return OpenAI(
-                    default_headers={"api-key": key},
-                    api_key=key,
-                    base_url=base_url,
-                )
+                pass
+        else:
+            client = httpx.AsyncClient(verify=False)
 
-    def stream_completion(
+        # if client is created, either with a custom context or with verify=False, use it as the http_client object in `AsyncOpenAI`
+        if client:
+            return AsyncOpenAI(
+                default_headers={"api-key": key},
+                api_key=key,
+                base_url=base_url,
+                http_client=client,
+            )
+
+        # if not, return bog standard AsyncOpenAI object
+        return AsyncOpenAI(
+            default_headers={"api-key": key},
+            api_key=key,
+            base_url=base_url,
+        )
+
+    async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
     ) -> OpenAiStream[ChatCompletionChunk]:
         client = self.get_client(self.config)
+        tools = self.config.tools
         create_params = {
             "model": self.model,
             "messages": cast(
@@ -582,23 +422,26 @@ class OpenAIProvider(
                     + messages
                 ),
             ),
-            "max_completion_tokens": max_tokens,
             "stream": True,
             "timeout": 15,
-            "tools": convert_to_openai_tools(self.config.tools),
+            "tools": convert_to_openai_tools(tools) if tools else None,
         }
-        if self.is_reasoning_model(self.model):
+        if self._is_reasoning_model(self.model):
             create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
+            create_params["max_completion_tokens"] = max_tokens
+        else:
+            create_params["max_tokens"] = max_tokens
         return cast(
             "OpenAiStream[ChatCompletionChunk]",
-            client.chat.completions.create(**create_params),
+            await client.chat.completions.create(**create_params),
         )
 
     def extract_content(
         self,
         response: ChatCompletionChunk,
-        _tool_call_id: Optional[str] = None,
+        tool_call_id: Optional[str] = None,
     ) -> Optional[ExtractedContent]:
+        del tool_call_id
         if (
             hasattr(response, "choices")
             and response.choices
@@ -666,6 +509,28 @@ class OpenAIProvider(
         return messages
 
 
+class AzureOpenAIProvider(OpenAIProvider):
+    def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
+        from urllib.parse import parse_qs, urlparse
+
+        from openai import AsyncAzureOpenAI
+
+        base_url = config.base_url or None
+        key = config.api_key
+
+        # Azure OpenAI clients are instantiated slightly differently
+        parsed_url = urlparse(base_url)
+        deployment_model = cast(str, parsed_url.path).split("/")[3]
+        api_version = parse_qs(cast(str, parsed_url.query))["api-version"][0]
+
+        return AsyncAzureOpenAI(
+            api_key=key,
+            api_version=api_version,
+            azure_deployment=deployment_model,
+            azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
+        )
+
+
 class AnthropicProvider(
     CompletionProvider[
         "RawMessageStreamEvent", "AnthropicStream[RawMessageStreamEvent]"
@@ -701,21 +566,22 @@ class AnthropicProvider(
             else self.DEFAULT_TEMPERATURE
         )
 
-    def get_client(self, config: AnyProviderConfig) -> Client:
+    def get_client(self, config: AnyProviderConfig) -> AsyncClient:
         DependencyManager.anthropic.require(
             why="for AI assistance with Anthropic"
         )
-        from anthropic import Client
+        from anthropic import AsyncClient
 
-        return Client(api_key=config.api_key)
+        return AsyncClient(api_key=config.api_key)
 
-    def stream_completion(
+    async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
     ) -> AnthropicStream[RawMessageStreamEvent]:
         client = self.get_client(self.config)
+        tools = self.config.tools
         create_params = {
             "model": self.model,
             "max_tokens": max_tokens,
@@ -723,7 +589,7 @@ class AnthropicProvider(
                 Any,
                 convert_to_anthropic_messages(messages),
             ),
-            "tools": convert_to_anthropic_tools(self.config.tools),
+            "tools": convert_to_anthropic_tools(tools) if tools else None,
             "system": system_prompt,
             "stream": True,
             "temperature": self.get_temperature(),
@@ -735,14 +601,15 @@ class AnthropicProvider(
             }
         return cast(
             "AnthropicStream[RawMessageStreamEvent]",
-            client.messages.create(**create_params),
+            await client.messages.create(**create_params),
         )
 
     def extract_content(
         self,
         response: RawMessageStreamEvent,
-        _tool_call_id: Optional[str] = None,
+        tool_call_id: Optional[str] = None,
     ) -> Optional[ExtractedContent]:
+        del tool_call_id
         from anthropic.types import (
             InputJSONDelta,
             RawContentBlockDeltaEvent,
@@ -798,7 +665,9 @@ class AnthropicProvider(
 
 
 class GoogleProvider(
-    CompletionProvider["GenerateContentResponse", "GenerateContentResponse"]
+    CompletionProvider[
+        "GenerateContentResponse", "AsyncIterator[GenerateContentResponse]"
+    ]
 ):
     # Based on the docs:
     # https://cloud.google.com/vertex-ai/generative-ai/docs/thinking
@@ -815,11 +684,12 @@ class GoogleProvider(
     def get_config(
         self, system_prompt: str, max_tokens: int
     ) -> GenerateContentConfig:
+        tools = self.config.tools
         config = {
             "system_instruction": system_prompt,
             "temperature": 0,
             "max_output_tokens": max_tokens,
-            "tools": convert_to_google_tools(self.config.tools),
+            "tools": convert_to_google_tools(tools) if tools else None,
         }
         if self.is_thinking_model(self.model):
             config["thinking_config"] = {
@@ -836,23 +706,20 @@ class GoogleProvider(
             )
             from google import genai  # type: ignore
 
-        return genai.Client(api_key=config.api_key)
+        return genai.Client(api_key=config.api_key).aio
 
-    def stream_completion(
+    async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
-    ) -> Iterator[GenerateContentResponse]:
+    ) -> AsyncIterator[GenerateContentResponse]:
         client = self.get_client(self.config)
-        return cast(
-            "Iterator[GenerateContentResponse]",
-            client.models.generate_content_stream(
-                model=self.model,
-                contents=convert_to_google_messages(messages),
-                config=self.get_config(
-                    system_prompt=system_prompt, max_tokens=max_tokens
-                ),
+        return await client.models.generate_content_stream(
+            model=self.model,
+            contents=convert_to_google_messages(messages),
+            config=self.get_config(
+                system_prompt=system_prompt, max_tokens=max_tokens
             ),
         )
 
@@ -910,8 +777,11 @@ class GoogleProvider(
     def get_finish_reason(
         self, response: GenerateContentResponse
     ) -> Optional[FinishReason]:
-        if response.candidates and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
+        if not response.candidates:
+            return None
+        first_candidate = response.candidates[0]
+        if first_candidate.content and first_candidate.content.parts:
+            for part in first_candidate.content.parts:
                 if part.function_call:
                     return "tool_calls"
         if response.candidates and response.candidates[0].finish_reason:
@@ -944,7 +814,7 @@ class BedrockProvider(
                 detail="Error setting up AWS credentials",
             ) from e
 
-    def stream_completion(
+    async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
@@ -952,11 +822,12 @@ class BedrockProvider(
     ) -> LitellmStream:
         DependencyManager.litellm.require(why="for AI assistance with Bedrock")
         DependencyManager.boto3.require(why="for AI assistance with Bedrock")
-        from litellm import completion as litellm_completion
+        from litellm import acompletion as litellm_completion
 
         self.setup_credentials(self.config)
+        tools = self.config.tools
 
-        return litellm_completion(
+        return await litellm_completion(
             model=self.model,
             messages=cast(
                 Any,
@@ -968,14 +839,15 @@ class BedrockProvider(
             max_completion_tokens=max_tokens,
             stream=True,
             timeout=15,
-            tools=convert_to_openai_tools(self.config.tools),
+            tools=convert_to_openai_tools(tools) if tools else None,
         )
 
     def extract_content(
         self,
         response: LitellmStreamResponse,
-        _tool_call_id: Optional[str] = None,
+        tool_call_id: Optional[str] = None,
     ) -> Optional[ExtractedContent]:
+        del tool_call_id
         if (
             hasattr(response, "choices")
             and response.choices
@@ -1029,50 +901,29 @@ class BedrockProvider(
         return None
 
 
-def _model_is_google(model: str) -> bool:
-    return model.startswith("google") or model.startswith("gemini")
-
-
-def _model_is_anthropic(model: str) -> bool:
-    return model.startswith("claude")
-
-
-def _model_is_bedrock(model: str) -> bool:
-    return model.startswith("bedrock/")
-
-
 def get_completion_provider(
     config: AnyProviderConfig, model: str
 ) -> CompletionProvider[Any, Any]:
-    if _model_is_anthropic(model):
-        return AnthropicProvider(model, config)
-    elif _model_is_google(model):
-        return GoogleProvider(model, config)
-    elif _model_is_bedrock(model):
-        return BedrockProvider(model, config)
+    model_id = AiModelId.from_model(model)
+
+    if model_id.provider == "anthropic":
+        return AnthropicProvider(model_id.model, config)
+    elif model_id.provider == "google":
+        return GoogleProvider(model_id.model, config)
+    elif model_id.provider == "bedrock":
+        return BedrockProvider(model_id.model, config)
+    elif model_id.provider == "azure":
+        return AzureOpenAIProvider(model_id.model, config)
     else:
-        return OpenAIProvider(model, config)
+        return OpenAIProvider(model_id.model, config)
 
 
-def get_model(config: AiConfig) -> str:
-    model: str = config.get("open_ai", {}).get("model", DEFAULT_MODEL)
-    if not model:
-        model = DEFAULT_MODEL
-    return model
-
-
-def get_max_tokens(config: MarimoConfig) -> int:
-    if "ai" not in config:
-        return DEFAULT_MAX_TOKENS
-    if "max_tokens" not in config["ai"]:
-        return DEFAULT_MAX_TOKENS
-    return config["ai"]["max_tokens"]
-
-
-def merge_backticks(chunks: Iterator[str]) -> Generator[str, None, None]:
+async def merge_backticks(
+    chunks: AsyncIterator[str],
+) -> AsyncGenerator[str, None]:
     buffer: Optional[str] = None
 
-    for chunk in chunks:
+    async for chunk in chunks:
         if buffer is None:
             buffer = chunk
         else:
@@ -1094,14 +945,14 @@ def merge_backticks(chunks: Iterator[str]) -> Generator[str, None, None]:
         yield buffer
 
 
-def without_wrapping_backticks(
-    chunks: Iterator[str],
-) -> Generator[str, None, None]:
+async def without_wrapping_backticks(
+    chunks: AsyncIterator[str],
+) -> AsyncGenerator[str, None]:
     """
     Removes the first and last backticks (```) from a stream of text chunks.
 
     Args:
-        chunks: An iterator of text chunks
+        chunks: An async iterator of text chunks
 
     Yields:
         Text chunks with the first and last backticks removed if they exist
@@ -1116,7 +967,7 @@ def without_wrapping_backticks(
     buffer: Optional[str] = None
     has_starting_backticks = False
 
-    for chunk in chunks:
+    async for chunk in chunks:
         # Handle the first chunk
         if first_chunk:
             first_chunk = False

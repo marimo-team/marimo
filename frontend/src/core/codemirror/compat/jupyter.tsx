@@ -6,7 +6,7 @@ import { chromeAtom } from "@/components/editor/chrome/state";
 import { Kbd } from "@/components/ui/kbd";
 import { userConfigAtom } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
-import { saveUserConfig } from "@/core/network/requests";
+import { getRequestClient } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { toast } from "../../../components/ui/use-toast";
 
@@ -47,6 +47,7 @@ export function jupyterHelpExtension(): Extension {
   // Updates local config and saves to server
   const handleUpdateModuleReload = async (mode: "lazy" | "autorun" | "off") => {
     const config = store.get(userConfigAtom);
+    const { saveUserConfig } = getRequestClient();
     const newConfig: UserConfig = {
       ...config,
       runtime: {

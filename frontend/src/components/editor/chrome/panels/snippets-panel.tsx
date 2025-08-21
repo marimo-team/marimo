@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { CommandList } from "cmdk";
-import { BetweenHorizontalStartIcon, PlusIcon } from "lucide-react";
+import { BetweenHorizontalStartIcon, PlusIcon, XIcon } from "lucide-react";
 import React from "react";
 import {
   Command,
@@ -9,7 +9,6 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
-import { readSnippets } from "@/core/network/requests";
 import type { Snippet } from "@/core/network/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -24,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
+import { useRequestClient } from "@/core/network/requests";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
@@ -33,6 +33,7 @@ import { ContributeSnippetButton } from "../components/contribute-snippet-button
 const extensions = [EditorView.lineWrapping];
 
 export const SnippetsPanel: React.FC = () => {
+  const { readSnippets } = useRequestClient();
   const [selectedSnippet, setSelectedSnippet] = React.useState<Snippet>();
   const {
     data: snippets,
@@ -83,6 +84,7 @@ export const SnippetsPanel: React.FC = () => {
             <SnippetViewer
               key={selectedSnippet.title}
               snippet={selectedSnippet}
+              onClose={() => setSelectedSnippet(undefined)}
             />
           ) : (
             <PanelEmptyState
@@ -96,7 +98,10 @@ export const SnippetsPanel: React.FC = () => {
   );
 };
 
-const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
+const SnippetViewer: React.FC<{ snippet: Snippet; onClose: () => void }> = ({
+  snippet,
+  onClose,
+}) => {
   const { theme } = useTheme();
   const { createNewCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
@@ -126,8 +131,16 @@ const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
 
   return (
     <>
-      <div className="text-sm font-semibold bg-muted border-y px-2 py-1">
-        {snippet.title}
+      <div className="text-sm font-semibold bg-muted border-y px-2 py-1 flex justify-between items-center">
+        <span>{snippet.title}</span>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onClose}
+          className="h-6 w-6 p-0 hover:bg-muted-foreground/10"
+        >
+          <XIcon className="h-4 w-4" />
+        </Button>
       </div>
       <div className="px-2 py-2 space-y-4 overflow-auto flex-1">
         <div className="flex justify-end">

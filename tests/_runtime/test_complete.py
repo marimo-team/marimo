@@ -18,6 +18,7 @@ from marimo._messaging.types import Stream
 from marimo._runtime.complete import (
     _build_docstring_cached,
     _maybe_get_key_options,
+    _resolve_chained_key_path,
     complete,
 )
 from marimo._runtime.patches import patch_jedi_parameter_completion
@@ -220,18 +221,16 @@ def test_parameter_descriptions(obj: Any, runtime_inference: bool):
         )
 
 
-def cases_key_completions_code() -> tuple[tuple[str, bool], ...]:
-    """Text content when key completion is triggered."""
-    return (
-        ("obj['", True),
-        ('obj["', True),
-        ("assigned = obj['", True),
-        ("multiline = 'foo'\nobj['", True),
-        ("for i in iterator:\n\tobj['", True),
-        # shouldn't trigger on the following notations
-        ("obj.", False),
-        ("obj", False),
-    )
+DOCUMENT_AND_EXPECTS_COMPLETIONS: tuple[tuple[str, bool], ...] = (
+    ("obj['", True),
+    ('obj["', True),
+    ("assigned = obj['", True),
+    ("multiline = 'foo'\nobj['", True),
+    ("for i in iterator:\n\tobj['", True),
+    # shouldn't trigger on the following notations
+    ("obj.", False),
+    ("obj", False),
+)
 
 
 def cases_objects_supporting_key_completion() -> tuple[
@@ -299,27 +298,24 @@ def cases_objects_supporting_key_completion() -> tuple[
 
 
 @pytest.mark.parametrize(
-    "code_and_expects_completions", cases_key_completions_code()
+    "document_and_expects_completions", DOCUMENT_AND_EXPECTS_COMPLETIONS
 )
 @pytest.mark.parametrize(
     "obj_and_expected_completions", cases_objects_supporting_key_completion()
 )
 def test_maybe_get_key_options(
-    code_and_expects_completions: tuple[str, bool],
+    document_and_expects_completions: tuple[str, bool],
     obj_and_expected_completions: tuple[Any, list[str]],
 ):
     """Low-level test for `_maybe_get_key_options()`"""
-    code, expects_completions = code_and_expects_completions
+    document, expects_completions = document_and_expects_completions
     obj, expected_completions = obj_and_expected_completions
-
     glbls = {"obj": obj, "other": 10}
     lock = threading.RLock()
-    script = jedi.Script(code=code)
-    mock_request = mock.MagicMock()
-    mock_request.document = code
+    script = jedi.Script(code=document)
 
     completions = _maybe_get_key_options(
-        request=mock_request, script=script, glbls=glbls, glbls_lock=lock
+        document=document, script=script, glbls=glbls, glbls_lock=lock
     )
 
     if expects_completions is True:
@@ -332,26 +328,24 @@ def test_maybe_get_key_options(
 # the test has the same logic of `test_maybe_get_key_options()`
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed.")
 @pytest.mark.parametrize(
-    "code_and_expects_completions", cases_key_completions_code()
+    "document_and_expects_completions", DOCUMENT_AND_EXPECTS_COMPLETIONS
 )
 def test_maybe_get_key_options_pandas_dataframe(
-    code_and_expects_completions: tuple[str, bool],
-):
+    document_and_expects_completions: tuple[str, bool],
+) -> None:
     import pandas as pd
 
+    document, expects_completions = document_and_expects_completions
+    expected_completions = ["foo", "bar"]
     glbls = {
         "obj": pd.DataFrame({"foo": [0, 1], "bar": [9.0, 2.0]}),
         "other": 10,
     }
     lock = threading.RLock()
-    code, expects_completions = code_and_expects_completions
-    expected_completions = ["foo", "bar"]
-    mock_request = mock.MagicMock()
-    mock_request.document = code
+    script = jedi.Script(code=document)
 
-    script = jedi.Script(code=code)
     completions = _maybe_get_key_options(
-        request=mock_request,
+        document=document,
         script=script,
         glbls=glbls,
         glbls_lock=lock,
@@ -374,31 +368,45 @@ class CaptureStream(Stream):
 # TODO add test cases for all other completion modalities
 # TODO improve coupling between variable name, source code, and assertions
 @pytest.mark.parametrize(
-    "code_and_expects_completions", cases_key_completions_code()
+    "document_and_expects_completions", DOCUMENT_AND_EXPECTS_COMPLETIONS
 )
 @pytest.mark.parametrize(
     "object_name", ["static_key", "dynamic_key", "mixed_keys", "ipython_data"]
 )
-def test_complete_main_entrypoint(
-    code_and_expects_completions: tuple[str, bool],
+@pytest.mark.parametrize("chained_completion", [True, False])
+def test_key_completion_main_entrypoint(
+    document_and_expects_completions: tuple[str, bool],
     object_name: str,
+    chained_completion: bool,
 ) -> None:
-    trigger_code, expects_completions = code_and_expects_completions
+    """Test key completion using the main entrypoint `marimo._runtime.complete()`
 
-    # parameterize the test (object type, trigger code)
-    # `trigger_code` includes different ways to trigger autocompletion (or not)
-    # All `trigger_code` cases trigger completion on variable `obj`
-    # To test different object types, we assign different values to `obj`
-    other_cells_code = f'''\
+    Params:
+        document_and_expects_completions: contains (`document`, `expects_completion`)
+            `document` is the source code up to the cursor when triggering autocompletion.
+            `expects_completions` is a boolean whether we expect key completion; if False,
+            it could still trigger other completion mechanisms
+        object_name: the name of the object in the source code that we'll assign to `obj`.
+            All tests parametrization trigger completion on `obj`, but we change what
+            `obj` points.
+        chained_completion: if False, `obj = object_name`. If True, `obj = {top_level_key: object_name}`
+            This allows to nested chained autocompletion.
+    """
+    top_level_key = "depth0"
+    document, expects_key_completion = document_and_expects_completions
+    if chained_completion:
+        document = document.replace("obj[", f"obj['{top_level_key}'][")
+
+    other_cells_code = '''\
 import random
 
 class CustomData:
     def __init__(self):
-        self._table = {{
+        self._table = {
             "foo": [0, 1],
             "bar": [1., 3.],
             "baz": [True, True],
-        }}
+        }
 
     @property
     def a_property(self) -> str:
@@ -413,16 +421,20 @@ class CustomData:
         return list(self._table.keys())
 
 ipython_data = CustomData()
-static_key = {{"static_key": "foo"}}
-dynamic_key = {{str(random.randint(0, 10)): "foo"}}
-mixed_keys = {{"static_key": "foo", str(random.randint(0, 10)): "bar"}}
-obj = {object_name}\
+static_key = {"static_key": "foo"}
+dynamic_key = {str(random.randint(0, 10)): "foo"}
+mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
 '''
+    if chained_completion:
+        other_cells_code += f"obj = dict({top_level_key}={object_name})"
+    else:
+        other_cells_code += f"obj = {object_name}"
+
     mock_other_cell = mock.MagicMock()
     mock_other_cell.code = other_cells_code
 
     mock_current_cell = mock.MagicMock()
-    mock_current_cell.code = trigger_code
+    mock_current_cell.code = document
     current_cell_id = CellId_t("my-request-id")
 
     mock_graph = mock.MagicMock()
@@ -446,7 +458,7 @@ obj = {object_name}\
 
     completion_request = CodeCompletionRequest(
         id="request_id",
-        document=trigger_code,
+        document=document,
         cell_id=current_cell_id,
     )
 
@@ -468,7 +480,7 @@ obj = {object_name}\
     assert message_name == CompletionResult.name
     # TODO if `expects_completions=False`, something else than `_maybe_get_key_options()`
     # could be returning values
-    if expects_completions is False:
+    if expects_key_completion is False:
         return
 
     assert prefix_length == 0
@@ -495,3 +507,20 @@ obj = {object_name}\
     # check `len()` to ensure `set()` operation doesn't deduplicate keys
     assert len(options_values) == len(expected_keys)
     assert set(options_values) == set(expected_keys)
+
+
+@pytest.mark.parametrize(
+    ("trigger_code", "expected_key_path"),
+    # NOTE trigger code produce by marimo must end with `['` or `["`
+    [
+        ("obj['", []),
+        ("obj['foo']['", [["foo"]]),
+        ("obj['foo', 'bar']['", [["foo", "bar"]]),
+        ("obj['foo']['bar']['", [["foo"], ["bar"]]),
+    ],
+)
+def test_resolve_chained_key_path(
+    trigger_code: str, expected_key_path: list[str]
+) -> None:
+    key_path = _resolve_chained_key_path("obj", trigger_code)
+    assert key_path == expected_key_path

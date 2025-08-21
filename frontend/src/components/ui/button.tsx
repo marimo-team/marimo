@@ -13,7 +13,7 @@ const activeCommon = "active:shadow-none";
 const buttonVariants = cva(
   cn(
     "disabled:opacity-50 disabled:pointer-events-none",
-    "inline-flex items-center justify-center rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background",
+    "inline-flex items-center justify-center rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background",
   ),
   {
     variants: {
@@ -24,23 +24,23 @@ const buttonVariants = cva(
         ),
         destructive: cn(
           "border shadow-xs",
-          "bg-[var(--red-9)] hover:bg-[var(--red-10)] dark:bg-[var(--red-6)] dark:hover:bg-[var(--red-7)]",
-          "text-[var(--red-1)] dark:text-[var(--red-12)]",
-          "border-[var(--red-11)]",
+          "bg-(--red-9) hover:bg-(--red-10) dark:bg-(--red-6) dark:hover:bg-(--red-7)",
+          "text-(--red-1) dark:text-(--red-12)",
+          "border-(--red-11)",
           activeCommon,
         ),
         success: cn(
           "border shadow-xs",
-          "bg-[var(--grass-9)] hover:bg-[var(--grass-10)] dark:bg-[var(--grass-6)] dark:hover:bg-[var(--grass-7)]",
-          "text-[var(--grass-1)] dark:text-[var(--grass-12)]",
-          "border-[var(--grass-11)]",
+          "bg-(--grass-9) hover:bg-(--grass-10) dark:bg-(--grass-6) dark:hover:bg-(--grass-7)",
+          "text-(--grass-1) dark:text-(--grass-12)",
+          "border-(--grass-11)",
           activeCommon,
         ),
         warn: cn(
           "border shadow-xs",
-          "bg-[var(--yellow-9)] hover:bg-[var(--yellow-10)] dark:bg-[var(--yellow-6)] dark:hover:bg-[var(--yellow-7)]",
-          "text-[var(--yellow-12)]",
-          "border-[var(--yellow-11)]",
+          "bg-(--yellow-9) hover:bg-(--yellow-10) dark:bg-(--yellow-6) dark:hover:bg-(--yellow-7)",
+          "text-(--yellow-12)",
+          "border-(--yellow-11)",
           activeCommon,
         ),
         action: cn(

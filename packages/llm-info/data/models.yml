@@ -1,0 +1,394 @@
+# Information provided by https://hub.continue.dev/
+
+# Anthropic
+
+- name: Claude 3.5 Haiku
+  model: claude-3-5-haiku-latest
+  description: Fast and efficient model with excellent performance for everyday tasks
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.5 Sonnet
+  model: claude-3-5-sonnet-latest
+  description: Balanced model with strong performance across reasoning, math, and coding
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.7 Sonnet
+  model: claude-3-7-sonnet-latest
+  description: Enhanced Sonnet model with improved capabilities
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 4 Sonnet
+  model: claude-sonnet-4-20250514
+  description: Next-generation Sonnet model with advanced reasoning and multimodal capabilities
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Claude 4 Opus
+  model: claude-opus-4-20250514
+  description: Most capable model with superior performance on complex tasks and reasoning
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Claude 4.1 Opus
+  model: claude-opus-4-1-20250805
+  description: Latest Opus model with enhanced capabilities and performance improvements
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: true
+
+# Google
+
+- name: Gemini 1.5 Flash
+  model: gemini-1.5-flash
+  description: Fast and efficient model optimized for speed and everyday tasks
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 1.5 Flash 8B
+  model: gemini-1.5-flash-8b
+  description: Lightweight version of Gemini 1.5 Flash with 8 billion parameters
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 1.5 Pro
+  model: gemini-1.5-pro
+  description: Advanced model with superior reasoning capabilities and large context window
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 2.0 Flash
+  model: gemini-2.0-flash
+  description: Next-generation Flash model with improved performance and capabilities
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 2.0 Flash Experimental
+  model: gemini-2.0-flash-exp
+  description: Experimental version of Gemini 2.0 Flash with cutting-edge features
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 2.0 Flash Lite
+  model: gemini-2.0-flash-lite
+  description: Lightweight version of Gemini 2.0 Flash optimized for efficiency
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 2.0 Flash Thinking
+  model: gemini-2.0-flash-thinking-exp-01-21
+  description: Specialized reasoning model with enhanced thinking capabilities
+  providers: [google]
+  roles: [chat]
+  thinking: true
+
+- name: Gemini 2.5 Flash Preview
+  model: gemini-2.5-flash-preview
+  description: Preview of the upcoming Gemini 2.5 Flash model
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 2.5 Pro
+  model: gemini-2.5-pro
+  description: Most capable Gemini model with advanced reasoning and large context support
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 2.5 Pro Experimental
+  model: gemini-2.5-pro-exp
+  description: Experimental version of Gemini 2.5 Pro with latest improvements
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+# OpenAI
+
+- name: GPT-4.1
+  model: gpt-4.1
+  description: Fast, highly intelligent model with largest context window (1 million tokens)
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-4.1 Mini
+  model: gpt-4.1-mini
+  description: Balanced for intelligence, speed, and cost
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-4o
+  model: gpt-4o
+  description: Fast, intelligent, flexible GPT model with multimodal capabilities
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-4o Mini
+  model: gpt-4o-mini
+  description: Fast, affordable small model for focused tasks
+  providers: [openai, github]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-5
+  model: gpt-5
+  description: The best model for coding and agentic tasks across domains
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-5 Mini
+  model: gpt-5-mini
+  description: A faster, cost-efficient version of GPT-5 for well-defined tasks
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-5 Nano
+  model: gpt-5-nano
+  description: Fastest, most cost-efficient version of GPT-5
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
+- name: o3
+  model: o3
+  description: Our most powerful reasoning model with chain-of-thought capabilities
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: true
+
+- name: o3 Mini
+  model: o3-mini
+  description: A small model alternative to o3 for reasoning tasks
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: true
+
+- name: o3 Pro
+  model: o3-pro
+  description: Version of o3 designed to think longer and provide most reliable responses
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: true
+
+- name: o4 Mini
+  model: o4-mini
+  description: Faster, more affordable reasoning model optimized for math, coding, and visual tasks
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: true
+
+
+# GitHub
+
+- name: GPT-3.5-turbo
+  model: gpt-3.5-turbo
+  description: Fast and efficient model with excellent performance for everyday tasks
+  providers: [github]
+  roles: [chat, edit]
+  thinking: false
+
+
+# Bedrock
+
+- name: Claude 3.5 Haiku (Bedrock)
+  model: anthropic.claude-3-5-haiku-20241022-v1:0
+  description: Fast and efficient model with excellent performance for everyday tasks
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.5 Sonnet v2 (Bedrock)
+  model: anthropic.claude-3-5-sonnet-20241022-v2:0
+  description: Balanced model with strong performance across reasoning, math, and coding
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.7 Sonnet (Bedrock)
+  model: anthropic.claude-3-7-sonnet-20250219-v1:0
+  description: Enhanced Sonnet model with improved capabilities
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Llama 3.3 70B Instruct
+  model: meta.llama3-3-70b-instruct-v1:0
+  description: Large language model optimized for instruction following and chat
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Cohere Embed Multilingual v3
+  model: cohere.embed-multilingual-v3
+  description: Multilingual text embedding model for semantic search and similarity
+  providers: [bedrock]
+  roles: [embed]
+  thinking: false
+
+- name: Cohere Rerank 3.5
+  model: cohere.rerank-v3-5:0
+  description: Advanced reranking model for improving search result relevance
+  providers: [bedrock]
+  roles: [rerank]
+  thinking: false
+
+# Ollama Models
+
+- name: Llama 3.1 8B
+  model: llama3.1:8b
+  description: Meta's efficient 8B parameter model with excellent chat and coding capabilities
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Llama 3.1 70B
+  model: llama3.1:70b
+  description: Large-scale Meta model with superior reasoning and complex task performance
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Llama 3.3 70B
+  model: llama3.3:70b
+  description: Latest Llama model with enhanced capabilities and performance improvements
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Mistral 7B
+  model: mistral:7b
+  description: Efficient 7B parameter model with strong performance for general tasks
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Mixtral 8x7B
+  model: mixtral:8x7b
+  description: Mixture of experts model with 8x7B parameters for enhanced performance
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Mixtral 8x22B
+  model: mixtral:8x22b
+  description: Large mixture of experts model with superior reasoning capabilities
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemma 2 9B
+  model: gemma2:9b
+  description: Google's efficient 9B parameter model optimized for performance and safety
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemma 2 27B
+  model: gemma2:27b
+  description: Larger Gemma model with enhanced capabilities for complex tasks
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Qwen 2.5 7B
+  model: qwen2.5:7b
+  description: Alibaba's multilingual model with strong performance across diverse tasks
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Qwen 2.5 14B
+  model: qwen2.5:14b
+  description: Mid-size Qwen model balancing performance and efficiency
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Qwen 2.5 32B
+  model: qwen2.5:32b
+  description: Large Qwen model with excellent reasoning and multilingual capabilities
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Qwen 2.5 72B
+  model: qwen2.5:72b
+  description: Flagship Qwen model with top-tier performance for complex reasoning tasks
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: DeepSeek R1 8B
+  model: deepseek-r1:8b
+  description: Efficient reasoning model with strong analytical capabilities
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: true
+
+- name: DeepSeek R1 32B
+  model: deepseek-r1:32b
+  description: Advanced reasoning model with enhanced problem-solving abilities
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: true
+
+- name: DeepSeek R1 70B
+  model: deepseek-r1:70b
+  description: Flagship reasoning model with superior analytical and thinking capabilities
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: true
+
+- name: CodeLlama 34B
+  model: codellama:34b
+  description: Meta's specialized code generation model with strong programming capabilities
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: DeepSeek Coder 33B
+  model: deepseek-coder:33b
+  description: Specialized coding model with excellent programming and software development skills
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Qwen 2.5 Coder 7B
+  model: qwen2.5-coder:7b
+  description: Code-optimized version of Qwen 2.5 for programming tasks
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Phi-4 14B
+  model: phi4:14b
+  description: Microsoft's compact yet capable model optimized for reasoning tasks
+  providers: [ollama]
+  roles: [chat, edit]
+  thinking: false
+
+- name: TinyLlama 1.1B
+  model: tinyllama:1.1b
+  description: Ultra-lightweight model for resource-constrained environments
+  providers: [ollama]
+  roles: [chat]
+  thinking: false
+

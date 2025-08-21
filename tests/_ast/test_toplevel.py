@@ -584,8 +584,8 @@ class TestTopLevelHook:
                 return Example()
 
         extraction = TopLevelExtraction.from_graph(
-            f._cell,
             InternalApp(app).graph,
+            cell=f._cell,
         )
         assert [
             TopLevelType.TOPLEVEL,

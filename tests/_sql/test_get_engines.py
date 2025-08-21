@@ -114,6 +114,17 @@ def test_get_engines_from_variables_duckdb():
     assert isinstance(engine, DuckDBEngine)
 
 
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+def test_get_engines_from_variables_import_module_type():
+    import duckdb
+
+    variables: list[tuple[str, object]] = [("duckdb", duckdb)]
+
+    # DuckDB import should not trigger a DuckDBEngine registration
+    engines = get_engines_from_variables(variables)
+    assert len(engines) == 0
+
+
 @pytest.mark.skipif(not HAS_CLICKHOUSE, reason="Clickhouse not installed")
 def test_get_engines_from_variables_clickhouse():
     import chdb
@@ -368,7 +379,17 @@ def test_get_engines_ibis_databases() -> None:
             name="memory",
             dialect="duckdb",
             schemas=[Schema(name="main", tables=[])],
-        )
+        ),
+        Database(
+            name="system",
+            dialect="duckdb",
+            schemas=[Schema(name="main", tables=[])],
+        ),
+        Database(
+            name="temp",
+            dialect="duckdb",
+            schemas=[Schema(name="main", tables=[])],
+        ),
     ]
 
 

@@ -56,7 +56,7 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
         click.echo(self.ctx.get_help(), file=file, color=color)
 
 
-def check_app_correctness(filename: str) -> None:
+def check_app_correctness(filename: str, noninteractive: bool = True) -> None:
     try:
         status = get_notebook_status(filename)
     except SyntaxError:
@@ -85,7 +85,8 @@ def check_app_correctness(filename: str) -> None:
         ) from None
 
     # Only show the tip if we're in an interactive terminal
-    if status == "invalid" and sys.stdin.isatty():
+    interactive = sys.stdin.isatty() and not noninteractive
+    if status == "invalid" and interactive:
         click.echo(
             green("tip")
             + ": Use `"
@@ -107,6 +108,26 @@ def check_app_correctness(filename: str) -> None:
         _loggers.marimo_logger().warning(
             "This notebook has errors, saving may lose data. Continuing anyway."
         )
+
+
+def check_app_correctness_or_convert(filename: str) -> None:
+    from marimo._convert.converters import MarimoConvert
+
+    file = Path(filename)
+    code = file.read_text(encoding="utf-8")
+    try:
+        return check_app_correctness(filename, noninteractive=True)
+    except click.ClickException:
+        # A click exception is raised if a python script could not be converted
+        code = MarimoConvert.from_non_marimo_python_script(
+            source=code, aggressive=True
+        ).to_py()
+    except SyntaxError:
+        # The file could not even be read as python
+        code = MarimoConvert.from_plain_text(source=code).to_py()
+        file.write_text(code, encoding="utf-8")
+
+    file.write_text(code, encoding="utf-8")
 
 
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
@@ -197,12 +218,16 @@ token_password_message = (
 )
 
 sandbox_message = (
-    "Run the command in an isolated virtual environment using "
-    "`uv run --isolated`. Requires `uv`."
+    "Run the notebook in an isolated environment, with dependencies tracked "
+    "via PEP 723 inline metadata. If already declared, dependencies will "
+    "install automatically. Requires uv."
 )
 
 
-@click.group(help=main_help_msg)
+@click.group(
+    help=main_help_msg,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 @click.version_option(version=__version__, message="%(version)s")
 @click.option(
     "-l",
@@ -374,6 +399,19 @@ edit_help_msg = "\n".join(
     type=bool,
     help=sandbox_message,
 )
+@click.option(
+    "--dangerous-sandbox/--no-dangerous-sandbox",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    hidden=True,
+    help="""Enables the usage of package sandboxing when running a multi-edit
+notebook server. This behavior can lead to surprising and unintended consequences,
+such as incorrectly overwriting package requirements or failing to write out
+requirements. These and other issues are described in
+https://github.com/marimo-team/marimo/issues/5219.""",
+)
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
     "--watch",
@@ -398,6 +436,14 @@ edit_help_msg = "\n".join(
     hidden=True,
     help="Remote URL for runtime configuration.",
 )
+@click.option(
+    "--convert",
+    is_flag=True,
+    default=False,
+    type=bool,
+    hidden=True,
+    help="When opening a .py file, enable fallback conversion from pypercent, script, or text.",
+)
 @click.argument(
     "name",
     required=False,
@@ -415,10 +461,12 @@ def edit(
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
     sandbox: Optional[bool],
+    dangerous_sandbox: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
     skew_protection: bool,
     remote_url: Optional[str],
+    convert: bool,
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
@@ -443,13 +491,45 @@ def edit(
         )
         return
 
-    # Set default, if not provided
+    # Dangerous sandbox can be forced on by setting an environment variable;
+    # this allows our VS Code extension to force sandbox regardless of the
+    # marimo version.
+    if sandbox and os.getenv("MARIMO_DANGEROUS_SANDBOX"):
+        dangerous_sandbox = True
+
+    if dangerous_sandbox and (name is None or os.path.isdir(name)):
+        sandbox = True
+        click.echo(
+            click.style(
+                "Warning: Using sandbox with multi-notebook edit servers is dangerous.\n",
+                fg="yellow",
+            )
+            + "Notebook dependencies may not be respected, may not be written, and may be overwritten.\n"
+            + "Learn more: https://github.com/marimo-team/marimo/issues/5219l.\n",
+            err=True,
+        )
+
     if sandbox is None:
+        # When the sandbox flag is omitted we infer whether to
+        # to start in sandbox mode by examining the notebook file and
+        # prompting the user.
         from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
 
         sandbox = maybe_prompt_run_in_sandbox(name)
+    elif (
+        sandbox
+        and not dangerous_sandbox
+        and (name is None or os.path.isdir(name))
+    ):
+        raise click.UsageError(
+            """marimo's package sandbox requires a notebook name:
 
-    if sandbox:
+    * marimo edit --sandbox my_notebook.py
+
+  Multi-notebook sandboxed servers (marimo edit --sandbox) are not supported.
+  Follow this issue at: https://github.com/marimo-team/marimo/issues/2598."""
+        )
+    elif sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
         # TODO: consider adding recommended as well
@@ -474,7 +554,10 @@ def edit(
         if os.path.exists(name) and not is_dir:
             # module correctness check - don't start the server
             # if we can't import the module
-            check_app_correctness(name)
+            if convert:
+                check_app_correctness_or_convert(name)
+            else:
+                check_app_correctness(name)
         elif not is_dir:
             # write empty file
             try:

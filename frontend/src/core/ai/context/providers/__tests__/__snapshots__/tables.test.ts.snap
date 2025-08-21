@@ -1,0 +1,291 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`TableContextProvider > formatContext > should format context for basic table > basic-table-context 1`] = `
+"Table: products
+Source: memory
+Shape: 100 rows, 3 columns
+Columns:
+  - id: integer
+  - name: string
+  - active: boolean"
+`;
+
+exports[`TableContextProvider > formatContext > should format context for remote database table > remote-table-context 1`] = `
+"Table: remote_table
+Source: postgresql://localhost:5432/mydb
+Shape: 100 rows, 3 columns
+Columns:
+  - uuid: string
+  - created_at: string
+  - metadata: string"
+`;
+
+exports[`TableContextProvider > formatContext > should format context for table without columns > no-columns-table-context 1`] = `
+"Table: no_columns
+Source: memory
+Shape: 100 rows, 3 columns"
+`;
+
+exports[`TableContextProvider > formatContext > should format context for table without shape info > no-shape-table-context 1`] = `
+"Table: no_shape
+Source: memory
+Columns:
+  - id: integer
+  - name: string
+  - active: boolean"
+`;
+
+exports[`TableContextProvider > getItems > should handle dataframe tables with variable names > dataframe-table 1`] = `
+[
+  {
+    "data": {
+      "columns": [
+        {
+          "external_type": "datetime64[ns]",
+          "name": "timestamp",
+          "sample_values": [
+            "sample_timestamp_1",
+            "sample_timestamp_2",
+          ],
+          "type": "string",
+        },
+        {
+          "external_type": "float64",
+          "name": "value",
+          "sample_values": [
+            "sample_value_1",
+            "sample_value_2",
+          ],
+          "type": "number",
+        },
+        {
+          "external_type": "object",
+          "name": "category",
+          "sample_values": [
+            "sample_category_1",
+            "sample_category_2",
+          ],
+          "type": "string",
+        },
+      ],
+      "engine": null,
+      "indexes": null,
+      "name": "df_analysis",
+      "num_columns": 3,
+      "num_rows": 100,
+      "primary_keys": [
+        "id",
+      ],
+      "source": "pandas",
+      "source_type": "local",
+      "type": "table",
+      "variable_name": "df_analysis",
+    },
+    "description": "pandas",
+    "name": "df_analysis",
+    "type": "data",
+    "uri": "data://df_analysis",
+  },
+]
+`;
+
+exports[`TableContextProvider > getItems > should handle tables with minimal information > minimal-table 1`] = `
+[
+  {
+    "data": {
+      "columns": [],
+      "engine": null,
+      "indexes": null,
+      "name": "minimal",
+      "num_columns": null,
+      "num_rows": null,
+      "primary_keys": null,
+      "source": "",
+      "source_type": "local",
+      "type": "table",
+      "variable_name": null,
+    },
+    "description": "",
+    "name": "minimal",
+    "type": "data",
+    "uri": "data://minimal",
+  },
+]
+`;
+
+exports[`TableContextProvider > getItems > should return empty array when no tables > empty-tables 1`] = `[]`;
+
+exports[`TableContextProvider > getItems > should return table items for multiple tables > multiple-tables 1`] = `
+[
+  {
+    "data": {
+      "columns": [
+        {
+          "external_type": "int64",
+          "name": "id",
+          "sample_values": [
+            "sample_id_1",
+            "sample_id_2",
+          ],
+          "type": "integer",
+        },
+        {
+          "external_type": "varchar",
+          "name": "name",
+          "sample_values": [
+            "sample_name_1",
+            "sample_name_2",
+          ],
+          "type": "string",
+        },
+        {
+          "external_type": "bool",
+          "name": "active",
+          "sample_values": [
+            "sample_active_1",
+            "sample_active_2",
+          ],
+          "type": "boolean",
+        },
+      ],
+      "engine": null,
+      "indexes": null,
+      "name": "users",
+      "num_columns": 3,
+      "num_rows": 100,
+      "primary_keys": [
+        "id",
+      ],
+      "source": "memory",
+      "source_type": "local",
+      "type": "table",
+      "variable_name": null,
+    },
+    "description": "in-memory",
+    "name": "users",
+    "type": "data",
+    "uri": "data://users",
+  },
+  {
+    "data": {
+      "columns": [
+        {
+          "external_type": "integer",
+          "name": "order_id",
+          "sample_values": [
+            "sample_order_id_1",
+            "sample_order_id_2",
+          ],
+          "type": "integer",
+        },
+        {
+          "external_type": "integer",
+          "name": "user_id",
+          "sample_values": [
+            "sample_user_id_1",
+            "sample_user_id_2",
+          ],
+          "type": "integer",
+        },
+        {
+          "external_type": "decimal",
+          "name": "amount",
+          "sample_values": [
+            "sample_amount_1",
+            "sample_amount_2",
+          ],
+          "type": "number",
+        },
+        {
+          "external_type": "timestamp",
+          "name": "created_at",
+          "sample_values": [
+            "sample_created_at_1",
+            "sample_created_at_2",
+          ],
+          "type": "string",
+        },
+        {
+          "external_type": "enum",
+          "name": "status",
+          "sample_values": [
+            "sample_status_1",
+            "sample_status_2",
+          ],
+          "type": "string",
+        },
+      ],
+      "engine": null,
+      "indexes": null,
+      "name": "orders",
+      "num_columns": 5,
+      "num_rows": 250,
+      "primary_keys": [
+        "id",
+      ],
+      "source": "database.db",
+      "source_type": "duckdb",
+      "type": "view",
+      "variable_name": null,
+    },
+    "description": "database.db",
+    "name": "orders",
+    "type": "data",
+    "uri": "data://orders",
+  },
+]
+`;
+
+exports[`TableContextProvider > getItems > should return table items for single table > single-table 1`] = `
+[
+  {
+    "data": {
+      "columns": [
+        {
+          "external_type": "int64",
+          "name": "id",
+          "sample_values": [
+            "sample_id_1",
+            "sample_id_2",
+          ],
+          "type": "integer",
+        },
+        {
+          "external_type": "varchar",
+          "name": "name",
+          "sample_values": [
+            "sample_name_1",
+            "sample_name_2",
+          ],
+          "type": "string",
+        },
+        {
+          "external_type": "bool",
+          "name": "active",
+          "sample_values": [
+            "sample_active_1",
+            "sample_active_2",
+          ],
+          "type": "boolean",
+        },
+      ],
+      "engine": null,
+      "indexes": null,
+      "name": "users",
+      "num_columns": 3,
+      "num_rows": 100,
+      "primary_keys": [
+        "id",
+      ],
+      "source": "memory",
+      "source_type": "local",
+      "type": "table",
+      "variable_name": null,
+    },
+    "description": "in-memory",
+    "name": "users",
+    "type": "data",
+    "uri": "data://users",
+  },
+]
+`;

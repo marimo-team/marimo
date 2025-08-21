@@ -1,15 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { atom, useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect } from "react";
+import { useAtomValue, useStore } from "jotai";
+import { useMemo } from "react";
 import {
   useDeleteCellCallback,
   useDeleteManyCellsCallback,
 } from "@/components/editor/cell/useDeleteCell";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import type { JotaiStore } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
+import { createReducerAndAtoms } from "@/utils/createReducer";
 
 type PendingDeleteEntry =
   | {
@@ -23,15 +25,30 @@ type PendingDeleteEntry =
       defs: Map<VariableName, readonly CellId[]>;
     };
 
-const pendingDeleteStateAtom = atom<Map<CellId, PendingDeleteEntry>>(new Map());
+interface PendingDeleteState {
+  entries: Map<CellId, PendingDeleteEntry>;
+}
 
-export function usePendingDeleteService() {
-  const [state, setState] = useAtom(pendingDeleteStateAtom);
-  const notebook = useAtomValue(notebookAtom);
-  const variables = useAtomValue(variablesAtom);
+const initialState = (): PendingDeleteState => ({
+  entries: new Map(),
+});
 
-  const submit = useCallback(
-    (cellIds: CellId[]) => {
+const { valueAtom: pendingDeleteStateAtom, useActions } = createReducerAndAtoms(
+  initialState,
+  {
+    submit: (
+      state,
+      action: {
+        cellIds: CellId[];
+        deleteCell: (args: { cellId: CellId }) => void;
+        deleteManyCells: (args: { cellIds: CellId[] }) => void;
+        store: JotaiStore;
+      },
+    ) => {
+      const { cellIds, deleteCell, deleteManyCells, store } = action;
+      const notebook = store.get(notebookAtom);
+      const variables = store.get(variablesAtom);
+
       const emptyCells = new Set(
         notebook.cellIds.inOrderIds.filter(
           (id) => notebook.cellData[id].code.trim() === "",
@@ -80,53 +97,68 @@ export function usePendingDeleteService() {
         }
       }
 
-      setState(entries);
+      // Auto-delete if all are "simple" cells
+      const allSimple = [...entries.values()].every(
+        (entry) => entry.type === "simple",
+      );
+      if (entries.size > 0 && allSimple) {
+        // Perform the deletion immediately
+        if (entries.size === 1) {
+          deleteCell({ cellId: [...entries.values()][0].cellId });
+        } else {
+          deleteManyCells({
+            cellIds: [...entries.values()].map((e) => e.cellId),
+          });
+        }
+        // Return empty state since we auto-deleted
+        return initialState();
+      }
+
+      return {
+        ...state,
+        entries,
+      };
     },
-    [notebook, variables, setState],
+
+    clear: () => initialState(),
+  },
+);
+
+export function usePendingDeleteService() {
+  const store = useStore();
+  const { submit, clear } = useActions();
+  const { entries } = useAtomValue(pendingDeleteStateAtom);
+  const deleteCell = useDeleteCellCallback();
+  const deleteManyCells = useDeleteManyCellsCallback();
+  return useMemo(
+    () => ({
+      submit: (cellIds: CellId[]) => {
+        submit({ cellIds, deleteCell, deleteManyCells, store });
+      },
+      clear,
+      get idle() {
+        return entries.size === 0;
+      },
+      get shouldConfirmDelete() {
+        return entries.size > 1;
+      },
+    }),
+    [store, submit, clear, entries, deleteCell, deleteManyCells],
   );
-
-  const clear = useCallback(() => {
-    setState(new Map());
-  }, [setState]);
-
-  return {
-    idle: state.size === 0,
-    shouldConfirmDelete: state.size > 1,
-    submit,
-    clear,
-  };
 }
 
 export function usePendingDelete(cellId: CellId) {
-  const [state, setState] = useAtom(pendingDeleteStateAtom);
-  const deleteCell = useDeleteCellCallback();
+  const state = useAtomValue(pendingDeleteStateAtom);
+  const actions = useActions();
   const deleteManyCells = useDeleteManyCellsCallback();
 
-  const entry = state.get(cellId);
-
-  // Auto-delete if all are "simple" cells
-  useEffect(() => {
-    if (state.size === 0) {
-      return;
-    }
-    const entries = [...state.values()];
-    if (entries.every((entry) => entry.type === "simple")) {
-      setState(() => {
-        if (state.size === 1) {
-          deleteCell({ cellId: entries[0].cellId });
-        } else {
-          deleteManyCells({ cellIds: entries.map((e) => e.cellId) });
-        }
-        return new Map();
-      });
-    }
-  }, [state, deleteCell, deleteManyCells, setState]);
+  const entry = state.entries.get(cellId);
 
   if (!entry) {
     return { isPending: false as const };
   }
 
-  const canConfirmDelete = state.size === 1;
+  const canConfirmDelete = state.entries.size === 1;
 
   if (!canConfirmDelete) {
     return {
@@ -142,10 +174,10 @@ export function usePendingDelete(cellId: CellId) {
     shouldConfirmDelete: true as const,
     confirm: () => {
       deleteManyCells({
-        cellIds: [...state.values()].map((e) => e.cellId),
+        cellIds: [...state.entries.values()].map((e) => e.cellId),
       });
-      setState(new Map());
+      actions.clear();
     },
-    cancel: () => setState(new Map()),
+    cancel: () => actions.clear(),
   };
 }

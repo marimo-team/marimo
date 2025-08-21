@@ -30,7 +30,7 @@ export const DatePopover: React.FC<DatePopoverProps> = ({
             ([timezone, formattedDate]) => (
               <div
                 key={timezone}
-                className="grid grid-cols-[fit-content(40px),1fr] gap-4 items-center justify-items-end"
+                className="grid grid-cols-[fit-content(40px)_1fr] gap-4 items-center justify-items-end"
               >
                 <span className="bg-muted rounded-md py-1 px-2 w-fit ml-auto">
                   {timezone}

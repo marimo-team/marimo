@@ -24,7 +24,7 @@ export const FloatingAlert: React.FC<FloatingAlertProps> = ({
   }
 
   const body = (
-    <div className="flex flex-col gap-4 mb-5 fixed top-5 left-1/2 transform -translate-x-1/2 z-[200] opacity-95">
+    <div className="flex flex-col gap-4 mb-5 fixed top-5 left-1/2 transform -translate-x-1/2 z-200 opacity-95">
       <Banner
         kind={kind}
         className="flex flex-col rounded py-2 px-4 animate-in slide-in-from-top w-fit"

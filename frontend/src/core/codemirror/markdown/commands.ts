@@ -8,7 +8,7 @@ import {
 } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { toast } from "@/components/ui/use-toast";
-import { sendCreateFileOrFolder } from "@/core/network/requests";
+import { getRequestClient } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { type FilePath, Paths } from "@/utils/paths";
@@ -332,7 +332,7 @@ export async function insertImage(view: EditorView, file: File) {
           ? `${notebookDir}/public`
           : "public";
 
-        const createFileRes = await sendCreateFileOrFolder({
+        const createFileRes = await getRequestClient().sendCreateFileOrFolder({
           path: publicFolderPath as FilePath,
           type: "file",
           name: inputFilename,

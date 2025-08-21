@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import dataclasses
 import os
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -13,6 +14,7 @@ from marimo._runtime.requests import (
     RenameRequest,
 )
 from marimo._types.ids import CellId_t, UIElementId
+from marimo._utils.case import deep_to_camel_case
 
 
 @dataclass
@@ -40,6 +42,9 @@ class InstantiateRequest(UpdateComponentValuesRequest):
 @dataclass
 class BaseResponse:
     success: bool
+
+    def as_camel_case(self) -> dict[str, Any]:
+        return deep_to_camel_case(dataclasses.asdict(self))
 
 
 @dataclass

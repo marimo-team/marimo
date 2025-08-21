@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import gc
 from typing import Any
 
 from marimo._runtime.context import get_context
@@ -12,7 +11,6 @@ from tests.conftest import ExecReqProvider
 
 
 def get_only_function() -> Function[Any, Any]:
-    gc.collect()
     context: RuntimeContext = get_context()
     assert len(context.function_registry.namespaces.values()) == 1
     first_namespace = next(iter(context.function_registry.namespaces.values()))
