@@ -45,7 +45,7 @@ function setFeatureFlag(
   userConfig.experimental = userConfig.experimental ?? {};
   // Note experimental set by attributes, effectively
   // userConfig.experimental[feature] = value;
-  Object.assign(userConfig.experimental, {[feature]: value});
+  Object.assign(userConfig.experimental, { [feature]: value });
 
   getRequestClient().saveUserConfig({ config: userConfig });
 }
