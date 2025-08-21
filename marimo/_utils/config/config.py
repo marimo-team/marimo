@@ -5,7 +5,7 @@ import os
 from dataclasses import asdict
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
 from marimo._utils.parse_dataclass import parse_raw
 from marimo._utils.toml import is_toml_error, read_toml
@@ -26,14 +26,14 @@ class ConfigReader:
         self.filepath = filepath
 
     @staticmethod
-    def for_filename(filename: str) -> Optional[ConfigReader]:
+    def for_filename(filename: str) -> ConfigReader:
         home_directory = ConfigReader._get_home_directory()
         filepath = home_directory / ROOT_DIR / filename
         return ConfigReader(filepath)
 
     def read_toml(self, cls: type[T], *, fallback: T) -> T:
         try:
-            data = read_toml(str(self.filepath))
+            data = read_toml(self.filepath)
             return parse_raw(data, cls, allow_unknown_keys=True)
         except Exception as e:
             if is_toml_error(e) or isinstance(e, FileNotFoundError):

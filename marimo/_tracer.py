@@ -125,11 +125,6 @@ def _set_tracer_provider() -> None:
 
     # Create a directory for logs if it doesn't exist
     config_ready = ConfigReader.for_filename(TRACE_FILENAME)
-    if config_ready is None:
-        raise FileNotFoundError(
-            f"Could not local config file {TRACE_FILENAME}"
-        )
-
     filepath = config_ready.filepath
     filepath.parent.mkdir(parents=True, exist_ok=True)
 
