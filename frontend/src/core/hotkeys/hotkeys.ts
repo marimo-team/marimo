@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { isPlatformMac } from "@/core/hotkeys/shortcuts";
+import { isPlatformMac, isPlatformWindows } from "@/core/hotkeys/shortcuts";
 import { Objects } from "@/utils/objects";
 
 export const NOT_SET: unique symbol = Symbol("NOT_SET");
 
-interface Hotkey {
+export interface Hotkey {
   name: string;
   /**
    * Grouping for the command palette and keyboard shortcuts page.
@@ -34,6 +34,7 @@ interface ResolvedHotkey {
   key: string;
 }
 
+type ModKey = "Cmd" | "Ctrl";
 type Platform = "mac" | "windows" | "linux";
 
 export type HotkeyGroup =
@@ -432,21 +433,17 @@ export interface IHotkeyProvider {
 }
 
 export class HotkeyProvider implements IHotkeyProvider {
-  private mod: string;
-  private platform: Platform;
+  private mod: ModKey;
 
-  static create(isMac?: boolean): HotkeyProvider {
-    return new HotkeyProvider(DEFAULT_HOT_KEY, isMac);
+  static create(platform?: Platform): HotkeyProvider {
+    return new HotkeyProvider(DEFAULT_HOT_KEY, platform);
   }
 
   constructor(
     private hotkeys: Record<HotkeyAction, Hotkey>,
-    isMac?: boolean,
+    private platform: Platform = resolvePlatform(),
   ) {
-    isMac = isMac ?? isPlatformMac();
-
-    this.mod = isMac ? "Cmd" : "Ctrl";
-    this.platform = isMac ? "mac" : "windows";
+    this.mod = platform === "mac" ? "Cmd" : "Ctrl";
   }
 
   iterate(): HotkeyAction[] {
@@ -508,4 +505,14 @@ export class OverridingHotkeyProvider extends HotkeyProvider {
       key,
     };
   }
+}
+
+function resolvePlatform(): Platform {
+  if (isPlatformMac()) {
+    return "mac";
+  }
+  if (isPlatformWindows()) {
+    return "windows";
+  }
+  return "linux";
 }
