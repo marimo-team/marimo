@@ -33,6 +33,9 @@ class Tool:
     source: ToolSource
     mode: list[CopilotMode]  # tools can be available in multiple modes
 
+    def __str__(self) -> str:
+        return f"Tool(name={self.name}, description={self.description})"
+
 
 @dataclass
 class ToolResult:
@@ -57,7 +60,7 @@ class ToolManager:
             current_path=None
         ).get_config()
         self._enable_mcp_tools = self._config.get("experimental", {}).get(
-            "mcp_tools", False
+            "mcp_docs", False
         )
 
         # Don't register tools in __init__ to avoid circular imports
