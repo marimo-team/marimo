@@ -476,7 +476,6 @@ class SharingConfig(TypedDict):
     wasm: NotRequired[bool]
 
 
-@mddoc
 @dataclass
 class StoreConfig(TypedDict, total=False):
     type: StoreKey
