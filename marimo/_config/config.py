@@ -479,10 +479,14 @@ class SharingConfig(TypedDict):
     wasm: NotRequired[bool]
 
 
-@dataclass
 class StoreConfig(TypedDict, total=False):
     type: StoreKey
     args: dict[str, Any]
+
+    # Cannot be a @dataclass with loose typing
+    def __init__(self, store_type: StoreKey, args: dict[str, Any]):
+        super().__init__(**args)
+        self.type = store_type
 
 
 CacheConfig = Union[list[StoreConfig], StoreConfig]

@@ -3231,6 +3231,8 @@ export interface components {
               type?: "file" | "redis" | "rest" | "tiered";
             }[]
           | components["schemas"]["StoreConfig"];
+        /** @enum {string} */
+        execution_type?: "relaxed" | "strict";
         inline_ai_tooltip?: boolean;
         markdown?: boolean;
         mcp_docs?: boolean;

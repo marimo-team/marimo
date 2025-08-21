@@ -31,20 +31,23 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 def get_store(current_path: Optional[str] = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
-    cache_config: CacheConfig = (
+    cache_config: Optional[CacheConfig] = (
         get_default_config_manager(current_path=current_path)
         .get_config()
         .get("experimental", {})
-        .get("cache", {})
+        .get("cache", None)
     )
 
     return _get_store_from_config(cache_config)
 
 
 def _get_store_from_config(
-    config: CacheConfig,
+    config: Optional[CacheConfig],
     registry: EntryPointRegistry[StoreType] = _STORE_REGISTRY,
 ) -> Store:
+    if config is None:
+        return DEFAULT_STORE()
+
     cache_stores = copy.copy(cast(dict[str, StoreType], CACHE_STORES))
     cache_stores.update(
         {name: registry.get(name) for name in registry.names()}

@@ -1641,6 +1641,11 @@ components:
                   type: object
                 type: array
               - $ref: '#/components/schemas/StoreConfig'
+            execution_type:
+              enum:
+              - relaxed
+              - strict
+              type: string
             inline_ai_tooltip:
               type: boolean
             markdown:
