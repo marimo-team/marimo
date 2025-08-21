@@ -33,7 +33,7 @@ def _mock_file_exists(
             return False
         return isfile(check_path)
 
-    def mock_path_is_file(self) -> bool:
+    def mock_path_is_file(self: Path) -> bool:
         return mock_exists(str(self))
 
     with (
