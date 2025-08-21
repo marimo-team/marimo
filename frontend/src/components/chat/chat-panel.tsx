@@ -31,9 +31,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { addMessageToChat } from "@/core/ai/chat-utils";
 import { useModelChange } from "@/core/ai/config";
@@ -253,12 +254,13 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       {
         value: "ask",
         label: "Ask",
-        subtitle: "Read-only tools",
+        subtitle:
+          "Use AI with access to read-only tools like documentation search",
       },
       {
         value: "manual",
         label: "Manual",
-        subtitle: "No tools",
+        subtitle: "Pure chat, no tool usage",
       },
     ];
 
@@ -267,24 +269,27 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
         <div className="flex items-center gap-2">
           <FeatureFlagged feature="mcp_docs">
             <Select value={currentMode} onValueChange={saveModeChange}>
-              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
-                <SelectValue placeholder="manual" />
+              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
+                {currentMode}
               </SelectTrigger>
               <SelectContent>
-                {modeOptions.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="text-xs"
-                    subtitle={
-                      <div className="text-muted-foreground text-xs pl-2">
-                        {option.subtitle}
+                <SelectGroup>
+                  <SelectLabel>AI Mode</SelectLabel>
+                  {modeOptions.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      className="text-xs"
+                    >
+                      <div className="flex flex-col">
+                        {option.label}
+                        <div className="text-muted-foreground text-xs pt-1 block">
+                          {option.subtitle}
+                        </div>
                       </div>
-                    }
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </FeatureFlagged>

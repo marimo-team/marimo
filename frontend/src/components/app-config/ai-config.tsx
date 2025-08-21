@@ -573,7 +573,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             form={form}
             config={config}
             name="ai.github.api_key"
-            placeholder="ghp_..."
+            placeholder="gho_..."
             testId="ai-github-api-key-input"
             description={
               <>
