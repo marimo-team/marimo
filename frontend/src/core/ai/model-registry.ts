@@ -69,16 +69,14 @@ export class AiModelRegistry {
     const hasDisplayedModels = displayedModels.size > 0;
     const modelsMap = new Map<QualifiedModelId, AiModel>();
 
-    // Start with custom models as they are specified by the user, so we want to surface them first
+    // As custom models are defined by the user, we want to surface them first
     for (const model of this.customModels) {
-      // Skip models that are not included in displayed list
       if (hasDisplayedModels && !displayedModels.has(model)) {
         continue;
       }
-
       const modelId = AiModelId.parse(model);
       const modelInfo: AiModel = {
-        name: modelId.id,
+        name: modelId.shortModelId,
         model: modelId.shortModelId,
         description: "Custom model",
         providers: [modelId.providerId],
@@ -89,7 +87,8 @@ export class AiModelRegistry {
       modelsMap.set(model, modelInfo);
     }
 
-    // Process models from the default list
+    // Add known models, this will override custom models which is fine
+    // Since we have richer information
     for (const model of models) {
       const modelId = model.model as ShortModelId;
       const modelInfo: AiModel = {
@@ -99,16 +98,10 @@ export class AiModelRegistry {
         custom: false,
       };
 
-      // Model can have multiple providers
       for (const provider of modelInfo.providers) {
         const qualifiedModelId: QualifiedModelId = `${provider}/${modelId}`;
 
         if (hasDisplayedModels && !displayedModels.has(qualifiedModelId)) {
-          continue;
-        }
-
-        // Skip if already added (e.g., by a custom model)
-        if (modelsMap.has(qualifiedModelId)) {
           continue;
         }
 

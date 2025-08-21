@@ -8,6 +8,7 @@ import {
   ChevronDownIcon,
   CircleHelpIcon,
 } from "lucide-react";
+import React from "react";
 import {
   AiModelId,
   isKnownAIProvider,
@@ -52,6 +53,7 @@ export const AIModelDropdown = ({
   forRole,
 }: AIModelDropdownProps) => {
   const currentValue = value ? AiModelId.parse(value) : undefined;
+  const [isOpen, setIsOpen] = React.useState(false);
 
   const [marimoConfig] = useResolvedMarimoConfig();
   const configModels = marimoConfig.ai?.models;
@@ -114,8 +116,13 @@ export const AIModelDropdown = ({
     );
   };
 
+  const handleSelect = (modelId: QualifiedModelId) => {
+    onSelect(modelId);
+    setIsOpen(false);
+  };
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger
         className={`flex items-center justify-between px-2 py-0.5 border rounded-md
             hover:bg-accent hover:text-accent-foreground ${triggerClassName}`}
@@ -152,7 +159,7 @@ export const AIModelDropdown = ({
           <ProviderDropdownContent
             key={provider}
             provider={provider}
-            onSelect={onSelect}
+            onSelect={handleSelect}
             models={models}
             iconSizeClass={iconSizeClass}
           />
