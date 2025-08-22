@@ -30,7 +30,7 @@ from marimo._ai._convert import (
     convert_to_openai_messages,
     convert_to_openai_tools,
 )
-from marimo._ai._types import ChatMessage
+from marimo._ai._types import ChatMessage, TextPart
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
@@ -417,7 +417,14 @@ class OpenAIProvider(
                 Any,
                 convert_to_openai_messages(
                     self._maybe_convert_roles(
-                        [ChatMessage(role="system", content=system_prompt)]
+                        [
+                            ChatMessage(
+                                role="system",
+                                parts=[
+                                    TextPart(type="text", text=system_prompt)
+                                ],
+                            )
+                        ]
                     )
                     + messages
                 ),
@@ -502,7 +509,7 @@ class OpenAIProvider(
 
             def update_role(message: ChatMessage) -> ChatMessage:
                 if message.role == "system":
-                    return ChatMessage(role="user", content=message.content)
+                    return ChatMessage(role="user", parts=message.parts)
                 return message
 
             return [update_role(message) for message in messages]

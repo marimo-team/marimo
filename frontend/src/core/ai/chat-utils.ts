@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { Message as AIMessage } from "@ai-sdk/react";
+import type { UIMessage } from "@ai-sdk/react";
 import { Logger } from "@/utils/Logger";
 import type { ChatState } from "./state";
 
@@ -9,8 +9,7 @@ export const addMessageToChat = (
   chatId: string | null,
   messageId: string,
   role: "user" | "assistant",
-  content: string,
-  parts?: AIMessage["parts"],
+  parts: UIMessage["parts"],
 ): ChatState => {
   if (!chatId) {
     Logger.warn("No active chat");
@@ -42,8 +41,9 @@ export const addMessageToChat = (
         {
           id: messageId,
           role,
-          content,
-          timestamp: CURRENT_TIMESTAMP,
+          metadata: {
+            timestamp: CURRENT_TIMESTAMP,
+          },
           parts,
         },
       ],
@@ -54,7 +54,6 @@ export const addMessageToChat = (
     const newMessages = [...chat.messages];
     newMessages[messageIndex] = {
       ...newMessages[messageIndex],
-      content,
       parts,
     };
     newChats[activeChatIndex] = {

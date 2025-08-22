@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { Message } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import type { Message } from "ai/react";
 import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,

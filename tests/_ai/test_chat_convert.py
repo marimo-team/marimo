@@ -36,7 +36,7 @@ def sample_messages() -> list[ChatMessage]:
     return [
         ChatMessage(
             role="user",
-            content="Hello, I have a question.",
+            parts=[TextPart(type="text", text="Hello, I have a question.")],
             attachments=[
                 ChatAttachment(
                     name="image.png",
@@ -52,7 +52,12 @@ def sample_messages() -> list[ChatMessage]:
         ),
         ChatMessage(
             role="assistant",
-            content="Sure, I'd be happy to help. What's your question?",
+            parts=[
+                TextPart(
+                    type="text",
+                    text="Sure, I'd be happy to help. What's your question?",
+                )
+            ],
             attachments=[],
         ),
     ]

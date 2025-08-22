@@ -74,21 +74,16 @@ def convert_to_openai_messages(
     for message in messages:
         # Handle message without attachments
         if not message.attachments:
-            if not message.parts or len(message.parts) == 0:
-                openai_messages.append(
-                    {"role": message.role, "content": message.content}
-                )
-            else:
-                parts_messages = get_openai_messages_from_parts(
-                    message.role, message.parts
-                )
-                openai_messages.extend(parts_messages)
+            parts_messages = get_openai_messages_from_parts(
+                message.role, message.parts
+            )
+            openai_messages.extend(parts_messages)
             continue
 
         # Handle attachments
         parts: list[dict[Any, Any]] = []
-        if not message.parts or len(message.parts) == 0:
-            parts.append({"type": "text", "text": message.content})
+        if len(message.parts) == 0:
+            parts.append({"type": "text", "text": message.parts[0].text})
         else:
             parts.extend(
                 get_openai_messages_from_parts(message.role, message.parts)
@@ -194,25 +189,17 @@ def convert_to_anthropic_messages(
 
     for message in messages:
         if not message.attachments:
-            if not message.parts or len(message.parts) == 0:
-                anthropic_messages.append(
-                    {"role": message.role, "content": message.content}
-                )
-            else:
-                parts_messages = get_anthropic_messages_from_parts(
-                    message.role, message.parts
-                )
-                anthropic_messages.extend(parts_messages)
+            parts_messages = get_anthropic_messages_from_parts(
+                message.role, message.parts
+            )
+            anthropic_messages.extend(parts_messages)
             continue
 
         # Handle attachments
         parts: list[dict[Any, Any]] = []
-        if not message.parts or len(message.parts) == 0:
-            parts.append({"type": "text", "text": message.content})
-        else:
-            parts.extend(
-                get_anthropic_messages_from_parts(message.role, message.parts)
-            )
+        parts.extend(
+            get_anthropic_messages_from_parts(message.role, message.parts)
+        )
         for attachment in message.attachments:
             content_type = attachment.content_type or "text/plain"
             if content_type.startswith("image"):
@@ -250,7 +237,10 @@ def convert_to_groq_messages(
         # See here - https://console.groq.com/docs/deprecations
         if message.attachments:
             # Convert attachments to text if possible
-            text_content = str(message.content)  # Explicitly convert to string
+            text_parts = [
+                part for part in message.parts if isinstance(part, TextPart)
+            ]
+            text_content = text_parts[0].text if text_parts else ""
             for attachment in message.attachments:
                 content_type = attachment.content_type or "text/plain"
                 if content_type.startswith("text"):
@@ -260,12 +250,15 @@ def convert_to_groq_messages(
                 {"role": message.role, "content": text_content}
             )
         else:
+            # Get text from parts
+            text_parts = [
+                part for part in message.parts if isinstance(part, TextPart)
+            ]
+            text_content = text_parts[0].text if text_parts else ""
             groq_messages.append(
                 {
                     "role": message.role,
-                    "content": str(
-                        message.content
-                    ),  # Explicitly convert to string
+                    "content": text_content,
                 }
             )
 
@@ -330,37 +323,25 @@ def get_google_messages_from_parts(
 
 def convert_to_google_messages(
     messages: list[ChatMessage],
-) -> list[ContentUnionDict]:
-    google_messages: list[ContentUnionDict] = []
+) -> list[ContentDict]:
+    google_messages: list[ContentDict] = []
 
     for message in messages:
-        # Handle message without attachments
         if not message.attachments:
-            if not message.parts or len(message.parts) == 0:
-                google_messages.append(
-                    {
-                        "role": "user" if message.role == "user" else "model",
-                        "parts": [{"text": str(message.content)}],
-                    }
-                )
-            else:
-                parts_messages = get_google_messages_from_parts(
-                    message.role, message.parts
-                )
-                google_messages.extend(parts_messages)
+            parts_messages = get_google_messages_from_parts(
+                message.role, message.parts
+            )
+            google_messages.extend(parts_messages)
             continue
 
         # Handle attachments
         parts: list[PartDict] = []
-        if not message.parts or len(message.parts) == 0:
-            parts.append({"text": str(message.content)})
-        else:
-            # Convert internal parts to Google parts format
-            for parts_message in get_google_messages_from_parts(
-                message.role, message.parts
-            ):
-                if "parts" in parts_message:
-                    parts.extend(parts_message["parts"] or [])
+        # Convert internal parts to Google parts format
+        for parts_message in get_google_messages_from_parts(
+            message.role, message.parts
+        ):
+            if "parts" in parts_message:
+                parts.extend(parts_message["parts"] or [])
 
         for attachment in message.attachments:
             content_type = attachment.content_type or "text/plain"

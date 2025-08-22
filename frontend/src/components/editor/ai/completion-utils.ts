@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { UIMessage } from "@ai-sdk/react";
 import type {
   Completion,
   CompletionContext,
@@ -23,6 +24,48 @@ export function getAICompletionBody({
 }: {
   input: string;
 }): Omit<AiCompletionRequest, "language" | "prompt" | "code"> {
+  const { datasets, variables } = extractDatasetsAndVariables(input);
+  Logger.debug("Included datasets", datasets);
+  Logger.debug("Included variables", variables);
+
+  return {
+    includeOtherCode: getCodes(""),
+    context: {
+      schema: datasets.map((dataset) => ({
+        name: dataset.name,
+        columns: dataset.columns.map((column) => ({
+          name: column.name,
+          type: column.type,
+          sampleValues: column.sample_values,
+        })),
+      })),
+      variables: variables.map((variable) => ({
+        name: variable.name,
+        valueType: variable.dataType ?? "",
+        previewValue: variable.value,
+      })),
+    },
+  };
+}
+
+export function getNewAiCompletionBody(
+  message?: UIMessage,
+): Omit<AiCompletionRequest, "language" | "prompt" | "code"> {
+  if (!message) {
+    return {
+      includeOtherCode: getCodes(""),
+      context: {
+        schema: [],
+        variables: [],
+      },
+    };
+  }
+
+  const textParts = message.parts.filter((part) => part.type === "text");
+
+  // Take the last text part as the input
+  const input = textParts[-1].text;
+
   const { datasets, variables } = extractDatasetsAndVariables(input);
   Logger.debug("Included datasets", datasets);
   Logger.debug("Included variables", variables);

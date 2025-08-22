@@ -14,6 +14,7 @@ from marimo._ai._types import (
     ChatMessage,
     ChatModel,
     ChatModelConfig,
+    TextPart,
 )
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -39,7 +40,16 @@ class simple(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         del config
-        prompt = str(messages[-1].content)
+        # Get the text from the last message's parts
+        last_message = messages[-1]
+        text_parts = [
+            part for part in last_message.parts if isinstance(part, TextPart)
+        ]
+        if text_parts:
+            prompt = text_parts[0].text
+        else:
+            # Fallback: try to get any text content from parts
+            prompt = str(last_message.parts[0]) if last_message.parts else ""
         return self.delegate(prompt)
 
 

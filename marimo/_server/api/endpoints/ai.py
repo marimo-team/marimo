@@ -13,8 +13,9 @@ from starlette.responses import (
 )
 
 from marimo import _loggers
-from marimo._ai._types import ChatMessage
+from marimo._ai._types import ChatMessage, TextPart
 from marimo._config.config import AiConfig, MarimoConfig
+from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -121,7 +122,11 @@ async def ai_completion(
         model=model,
     )
     response = await provider.stream_completion(
-        messages=[ChatMessage(role="user", content=prompt)],
+        messages=[
+            ChatMessage(
+                role="user", parts=[TextPart(type="text", text=prompt)]
+            )
+        ],
         system_prompt=system_prompt,
         max_tokens=get_max_tokens(config),
     )
@@ -159,7 +164,9 @@ async def ai_chat(
     )
     ai_config = get_ai_config(config)
     custom_rules = ai_config.get("rules", None)
-    messages = body.messages
+
+    # Convert the incoming messages from AI SDK format to ChatMessage objects
+    messages = [from_chat_message_dict(msg) for msg in body.messages]
 
     # Get the system prompt
     system_prompt = get_chat_system_prompt(
@@ -220,7 +227,9 @@ async def ai_inline_completion(
     )
     # Use FIM (Fill-In-Middle) format for inline completion
     prompt = f"{FIM_PREFIX_TAG}{body.prefix}{FIM_SUFFIX_TAG}{body.suffix}{FIM_MIDDLE_TAG}"
-    messages = [ChatMessage(role="user", content=prompt)]
+    messages = [
+        ChatMessage(role="user", parts=[TextPart(type="text", text=prompt)])
+    ]
     system_prompt = get_inline_system_prompt(language=body.language)
 
     # This is currently not configurable and smaller than the default

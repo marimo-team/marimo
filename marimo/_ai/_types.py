@@ -46,11 +46,8 @@ class ToolInvocationPartDict(TypedDict):
 
 class ChatMessageDict(TypedDict):
     role: Literal["user", "assistant", "system"]
-    content: str
     attachments: Optional[list[ChatAttachmentDict]]
-    parts: Optional[
-        list[Union[TextPartDict, ReasoningPartDict, ToolInvocationPartDict]]
-    ]
+    parts: list[Union[TextPartDict, ReasoningPartDict, ToolInvocationPartDict]]
 
 
 class ChatModelConfigDict(TypedDict, total=False):
@@ -138,16 +135,11 @@ class ChatMessage:
     # The role of the message.
     role: Literal["user", "assistant", "system"]
 
-    # The content of the message.
-    content: object
+    # Parts from AI SDK. (see types above)
+    parts: list[Union[TextPart, ReasoningPart, ToolInvocationPart]]
 
     # Optional attachments to the message.
     attachments: Optional[list[ChatAttachment]] = None
-
-    # Optional parts from AI SDK. (see types above)
-    parts: Optional[
-        list[Union[TextPart, ReasoningPart, ToolInvocationPart]]
-    ] = None
 
 
 @dataclass

@@ -1,8 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { UIMessage } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import type { Message } from "ai/react";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithToolCalls,
+} from "ai";
 import { useAtom, useAtomValue } from "jotai";
 import {
   BotMessageSquareIcon,
@@ -58,7 +62,7 @@ import { generateUUID } from "@/utils/uuid";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
-import { getAICompletionBody } from "../editor/ai/completion-utils";
+import { getNewAiCompletionBody } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
@@ -145,7 +149,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 };
 
 interface ChatMessageProps {
-  message: Message;
+  message: UIMessage;
   index: number;
   onEdit: (index: number, newValue: string) => void;
   setChatState: Dispatch<SetStateAction<ChatState>>;
@@ -155,18 +159,20 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = memo(
-  ({ message, index, onEdit, isStreamingReasoning, totalMessages }) => (
-    <div
-      className={cn(
-        "flex group relative",
-        message.role === "user" ? "justify-end" : "justify-start",
-      )}
-    >
-      {message.role === "user" ? (
+  ({ message, index, onEdit, isStreamingReasoning, totalMessages }) => {
+    const renderUserMessage = (message: UIMessage) => {
+      // Messages can have file parts or text parts
+      // We take the text part
+      const textPart = message.parts?.find((p) => p.type === "text");
+      if (!textPart) {
+        return null;
+      }
+
+      return (
         <div className="w-[95%] bg-background border p-1 rounded-sm">
           <PromptInput
             key={message.id}
-            value={message.content}
+            value={textPart.text}
             placeholder="Type your message..."
             onChange={() => {
               // noop
@@ -182,10 +188,18 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
             }}
           />
         </div>
-      ) : (
+      );
+    };
+
+    const renderOtherMessage = (message: UIMessage) => {
+      const textPart = message.parts?.find((p) => p.type === "text");
+      return (
         <div className="w-[95%] break-words">
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <CopyClipboardIcon className="h-3 w-3" value={message.content} />
+            <CopyClipboardIcon
+              className="h-3 w-3"
+              value={textPart?.text || ""}
+            />
           </div>
           {message.parts?.map((part, i) => {
             switch (part.type) {
@@ -195,7 +209,7 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
               case "reasoning":
                 return (
                   <ReasoningAccordion
-                    reasoning={part.reasoning}
+                    reasoning={part.text}
                     key={i}
                     index={i}
                     isStreaming={
@@ -207,18 +221,16 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
                   />
                 );
 
+              // TODO: It's tool-*
               case "tool-invocation":
+              case "dynamic-tool":
                 return (
                   <ToolCallAccordion
                     key={i}
                     index={i}
-                    toolName={part.toolInvocation.toolName}
-                    result={
-                      part.toolInvocation.state === "result"
-                        ? part.toolInvocation.result
-                        : null
-                    }
-                    state={part.toolInvocation.state}
+                    toolName={part.type}
+                    result={part.output}
+                    state={part.state}
                   />
                 );
 
@@ -228,9 +240,22 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
             }
           })}
         </div>
-      )}
-    </div>
-  ),
+      );
+    };
+
+    return (
+      <div
+        className={cn(
+          "flex group relative",
+          message.role === "user" ? "justify-end" : "justify-start",
+        )}
+      >
+        {message.role === "user"
+          ? renderUserMessage(message)
+          : renderOtherMessage(message)}
+      </div>
+    );
+  },
 );
 ChatMessage.displayName = "ChatMessage";
 
@@ -389,6 +414,7 @@ export const ChatPanel = () => {
 const ChatPanelBody = () => {
   const [chatState, setChatState] = useAtom(chatStateAtom);
   const [activeChat, setActiveChat] = useAtom(activeChatAtom);
+  const [input, setInput] = useState("");
   const [newThreadInput, setNewThreadInput] = useState("");
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
@@ -399,41 +425,39 @@ const ChatPanelBody = () => {
 
   const {
     messages,
-    input,
-    setInput,
+    sendMessage,
     setMessages,
-    append,
-    handleSubmit,
     error,
     status,
-    reload,
     stop,
+    regenerate,
+    addToolResult,
   } = useChat({
     id: activeChat?.id,
-    maxSteps: 10,
-    initialMessages: activeChat?.messages || [],
-    keepLastMessageOnError: true,
-    // Throttle the messages and data updates to 100ms
-    // experimental_throttle: 100,
-    api: runtimeManager.getAiURL("chat").toString(),
-    headers: runtimeManager.headers(),
-    experimental_prepareRequestBody: (options) => {
-      return {
-        ...options,
-        ...getAICompletionBody({
-          input: options.messages.map((m) => m.content).join("\n"),
-        }),
-        includeOtherCode: getCodes(""),
-      };
-    },
-    onFinish: (message) => {
+    // maxSteps: 10,
+    // Automatically submit when all tool results are available
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    messages: activeChat?.messages || [],
+    transport: new DefaultChatTransport({
+      api: runtimeManager.getAiURL("chat").toString(),
+      headers: runtimeManager.headers(),
+      prepareSendMessagesRequest: (options) => {
+        return {
+          body: {
+            ...options,
+            ...getNewAiCompletionBody(options.messages[-1]), // Last message
+            includeOtherCode: getCodes(""),
+          },
+        };
+      },
+    }),
+    onFinish: ({ message }) => {
       setChatState((prev) => {
         return addMessageToChat(
           prev,
           prev.activeChatId,
           message.id,
           "assistant",
-          message.content,
           message.parts,
         );
       });
@@ -442,21 +466,21 @@ const ChatPanelBody = () => {
       try {
         const response = await invokeAiTool({
           toolName: toolCall.toolName,
-          arguments: toolCall.args as Record<string, never>,
+          arguments: toolCall.input as Record<string, never>,
         });
 
-        // This response triggers the onFinish callback
-        return response.result || response.error;
+        // Do not await addToolResult to avoid deadlocks
+        addToolResult({
+          tool: toolCall.toolName,
+          toolCallId: toolCall.toolCallId,
+          output: response.result ?? response.error,
+        });
       } catch (error) {
         Logger.error("Tool call failed:", error);
-        return `Error: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
-    },
-    onResponse: (response) => {
-      Logger.debug("Received HTTP response from server:", response);
     },
   });
 
@@ -498,7 +522,7 @@ const ChatPanelBody = () => {
             prev.activeChatId,
             userMessage.id,
             "user",
-            userMessage.content,
+            userMessage.parts,
           );
         }
 
@@ -507,7 +531,7 @@ const ChatPanelBody = () => {
     }
   }, [messages, chatState.activeChatId, chatState.chats, setChatState]);
 
-  const isLastMessageReasoning = (messages: Message[]): boolean => {
+  const isLastMessageReasoning = (messages: UIMessage[]): boolean => {
     if (messages.length === 0) {
       return false;
     }
@@ -572,12 +596,11 @@ const ChatPanelBody = () => {
 
     // Trigger AI conversation with append
     const MESSAGE_ID = generateUUID();
-    append({
+    sendMessage({
       id: MESSAGE_ID,
       role: "user",
-      content: initialMessage,
+      parts: [{ type: "text", text: initialMessage }],
     });
-    setInput("");
   };
 
   const handleNewChat = () => {
@@ -604,9 +627,9 @@ const ChatPanelBody = () => {
       }));
     }
 
-    append({
+    sendMessage({
       role: "user",
-      content: newValue,
+      parts: [{ type: "text", text: newValue }],
     });
   };
 
@@ -617,11 +640,12 @@ const ChatPanelBody = () => {
     if (!newValue.trim()) {
       return;
     }
-    handleSubmit(e);
+    e?.preventDefault();
+    sendMessage({ text: newValue });
   };
 
   const handleReload = () => {
-    reload();
+    regenerate();
   };
 
   const handleNewThreadSubmit = () => {

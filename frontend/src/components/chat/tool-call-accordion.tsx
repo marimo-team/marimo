@@ -17,10 +17,14 @@ import { cn } from "@/utils/cn";
 
 interface ToolCallAccordionProps {
   toolName: string;
-  result?: string | null;
+  result: unknown;
   error?: string;
   index?: number;
-  state?: "partial-call" | "call" | "result";
+  state?:
+    | "input-streaming"
+    | "input-available"
+    | "output-available"
+    | "output-error";
 }
 
 export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
@@ -30,7 +34,7 @@ export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
   index = 0,
   state,
 }) => {
-  const hasResult = state === "result" && (result || error);
+  const hasResult = state === "output-available" && (result || error);
   const status = error ? "error" : hasResult ? "success" : "loading";
 
   const getStatusIcon = () => {
@@ -84,7 +88,6 @@ export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
           {/* Only show content when tool is complete */}
           {hasResult && (
             <div className="space-y-3">
-              {/* Result */}
               {result && (
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mt-2 mb-1">
