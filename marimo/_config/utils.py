@@ -5,6 +5,7 @@ import os
 from typing import Any, Optional
 
 from marimo import _loggers
+from marimo._utils.xdg import marimo_config_path
 
 LOGGER = _loggers.marimo_logger()
 
@@ -29,16 +30,6 @@ def _check_directory_for_file(directory: str, filename: str) -> Optional[str]:
     return None
 
 
-def _xdg_config_path() -> str:
-    """Search XDG paths for marimo config file"""
-    home_expansion = os.path.expanduser("~")
-    home_directory = os.path.realpath(home_expansion)
-    xdg_config_home = os.environ.get("XDG_CONFIG_HOME") or os.path.join(
-        home_directory, ".config"
-    )
-    return os.path.join(xdg_config_home, "marimo", "marimo.toml")
-
-
 def get_or_create_user_config_path() -> str:
     """Find path of config file, or create it
 
@@ -49,10 +40,11 @@ def get_or_create_user_config_path() -> str:
     if current_config_path:
         return current_config_path
     else:
-        config_path = _xdg_config_path()
-        os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        open(config_path, "ab", buffering=0).close()
-        return config_path
+        config_path = marimo_config_path()
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        # Create an empty file
+        config_path.touch()
+        return str(config_path)
 
 
 def get_user_config_path() -> Optional[str]:
@@ -107,9 +99,9 @@ def get_user_config_path() -> Optional[str]:
     if os.path.isfile(config_path):
         return config_path
 
-    xdg_config_path = _xdg_config_path()
-    if os.path.isfile(xdg_config_path):
-        return xdg_config_path
+    xdg_config_path = marimo_config_path()
+    if xdg_config_path.is_file():
+        return str(xdg_config_path)
 
     return None
 

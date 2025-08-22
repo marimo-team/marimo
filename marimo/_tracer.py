@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
@@ -16,6 +15,7 @@ LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from pathlib import Path
 
     from opentelemetry import trace
 
@@ -104,8 +104,8 @@ def _set_tracer_provider() -> None:
         return
 
     class FileExporter(SpanExporter):
-        def __init__(self, file_path: str) -> None:
-            self.file_path = Path(file_path)
+        def __init__(self, file_path: Path) -> None:
+            self.file_path = file_path
             # Clear file
             self.file_path.write_bytes(b"")
 
@@ -125,13 +125,8 @@ def _set_tracer_provider() -> None:
 
     # Create a directory for logs if it doesn't exist
     config_ready = ConfigReader.for_filename(TRACE_FILENAME)
-    if config_ready is None:
-        raise FileNotFoundError(
-            f"Could not local config file {TRACE_FILENAME}"
-        )
-
     filepath = config_ready.filepath
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    filepath.parent.mkdir(parents=True, exist_ok=True)
 
     # Create a file exporter
     file_exporter: FileExporter = FileExporter(filepath)

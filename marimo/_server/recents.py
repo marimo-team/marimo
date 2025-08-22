@@ -36,9 +36,6 @@ class RecentFilesManager:
         self.config = ConfigReader.for_filename(self.LOCATION)
 
     def touch(self, filename: str) -> None:
-        if not self.config:
-            return
-
         if _is_tmp_file(filename):
             return
 

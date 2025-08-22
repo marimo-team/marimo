@@ -27,7 +27,6 @@ from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.templates.templates import get_version
-from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
 from marimo._utils.platform import is_windows
 from marimo._utils.toml import read_toml
 from tests.utils import try_assert_n_times
@@ -150,8 +149,8 @@ def _get_port() -> int:
     raise OSError("Could not find an unused port.")
 
 
-def _read_toml(filepath: str) -> Optional[dict[str, Any]]:
-    if not os.path.exists(filepath):
+def _read_toml(filepath: Path) -> Optional[dict[str, Any]]:
+    if not filepath.exists():
         return None
     return read_toml(filepath)
 
@@ -378,58 +377,52 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
 
 
 @pytest.mark.skipif(
-    condition=not _can_access_pypi(),
-    reason="update check won't work without access to pypi",
+    condition=not _can_access_pypi() or is_windows(),
+    reason="update check won't work without access to pypi, or on Windows",
 )
-def test_cli_edit_update_check() -> None:
-    with tempfile.TemporaryDirectory() as tempdir:
-        port = _get_port()
-        env = {**os.environ, "MARIMO_PYTEST_HOME_DIR": tempdir}
-        # pop off MARIMO_SKIP_UPDATE_CHECK
-        env.pop("MARIMO_SKIP_UPDATE_CHECK", None)
-        p = subprocess.Popen(
-            ["marimo", "edit", "-p", str(port), "--headless", "--no-token"],
-            env=env,
-        )
-        contents = _try_fetch(port)
-        _check_contents(p, b'"mode": "home"', contents)
+def test_cli_edit_update_check(tmp_path: Path) -> None:
+    port = _get_port()
+    env = {**os.environ, "XDG_STATE_HOME": str(tmp_path)}
+    # pop off MARIMO_SKIP_UPDATE_CHECK
+    env.pop("MARIMO_SKIP_UPDATE_CHECK", None)
+    p = subprocess.Popen(
+        ["marimo", "edit", "-p", str(port), "--headless", "--no-token"],
+        env=env,
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "home"', contents)
 
-        state_contents = _read_toml(
-            os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
-        )
-        assert state_contents is not None
-        assert state_contents.get("last_checked_at") is not None
+    state_contents = _read_toml(tmp_path / "marimo" / "state.toml")
+    assert state_contents is not None
+    assert state_contents.get("last_checked_at") is not None
 
 
 @pytest.mark.skipif(
     condition=not _can_access_pypi(),
     reason="update check skip is only detectable if pypi is accessible",
 )
-def test_cli_edit_skip_update_check() -> None:
-    with tempfile.TemporaryDirectory() as tempdir:
-        port = _get_port()
-        p = subprocess.Popen(
-            [
-                "marimo",
-                "edit",
-                "-p",
-                str(port),
-                "--headless",
-                "--no-token",
-                "--skip-update-check",
-            ],
-            env={**os.environ, "MARIMO_PYTEST_HOME_DIR": tempdir},
-        )
-        contents = _try_fetch(port)
-        _check_contents(p, b'"mode": "home"', contents)
+def test_cli_edit_skip_update_check(tmp_path: Path) -> None:
+    port = _get_port()
+    env = {**os.environ, "XDG_STATE_HOME": str(tmp_path)}
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+        ],
+        env=env,
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "home"', contents)
 
-        state_contents = _read_toml(
-            os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
-        )
-        assert (
-            state_contents is None
-            or state_contents.get("last_checked_at") is None
-        )
+    state_contents = _read_toml(tmp_path / "marimo" / "state.toml")
+    assert (
+        state_contents is None or state_contents.get("last_checked_at") is None
+    )
 
 
 def test_cli_new() -> None:

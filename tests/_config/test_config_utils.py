@@ -33,9 +33,15 @@ def _mock_file_exists(
             return False
         return isfile(check_path)
 
-    with mock.patch(
-        "marimo._config.utils.os.path.isfile",
-        side_effect=mock_exists,
+    def mock_path_is_file(self: Path) -> bool:
+        return mock_exists(str(self))
+
+    with (
+        mock.patch(
+            "marimo._config.utils.os.path.isfile",
+            side_effect=mock_exists,
+        ),
+        mock.patch.object(Path, "is_file", mock_path_is_file),
     ):
         yield
 

@@ -4,13 +4,13 @@ from __future__ import annotations
 import logging
 from contextlib import contextmanager
 from logging.handlers import TimedRotatingFileHandler
-from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from marimo._utils.log_formatter import LogFormatter
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from pathlib import Path
 
 # This file manages and creates loggers used throughout marimo.
 #
@@ -145,12 +145,9 @@ def marimo_logger() -> logging.Logger:
 
 
 def get_log_directory() -> Path:
-    import os
+    from marimo._utils.xdg import marimo_log_dir
 
-    xdg_cache_home = os.getenv("XDG_CACHE_HOME", None)
-    if xdg_cache_home is None:
-        return Path.home() / ".cache" / "marimo" / "logs"
-    return Path(xdg_cache_home) / "marimo" / "logs"
+    return marimo_log_dir()
 
 
 def make_log_directory() -> None:
