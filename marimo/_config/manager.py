@@ -5,12 +5,13 @@ import os
 from abc import abstractmethod
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Optional, Union, cast
+from typing import Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import (
     DEFAULT_CONFIG,
     CompletionConfig,
+    ExperimentalConfig,
     ExportType,
     LanguageServersConfig,
     MarimoConfig,
@@ -107,7 +108,7 @@ class MarimoConfigReader:
         return {}
 
     @property
-    def experimental(self) -> dict[str, Any]:
+    def experimental(self) -> ExperimentalConfig:
         if "experimental" in self._config:
             return self._config["experimental"]
         return {}

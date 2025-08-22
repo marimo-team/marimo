@@ -31,13 +31,15 @@ def is_win11() -> bool:
     return False
 
 
-def get_experimental_flags() -> dict[str, bool]:
+def get_experimental_flags() -> dict[str, Union[str, bool, dict[str, Any]]]:
     try:
         config = get_default_config_manager(current_path=None).get_config()
-        if "experimental" in config:
-            return config["experimental"]
-        else:
-            return {}
+        experimental_config = config.get("experimental", {})
+        return {
+            k: v
+            for k, v in experimental_config.items()
+            if isinstance(v, (str, bool, dict))
+        }
     except Exception:
         LOGGER.error("Failed to get experimental flags")
         return {}

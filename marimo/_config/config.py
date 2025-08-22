@@ -100,6 +100,7 @@ WidthType = Literal["normal", "compact", "medium", "full", "columns"]
 Theme = Literal["light", "dark", "system"]
 ExportType = Literal["html", "markdown", "ipynb"]
 SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
+StoreKey = Literal["file", "redis", "rest", "tiered"]
 
 
 @mddoc
@@ -478,6 +479,38 @@ class SharingConfig(TypedDict):
     wasm: NotRequired[bool]
 
 
+@dataclass
+class StoreConfig(TypedDict, total=False):
+    """Configuration for cache stores."""
+
+    type: StoreKey
+    args: dict[str, Any]
+
+
+CacheConfig = Union[list[StoreConfig], StoreConfig]
+
+
+@dataclass
+class ExperimentalConfig(TypedDict, total=False):
+    """
+    Configuration for experimental features.
+
+    Features exposed on the frontend must match the frontend config.
+    """
+
+    markdown: bool  # Used in playground (community cloud)
+    inline_ai_tooltip: bool
+    wasm_layouts: bool  # Used in playground (community cloud)
+    rtc_v2: bool
+    performant_table_charts: bool
+    mcp_docs: bool
+    sql_linter: bool
+
+    # Internal features
+    cache: CacheConfig
+    execution_type: ExecutionType
+
+
 @mddoc
 @dataclass
 class MarimoConfig(TypedDict):
@@ -494,7 +527,7 @@ class MarimoConfig(TypedDict):
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
     diagnostics: NotRequired[DiagnosticsConfig]
-    experimental: NotRequired[dict[str, Any]]
+    experimental: NotRequired[ExperimentalConfig]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
@@ -567,7 +600,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
     diagnostics: NotRequired[DiagnosticsConfig]
-    experimental: NotRequired[dict[str, Any]]
+    experimental: NotRequired[ExperimentalConfig]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]

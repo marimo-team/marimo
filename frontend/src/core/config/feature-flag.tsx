@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { UserConfig } from "vite";
 import { repl } from "@/utils/repl";
 import { getRequestClient } from "../network/requests";
 import { getResolvedMarimoConfig } from "./config";
@@ -37,10 +36,7 @@ export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
   );
 }
 
-function setFeatureFlag(
-  feature: keyof UserConfig["experimental"],
-  value: boolean,
-) {
+function setFeatureFlag(feature: keyof ExperimentalFeatures, value: boolean) {
   const userConfig = getResolvedMarimoConfig();
   userConfig.experimental = userConfig.experimental ?? {};
   userConfig.experimental[feature] = value;

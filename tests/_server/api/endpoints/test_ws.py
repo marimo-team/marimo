@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
+from marimo._config.config import ExperimentalConfig
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import KernelCapabilities, KernelReady
 from marimo._server.api.endpoints.ws import (
@@ -358,7 +359,8 @@ def flush_messages(
 def rtc_enabled(config: UserConfigManager):
     prev_config = config.get_config()
     try:
-        config.save_config({"experimental": {"rtc_v2": True}})
+        experimental_config = ExperimentalConfig(rtc_v2=True)
+        config.save_config({"experimental": experimental_config})
         yield
     finally:
         config.save_config(prev_config)

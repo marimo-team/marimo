@@ -68,6 +68,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         config.BedrockConfig,
         config.AiConfig,
         config.MarimoConfig,
+        config.StoreConfig,
         # Errors
         errors.SetupRootError,
         errors.MultipleDefinitionError,
