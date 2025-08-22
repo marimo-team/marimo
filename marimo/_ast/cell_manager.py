@@ -488,10 +488,8 @@ class CellManager:
         """
         prev_codes = prev_cell_manager.code_lookup()
         current_codes = self.code_lookup()
-        sorted_ids = match_cell_ids_by_similarity(prev_codes, current_codes)
-
         # Create mapping from new to old ids
-        id_mapping = dict(zip(sorted_ids, current_codes.keys()))
+        id_mapping = match_cell_ids_by_similarity(prev_codes, current_codes)
 
         # Update the cell data in place
         new_cell_data: dict[CellId_t, CellData] = {}
@@ -503,7 +501,7 @@ class CellManager:
         self._cell_data = new_cell_data
 
         # Add the new ids to the set, so we don't reuse them in the future
-        for _id in sorted_ids:
+        for _id in id_mapping.keys():
             self._cell_id_generator.seen_ids.add(_id)
 
     @property

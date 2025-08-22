@@ -265,7 +265,7 @@ def _match_cell_ids_by_similarity(
 
 def match_cell_ids_by_similarity(
     prev_data: dict[CellId_t, str], next_data: dict[CellId_t, str]
-) -> list[CellId_t]:
+) -> dict[CellId_t, CellId_t]:
     """Match cell IDs based on code similarity.
 
     NB. There is similar code in the front end that matches session results to
@@ -286,15 +286,17 @@ def match_cell_ids_by_similarity(
         next_data: Mapping of next cell IDs to code
 
     Returns:
-        List of cell IDs matching next_codes, using prev_ids where possible
+        A map of old ids to new ids, using prev_ids where possible
     """
 
     prev_ids, prev_codes = zip(*prev_data.items())
     next_ids, next_codes = zip(*next_data.items())
 
-    return _match_cell_ids_by_similarity(
+    sorted_ids = _match_cell_ids_by_similarity(
         prev_ids,
         prev_codes,
         next_ids,
         next_codes,
     )
+
+    return dict(zip(sorted_ids, next_ids))
