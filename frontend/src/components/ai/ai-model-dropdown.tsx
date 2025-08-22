@@ -221,7 +221,8 @@ const ProviderDropdownContent = ({
       <DropdownMenuPortal>
         <DropdownMenuSubContent
           className="max-h-[40vh] overflow-y-auto"
-          alignOffset={-90}
+          alignOffset={maybeProviderInfo ? -90 : 0}
+          sideOffset={5}
         >
           {maybeProviderInfo && (
             <>
