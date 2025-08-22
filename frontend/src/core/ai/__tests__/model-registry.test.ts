@@ -68,11 +68,9 @@ describe("AiModelRegistry", () => {
       expect(registry.getDisplayedModels()).toEqual(new Set());
 
       // Expect custom models to appear first
-      expect(registry.getModelsByProvider("openai")[0].name).toBe(
-        "openai/custom-gpt",
-      );
+      expect(registry.getModelsByProvider("openai")[0].name).toBe("custom-gpt");
       expect(registry.getModelsByProvider("anthropic")[0].name).toBe(
-        "anthropic/custom-claude",
+        "custom-claude",
       );
     });
 
@@ -122,7 +120,7 @@ describe("AiModelRegistry", () => {
 
       const customModel = openaiModels.find((model) => model.custom);
       expect(customModel).toBeDefined();
-      expect(customModel?.name).toBe("openai/custom-gpt");
+      expect(customModel?.name).toBe("custom-gpt");
       expect(customModel?.model).toBe("custom-gpt");
       expect(customModel?.description).toBe("Custom model");
       expect(customModel?.providers).toEqual(["openai"]);
@@ -336,7 +334,7 @@ describe("AiModelRegistry", () => {
           "custom": true,
           "description": "Custom model",
           "model": "custom-gpt",
-          "name": "openai/custom-gpt",
+          "name": "custom-gpt",
           "providers": [
             "openai",
           ],
