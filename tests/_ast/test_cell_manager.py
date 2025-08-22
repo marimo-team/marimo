@@ -348,8 +348,8 @@ def test_match_cell_ids_by_similarity_edge_cases():
     )
     assert len(result) == 2
     # This is probably ok since they are completely different.
-    # Not sure what the best behavior is.
-    assert result == [CELL_B, CELL_X]
+    # Ideally reuse the previous IDs.
+    assert result == [CELL_A, CELL_B]
 
     # Test with special Python syntax
     result = _match_cell_ids_by_similarity(

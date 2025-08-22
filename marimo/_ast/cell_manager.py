@@ -524,35 +524,33 @@ def _match_cell_ids_by_similarity(
     assert len(prev_codes) == len(prev_ids)
     assert len(next_codes) == len(next_ids)
 
-    # Initialize result and tracking sets
-    result: list[Optional[CellId_t]] = [None] * len(next_codes)
-    used_positions: set[int] = set()
-    used_prev_ids: set[CellId_t] = set()
+    # ids that are not in prev_ids but in next_ids
+    id_pool = set(next_ids) - set(prev_ids)
 
-    # Track which next_ids are new (not in prev_ids)
-    new_next_ids = [p_id for p_id in next_ids if p_id not in prev_ids]
-    new_id_idx = 0
+    def get_next_available_id(idx: int) -> CellId_t:
+        cell_id = next_ids[idx]
+        # Use the id from the pool if available
+        if cell_id in id_pool:
+            id_pool.remove(cell_id)
+        elif id_pool:
+            # Otherwise just use the next available id
+            cell_id = id_pool.pop()
+        else:
+            # If no ids are available, we could generate a new one
+            # but this should never run.
+            raise RuntimeError(
+                "No available IDs left to assign. This should not happen."
+            )
+        return cell_id
 
-    # First pass: exact matches using hash map
-    next_code_to_idx: dict[str, list[int]] = {}
-    for idx, code in enumerate(next_codes):
-        next_code_to_idx.setdefault(code, []).append(idx)
-
-    for prev_idx, prev_code in enumerate(prev_codes):
-        if prev_ids[prev_idx] in used_prev_ids:
-            continue
-        if prev_code in next_code_to_idx:
-            # Use first available matching position
-            for next_idx in next_code_to_idx[prev_code]:
-                if next_idx not in used_positions:
-                    result[next_idx] = prev_ids[prev_idx]
-                    used_positions.add(next_idx)
-                    used_prev_ids.add(prev_ids[prev_idx])
-                    break
-
-    # If all positions filled, we're done
-    if len(used_positions) == len(next_codes):
-        return [_id for _id in result if _id is not None]  # type: ignore
+    def filter_and_backfill() -> list[CellId_t]:
+        for idx, _ in enumerate(next_ids):
+            if result[idx] is None:
+                # If we have a None, we need to fill it with an available ID
+                result[idx] = get_next_available_id(idx)
+        filtered = [_id for _id in result if _id is not None]
+        assert len(filtered) == len(next_codes)
+        return filtered
 
     def similarity_score(s1: str, s2: str) -> int:
         """Fast similarity score based on common prefix and suffix.
@@ -579,48 +577,144 @@ def _match_cell_ids_by_similarity(
         # Return inverse similarity - shorter common affix means higher score
         return len(s1) + len(s2) - 2 * (prefix_len + suffix_len)
 
-    # Filter out used positions and ids for similarity matrix
-    remaining_prev_indices = [
-        i for i, pid in enumerate(prev_ids) if pid not in used_prev_ids
-    ]
-    remaining_next_indices = [
-        i for i in range(len(next_codes)) if i not in used_positions
-    ]
+    def _hungarian_algorithm(scores: list[list[int]]) -> list[int]:
+        """Implements the Hungarian algorithm to find the best matching."""
+        score_matrix = [row[:] for row in scores]
+        n = len(score_matrix)
 
-    # Create similarity matrix only for remaining cells
-    similarity_matrix: list[list[int]] = []
-    for prev_idx in remaining_prev_indices:
-        row: list[int] = []
-        for next_idx in remaining_next_indices:
-            score = similarity_score(
-                prev_codes[prev_idx], next_codes[next_idx]
-            )
-            row.append(score)
-        similarity_matrix.append(row)
+        # Step 1: Subtract row minima
+        for i in range(n):
+            min_value = min(score_matrix[i])
+            for j in range(n):
+                score_matrix[i][j] -= min_value
 
-    # Second pass: best matches for remaining positions
-    for matrix_prev_idx, prev_idx in enumerate(remaining_prev_indices):
-        # Find best match among unused positions
-        min_score = float("inf")  # type: ignore
-        best_next_matrix_idx = None
-        for matrix_next_idx, score in enumerate(
-            similarity_matrix[matrix_prev_idx]
-        ):
-            if score < min_score:
-                min_score = score
-                best_next_matrix_idx = matrix_next_idx
+        # Step 2: Subtract column minima
+        for j in range(n):
+            min_value = min(score_matrix[i][j] for i in range(n))
+            for i in range(n):
+                score_matrix[i][j] -= min_value
 
-        if best_next_matrix_idx is not None:
-            next_idx = remaining_next_indices[best_next_matrix_idx]
-            result[next_idx] = prev_ids[prev_idx]
-            used_positions.add(next_idx)
-            used_prev_ids.add(prev_ids[prev_idx])
+        # Step 3: Find initial assignment
+        row_assignment = [-1] * n
+        col_assignment = [-1] * n
 
-    # Fill remaining positions with new next_ids
-    for i in range(len(next_codes)):
-        if result[i] is None:
-            if new_id_idx < len(new_next_ids):
-                result[i] = new_next_ids[new_id_idx]
-                new_id_idx += 1
+        # Find independent zeros
+        for i in range(n):
+            for j in range(n):
+                if (
+                    score_matrix[i][j] == 0
+                    and row_assignment[i] == -1
+                    and col_assignment[j] == -1
+                ):
+                    row_assignment[i] = j
+                    col_assignment[j] = i
 
-    return [_id for _id in result if _id is not None]  # type: ignore
+        # Step 4: Improve assignment iteratively
+        while True:
+            assigned_count = sum(1 for x in row_assignment if x != -1)
+            if assigned_count == n:
+                break
+
+            # Find minimum uncovered value
+            min_uncovered = float("inf")
+            for i in range(n):
+                for j in range(n):
+                    if row_assignment[i] == -1 and col_assignment[j] == -1:
+                        min_uncovered = min(min_uncovered, score_matrix[i][j])
+
+            if min_uncovered == float("inf"):
+                break
+
+            # Update matrix
+            for i in range(n):
+                for j in range(n):
+                    if row_assignment[i] == -1 and col_assignment[j] == -1:
+                        score_matrix[i][j] -= min_uncovered
+                    elif row_assignment[i] != -1 and col_assignment[j] != -1:
+                        score_matrix[i][j] += min_uncovered
+
+            # Try to find new assignments
+            for i in range(n):
+                if row_assignment[i] == -1:
+                    for j in range(n):
+                        if score_matrix[i][j] == 0 and col_assignment[j] == -1:
+                            row_assignment[i] = j
+                            col_assignment[j] = i
+                            break
+
+        # Convert to result format
+        result = [-1] * n
+        for i in range(n):
+            if row_assignment[i] != -1:
+                result[row_assignment[i]] = i
+
+        return result
+
+    # 0. Hash matching to capture permutations (dequeue similar hashes)
+    # 1. Find the edit distance
+    # 2. For replacements, or additions with replacements
+    previous_lookup: dict[str, list[CellId_t]] = {}
+    for cell_id, code in zip(prev_ids, prev_codes):
+        previous_lookup.setdefault(code, []).append(cell_id)
+
+    # covers next is a subset of prev
+    result: list[Optional[CellId_t]] = [None] * len(next_codes)
+    filled = 0
+    for idx, code in enumerate(next_codes):
+        if code in previous_lookup:
+            # If we have an exact match, use it
+            filled += 1
+            result[idx] = previous_lookup[code].pop(0)
+            if not previous_lookup[code]:
+                del previous_lookup[code]
+
+    # If we filled all positions, return the result
+    # or if prev is a subset of next, then prev has been dequeued and emptied.
+    if filled == len(next_codes) or not previous_lookup:
+        return filter_and_backfill()
+
+    # The remaining case is prev ^ next is not empty.
+    next_lookup: dict[str, list[CellId_t]] = {}
+    for maybe_result, cell_id, code in zip(result, next_ids, next_codes):
+        if maybe_result is not None:
+            continue
+        next_lookup.setdefault(code, []).append(cell_id)
+
+    added_code = list(set(next_lookup.keys()))
+    deleted_code = list(set(previous_lookup.keys()))
+    next_order: dict[int, list[int]] = {}
+    prev_order: dict[int, list[int]] = {}
+    offset = 0
+    for i, code in enumerate(added_code):
+        next_order[i] = [offset + j for j in range(len(next_lookup[code]))]
+        offset += len(next_lookup[code])
+
+    offset = 0
+    for i, code in enumerate(deleted_code):
+        prev_order[i] = [offset + j for j in range(len(previous_lookup[code]))]
+        offset += len(previous_lookup[code])
+
+    next_inverse = {code: i for i, code in enumerate(added_code)}
+    inverse_order = {idx: i for i, idxs in prev_order.items() for idx in idxs}
+
+    # Pad the scores matrix to ensure it is square
+    n = max(len(next_codes) - filled, len(prev_codes) - filled)
+    scores = [[0] * n for _ in range(n)]
+    for i, code in enumerate(added_code):
+        for j, prev_code in enumerate(deleted_code):
+            score = similarity_score(prev_code, code)
+            for x in next_order[i]:
+                for y in prev_order[j]:
+                    scores[x][y] = score
+
+    # Use Hungarian algorithm to find the best matching
+    matches = _hungarian_algorithm(scores)
+    for idx, code in enumerate(next_codes):
+        if result[idx] is None:
+            match_idx = next_order[next_inverse[code]].pop(0)
+            if match_idx != -1:
+                result[idx] = previous_lookup[
+                    deleted_code[inverse_order[matches[match_idx]]]
+                ].pop(0)
+
+    return filter_and_backfill()
