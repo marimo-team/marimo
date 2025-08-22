@@ -118,7 +118,7 @@ def _get_databases_from_duckdb_internal(
 
     if len(tables_result) == 0:
         # Return empty databases if there are no tables
-        databases = _get_duckdb_database_names(connection)
+        empty_dbs = _get_duckdb_database_names(connection)
         return [
             Database(
                 name=database,
@@ -126,7 +126,7 @@ def _get_databases_from_duckdb_internal(
                 schemas=[],
                 engine=engine_name,
             )
-            for database in databases
+            for database in empty_dbs
         ]
 
     # Group tables by database and schema
