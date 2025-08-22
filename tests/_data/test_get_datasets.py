@@ -412,26 +412,23 @@ def test_get_databases() -> None:
 def test_get_databases_with_no_tables() -> None:
     import duckdb
 
-    # Return in-memory database
+    in_memory_database = Database(
+        name="memory",
+        dialect="duckdb",
+        schemas=[],
+        engine=None,
+    )
+
+    # No connection, return in-memory database
     connection = None
     assert get_databases_from_duckdb(connection=connection) == [
-        Database(
-            name="memory",
-            dialect="duckdb",
-            schemas=[],
-            engine=None,
-        )
+        in_memory_database
     ]
 
-    # Return in-memory database with no tables
+    # Custom connection with no tables
     connection = duckdb.connect(":memory:")
     assert get_databases_from_duckdb(connection=connection) == [
-        Database(
-            name="memory",
-            dialect="duckdb",
-            schemas=[],
-            engine=None,
-        )
+        in_memory_database
     ]
 
 
