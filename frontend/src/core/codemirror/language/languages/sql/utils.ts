@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { SQLDialect } from "@codemirror/lang-sql";
 import {
   Cassandra,
   MariaSQL,
@@ -8,7 +7,10 @@ import {
   MySQL,
   PLSQL,
   PostgreSQL,
+  SQLDialect,
+  type SQLDialectSpec,
   SQLite,
+  StandardSQL,
 } from "@codemirror/lang-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import type { DataSourceConnection } from "@/core/kernel/messages";
@@ -40,3 +42,13 @@ export function guessDialect(
       return undefined;
   }
 }
+
+const OpinionatedStandardSQL: SQLDialectSpec = {
+  ...StandardSQL,
+  // Upper-case identifiers do not need to be quoted most of the time
+  caseInsensitiveIdentifiers: true,
+  // Single quotes are more common in SQL
+  identifierQuotes: "'",
+};
+
+export const ModifiedStandardSQL = SQLDialect.define(OpinionatedStandardSQL);

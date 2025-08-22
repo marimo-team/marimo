@@ -12,7 +12,7 @@ import { datasetTablesAtom } from "@/core/datasets/state";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { LRUCache } from "@/utils/lru";
-import { guessDialect } from "./utils";
+import { guessDialect, ModifiedStandardSQL } from "./utils";
 
 type TableToCols = Record<string, string[]>;
 type Schemas = Record<string, TableToCols>;
@@ -136,7 +136,7 @@ class SQLCompletionStore {
     if (!connection) {
       return StandardSQL;
     }
-    return guessDialect(connection) ?? StandardSQL;
+    return guessDialect(connection) ?? ModifiedStandardSQL;
   }
 
   getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
@@ -160,7 +160,7 @@ class SQLCompletionStore {
     const schema = this.cache.getOrCreate(connection);
 
     return {
-      dialect: guessDialect(connection),
+      dialect: guessDialect(connection) ?? ModifiedStandardSQL,
       schema: schema.shouldAddLocalTables
         ? { ...schema.schema, ...getTablesMap() }
         : schema.schema,
