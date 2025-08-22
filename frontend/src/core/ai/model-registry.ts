@@ -120,14 +120,13 @@ export class AiModelRegistry {
       modelsMap = new Map(knownModelMap);
     }
 
+    // Set custom models first, then known models
+    modelsMap = new Map([...customModelsMap, ...modelsMap]);
+
     // Group by provider
-    // Add all models (custom first, then known) to the provider map
-    for (const map of [customModelsMap, modelsMap]) {
-      for (const [qualifiedModelId, model] of map.entries()) {
-        const modelId = AiModelId.parse(qualifiedModelId);
-        this.modelsByProviderMap.add(modelId.providerId, model);
-        modelsMap.set(qualifiedModelId, model);
-      }
+    for (const [qualifiedModelId, model] of modelsMap.entries()) {
+      const modelId = AiModelId.parse(qualifiedModelId);
+      this.modelsByProviderMap.add(modelId.providerId, model);
     }
 
     this.modelsMap = modelsMap;
