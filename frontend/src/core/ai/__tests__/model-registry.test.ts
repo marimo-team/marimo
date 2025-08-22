@@ -148,16 +148,10 @@ describe("AiModelRegistry", () => {
       const openaiModels = registry.getModelsByProvider("openai");
       const anthropicModels = registry.getModelsByProvider("anthropic");
 
-      expect(
-        openaiModels.some(
-          (model) => model.custom && model.model === "custom-gpt",
-        ),
-      ).toBe(true);
-      expect(
-        anthropicModels.some(
-          (model) => model.custom && model.model === "custom-claude",
-        ),
-      ).toBe(false);
+      expect(openaiModels.length).toBe(1);
+      expect(openaiModels[0].name).toBe("custom-gpt");
+
+      expect(anthropicModels.length).toBe(0);
     });
   });
 

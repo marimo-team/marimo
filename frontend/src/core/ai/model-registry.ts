@@ -19,6 +19,25 @@ export interface AiModel extends AiModelType {
   custom: boolean;
 }
 
+const getKnownModelMap = once((): ReadonlyMap<QualifiedModelId, AiModel> => {
+  const modelMap = new Map<QualifiedModelId, AiModel>();
+  for (const model of models) {
+    const modelId = model.model as ShortModelId;
+    const modelInfo: AiModel = {
+      ...model,
+      roles: model.roles.map((role) => role as Role),
+      providers: model.providers as ProviderId[],
+      custom: false,
+    };
+
+    for (const provider of modelInfo.providers) {
+      const qualifiedModelId: QualifiedModelId = `${provider}/${modelId}`;
+      modelMap.set(qualifiedModelId, modelInfo);
+    }
+  }
+  return modelMap;
+});
+
 const getProviderMap = once((): ReadonlyMap<ProviderId, AiProvider> => {
   const providerMap = new Map<ProviderId, AiProvider>();
   for (const provider of providers) {
@@ -67,9 +86,11 @@ export class AiModelRegistry {
   private buildMaps() {
     const displayedModels = this.displayedModels;
     const hasDisplayedModels = displayedModels.size > 0;
-    const modelsMap = new Map<QualifiedModelId, AiModel>();
+    const knownModelMap = getKnownModelMap();
+    const customModelsMap = new Map<QualifiedModelId, AiModel>();
 
-    // As custom models are defined by the user, we want to surface them first
+    let modelsMap = new Map<QualifiedModelId, AiModel>();
+
     for (const model of this.customModels) {
       if (hasDisplayedModels && !displayedModels.has(model)) {
         continue;
@@ -84,30 +105,23 @@ export class AiModelRegistry {
         thinking: false,
         custom: true,
       };
-      modelsMap.set(model, modelInfo);
+      customModelsMap.set(model, modelInfo);
     }
 
-    // Add known models, this will override custom models which is fine
-    // Since we have richer information
-    for (const model of models) {
-      const modelId = model.model as ShortModelId;
-      const modelInfo: AiModel = {
-        ...model,
-        roles: model.roles.map((role) => role as Role),
-        providers: model.providers as ProviderId[],
-        custom: false,
-      };
-
-      for (const provider of modelInfo.providers) {
-        const qualifiedModelId: QualifiedModelId = `${provider}/${modelId}`;
-
-        if (hasDisplayedModels && !displayedModels.has(qualifiedModelId)) {
-          continue;
+    // Add known models
+    if (hasDisplayedModels) {
+      for (const model of displayedModels) {
+        const modelInfo = knownModelMap.get(model);
+        if (modelInfo) {
+          modelsMap.set(model, modelInfo);
         }
-
-        modelsMap.set(qualifiedModelId, modelInfo);
       }
+    } else {
+      modelsMap = new Map(knownModelMap);
     }
+
+    // Display custom models first since they are defined by the user
+    modelsMap = new Map([...customModelsMap, ...modelsMap]);
 
     // Group by provider
     for (const [qualifiedModelId, model] of modelsMap.entries()) {

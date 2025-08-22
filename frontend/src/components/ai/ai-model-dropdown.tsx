@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Role } from "@marimo-team/llm-info";
+import { useAtomValue } from "jotai";
 import { capitalize } from "lodash-es";
 import {
   BotIcon,
@@ -16,7 +17,7 @@ import {
   type QualifiedModelId,
 } from "@/core/ai/ids/ids";
 import { type AiModel, AiModelRegistry } from "@/core/ai/model-registry";
-import { useResolvedMarimoConfig } from "@/core/config/config";
+import { aiAtom, completionAtom } from "@/core/config/config";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,35 +56,35 @@ export const AIModelDropdown = ({
   const currentValue = value ? AiModelId.parse(value) : undefined;
   const [isOpen, setIsOpen] = React.useState(false);
 
-  const [marimoConfig] = useResolvedMarimoConfig();
-  const configModels = marimoConfig.ai?.models;
+  const ai = useAtomValue(aiAtom);
+  const completion = useAtomValue(completionAtom);
 
   // Only include autocompleteModel if copilot is set to "custom"
   const autocompleteModel =
-    marimoConfig.completion.copilot === "custom"
-      ? configModels?.autocomplete_model
+    completion.copilot === "custom"
+      ? ai?.models?.autocomplete_model
       : undefined;
 
   const aiModelRegistry = AiModelRegistry.create({
     // We add all the custom models and the models used in the editor.
     // If they among the known models, they won't overwrite them.
     customModels: [
-      ...(configModels?.custom_models ?? []),
-      configModels?.chat_model,
+      ...(ai?.models?.custom_models ?? []),
+      ai?.models?.chat_model,
       autocompleteModel,
-      configModels?.edit_model,
+      ai?.models?.edit_model,
     ].filter(Boolean),
-    displayedModels: configModels?.displayed_models,
+    displayedModels: ai?.models?.displayed_models,
   });
   const modelsByProvider = aiModelRegistry.getGroupedModelsByProvider();
 
   const activeModel =
     forRole === "autocomplete"
-      ? configModels?.autocomplete_model
+      ? ai?.models?.autocomplete_model
       : forRole === "chat"
-        ? configModels?.chat_model
+        ? ai?.models?.chat_model
         : forRole === "edit"
-          ? configModels?.edit_model
+          ? ai?.models?.edit_model
           : undefined;
 
   const iconSizeClass = iconSize === "medium" ? "h-4 w-4" : "h-3 w-3";
@@ -260,11 +261,7 @@ const ProviderDropdownContent = ({
                     <AiModelDropdownItem model={model} provider={provider} />
                   </div>
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent
-                  className="p-4 w-80"
-                  sideOffset={2}
-                  alignOffset={-4}
-                >
+                <DropdownMenuSubContent className="p-4 w-80">
                   <AiModelInfoDisplay model={model} provider={provider} />
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
