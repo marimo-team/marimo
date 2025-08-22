@@ -187,7 +187,7 @@ describe("addMessageToChat", () => {
     );
 
     const unchangedChat = result.chats.get(CHAT_2);
-    expect(unchangedChat).toEqual(first(mockChatState.chats));
+    expect(unchangedChat).toEqual([...mockChatState.chats.values()][1]);
   });
 
   it("should preserve message order when adding new messages", () => {
