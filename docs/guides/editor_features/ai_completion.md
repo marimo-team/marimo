@@ -368,6 +368,7 @@ marimo supports OpenAI's API by default. Many providers offer OpenAI API-compati
         2. Navigate to the AI section
         3. Enter your provider's API key in the "OpenAI API Key" field
         4. Under AI Assist settings:
+        
            - Set Base URL to your provider's endpoint (e.g., `https://api.deepseek.com`)
            - Set Model to your chosen model (e.g., `deepseek-chat` or `deepseek-reasoner`)
 
