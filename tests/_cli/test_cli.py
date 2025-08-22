@@ -320,8 +320,8 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
 
 
 @pytest.mark.skipif(
-    condition=not _can_access_pypi(),
-    reason="update check won't work without access to pypi",
+    condition=not _can_access_pypi() or is_windows(),
+    reason="update check won't work without access to pypi, or on Windows",
 )
 def test_cli_edit_update_check(tmp_path: Path) -> None:
     port = _get_port()

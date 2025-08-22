@@ -8,7 +8,9 @@ from unittest.mock import patch
 
 import pytest
 
+from marimo._utils.platform import is_windows
 from marimo._utils.xdg import (
+    home_path,
     marimo_cache_dir,
     marimo_config_path,
     marimo_log_dir,
@@ -17,6 +19,25 @@ from marimo._utils.xdg import (
     xdg_config_home,
     xdg_state_home,
 )
+
+
+class TestHomePathFunction:
+    """Test home_path function behavior."""
+
+    @patch("pathlib.Path.home")
+    def test_home_path_normal(self, mock_home) -> None:
+        """Test home_path returns home directory when available."""
+        expected_home = Path("/home/user")
+        mock_home.return_value = expected_home
+        result = home_path()
+        assert result == expected_home.resolve()
+
+    @patch("pathlib.Path.home")
+    def test_home_path_runtime_error_fallback(self, mock_home) -> None:
+        """Test home_path falls back to /tmp on RuntimeError."""
+        mock_home.side_effect = RuntimeError("Unable to get home directory")
+        result = home_path()
+        assert result == Path("/tmp")
 
 
 class TestXDGBasicFunctions:
@@ -50,6 +71,7 @@ class TestXDGBasicFunctions:
         result = xdg_cache_home()
         assert result == Path("/custom/cache")
 
+    @pytest.mark.skipif(is_windows(), reason="POSIX-specific test")
     @patch("os.name", "posix")
     @patch("marimo._utils.xdg.home_path")
     @patch.dict(os.environ, {}, clear=True)
@@ -59,6 +81,7 @@ class TestXDGBasicFunctions:
         result = xdg_state_home()
         assert result == Path("/home/user/.local/state")
 
+    @pytest.mark.skipif(is_windows(), reason="POSIX-specific test")
     @patch("os.name", "posix")
     @patch.dict(os.environ, {"XDG_STATE_HOME": "/custom/state"})
     def test_xdg_state_home_posix_env_set(self) -> None:
@@ -66,27 +89,14 @@ class TestXDGBasicFunctions:
         result = xdg_state_home()
         assert result == Path("/custom/state")
 
-    @pytest.mark.skipif(
-        os.name == "posix", reason="Test only relevant on non-POSIX systems"
-    )
+    @pytest.mark.skipif(not is_windows(), reason="Windows-specific test")
     def test_xdg_state_home_non_posix(self) -> None:
         """Test XDG state home on non-POSIX systems returns home directory."""
-        # This test would only run on actual non-POSIX systems
-        # For simplicity, we'll test the logic by mocking os.name directly
-        original_os_name = os.name
-        try:
-            # Temporarily change os.name to test the non-posix branch
-            os.name = "nt"  # type: ignore
-            with patch("pathlib.Path.home") as mock_home:
-                # Use a string representation to avoid path type conflicts
-                mock_home.return_value = (
-                    Path.home()
-                )  # Use actual home for safety
-                result = xdg_state_home()
-                # Just verify that it returns a Path object (implementation tested elsewhere)
-                assert isinstance(result, Path)
-        finally:
-            os.name = original_os_name  # type: ignore
+        with patch("marimo._utils.xdg.home_path") as mock_home_path:
+            mock_home_path.return_value = Path.home()
+            result = xdg_state_home()
+            # On Windows, should return home directory directly
+            assert result == Path.home()
 
 
 class TestMarimoSpecificFunctions:
@@ -120,6 +130,7 @@ class TestMarimoSpecificFunctions:
         result = marimo_cache_dir()
         assert result == Path("/custom/cache/marimo")
 
+    @pytest.mark.skipif(is_windows(), reason="POSIX-specific test")
     @patch("os.name", "posix")
     @patch("marimo._utils.xdg.home_path")
     @patch.dict(os.environ, {}, clear=True)
@@ -129,6 +140,7 @@ class TestMarimoSpecificFunctions:
         result = marimo_state_dir()
         assert result == Path("/home/user/.local/state/marimo")
 
+    @pytest.mark.skipif(is_windows(), reason="POSIX-specific test")
     @patch("os.name", "posix")
     @patch.dict(os.environ, {"XDG_STATE_HOME": "/custom/state"})
     def test_marimo_state_dir_posix_custom_xdg(self) -> None:
@@ -136,22 +148,14 @@ class TestMarimoSpecificFunctions:
         result = marimo_state_dir()
         assert result == Path("/custom/state/marimo")
 
-    @pytest.mark.skipif(
-        os.name == "posix", reason="Test only relevant on non-POSIX systems"
-    )
+    @pytest.mark.skipif(not is_windows(), reason="Windows-specific test")
     def test_marimo_state_dir_non_posix(self) -> None:
         """Test marimo state directory on non-POSIX systems."""
-        # This test would only run on actual non-POSIX systems
-        original_os_name = os.name
-        try:
-            # Temporarily change os.name to test the non-posix branch
-            os.name = "nt"  # type: ignore
+        with patch("marimo._utils.xdg.home_path") as mock_home_path:
+            mock_home_path.return_value = Path.home()
             result = marimo_state_dir()
-            # Just verify that it returns a Path object and ends with .marimo
-            assert isinstance(result, Path)
-            assert result.name == ".marimo"
-        finally:
-            os.name = original_os_name  # type: ignore
+            # On Windows, should return home/.marimo
+            assert result == Path.home() / ".marimo"
 
     @patch("marimo._utils.xdg.home_path")
     @patch.dict(os.environ, {}, clear=True)
@@ -187,6 +191,7 @@ class TestEnvironmentVariableHandling:
         result = xdg_cache_home()
         assert result == Path("/home/user/.cache")
 
+    @pytest.mark.skipif(is_windows(), reason="POSIX-specific test")
     @patch("os.name", "posix")
     @patch("marimo._utils.xdg.home_path")
     @patch.dict(os.environ, {"XDG_STATE_HOME": ""})
@@ -237,8 +242,9 @@ class TestIntegration:
                 assert xdg_config_home() == config_dir
                 assert xdg_cache_home() == cache_dir
 
-                with patch("os.name", "posix"):
-                    assert xdg_state_home() == state_dir
+                if not is_windows():
+                    with patch("os.name", "posix"):
+                        assert xdg_state_home() == state_dir
 
                 # Test marimo functions
                 assert (
@@ -248,8 +254,9 @@ class TestIntegration:
                 assert marimo_cache_dir() == cache_dir / "marimo"
                 assert marimo_log_dir() == cache_dir / "marimo" / "logs"
 
-                with patch("os.name", "posix"):
-                    assert marimo_state_dir() == state_dir / "marimo"
+                if not is_windows():
+                    with patch("os.name", "posix"):
+                        assert marimo_state_dir() == state_dir / "marimo"
 
     @patch.dict(os.environ, {"XDG_CONFIG_HOME": "/test/config"})
     def test_path_composition(self) -> None:
