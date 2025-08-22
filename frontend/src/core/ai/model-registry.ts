@@ -82,43 +82,22 @@ export class AiModelRegistry {
 
   /**
    * Builds the maps of models by provider and custom models.
-   * Custom models are added first as they are specified by the user, so we want to surface them first.
    */
   private buildMaps() {
     const displayedModels = this.displayedModels;
     const hasDisplayedModels = displayedModels.size > 0;
     const knownModelMap = getKnownModelMap();
+    const customModelsMap = new Map<QualifiedModelId, AiModel>();
+
     let modelsMap = new Map<QualifiedModelId, AiModel>();
 
-    // Start with known models
-    if (hasDisplayedModels) {
-      for (const model of displayedModels) {
-        if (knownModelMap.has(model)) {
-          const knownModel = knownModelMap.get(model);
-          if (knownModel) {
-            modelsMap.set(model, knownModel);
-          }
-        }
-      }
-    } else {
-      modelsMap = new Map(knownModelMap);
-    }
-
-    // Add custom models
     for (const model of this.customModels) {
-      // Skip custom models that are not displayed
       if (hasDisplayedModels && !displayedModels.has(model)) {
         continue;
       }
-
-      // If custom model conflicts with a known model, skip it
-      if (modelsMap.has(model)) {
-        continue;
-      }
-
       const modelId = AiModelId.parse(model);
       const modelInfo: AiModel = {
-        name: modelId.id,
+        name: modelId.shortModelId,
         model: modelId.shortModelId,
         description: "Custom model",
         providers: [modelId.providerId],
@@ -126,8 +105,23 @@ export class AiModelRegistry {
         thinking: false,
         custom: true,
       };
-      modelsMap.set(model, modelInfo);
+      customModelsMap.set(model, modelInfo);
     }
+
+    // Add known models
+    if (hasDisplayedModels) {
+      for (const model of displayedModels) {
+        const modelInfo = knownModelMap.get(model);
+        if (modelInfo) {
+          modelsMap.set(model, modelInfo);
+        }
+      }
+    } else {
+      modelsMap = new Map(knownModelMap);
+    }
+
+    // Set custom models first, then known models
+    modelsMap = new Map([...customModelsMap, ...modelsMap]);
 
     // Group by provider
     for (const [qualifiedModelId, model] of modelsMap.entries()) {

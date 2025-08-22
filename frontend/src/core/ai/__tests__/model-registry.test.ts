@@ -66,6 +66,12 @@ describe("AiModelRegistry", () => {
 
       expect(registry.getCustomModels()).toEqual(new Set(customModels));
       expect(registry.getDisplayedModels()).toEqual(new Set());
+
+      // Expect custom models to appear first
+      expect(registry.getModelsByProvider("openai")[0].name).toBe("custom-gpt");
+      expect(registry.getModelsByProvider("anthropic")[0].name).toBe(
+        "custom-claude",
+      );
     });
 
     it("should create registry with displayed models", () => {
@@ -114,7 +120,7 @@ describe("AiModelRegistry", () => {
 
       const customModel = openaiModels.find((model) => model.custom);
       expect(customModel).toBeDefined();
-      expect(customModel?.name).toBe("openai/custom-gpt");
+      expect(customModel?.name).toBe("custom-gpt");
       expect(customModel?.model).toBe("custom-gpt");
       expect(customModel?.description).toBe("Custom model");
       expect(customModel?.providers).toEqual(["openai"]);
@@ -142,16 +148,10 @@ describe("AiModelRegistry", () => {
       const openaiModels = registry.getModelsByProvider("openai");
       const anthropicModels = registry.getModelsByProvider("anthropic");
 
-      expect(
-        openaiModels.some(
-          (model) => model.custom && model.model === "custom-gpt",
-        ),
-      ).toBe(true);
-      expect(
-        anthropicModels.some(
-          (model) => model.custom && model.model === "custom-claude",
-        ),
-      ).toBe(false);
+      expect(openaiModels.length).toBe(1);
+      expect(openaiModels[0].name).toBe("custom-gpt");
+
+      expect(anthropicModels.length).toBe(0);
     });
   });
 
@@ -328,7 +328,7 @@ describe("AiModelRegistry", () => {
           "custom": true,
           "description": "Custom model",
           "model": "custom-gpt",
-          "name": "openai/custom-gpt",
+          "name": "custom-gpt",
           "providers": [
             "openai",
           ],
