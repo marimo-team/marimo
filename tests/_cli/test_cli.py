@@ -156,11 +156,23 @@ def _read_toml(filepath: str) -> Optional[dict[str, Any]]:
     return read_toml(filepath)
 
 
-@pytest.fixture
-def temp_marimo_file_with_inline_metadata() -> Generator[str, None, None]:
+@contextlib.contextmanager
+def _write_temp_notebook(notebook: str) -> Generator[str, None, None]:
     tmp_dir = tempfile.TemporaryDirectory()
     tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
+    content = inspect.cleandoc(notebook)
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
+
+
+@pytest.fixture
+def temp_marimo_file_with_inline_metadata() -> Generator[str, None, None]:
+    with _write_temp_notebook(
         """
         # /// script
         # requires-python = ">=3.11"
@@ -183,14 +195,59 @@ def temp_marimo_file_with_inline_metadata() -> Generator[str, None, None]:
         if __name__ == "__main__":
             app.run()
         """
-    )
+    ) as temp_file:
+        yield temp_file
 
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        tmp_dir.cleanup()
+
+@pytest.fixture
+def temp_non_marimo_file() -> Generator[str, None, None]:
+    with _write_temp_notebook(
+        """
+        import numpy as np
+
+        np.random.seed(42)
+
+        if __name__ == "__main__":
+            print("This is a non-marimo file.")
+        """
+    ) as temp_file:
+        yield temp_file
+
+
+@pytest.fixture
+def temp_non_marimo_file_with_marimo() -> Generator[str, None, None]:
+    with _write_temp_notebook(
+        """
+        import numpy as np
+        import marimo as mo
+
+        if __name__ == "__main__":
+            print("This is a non-marimo file with a marimo import.")
+        """
+    ) as temp_file:
+        yield temp_file
+
+
+@pytest.fixture
+def temp_text_file() -> Generator[str, None, None]:
+    with _write_temp_notebook(
+        """
+        This is a syntax invalid file.
+        """
+    ) as temp_file:
+        yield temp_file
+
+
+@pytest.fixture(
+    params=[
+        "temp_marimo_file_with_inline_metadata",
+        "temp_non_marimo_file",
+        "temp_non_marimo_file_with_marimo",
+        "temp_text_file",
+    ]
+)
+def temp_possible_file(request: Any) -> str:
+    return request.getfixturevalue(request.param)
 
 
 def test_cli_help_exit_code() -> None:
@@ -1129,3 +1186,40 @@ def test_cli_run_docker_remote_url():
     assert p.returncode != 0
     assert p.stdout is not None
     assert "Docker is not installed" in p.stdout.read().decode()
+
+
+def test_cli_edit_with_convert(
+    temp_possible_file: str,
+) -> None:
+    # Convert should be able to handle anything.
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "--convert",
+            temp_possible_file,
+            "--port",
+            str(port),
+            "--no-token",
+            "--headless",
+            "--sandbox",
+        ],
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+
+    contents = _try_fetch(port)
+
+    # If fetch fails, capture and print server output for debugging
+    if contents is None:
+        stdout, stderr = p.communicate(timeout=5)
+        raise AssertionError(
+            f"Server failed to start. stdout:\n{stdout}\nstderr:\n{stderr}"
+        )
+
+    _check_contents(p, b"read", contents)
+
+    p.terminate()
+    p.wait(timeout=5)

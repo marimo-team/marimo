@@ -15,6 +15,7 @@ import marimo._cli.cli_validators as validators
 from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.load import get_notebook_status
+from marimo._ast.parse import MarimoFileError
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
@@ -117,7 +118,7 @@ def check_app_correctness_or_convert(filename: str) -> None:
     code = file.read_text(encoding="utf-8")
     try:
         return check_app_correctness(filename, noninteractive=True)
-    except click.ClickException:
+    except (click.ClickException, MarimoFileError):
         # A click exception is raised if a python script could not be converted
         code = MarimoConvert.from_non_marimo_python_script(
             source=code, aggressive=True
