@@ -452,6 +452,17 @@ class TestCellMatchingEdgeCases:
         )
         assert result == [CELL_B, CELL_A]
 
+    def test_similar_reduction(self) -> None:
+        """test with similar and reduction."""
+        result = _match_cell_ids_by_similarity(
+            prev_ids=[CELL_A, CELL_B],
+            prev_codes=["y = x + 1", "x = 1"],
+            next_ids=[CELL_A],
+            next_codes=["y = 2 + 1"],
+        )
+        assert len(result) == 1
+        assert result == [CELL_A]
+
 
 class TestSortCellIdsBySimilarity:
     """Test class for sorting cell IDs by similarity."""
@@ -540,3 +551,16 @@ class TestSortCellIdsBySimilarity:
         assert curr_manager.cell_data_at(CELL_B).code == "code2"
         assert curr_manager.cell_data_at(CELL_A).code == "code1"
         assert curr_manager.cell_data_at(CELL_Z).code == "code3"
+
+    def test_similar_reduction(self) -> None:
+        # Same as above but using CellManager
+        prev_manager = CellManager()
+        prev_manager.register_cell(CELL_A, "y = x + 1", CellConfig())
+        prev_manager.register_cell(CELL_B, "x = 1", CellConfig())
+        curr_manager = CellManager()
+        curr_manager.register_cell(CELL_A, "y = 2 + 1", CellConfig())
+        original_seen_ids = curr_manager.seen_ids.copy()
+        curr_manager.sort_cell_ids_by_similarity(prev_manager)
+        assert list(curr_manager.cell_ids()) == [CELL_A]
+        assert curr_manager.seen_ids == {CELL_A}
+        assert curr_manager.cell_data_at(CELL_A).code == "y = 2 + 1"
