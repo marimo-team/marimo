@@ -1,12 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo._types.ids import CellId_t
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
-def similarity_score(s1: str, s2: str) -> int:
+
+def similarity_score(s1: str, s2: str) -> float:
     """Fast similarity score based on common prefix and suffix.
     Returns lower score for more similar strings."""
     # Find common prefix length
@@ -29,11 +32,11 @@ def similarity_score(s1: str, s2: str) -> int:
         suffix_len = 0
 
     # Return inverse similarity - shorter common affix means higher score
-    return len(s1) + len(s2) - 2 * (prefix_len + suffix_len)
+    return len(s1) + len(s2) - 2.0 * (prefix_len + suffix_len)
 
 
 def group_lookup(
-    ids: list[CellId_t], codes: list[str]
+    ids: Sequence[CellId_t], codes: Sequence[str]
 ) -> dict[str, list[tuple[int, CellId_t]]]:
     lookup: dict[str, list[tuple[int, CellId_t]]] = {}
     for idx, (cell_id, code) in enumerate(zip(ids, codes)):
@@ -45,14 +48,17 @@ def extract_order(
     codes: list[str], lookup: dict[str, list[tuple[int, CellId_t]]]
 ) -> list[list[int]]:
     offset = 0
-    order = [[]] * len(codes)
+    order: list[list[int]] = [[]] * len(codes)
     for i, code in enumerate(codes):
         dupes = len(lookup[code])
         order[i] = [offset + j for j in range(dupes)]
         offset += dupes
     return order
 
-def get_unique(codes: list[str], available: dict[str, list[tuple[int, CellId_t]]]) -> list[str]:
+
+def get_unique(
+    codes: Sequence[str], available: dict[str, list[tuple[int, CellId_t]]]
+) -> list[str]:
     # Order matters, required opposed to using set()
     seen = set(codes) - set(available.keys())
     unique_codes = []
@@ -66,11 +72,13 @@ def get_unique(codes: list[str], available: dict[str, list[tuple[int, CellId_t]]
 def pop_local(available: list[tuple[int, CellId_t]], idx: int) -> CellId_t:
     """Find and pop the index that is closest to idx"""
     # NB. by min implementation a preference is given to the lower index when equidistant
-    best_idx = min(range(len(available)), key=lambda i: abs(available[i][0] - idx))
+    best_idx = min(
+        range(len(available)), key=lambda i: abs(available[i][0] - idx)
+    )
     return available.pop(best_idx)[1]
 
 
-def _hungarian_algorithm(scores: list[list[int]]) -> list[int]:
+def _hungarian_algorithm(scores: list[list[float]]) -> list[int]:
     """Implements the Hungarian algorithm to find the best matching.
 
     In general this class of problem is known as the assignment problem and is
@@ -151,12 +159,12 @@ def _hungarian_algorithm(scores: list[list[int]]) -> list[int]:
 
 
 def _match_cell_ids_by_similarity(
-    prev_ids: list[CellId_t],
-    prev_codes: list[str],
-    next_ids: list[CellId_t],
-    next_codes: list[str],
+    prev_ids: Sequence[CellId_t],
+    prev_codes: Sequence[str],
+    next_ids: Sequence[CellId_t],
+    next_codes: Sequence[str],
 ) -> list[CellId_t]:
-    """Match cell IDs based on code similarity. """
+    """Match cell IDs based on code similarity."""
     assert len(prev_codes) == len(prev_ids)
     assert len(next_codes) == len(next_ids)
 
@@ -232,7 +240,7 @@ def _match_cell_ids_by_similarity(
 
     # Pad the scores matrix to ensure it is square
     n = max(len(next_codes) - filled, len(prev_codes) - filled)
-    scores = [[0] * n for _ in range(n)]
+    scores = [[0.0] * n for _ in range(n)]
     # Fill matrix, accounting for dupes
     for i, code in enumerate(added_code):
         for j, prev_code in enumerate(deleted_code):
@@ -250,22 +258,19 @@ def _match_cell_ids_by_similarity(
             if match_idx != -1 and matches[match_idx] in inverse_order:
                 prev_idx = inverse_order[matches[match_idx]]
                 prev_code = deleted_code[prev_idx]
-                result[idx] = pop_local(previous_lookup[
-                    prev_code
-                ], idx)
+                result[idx] = pop_local(previous_lookup[prev_code], idx)
 
     return filter_and_backfill()
 
 
 def match_cell_ids_by_similarity(
-        prev_data: dict[CellId_t, str],
-        next_data: dict[CellId_t, str]
+    prev_data: dict[CellId_t, str], next_data: dict[CellId_t, str]
 ) -> list[CellId_t]:
     """Match cell IDs based on code similarity.
 
     NB. There is similar code in the front end that matches session results to
     cells, but there are a few caveats for why the logic is different:
-      - Session matching is inherent order dependent. If the order is wrong, 
+      - Session matching is inherent order dependent. If the order is wrong,
         there is no match. Moreover, the code must be an exact match for a
         session to be paired.
       - Cell matching in this context is not order dependent, we assume the
@@ -277,6 +282,8 @@ def match_cell_ids_by_similarity(
     attempted to match based on some similarity metric.
 
     Args:
+        prev_data: Mapping of previous cell IDs to code
+        next_data: Mapping of next cell IDs to code
 
     Returns:
         List of cell IDs matching next_codes, using prev_ids where possible

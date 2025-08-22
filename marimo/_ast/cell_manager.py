@@ -325,7 +325,10 @@ class CellManager:
         Returns:
             dict[CellId_t, str]: Dictionary mapping cell to their source code
         """
-        return {cell_id: cell_data.code for cell_id, cell_data in self._cell_data.items()}
+        return {
+            cell_id: cell_data.code
+            for cell_id, cell_data in self._cell_data.items()
+        }
 
     def configs(self) -> Iterable[CellConfig]:
         """Get an iterator over all cell configurations.
@@ -485,9 +488,7 @@ class CellManager:
         """
         prev_codes = prev_cell_manager.code_lookup()
         current_codes = self.code_lookup()
-        sorted_ids = match_cell_ids_by_similarity(
-            prev_codes, current_codes
-        )
+        sorted_ids = match_cell_ids_by_similarity(prev_codes, current_codes)
 
         # Create mapping from new to old ids
         id_mapping = dict(zip(sorted_ids, current_codes.keys()))

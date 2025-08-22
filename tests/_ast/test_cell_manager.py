@@ -6,11 +6,10 @@ from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.cell_manager import (
     CellManager,
 )
-from marimo._utils.cell_matching import _match_cell_ids_by_similarity
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._types.ids import CellId_t
-
+from marimo._utils.cell_matching import _match_cell_ids_by_similarity
 
 # Test cell ID constants
 CELL_A = CellId_t("a")
@@ -161,7 +160,9 @@ class TestCellManager:
 
     def test_valid_cells(self, cell_manager: CellManager) -> None:
         # Register a mix of valid and invalid cells
-        cell1 = Cell(_name="_", _cell=compile_cell("print('valid')", TEST_CELL1))
+        cell1 = Cell(
+            _name="_", _cell=compile_cell("print('valid')", TEST_CELL1)
+        )
         cell_manager.register_cell(
             TEST_CELL1, "print('valid')", CellConfig(), cell=cell1
         )
@@ -177,7 +178,7 @@ class TestCellManager:
         valid_ids = list(cell_manager.valid_cell_ids())
         assert valid_ids == [TEST_CELL1]
 
-    def test_create_cell_id_1000(self, cell_manager: CellManager) -> None:
+    def test_create_cell_id_1000(self) -> None:
         manager = CellManager()
         ids: set[CellId_t] = set()
         for _ in range(1000):
@@ -263,12 +264,18 @@ class TestCellMatching:
         result = _match_cell_ids_by_similarity(
             prev_ids=[CELL_A, CELL_B, CELL_C, CELL_X, CELL_Y, CELL_Z],
             prev_codes=["abc", "def", "ghi", "def", "abc", "123"],
-            next_ids=[UNUSED_A, UNUSED_B, UNUSED_C, UNUSED_X, UNUSED_Y, UNUSED_Z],
+            next_ids=[
+                UNUSED_A,
+                UNUSED_B,
+                UNUSED_C,
+                UNUSED_X,
+                UNUSED_Y,
+                UNUSED_Z,
+            ],
             next_codes=["ghij", "abcd", "defg", "defg", "ghij", "abc"],
         )
-        # NB. Locality given preference when dequeing dupes.
+        # NB. Locality given preference when dequeuing dupes.
         assert result == [CELL_C, CELL_A, CELL_B, CELL_X, CELL_Z, CELL_Y]
-
 
     def test_fewer_next_cells(self) -> None:
         """Test with fewer next cells than previous."""
