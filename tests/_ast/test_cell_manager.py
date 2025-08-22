@@ -263,7 +263,7 @@ def test_match_cell_ids_by_similarity_edge_cases():
         next_codes=["code1", "code1", "code2"],
     )
     assert len(result) == 3
-    assert result == [CELL_A, CELL_X, CELL_B]
+    assert result == [CELL_A, CELL_Y, CELL_B]
 
     # Test with very long common prefixes/suffixes
     long_prefix = "x" * 1000
@@ -439,15 +439,15 @@ def test_sort_cell_ids_by_similarity_more_cells():
     original_seen_ids = curr_manager.seen_ids.copy()
 
     curr_manager.sort_cell_ids_by_similarity(prev_manager)
-    assert list(curr_manager.cell_ids()) == [CELL_B, CELL_A, CELL_X]
+    assert list(curr_manager.cell_ids()) == [CELL_B, CELL_A, CELL_Z]
     assert curr_manager.seen_ids == original_seen_ids | {
         CELL_A,
         CELL_B,
-        CELL_X,
+        CELL_Z,
     }
     assert curr_manager.cell_data_at(CELL_B).code == "code2"
     assert curr_manager.cell_data_at(CELL_A).code == "code1"
-    assert curr_manager.cell_data_at(CELL_X).code == "code3"
+    assert curr_manager.cell_data_at(CELL_Z).code == "code3"
 
 
 def test_create_cell_id_1000():
