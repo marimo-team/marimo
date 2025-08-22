@@ -18,9 +18,11 @@ import {
   memo,
   type SetStateAction,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
+import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -41,6 +43,7 @@ import { useModelChange } from "@/core/ai/config";
 import {
   activeChatAtom,
   type Chat,
+  type ChatId,
   type ChatState,
   chatStateAtom,
 } from "@/core/ai/state";
@@ -68,8 +71,8 @@ import { ToolCallAccordion } from "./tool-call-accordion";
 
 interface ChatHeaderProps {
   onNewChat: () => void;
-  activeChatId: string | undefined;
-  setActiveChat: (id: string | null) => void;
+  activeChatId: ChatId | undefined;
+  setActiveChat: (id: ChatId | null) => void;
   chats: Chat[];
 }
 
@@ -151,11 +154,11 @@ interface ChatMessageProps {
   setChatState: Dispatch<SetStateAction<ChatState>>;
   chatState: ChatState;
   isStreamingReasoning: boolean;
-  totalMessages: number;
+  isLast: boolean;
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = memo(
-  ({ message, index, onEdit, isStreamingReasoning, totalMessages }) => (
+  ({ message, index, onEdit, isStreamingReasoning, isLast }) => (
     <div
       className={cn(
         "flex group relative",
@@ -199,7 +202,7 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
                     key={i}
                     index={i}
                     isStreaming={
-                      index === totalMessages - 1 &&
+                      isLast &&
                       isStreamingReasoning &&
                       // If there are multiple reasoning parts, only show the last one
                       i === (message.parts?.length || 0) - 1
@@ -235,7 +238,7 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
 ChatMessage.displayName = "ChatMessage";
 
 interface ChatInputFooterProps {
-  input: string;
+  isEmpty: boolean;
   onSendClick: () => void;
   isLoading: boolean;
   onStop: () => void;
@@ -244,7 +247,7 @@ interface ChatInputFooterProps {
 const DEFAULT_MODE = "manual";
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
-  ({ input, onSendClick, isLoading, onStop }) => {
+  ({ isEmpty, onSendClick, isLoading, onStop }) => {
     const ai = useAtomValue(aiAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
     const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
@@ -308,7 +311,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
           size="sm"
           className="h-6 w-6 p-0 hover:bg-muted/30"
           onClick={isLoading ? onStop : onSendClick}
-          disabled={isLoading ? false : !input.trim()}
+          disabled={isLoading ? false : isEmpty}
         >
           {isLoading ? (
             <SquareIcon className="h-3 w-3 fill-current" />
@@ -334,11 +337,11 @@ interface ChatInputProps {
 
 const ChatInput: React.FC<ChatInputProps> = memo(
   ({ input, setInput, onSubmit, inputRef, isLoading, onStop }) => {
-    const handleSendClick = () => {
+    const handleSendClick = useEvent(() => {
       if (input.trim()) {
         onSubmit(undefined, input);
       }
-    };
+    });
 
     return (
       <div className="border-t relative shrink-0 min-h-[80px] flex flex-col">
@@ -352,7 +355,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
           />
         </div>
         <ChatInputFooter
-          input={input}
+          isEmpty={!input.trim()}
           onSendClick={handleSendClick}
           isLoading={isLoading}
           onStop={onStop}
@@ -463,8 +466,9 @@ const ChatPanelBody = () => {
   const isLoading = status === "submitted" || status === "streaming";
 
   // Sync user messages from useChat to storage when they become available
+  // Only when we are done loading, for performance.
   useEffect(() => {
-    if (!chatState.activeChatId || messages.length === 0) {
+    if (!chatState.activeChatId || messages.length === 0 || isLoading) {
       return;
     }
 
@@ -474,9 +478,7 @@ const ChatPanelBody = () => {
       return;
     }
 
-    const currentChat = chatState.chats.find(
-      (c) => c.id === chatState.activeChatId,
-    );
+    const currentChat = chatState.chats.get(chatState.activeChatId);
     if (!currentChat) {
       return;
     }
@@ -505,31 +507,13 @@ const ChatPanelBody = () => {
         return result;
       });
     }
-  }, [messages, chatState.activeChatId, chatState.chats, setChatState]);
-
-  const isLastMessageReasoning = (messages: Message[]): boolean => {
-    if (messages.length === 0) {
-      return false;
-    }
-
-    const lastMessage = messages.at(-1);
-    if (!lastMessage) {
-      return false;
-    }
-
-    if (lastMessage.role !== "assistant" || !lastMessage.parts) {
-      return false;
-    }
-
-    const parts = lastMessage.parts;
-    if (parts.length === 0) {
-      return false;
-    }
-
-    // Check if the last part is reasoning
-    const lastPart = parts[parts.length - 1];
-    return lastPart.type === "reasoning";
-  };
+  }, [
+    messages,
+    chatState.activeChatId,
+    chatState.chats,
+    setChatState,
+    isLoading,
+  ]);
 
   // Check if we're currently streaming reasoning in the latest message
   const isStreamingReasoning =
@@ -550,7 +534,7 @@ const ChatPanelBody = () => {
   const createNewThread = (initialMessage: string) => {
     const CURRENT_TIME = Date.now();
     const newChat: Chat = {
-      id: generateUUID(),
+      id: generateUUID() as ChatId,
       title:
         initialMessage.length > 50
           ? `${initialMessage.slice(0, 50)}...`
@@ -562,53 +546,59 @@ const ChatPanelBody = () => {
 
     // Create new chat and set as active
     setChatState((prev) => {
+      const newChats = new Map(prev.chats);
+      newChats.set(newChat.id, newChat);
       const newState = {
         ...prev,
-        chats: [...prev.chats, newChat],
+        chats: newChats,
         activeChatId: newChat.id,
       };
       return newState;
     });
 
     // Trigger AI conversation with append
-    const MESSAGE_ID = generateUUID();
     append({
-      id: MESSAGE_ID,
+      id: generateUUID(),
       role: "user",
       content: initialMessage,
     });
     setInput("");
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = useEvent(() => {
     setActiveChat(null);
     setInput("");
     setNewThreadInput("");
-  };
+  });
 
-  const handleMessageEdit = (index: number, newValue: string) => {
+  const handleMessageEdit = useEvent((index: number, newValue: string) => {
     // Truncate both useChat and storage
     setMessages((messages) => messages.slice(0, index));
     if (chatState.activeChatId) {
-      setChatState((prev) => ({
-        ...prev,
-        chats: prev.chats.map((chat) =>
-          chat.id === chatState.activeChatId
-            ? {
-                ...chat,
-                messages: chat.messages.slice(0, index),
-                updatedAt: Date.now(),
-              }
-            : chat,
-        ),
-      }));
+      setChatState((prev) => {
+        const nextChats = new Map(prev.chats);
+        const activeChat =
+          chatState.activeChatId && chatState.chats.get(chatState.activeChatId);
+        if (activeChat) {
+          nextChats.set(activeChat.id, {
+            ...activeChat,
+            messages: activeChat.messages.slice(0, index),
+            updatedAt: Date.now(),
+          });
+        }
+
+        return {
+          ...prev,
+          chats: nextChats,
+        };
+      });
     }
 
     append({
       role: "user",
       content: newValue,
     });
-  };
+  });
 
   const handleChatInputSubmit = (
     e: KeyboardEvent | undefined,
@@ -624,11 +614,20 @@ const ChatPanelBody = () => {
     reload();
   };
 
-  const handleNewThreadSubmit = () => {
-    newThreadInput.trim() && createNewThread(newThreadInput.trim());
-  };
+  const handleNewThreadSubmit = useEvent(() => {
+    if (!newThreadInput.trim()) {
+      return;
+    }
+    createNewThread(newThreadInput.trim());
+  });
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
+
+  const sortedChats = useMemo(() => {
+    return [...chatState.chats.values()].sort(
+      (a, b) => b.updatedAt - a.updatedAt,
+    );
+  }, [chatState.chats]);
 
   return (
     <div className="flex flex-col h-[calc(100%-53px)]">
@@ -637,7 +636,7 @@ const ChatPanelBody = () => {
           onNewChat={handleNewChat}
           activeChatId={activeChat?.id}
           setActiveChat={setActiveChat}
-          chats={[...chatState.chats].sort((a, b) => b.updatedAt - a.updatedAt)}
+          chats={sortedChats}
         />
       </TooltipProvider>
 
@@ -658,7 +657,7 @@ const ChatPanelBody = () => {
               />
             </div>
             <ChatInputFooter
-              input={newThreadInput}
+              isEmpty={!newThreadInput.trim()}
               onSendClick={handleNewThreadSubmit}
               isLoading={isLoading}
               onStop={stop}
@@ -668,14 +667,14 @@ const ChatPanelBody = () => {
 
         {messages.map((message, idx) => (
           <ChatMessage
-            key={idx}
+            key={message.id}
             message={message}
             index={idx}
             onEdit={handleMessageEdit}
             setChatState={setChatState}
             chatState={chatState}
             isStreamingReasoning={isStreamingReasoning}
-            totalMessages={messages.length}
+            isLast={idx === messages.length - 1}
           />
         ))}
 
@@ -718,3 +717,27 @@ const ChatPanelBody = () => {
     </div>
   );
 };
+
+function isLastMessageReasoning(messages: Message[]): boolean {
+  if (messages.length === 0) {
+    return false;
+  }
+
+  const lastMessage = messages.at(-1);
+  if (!lastMessage) {
+    return false;
+  }
+
+  if (lastMessage.role !== "assistant" || !lastMessage.parts) {
+    return false;
+  }
+
+  const parts = lastMessage.parts;
+  if (parts.length === 0) {
+    return false;
+  }
+
+  // Check if the last part is reasoning
+  const lastPart = parts[parts.length - 1];
+  return lastPart.type === "reasoning";
+}

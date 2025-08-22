@@ -3,9 +3,13 @@
 import type { Message as AIMessage } from "@ai-sdk/react";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import { adaptForLocalStorage } from "@/utils/storage";
+import type { TypedString } from "@/utils/typed";
 import type { CellId } from "../cells/ids";
 
-const KEY = "marimo:ai:chatState:v3";
+const KEY = "marimo:ai:chatState:v4";
+
+export type ChatId = TypedString<"ChatId">;
 
 export const aiCompletionCellAtom = atom<{
   cellId: CellId;
@@ -27,7 +31,7 @@ export interface Message {
 }
 
 export interface Chat {
-  id: string;
+  id: ChatId;
   title: string;
   messages: Message[];
   createdAt: number;
@@ -35,21 +39,37 @@ export interface Chat {
 }
 
 export interface ChatState {
-  chats: Chat[];
-  activeChatId: string | null;
+  chats: Map<ChatId, Chat>;
+  activeChatId: ChatId | null;
 }
 
-export const chatStateAtom = atomWithStorage<ChatState>(KEY, {
-  chats: [],
-  activeChatId: null,
-});
+export const chatStateAtom = atomWithStorage<ChatState>(
+  KEY,
+  {
+    chats: new Map(),
+    activeChatId: null,
+  },
+  adaptForLocalStorage({
+    toSerializable: (value: ChatState) => ({
+      chats: [...value.chats.entries()],
+      activeChatId: value.activeChatId,
+    }),
+    fromSerializable: (value) => ({
+      chats: new Map(value.chats),
+      activeChatId: value.activeChatId,
+    }),
+  }),
+);
 
 export const activeChatAtom = atom(
   (get) => {
     const state = get(chatStateAtom);
-    return state.chats.find((chat) => chat.id === state.activeChatId);
+    if (!state.activeChatId) {
+      return null;
+    }
+    return state.chats.get(state.activeChatId);
   },
-  (get, set, chatId: string | null) => {
+  (get, set, chatId: ChatId | null) => {
     set(chatStateAtom, (prev) => ({
       ...prev,
       activeChatId: chatId,

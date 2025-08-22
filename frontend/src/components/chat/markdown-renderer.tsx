@@ -81,19 +81,13 @@ function maybeTransform(
   };
 }
 
-const CodeBlock = ({ code, language }: CodeBlockProps) => {
-  const { theme } = useTheme();
+const InsertCodeBlockButton = ({ code, language }: CodeBlockProps) => {
   const { createNewCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
-  const [value, setValue] = useState(code);
-
-  useEffect(() => {
-    setValue(code);
-  }, [code]);
 
   const handleInsertCode = () => {
-    const result = maybeTransform(language, value);
+    const result = maybeTransform(language, code);
 
     if (language === "sql") {
       maybeAddMarimoImport({
@@ -108,6 +102,22 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
       cellId: lastFocusedCellId ?? "__end__",
     });
   };
+
+  return (
+    <Button size="xs" variant="outline" onClick={handleInsertCode}>
+      Add to Notebook
+      <BetweenHorizontalStartIcon className="ml-2 h-4 w-4" />
+    </Button>
+  );
+};
+
+const CodeBlock = ({ code, language }: CodeBlockProps) => {
+  const { theme } = useTheme();
+  const [value, setValue] = useState(code);
+
+  useEffect(() => {
+    setValue(code);
+  }, [code]);
 
   const handleCopyCode = async () => {
     await copyToClipboard(value);
@@ -132,10 +142,7 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
         <CopyButton size="xs" variant="outline" onClick={handleCopyCode}>
           Copy
         </CopyButton>
-        <Button size="xs" variant="outline" onClick={handleInsertCode}>
-          Add to Notebook
-          <BetweenHorizontalStartIcon className="ml-2 h-4 w-4" />
-        </Button>
+        <InsertCodeBlockButton code={value} language={language} />
       </div>
     </div>
   );
@@ -164,17 +171,21 @@ const CopyButton: React.FC<ButtonProps> = ({ onClick, ...props }) => {
 };
 
 const COMPONENTS: Components = {
-  code: ({ children, className }) => {
+  code: ({ children, className, key }) => {
     const language = className?.replace("language-", "");
     if (language && typeof children === "string") {
       return (
-        <div>
+        <div key={key}>
           <div className="text-xs text-muted-foreground pl-1">{language}</div>
           <CodeBlock code={children.trim()} language={language} />
         </div>
       );
     }
-    return <code className={className}>{children}</code>;
+    return (
+      <code key={key} className={className}>
+        {children}
+      </code>
+    );
   },
 };
 
@@ -183,12 +194,14 @@ function parseMarkdownIntoBlocks(markdown: string): string[] {
   return tokens.map((token) => token.raw);
 }
 
+const PLUGINS = [remarkGfm];
+
 const MemoizedMarkdownBlock = memo(
   ({ content }: { content: string }) => {
     return (
       <Markdown
         components={COMPONENTS}
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={PLUGINS}
         className="prose dark:prose-invert max-w-none prose-pre:pl-0"
       >
         {content}
