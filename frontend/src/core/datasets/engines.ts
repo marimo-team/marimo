@@ -8,3 +8,4 @@ export type ConnectionName = TypedString<"ConnectionName">;
 // Keep this in sync with the backend name
 export const DUCKDB_ENGINE = "__marimo_duckdb" as ConnectionName;
 export const INTERNAL_SQL_ENGINES = new Set([DUCKDB_ENGINE]);
+export const DEFAULT_DUCKDB_DATABASE = "memory";
