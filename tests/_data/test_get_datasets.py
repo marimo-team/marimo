@@ -388,8 +388,6 @@ DROP SCHEMA s2 CASCADE;
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_databases() -> None:
-    assert get_databases_from_duckdb(connection=None) == []
-
     import duckdb
 
     duckdb.execute(sql_query)
@@ -408,6 +406,30 @@ def test_get_databases() -> None:
     ]
 
     duckdb.execute(cleanup_query)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_databases_with_no_tables() -> None:
+    import duckdb
+
+    in_memory_database = Database(
+        name="memory",
+        dialect="duckdb",
+        schemas=[],
+        engine=None,
+    )
+
+    # No connection, return in-memory database
+    connection = None
+    assert get_databases_from_duckdb(connection=connection) == [
+        in_memory_database
+    ]
+
+    # Custom connection with no tables
+    connection = duckdb.connect(":memory:")
+    assert get_databases_from_duckdb(connection=connection) == [
+        in_memory_database
+    ]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

@@ -115,9 +115,19 @@ def _get_databases_from_duckdb_internal(
         tables_result = duckdb.execute("SHOW ALL TABLES").fetchall()
     else:
         tables_result = connection.execute("SHOW ALL TABLES").fetchall()
-    if not len(tables_result):
-        # No tables
-        return []
+
+    if len(tables_result) == 0:
+        # Return empty databases if there are no tables
+        all_dbs = _get_duckdb_database_names(connection)
+        return [
+            Database(
+                name=database,
+                dialect="duckdb",
+                schemas=[],
+                engine=engine_name,
+            )
+            for database in all_dbs
+        ]
 
     # Group tables by database and schema
     # databases_dict[database][schema] = [table1, table2, ...]

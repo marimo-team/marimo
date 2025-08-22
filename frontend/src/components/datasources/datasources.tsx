@@ -30,7 +30,11 @@ import {
   type SQLTableContext,
   useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
-import { DUCKDB_ENGINE, INTERNAL_SQL_ENGINES } from "@/core/datasets/engines";
+import {
+  DEFAULT_DUCKDB_DATABASE,
+  DUCKDB_ENGINE,
+  INTERNAL_SQL_ENGINES,
+} from "@/core/datasets/engines";
 import {
   PreviewSQLTable,
   PreviewSQLTableList,
@@ -101,9 +105,22 @@ const connectionsAtom = atom((get) => {
   const dataConnections = new Map(get(dataConnectionsMapAtom));
 
   // Filter out the internal engines if it has no databases
+  // Or if it has only the in-memory database and no schemas
   for (const engine of INTERNAL_SQL_ENGINES) {
     const connection = dataConnections.get(engine);
-    if (connection && connection.databases.length === 0) {
+    if (!connection) {
+      continue;
+    }
+
+    if (connection.databases.length === 0) {
+      dataConnections.delete(engine);
+    }
+
+    if (
+      connection.databases.length === 1 &&
+      connection.databases[0].name === DEFAULT_DUCKDB_DATABASE &&
+      connection.databases[0].schemas.length === 0
+    ) {
       dataConnections.delete(engine);
     }
   }
