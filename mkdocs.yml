@@ -336,21 +336,26 @@ theme:
   logo: _static/marimo-logotype-horizontal.png
   name: material
   palette:
-    - media: (prefers-color-scheme)
+    # Palette toggle for system preference and use brightness-auto icon
+    - media: "(prefers-color-scheme)"
       toggle:
-        icon: material/brightness-7
+        icon: material/brightness-auto
         name: Switch to light mode
-    - media: '(prefers-color-scheme: light)'
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
       primary: white
       accent: teal
       scheme: default
       toggle:
-        icon: material/brightness-4
+        icon: material/brightness-7
         name: Switch to dark mode
-    - media: '(prefers-color-scheme: dark)'
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
       primary: black
       accent: teal
       scheme: slate
       toggle:
-        icon: material/brightness-7
+        icon: material/brightness-4
         name: Switch to system preference
