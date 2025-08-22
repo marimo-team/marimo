@@ -47,7 +47,6 @@ const OpinionatedStandardSQL: SQLDialectSpec = {
   ...StandardSQL,
   // Upper-case identifiers do not need to be quoted most of the time
   caseInsensitiveIdentifiers: true,
-  // Single quotes are more common in SQL
   identifierQuotes: "'",
 };
 
