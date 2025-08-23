@@ -2052,12 +2052,14 @@ components:
           type: string
         client_pem:
           type: string
+        extra_headers:
+          additionalProperties:
+            type: string
+          type: object
         model:
           type: string
         ssl_verify:
           type: boolean
-        extra_headers:
-          type: object
       type: object
     OpenTutorialRequest:
       properties:
@@ -2827,7 +2829,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.17
+  version: 0.15.0
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

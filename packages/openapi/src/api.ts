@@ -3422,9 +3422,11 @@ export interface components {
       base_url?: string;
       ca_bundle_path?: string;
       client_pem?: string;
+      extra_headers?: {
+        [key: string]: string;
+      };
       model?: string;
       ssl_verify?: boolean;
-      extra_headers?: Record<string, never>;
     };
     OpenTutorialRequest: {
       tutorialId:
