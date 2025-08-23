@@ -345,6 +345,7 @@ class OpenAIProvider(
         ssl_verify: bool = (
             config.ssl_verify if config.ssl_verify is not None else True
         )
+        extra_headers: Optional[dict[str, str]] = config.extra_headers
         ca_bundle_path: Optional[str] = config.ca_bundle_path
         client_pem: Optional[str] = config.client_pem
 
@@ -388,9 +389,10 @@ class OpenAIProvider(
             client = httpx.AsyncClient(verify=False)
 
         # if client is created, either with a custom context or with verify=False, use it as the http_client object in `AsyncOpenAI`
+        extra_headers = extra_headers or {}
         if client:
             return AsyncOpenAI(
-                default_headers={"api-key": key},
+                default_headers={"api-key": key, **extra_headers},
                 api_key=key,
                 base_url=base_url,
                 http_client=client,
@@ -398,7 +400,7 @@ class OpenAIProvider(
 
         # if not, return bog standard AsyncOpenAI object
         return AsyncOpenAI(
-            default_headers={"api-key": key},
+            default_headers={"api-key": key, **extra_headers},
             api_key=key,
             base_url=base_url,
         )

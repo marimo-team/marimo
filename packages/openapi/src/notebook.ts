@@ -6,38 +6,38 @@
 export type paths = Record<string, never>;
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    NotebookCell: {
-      code: string | null;
-      code_hash: string | null;
-      config: {
-        column?: number | null;
-        disabled?: boolean | null;
-        hide_code?: boolean | null;
-      };
-      id: string | null;
-      name: string | null;
+    schemas: {
+        NotebookCell: {
+            code: string | null;
+            code_hash: string | null;
+            config: {
+                column?: number | null;
+                disabled?: boolean | null;
+                hide_code?: boolean | null;
+            };
+            id: string | null;
+            name: string | null;
+        };
+        NotebookCellConfig: {
+            column?: number | null;
+            disabled?: boolean | null;
+            hide_code?: boolean | null;
+        };
+        NotebookMetadata: {
+            marimo_version?: string | null;
+        };
+        NotebookV1: {
+            cells: components["schemas"]["NotebookCell"][];
+            metadata: components["schemas"]["NotebookMetadata"];
+            /** @enum {string} */
+            version: "1";
+        };
     };
-    NotebookCellConfig: {
-      column?: number | null;
-      disabled?: boolean | null;
-      hide_code?: boolean | null;
-    };
-    NotebookMetadata: {
-      marimo_version?: string | null;
-    };
-    NotebookV1: {
-      cells: components["schemas"]["NotebookCell"][];
-      metadata: components["schemas"]["NotebookMetadata"];
-      /** @enum {string} */
-      version: "1";
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

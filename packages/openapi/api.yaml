@@ -2056,6 +2056,8 @@ components:
           type: string
         ssl_verify:
           type: boolean
+        extra_headers:
+          type: object
       type: object
     OpenTutorialRequest:
       properties:

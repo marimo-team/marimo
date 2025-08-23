@@ -300,6 +300,7 @@ class OpenAiConfig(TypedDict, total=False):
     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
     - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
     - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
+    - `extra_headers`: extra headers to be passed to the OpenAI client
     """
 
     api_key: str
@@ -307,6 +308,7 @@ class OpenAiConfig(TypedDict, total=False):
     ssl_verify: NotRequired[bool]
     ca_bundle_path: NotRequired[str]
     client_pem: NotRequired[str]
+    extra_headers: NotRequired[dict[str, str]]
 
     # @deprecated: use `ai.models.chat_model` instead
     model: NotRequired[str]

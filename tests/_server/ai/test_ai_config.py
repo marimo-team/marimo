@@ -47,6 +47,7 @@ class TestAnyProviderConfig:
         assert provider_config.ssl_verify is True
         assert provider_config.ca_bundle_path is None
         assert provider_config.client_pem is None
+        assert provider_config.extra_headers is None
 
     def test_for_openai_with_base_url(self):
         """Test OpenAI configuration with custom base URL."""
@@ -57,6 +58,7 @@ class TestAnyProviderConfig:
                 "ssl_verify": False,
                 "ca_bundle_path": "/path/to/ca.pem",
                 "client_pem": "/path/to/client.pem",
+                "extra_headers": {"test-header": "test-value"},
             }
         }
 
@@ -67,6 +69,7 @@ class TestAnyProviderConfig:
         assert provider_config.ssl_verify is False
         assert provider_config.ca_bundle_path == "/path/to/ca.pem"
         assert provider_config.client_pem == "/path/to/client.pem"
+        assert provider_config.extra_headers == {"test-header": "test-value"}
 
     def test_for_azure(self):
         """Test Azure OpenAI configuration."""
