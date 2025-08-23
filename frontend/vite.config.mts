@@ -267,9 +267,9 @@ export default defineConfig({
     },
     headers: isPyodide
       ? {
-        "Cross-Origin-Opener-Policy": "same-origin",
-        "Cross-Origin-Embedder-Policy": "require-corp",
-      }
+          "Cross-Origin-Opener-Policy": "same-origin",
+          "Cross-Origin-Embedder-Policy": "require-corp",
+        }
       : {},
   },
   define: {
@@ -301,8 +301,8 @@ export default defineConfig({
       babel: {
         presets: ["@babel/preset-typescript"],
         plugins: [
-          ["@babel/plugin-proposal-decorators", {legacy: true}],
-          ["@babel/plugin-proposal-class-properties", {loose: true}],
+          ["@babel/plugin-proposal-decorators", { legacy: true }],
+          ["@babel/plugin-proposal-class-properties", { loose: true }],
           ["babel-plugin-react-compiler", ReactCompilerConfig],
         ],
       },
