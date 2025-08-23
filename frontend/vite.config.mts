@@ -19,6 +19,16 @@ const htmlDevPlugin = (): Plugin => {
   return {
     apply: "serve",
     name: "html-transform",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.method === "GET" && req.url?.startsWith("/.well-known/")) {
+          res.statusCode = 404;
+          res.end("Not Found");
+          return;
+        }
+        next();
+      });
+    },
     transformIndexHtml: async (html, ctx) => {
       if (isStorybook) {
         return html;
@@ -114,6 +124,10 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
       const serverDoc = new JSDOM(serverHtml).window.document;
       const devDoc = new JSDOM(html).window.document;
 
+      if (ctx.originalUrl?.startsWith("/health")) {
+        return serverHtml;
+      }
+
       // Login page
       if (!serverHtml.includes("marimo-mode") && serverHtml.includes("login")) {
         return `
@@ -176,6 +190,12 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
       // Copy scripts
       const scripts = serverDoc.querySelectorAll("script");
       scripts.forEach((script) => {
+        const src = script.getAttribute("src");
+
+        if (src && src.startsWith("./assets/")) {
+          return;
+        }
+
         devDoc.head.append(script);
       });
 
@@ -247,9 +267,9 @@ export default defineConfig({
     },
     headers: isPyodide
       ? {
-          "Cross-Origin-Opener-Policy": "same-origin",
-          "Cross-Origin-Embedder-Policy": "require-corp",
-        }
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+      }
       : {},
   },
   define: {
@@ -281,8 +301,8 @@ export default defineConfig({
       babel: {
         presets: ["@babel/preset-typescript"],
         plugins: [
-          ["@babel/plugin-proposal-decorators", { legacy: true }],
-          ["@babel/plugin-proposal-class-properties", { loose: true }],
+          ["@babel/plugin-proposal-decorators", {legacy: true}],
+          ["@babel/plugin-proposal-class-properties", {loose: true}],
           ["babel-plugin-react-compiler", ReactCompilerConfig],
         ],
       },
