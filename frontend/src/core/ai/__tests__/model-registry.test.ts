@@ -78,20 +78,44 @@ describe("AiModelRegistry", () => {
       const displayedModels = ["openai/gpt-4", "anthropic/claude-3-sonnet"];
       const registry = AiModelRegistry.create({ displayedModels });
 
+      const ids = [...registry.getModelsMap().keys()];
+      expect(ids).toEqual(["openai/gpt-4", "anthropic/claude-3-sonnet"]);
       expect(registry.getCustomModels()).toEqual(new Set());
       expect(registry.getDisplayedModels()).toEqual(new Set(displayedModels));
     });
 
     it("should create registry with both custom and displayed models", () => {
       const customModels = ["openai/custom-gpt"];
-      const displayedModels = ["openai/gpt-4", "anthropic/claude-3-sonnet"];
+      const displayedModels = ["openai/custom-gpt"];
       const registry = AiModelRegistry.create({
         customModels,
         displayedModels,
       });
 
+      const ids = [...registry.getModelsMap().keys()];
+      expect(ids).toEqual(["openai/custom-gpt"]);
       expect(registry.getCustomModels()).toEqual(new Set(customModels));
       expect(registry.getDisplayedModels()).toEqual(new Set(displayedModels));
+    });
+
+    it("should create registry with non-existent displayed_model", () => {
+      const customModels = ["openai/custom-gpt"];
+      const displayedModels = ["something-wrong/model-id"];
+      const registry = AiModelRegistry.create({
+        customModels,
+        displayedModels,
+      });
+
+      const ids = [...registry.getModelsMap().keys()];
+      // Include custom and all default ones.
+      expect(ids).toEqual([
+        "openai/custom-gpt",
+        "openai/gpt-4",
+        "anthropic/claude-3-sonnet",
+        "google/gemini-pro",
+        "openai/multi-model",
+        "anthropic/multi-model",
+      ]);
     });
   });
 

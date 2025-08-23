@@ -14,6 +14,7 @@ import {
 import { useAppConfig } from "@/core/config/config";
 import { getAppWidths } from "@/core/config/widths";
 import { useRequestClient } from "@/core/network/requests";
+import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { arrayToggle } from "@/utils/arrays";
 import {
   type AppConfig,
@@ -32,6 +33,8 @@ import {
   SQL_OUTPUT_SELECT_OPTIONS,
 } from "./common";
 
+const FORM_DEBOUNCE = 100; // ms;
+
 export const AppConfigForm: React.FC = () => {
   const [config, setConfig] = useAppConfig();
   const { saveAppConfig } = useRequestClient();
@@ -43,6 +46,7 @@ export const AppConfigForm: React.FC = () => {
   });
 
   const onSubmit = async (values: AppConfig) => {
+    console.log("11111");
     await saveAppConfig({ config: values })
       .then(() => {
         setConfig(values);
@@ -52,6 +56,11 @@ export const AppConfigForm: React.FC = () => {
       });
   };
 
+  const debouncedSubmit = useDebouncedCallback((v) => {
+    console.log("222");
+    onSubmit(v);
+  }, FORM_DEBOUNCE);
+
   // When width is changed, dispatch a resize event so widgets know to resize
   useEffect(() => {
     window.dispatchEvent(new Event("resize"));
@@ -60,7 +69,7 @@ export const AppConfigForm: React.FC = () => {
   return (
     <Form {...form}>
       <form
-        onChange={form.handleSubmit(onSubmit)}
+        onChange={form.handleSubmit(debouncedSubmit)}
         className="flex flex-col gap-6"
       >
         <div>

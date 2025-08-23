@@ -1,8 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { InfoIcon } from "lucide-react";
-import React from "react";
+import React, { useMemo } from "react";
+import { Tree, TreeItem, TreeItemContent } from "react-aria-components";
 import type { FieldPath, UseFormReturn } from "react-hook-form";
+import { useWatch } from "react-hook-form";
+import useEvent from "react-use-event-hook";
 import {
   FormControl,
   FormDescription,
@@ -16,11 +19,18 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import type { QualifiedModelId } from "@/core/ai/ids/ids";
+import {
+  AiModelId,
+  type ProviderId,
+  type QualifiedModelId,
+} from "@/core/ai/ids/ids";
+import { type AiModel, AiModelRegistry } from "@/core/ai/model-registry";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { DEFAULT_AI_MODEL, type UserConfig } from "@/core/config/config-schema";
 import { isWasm } from "@/core/wasm/utils";
+import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
+import { Strings } from "@/utils/strings";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import {
   AiProviderIcon,
@@ -32,8 +42,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../ui/accordion";
+import { Checkbox } from "../ui/checkbox";
 import { DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { ExternalLink } from "../ui/links";
+import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
 import { SettingSubtitle } from "./common";
@@ -388,8 +400,57 @@ const renderCopilotProvider = ({
   }
 };
 
-const SettingGroup = ({ children }: { children: React.ReactNode }) => {
-  return <div className="flex flex-col gap-4 pb-4">{children}</div>;
+const SettingGroup = ({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) => {
+  return (
+    <div className={cn("flex flex-col gap-4 pb-4", className)}>{children}</div>
+  );
+};
+
+interface ModelListItemProps {
+  qualifiedId: QualifiedModelId;
+  model: AiModel;
+  isEnabled: boolean;
+  onToggle: (modelId: QualifiedModelId) => void;
+}
+
+const ModelListItem: React.FC<ModelListItemProps> = ({
+  qualifiedId,
+  model,
+  isEnabled,
+  onToggle,
+}) => {
+  const handleToggle = () => {
+    onToggle(qualifiedId);
+  };
+
+  return (
+    <TreeItem
+      id={qualifiedId}
+      textValue={model.name}
+      className="pl-6 outline-none data-focused:bg-muted/50 hover:bg-muted/50"
+      onAction={handleToggle}
+    >
+      <TreeItemContent>
+        <div className="flex items-center justify-between px-4 py-3 border-b last:border-b-0 cursor-pointer outline-none">
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col">
+              <span className="font-medium">{model.name}</span>
+              <span className="text-sm text-muted-secondary">
+                {qualifiedId}
+              </span>
+            </div>
+          </div>
+          <Switch checked={isEnabled} onClick={handleToggle} size="sm" />
+        </div>
+      </TreeItemContent>
+    </TreeItem>
+  );
 };
 
 export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
@@ -827,16 +888,178 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
   );
 };
 
+interface ProviderTreeItemProps {
+  providerId: ProviderId;
+  models: AiModel[];
+  enabledModels: Set<QualifiedModelId>;
+  onToggleModel: (modelId: QualifiedModelId) => void;
+  onToggleProvider: (providerId: ProviderId, enable: boolean) => void;
+}
+
+const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
+  providerId,
+  models,
+  enabledModels,
+  onToggleModel,
+  onToggleProvider,
+}) => {
+  const enabledCount = models.filter((model) =>
+    enabledModels.has(new AiModelId(providerId, model.model).id),
+  ).length;
+  const totalCount = models.length;
+  const maybeProviderInfo = AiModelRegistry.getProviderInfo(providerId);
+  const name = maybeProviderInfo?.name || Strings.startCase(providerId);
+
+  const checkboxState =
+    enabledCount === 0
+      ? false
+      : enabledCount === totalCount
+        ? true
+        : "indeterminate";
+
+  const handleProviderToggle = useEvent(() => {
+    const shouldEnable = enabledCount < totalCount / 2;
+    onToggleProvider(providerId, shouldEnable);
+  });
+
+  return (
+    <TreeItem
+      id={providerId}
+      hasChildItems={true}
+      textValue={providerId}
+      className="outline-none data-focused:bg-muted/50"
+    >
+      <TreeItemContent>
+        <div className="flex items-center gap-3 px-3 py-3 hover:bg-muted/50 cursor-pointer outline-none focus-visible:outline-none">
+          <Checkbox
+            checked={checkboxState}
+            onCheckedChange={handleProviderToggle}
+            onClick={Events.stopPropagation()}
+          />
+          <AiProviderIcon
+            provider={providerId as ProviderId}
+            className="h-5 w-5"
+          />
+          <div className="flex items-center justify-between w-full">
+            <span className="font-medium">{name}</span>
+            <span className="text-sm text-muted-secondary">
+              {enabledCount}/{totalCount} models
+            </span>
+          </div>
+        </div>
+      </TreeItemContent>
+      {models.map((model) => {
+        const qualifiedId = new AiModelId(providerId, model.model).id;
+        return (
+          <ModelListItem
+            key={qualifiedId}
+            qualifiedId={qualifiedId}
+            model={model}
+            isEnabled={enabledModels.has(qualifiedId)}
+            onToggle={onToggleModel}
+          />
+        );
+      })}
+    </TreeItem>
+  );
+};
+
+export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
+  form,
+  config,
+  onSubmit,
+}) => {
+  const aiModelRegistry = useMemo(
+    () =>
+      AiModelRegistry.create({
+        displayedModels: [],
+      }),
+    [],
+  );
+  const currentDisplayedModels = useWatch({
+    control: form.control,
+    name: "ai.models.displayed_models",
+    defaultValue: [],
+  }) as QualifiedModelId[];
+  const currentDisplayedModelsSet = new Set(currentDisplayedModels);
+  const modelsByProvider = aiModelRegistry.getGroupedModelsByProvider();
+
+  const toggleModelDisplay = useEvent(async (modelId: QualifiedModelId) => {
+    console.log("here!");
+    const newModels = !currentDisplayedModelsSet.has(modelId)
+      ? [...currentDisplayedModels, modelId]
+      : currentDisplayedModels.filter((id) => id !== modelId);
+
+    form.setValue("ai.models.displayed_models", newModels);
+    await onSubmit(form.getValues());
+  });
+
+  const toggleProviderModels = useEvent(
+    async (providerId: ProviderId, enable: boolean) => {
+      const providerModels = modelsByProvider.get(providerId) || [];
+      const qualifiedModelIds = new Set(
+        providerModels.map((m) => new AiModelId(providerId, m.model).id),
+      );
+
+      let newModels: QualifiedModelId[];
+      if (enable) {
+        // Add all provider models that aren't already enabled
+        newModels = [
+          ...new Set([...currentDisplayedModels, ...qualifiedModelIds]),
+        ];
+      } else {
+        // Remove all provider models
+        newModels = currentDisplayedModels.filter(
+          (id) => !qualifiedModelIds.has(id),
+        );
+      }
+
+      form.setValue("ai.models.displayed_models", newModels);
+      await onSubmit(form.getValues());
+    },
+  );
+
+  return (
+    <SettingGroup className="h-full">
+      <SettingSubtitle>Model Display</SettingSubtitle>
+      <p className="text-sm text-muted-secondary mb-4">
+        Control which AI models are displayed in model selection dropdowns. When
+        no models are selected, all available models will be shown.
+      </p>
+
+      <div className="border rounded-md bg-background">
+        <Tree
+          aria-label="AI Models by Provider"
+          className="flex-1 overflow-auto outline-none focus-visible:outline-none"
+          selectionMode="none"
+        >
+          {[...modelsByProvider.entries()].map(([providerId, models]) => (
+            <ProviderTreeItem
+              key={providerId}
+              providerId={providerId}
+              models={models}
+              enabledModels={currentDisplayedModelsSet as Set<QualifiedModelId>}
+              onToggleModel={toggleModelDisplay}
+              onToggleProvider={toggleProviderModels}
+            />
+          ))}
+        </Tree>
+      </div>
+    </SettingGroup>
+  );
+};
+
 export const AiConfig: React.FC<AiConfigProps> = ({
   form,
   config,
   onSubmit,
 }) => {
   return (
-    <Tabs defaultValue="ai-features">
+    <Tabs defaultValue="ai-features" className="flex-1">
       <TabsList className="mb-2">
         <TabsTrigger value="ai-features">AI Features</TabsTrigger>
         <TabsTrigger value="ai-providers">AI Providers</TabsTrigger>
+        <TabsTrigger value="model-display">Model Display</TabsTrigger>
       </TabsList>
 
       <TabsContent value="ai-features">
@@ -849,6 +1072,9 @@ export const AiConfig: React.FC<AiConfigProps> = ({
       </TabsContent>
       <TabsContent value="ai-providers">
         <AiProvidersConfig form={form} config={config} onSubmit={onSubmit} />
+      </TabsContent>
+      <TabsContent value="model-display">
+        <AiModelDisplayConfig form={form} config={config} onSubmit={onSubmit} />
       </TabsContent>
     </Tabs>
   );

@@ -51,7 +51,7 @@ export const ConfigButton: React.FC<Props> = ({
   );
 
   const userSettingsDialog = (
-    <DialogContent className="w-[80vw] h-[70vh] overflow-hidden sm:max-w-5xl top-[15vh] p-0">
+    <DialogContent className="w-[90vw] h-[90vh] overflow-hidden sm:max-w-5xl top-[5vh] p-0">
       <VisuallyHidden>
         <DialogTitle>User settings</DialogTitle>
       </VisuallyHidden>

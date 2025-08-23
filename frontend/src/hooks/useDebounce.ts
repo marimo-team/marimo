@@ -84,7 +84,7 @@ export function useDebounceControlledState<T>(opts: {
   };
 }
 
-export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
+export function useDebouncedCallback<T extends (...args: any[]) => any>(
   callback: T,
   delay: number,
 ) {
