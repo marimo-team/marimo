@@ -142,11 +142,40 @@ class CopilotLspServer(BaseLspServer):
     id = "copilot"
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
-        if DependencyManager.which("node"):
-            return True
-        return (
-            "node.js binary is missing. Install node at https://nodejs.org/."
-        )
+        if not DependencyManager.which("node"):
+            return "node.js binary is missing. Install node at https://nodejs.org/."
+
+        # Check Node.js version
+        try:
+            result = subprocess.run(
+                ["node", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                version_str = result.stdout.strip()
+                if version_str.startswith("v"):
+                    version_str = version_str[1:]  # Remove 'v' prefix
+
+                # Parse major version
+                major_version = int(version_str.split(".")[0])
+                if major_version < 20:
+                    return (
+                        f"Node.js version {version_str} is too old. "
+                        "GitHub Copilot requires Node.js version 20 or higher. "
+                        "Please upgrade at https://nodejs.org/."
+                    )
+            else:
+                # Fail open, if the node command failed it will alert on start.
+                LOGGER.info(
+                    "Failed to get Node.js version, stderr: %s", result.stderr
+                )
+        except Exception as e:
+            # Fail open, if the node command failed it will alert on start.
+            LOGGER.info("Failed to check Node.js version: %s", e)
+
+        return True
 
     def _lsp_dir(self) -> Path:
         lsp_dir = marimo_package_path() / "_lsp"

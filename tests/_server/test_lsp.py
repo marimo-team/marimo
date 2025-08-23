@@ -131,6 +131,74 @@ def test_copilot_server():
     assert "GitHub Copilot" in alert.title
 
 
+def test_copilot_server_node_version_validation():
+    server = CopilotLspServer(port=8000)
+
+    # Test missing node
+    with mock.patch(
+        "marimo._dependencies.dependencies.DependencyManager.which",
+        return_value=None,
+    ):
+        result = server.validate_requirements()
+        assert isinstance(result, str)
+        assert "node.js binary is missing" in result
+
+    # Test node version < 20
+    with (
+        mock.patch(
+            "marimo._dependencies.dependencies.DependencyManager.which",
+            return_value="/usr/bin/node",
+        ),
+        mock.patch("subprocess.run") as mock_run,
+    ):
+        mock_run.return_value = mock.MagicMock(
+            returncode=0, stdout="v18.17.0\n"
+        )
+        result = server.validate_requirements()
+        assert isinstance(result, str)
+        assert "Node.js version 18.17.0 is too old" in result
+        assert "requires Node.js version 20 or higher" in result
+
+    # Test node version >= 20
+    with (
+        mock.patch(
+            "marimo._dependencies.dependencies.DependencyManager.which",
+            return_value="/usr/bin/node",
+        ),
+        mock.patch("subprocess.run") as mock_run,
+    ):
+        mock_run.return_value = mock.MagicMock(
+            returncode=0, stdout="v20.10.0\n"
+        )
+        result = server.validate_requirements()
+        assert result is True
+
+    # Test subprocess failure (fail open)
+    with (
+        mock.patch(
+            "marimo._dependencies.dependencies.DependencyManager.which",
+            return_value="/usr/bin/node",
+        ),
+        mock.patch("subprocess.run") as mock_run,
+    ):
+        mock_run.return_value = mock.MagicMock(
+            returncode=1, stderr="Command failed"
+        )
+        result = server.validate_requirements()
+        assert result is True  # Should fail open
+
+    # Test exception during version check (fail open)
+    with (
+        mock.patch(
+            "marimo._dependencies.dependencies.DependencyManager.which",
+            return_value="/usr/bin/node",
+        ),
+        mock.patch("subprocess.run", side_effect=Exception("Network error")),
+    ):
+        result = server.validate_requirements()
+        assert result is True  # Should fail open
+
+
 def test_composite_server():
     def as_reader(
         completion_config: CompletionConfig, config: LanguageServersConfig
