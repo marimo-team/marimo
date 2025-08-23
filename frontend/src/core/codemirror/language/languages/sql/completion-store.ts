@@ -1,10 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import {
-  type SQLConfig,
-  type SQLDialect,
-  StandardSQL,
-} from "@codemirror/lang-sql";
+import type { SQLConfig, SQLDialect } from "@codemirror/lang-sql";
 import { isSchemaless } from "@/components/datasources/utils";
 import { dataConnectionsMapAtom } from "@/core/datasets/data-source-connections";
 import type { ConnectionName } from "@/core/datasets/engines";
@@ -12,7 +8,7 @@ import { datasetTablesAtom } from "@/core/datasets/state";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { LRUCache } from "@/utils/lru";
-import { guessDialect } from "./utils";
+import { guessDialect, ModifiedStandardSQL } from "./utils";
 
 type TableToCols = Record<string, string[]>;
 type Schemas = Record<string, TableToCols>;
@@ -134,9 +130,9 @@ class SQLCompletionStore {
   getDialect(connectionName: ConnectionName): SQLDialect {
     const connection = this.getConnection(connectionName);
     if (!connection) {
-      return StandardSQL;
+      return ModifiedStandardSQL;
     }
-    return guessDialect(connection) ?? StandardSQL;
+    return guessDialect(connection) ?? ModifiedStandardSQL;
   }
 
   getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
@@ -160,7 +156,7 @@ class SQLCompletionStore {
     const schema = this.cache.getOrCreate(connection);
 
     return {
-      dialect: guessDialect(connection),
+      dialect: guessDialect(connection) ?? ModifiedStandardSQL,
       schema: schema.shouldAddLocalTables
         ? { ...schema.schema, ...getTablesMap() }
         : schema.schema,
