@@ -167,12 +167,14 @@ class CopilotLspServer(BaseLspServer):
                         "Please upgrade at https://nodejs.org/."
                     )
             else:
-                # Fail open, if the node command failed it will alert on start.
+                # Fail open: If the node version check fails we don't want to not start the server.
+                # If it fails again, the user will be alerted again..
                 LOGGER.info(
                     "Failed to get Node.js version, stderr: %s", result.stderr
                 )
         except Exception as e:
-            # Fail open, if the node command failed it will alert on start.
+            # Fail open: If the node version check fails we don't want to not start the server.
+            # If it fails again, the user will be alerted again..
             LOGGER.info("Failed to check Node.js version: %s", e)
 
         return True
