@@ -574,11 +574,11 @@ const ChatPanelBody = () => {
   const handleMessageEdit = useEvent((index: number, newValue: string) => {
     // Truncate both useChat and storage
     setMessages((messages) => messages.slice(0, index));
-    if (chatState.activeChatId) {
+    const activeChatId = chatState.activeChatId;
+    if (activeChatId) {
       setChatState((prev) => {
         const nextChats = new Map(prev.chats);
-        const activeChat =
-          chatState.activeChatId && chatState.chats.get(chatState.activeChatId);
+        const activeChat = chatState.chats.get(activeChatId);
         if (activeChat) {
           nextChats.set(activeChat.id, {
             ...activeChat,

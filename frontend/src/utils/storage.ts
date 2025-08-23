@@ -1,6 +1,15 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+
 import type { SyncStorage } from "jotai/vanilla/utils/atomWithStorage";
 import { Logger } from "./Logger";
 
+/**
+ * Converts a value to and from a serializable format for storage.
+ * Useful for data structures that are not natively supported by localStorage (e.g., Maps)
+ *
+ * @param opts - The options for the storage adapter.
+ * @returns - The storage adapter.
+ */
 export function adaptForLocalStorage<Value, Serializable>(opts: {
   toSerializable: (v: Value) => Serializable;
   fromSerializable: (s: Serializable) => Value;
