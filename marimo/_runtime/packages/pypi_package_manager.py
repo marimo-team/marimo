@@ -378,6 +378,15 @@ class UvPackageManager(PypiPackageManager):
         )
 
     def list_packages(self) -> list[PackageDescription]:
+        # First try with `uv tree`
+        tree = self.dependency_tree()
+        if tree is not None:
+            LOGGER.info("Listing packages with 'uv tree'")
+            return [
+                PackageDescription(name=pkg.name, version=pkg.version or "")
+                for pkg in tree.dependencies
+            ]
+
         LOGGER.info("Listing packages with 'uv pip list'")
         cmd = [self._uv_bin, "pip", "list", "--format=json", "-p", PY_EXE]
         return self._list_packages_from_cmd(cmd)
