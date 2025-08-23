@@ -14,6 +14,7 @@ from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.models import SaveNotebookRequest
 from marimo._types.ids import CellId_t
+from marimo._utils.cell_matching import similarity_score
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -612,20 +613,33 @@ if __name__ == "__main__":
 """
     )
 
+    # The result is that cell1 is removed since similarity_score is closer to
+    # cell2
+    # NB. Lower is better for similarity_score
+    new_code = "y = 2 + 1"
+    assert similarity_score(
+        manager.app.cell_manager.get_cell_code(cell_one), new_code
+    ) > similarity_score(
+        manager.app.cell_manager.get_cell_code(cell_two), new_code
+    )
+
     # Reload the app
     changed_cell_ids = manager.reload()
-    assert changed_cell_ids == {cell_one}
+    assert changed_cell_ids == {cell_two}
 
     # Verify cell_manager has only one cell
     cell_ids = list(manager.app.cell_manager.cell_ids())
-    assert cell_ids == [cell_one]
+    assert cell_ids == [cell_two]
 
     # Verify graph has only one cell
     graph_ids = list(manager.app.graph.cells)
-    assert graph_ids == [cell_one]
+    assert graph_ids == [cell_two]
 
     # Check that the graph was updated
-    assert manager.app.graph.get_defining_cells("y") == {cell_one}
+    assert manager.app.graph.get_defining_cells("y") == {cell_two}
+
+    # Check the contents of the cell
+    assert manager.app.cell_manager.get_cell_code(cell_two) == new_code
 
     # Clean up
     os.remove(tmp_file)
