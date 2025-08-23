@@ -168,13 +168,13 @@ class CopilotLspServer(BaseLspServer):
                     )
             else:
                 # Fail open: If the node version check fails we don't want to not start the server.
-                # If it fails again, the user will be alerted again..
+                # If it fails again, the user will be alerted again.
                 LOGGER.info(
                     "Failed to get Node.js version, stderr: %s", result.stderr
                 )
         except Exception as e:
             # Fail open: If the node version check fails we don't want to not start the server.
-            # If it fails again, the user will be alerted again..
+            # If it fails again, the user will be alerted again.
             LOGGER.info("Failed to check Node.js version: %s", e)
 
         return True
