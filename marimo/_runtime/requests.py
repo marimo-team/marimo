@@ -263,6 +263,9 @@ class SetUserConfigRequest:
     # MarimoConfig TypedDict
     config: MarimoConfig
 
+    def __repr__(self) -> str:
+        return "SetUserConfigRequest(config=...)"
+
 
 @dataclass
 class CreationRequest:

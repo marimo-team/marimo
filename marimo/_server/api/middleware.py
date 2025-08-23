@@ -31,7 +31,7 @@ from starlette.middleware.base import (
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.websockets import WebSocket, WebSocketState
-from websockets import ConnectionClosed, connect
+from websockets import ClientConnection, ConnectionClosed, connect
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -422,7 +422,46 @@ class ProxyMiddleware:
                 ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k, v in original_params.items())}"
             await websocket.accept()
 
-            async with connect(ws_url) as ws_client:
+            # Try to connect to the upstream WebSocket with retries
+            max_retries = 3
+            retry_delay = 0.5  # seconds
+            exponential_backoff = 1.5
+
+            ws_client: Optional[ClientConnection] = None
+            for attempt in range(max_retries):
+                try:
+                    LOGGER.debug(
+                        f"Attempting WebSocket connection to {ws_url} (attempt {attempt + 1}/{max_retries})"
+                    )
+                    ws_client = await connect(ws_url)
+                    LOGGER.debug(f"Successfully connected to {ws_url}")
+                    break
+                except Exception as e:
+                    LOGGER.info(
+                        f"WebSocket connection attempt {attempt + 1}/{max_retries} failed for {ws_url}: {e}"
+                    )
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(retry_delay)
+                        retry_delay *= exponential_backoff
+                    else:
+                        LOGGER.error(
+                            f"Failed to connect to {ws_url} after {max_retries} attempts. Final error: {e}"
+                        )
+                        # Close the client WebSocket with a meaningful error
+                        if (
+                            websocket.client_state
+                            != WebSocketState.DISCONNECTED
+                        ):
+                            await websocket.close(
+                                code=1011,
+                                reason="Failed to connect to LSP server",
+                            )
+                        raise e
+
+            if ws_client is None:
+                raise ValueError("Failed to connect to LSP server")
+
+            async with ws_client:
 
                 async def client_to_upstream() -> None:
                     try:
@@ -483,7 +522,14 @@ class ProxyMiddleware:
                         await websocket.close()
                     await ws_client.close()
         except Exception as e:
-            LOGGER.error(f"WebSocket proxy error: {e}")
+            LOGGER.error(f"WebSocket proxy error for {ws_url}: {e}")
+            # Check if this is a connection error suggesting the LSP server isn't running
+            if "Connection refused" in str(e) or "Connect call failed" in str(
+                e
+            ):
+                LOGGER.error(
+                    f"LSP server appears to be down at {ws_url}. Check if the LSP server started successfully."
+                )
             if websocket.client_state != WebSocketState.DISCONNECTED:
                 await websocket.close(code=1011)  # Internal error
             raise
