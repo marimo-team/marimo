@@ -3221,26 +3221,30 @@ export interface components {
         /** @enum {string} */
         theme: "light" | "dark" | "system";
       };
-      experimental?: {
-        cache?:
-          | {
-              args?: {
-                [key: string]: unknown;
-              };
-              /** @enum {string} */
-              type?: "file" | "redis" | "rest" | "tiered";
-            }[]
-          | components["schemas"]["StoreConfig"];
-        /** @enum {string} */
-        execution_type?: "relaxed" | "strict";
-        inline_ai_tooltip?: boolean;
-        markdown?: boolean;
-        mcp_docs?: boolean;
-        performant_table_charts?: boolean;
-        rtc_v2?: boolean;
-        sql_linter?: boolean;
-        wasm_layouts?: boolean;
-      };
+      experimental?:
+        | {
+            [key: string]: unknown;
+          }
+        | {
+            cache?:
+              | {
+                  args?: {
+                    [key: string]: unknown;
+                  };
+                  /** @enum {string} */
+                  type?: "file" | "redis" | "rest" | "tiered";
+                }[]
+              | components["schemas"]["StoreConfig"];
+            /** @enum {string} */
+            execution_type?: "relaxed" | "strict";
+            inline_ai_tooltip?: boolean;
+            markdown?: boolean;
+            mcp_docs?: boolean;
+            performant_table_charts?: boolean;
+            rtc_v2?: boolean;
+            sql_linter?: boolean;
+            wasm_layouts?: boolean;
+          };
       formatting: {
         line_length: number;
       };

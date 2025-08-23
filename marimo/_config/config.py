@@ -513,6 +513,11 @@ class ExperimentalConfig(TypedDict, total=False):
     execution_type: ExecutionType
 
 
+# Feature flags may change frequently, so we use flexible typing for extensibility,
+# but retain type safety for recognized flags.
+ExperimentalConfigType = Union[dict[str, Any], ExperimentalConfig]
+
+
 @mddoc
 @dataclass
 class MarimoConfig(TypedDict):
@@ -529,7 +534,7 @@ class MarimoConfig(TypedDict):
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
     diagnostics: NotRequired[DiagnosticsConfig]
-    experimental: NotRequired[ExperimentalConfig]
+    experimental: NotRequired[ExperimentalConfigType]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
@@ -602,7 +607,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
     diagnostics: NotRequired[DiagnosticsConfig]
-    experimental: NotRequired[ExperimentalConfig]
+    experimental: NotRequired[ExperimentalConfigType]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
