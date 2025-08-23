@@ -1,10 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import {
-  type SQLConfig,
-  type SQLDialect,
-  StandardSQL,
-} from "@codemirror/lang-sql";
+import type { SQLConfig, SQLDialect } from "@codemirror/lang-sql";
 import { isSchemaless } from "@/components/datasources/utils";
 import { dataConnectionsMapAtom } from "@/core/datasets/data-source-connections";
 import type { ConnectionName } from "@/core/datasets/engines";
@@ -134,7 +130,7 @@ class SQLCompletionStore {
   getDialect(connectionName: ConnectionName): SQLDialect {
     const connection = this.getConnection(connectionName);
     if (!connection) {
-      return StandardSQL;
+      return ModifiedStandardSQL;
     }
     return guessDialect(connection) ?? ModifiedStandardSQL;
   }
