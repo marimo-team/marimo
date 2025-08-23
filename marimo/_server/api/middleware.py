@@ -38,6 +38,7 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
+from marimo._server.codes import WebSocketCodes
 from marimo._server.model import SessionMode
 from marimo._tracer import server_tracer
 
@@ -430,9 +431,6 @@ class ProxyMiddleware:
             ws_client: Optional[ClientConnection] = None
             for attempt in range(max_retries):
                 try:
-                    LOGGER.debug(
-                        f"Attempting WebSocket connection to {ws_url} (attempt {attempt + 1}/{max_retries})"
-                    )
                     ws_client = await connect(ws_url)
                     LOGGER.debug(f"Successfully connected to {ws_url}")
                     break
@@ -453,7 +451,7 @@ class ProxyMiddleware:
                             != WebSocketState.DISCONNECTED
                         ):
                             await websocket.close(
-                                code=1011,
+                                code=WebSocketCodes.UNEXPECTED_ERROR,
                                 reason="Failed to connect to LSP server",
                             )
                         raise e
@@ -531,5 +529,5 @@ class ProxyMiddleware:
                     f"LSP server appears to be down at {ws_url}. Check if the LSP server started successfully."
                 )
             if websocket.client_state != WebSocketState.DISCONNECTED:
-                await websocket.close(code=1011)  # Internal error
+                await websocket.close(code=WebSocketCodes.UNEXPECTED_ERROR)
             raise
