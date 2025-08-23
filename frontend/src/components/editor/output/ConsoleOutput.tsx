@@ -113,38 +113,40 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
   return (
     <div className="relative group">
-      <div className="absolute top-1 right-5 z-10 opacity-0 group-hover:opacity-100 flex gap-1">
-        <Tooltip content="Copy all">
-          <span>
-            <button
-              aria-label="Copy all console output"
-              className="p-1 rounded bg-transparent text-muted-foreground hover:text-foreground"
-              type="button"
-              onClick={() => {
-                const text = reversedOutputs
-                  .filter((output) => output.channel !== "pdb")
-                  .map((output) => Strings.asString(output.data))
-                  .join("\n");
-                void copyToClipboard(text);
-              }}
-            >
-              <CopyIcon className="h-4 w-4" />
-            </button>
-          </span>
-        </Tooltip>
-        <Tooltip content={wrapText ? "Disable wrap text" : "Wrap text"}>
-          <span>
-            <ToggleButton
-              aria-label="Toggle text wrapping"
-              className="p-1 rounded bg-transparent text-muted-foreground data-hovered:text-foreground data-selected:text-foreground"
-              isSelected={wrapText}
-              onChange={setWrapText}
-            >
-              <WrapTextIcon className="h-4 w-4" />
-            </ToggleButton>
-          </span>
-        </Tooltip>
-      </div>
+      {hasOutputs && (
+        <div className="absolute top-1 right-5 z-10 opacity-0 group-hover:opacity-100 flex gap-1">
+          <Tooltip content="Copy all">
+            <span>
+              <button
+                aria-label="Copy all console output"
+                className="p-1 rounded bg-transparent text-muted-foreground hover:text-foreground"
+                type="button"
+                onClick={() => {
+                  const text = reversedOutputs
+                    .filter((output) => output.channel !== "pdb")
+                    .map((output) => Strings.asString(output.data))
+                    .join("\n");
+                  void copyToClipboard(text);
+                }}
+              >
+                <CopyIcon className="h-4 w-4" />
+              </button>
+            </span>
+          </Tooltip>
+          <Tooltip content={wrapText ? "Disable wrap text" : "Wrap text"}>
+            <span>
+              <ToggleButton
+                aria-label="Toggle text wrapping"
+                className="p-1 rounded bg-transparent text-muted-foreground data-hovered:text-foreground data-selected:text-foreground"
+                isSelected={wrapText}
+                onChange={setWrapText}
+              >
+                <WrapTextIcon className="h-4 w-4" />
+              </ToggleButton>
+            </span>
+          </Tooltip>
+        </div>
+      )}
       <div
         title={stale ? "This console output is stale" : undefined}
         data-testid="console-output-area"
