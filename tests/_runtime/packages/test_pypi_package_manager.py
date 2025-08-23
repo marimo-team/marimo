@@ -328,13 +328,31 @@ def test_uv_list_packages_with_tree_success(mock_dependency_tree: MagicMock):
         tags=[],
         dependencies=[
             DependencyTreeNode(
-                name="package1", version="1.0.0", tags=[], dependencies=[]
+                name="z-package1",
+                version="1.0.0",
+                tags=[],
+                dependencies=[
+                    DependencyTreeNode(
+                        name="package3",
+                        version="3.0.0",
+                        tags=[],
+                        dependencies=[],
+                    )
+                ],
             ),
             DependencyTreeNode(
                 name="package2",
                 version=None,  # Test None version handling
                 tags=[],
-                dependencies=[],
+                dependencies=[
+                    # Duplicate package
+                    DependencyTreeNode(
+                        name="package3",
+                        version="3.0.0",
+                        tags=[],
+                        dependencies=[],
+                    )
+                ],
             ),
         ],
     )
@@ -347,9 +365,12 @@ def test_uv_list_packages_with_tree_success(mock_dependency_tree: MagicMock):
     mock_dependency_tree.assert_called_once()
 
     # Should return packages from tree
-    assert len(packages) == 2
-    assert packages[0] == PackageDescription(name="package1", version="1.0.0")
-    assert packages[1] == PackageDescription(name="package2", version="")
+    assert len(packages) == 3
+    assert packages[0] == PackageDescription(name="package2", version="")
+    assert packages[1] == PackageDescription(name="package3", version="3.0.0")
+    assert packages[2] == PackageDescription(
+        name="z-package1", version="1.0.0"
+    )
 
 
 @patch("subprocess.run")
