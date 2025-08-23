@@ -32,6 +32,7 @@ class AnyProviderConfig:
     ssl_verify: Optional[bool] = None
     ca_bundle_path: Optional[str] = None
     client_pem: Optional[str] = None
+    extra_headers: Optional[dict[str, str]] = None
     tools: Optional[list[Tool]] = None
 
     def __post_init__(self) -> None:
@@ -103,6 +104,7 @@ class AnyProviderConfig:
             "ssl_verify": ai_config.get("ssl_verify", True),
             "ca_bundle_path": ai_config.get("ca_bundle_path", None),
             "client_pem": ai_config.get("client_pem", None),
+            "extra_headers": ai_config.get("extra_headers", None),
             "tools": _get_tools(config.get("mode", "manual")),
         }
 
