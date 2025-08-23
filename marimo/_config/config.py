@@ -513,8 +513,8 @@ class ExperimentalConfig(TypedDict, total=False):
     execution_type: ExecutionType
 
 
-# Feature flags may change frequently, so we use flexible typing for extensibility,
-# but retain type safety for recognized flags.
+# Prefer to accept any dict since feature flags can change frequently
+# But maintain type safety for known flags
 ExperimentalConfigType = Union[dict[str, Any], ExperimentalConfig]
 
 
