@@ -12,9 +12,7 @@ from starlette.websockets import WebSocketDisconnect
 from marimo._config.config import ExperimentalConfig
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import KernelCapabilities, KernelReady
-from marimo._server.api.endpoints.ws import (
-    WebSocketCodes,
-)
+from marimo._server.codes import WebSocketCodes
 from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
 from marimo._utils.parse_dataclass import parse_raw

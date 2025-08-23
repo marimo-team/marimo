@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
-from enum import IntEnum
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
@@ -30,6 +29,7 @@ from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.params import QueryParams
 from marimo._server.api.deps import AppState
+from marimo._server.codes import WebSocketCodes
 from marimo._server.file_router import MarimoFileKey
 from marimo._server.model import (
     ConnectionState,
@@ -55,12 +55,6 @@ router = APIRouter()
 SESSION_QUERY_PARAM_KEY = "session_id"
 FILE_QUERY_PARAM_KEY = "file"
 KIOSK_QUERY_PARAM_KEY = "kiosk"
-
-
-class WebSocketCodes(IntEnum):
-    ALREADY_CONNECTED = 1003
-    NORMAL_CLOSE = 1000
-    FORBIDDEN = 1008
 
 
 DOC_MANAGER = LoroDocManager()

@@ -1096,12 +1096,18 @@ class SessionManager:
             LOGGER.warning("Cannot start LSP server in run mode")
             return
 
+        LOGGER.debug("Starting LSP server...")
         alert = self.lsp_server.start()
 
         if alert is not None:
+            LOGGER.warning(
+                f"LSP server startup failed: {alert.title} - {alert.description}"
+            )
             for session in self.sessions.values():
                 session.write_operation(alert, from_consumer_id=None)
             return
+        else:
+            LOGGER.debug("LSP server started successfully")
 
     def close_session(self, session_id: SessionId) -> bool:
         """Close a session and remove its file watcher if it has one."""
