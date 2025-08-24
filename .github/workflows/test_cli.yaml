@@ -126,13 +126,20 @@ jobs:
           name: testwheel
 
       - name: Install marimo
+        id: install_marimo
         shell: bash
-        run: uv pip install marimo*whl
+        run: |
+          set -e
+          MARIMO_WHL=$(ls marimo*whl | head -n1)
+          echo "MARIMO_WHL=$MARIMO_WHL" >> $GITHUB_ENV
 
       - name: Test CLI
         shell: bash
         run: |
-          uv run --no-project pytest -v tests/_cli/test_cli* --maxfail=2
+          uv run \
+            --with="$MARIMO_WHL" \
+            --no-project \
+            pytest -v tests/_cli/test_cli* --maxfail=2
 
   test_examples:
     needs: [changes, build_wheel]
