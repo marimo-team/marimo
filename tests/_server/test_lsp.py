@@ -61,7 +61,7 @@ class MockLspServer(BaseLspServer):
         return Alert(title="Mock Alert", description="Mock missing binary")
 
 
-def test_base_lsp_server_start_stop(
+async def test_base_lsp_server_start_stop(
     mock_popen: mock.MagicMock,
     mock_process: mock.MagicMock,
 ):
@@ -69,7 +69,7 @@ def test_base_lsp_server_start_stop(
     server.validate_requirements = mock.MagicMock(return_value=False)
 
     # Without binary install
-    alert = server.start()
+    alert = await server.start()
     assert alert is not None
     assert alert.title == "Mock Alert"
     assert alert.description == "Mock missing binary"
@@ -77,7 +77,7 @@ def test_base_lsp_server_start_stop(
     server.validate_requirements = mock.MagicMock(return_value=True)
 
     # Test start
-    alert = server.start()
+    alert = await server.start()
     assert alert is None
     mock_popen.assert_called_once()
     assert server.is_running() is False  # Process exists but not running
@@ -88,16 +88,16 @@ def test_base_lsp_server_start_stop(
     assert server.process is None
 
 
-def test_base_lsp_server_missing_binary(mock_which: mock.MagicMock):
+async def test_base_lsp_server_missing_binary(mock_which: mock.MagicMock):
     server = MockLspServer(port=8000)
     mock_which.return_value = None
     server.validate_requirements = mock.MagicMock(return_value=False)
-    alert = server.start()
+    alert = await server.start()
     assert alert is not None
     assert alert.title == "Mock Alert"
 
 
-def test_pylsp_server():
+async def test_pylsp_server():
     import sys
 
     server = PyLspServer(port=8000)
@@ -229,14 +229,15 @@ def test_composite_server():
             {"copilot": True, "activate_on_typing": True}
         )
         config_reader = as_reader(completion_config, config)
+        config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert (
             len(server.servers) == total_lsp_servers
         )  # Both pylsp and copilot enabled
-        assert server._is_enabled("pylsp") is True
-        assert server._is_enabled("copilot") is True
-        assert server._is_enabled("ty") is True
-        assert server._is_enabled("basedpyright") is True
+        assert server._is_enabled(config, "pylsp") is True
+        assert server._is_enabled(config, "copilot") is True
+        assert server._is_enabled(config, "ty") is True
+        assert server._is_enabled(config, "basedpyright") is True
 
         # Test with only pylsp
         config = LanguageServersConfig({"pylsp": {"enabled": True}})
@@ -244,11 +245,12 @@ def test_composite_server():
             {"copilot": False, "activate_on_typing": True}
         )
         config_reader = as_reader(completion_config, config)
+        config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
-        assert server._is_enabled("pylsp") is True
-        assert server._is_enabled("copilot") is False
-        assert server._is_enabled("ty") is False
+        assert server._is_enabled(config, "pylsp") is True
+        assert server._is_enabled(config, "copilot") is False
+        assert server._is_enabled(config, "ty") is False
 
         # Test with only ty enabled
         config = LanguageServersConfig(
@@ -262,12 +264,13 @@ def test_composite_server():
             {"copilot": False, "activate_on_typing": True}
         )
         config_reader = as_reader(completion_config, config)
+        config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
-        assert server._is_enabled("pylsp") is False
-        assert server._is_enabled("basedpyright") is False
-        assert server._is_enabled("copilot") is False
-        assert server._is_enabled("ty") is True
+        assert server._is_enabled(config, "pylsp") is False
+        assert server._is_enabled(config, "basedpyright") is False
+        assert server._is_enabled(config, "copilot") is False
+        assert server._is_enabled(config, "ty") is True
 
         # Test with only basedpyright enabled
         config = LanguageServersConfig(
@@ -281,12 +284,13 @@ def test_composite_server():
             {"copilot": False, "activate_on_typing": True}
         )
         config_reader = as_reader(completion_config, config)
+        config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
-        assert server._is_enabled("pylsp") is False
-        assert server._is_enabled("basedpyright") is True
-        assert server._is_enabled("copilot") is False
-        assert server._is_enabled("ty") is False
+        assert server._is_enabled(config, "pylsp") is False
+        assert server._is_enabled(config, "basedpyright") is True
+        assert server._is_enabled(config, "copilot") is False
+        assert server._is_enabled(config, "ty") is False
 
         # Test with nothing enabled
         config = LanguageServersConfig({"pylsp": {"enabled": False}})
@@ -294,11 +298,12 @@ def test_composite_server():
             {"copilot": False, "activate_on_typing": True}
         )
         config_reader = as_reader(completion_config, config)
+        config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
-        assert server._is_enabled("pylsp") is False
-        assert server._is_enabled("copilot") is False
-        assert server._is_enabled("ty") is False
+        assert server._is_enabled(config, "pylsp") is False
+        assert server._is_enabled(config, "copilot") is False
+        assert server._is_enabled(config, "ty") is False
 
 
 def test_any_lsp_server_running():
