@@ -6,7 +6,7 @@ import { cn } from "@/utils/cn";
 import { FileExplorer } from "../../file-tree/file-explorer";
 import { useFileExplorerUpload } from "../../file-tree/upload";
 
-export const FileExplorerPanel: React.FC = () => {
+const FileExplorerPanel: React.FC = () => {
   const { ref, height = 1 } = useResizeObserver<HTMLDivElement>();
   const { getRootProps, getInputProps, isDragActive } = useFileExplorerUpload({
     noClick: true,
@@ -31,3 +31,5 @@ export const FileExplorerPanel: React.FC = () => {
     </div>
   );
 };
+
+export default FileExplorerPanel;

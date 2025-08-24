@@ -367,7 +367,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
 
 ChatInput.displayName = "ChatInput";
 
-export const ChatPanel = () => {
+const ChatPanel = () => {
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const { handleClick } = useOpenSettingsToTab();
 
@@ -741,3 +741,5 @@ function isLastMessageReasoning(messages: Message[]): boolean {
   const lastPart = parts[parts.length - 1];
   return lastPart.type === "reasoning";
 }
+
+export default ChatPanel;
