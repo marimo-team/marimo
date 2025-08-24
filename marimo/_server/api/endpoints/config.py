@@ -1,16 +1,17 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from starlette.authentication import requires
+from starlette.background import BackgroundTask
+from starlette.responses import JSONResponse
 
 from marimo import _loggers
 from marimo._runtime.requests import SetUserConfigRequest
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import (
-    BaseResponse,
     SaveUserConfigurationRequest,
     SuccessResponse,
 )
@@ -31,7 +32,7 @@ router = APIRouter()
 async def save_user_config(
     *,
     request: Request,
-) -> BaseResponse:
+) -> JSONResponse:
     """
     requestBody:
         content:
@@ -53,10 +54,13 @@ async def save_user_config(
     )
     config = app_state.config_manager.save_config(body.config)
 
+    background_task: Optional[BackgroundTask] = None
     # Update the server's view of the config
     if config["completion"]["copilot"]:
         LOGGER.debug("Starting copilot server")
-        await app_state.session_manager.start_lsp_server()
+        background_task = BackgroundTask(
+            app_state.session_manager.start_lsp_server
+        )
 
     # Update the kernel's view of the config
     # Session could be None if the user is on the home page
@@ -68,4 +72,8 @@ async def save_user_config(
                 app_state.require_current_session_id()
             ),
         )
-    return SuccessResponse()
+
+    return JSONResponse(
+        content=SuccessResponse().as_camel_case(),
+        background=background_task,
+    )

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from typing import Any, Optional
 
 from marimo import _loggers
@@ -47,6 +48,11 @@ def get_or_create_user_config_path() -> str:
         return str(config_path)
 
 
+# This operation may be expensive due to searching for a config file up to
+# the home directory.
+# We cache the result to avoid re-searching. It is ok to expect new
+# config files to only be picked up after a restart.
+@lru_cache(maxsize=1)
 def get_user_config_path() -> Optional[str]:
     """Find path of config file (.marimo.toml).
 

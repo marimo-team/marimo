@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import socket
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo import _loggers
 from marimo._server.api.deps import AppState, AppStateBase
@@ -30,6 +30,8 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+background_tasks: set[asyncio.Task[Any]] = set()
+
 
 @contextlib.asynccontextmanager
 async def lsp(app: Starlette) -> AsyncIterator[None]:
@@ -38,16 +40,36 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
     session_mgr = state.session_manager
 
     # Only start the LSP server in Edit mode
-    if session_mgr.mode == SessionMode.EDIT:
-        if any_lsp_server_running(user_config):
-            LOGGER.debug("Language Servers are enabled")
-            await session_mgr.start_lsp_server()
+    if session_mgr.mode != SessionMode.EDIT:
+        yield
+        return
+
+    # Only start the LSP server if any LSP servers are configured
+    if not any_lsp_server_running(user_config):
+        yield
+        return
+
+    LOGGER.debug("Language Servers are enabled")
+    # Start LSP server in background to avoid blocking server startup
+    task = asyncio.create_task(session_mgr.start_lsp_server())
+    background_tasks.add(task)  # Keep a reference to prevent GC
+    task.add_done_callback(background_tasks.discard)  # Clean up when done
 
     yield
+
+    # Shutdown
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 @contextlib.asynccontextmanager
 async def mcp(app: Starlette) -> AsyncIterator[None]:
+    if TYPE_CHECKING:
+        from marimo._server.ai.mcp import MCPClient
+
     state = AppState.from_app(app)
     session_mgr = state.session_manager
     user_config = state.config_manager.get_config()
@@ -55,42 +77,45 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
         "mcp_docs", False
     )
 
-    mcp_client = None  # Track MCP client for cleanup
-
     # Only start MCP servers in Edit mode
-    if session_mgr.mode == SessionMode.EDIT and mcp_docs_enabled:
+    if session_mgr.mode != SessionMode.EDIT or not mcp_docs_enabled:
+        yield
+        return
+
+    LOGGER.warning("MCP servers are experimental and may not work as expected")
+
+    async def background_connect_mcp_servers() -> Optional[MCPClient]:
         try:
             from marimo._server.ai.mcp import get_mcp_client
 
             mcp_client = get_mcp_client()
-            LOGGER.warning(
-                "MCP servers are experimental and may not work as expected"
+            await mcp_client.connect_to_all_servers()
+            LOGGER.info(
+                f"MCP servers connected: {list(mcp_client.servers.keys())}"
             )
-            if mcp_client and mcp_client.servers:
-                LOGGER.debug(
-                    f"Starting MCP servers: {list(mcp_client.servers.keys())}"
-                )
-                await mcp_client.connect_to_all_servers()
-                LOGGER.info(
-                    f"MCP servers connected: {len(mcp_client.servers)}"
-                )
-            else:
-                LOGGER.debug("No MCP servers configured")
+            return mcp_client
         except Exception as e:
-            LOGGER.warning(f"Failed to connect MCP servers: {e}")
+            LOGGER.warning(f"Failed to connect MCP servers in background: {e}")
+            return None
+
+    task = asyncio.create_task(background_connect_mcp_servers())
+    background_tasks.add(task)  # Keep a reference to prevent GC
+    task.add_done_callback(background_tasks.discard)  # Clean up when done
 
     yield
 
-    # Clean up MCP connections on shutdown
-    if mcp_client:
-        try:
-            LOGGER.info(
-                f"About to disconnect from all MCP servers in task: {id(asyncio.current_task())}"
-            )
+    # Shutdown
+    task.cancel()
+    try:
+        mcp_client = await task
+        if mcp_client:
+            LOGGER.info("Disconnecting from all MCP servers")
             await mcp_client.disconnect_from_all_servers()
             LOGGER.info("Successfully disconnected from all MCP servers")
-        except Exception as e:
-            LOGGER.error(f"Error during MCP cleanup: {e}")
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        LOGGER.error(f"Error during MCP cleanup: {e}")
 
 
 @contextlib.asynccontextmanager

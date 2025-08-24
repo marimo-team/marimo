@@ -1,6 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -24,7 +25,7 @@ class LspServer(ABC):
     id: str
 
     @abstractmethod
-    def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[Alert]:
         pass
 
     @abstractmethod
@@ -42,12 +43,13 @@ class BaseLspServer(LspServer):
         self.process: Optional[subprocess.Popen[str]] = None
 
     @server_tracer.start_as_current_span("lsp_server.start")
-    def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[Alert]:
         if self.process is not None:
             LOGGER.debug("LSP server already started")
             return None
 
-        validation_msg = self.validate_requirements()
+        # Validation could be expensive, so we run it in a thread
+        validation_msg = await asyncio.to_thread(self.validate_requirements)
         if validation_msg is not True:
             LOGGER.error(
                 f"Cannot start {self.id} LSP server: {validation_msg}"
@@ -64,7 +66,7 @@ class BaseLspServer(LspServer):
                 return None
 
             LOGGER.debug("... running command: %s", cmd)
-            self.process = subprocess.Popen(
+            self.process = subprocess.Popen(  # noqa: ASYNC220
                 cmd,
                 # only show stdout when in development
                 stdout=subprocess.PIPE
@@ -219,12 +221,12 @@ class CopilotLspServer(BaseLspServer):
 class PyLspServer(BaseLspServer):
     id = "pylsp"
 
-    def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[Alert]:
         # pylsp is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.pylsp.has():
             LOGGER.debug("pylsp is not installed. Skipping LSP server.")
             return None
-        return super().start()
+        return await super().start()
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
         if DependencyManager.pylsp.has():
@@ -260,12 +262,12 @@ class PyLspServer(BaseLspServer):
 class BasedpyrightServer(BaseLspServer):
     id = "basedpyright"
 
-    def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[Alert]:
         # basedpyright is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.basedpyright.has():
             LOGGER.debug("basedpyright is not installed. Skipping LSP server.")
             return None
-        return super().start()
+        return await super().start()
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
         if not DependencyManager.basedpyright.has():
@@ -302,12 +304,12 @@ class BasedpyrightServer(BaseLspServer):
 class TyServer(BaseLspServer):
     id = "ty"
 
-    def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[Alert]:
         # ty is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.ty.has():
             LOGGER.debug("ty is not installed. Skipping LSP server.")
             return None
-        return super().start()
+        return await super().start()
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
         if not DependencyManager.ty.has():
@@ -344,7 +346,7 @@ class TyServer(BaseLspServer):
 
 
 class NoopLspServer(LspServer):
-    def start(self) -> None:
+    async def start(self) -> None:
         pass
 
     def stop(self) -> None:
@@ -383,9 +385,7 @@ class CompositeLspServer(LspServer):
             last_free_port = find_free_port(last_free_port + 1)
             self.servers[server_name] = server_constructor(last_free_port)
 
-    def _is_enabled(self, server_name: str) -> bool:
-        # .get_config() is not cached
-        config = self.config_reader.get_config()
+    def _is_enabled(self, config: MarimoConfig, server_name: str) -> bool:
         if server_name == "copilot":
             copilot = config["completion"]["copilot"]
             return copilot is True or copilot == "github"
@@ -397,16 +397,18 @@ class CompositeLspServer(LspServer):
             .get("enabled", False),
         )
 
-    def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[Alert]:
         alerts: list[Alert] = []
+        # .get_config() should not be cached, as it may be updated by the user
+        config = self.config_reader.get_config()
         for server_name, server in self.servers.items():
-            if not self._is_enabled(server_name):
+            if not self._is_enabled(config, server_name):
                 # We don't shut down the server if it is already running
                 # in case the user wants to re-enable it
                 continue
             # We call start again even for existing servers in case it failed
             # to start the first time (e.g. got new dependencies)
-            alert = server.start()
+            alert = await server.start()
             if alert is not None:
                 alerts.append(alert)
 
