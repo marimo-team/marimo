@@ -398,9 +398,10 @@ class CompositeLspServer(LspServer):
         )
 
     async def start(self) -> Optional[Alert]:
-        alerts: list[Alert] = []
         # .get_config() should not be cached, as it may be updated by the user
         config = self.config_reader.get_config()
+        tasks: list[asyncio.Task[Optional[Alert]]] = []
+
         for server_name, server in self.servers.items():
             if not self._is_enabled(config, server_name):
                 # We don't shut down the server if it is already running
@@ -408,10 +409,11 @@ class CompositeLspServer(LspServer):
                 continue
             # We call start again even for existing servers in case it failed
             # to start the first time (e.g. got new dependencies)
-            alert = await server.start()
-            if alert is not None:
-                alerts.append(alert)
+            tasks.append(asyncio.create_task(server.start()))
 
+        # Start all servers in parallel
+        results = await asyncio.gather(*tasks)
+        alerts = [alert for alert in results if alert is not None]
         return alerts[0] if alerts else None
 
     def stop(self) -> None:
