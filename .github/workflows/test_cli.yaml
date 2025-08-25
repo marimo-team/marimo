@@ -131,6 +131,8 @@ jobs:
 
       - name: Test CLI
         shell: bash
+        env:
+          UV_OFFLINE: 1
         run: |
           uv run --no-project pytest -v tests/_cli/test_cli* --maxfail=2
 
