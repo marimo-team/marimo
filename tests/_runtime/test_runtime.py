@@ -1483,7 +1483,7 @@ except NameError:
                         """
                     try:
                         R = R # Causes error since no def
-                        C = 0 # Unaccessible
+                        C = 0 # Inaccessible
                     except:
                         pass
                     """

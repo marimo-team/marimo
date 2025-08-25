@@ -113,38 +113,40 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
   return (
     <div className="relative group">
-      <div className="absolute top-1 right-5 z-10 opacity-0 group-hover:opacity-100 flex gap-1">
-        <Tooltip content="Copy all">
-          <span>
-            <button
-              aria-label="Copy all console output"
-              className="p-1 rounded bg-transparent text-muted-foreground hover:text-foreground"
-              type="button"
-              onClick={() => {
-                const text = reversedOutputs
-                  .filter((output) => output.channel !== "pdb")
-                  .map((output) => Strings.asString(output.data))
-                  .join("\n");
-                void copyToClipboard(text);
-              }}
-            >
-              <CopyIcon className="h-4 w-4" />
-            </button>
-          </span>
-        </Tooltip>
-        <Tooltip content={wrapText ? "Disable wrap text" : "Wrap text"}>
-          <span>
-            <ToggleButton
-              aria-label="Toggle text wrapping"
-              className="p-1 rounded bg-transparent text-muted-foreground data-hovered:text-foreground data-selected:text-foreground"
-              isSelected={wrapText}
-              onChange={setWrapText}
-            >
-              <WrapTextIcon className="h-4 w-4" />
-            </ToggleButton>
-          </span>
-        </Tooltip>
-      </div>
+      {hasOutputs && (
+        <div className="absolute top-1 right-5 z-10 opacity-0 group-hover:opacity-100 flex gap-1">
+          <Tooltip content="Copy all">
+            <span>
+              <button
+                aria-label="Copy all console output"
+                className="p-1 rounded bg-transparent text-muted-foreground hover:text-foreground"
+                type="button"
+                onClick={() => {
+                  const text = reversedOutputs
+                    .filter((output) => output.channel !== "pdb")
+                    .map((output) => Strings.asString(output.data))
+                    .join("\n");
+                  void copyToClipboard(text);
+                }}
+              >
+                <CopyIcon className="h-4 w-4" />
+              </button>
+            </span>
+          </Tooltip>
+          <Tooltip content={wrapText ? "Disable wrap text" : "Wrap text"}>
+            <span>
+              <ToggleButton
+                aria-label="Toggle text wrapping"
+                className="p-1 rounded bg-transparent text-muted-foreground data-hovered:text-foreground data-selected:text-foreground"
+                isSelected={wrapText}
+                onChange={setWrapText}
+              >
+                <WrapTextIcon className="h-4 w-4" />
+              </ToggleButton>
+            </span>
+          </Tooltip>
+        </div>
+      )}
       <div
         title={stale ? "This console output is stale" : undefined}
         data-testid="console-output-area"
@@ -207,7 +209,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
         <NameCellContentEditable
           value={cellName}
           cellId={cellId}
-          className="bg-(--slate-4) border-(--slate-4) hover:bg-(--slate-5) dark:border-(--sky-5) dark:bg-(--sky-6) dark:text-(--sky-12) text-(--slate-12) rounded-tl rounded-br-lg absolute right-0 bottom-0 text-xs px-1.5 py-0.5 font-mono"
+          className="bg-(--slate-4) border-(--slate-4) hover:bg-(--slate-5) dark:border-(--sky-5) dark:bg-(--sky-6) dark:text-(--sky-12) text-(--slate-12) rounded-l rounded-br-lg absolute right-0 bottom-0 text-xs px-1.5 py-0.5 font-mono max-w-[75%] whitespace-nowrap overflow-hidden"
         />
       </div>
     </div>
