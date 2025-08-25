@@ -1196,7 +1196,6 @@ def test_cli_edit_with_convert(
             str(port),
             "--no-token",
             "--headless",
-            "--sandbox",
         ],
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
