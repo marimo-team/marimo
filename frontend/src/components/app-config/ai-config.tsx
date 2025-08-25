@@ -988,6 +988,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({ form }) => {
       : [...currentDisplayedModels, modelId];
 
     form.setValue("ai.models.displayed_models", newModels);
+    onSubmit(form.getValues());
   });
 
   const toggleProviderModels = useEvent(
@@ -1004,6 +1005,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({ form }) => {
         : currentDisplayedModels.filter((id) => !qualifiedModelIds.has(id));
 
       form.setValue("ai.models.displayed_models", newModels);
+      onSubmit(form.getValues());
     },
   );
 
