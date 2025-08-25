@@ -10,15 +10,19 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/language
 
 import "./merge-editor.css";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
+import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import { useModelChange } from "@/core/ai/config";
 import { includeOtherCellsAtom } from "@/core/ai/state";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { selectAllText } from "@/core/codemirror/utils";
+import { aiAtom } from "@/core/config/config";
+import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
@@ -75,6 +79,9 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const includeOtherCellsCheckboxId = useId();
 
   const runtimeManager = useRuntimeManager();
+  const ai = useAtomValue(aiAtom);
+  const chatModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
+  const { saveModelChange } = useModelChange();
 
   const {
     completion: untrimmedCompletion,
@@ -205,6 +212,16 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 size="xs"
               />
             )}
+            <AIModelDropdown
+              value={chatModel}
+              onSelect={(model) => {
+                saveModelChange(model, "chat");
+              }}
+              displayIconOnly={true}
+              triggerClassName="h-7"
+              iconSize="small"
+              forRole="chat"
+            />
             <div className="h-full w-px bg-border mx-2" />
             <Tooltip content="Include code from other cells">
               <div className="flex flex-row items-start gap-1 overflow-hidden">

@@ -42,6 +42,7 @@ interface AIModelDropdownProps {
   iconSize?: "medium" | "small";
   showAddCustomModelDocs?: boolean;
   forRole?: Role;
+  displayIconOnly?: boolean;
 }
 
 export const AIModelDropdown = ({
@@ -52,6 +53,7 @@ export const AIModelDropdown = ({
   customDropdownContent,
   iconSize = "medium",
   showAddCustomModelDocs = false,
+  displayIconOnly = false,
   forRole,
 }: AIModelDropdownProps) => {
   const currentValue = value ? AiModelId.parse(value) : undefined;
@@ -136,11 +138,13 @@ export const AIModelDropdown = ({
                 provider={currentValue.providerId}
                 className={iconSizeClass}
               />
-              <span className="truncate">
-                {isKnownAIProvider(currentValue.providerId)
-                  ? currentValue.shortModelId
-                  : currentValue.id}
-              </span>
+              {displayIconOnly ? null : (
+                <span className="truncate">
+                  {isKnownAIProvider(currentValue.providerId)
+                    ? currentValue.shortModelId
+                    : currentValue.id}
+                </span>
+              )}
             </>
           ) : (
             <span className="text-muted-foreground truncate">
