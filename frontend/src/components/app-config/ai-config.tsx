@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { InfoIcon } from "lucide-react";
+import { ChevronRightIcon, InfoIcon } from "lucide-react";
 import React, { useMemo } from "react";
-import { Tree, TreeItem, TreeItemContent } from "react-aria-components";
+import { Button, Tree, TreeItem, TreeItemContent } from "react-aria-components";
 import type { FieldPath, UseFormReturn } from "react-hook-form";
 import { useWatch } from "react-hook-form";
 import useEvent from "react-use-event-hook";
@@ -58,7 +58,7 @@ const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
   config: UserConfig;
-  onSubmit: (values: UserConfig) => Promise<void>;
+  onSubmit: (values: UserConfig) => void;
 }
 
 interface AiProviderTitleProps {
@@ -201,7 +201,7 @@ interface ModelSelectorProps {
   description?: React.ReactNode;
   disabled?: boolean;
   label: string;
-  onSubmit: (values: UserConfig) => Promise<void>;
+  onSubmit: (values: UserConfig) => void;
 }
 
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
@@ -225,6 +225,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
         const selectModel = (modelId: QualifiedModelId) => {
           field.onChange(modelId);
+          // Usually not needed, but a hack to force form values to be updated
           onSubmit(form.getValues());
         };
 
@@ -352,7 +353,7 @@ const renderCopilotProvider = ({
 }: {
   form: UseFormReturn<UserConfig>;
   config: UserConfig;
-  onSubmit: (values: UserConfig) => Promise<void>;
+  onSubmit: (values: UserConfig) => void;
 }) => {
   const copilot = form.getValues("completion.copilot");
   if (copilot === false) {
@@ -927,7 +928,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
       id={providerId}
       hasChildItems={true}
       textValue={providerId}
-      className="outline-none data-focused:bg-muted/50"
+      className="outline-none data-focused:bg-muted/50 group"
     >
       <TreeItemContent>
         <div className="flex items-center gap-3 px-3 py-3 hover:bg-muted/50 cursor-pointer outline-none focus-visible:outline-none">
@@ -936,18 +937,19 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
             onCheckedChange={handleProviderToggle}
             onClick={Events.stopPropagation()}
           />
-          <AiProviderIcon
-            provider={providerId as ProviderId}
-            className="h-5 w-5"
-          />
+          <AiProviderIcon provider={providerId} className="h-5 w-5" />
           <div className="flex items-center justify-between w-full">
             <span className="font-medium">{name}</span>
             <span className="text-sm text-muted-secondary">
               {enabledCount}/{totalCount} models
             </span>
           </div>
+          <Button slot="chevron">
+            <ChevronRightIcon className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 group-data-[expanded]:rotate-90" />
+          </Button>
         </div>
       </TreeItemContent>
+
       {models.map((model) => {
         const qualifiedId = new AiModelId(providerId, model.model).id;
         return (
@@ -964,11 +966,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
   );
 };
 
-export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
-  form,
-  config,
-  onSubmit,
-}) => {
+export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({ form }) => {
   const aiModelRegistry = useMemo(
     () =>
       AiModelRegistry.create({
@@ -984,14 +982,12 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
   const currentDisplayedModelsSet = new Set(currentDisplayedModels);
   const modelsByProvider = aiModelRegistry.getGroupedModelsByProvider();
 
-  const toggleModelDisplay = useEvent(async (modelId: QualifiedModelId) => {
-    console.log("here!");
-    const newModels = !currentDisplayedModelsSet.has(modelId)
-      ? [...currentDisplayedModels, modelId]
-      : currentDisplayedModels.filter((id) => id !== modelId);
+  const toggleModelDisplay = useEvent((modelId: QualifiedModelId) => {
+    const newModels = currentDisplayedModelsSet.has(modelId)
+      ? currentDisplayedModels.filter((id) => id !== modelId)
+      : [...currentDisplayedModels, modelId];
 
     form.setValue("ai.models.displayed_models", newModels);
-    await onSubmit(form.getValues());
   });
 
   const toggleProviderModels = useEvent(
@@ -1001,21 +997,13 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
         providerModels.map((m) => new AiModelId(providerId, m.model).id),
       );
 
-      let newModels: QualifiedModelId[];
-      if (enable) {
-        // Add all provider models that aren't already enabled
-        newModels = [
-          ...new Set([...currentDisplayedModels, ...qualifiedModelIds]),
-        ];
-      } else {
-        // Remove all provider models
-        newModels = currentDisplayedModels.filter(
-          (id) => !qualifiedModelIds.has(id),
-        );
-      }
+      // If enabled, we add all provider models that aren't already enabled
+      // Else, remove all provider models
+      const newModels: QualifiedModelId[] = enable
+        ? [...new Set([...currentDisplayedModels, ...qualifiedModelIds])]
+        : currentDisplayedModels.filter((id) => !qualifiedModelIds.has(id));
 
       form.setValue("ai.models.displayed_models", newModels);
-      await onSubmit(form.getValues());
     },
   );
 
@@ -1038,7 +1026,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
               key={providerId}
               providerId={providerId}
               models={models}
-              enabledModels={currentDisplayedModelsSet as Set<QualifiedModelId>}
+              enabledModels={currentDisplayedModelsSet}
               onToggleModel={toggleModelDisplay}
               onToggleProvider={toggleProviderModels}
             />

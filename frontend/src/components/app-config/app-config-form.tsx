@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { useForm } from "react-hook-form";
 import {
   Form,
@@ -38,6 +38,8 @@ const FORM_DEBOUNCE = 100; // ms;
 export const AppConfigForm: React.FC = () => {
   const [config, setConfig] = useAppConfig();
   const { saveAppConfig } = useRequestClient();
+  const htmlCheckboxId = useId();
+  const ipynbCheckboxId = useId();
 
   // Create form
   const form = useForm<AppConfig>({
@@ -46,7 +48,6 @@ export const AppConfigForm: React.FC = () => {
   });
 
   const onSubmit = async (values: AppConfig) => {
-    console.log("11111");
     await saveAppConfig({ config: values })
       .then(() => {
         setConfig(values);
@@ -56,8 +57,7 @@ export const AppConfigForm: React.FC = () => {
       });
   };
 
-  const debouncedSubmit = useDebouncedCallback((v) => {
-    console.log("222");
+  const debouncedSubmit = useDebouncedCallback((v: AppConfig) => {
     onSubmit(v);
   }, FORM_DEBOUNCE);
 
@@ -262,23 +262,25 @@ export const AppConfigForm: React.FC = () => {
                       <div className="flex gap-4">
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            id="html-checkbox"
+                            id={htmlCheckboxId}
+                            data-testid="html-checkbox"
                             checked={field.value.includes("html")}
                             onCheckedChange={() => {
                               field.onChange(arrayToggle(field.value, "html"));
                             }}
                           />
-                          <FormLabel htmlFor="html-checkbox">HTML</FormLabel>
+                          <FormLabel htmlFor={htmlCheckboxId}>HTML</FormLabel>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            id="ipynb-checkbox"
+                            id={ipynbCheckboxId}
+                            data-testid="ipynb-checkbox"
                             checked={field.value.includes("ipynb")}
                             onCheckedChange={() => {
                               field.onChange(arrayToggle(field.value, "ipynb"));
                             }}
                           />
-                          <FormLabel htmlFor="ipynb-checkbox">IPYNB</FormLabel>
+                          <FormLabel htmlFor={ipynbCheckboxId}>IPYNB</FormLabel>
                         </div>
                       </div>
                     </FormControl>
