@@ -966,7 +966,10 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
   );
 };
 
-export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({ form }) => {
+export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
+  form,
+  onSubmit,
+}) => {
   const aiModelRegistry = useMemo(
     () =>
       AiModelRegistry.create({
