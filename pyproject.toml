@@ -169,7 +169,8 @@ dependencies = [
     "leafmap~=0.39.2",
     "panel~=1.5.3",
     "polars~=1.9.0",
-    "narwhals>=1.12.0",
+    # Types in 2.2.0 don't work great with mypy
+    "narwhals>=1.12.0, <2.2.0",
     "matplotlib>=3.8.0",
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.40",
