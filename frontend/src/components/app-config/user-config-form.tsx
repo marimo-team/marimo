@@ -41,6 +41,7 @@ import { getAppWidths } from "@/core/config/widths";
 import { marimoVersionAtom } from "@/core/meta/state";
 import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
+import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
 import { arrayToggle } from "@/utils/arrays";
@@ -106,6 +107,8 @@ export const activeUserConfigCategoryAtom = atom<SettingCategoryId>(
   categories[0].id,
 );
 
+const FORM_DEBOUNCE = 100; // ms;
+
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
   const formElement = useRef<HTMLFormElement>(null);
@@ -123,11 +126,12 @@ export const UserConfigForm: React.FC = () => {
     defaultValues: config,
   });
 
-  const onSubmit = async (values: UserConfig) => {
+  const onSubmitNotDebounced = async (values: UserConfig) => {
     await saveUserConfig({ config: values }).then(() => {
       setConfig(values);
     });
   };
+  const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
 
   const isWasmRuntime = isWasm();
   const htmlCheckboxId = useId();
