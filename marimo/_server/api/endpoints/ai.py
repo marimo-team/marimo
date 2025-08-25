@@ -65,12 +65,14 @@ router = APIRouter()
 
 async def safe_stream_wrapper(
     stream_generator: AsyncGenerator[str, None],
+    text_only: bool,
 ) -> AsyncGenerator[str, None]:
     """
     Wraps a streaming generator to catch and handle errors gracefully.
 
     Args:
         stream_generator: The original streaming generator
+        text_only: Whether to return text only or the full AI SDK stream protocol format
 
     Yields:
         Stream chunks or error messages in AI SDK stream protocol format
@@ -82,7 +84,11 @@ async def safe_stream_wrapper(
         LOGGER.error("Error in AI streaming response: %s", str(e))
         # Send an error message using AI SDK stream protocol format
         # Error Part format: 3:string\n
-        yield convert_to_ai_sdk_messages(str(e), "error")
+        text = str(e)
+        if text_only:
+            yield convert_to_ai_sdk_messages(text, "error")
+        else:
+            yield text
 
 
 def get_ai_config(config: MarimoConfig) -> AiConfig:
@@ -157,7 +163,8 @@ async def ai_completion(
                 provider.as_stream_response(
                     response, StreamOptions(text_only=True)
                 )
-            )
+            ),
+            text_only=True,
         ),
         media_type="application/json",
         headers={"x-vercel-ai-data-stream": "v1"},
@@ -213,8 +220,9 @@ async def ai_chat(
     return StreamingResponse(
         content=safe_stream_wrapper(
             provider.as_stream_response(
-                response, StreamOptions(format_stream=True)
-            )
+                response, StreamOptions(format_stream=True, text_only=False)
+            ),
+            text_only=False,
         ),
         media_type="application/json",
         headers={"x-vercel-ai-data-stream": "v1"},
