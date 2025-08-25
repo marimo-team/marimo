@@ -237,6 +237,7 @@ class DependencyManager:
     litellm = Dependency("litellm")
     redshift_connector = Dependency("redshift_connector")
     mcp = Dependency("mcp")
+    claude_code_sdk = Dependency("claude_code_sdk")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

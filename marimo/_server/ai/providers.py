@@ -98,6 +98,13 @@ StreamContent = Union[StreamTextContent, StreamDictContent, FinishContent]
 LOGGER = _loggers.marimo_logger()
 
 
+class MockAnthropicResponse:
+    """Mock response object to maintain compatibility with Claude Code SDK."""
+
+    def __init__(self, text: str):
+        self.text = text
+
+
 @dataclass
 class StreamOptions:
     text_only: bool = False
@@ -577,12 +584,100 @@ class AnthropicProvider(
 
         return AsyncClient(api_key=config.api_key)
 
+    def _should_use_claude_code_sdk(self) -> bool:
+        """Check if Claude Code SDK should be used."""
+        return getattr(self.config, "use_claude_code_sdk", False)
+
     async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
     ) -> AnthropicStream[RawMessageStreamEvent]:
+        # Use Claude Code SDK if configured
+        if self._should_use_claude_code_sdk() or 10:
+            return await self._stream_completion_claude_code_sdk(
+                messages, system_prompt, max_tokens
+            )
+
+        # Standard Anthropic client
+        client = self.get_client(self.config)
+        tools = self.config.tools
+        create_params = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "messages": cast(
+                Any,
+                convert_to_anthropic_messages(messages),
+            ),
+            "system": system_prompt,
+            "stream": True,
+            "temperature": self.get_temperature(),
+        }
+        if tools:
+            create_params["tools"] = convert_to_anthropic_tools(tools)
+        if self.is_extended_thinking_model(self.model):
+            create_params["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
+            }
+        return cast(
+            "AnthropicStream[RawMessageStreamEvent]",
+            await client.messages.create(**create_params),
+        )
+
+    async def _stream_completion_claude_code_sdk(
+        self,
+        messages: list[ChatMessage],
+        system_prompt: str,
+        max_tokens: int,
+    ) -> AnthropicStream[RawMessageStreamEvent]:
+        """Handle streaming completion using Claude Code SDK."""
+        DependencyManager.claude_code_sdk.require(
+            why="for AI assistance with Claude Code SDK"
+        )
+        from claude_code_sdk import ClaudeCodeOptions, ClaudeSDKClient
+
+        # Convert messages to a single query string
+        query_parts: list[str] = []
+        if system_prompt:
+            query_parts.append(f"System: {system_prompt}")
+
+        for msg in messages:
+            query_parts.append(f"{msg.role.title()}: {msg.content}")
+
+        query = "\n\n".join(query_parts)
+
+        options = ClaudeCodeOptions(
+            system_prompt=system_prompt,
+            max_turns=1,  # Single completion
+        )
+
+        # Create a wrapper async generator that mimics Anthropic's stream format
+        async def claude_code_stream() -> AsyncIterator[RawMessageStreamEvent]:
+            async with ClaudeSDKClient(options=options) as client:
+                await client.query(query)
+                async for message in client.receive_response():
+                    if hasattr(message, "content"):
+                        content = message.content
+                        if isinstance(content, str):
+                            yield MockAnthropicResponse(content)
+                        else:
+                            for block in content:
+                                if hasattr(block, "text"):
+                                    # Create a mock RawMessageStreamEvent-like object
+                                    # This is a simplified wrapper to maintain compatibility
+                                    yield MockAnthropicResponse(block.text)
+
+        return claude_code_stream()
+
+    async def _fallback_stream_completion(
+        self,
+        messages: list[ChatMessage],
+        system_prompt: str,
+        max_tokens: int,
+    ) -> AnthropicStream[RawMessageStreamEvent]:
+        """Fallback to standard Anthropic client."""
         client = self.get_client(self.config)
         tools = self.config.tools
         create_params = {
@@ -614,6 +709,11 @@ class AnthropicProvider(
         tool_call_id: Optional[str] = None,
     ) -> Optional[ExtractedContent]:
         del tool_call_id
+
+        # Handle Claude Code SDK mock response
+        if isinstance(response, MockAnthropicResponse):
+            return (response.text, "text")
+
         from anthropic.types import (
             InputJSONDelta,
             RawContentBlockDeltaEvent,
@@ -652,6 +752,12 @@ class AnthropicProvider(
     def get_finish_reason(
         self, response: RawMessageStreamEvent
     ) -> Optional[FinishReason]:
+        # Handle Claude Code SDK mock response
+        if isinstance(response, MockAnthropicResponse):
+            return (
+                "stop"  # Claude Code SDK responses are always text completions
+            )
+
         from anthropic.types import RawMessageDeltaEvent
 
         # Check for message_delta events which contain the stop_reason

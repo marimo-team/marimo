@@ -321,9 +321,11 @@ class AnthropicConfig(TypedDict, total=False):
     **Keys.**
 
     - `api_key`: the Anthropic API key
+    - `use_claude_code_sdk`: if `True`, use the Claude Code Python SDK
     """
 
     api_key: str
+    use_claude_code_sdk: NotRequired[bool]
 
 
 @dataclass
