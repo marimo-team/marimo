@@ -11,7 +11,7 @@ from marimo import _loggers
 from marimo._config.config import (
     DEFAULT_CONFIG,
     CompletionConfig,
-    ExperimentalConfig,
+    ExperimentalConfigType,
     ExportType,
     LanguageServersConfig,
     MarimoConfig,
@@ -108,7 +108,7 @@ class MarimoConfigReader:
         return {}
 
     @property
-    def experimental(self) -> ExperimentalConfig:
+    def experimental(self) -> ExperimentalConfigType:
         if "experimental" in self._config:
             return self._config["experimental"]
         return {}

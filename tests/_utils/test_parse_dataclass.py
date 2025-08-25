@@ -19,6 +19,7 @@ from typing import (
 
 import pytest
 
+from marimo._config.config import ExperimentalConfigType
 from marimo._runtime.requests import SetCellConfigRequest
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
@@ -279,6 +280,73 @@ class TestParseRaw:
                 serialize({"config": {"invalid": True}}), Nested
             )
         assert "invalid" in str(e.value)
+
+    def test_parse_raw_experimental_config_variants(self) -> None:
+        """Test parse_raw with different variants of experimental config."""
+
+        # Create a dataclass that contains the experimental field,
+        # Similar to MarimoConfig and PartialMarimoConfig
+        @dataclass
+        class TestConfig:
+            experimental: ExperimentalConfigType
+
+        # Test 1: Known features
+        structured_data = {
+            "experimental": {"markdown": True, "cache": {"type": "redis"}}
+        }
+
+        parsed_structured = parse_raw(
+            structured_data, TestConfig, allow_unknown_keys=True
+        )
+        assert parsed_structured.experimental["markdown"] is True
+        assert parsed_structured.experimental["cache"]["type"] == "redis"
+
+        # Test 1.5: Invalid values on known features
+        invalid_data = {"experimental": {"markdown": "invalid"}}
+        invalid = parse_raw(invalid_data, TestConfig)
+        assert invalid.experimental["markdown"] == "invalid"
+
+        # Test 2: Custom features
+        dynamic_data = {
+            "experimental": {
+                "custom_feature": "custom_value",
+                "another_flag": 42,
+                "nested_config": {"key": "value"},
+                "boolean_flag": True,
+            }
+        }
+
+        parsed_dynamic = parse_raw(
+            dynamic_data, TestConfig, allow_unknown_keys=True
+        )
+        assert parsed_dynamic.experimental["custom_feature"] == "custom_value"
+        assert parsed_dynamic.experimental["another_flag"] == 42
+        assert parsed_dynamic.experimental["nested_config"]["key"] == "value"
+        assert parsed_dynamic.experimental["boolean_flag"] is True
+        # Check not present field
+        assert parsed_dynamic.experimental.get("mcp_docs") is None
+
+        # Test 3: Mixed approach - known features + custom features
+        mixed_data = {
+            "experimental": {
+                "markdown": True,
+                "custom_feature": "mixed_value",
+                "experimental_number": 123.45,
+                "experimental_dict": {"nested": "value"},
+            }
+        }
+
+        parsed_mixed = parse_raw(
+            mixed_data, TestConfig, allow_unknown_keys=True
+        )
+        # Known features should work
+        assert parsed_mixed.experimental["markdown"] is True
+        # Custom features should also work
+        assert parsed_mixed.experimental["custom_feature"] == "mixed_value"
+        assert parsed_mixed.experimental["experimental_number"] == 123.45
+        assert parsed_mixed.experimental["experimental_dict"] == {
+            "nested": "value"
+        }
 
 
 def test_build_optional() -> None:
