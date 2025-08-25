@@ -305,6 +305,28 @@ SQL_CASES = [
         xfail=True,
     ),
     GraphTestCase(
+        name="sql definitions with same name as qualified schema and table",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "my_table = mo.sql(f'CREATE TABLE schema_one.my_table (name STRING)')",
+            "1": "schema_one = mo.sql(f'CREATE TABLE schema_one.my_table (name STRING)')",
+            "2": "my_table",
+            "3": "schema_one",
+        },
+        expected_parents={"0": [], "1": [], "2": ["0"], "3": ["1"]},
+        expected_children={"0": ["2"], "1": ["3"], "2": [], "3": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo"],
+            "2": ["my_table"],
+            "3": ["schema_one"],
+        },
+        expected_defs={
+            "0": ["my_table"],
+            "1": ["my_table", "schema_one"],
+        },
+    ),
+    GraphTestCase(
         name="sql catalog and schema with same name",
         enabled=HAS_DUCKDB,
         code={
@@ -380,6 +402,26 @@ SQL_CASES = [
             "1": ["mo", "my_schema_var.table"],
         },
         expected_defs={"0": ["my_schema_var"], "1": []},
+    ),
+    GraphTestCase(
+        name="sql catalog.schema.table requires both catalog and schema to match",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE TABLE catalog_one.schema_one.my_table (name STRING)')",
+            "1": "_ = mo.sql(f'FROM catalog_one.schema_one.my_table SELECT *')",
+            "2": "_ = mo.sql(f'FROM catalog_two.schema_one.my_table SELECT *')",
+            "3": "_ = mo.sql(f'FROM catalog_one.schema_two.my_table SELECT *')",
+        },
+        expected_parents={"0": [], "1": ["0"], "2": [], "3": []},
+        expected_children={"0": ["1"], "1": [], "2": [], "3": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo", "catalog_one.schema_one.my_table"],
+            "2": ["mo", "catalog_two.schema_one.my_table"],
+            "3": ["mo", "catalog_one.schema_two.my_table"],
+        },
+        expected_defs={"0": ["my_table"], "1": [], "2": [], "3": []},
+        xfail=True,
     ),
 ]
 

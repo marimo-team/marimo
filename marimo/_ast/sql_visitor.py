@@ -12,6 +12,16 @@ from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
 
+COMMON_FILE_EXTENSIONS = (
+    ".csv",
+    ".parquet",
+    ".json",
+    ".txt",
+    ".db",
+    ".tsv",
+    ".xlsx",
+)
+
 
 class SQLVisitor(ast.NodeVisitor):
     """
@@ -375,12 +385,8 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
 
         # Check if the table name looks like a URL or has a file extension.
         # These are often not actual table references, so we skip them.
-        # Note that they can be valid table refs, but for now we skip them.
-        if table_name.startswith(
-            ("http://", "https://", "ftp://")
-        ) or table_name.endswith(
-            (".csv", ".parquet", ".json", ".txt", ".db", ".tsv", ".xlsx")
-        ):
+        # Note that they can be valid table names, but we skip them to avoid circular deps
+        if "://" in table_name or table_name.endswith(COMMON_FILE_EXTENSIONS):
             return None
 
         return SQLRef(
