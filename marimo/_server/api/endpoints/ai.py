@@ -84,11 +84,10 @@ async def safe_stream_wrapper(
         LOGGER.error("Error in AI streaming response: %s", str(e))
         # Send an error message using AI SDK stream protocol format
         # Error Part format: 3:string\n
-        text = str(e)
         if text_only:
-            yield convert_to_ai_sdk_messages(text, "error")
+            yield str(e)
         else:
-            yield text
+            yield convert_to_ai_sdk_messages(str(e), "error")
 
 
 def get_ai_config(config: MarimoConfig) -> AiConfig:
