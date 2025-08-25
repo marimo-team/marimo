@@ -2,30 +2,9 @@
 
 # Anthropic
 
-- name: Claude 3.5 Haiku
-  model: claude-3-5-haiku-latest
-  description: Fast and efficient model with excellent performance for everyday tasks
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Claude 3.5 Sonnet
-  model: claude-3-5-sonnet-latest
-  description: Balanced model with strong performance across reasoning, math, and coding
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Claude 3.7 Sonnet
-  model: claude-3-7-sonnet-latest
-  description: Enhanced Sonnet model with improved capabilities
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Claude 4 Sonnet
-  model: claude-sonnet-4-20250514
-  description: Next-generation Sonnet model with advanced reasoning and multimodal capabilities
+- name: Claude 4.1 Opus
+  model: claude-opus-4-1-20250805
+  description: Latest Opus model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
@@ -37,32 +16,53 @@
   roles: [chat, edit]
   thinking: true
 
-- name: Claude 4.1 Opus
-  model: claude-opus-4-1-20250805
-  description: Latest Opus model with enhanced capabilities and performance improvements
+- name: Claude 4 Sonnet
+  model: claude-sonnet-4-20250514
+  description: Next-generation Sonnet model with advanced reasoning and multimodal capabilities
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
 
+- name: Claude 3.7 Sonnet
+  model: claude-3-7-sonnet-latest
+  description: Enhanced Sonnet model with improved capabilities
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.5 Sonnet
+  model: claude-3-5-sonnet-latest
+  description: Balanced model with strong performance across reasoning, math, and coding
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.5 Haiku
+  model: claude-3-5-haiku-latest
+  description: Fast and efficient model with excellent performance for everyday tasks
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
+
 # Google
 
-- name: Gemini 1.5 Flash
-  model: gemini-1.5-flash
-  description: Fast and efficient model optimized for speed and everyday tasks
+- name: Gemini 2.5 Pro
+  model: gemini-2.5-pro
+  description: Most capable Gemini model with advanced reasoning and large context support
   providers: [google]
   roles: [chat, edit]
   thinking: false
 
-- name: Gemini 1.5 Flash 8B
-  model: gemini-1.5-flash-8b
-  description: Lightweight version of Gemini 1.5 Flash with 8 billion parameters
+- name: Gemini 2.5 Pro Experimental
+  model: gemini-2.5-pro-exp
+  description: Experimental version of Gemini 2.5 Pro with latest improvements
   providers: [google]
   roles: [chat, edit]
   thinking: false
 
-- name: Gemini 1.5 Pro
-  model: gemini-1.5-pro
-  description: Advanced model with superior reasoning capabilities and large context window
+- name: Gemini 2.5 Flash Preview
+  model: gemini-2.5-flash-preview
+  description: Preview of the upcoming Gemini 2.5 Flash model
   providers: [google]
   roles: [chat, edit]
   thinking: false
@@ -95,23 +95,23 @@
   roles: [chat]
   thinking: true
 
-- name: Gemini 2.5 Flash Preview
-  model: gemini-2.5-flash-preview
-  description: Preview of the upcoming Gemini 2.5 Flash model
+- name: Gemini 1.5 Flash
+  model: gemini-1.5-flash
+  description: Fast and efficient model optimized for speed and everyday tasks
   providers: [google]
   roles: [chat, edit]
   thinking: false
 
-- name: Gemini 2.5 Pro
-  model: gemini-2.5-pro
-  description: Most capable Gemini model with advanced reasoning and large context support
+- name: Gemini 1.5 Flash 8B
+  model: gemini-1.5-flash-8b
+  description: Lightweight version of Gemini 1.5 Flash with 8 billion parameters
   providers: [google]
   roles: [chat, edit]
   thinking: false
 
-- name: Gemini 2.5 Pro Experimental
-  model: gemini-2.5-pro-exp
-  description: Experimental version of Gemini 2.5 Pro with latest improvements
+- name: Gemini 1.5 Pro
+  model: gemini-1.5-pro
+  description: Advanced model with superior reasoning capabilities and large context window
   providers: [google]
   roles: [chat, edit]
   thinking: false
@@ -195,7 +195,6 @@
   roles: [chat, edit]
   thinking: true
 
-
 # GitHub
 
 - name: GPT-3.5-turbo
@@ -208,9 +207,9 @@
 
 # Bedrock
 
-- name: Claude 3.5 Haiku (Bedrock)
-  model: anthropic.claude-3-5-haiku-20241022-v1:0
-  description: Fast and efficient model with excellent performance for everyday tasks
+- name: Claude 3.7 Sonnet (Bedrock)
+  model: anthropic.claude-3-7-sonnet-20250219-v1:0
+  description: Enhanced Sonnet model with improved capabilities
   providers: [bedrock]
   roles: [chat, edit]
   thinking: false
@@ -222,9 +221,9 @@
   roles: [chat, edit]
   thinking: false
 
-- name: Claude 3.7 Sonnet (Bedrock)
-  model: anthropic.claude-3-7-sonnet-20250219-v1:0
-  description: Enhanced Sonnet model with improved capabilities
+- name: Claude 3.5 Haiku (Bedrock)
+  model: anthropic.claude-3-5-haiku-20241022-v1:0
+  description: Fast and efficient model with excellent performance for everyday tasks
   providers: [bedrock]
   roles: [chat, edit]
   thinking: false
