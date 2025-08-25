@@ -427,6 +427,7 @@ def convert_to_ai_sdk_messages(
         "tool_call_end",
         "tool_result",
         "finish_reason",
+        "error",
     ],
 ) -> str:
     """
@@ -441,6 +442,7 @@ def convert_to_ai_sdk_messages(
     TOOL_CALL_PREFIX = "9:"
     TOOL_RESULT_PREFIX = "a:"
     FINISH_REASON_PREFIX = "d:"
+    ERROR_PREFIX = "3:"
 
     # Text events
     if content_type == "text" and isinstance(content_text, str):
@@ -471,6 +473,10 @@ def convert_to_ai_sdk_messages(
         content_text, dict
     ):
         return f"{REASON_SIGNATURE_PREFIX}{json.dumps(content_text)}\n"
+
+    # Error events
+    elif content_type == "error" and isinstance(content_text, str):
+        return f"{ERROR_PREFIX}{json.dumps(content_text)}\n"
 
     else:
         # Default to text for unknown types
