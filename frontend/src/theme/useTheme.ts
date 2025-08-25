@@ -25,8 +25,7 @@ const themeAtom = atom((get) => {
     if (
       document.body.dataset.theme === "dark" ||
       document.body.dataset.mode === "dark" ||
-      document.body.dataset.vscodeThemeKind === "vscode-dark" ||
-      document.body.dataset.vscodeThemeKind === "vscode-high-contrast"
+      getVsCodeTheme() === "dark"
     ) {
       return "dark";
     }
@@ -73,8 +72,39 @@ function setupThemeListener(): void {
 }
 setupThemeListener();
 
+function getVsCodeTheme(): "light" | "dark" | undefined {
+  const kind = document.body.dataset.vscodeThemeKind;
+  if (kind === "vscode-dark") {
+    return "dark";
+  } else if (kind === "vscode-high-contrast") {
+    return "dark";
+  } else if (kind === "vscode-light") {
+    return "light";
+  }
+  return undefined;
+}
+
+const codeThemeAtom = atom<"light" | "dark" | undefined>(getVsCodeTheme());
+
+function setupVsCodeThemeListener() {
+  const observer = new MutationObserver(() => {
+    const theme = getVsCodeTheme();
+    store.set(codeThemeAtom, theme);
+  });
+  observer.observe(document.body, {
+    attributes: true,
+    attributeFilter: ["data-vscode-theme-kind"],
+  });
+  return () => observer.disconnect();
+}
+setupVsCodeThemeListener();
+
 export const resolvedThemeAtom = atom((get) => {
   const theme = get(themeAtom);
+  const codeTheme = get(codeThemeAtom);
+  if (codeTheme !== undefined) {
+    return codeTheme;
+  }
   const prefersDarkMode = get(prefersDarkModeAtom);
   return theme === "system" ? (prefersDarkMode ? "dark" : "light") : theme;
 });
