@@ -31,6 +31,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Tooltip } from "../ui/tooltip";
 import { AiProviderIcon } from "./ai-provider-icon";
+import { getCurrentRoleTooltip, getTagColour } from "./display-helpers";
 
 interface AIModelDropdownProps {
   value?: string;
@@ -104,7 +105,7 @@ export const AIModelDropdown = ({
         </div>
 
         <div className="ml-auto flex gap-1">
-          <Tooltip content={getTagTooltip(role)}>
+          <Tooltip content={getCurrentRoleTooltip(role)}>
             <span
               key={role}
               className={`text-xs px-1.5 py-0.5 rounded font-medium ${getTagColour(role)}`}
@@ -248,8 +249,7 @@ const ProviderDropdownContent = ({
             </>
           )}
           {models.map((model) => {
-            const qualifiedModelId =
-              `${provider}/${model.model}` as QualifiedModelId;
+            const qualifiedModelId: QualifiedModelId = `${provider}/${model.model}`;
             return (
               <DropdownMenuSub key={qualifiedModelId}>
                 <DropdownMenuSubTrigger showChevron={false} className="py-2">
@@ -309,7 +309,7 @@ const AiModelDropdownItem = ({
   );
 };
 
-const AiModelInfoDisplay = ({
+export const AiModelInfoDisplay = ({
   model,
   provider,
 }: {
@@ -339,7 +339,7 @@ const AiModelInfoDisplay = ({
               <span
                 key={role}
                 className={`px-2 py-1 text-xs rounded-md font-medium ${getTagColour(role)}`}
-                title={getTagTooltip(role)}
+                title={getCurrentRoleTooltip(role)}
               >
                 {role}
               </span>
@@ -373,33 +373,4 @@ function getProviderLabel(provider: ProviderId): string {
     return providerInfo.name;
   }
   return capitalize(provider);
-}
-
-function getTagColour(role: Role | "thinking"): string {
-  switch (role) {
-    case "chat":
-      return "bg-[var(--purple-3)] text-[var(--purple-11)]";
-    case "autocomplete":
-      return "bg-[var(--green-3)] text-[var(--green-11)]";
-    case "edit":
-      return "bg-[var(--blue-3)] text-[var(--blue-11)]";
-    case "thinking":
-      return "bg-[var(--purple-4)] text-[var(--purple-12)]";
-  }
-  return "bg-[var(--mauve-3)] text-[var(--mauve-11)]";
-}
-
-function getTagTooltip(role: Role): string {
-  switch (role) {
-    case "chat":
-      return "Current model used for chat conversations";
-    case "autocomplete":
-      return "Current model used for autocomplete autocomplete";
-    case "edit":
-      return "Current model used for code edits";
-    case "rerank":
-      return "Current model used for reranking completions";
-    case "embed":
-      return "Current model used for embedding";
-  }
 }
