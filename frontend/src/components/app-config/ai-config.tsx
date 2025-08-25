@@ -1,8 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { ChevronRightIcon, InfoIcon } from "lucide-react";
+import { BrainIcon, ChevronRightIcon, InfoIcon } from "lucide-react";
 import React, { useMemo } from "react";
-import { Button, Tree, TreeItem, TreeItemContent } from "react-aria-components";
+import {
+  Button as AriaButton,
+  Tree,
+  TreeItem,
+  TreeItemContent,
+} from "react-aria-components";
 import type { FieldPath, UseFormReturn } from "react-hook-form";
 import { useWatch } from "react-hook-form";
 import useEvent from "react-use-event-hook";
@@ -36,6 +41,7 @@ import {
   AiProviderIcon,
   type AiProviderIconProps,
 } from "../ai/ai-provider-icon";
+import { getTagColour } from "../ai/display-helpers";
 import {
   Accordion,
   AccordionContent,
@@ -439,18 +445,49 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
     >
       <TreeItemContent>
         <div className="flex items-center justify-between px-4 py-3 border-b last:border-b-0 cursor-pointer outline-none">
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col">
-              <span className="font-medium">{model.name}</span>
-              <span className="text-sm text-muted-secondary">
-                {qualifiedId}
-              </span>
-            </div>
-          </div>
+          <ModelInfoCard model={model} qualifiedId={qualifiedId} />
           <Switch checked={isEnabled} onClick={handleToggle} size="sm" />
         </div>
       </TreeItemContent>
     </TreeItem>
+  );
+};
+
+const ModelInfoCard = ({
+  model,
+  qualifiedId,
+}: {
+  model: AiModel;
+  qualifiedId: QualifiedModelId;
+}) => {
+  return (
+    <div className="flex items-center gap-3 flex-1">
+      <div className="flex flex-col flex-1">
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium">{model.name}</h3>
+        </div>
+        <span className="text-xs text-muted-foreground font-mono">
+          {qualifiedId}
+        </span>
+        {model.description && !model.custom && (
+          <p className="text-sm text-muted-secondary mt-1 line-clamp-2">
+            {model.description}
+          </p>
+        )}
+
+        {model.thinking && (
+          <div
+            className={cn(
+              "flex items-center gap-1 rounded px-1 py-0.5 w-fit mt-1.5",
+              getTagColour("thinking"),
+            )}
+          >
+            <BrainIcon className="h-3 w-3" />
+            <span className="text-xs font-medium">Reasoning</span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -939,14 +976,14 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
           />
           <AiProviderIcon provider={providerId} className="h-5 w-5" />
           <div className="flex items-center justify-between w-full">
-            <span className="font-medium">{name}</span>
-            <span className="text-sm text-muted-secondary">
+            <h2 className="font-semibold">{name}</h2>
+            <p className="text-sm text-muted-secondary">
               {enabledCount}/{totalCount} models
-            </span>
+            </p>
           </div>
-          <Button slot="chevron">
+          <AriaButton slot="chevron">
             <ChevronRightIcon className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 group-data-[expanded]:rotate-90" />
-          </Button>
+          </AriaButton>
         </div>
       </TreeItemContent>
 
@@ -974,6 +1011,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
     () =>
       AiModelRegistry.create({
         displayedModels: [],
+        customModels: ["openrouter/deepseek-r1-distill-llama-70b"],
       }),
     [],
   );
@@ -1013,8 +1051,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
   );
 
   return (
-    <SettingGroup className="h-full">
-      <SettingSubtitle>Model Display</SettingSubtitle>
+    <SettingGroup>
       <p className="text-sm text-muted-secondary mb-4">
         Control which AI models are displayed in model selection dropdowns. When
         no models are selected, all available models will be shown.
@@ -1052,7 +1089,7 @@ export const AiConfig: React.FC<AiConfigProps> = ({
       <TabsList className="mb-2">
         <TabsTrigger value="ai-features">AI Features</TabsTrigger>
         <TabsTrigger value="ai-providers">AI Providers</TabsTrigger>
-        <TabsTrigger value="model-display">Model Display</TabsTrigger>
+        <TabsTrigger value="ai-models">AI Models</TabsTrigger>
       </TabsList>
 
       <TabsContent value="ai-features">
@@ -1066,7 +1103,7 @@ export const AiConfig: React.FC<AiConfigProps> = ({
       <TabsContent value="ai-providers">
         <AiProvidersConfig form={form} config={config} onSubmit={onSubmit} />
       </TabsContent>
-      <TabsContent value="model-display">
+      <TabsContent value="ai-models">
         <AiModelDisplayConfig form={form} config={config} onSubmit={onSubmit} />
       </TabsContent>
     </Tabs>
