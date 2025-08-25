@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.app import AppKernelRunnerRegistry
@@ -65,11 +66,15 @@ class ScriptRuntimeContext(RuntimeContext):
     def execution_context(self) -> ExecutionContext | None:
         return self._app.execution_context
 
-    @property
-    def marimo_config(self) -> MarimoConfig:
+    @cached_property
+    def _cached_config(self) -> MarimoConfig:
         return get_default_config_manager(
             current_path=self.filename
         ).get_config()
+
+    @property
+    def marimo_config(self) -> MarimoConfig:
+        return self._cached_config
 
     @property
     def cell_id(self) -> Optional[CellId_t]:
