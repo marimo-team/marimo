@@ -235,9 +235,9 @@ describe("getAICompletionBody", () => {
     expect(result).toMatchInlineSnapshot(`
       {
         "context": {
-          "plainText": "<variable name="var1" dataType="string">&quot;string value&quot;</variable>
+          "plainText": "<variable name="var1" dataType="string">"string value"</variable>
 
-      <variable name="var2" dataType="number">&quot;42&quot;</variable>",
+      <variable name="var2" dataType="number">"42"</variable>",
           "schema": [],
           "variables": [],
         },
@@ -281,7 +281,7 @@ describe("getAICompletionBody", () => {
         - col1: number
         - col2: string</data>
 
-      <variable name="var1" dataType="string">&quot;string value&quot;</variable>",
+      <variable name="var1" dataType="string">"string value"</variable>",
           "schema": [],
           "variables": [],
         },
@@ -310,7 +310,7 @@ describe("getAICompletionBody", () => {
     expect(result).toMatchInlineSnapshot(`
       {
         "context": {
-          "plainText": "<variable name="existingVar" dataType="string">&quot;string value&quot;</variable>",
+          "plainText": "<variable name="existingVar" dataType="string">"string value"</variable>",
           "schema": [],
           "variables": [],
         },

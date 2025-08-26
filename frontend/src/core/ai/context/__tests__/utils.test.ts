@@ -43,8 +43,8 @@ describe("contextToXml", () => {
     };
 
     const result = contextToXml(context);
-    expect(result).toBe(
-      '<data name="dataset&lt;&gt;&amp;&quot;&#39;" description="Contains special chars"></data>',
+    expect(result).toMatchInlineSnapshot(
+      `"<data name="dataset&lt;&gt;&"'" description="Contains special chars"></data>"`,
     );
   });
 
@@ -58,8 +58,8 @@ describe("contextToXml", () => {
     };
 
     const result = contextToXml(context);
-    expect(result).toBe(
-      '<error name="error1">Error message with &lt;tags&gt; &amp; &quot;quotes&quot; and &#39;apostrophes&#39;</error>',
+    expect(result).toMatchInlineSnapshot(
+      `"<error name="error1">Error message with &lt;tags&gt; & "quotes" and 'apostrophes'</error>"`,
     );
   });
 
@@ -114,8 +114,8 @@ describe("contextToXml", () => {
     };
 
     const result = contextToXml(context);
-    expect(result).toBe(
-      '<complex name="test" config="{&quot;key&quot;:&quot;value&quot;,&quot;nested&quot;:{&quot;prop&quot;:&quot;test&quot;}}">Complex configuration data</complex>',
+    expect(result).toMatchInlineSnapshot(
+      `"<complex name="test" config="{"key":"value","nested":{"prop":"test"}}">Complex configuration data</complex>"`,
     );
   });
 

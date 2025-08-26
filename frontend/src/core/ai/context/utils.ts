@@ -8,12 +8,15 @@ export interface AiContextPayload {
 
 // XML escaping utility
 function escapeXml(unsafe: string): string {
-  return unsafe
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+  return (
+    unsafe
+      // We don't escape these characters because this is for an LLM and they can interpret this just fine.
+      // .replaceAll("&", "&amp;")
+      // .replaceAll('"', "&quot;")
+      // .replaceAll("'", "&#39;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+  );
 }
 
 // Convert a single Context object to XML
