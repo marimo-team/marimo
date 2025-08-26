@@ -432,7 +432,8 @@ def convert_to_ai_sdk_messages(
 ) -> str:
     """
     Format text events for the AI SDK stream protocol.
-    See: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
+    This follows the data-stream v1 protocol
+    See: https://v4.ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
     """
     TEXT_PREFIX = "0:"
     REASON_PREFIX = "g:"
