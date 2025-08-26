@@ -19,6 +19,8 @@ HAS_DUCKDB = DependencyManager.duckdb.has()
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+class KnownFailure(Exception):
+    """An expected failure in a test case."""
 
 @dataclass
 class GraphTestCase:
@@ -302,6 +304,8 @@ SQL_CASES = [
         },
         # TODO: What should the defs be?
         expected_defs={"0": ["my_table"], "1": ["my_table"], "2": []},
+        # currently:
+        #   {'2': {'1', '0'}}
         xfail=True,
     ),
     GraphTestCase(
@@ -421,7 +425,42 @@ SQL_CASES = [
             "3": ["mo", "catalog_one.schema_two.my_table"],
         },
         expected_defs={"0": ["my_table"], "1": [], "2": [], "3": []},
+        # Currently:
+        #   '2': {'0'},
+        #   '3': {'0'},
         xfail=True,
+    ),
+    GraphTestCase(
+        name="sql table substring doesn't cause false positive",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE TABLE catalog_one.schema_one.my_table (name STRING)')",
+            "1": "_ = mo.sql(f'FROM catalog_one.schema_one.my_table_suffix SELECT *')",
+            "2": "_ = mo.sql(f'FROM catalog_one.schema_one.prefix_my_table SELECT *')",
+        },
+        expected_parents={"0": [], "1": [], "2": []},
+        expected_children={"0": [], "1": [], "2": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo", "catalog_one.schema_one.my_table_suffix"],
+            "2": ["mo", "catalog_one.schema_one.prefix_my_table"],
+        },
+        expected_defs={"0": ["my_table"], "1": [], "2": []},
+    ),
+    GraphTestCase(
+        name="sql table schema substring doesn't cause false positive",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE TABLE catalog_one.schema_one.my_table (name STRING)')",
+            "1": "_ = mo.sql(f'FROM catalog_one.my_table.suffix SELECT *')",
+        },
+        expected_parents={"0": [], "1": []},
+        expected_children={"0": [], "1": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo", "catalog_one.my_table.suffix"],
+        },
+        expected_defs={"0": ["my_table"], "1": []},
     ),
 ]
 
@@ -461,7 +500,10 @@ def test_cases(case: GraphTestCase) -> None:
     if case.xfail:
         if isinstance(case.xfail, str):
             print(case.xfail)
-        with pytest.raises(AssertionError):
+        try:
             make_assertions()
+        except AssertionError as e:
+            pytest.xfail(str(e))
+            raise KnownFailure(str(e)) from e
     else:
         make_assertions()
