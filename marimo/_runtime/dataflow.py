@@ -60,6 +60,10 @@ class DirectedGraph:
 
     # A mapping from defs to the cells that define them
     definitions: dict[Name, set[CellId_t]] = field(default_factory=dict)
+    typed_definitions: dict[tuple[Name, str], set[CellId_t]] = field(
+        default_factory=dict
+    )
+    definition_types: dict[Name, set[str]] = field(default_factory=dict)
 
     # The set of cycles in the graph
     cycles: set[tuple[Edge, ...]] = field(default_factory=set)
@@ -147,20 +151,9 @@ class DirectedGraph:
         variable_name: Name = sql_ref.qualified_name
         matching_cell_ids = set()
 
-        for def_name, cell_ids in self.definitions.items():
-            # NB. Only the last definition matters.
-            # Technically more nuanced with branching statements, but this is
-            # the best we can do with static analysis.
-            var_data = [
-                v[-1]
-                for cell_id in cell_ids
-                if (v := self.cells[cell_id].variable_data.get(def_name, []))
-            ]
-            # Only consider definitions with a single variable data entry
-            # since multiple defining cells is undefined behavior
-            var, *_ = var_data
+        for (def_name, kind), cell_ids in self.typed_definitions.items():
             # Match table/view definitions
-            if sql_ref.contains_hierarchical_ref(def_name, var.kind):
+            if sql_ref.contains_hierarchical_ref(def_name, kind):
                 variable_name = def_name
                 matching_cell_ids.update(cell_ids)
 
@@ -217,7 +210,31 @@ class DirectedGraph:
             # any cell that defines a variable defined by this cell becomes
             # a sibling.
             for name, variable_data in cell.variable_data.items():
-                self.definitions.setdefault(name, set()).add(cell_id)
+                # NB. Only the last definition matters.
+                # Technically more nuanced with branching statements, but this is
+                # the best we can do with static analysis.
+                variable = variable_data[-1]
+                typed_def = (name, variable.kind)
+
+                if (
+                    name in self.definitions
+                    and typed_def not in self.typed_definitions
+                ):
+                    # Duplicate if the qualified name is no different
+                    if (
+                        variable.qualified_name == name
+                        or variable.language != "sql"
+                    ):
+                        self.definitions[name].add(cell_id)
+                else:
+                    self.definitions.setdefault(name, set()).add(cell_id)
+                self.typed_definitions.setdefault(typed_def, set()).add(
+                    cell_id
+                )
+                self.definition_types.setdefault(name, set()).add(
+                    variable.kind
+                )
+
                 for sibling in self.definitions[name]:
                     # TODO(akshayka): Distinguish between Python/SQL?
                     if sibling != cell_id:
@@ -257,25 +274,31 @@ class DirectedGraph:
                 ) - set((cell_id,))
 
                 variable_name: Name = name
-                if not other_ids_defining_name:
-                    # Handle SQL matching for hierarchical references
-                    sql_ref = cell.sql_refs.get(name)
-                    if sql_ref:
-                        other_ids_defining_name, variable_name = (
-                            self._find_sql_hierarchical_matches(sql_ref)
-                        )
+                # Handle SQL matching for hierarchical references
+                sql_ref = cell.sql_refs.get(name)
+                if sql_ref:
+                    _other_ids_defining_name, variable_name = (
+                        self._find_sql_hierarchical_matches(sql_ref)
+                    )
+                    other_ids_defining_name.update(_other_ids_defining_name)
 
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).
                 for other_id in other_ids_defining_name:
-                    language = (
-                        self.cells[other_id]
-                        .variable_data[variable_name][-1]
-                        .language
-                    )
+                    other_variable_data = self.cells[other_id].variable_data[
+                        variable_name
+                    ][-1]
+                    language = other_variable_data.language
                     if language == "sql" and cell.language == "python":
                         # SQL table/db def -> Python ref is not an edge
                         continue
+                    if language == "sql" and cell.language == "sql":
+                        # SQL table/db def -> SQL ref is not an edge
+                        if sql_ref and not sql_ref.matches_hierarchical_ref(
+                            variable_name,
+                            other_variable_data.qualified_name or name,
+                        ):
+                            continue
                     parents.add(other_id)
                     # we are adding an edge (other_id, cell_id). If there
                     # is a path from cell_id to other_id, then the new
@@ -407,6 +430,10 @@ class DirectedGraph:
                     # No more cells define this name, so we remove it from the
                     # graph
                     del self.definitions[name]
+                    # Clean up all typed definitions
+                    for typed_def in self.definition_types[name]:
+                        del self.typed_definitions[(name, typed_def)]
+                    del self.definition_types[name]
 
             # Remove cycles that are broken from removing this cell.
             edges = [(cell_id, child) for child in self.children[cell_id]] + [

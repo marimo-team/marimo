@@ -142,7 +142,7 @@ class TokenExtractor:
 
 @dataclass
 class SQLDefs:
-    tables: list[str] = field(default_factory=list)
+    tables: list[SQLRef] = field(default_factory=list)
     views: list[str] = field(default_factory=list)
     schemas: list[str] = field(default_factory=list)
     catalogs: list[str] = field(default_factory=list)
@@ -177,7 +177,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     token_extractor = TokenExtractor(
         sql_statement=sql_statement, tokens=tokens
     )
-    created_tables: list[str] = []
+    created_tables: list[SQLRef] = []
     created_views: list[str] = []
     created_schemas: list[str] = []
     created_catalogs: list[str] = []
@@ -250,7 +250,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
 
                     if is_table:
                         # only add the table name
-                        created_tables.append(parts[-1])
+                        created_tables.append(SQLRef.from_parts(parts))
                         # add the catalog and schema if exist
                         if len(parts) == 3:
                             reffed_catalogs.append(parts[0])
@@ -259,7 +259,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                             reffed_catalogs.append(parts[0])
                     elif is_view:
                         # only add the table name
-                        created_views.append(parts[-1])
+                        created_tables.append(SQLRef.from_parts(parts))
                         # add the catalog and schema if exist
                         if len(parts) == 3:
                             reffed_catalogs.append(parts[0])
@@ -329,6 +329,25 @@ class SQLRef:
     schema: Optional[str] = None
     catalog: Optional[str] = None
 
+    @classmethod
+    def from_parts(
+        cls,
+        parts: list[str],
+    ) -> SQLRef:
+        catalog = None
+        schema = None
+        table = ""
+        if len(parts) == 3:
+            catalog, schema, table = parts
+            catalog = catalog.lower()
+            schema = schema.lower()
+        elif len(parts) == 2:
+            schema, table = parts
+            schema = schema.lower()
+        elif len(parts) == 1:
+            table = parts[0]
+        return cls(table=table.lower(), schema=schema, catalog=catalog)
+
     @property
     def qualified_name(self) -> str:
         """Convert a SQLRef to a fully qualified name to be used as a reference in the visitor"""
@@ -341,7 +360,7 @@ class SQLRef:
         # Table is always required
         parts.append(self.table)
         name = ".".join(parts)
-        return name
+        return name.lower()
 
     def matches_hierarchical_ref(self, name: str, ref: str) -> bool:
         """
@@ -354,6 +373,8 @@ class SQLRef:
         Returns:
             True if the reference matches the SQLRef's structure and values, False otherwise.
         """
+        ref = ref.lower()
+        name = name.lower()
         parts = ref.split(".")
         num_parts = len(parts)
 
@@ -369,19 +390,26 @@ class SQLRef:
             if table != self.table:
                 return False
             # Try matching as schema or catalog
+            if (self.schema, self.catalog) == (None, None):
+                return name == self.table
             if qualifier not in (self.schema, self.catalog):
                 return False
-            return qualifier == name
+            return table == name
 
         if num_parts == 3:
             # Format: catalog.schema.table
             catalog, schema, table = parts
             if table != self.table:
                 return False
-            if catalog == self.catalog:
-                return name == self.catalog
-            if schema == self.schema:
-                return name == self.schema
+            # if catalog == self.catalog:
+            #     return name == self.catalog
+            # if schema == self.schema:
+            #     return name == self.schema
+            if self.catalog in (None, catalog) and self.schema in (
+                None,
+                schema,
+            ):
+                return name == self.table
 
         return False
 
