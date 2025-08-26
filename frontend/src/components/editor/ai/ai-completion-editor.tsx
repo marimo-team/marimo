@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 
 import "./merge-editor.css";
+import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useAtom } from "jotai";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -175,6 +176,9 @@ export const AiCompletionEditor: React.FC<Props> = ({
               }}
               onSubmit={() => {
                 if (!isLoading) {
+                  if (inputRef.current?.view) {
+                    storePrompt(inputRef.current.view);
+                  }
                   handleSubmit();
                 }
               }}

@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useChat } from "@ai-sdk/react";
+import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import type { Message } from "ai/react";
 import { useAtom, useAtomValue } from "jotai";
@@ -347,6 +348,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
       <div className="border-t relative shrink-0 min-h-[80px] flex flex-col">
         <div className="px-2 py-3 flex-1">
           <PromptInput
+            inputRef={inputRef}
             value={input}
             onChange={setInput}
             onSubmit={onSubmit}
@@ -600,15 +602,17 @@ const ChatPanelBody = () => {
     });
   });
 
-  const handleChatInputSubmit = (
-    e: KeyboardEvent | undefined,
-    newValue: string,
-  ): void => {
-    if (!newValue.trim()) {
-      return;
-    }
-    handleSubmit(e);
-  };
+  const handleChatInputSubmit = useEvent(
+    (e: KeyboardEvent | undefined, newValue: string): void => {
+      if (!newValue.trim()) {
+        return;
+      }
+      if (newMessageInputRef.current?.view) {
+        storePrompt(newMessageInputRef.current.view);
+      }
+      handleSubmit(e);
+    },
+  );
 
   const handleReload = () => {
     reload();
@@ -617,6 +621,9 @@ const ChatPanelBody = () => {
   const handleNewThreadSubmit = useEvent(() => {
     if (!newThreadInput.trim()) {
       return;
+    }
+    if (newThreadInputRef.current?.view) {
+      storePrompt(newThreadInputRef.current.view);
     }
     createNewThread(newThreadInput.trim());
   });
@@ -648,6 +655,7 @@ const ChatPanelBody = () => {
           <div className="flex flex-col rounded-md border bg-background">
             <div className="px-1">
               <PromptInput
+                inputRef={newThreadInputRef}
                 key="new-thread-input"
                 value={newThreadInput}
                 placeholder="Ask anything, @ to include context about tables or dataframes"
