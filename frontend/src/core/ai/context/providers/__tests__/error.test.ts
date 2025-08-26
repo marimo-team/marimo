@@ -5,7 +5,7 @@ import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { notebookAtom } from "@/core/cells/cells";
-import { CellId as CellIdClass } from "@/core/cells/ids";
+import { type CellId, CellId as CellIdClass } from "@/core/cells/ids";
 import { ErrorContextProvider } from "../error";
 
 describe("ErrorContextProvider", () => {
@@ -204,8 +204,8 @@ describe("ErrorContextProvider", () => {
     });
 
     it("should format context for multiple error types", () => {
-      const cellId1 = CellIdClass.create();
-      const cellId2 = CellIdClass.create();
+      const cellId1 = "cell-1" as CellId;
+      const cellId2 = "cell-2" as CellId;
 
       createMockNotebookWithErrors([
         {
@@ -230,15 +230,13 @@ describe("ErrorContextProvider", () => {
       const context = provider.formatContext(items[0]);
 
       // Check for expected content instead of exact snapshot match due to random cell IDs
-      expect(context).toContain("Cell 1");
-      expect(context).toContain("Invalid syntax");
-      expect(context).toContain("Runtime error");
-      expect(context).toContain("This cell is in a cycle");
-      expect(context).toContain(
-        "The variable &#39;variable_x&#39; was defined by another cell",
-      );
-      expect(context).toContain("<error");
-      expect(context).toContain("</error>");
+      expect(context).toMatchInlineSnapshot(`
+        "<error name="Cell 1" description="Invalid syntax
+        Runtime error"></error>
+
+        <error name="Cell cell-2" description="This cell is in a cycle
+        The variable 'variable_x' was defined by another cell"></error>"
+      `);
     });
 
     it("should handle cells without names", () => {
@@ -272,7 +270,7 @@ describe("ErrorContextProvider", () => {
         },
         {
           error: MockNotebook.errors.multipleDefs("var_x"),
-          expected: "The variable &#39;var_x&#39; was defined by another cell",
+          expected: "The variable 'var_x' was defined by another cell",
         },
         {
           error: MockNotebook.errors.importStar("Import star error"),
