@@ -74,7 +74,7 @@ const languageAtom = atomWithStorage<"python" | "sql">(
   "python",
 );
 
-const KEY = "marimo:ai-prompts";
+const KEY = "marimo:ai-prompt-history";
 // Store the prompt history in local storage
 const promptHistoryStorage = new ZodLocalStorage(z.array(z.string()), () => []);
 
