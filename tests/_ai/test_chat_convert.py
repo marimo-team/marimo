@@ -452,8 +452,13 @@ def test_convert_to_ai_sdk_messages():
     expected = 'd:{"finishReason": "stop", "usage": {"promptTokens": 0, "completionTokens": 0}}\n'
     assert result == expected
 
-    # Test unknown type defaults to text
-    result = convert_to_ai_sdk_messages("fallback", "unknown")
+    # Test error type
+    error_message = "Model not found"
+    result = convert_to_ai_sdk_messages(error_message, "error")
+    assert result == f"3:{json.dumps(error_message)}\n"
+
+    # Test unknown type defaults to text (using type ignore for testing)
+    result = convert_to_ai_sdk_messages("fallback", "unknown")  # type: ignore
     assert result == f"0:{json.dumps('fallback')}\n"
 
 
