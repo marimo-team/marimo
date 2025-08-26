@@ -329,6 +329,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "cc42": "42qucc",
         "cerberus": "Cerberus",
         "cfnlint": "cfn-lint",
+        "chalk": "chalk-diagrams",
         "chameleon": "Chameleon",
         "charmtools": "charm-tools",
         "chef": "PyChef",
