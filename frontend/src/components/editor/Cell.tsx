@@ -2,8 +2,7 @@
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { ScopeProvider } from "jotai-scope";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   HelpCircleIcon,
   MoreHorizontalIcon,
@@ -78,7 +77,10 @@ import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";
 import { cellDomProps } from "./common";
 import { useCellNavigationProps } from "./navigation/navigation";
-import { temporarilyShownCodeAtom } from "./navigation/state";
+import {
+  useTemporarilyShownCode,
+  useTemporarilyShownCodeActions,
+} from "./navigation/state";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
@@ -157,9 +159,8 @@ function useCellHiddenLogic({
   editorView: React.RefObject<EditorView | null>;
   editorViewParentRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const [temporarilyVisible, setTemporarilyVisible] = useAtom(
-    temporarilyShownCodeAtom,
-  );
+  const temporarilyVisible = useTemporarilyShownCode(cellId);
+  const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
   const isUntouched = useAtomValue(
     useMemo(() => createUntouchedCellAtom(cellId), [cellId]),
   );
@@ -179,7 +180,7 @@ function useCellHiddenLogic({
 
     // Default to true
     const focus = opts?.focus ?? true;
-    setTemporarilyVisible(true);
+    temporarilyShownCodeActions.add(cellId);
 
     if (focus) {
       editorView.current?.focus();
@@ -297,16 +298,14 @@ const CellComponent = (props: CellProps) => {
 
   if (mode === "edit") {
     return (
-      <ScopeProvider atoms={[temporarilyShownCodeAtom]}>
-        <EditableCellComponent
-          {...props}
-          cellId={cellId}
-          editorView={editorView}
-          setEditorView={(ev) => {
-            editorView.current = ev;
-          }}
-        />
-      </ScopeProvider>
+      <EditableCellComponent
+        {...props}
+        cellId={cellId}
+        editorView={editorView}
+        setEditorView={(ev) => {
+          editorView.current = ev;
+        }}
+      />
     );
   }
 

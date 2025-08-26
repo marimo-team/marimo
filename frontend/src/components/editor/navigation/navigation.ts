@@ -33,7 +33,7 @@ import {
   useCellSelectionActions,
   useIsCellSelected,
 } from "./selection";
-import { temporarilyShownCodeAtom } from "./state";
+import { useTemporarilyShownCodeActions } from "./state";
 import { handleVimKeybinding } from "./vim-bindings";
 
 interface HotkeyHandler {
@@ -85,7 +85,7 @@ function addSingleHandler(handler: HotkeyHandler["bulkHandle"]): HotkeyHandler {
 function useCellFocusProps(cellId: CellId) {
   const focusActions = useCellFocusActions();
   const actions = useCellActions();
-  const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
+  const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
 
   // This occurs at the cell level and descedants.
   const { focusWithinProps } = useFocusWithin({
@@ -95,7 +95,7 @@ function useCellFocusProps(cellId: CellId) {
     },
     onBlurWithin: () => {
       // On blur, hide the code if it was temporarily shown.
-      setTemporarilyShownCode(false);
+      temporarilyShownCodeActions.remove(cellId);
       actions.markTouched({ cellId });
       focusActions.blurCell();
     },
@@ -132,7 +132,7 @@ export function useCellNavigationProps(
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const actions = useCellActions();
   const store = useStore();
-  const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
+  const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
   const runCells = useRunCells();
   const keymapPreset = useAtomValue(keymapPresetAtom);
   const { copyCells, pasteAtCell } = useCellClipboard();
@@ -275,7 +275,7 @@ export function useCellNavigationProps(
         },
         // Enter will focus the cell editor.
         Enter: () => {
-          setTemporarilyShownCode(true);
+          temporarilyShownCodeActions.add(cellId);
           focusCellEditor(store, cellId);
           selectionActions.clear();
           return true;
@@ -608,7 +608,7 @@ export function useCellEditorNavigationProps(
   cellId: CellId,
   editorView: React.RefObject<EditorView | null>,
 ) {
-  const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
+  const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
   const keymapPreset = useAtomValue(keymapPresetAtom);
   const hotkeys = useAtomValue(hotkeysAtom);
 
@@ -618,7 +618,7 @@ export function useCellEditorNavigationProps(
   }, [hotkeys]);
 
   const exitToCommandMode = () => {
-    setTemporarilyShownCode(false);
+    temporarilyShownCodeActions.remove(cellId);
     focusCell(cellId);
   };
 
