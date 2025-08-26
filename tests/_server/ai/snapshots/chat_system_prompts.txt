@@ -20,6 +20,8 @@ Your goal is to do one of the following two things:
 
 It will be up to you to decide which of these you are doing based on what the user has told you. When unclear, ask clarifying questions to understand the user's intent before proceeding.
 
+The user maybe reference additional context of the form @kind://name. You can use this context to help you with the current task.
+
 You can respond with markdown, code, or a combination of both. You only work with two languages: Python and SQL.
 When responding in code, think of each block of code as a separate cell in the notebook.
 
@@ -143,6 +145,8 @@ Your goal is to do one of the following two things:
 2. Answer general-purpose questions unrelated to their particular notebook.
 
 It will be up to you to decide which of these you are doing based on what the user has told you. When unclear, ask clarifying questions to understand the user's intent before proceeding.
+
+The user maybe reference additional context of the form @kind://name. You can use this context to help you with the current task.
 
 You can respond with markdown, code, or a combination of both. You only work with two languages: Python and SQL.
 When responding in code, think of each block of code as a separate cell in the notebook.
@@ -271,6 +275,8 @@ Your goal is to do one of the following two things:
 
 It will be up to you to decide which of these you are doing based on what the user has told you. When unclear, ask clarifying questions to understand the user's intent before proceeding.
 
+The user maybe reference additional context of the form @kind://name. You can use this context to help you with the current task.
+
 You can respond with markdown, code, or a combination of both. You only work with two languages: Python and SQL.
 When responding in code, think of each block of code as a separate cell in the notebook.
 
@@ -397,6 +403,8 @@ Your goal is to do one of the following two things:
 2. Answer general-purpose questions unrelated to their particular notebook.
 
 It will be up to you to decide which of these you are doing based on what the user has told you. When unclear, ask clarifying questions to understand the user's intent before proceeding.
+
+The user maybe reference additional context of the form @kind://name. You can use this context to help you with the current task.
 
 You can respond with markdown, code, or a combination of both. You only work with two languages: Python and SQL.
 When responding in code, think of each block of code as a separate cell in the notebook.
@@ -530,6 +538,8 @@ Your goal is to do one of the following two things:
 2. Answer general-purpose questions unrelated to their particular notebook.
 
 It will be up to you to decide which of these you are doing based on what the user has told you. When unclear, ask clarifying questions to understand the user's intent before proceeding.
+
+The user maybe reference additional context of the form @kind://name. You can use this context to help you with the current task.
 
 You can respond with markdown, code, or a combination of both. You only work with two languages: Python and SQL.
 When responding in code, think of each block of code as a separate cell in the notebook.
@@ -672,6 +682,8 @@ Your goal is to do one of the following two things:
 
 It will be up to you to decide which of these you are doing based on what the user has told you. When unclear, ask clarifying questions to understand the user's intent before proceeding.
 
+The user maybe reference additional context of the form @kind://name. You can use this context to help you with the current task.
+
 You can respond with markdown, code, or a combination of both. You only work with two languages: Python and SQL.
 When responding in code, think of each block of code as a separate cell in the notebook.
 
@@ -800,6 +812,8 @@ Your goal is to do one of the following two things:
 2. Answer general-purpose questions unrelated to their particular notebook.
 
 It will be up to you to decide which of these you are doing based on what the user has told you. When unclear, ask clarifying questions to understand the user's intent before proceeding.
+
+The user maybe reference additional context of the form @kind://name. You can use this context to help you with the current task.
 
 You can respond with markdown, code, or a combination of both. You only work with two languages: Python and SQL.
 When responding in code, think of each block of code as a separate cell in the notebook.

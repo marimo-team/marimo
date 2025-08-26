@@ -12,6 +12,8 @@ components:
       type: object
     AiCompletionContext:
       properties:
+        plainText:
+          type: string
         schema:
           items:
             $ref: '#/components/schemas/SchemaTable'
@@ -25,6 +27,7 @@ components:
       required:
       - schema
       - variables
+      - plainText
       type: object
     AiCompletionRequest:
       properties:

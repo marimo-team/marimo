@@ -5,6 +5,7 @@ import { createVariableInfoElement } from "@/core/codemirror/completion/variable
 import type { DatasetTablesMap } from "@/core/datasets/data-source-connections";
 import type { Variable, Variables } from "@/core/variables/types";
 import { type AIContextItem, AIContextProvider } from "../registry";
+import { contextToXml } from "../utils";
 import { Boosts } from "./common";
 
 export interface VariableContextItem extends AIContextItem {
@@ -65,8 +66,16 @@ export class VariableContextProvider extends AIContextProvider<VariableContextIt
   }
 
   formatContext(item: VariableContextItem): string {
-    const { uri: id, data } = item;
+    const { data } = item;
     const { variable } = data;
-    return `Variable: ${id}\nType: ${variable.dataType || "unknown"}\nPreview: ${JSON.stringify(variable.value)}`;
+    return contextToXml({
+      type: this.contextType,
+      data: {
+        name: variable.name,
+        dataType: variable.dataType,
+      },
+      details:
+        variable.value != null ? JSON.stringify(variable.value) : undefined,
+    });
   }
 }

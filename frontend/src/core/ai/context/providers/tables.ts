@@ -5,6 +5,7 @@ import type { DatasetTablesMap } from "@/core/datasets/data-source-connections";
 import type { DataTable } from "@/core/kernel/messages";
 import type { AIContextItem } from "../registry";
 import { AIContextProvider } from "../registry";
+import { contextToXml } from "../utils";
 import { Boosts } from "./common";
 
 export interface TableContextItem extends AIContextItem {
@@ -32,7 +33,7 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
   }
 
   formatContext(item: TableContextItem): string {
-    const { data, uri: id } = item;
+    const { data } = item;
     const { columns, source, num_rows, num_columns } = data;
     const shape = [
       num_rows == null ? undefined : `${num_rows} rows`,
@@ -41,16 +42,23 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
       .filter(Boolean)
       .join(", ");
 
-    let context = `Table: ${id}\nSource: ${source || "unknown"}`;
+    let details = "";
     if (shape) {
-      context += `\nShape: ${shape}`;
+      details += `\nShape: ${shape}`;
     }
 
     if (columns && columns.length > 0) {
-      context += `\nColumns:\n${columns.map((col) => `  - ${col.name}: ${col.type}`).join("\n")}`;
+      details += `\nColumns:\n${columns.map((col) => `  - ${col.name}: ${col.type}`).join("\n")}`;
     }
 
-    return context;
+    return contextToXml({
+      type: this.contextType,
+      data: {
+        name: data.name,
+        source: source ?? "unknown",
+      },
+      details: details,
+    });
   }
 
   formatCompletion(item: TableContextItem): Completion {

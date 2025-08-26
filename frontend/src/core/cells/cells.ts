@@ -1489,7 +1489,7 @@ export const canUndoDeletesAtom = atom((get) =>
 
 export const needsRunAtom = atom((get) => notebookNeedsRun(get(notebookAtom)));
 
-const cellErrorsAtom = atom((get) => {
+export const cellErrorsAtom = atom((get) => {
   const { cellIds, cellRuntime, cellData } = get(notebookAtom);
   const errors = cellIds.inOrderIds
     .map((cellId) => {

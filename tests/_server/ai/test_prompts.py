@@ -6,6 +6,7 @@ from typing import cast
 from marimo._ast.visitor import Language
 from marimo._server.ai.prompts import (
     FIM_SUFFIX_TAG,
+    _format_plain_text,
     _format_variables,
     get_chat_system_prompt,
     get_inline_system_prompt,
@@ -341,3 +342,12 @@ def test_format_variables():
         "  - value_preview: <DataFrame with 100 rows and 5 columns>\n"
     )
     assert _format_variables(variables) == expected
+
+
+def test_format_plain_text():
+    assert _format_plain_text("") == ""
+    assert _format_plain_text("  ") == ""
+    assert (
+        _format_plain_text("Hello, world!")
+        == "If the prompt mentions @kind://name, use the following context to help you answer the question:\n\nHello, world!"
+    )
