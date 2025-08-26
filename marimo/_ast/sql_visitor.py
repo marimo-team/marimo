@@ -342,8 +342,7 @@ class SQLRef:
         name = ".".join(parts)
         return name
 
-    @staticmethod
-    def matches_hierarchical_ref(ref: str, sql_ref: SQLRef) -> bool:
+    def matches_hierarchical_ref(self, ref: str) -> bool:
         """
         Determine if a hierarchical reference string matches a SQLRef.
 
@@ -359,26 +358,26 @@ class SQLRef:
 
         if num_parts == 1:
             # Only table name provided
-            return parts[0] == sql_ref.table
+            return parts[0] == self.table
 
         if num_parts == 2:
             # Format: schema.table or catalog.table
             # sqlglot cannot differentiate between schema and catalog
             # so we check if the qualifier matches either
             qualifier, table = parts
-            if table != sql_ref.table:
+            if table != self.table:
                 return False
             # Try matching as schema or catalog
-            if qualifier == sql_ref.schema or qualifier == sql_ref.catalog:
+            if qualifier == self.schema or qualifier == self.catalog:
                 return True
             return False
 
         if num_parts == 3:
             # Format: catalog.schema.table
             catalog, schema, table = parts
-            if table != sql_ref.table:
+            if table != self.table:
                 return False
-            if catalog != sql_ref.catalog or schema != sql_ref.schema:
+            if catalog != self.catalog or schema != self.schema:
                 return False
             return True
 

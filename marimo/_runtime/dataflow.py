@@ -11,7 +11,6 @@ from marimo._ast.cell import (
     CellImpl,
 )
 from marimo._ast.compiler import code_key
-from marimo._ast.sql_visitor import SQLRef
 from marimo._ast.variables import is_mangled_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._runtime.executor import (
@@ -108,13 +107,12 @@ class DirectedGraph:
                         cells.add(cid)
                         break
 
-                    sql_ref = cell.refs_data.get(ref)
+                    sql_ref = cell.sql_refs.get(ref)
 
                     # Hierarchical reference match
-                    if sql_ref and name in ref and "." in ref:
-                        if SQLRef.matches_hierarchical_ref(ref, sql_ref):
-                            cells.add(cid)
-                            break
+                    if sql_ref and sql_ref.matches_hierarchical_ref(ref):
+                        cells.add(cid)
+                        break
 
             return cells
         else:
@@ -123,6 +121,8 @@ class DirectedGraph:
                 cid for cid, cell in self.cells.items() if name in cell.refs
             }
 
+    # TODO: This function can likely be optimized and more correctly match
+    # when find_sql_defs is improved. We can also move it to sql_visitor for better separation
     def _find_sql_hierarchical_matches(
         self, name: Name
     ) -> tuple[set[CellId_t], dict[Name, Name]]:
@@ -270,7 +270,7 @@ class DirectedGraph:
 
                 # Handle SQL matching for hierarchical references
                 name_map: dict[Name, Name] = {}
-                sql_ref = cell.refs_data.get(name)
+                sql_ref = cell.sql_refs.get(name)
                 if (
                     "." in name
                     and len(other_ids_defining_name) == 0
