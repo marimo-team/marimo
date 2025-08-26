@@ -271,7 +271,11 @@ class DirectedGraph:
                 # Handle SQL matching for hierarchical references
                 name_map: dict[Name, Name] = {}
                 sql_ref = cell.refs_data.get(name)
-                if len(other_ids_defining_name) == 0 and sql_ref:
+                if (
+                    "." in name
+                    and len(other_ids_defining_name) == 0
+                    and sql_ref
+                ):
                     other_ids_defining_name, name_map = (
                         self._find_sql_hierarchical_matches(name)
                     )
