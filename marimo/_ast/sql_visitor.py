@@ -5,7 +5,7 @@ import ast
 import re
 from dataclasses import dataclass, field
 from textwrap import dedent
-from typing import Any, Optional
+from typing import Any, Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -21,6 +21,10 @@ COMMON_FILE_EXTENSIONS = (
     ".tsv",
     ".xlsx",
 )
+
+SQLKind = Literal["table", "view", "schema", "catalog"]
+
+SQLTypes = Union[SQLKind, Literal["any"]]
 
 
 class SQLVisitor(ast.NodeVisitor):
@@ -363,7 +367,7 @@ class SQLRef:
         return name.lower()
 
     def matches_hierarchical_ref(
-        self, name: str, ref: str, kind: str = "any"
+        self, name: str, ref: str, kind: SQLTypes = "any"
     ) -> bool:
         """
         Determine if a hierarchical reference string matches a SQLRef.

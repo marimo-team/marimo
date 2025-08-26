@@ -4,14 +4,14 @@ from __future__ import annotations
 import threading
 from collections import deque
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.cell import (
     CellImpl,
 )
 from marimo._ast.compiler import code_key
-from marimo._ast.sql_visitor import SQLRef
+from marimo._ast.sql_visitor import SQLRef, SQLTypes
 from marimo._ast.variables import is_mangled_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._runtime.executor import (
@@ -114,12 +114,10 @@ class DirectedGraph:
 
                     sql_ref = cell.sql_refs.get(ref)
 
-                    kind = "any"
+                    kind: SQLTypes = "any"
                     if name in cell.variable_data:
                         variable_data = cell.variable_data[name][-1]
-                        kind = variable_data.kind
-                        if sql_ref:
-                            pass
+                        kind = cast(SQLTypes, variable_data.kind)
 
                     # Hierarchical reference match
                     if sql_ref and sql_ref.matches_hierarchical_ref(
@@ -306,7 +304,7 @@ class DirectedGraph:
                         if sql_ref and not sql_ref.matches_hierarchical_ref(
                             variable_name,
                             other_variable_data.qualified_name or name,
-                            kind=other_variable_data.kind,
+                            kind=cast(SQLTypes, other_variable_data.kind),
                         ):
                             continue
                     parents.add(other_id)

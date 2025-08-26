@@ -14,6 +14,7 @@ from marimo import _loggers
 from marimo._ast.errors import ImportStarError
 from marimo._ast.sql_visitor import (
     SQLDefs,
+    SQLKind,
     SQLRef,
     find_sql_defs,
     find_sql_refs,
@@ -57,15 +58,14 @@ class AnnotationData:
 @dataclass
 class VariableData:
     # "table", "view", "schema", and "catalog" are SQL variables, not Python.
-    kind: Literal[
-        "function",
-        "class",
-        "import",
-        "variable",
-        "table",
-        "view",
-        "schema",
-        "catalog",
+    kind: Union[
+        Literal[
+            "function",
+            "class",
+            "import",
+            "variable",
+        ],
+        SQLKind,
     ] = "variable"
 
     # If kind == function or class, it may be dependent on externally defined
