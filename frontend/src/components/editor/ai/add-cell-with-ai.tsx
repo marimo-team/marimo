@@ -9,6 +9,7 @@ import {
 import { markdown } from "@codemirror/lang-markdown";
 import { sql } from "@codemirror/lang-sql";
 import { Prec } from "@codemirror/state";
+import { promptHistory, storePrompt } from "@marimo-team/codemirror-ai";
 import ReactCodeMirror, {
   EditorView,
   keymap,
@@ -26,8 +27,9 @@ import {
   SparklesIcon,
   XIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +50,7 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
+import { ZodLocalStorage } from "@/utils/localStorage";
 import { useCellActions } from "../../../core/cells/cells";
 import { PythonIcon } from "../cell/code/icons";
 import {
@@ -71,6 +74,10 @@ const languageAtom = atomWithStorage<"python" | "sql">(
   "python",
 );
 
+const KEY = "marimo:ai-prompt-history";
+// Store the prompt history in local storage
+const promptHistoryStorage = new ZodLocalStorage(z.array(z.string()), () => []);
+
 /**
  * Add a cell with AI.
  */
@@ -86,6 +93,7 @@ export const AddCellWithAI: React.FC<{
   const ai = useAtomValue(aiAtom);
   const editModel = ai?.models?.edit_model || DEFAULT_AI_MODEL;
   const { saveModelChange } = useModelChange();
+  const inputRef = useRef<ReactCodeMirrorRef>(null);
 
   const {
     completion,
@@ -120,6 +128,9 @@ export const AddCellWithAI: React.FC<{
 
   const submit = () => {
     if (!isLoading) {
+      if (inputRef.current?.view) {
+        storePrompt(inputRef.current.view);
+      }
       handleSubmit();
     }
   };
@@ -185,6 +196,7 @@ export const AddCellWithAI: React.FC<{
     <div className="flex items-center px-3">
       <SparklesIcon className="size-4 text-(--blue-11) mr-2" />
       <PromptInput
+        inputRef={inputRef}
         onClose={() => {
           setCompletion("");
           onClose();
@@ -338,6 +350,12 @@ export const PromptInput = ({
       markdownLanguage.language.data.of({
         autocomplete: additionalCompletionsSource,
       }),
+      promptHistory({
+        storage: {
+          load: () => promptHistoryStorage.get(KEY),
+          save: (prompts) => promptHistoryStorage.set(KEY, prompts),
+        },
+      }),
       EditorView.lineWrapping,
       minimalSetup(),
       Prec.highest(
@@ -390,21 +408,6 @@ export const PromptInput = ({
             handleEscape();
             return true;
           },
-        },
-      ]),
-      // Trap arrow up/down to prevent them from being used to navigate the editor
-      keymap.of([
-        {
-          key: "ArrowUp",
-          preventDefault: true,
-          stopPropagation: true,
-        },
-      ]),
-      keymap.of([
-        {
-          key: "ArrowDown",
-          preventDefault: true,
-          stopPropagation: true,
         },
       ]),
     ];
