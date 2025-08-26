@@ -62,6 +62,9 @@ export const INDEX_COLUMN_NAME = "_marimo_row_id";
 export const TOO_MANY_ROWS = "too_many";
 export type TooManyRows = typeof TOO_MANY_ROWS;
 
+// This is a special dtype for box drawing characters
+export const BOX_DRAWING_EXTERNAL_TYPE = "box_drawing";
+
 export type DataTableSelection =
   | "single"
   | "multi"
