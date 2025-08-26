@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 from marimo import _loggers
 from marimo._ast.cell import (
     CellImpl,
-    SQLRef,
 )
 from marimo._ast.compiler import code_key
+from marimo._ast.sql_visitor import SQLRef
 from marimo._ast.variables import is_mangled_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._runtime.executor import (
