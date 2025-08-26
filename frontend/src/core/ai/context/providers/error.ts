@@ -14,11 +14,11 @@ export interface ErrorContextItem extends AIContextItem {
   type: "error";
   data: {
     type: "all-errors";
-    errors: {
+    errors: Array<{
       cellId: CellId;
       cellName: string;
       errorData: MarimoError[];
-    }[];
+    }>;
   };
 }
 

@@ -34,7 +34,7 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
 
   formatContext(item: TableContextItem): string {
     const { data } = item;
-    const { columns, source, num_rows, num_columns } = data;
+    const { columns, source, num_rows, num_columns, name } = data;
     const shape = [
       num_rows == null ? undefined : `${num_rows} rows`,
       num_columns == null ? undefined : `${num_columns} columns`,
@@ -54,7 +54,7 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
     return contextToXml({
       type: this.contextType,
       data: {
-        name: data.name,
+        name: name,
         source: source ?? "unknown",
       },
       details: details,

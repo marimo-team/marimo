@@ -75,7 +75,7 @@ export class VariableContextProvider extends AIContextProvider<VariableContextIt
         dataType: variable.dataType,
       },
       details:
-        variable.value != null ? JSON.stringify(variable.value) : undefined,
+        variable.value == null ? undefined : JSON.stringify(variable.value),
     });
   }
 }

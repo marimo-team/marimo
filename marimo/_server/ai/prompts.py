@@ -99,7 +99,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             "You are an AI assistant integrated into the marimo notebook code editor.\n"
             "You goal is to create a new cell in the notebook.\n"
             f"Your output must be valid {language} code.\n"
-            "The user maybe reference additional context of the form @kind://name. You can use this context to help you with the current task.\n"
+            "The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
             "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
             "```\n{CELL_CODE}\n```"
@@ -223,7 +223,7 @@ Your goal is to do one of the following two things:
 
 It will be up to you to decide which of these you are doing based on what the user has told you. When unclear, ask clarifying questions to understand the user's intent before proceeding.
 
-The user maybe reference additional context of the form @kind://name. You can use this context to help you with the current task.
+The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.
 
 You can respond with markdown, code, or a combination of both. You only work with two languages: Python and SQL.
 When responding in code, think of each block of code as a separate cell in the notebook.

@@ -1,3 +1,5 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+
 export interface AiContextPayload {
   type: string;
   data: Record<string, unknown>;
@@ -7,11 +9,11 @@ export interface AiContextPayload {
 // XML escaping utility
 function escapeXml(unsafe: string): string {
   return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 // Convert a single Context object to XML
