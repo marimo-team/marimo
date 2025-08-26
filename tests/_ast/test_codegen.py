@@ -559,6 +559,31 @@ class TestToFunctionDef:
         )
         assert fndef == expected
 
+    def test_dotted_names_filtered_from_signature(self) -> None:
+        """Test that dotted names (like SQL schema.table references) are filtered out from function signatures."""
+        # Create a cell with a dotted reference in refs (simulating SQL schema.table)
+        code = "result = some_function()"
+        cell = compile_cell(code)
+
+        # Manually add a dotted reference to simulate SQL schema.table reference
+        # This would normally happen when SQL references are parsed
+        cell.refs.add("my_schema.pokemon_db")
+
+        fndef = codegen.to_functiondef(cell, "foo")
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(some_function):",
+                "    result = some_function()",
+                "    return (result,)",
+            ]
+        )
+        assert fndef == expected
+
+        # Verify that the dotted name is not in the function signature
+        assert "my_schema.pokemon_db" not in fndef
+        assert "def foo(my_schema.pokemon_db" not in fndef
+
     def test_should_remove_defaults(self) -> None:
         code = "x = 0"
         cell = compile_cell(code)

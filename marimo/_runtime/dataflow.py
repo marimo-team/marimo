@@ -11,6 +11,7 @@ from marimo._ast.cell import (
     CellImpl,
 )
 from marimo._ast.compiler import code_key
+from marimo._ast.sql_visitor import SQLRef
 from marimo._ast.variables import is_mangled_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._runtime.executor import (
@@ -96,16 +97,74 @@ class DirectedGraph:
         """
         if language == "sql":
             # For SQL, only return SQL cells that reference the name
-            return {
-                cid
-                for cid, cell in self.cells.items()
-                if name in cell.refs and cell.language == "sql"
-            }
+            cells = set()
+            for cid, cell in self.cells.items():
+                if cell.language != "sql":
+                    continue
+
+                for ref in cell.refs:
+                    # Direct reference match
+                    if ref == name:
+                        cells.add(cid)
+                        break
+
+                    sql_ref = cell.sql_refs.get(ref)
+
+                    # Hierarchical reference match
+                    if sql_ref and sql_ref.matches_hierarchical_ref(name, ref):
+                        cells.add(cid)
+                        break
+
+            return cells
         else:
             # For Python, return all cells that reference the name
             return {
                 cid for cid, cell in self.cells.items() if name in cell.refs
             }
+
+    def _find_sql_hierarchical_matches(
+        self, sql_ref: SQLRef
+    ) -> tuple[set[CellId_t], Name]:
+        """
+        This method searches through all definitions in the graph to find cells
+        that define the individual components (table, schema, or catalog) of the
+        hierarchical reference.
+
+        For example, given a reference "my_schema.my_table", this method will:
+        - Look for cells that define a table/view named "my_table"
+        - Look for cells that define a catalog named "my_schema"
+          (when the reference has at least 2 parts)
+
+        Args:
+            sql_ref: A hierarchical SQL reference (e.g., "schema.table",
+                  "catalog.schema.table") to find matching definitions for.
+
+        Returns:
+            A tuple containing:
+            - A set of cell IDs that define components of the hierarchical reference
+            - The definition of the name that was found (e.g., "schema.table" -> "table")
+        """
+        variable_name: Name = sql_ref.qualified_name
+        matching_cell_ids = set()
+
+        for def_name, cell_ids in self.definitions.items():
+            # NB. Only the last definition matters.
+            # Technically more nuanced with branching statements, but this is
+            # the best we can do with static analysis.
+            var_data = [
+                v[-1]
+                for cell_id in cell_ids
+                if (v := self.cells[cell_id].variable_data.get(def_name, []))
+            ]
+            # Only consider definitions with a single variable data entry
+            # since multiple defining cells is undefined behavior
+            var, *_ = var_data
+            # Match table/view definitions
+            if sql_ref.contains_hierarchical_ref(def_name, var.kind):
+                variable_name = def_name
+                matching_cell_ids.update(cell_ids)
+
+        return matching_cell_ids, variable_name
 
     def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]:
         """Get a path from `source` to `dst`, if any."""
@@ -196,11 +255,23 @@ class DirectedGraph:
                     if name in self.definitions
                     else set()
                 ) - set((cell_id,))
+
+                variable_name: Name = name
+                if not other_ids_defining_name:
+                    # Handle SQL matching for hierarchical references
+                    sql_ref = cell.sql_refs.get(name)
+                    if sql_ref:
+                        other_ids_defining_name, variable_name = (
+                            self._find_sql_hierarchical_matches(sql_ref)
+                        )
+
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).
                 for other_id in other_ids_defining_name:
                     language = (
-                        self.cells[other_id].variable_data[name][-1].language
+                        self.cells[other_id]
+                        .variable_data[variable_name][-1]
+                        .language
                     )
                     if language == "sql" and cell.language == "python":
                         # SQL table/db def -> Python ref is not an edge
@@ -400,6 +471,7 @@ class DirectedGraph:
         return imports
 
     def get_multiply_defined(self) -> list[Name]:
+        """Return a list of names that are defined in multiple cells"""
         names: list[Name] = []
         for name, definers in self.definitions.items():
             if len(definers) > 1:

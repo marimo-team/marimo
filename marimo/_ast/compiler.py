@@ -175,6 +175,7 @@ def compile_cell(
             mod=module,
             defs=set(),
             refs=set(),
+            sql_refs={},
             temporaries=set(),
             variable_data={},
             deleted_refs=set(),
@@ -277,6 +278,7 @@ def compile_cell(
         mod=original_module,
         defs=nonlocals,
         refs=v.refs,
+        sql_refs=v.sql_refs,
         temporaries=temporaries,
         variable_data=variable_data,
         import_workspace=ImportWorkspace(

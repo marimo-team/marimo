@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 import functools
 import time
 from typing import Any, Callable

@@ -564,6 +564,45 @@ class TestSQL:
             "3": set(),
         }
 
+    @pytest.mark.xfail(reason="TODO: A bug in finding multiply defined names")
+    def test_redefine_sql_table_diff_schema(self):
+        graph = dataflow.DirectedGraph()
+        code = "t1 = 123"
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        code = 'df = mo.sql("CREATE TABLE schema1.t1 (i INTEGER, j INTEGER)")'
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+        }
+
+        # Because t1 is qualified with schema1, it is not considered multiply defined
+        multiply_defined = graph.get_multiply_defined()
+        assert multiply_defined == []
+
+    def test_sql_table_schema_to_python_ref(self):
+        graph = dataflow.DirectedGraph()
+        code = 'df = mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")'
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        code = "t1 = 123"
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+        }
+
+        multiply_defined = graph.get_multiply_defined()
+        # Without the qualification, t1 is considered multiply defined
+        assert multiply_defined == ["t1"]
+
     def test_no_sql_table_to_python_ref(self):
         graph = dataflow.DirectedGraph()
         code = 'df = mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")'
@@ -676,6 +715,24 @@ class TestSQL:
             graph.get_referring_cells("nonexistent", language="python")
             == set()
         )
+
+    def test_referring_cells_sql_and_python(self) -> None:
+        graph = dataflow.DirectedGraph()
+        code = 'df = mo.sql("select * from my_schema.my_table")'
+        first_cell = parse_cell(code)
+        assert first_cell.refs == {"mo", "my_schema.my_table"}
+
+        graph.register_cell("0", first_cell)
+
+        # my_table should not be passed in as a reference to sql cell
+        code = "df; my_table = ..."
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        assert (
+            graph.get_referring_cells("my_table", language="python") == set()
+        )
+        assert not graph.cycles
 
     def test_attached_db(self):
         graph = dataflow.DirectedGraph()

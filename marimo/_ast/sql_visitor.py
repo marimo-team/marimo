@@ -12,6 +12,16 @@ from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
 
+COMMON_FILE_EXTENSIONS = (
+    ".csv",
+    ".parquet",
+    ".json",
+    ".txt",
+    ".db",
+    ".tsv",
+    ".xlsx",
+)
+
 
 class SQLVisitor(ast.NodeVisitor):
     """
@@ -311,9 +321,79 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     )
 
 
-def find_sql_refs(
-    sql_statement: str,
-) -> list[str]:
+@dataclass(frozen=True)
+class SQLRef:
+    # Tables are synonymous with views,
+    # since we can't know the difference in queries
+    table: str
+    schema: Optional[str] = None
+    catalog: Optional[str] = None
+
+    @property
+    def qualified_name(self) -> str:
+        """Convert a SQLRef to a fully qualified name to be used as a reference in the visitor"""
+        parts = []
+        if self.catalog is not None:
+            parts.append(self.catalog)
+        if self.schema is not None:
+            parts.append(self.schema)
+
+        # Table is always required
+        parts.append(self.table)
+        name = ".".join(parts)
+        return name
+
+    def matches_hierarchical_ref(self, name: str, ref: str) -> bool:
+        """
+        Determine if a hierarchical reference string matches a SQLRef.
+
+        Args:
+            name: The name to match against (could be catalog, schema, or table).
+            ref: The fully qualified reference string (e.g., "schema.table", "catalog.schema.table").
+
+        Returns:
+            True if the reference matches the SQLRef's structure and values, False otherwise.
+        """
+        parts = ref.split(".")
+        num_parts = len(parts)
+
+        if num_parts == 1:
+            # Only table name provided
+            return name == self.table == parts[0]
+
+        if num_parts == 2:
+            # Format: schema.table or catalog.table
+            # sqlglot cannot differentiate between schema and catalog
+            # so we check if the qualifier matches either
+            qualifier, table = parts
+            if table != self.table:
+                return False
+            # Try matching as schema or catalog
+            if qualifier not in (self.schema, self.catalog):
+                return False
+            return qualifier == name
+
+        if num_parts == 3:
+            # Format: catalog.schema.table
+            catalog, schema, table = parts
+            if table != self.table:
+                return False
+            if catalog == self.catalog:
+                return name == self.catalog
+            if schema == self.schema:
+                return name == self.schema
+
+        return False
+
+    def contains_hierarchical_ref(self, ref: str, kind: str) -> bool:
+        if kind in ("table", "view"):
+            return ref == self.table
+        if kind == "catalog":
+            return ref == self.catalog or ref == self.schema
+        return False
+
+
+def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     """
     Find table and schema references in a SQL statement.
 
@@ -321,7 +401,18 @@ def find_sql_refs(
         sql_statement: The SQL statement to parse.
 
     Returns:
-        A list of table and schema names referenced in the statement.
+        A set of unique SQLRefs, one for each table reference in the statement.
+        Eg. SELECT * FROM schema1.test_table INNER JOIN schema2.test_table2
+        would return two SQLRefs, one for the first table and one for the second.
+
+    Note:
+        When providing only a single qualification,
+        DuckDB will interpret as either a catalog or a schema, as long as there are no conflicts.
+
+        Eg. SELECT * FROM my_db.my_table, my_db can be a catalog or schema. If a catalog exists,
+        then it would resolve to my_db.main.my_table.
+
+        At the moment, we don't know this, so my_db is treated as a schema.
     """
 
     # Use sqlglot to parse ast (https://github.com/tobymao/sqlglot/blob/main/posts/ast_primer.md)
@@ -332,30 +423,34 @@ def find_sql_refs(
     from sqlglot.errors import ParseError
     from sqlglot.optimizer.scope import build_scope
 
-    refs: list[str] = []
+    def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
+        # The variables might be empty strings, if they are, we set them to None
+        table_name = table.name or None
+        schema_name = table.db or None
+        catalog_name = table.catalog or None
 
-    def append_refs_from_table(table: exp.Table) -> None:
-        if table.catalog == "memory":
-            # Default in-memory catalog, only include table name
-            refs.append(table.name)
-        else:
-            # We skip schema if there is a catalog
-            # Because it may be called "public" or "main" across all catalogs
-            # and they aren't referenced in the code
-            if table.catalog:
-                refs.append(table.catalog)
-            elif table.db:
-                refs.append(table.db)  # schema
+        if table_name is None:
+            LOGGER.warning("Table name cannot be found in the SQL statement")
+            return None
 
-            if table.name:
-                refs.append(table.name)
+        # Check if the table name looks like a URL or has a file extension.
+        # These are often not actual table references, so we skip them.
+        # Note that they can be valid table names, but we skip them to avoid circular deps
+        if "://" in table_name or table_name.endswith(COMMON_FILE_EXTENSIONS):
+            return None
+
+        return SQLRef(
+            table=table_name, schema=schema_name, catalog=catalog_name
+        )
 
     try:
         with _loggers.suppress_warnings_logs("sqlglot"):
             expression_list = parse(sql_statement, dialect="duckdb")
     except ParseError as e:
         LOGGER.error(f"Unable to parse SQL. Error: {e}")
-        return []
+        return set()
+
+    refs: set[SQLRef] = set()
 
     for expression in expression_list:
         if expression is None:
@@ -363,14 +458,15 @@ def find_sql_refs(
 
         if bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
             for table in expression.find_all(exp.Table):
-                append_refs_from_table(table)
+                if ref := get_ref_from_table(table):
+                    refs.add(ref)
 
         # build_scope only works for select statements
         if root := build_scope(expression):
             for scope in root.traverse():  # type: ignore
                 for _node, source in scope.selected_sources.values():
                     if isinstance(source, exp.Table):
-                        append_refs_from_table(source)
+                        if ref := get_ref_from_table(source):
+                            refs.add(ref)
 
-    # remove duplicates while preserving order
-    return list(dict.fromkeys(refs))
+    return refs

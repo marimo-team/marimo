@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import ast
-import itertools
 import sys
 from collections import defaultdict
 from copy import deepcopy
@@ -15,6 +14,7 @@ from marimo import _loggers
 from marimo._ast.errors import ImportStarError
 from marimo._ast.sql_visitor import (
     SQLDefs,
+    SQLRef,
     find_sql_defs,
     find_sql_refs,
     normalize_sql_f_string,
@@ -140,6 +140,8 @@ class RefData:
     block: Block
     # Ancestors of the block in which this ref was used
     parent_blocks: list[Block]
+    # Only applicable for SQL cells
+    sql_ref: Optional[SQLRef] = None
 
 
 NamedNode = Union[
@@ -161,7 +163,7 @@ NamedNode = Union[
 # Cache SQL refs to avoid parsing the same SQL statement multiple times
 # since this can be called for each SQL cell on save.
 @lru_cache(maxsize=200)
-def find_sql_refs_cached(sql_statement: str) -> list[str]:
+def find_sql_refs_cached(sql_statement: str) -> set[SQLRef]:
     return find_sql_refs(sql_statement)
 
 
@@ -209,6 +211,17 @@ class ScopedVisitor(ast.NodeVisitor):
     def refs(self) -> set[Name]:
         """Names referenced but not defined."""
         return set(self._refs.keys())
+
+    @property
+    def sql_refs(self) -> dict[Name, SQLRef]:
+        """Names and their SQLRefs"""
+        refs = {}
+        for name, ref_data in self._refs.items():
+            # Take the last ref data because it's the most recent ref?
+            sql_ref = ref_data[-1].sql_ref
+            if sql_ref is not None:
+                refs[name] = sql_ref
+        return refs
 
     @property
     def deleted_refs(self) -> set[Name]:
@@ -284,7 +297,12 @@ class ScopedVisitor(ast.NodeVisitor):
         return any(block.is_defined(identifier) for block in self.block_stack)
 
     def _add_ref(
-        self, node: NamedNode | None, name: Name, deleted: bool
+        self,
+        node: NamedNode | None,
+        name: Name,
+        *,
+        deleted: bool,
+        sql_ref: Optional[SQLRef] = None,
     ) -> None:
         """Register a referenced name."""
         if name not in self._refs:
@@ -311,6 +329,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     deleted=deleted,
                     parent_blocks=parents,
                     block=current_block,
+                    sql_ref=sql_ref,
                 )
             )
 
@@ -591,7 +610,7 @@ class ScopedVisitor(ast.NodeVisitor):
             first_arg = node.args[0]
             sql: Optional[str] = None
             if isinstance(first_arg, ast.Constant):
-                sql = first_arg.s
+                sql = first_arg.value
             elif isinstance(first_arg, ast.JoinedStr):
                 sql = normalize_sql_f_string(first_arg)
 
@@ -603,6 +622,8 @@ class ScopedVisitor(ast.NodeVisitor):
                 and sql
             ):
                 import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+                # TODO: Handle other SQL languages
+                # TODO: Get the engine so we can differentiate tables in diff engines
 
                 # Add all tables in the query to the ref scope
                 try:
@@ -629,22 +650,10 @@ class ScopedVisitor(ast.NodeVisitor):
                     return node
 
                 for statement in statements:
-                    tables: set[str] = set()
-                    from_targets: list[str] = []
+                    sql_refs: set[SQLRef] = set()
                     # Parse the refs and defs of each statement
                     try:
-                        tables = duckdb.get_table_names(statement.query)
-                    except (duckdb.ProgrammingError, duckdb.IOException):
-                        LOGGER.debug(
-                            "Error parsing SQL statement: %s", statement.query
-                        )
-                    except BaseException as e:
-                        LOGGER.warning("Unexpected duckdb error %s", e)
-                    try:
-                        # TODO(akshayka): more comprehensive parsing
-                        # of the statement -- schemas can show up in
-                        # joins, queries, ...
-                        from_targets = find_sql_refs_cached(statement.query)
+                        sql_refs = find_sql_refs_cached(statement.query)
                     except (duckdb.ProgrammingError, duckdb.IOException):
                         LOGGER.debug(
                             "Error parsing SQL statement: %s", statement.query
@@ -652,11 +661,9 @@ class ScopedVisitor(ast.NodeVisitor):
                     except BaseException as e:
                         LOGGER.warning("Unexpected duckdb error %s", e)
 
-                    for name in itertools.chain(tables, from_targets):
-                        # Name (table, db) may be a URL or something else that
-                        # isn't a Python variable
-                        if name.isidentifier():
-                            self._add_ref(None, name, deleted=False)
+                    for ref in sql_refs:
+                        name = ref.qualified_name
+                        self._add_ref(None, name, deleted=False, sql_ref=ref)
 
                     # Add all tables/dbs created in the query to the defs
                     try:
