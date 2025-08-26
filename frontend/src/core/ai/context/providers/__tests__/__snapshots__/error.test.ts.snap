@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ErrorContextProvider > formatContext > should format context for basic errors > basic-error-context 1`] = `"<error name="Cell 1" description="Invalid syntax"></error>"`;

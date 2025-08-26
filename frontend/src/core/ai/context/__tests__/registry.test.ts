@@ -1,7 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Completion } from "@codemirror/autocomplete";
+import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
+import { MockNotebook } from "@/__mocks__/notebook";
+import { notebookAtom } from "@/core/cells/cells";
+import { CellId as CellIdClass } from "@/core/cells/ids";
+import {
+  type ErrorContextItem,
+  ErrorContextProvider,
+} from "../providers/error";
 import {
   type AIContextItem,
   AIContextProvider,
@@ -511,6 +519,152 @@ describe("AIContextRegistry", () => {
       // Should return the first registered provider
       const provider = registry.getProvider("mock");
       expect(provider).toBe(mockProvider);
+    });
+  });
+
+  describe("Integration with ErrorContextProvider", () => {
+    let errorProvider: ErrorContextProvider;
+    let store: ReturnType<typeof createStore>;
+    let registry: AIContextRegistry<ErrorContextItem>;
+
+    beforeEach(() => {
+      store = createStore();
+
+      // Create mock notebook with errors using the new MockNotebook utilities
+      const cellId1 = CellIdClass.create();
+      const cellId2 = CellIdClass.create();
+
+      const notebookState = MockNotebook.notebookStateWithErrors([
+        {
+          cellId: cellId1,
+          cellName: "Cell 1",
+          errorData: [
+            MockNotebook.errors.syntax("Invalid syntax"),
+            MockNotebook.errors.exception("Runtime error"),
+          ],
+        },
+        {
+          cellId: cellId2,
+          cellName: "Cell 2",
+          errorData: [MockNotebook.errors.cycle()],
+        },
+      ]);
+
+      store.set(notebookAtom, notebookState);
+      errorProvider = new ErrorContextProvider(store);
+      registry = new AIContextRegistry<ErrorContextItem>().register(
+        errorProvider,
+      );
+    });
+
+    it("should register and provide error context items", () => {
+      const provider = registry.getProvider("error");
+      expect(provider).toBe(errorProvider);
+
+      const items = registry.getAllItems();
+      expect(items).toHaveLength(1);
+      expect(items[0].type).toBe("error");
+      expect(items[0].name).toBe("Errors");
+    });
+
+    it("should parse error context IDs correctly", () => {
+      const contextIds = registry.parseAllContextIds(
+        "Use @error://all to analyze errors",
+      );
+      expect(contextIds).toEqual(["error://all"]);
+
+      const contextInfo = registry.getContextInfo(contextIds);
+      expect(contextInfo).toHaveLength(1);
+      expect(contextInfo[0].type).toBe("error");
+    });
+
+    it("should format error context for AI", () => {
+      const contextIds = ["error://all"] as ContextLocatorId[];
+      const formattedContext = registry.formatContextForAI(contextIds);
+
+      expect(formattedContext).toContain("<error");
+      expect(formattedContext).toContain("Cell 1");
+      expect(formattedContext).toContain("Cell 2");
+      expect(formattedContext).toContain("Invalid syntax");
+      expect(formattedContext).toContain("This cell is in a cycle");
+    });
+
+    it("should provide error completions", () => {
+      // Get the error provider and test its completion directly
+      const provider = registry.getProvider("error");
+      expect(provider).toBeDefined();
+
+      const items = provider!.getItems();
+      expect(items).toHaveLength(1);
+
+      const completion = provider!.formatCompletion(items[0]);
+      expect(completion.label).toBe("@Errors");
+      expect(completion.type).toBe("error");
+    });
+
+    it("should handle empty errors gracefully", () => {
+      // Create store with no errors using MockNotebook
+      const emptyStore = createStore();
+      const emptyNotebookState = MockNotebook.notebookStateWithErrors([]);
+      emptyStore.set(notebookAtom, emptyNotebookState);
+
+      const emptyErrorProvider = new ErrorContextProvider(emptyStore);
+      const emptyRegistry = new AIContextRegistry().register(
+        emptyErrorProvider,
+      );
+
+      const items = emptyRegistry.getAllItems();
+      expect(items).toHaveLength(0);
+    });
+
+    it("should work with mixed providers", () => {
+      const mixedRegistry = new AIContextRegistry<
+        ErrorContextItem | MockContextItem
+      >()
+        .register(errorProvider)
+        .register(mockProvider);
+
+      const items = mixedRegistry.getAllItems();
+      expect(items.length).toBeGreaterThan(1);
+
+      // Should have both error and mock items
+      const errorItems = items.filter((item) => item.type === "error");
+      const mockItems = items.filter((item) => item.type === "mock");
+
+      expect(errorItems).toHaveLength(1);
+      expect(mockItems).toHaveLength(3);
+    });
+
+    it("should parse mixed context IDs", () => {
+      const mixedRegistry = new AIContextRegistry<
+        ErrorContextItem | MockContextItem
+      >()
+        .register(errorProvider)
+        .register(mockProvider);
+
+      const input = "Use @error://all and @mock://item1 for analysis";
+      const contextIds = mixedRegistry.parseAllContextIds(input);
+
+      expect(contextIds).toContain("error://all");
+      expect(contextIds).toContain("mock://item1");
+      expect(contextIds).toHaveLength(2);
+    });
+
+    it("should format mixed context for AI", () => {
+      const mixedRegistry = new AIContextRegistry<
+        ErrorContextItem | MockContextItem
+      >()
+        .register(errorProvider)
+        .register(mockProvider);
+
+      const contextIds = ["error://all", "mock://item1"] as ContextLocatorId[];
+      const formattedContext = mixedRegistry.formatContextForAI(contextIds);
+
+      // Should contain both error and mock context
+      expect(formattedContext).toContain("<error");
+      expect(formattedContext).toContain("Mock:");
+      expect(formattedContext).toContain("Cell 1");
+      expect(formattedContext).toContain("Item 1");
     });
   });
 });

@@ -1,38 +1,34 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`TableContextProvider > formatContext > should format context for basic table > basic-table-context 1`] = `
-"Table: products
-Source: memory
+"<data name="products" source="memory">
 Shape: 100 rows, 3 columns
 Columns:
   - id: integer
   - name: string
-  - active: boolean"
+  - active: boolean</data>"
 `;
 
 exports[`TableContextProvider > formatContext > should format context for remote database table > remote-table-context 1`] = `
-"Table: remote_table
-Source: postgresql://localhost:5432/mydb
+"<data name="remote_table" source="postgresql://localhost:5432/mydb">
 Shape: 100 rows, 3 columns
 Columns:
   - uuid: string
   - created_at: string
-  - metadata: string"
+  - metadata: string</data>"
 `;
 
 exports[`TableContextProvider > formatContext > should format context for table without columns > no-columns-table-context 1`] = `
-"Table: no_columns
-Source: memory
-Shape: 100 rows, 3 columns"
+"<data name="no_columns" source="memory">
+Shape: 100 rows, 3 columns</data>"
 `;
 
 exports[`TableContextProvider > formatContext > should format context for table without shape info > no-shape-table-context 1`] = `
-"Table: no_shape
-Source: memory
+"<data name="no_shape" source="memory">
 Columns:
   - id: integer
   - name: string
-  - active: boolean"
+  - active: boolean</data>"
 `;
 
 exports[`TableContextProvider > getItems > should handle dataframe tables with variable names > dataframe-table 1`] = `

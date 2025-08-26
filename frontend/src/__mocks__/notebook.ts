@@ -5,6 +5,7 @@ import { vi } from "vitest";
 import type { CellActions, NotebookState } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { type CellData, createCellRuntimeState } from "@/core/cells/types";
+import type { MarimoError } from "@/core/kernel/messages";
 import { MultiColumn } from "@/utils/id-tree";
 import { Objects } from "@/utils/objects";
 
@@ -72,5 +73,112 @@ export const MockNotebook = {
         },
       },
     ) as unknown as CellActions;
+  },
+
+  /**
+   * Create properly typed MarimoError objects for testing
+   */
+  errors: {
+    setupRefs: (): MarimoError => ({
+      type: "setup-refs",
+      edges_with_vars: [],
+    }),
+
+    cycle: (): MarimoError => ({
+      type: "cycle",
+      edges_with_vars: [],
+    }),
+
+    multipleDefs: (name: string): MarimoError => ({
+      type: "multiple-defs",
+      name,
+      cells: [],
+    }),
+
+    importStar: (msg: string): MarimoError => ({
+      type: "import-star",
+      msg,
+    }),
+
+    exception: (msg: string, exception_type = "RuntimeError"): MarimoError => ({
+      type: "exception",
+      msg,
+      exception_type,
+    }),
+
+    strictException: (msg: string, ref: string): MarimoError => ({
+      type: "strict-exception",
+      msg,
+      ref,
+    }),
+
+    interruption: (): MarimoError => ({
+      type: "interruption",
+    }),
+
+    syntax: (msg: string): MarimoError => ({
+      type: "syntax",
+      msg,
+    }),
+
+    unknown: (msg: string): MarimoError => ({
+      type: "unknown",
+      msg,
+    }),
+  },
+
+  /**
+   * Create a notebook state with error outputs for testing ErrorContextProvider
+   */
+  notebookStateWithErrors: (
+    errors: Array<{
+      cellId: CellId;
+      cellName: string;
+      errorData: MarimoError[];
+    }>,
+  ): NotebookState => {
+    const cellData: Record<string, Partial<CellData>> = {};
+
+    for (const error of errors) {
+      cellData[error.cellId] = {
+        name: error.cellName,
+      };
+    }
+
+    const notebookState = MockNotebook.notebookState({ cellData });
+
+    // Add error outputs to cell runtime
+    for (const error of errors) {
+      notebookState.cellRuntime[error.cellId] = {
+        ...createCellRuntimeState(),
+        output: {
+          channel: "marimo-error" as const,
+          data: error.errorData,
+          mimetype: "application/vnd.marimo+error" as const,
+          timestamp: Date.now(),
+        },
+      };
+    }
+
+    return notebookState;
+  },
+
+  /**
+   * Create a single cell with errors for quick testing
+   */
+  cellWithErrors: (cellName: string, errorData: MarimoError[]) => {
+    const cellId = CellId.create();
+    return {
+      cellId,
+      cellName,
+      errorData,
+      notebookState: MockNotebook.notebookStateWithErrors([
+        {
+          cellId,
+          cellName,
+          errorData,
+        },
+      ]),
+    };
   },
 };

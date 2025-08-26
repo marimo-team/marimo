@@ -1,28 +1,12 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`VariableContextProvider > formatContext > should format context for basic variable > basic-variable-context 1`] = `
-"Variable: username
-Type: str
-Preview: "\\"alice\\"""
-`;
+exports[`VariableContextProvider > formatContext > should format context for basic variable > basic-variable-context 1`] = `"<variable name="username" dataType="str">"\\"alice\\""</variable>"`;
 
-exports[`VariableContextProvider > formatContext > should format context for dataframe variable > dataframe-variable-context 1`] = `
-"Variable: sales_df
-Type: pandas.DataFrame
-Preview: "<DataFrame shape: (1000, 8)>\\n   date    product  quantity  price\\n0  2023-01-01  Widget A    10    29.99\\n1  2023-01-02  Widget B     5    49.99\\n...""
-`;
+exports[`VariableContextProvider > formatContext > should format context for dataframe variable > dataframe-variable-context 1`] = `"<variable name="sales_df" dataType="pandas.DataFrame">"&lt;DataFrame shape: (1000, 8)&gt;\\n   date    product  quantity  price\\n0  2023-01-01  Widget A    10    29.99\\n1  2023-01-02  Widget B     5    49.99\\n..."</variable>"`;
 
-exports[`VariableContextProvider > formatContext > should format context for variable with complex value > complex-value-variable-context 1`] = `
-"Variable: complex_data
-Type: dict
-Preview: "{\\"users\\": [{\\"id\\": 1, \\"name\\": \\"Alice\\"}, {\\"id\\": 2, \\"name\\": \\"Bob\\"}], \\"total\\": 2}""
-`;
+exports[`VariableContextProvider > formatContext > should format context for variable with complex value > complex-value-variable-context 1`] = `"<variable name="complex_data" dataType="dict">"{\\"users\\": [{\\"id\\": 1, \\"name\\": \\"Alice\\"}, {\\"id\\": 2, \\"name\\": \\"Bob\\"}], \\"total\\": 2}"</variable>"`;
 
-exports[`VariableContextProvider > formatContext > should format context for variable without dataType > no-datatype-variable-context 1`] = `
-"Variable: mystery_var
-Type: unknown
-Preview: "some_value""
-`;
+exports[`VariableContextProvider > formatContext > should format context for variable without dataType > no-datatype-variable-context 1`] = `"<variable name="mystery_var" dataType="null">"some_value"</variable>"`;
 
 exports[`VariableContextProvider > getItems > should handle complex data types > complex-data-types 1`] = `
 [

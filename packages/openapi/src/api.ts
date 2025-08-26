@@ -2552,6 +2552,7 @@ export interface components {
       upgrade?: boolean | null;
     };
     AiCompletionContext: {
+      plainText: string;
       schema: components["schemas"]["SchemaTable"][];
       variables: (components["schemas"]["VariableContext"] | string)[];
     };
