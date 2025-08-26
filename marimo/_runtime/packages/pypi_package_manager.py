@@ -378,6 +378,26 @@ class UvPackageManager(PypiPackageManager):
         )
 
     def list_packages(self) -> list[PackageDescription]:
+        # First try with `uv tree`
+        tree = self.dependency_tree()
+        if tree is not None:
+            LOGGER.info("Listing packages with 'uv tree'")
+            seen: set[str] = set()
+            packages: list[PackageDescription] = []
+            stack = list(tree.dependencies)
+            while stack:
+                pkg = stack.pop()
+                if pkg.name not in seen:
+                    packages.append(
+                        PackageDescription(
+                            name=pkg.name, version=pkg.version or ""
+                        )
+                    )
+                    seen.add(pkg.name)
+                    # Add dependencies to stack for recursion
+                    stack.extend(pkg.dependencies)
+            return sorted(packages, key=lambda pkg: pkg.name)
+
         LOGGER.info("Listing packages with 'uv pip list'")
         cmd = [self._uv_bin, "pip", "list", "--format=json", "-p", PY_EXE]
         return self._list_packages_from_cmd(cmd)
