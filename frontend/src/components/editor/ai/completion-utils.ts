@@ -26,6 +26,8 @@ export function getAICompletionBody({
     includeOtherCode: getCodes(""),
     context: {
       plainText: contextString,
+      schema: [],
+      variables: [],
     },
   };
 }
