@@ -19,8 +19,10 @@ HAS_DUCKDB = DependencyManager.duckdb.has()
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+
 class KnownFailure(Exception):
     """An expected failure in a test case."""
+
 
 @dataclass
 class GraphTestCase:

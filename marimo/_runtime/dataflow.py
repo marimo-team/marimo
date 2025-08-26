@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 from marimo import _loggers
 from marimo._ast.cell import (
     CellImpl,
+    SQLRef,
 )
 from marimo._ast.compiler import code_key
-from marimo._ast.sql_visitor import SQLRef
 from marimo._ast.variables import is_mangled_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._runtime.executor import (
@@ -108,7 +108,7 @@ class DirectedGraph:
                         cells.add(cid)
                         break
 
-                    sql_ref = cell.refs_data.get(ref)
+                    sql_ref = cell.sql_refs.get(ref)
 
                     # Hierarchical reference match
                     if sql_ref and sql_ref.matches_hierarchical_ref(name, ref):
@@ -259,7 +259,7 @@ class DirectedGraph:
                 variable_name: Name = name
                 if not other_ids_defining_name:
                     # Handle SQL matching for hierarchical references
-                    sql_ref = cell.refs_data.get(name)
+                    sql_ref = cell.sql_refs.get(name)
                     if sql_ref:
                         other_ids_defining_name, variable_name = (
                             self._find_sql_hierarchical_matches(sql_ref)

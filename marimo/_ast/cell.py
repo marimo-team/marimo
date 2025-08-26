@@ -157,7 +157,7 @@ class CellImpl:
     defs: set[Name]
     refs: set[Name]
     # metadata about refs, currently only tracks SQL refs
-    refs_data: dict[Name, SQLRef]
+    sql_refs: dict[Name, SQLRef]
     # Variables that should only live for the duration of the cell
     temporaries: set[Name]
 

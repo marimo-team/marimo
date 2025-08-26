@@ -213,11 +213,8 @@ class ScopedVisitor(ast.NodeVisitor):
         return set(self._refs.keys())
 
     @property
-    def refs_data(self) -> dict[Name, SQLRef]:
-        """
-        Data accompanying referenced names.
-        Currently only tracks SQL data
-        """
+    def sql_refs(self) -> dict[Name, SQLRef]:
+        """Names and their SQLRefs"""
         refs = {}
         for name, ref_data in self._refs.items():
             # Take the last ref data because it's the most recent ref?
