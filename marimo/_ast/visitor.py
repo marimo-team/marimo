@@ -665,7 +665,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         LOGGER.warning("Unexpected duckdb error %s", e)
 
                     for ref in sql_refs:
-                        name = ref.get_qualified_name()
+                        name = ref.qualified_name
                         self._add_ref(None, name, deleted=False, sql_ref=ref)
 
                     # Add all tables/dbs created in the query to the defs

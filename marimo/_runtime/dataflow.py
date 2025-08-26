@@ -111,10 +111,9 @@ class DirectedGraph:
                     sql_ref = cell.refs_data.get(ref)
 
                     # Hierarchical reference match
-                    if sql_ref and name in ref and "." in ref:
-                        if SQLRef.matches_hierarchical_ref(ref, sql_ref):
-                            cells.add(cid)
-                            break
+                    if sql_ref and sql_ref.matches_hierarchical_ref(name, ref):
+                        cells.add(cid)
+                        break
 
             return cells
         else:
@@ -124,12 +123,12 @@ class DirectedGraph:
             }
 
     def _find_sql_hierarchical_matches(
-        self, name: Name
-    ) -> tuple[set[CellId_t], dict[Name, Name]]:
+        self, sql_ref: SQLRef
+    ) -> tuple[set[CellId_t], Name]:
         """
-        This method searches through all
-        definitions in the graph to find cells that define the individual
-        components (table, schema, or catalog) of the hierarchical reference.
+        This method searches through all definitions in the graph to find cells
+        that define the individual components (table, schema, or catalog) of the
+        hierarchical reference.
 
         For example, given a reference "my_schema.my_table", this method will:
         - Look for cells that define a table/view named "my_table"
@@ -137,46 +136,35 @@ class DirectedGraph:
           (when the reference has at least 2 parts)
 
         Args:
-            name: A hierarchical SQL reference (e.g., "schema.table",
+            sql_ref: A hierarchical SQL reference (e.g., "schema.table",
                   "catalog.schema.table") to find matching definitions for.
 
         Returns:
             A tuple containing:
             - A set of cell IDs that define components of the hierarchical reference
-            - A mapping from the original hierarchical name to the actual
-              definition name that was found (e.g., {"schema.table": "table"})
+            - The definition of the name that was found (e.g., "schema.table" -> "table")
         """
-        name_map = {}
+        variable_name: Name = sql_ref.qualified_name
         matching_cell_ids = set()
-        parts = name.split(".")
-        table = parts[-1]
 
-        for def_name in self.definitions:
-            cell_ids = self.definitions[def_name]
-            if not cell_ids:
-                continue
-
-            # Get the variable kind from the first cell that defines it
-            # TODO: This doesn't capture views/tables in other schemas in the same catalog
-            cell_id_for_def = next(iter(cell_ids))
-            variable_data = self.cells[cell_id_for_def].variable_data[def_name]
-            kind = variable_data[-1].kind
-
+        for def_name, cell_ids in self.definitions.items():
+            # NB. Only the last definition matters.
+            # Technically more nuanced with branching statements, but this is
+            # the best we can do with static analysis.
+            var_data = [
+                v[-1]
+                for cell_id in cell_ids
+                if (v := self.cells[cell_id].variable_data.get(def_name, []))
+            ]
+            # Only consider definitions with a single variable data entry
+            # since multiple defining cells is undefined behavior
+            var, *_ = var_data
             # Match table/view definitions
-            if kind in ("table", "view") and def_name == table:
-                name_map[name] = def_name
+            if sql_ref.contains_hierarchical_ref(def_name, var.kind):
+                variable_name = def_name
                 matching_cell_ids.update(cell_ids)
 
-            # Does not support schema yet
-
-            # Match catalog definitions
-            elif kind == "catalog" and len(parts) >= 2:
-                catalog_or_schema = parts[0]
-                if def_name == catalog_or_schema:
-                    name_map[name] = def_name
-                    matching_cell_ids.update(cell_ids)
-
-        return matching_cell_ids, name_map
+        return matching_cell_ids, variable_name
 
     def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]:
         """Get a path from `source` to `dst`, if any."""
@@ -268,25 +256,21 @@ class DirectedGraph:
                     else set()
                 ) - set((cell_id,))
 
-                # Handle SQL matching for hierarchical references
-                name_map: dict[Name, Name] = {}
-                sql_ref = cell.refs_data.get(name)
-                if (
-                    "." in name
-                    and len(other_ids_defining_name) == 0
-                    and sql_ref
-                ):
-                    other_ids_defining_name, name_map = (
-                        self._find_sql_hierarchical_matches(name)
-                    )
+                variable_name: Name = name
+                if not other_ids_defining_name:
+                    # Handle SQL matching for hierarchical references
+                    sql_ref = cell.refs_data.get(name)
+                    if sql_ref:
+                        other_ids_defining_name, variable_name = (
+                            self._find_sql_hierarchical_matches(sql_ref)
+                        )
 
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).
                 for other_id in other_ids_defining_name:
-                    name_to_use = name_map.get(name, name)
                     language = (
                         self.cells[other_id]
-                        .variable_data[name_to_use][-1]
+                        .variable_data[variable_name][-1]
                         .language
                     )
                     if language == "sql" and cell.language == "python":

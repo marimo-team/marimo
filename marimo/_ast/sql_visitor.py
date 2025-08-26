@@ -329,7 +329,8 @@ class SQLRef:
     schema: Optional[str] = None
     catalog: Optional[str] = None
 
-    def get_qualified_name(self) -> str:
+    @property
+    def qualified_name(self) -> str:
         """Convert a SQLRef to a fully qualified name to be used as a reference in the visitor"""
         parts = []
         if self.catalog is not None:
@@ -342,14 +343,13 @@ class SQLRef:
         name = ".".join(parts)
         return name
 
-    @staticmethod
-    def matches_hierarchical_ref(ref: str, sql_ref: SQLRef) -> bool:
+    def matches_hierarchical_ref(self, name: str, ref: str) -> bool:
         """
         Determine if a hierarchical reference string matches a SQLRef.
 
         Args:
+            name: The name to match against (could be catalog, schema, or table).
             ref: The fully qualified reference string (e.g., "schema.table", "catalog.schema.table").
-            sql_ref: The SQLRef instance to compare against.
 
         Returns:
             True if the reference matches the SQLRef's structure and values, False otherwise.
@@ -359,29 +359,37 @@ class SQLRef:
 
         if num_parts == 1:
             # Only table name provided
-            return parts[0] == sql_ref.table
+            return name == self.table == parts[0]
 
         if num_parts == 2:
             # Format: schema.table or catalog.table
             # sqlglot cannot differentiate between schema and catalog
             # so we check if the qualifier matches either
             qualifier, table = parts
-            if table != sql_ref.table:
+            if table != self.table:
                 return False
             # Try matching as schema or catalog
-            if qualifier == sql_ref.schema or qualifier == sql_ref.catalog:
-                return True
-            return False
+            if qualifier not in (self.schema, self.catalog):
+                return False
+            return qualifier == name
 
         if num_parts == 3:
             # Format: catalog.schema.table
             catalog, schema, table = parts
-            if table != sql_ref.table:
+            if table != self.table:
                 return False
-            if catalog != sql_ref.catalog or schema != sql_ref.schema:
-                return False
-            return True
+            if catalog == self.catalog:
+                return name == self.catalog
+            if schema == self.schema:
+                return name == self.schema
 
+        return False
+
+    def contains_hierarchical_ref(self, ref: str, kind: str) -> bool:
+        if kind in ("table", "view"):
+            return ref == self.table
+        if kind == "catalog":
+            return ref == self.catalog or ref == self.schema
         return False
 
 
