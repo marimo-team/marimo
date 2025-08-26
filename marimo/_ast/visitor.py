@@ -55,15 +55,6 @@ class AnnotationData:
 
 
 @dataclass
-class RefsData:
-    """Data accompanying a ref"""
-
-    language: Language
-    # Only applicable for SQL cell refs
-    sql_ref: Optional[SQLRef] = None
-
-
-@dataclass
 class VariableData:
     # "table", "view", "schema", and "catalog" are SQL variables, not Python.
     kind: Literal[
@@ -222,15 +213,17 @@ class ScopedVisitor(ast.NodeVisitor):
         return set(self._refs.keys())
 
     @property
-    def refs_data(self) -> dict[Name, RefsData]:
-        """Data accompanying referenced names."""
+    def refs_data(self) -> dict[Name, SQLRef]:
+        """
+        Data accompanying referenced names.
+        Currently only tracks SQL data
+        """
         refs = {}
         for name, ref_data in self._refs.items():
-            refs[name] = RefsData(
-                language=self.language,
-                # Take the last ref data because it's the most recent ref?
-                sql_ref=ref_data[-1].sql_ref,
-            )
+            # Take the last ref data because it's the most recent ref?
+            sql_ref = ref_data[-1].sql_ref
+            if sql_ref is not None:
+                refs[name] = sql_ref
         return refs
 
     @property

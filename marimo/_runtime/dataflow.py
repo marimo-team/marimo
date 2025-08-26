@@ -108,18 +108,11 @@ class DirectedGraph:
                         cells.add(cid)
                         break
 
-                    ref_data = cell.refs_data[ref]
+                    sql_ref = cell.refs_data.get(ref)
 
                     # Hierarchical reference match
-                    if (
-                        name in ref
-                        and "." in ref
-                        and ref_data.language == "sql"
-                        and ref_data.sql_ref is not None
-                    ):
-                        if self._matches_hierarchical_ref(
-                            name, ref, ref_data.sql_ref
-                        ):
+                    if sql_ref and name in ref and "." in ref:
+                        if SQLRef.matches_hierarchical_ref(ref, sql_ref):
                             cells.add(cid)
                             break
 
@@ -130,44 +123,28 @@ class DirectedGraph:
                 cid for cid, cell in self.cells.items() if name in cell.refs
             }
 
-    def _matches_hierarchical_ref(
-        self, name: Name, ref: Name, sql_ref: SQLRef
-    ) -> bool:
-        """
-        SQL cells may have hierarchical structures eg. `catalog.schema.table`.
-        Check if a hierarchical reference matches the given name.
-        """
-        parts = ref.split(".")
-
-        if len(parts) == 2:
-            # Format: schema.table or catalog.table
-            catalog_or_schema = parts[0]
-            # Check if it matches either catalog or schema
-            # Because SQLRef doesn't know whether it references a catalog or schema
-            if sql_ref.catalog is None:
-                return catalog_or_schema == sql_ref.schema == name
-            else:
-                return catalog_or_schema == sql_ref.catalog == name
-        elif len(parts) == 3:
-            # Format: catalog.schema.table
-            catalog, schema = parts[0], parts[1]
-            return (
-                catalog == sql_ref.catalog == name
-                or schema == sql_ref.schema == name
-            )
-
-        return False
-
     def _find_sql_hierarchical_matches(
         self, name: Name
     ) -> tuple[set[CellId_t], dict[Name, Name]]:
         """
-        For SQL references like "schema.table" or "catalog.schema.table", find cells
-        that define the table, schema, or catalog components.
+        This method searches through all
+        definitions in the graph to find cells that define the individual
+        components (table, schema, or catalog) of the hierarchical reference.
+
+        For example, given a reference "my_schema.my_table", this method will:
+        - Look for cells that define a table/view named "my_table"
+        - Look for cells that define a catalog named "my_schema"
+          (when the reference has at least 2 parts)
+
+        Args:
+            name: A hierarchical SQL reference (e.g., "schema.table",
+                  "catalog.schema.table") to find matching definitions for.
 
         Returns:
-        - set of cell ids that define the table, schema, or catalog components
-        - mapping from the original name to the name of the cell that defines it
+            A tuple containing:
+            - A set of cell IDs that define components of the hierarchical reference
+            - A mapping from the original hierarchical name to the actual
+              definition name that was found (e.g., {"schema.table": "table"})
         """
         name_map = {}
         matching_cell_ids = set()
@@ -189,6 +166,8 @@ class DirectedGraph:
             if kind in ("table", "view") and def_name == table:
                 name_map[name] = def_name
                 matching_cell_ids.update(cell_ids)
+
+            # Does not support schema yet
 
             # Match catalog definitions
             elif kind == "catalog" and len(parts) >= 2:
@@ -291,12 +270,8 @@ class DirectedGraph:
 
                 # Handle SQL matching for hierarchical references
                 name_map: dict[Name, Name] = {}
-                ref_data = cell.refs_data[name]
-                if (
-                    ref_data.language == "sql"
-                    and "." in name
-                    and len(other_ids_defining_name) == 0
-                ):
+                sql_ref = cell.refs_data.get(name)
+                if len(other_ids_defining_name) == 0 and sql_ref:
                     other_ids_defining_name, name_map = (
                         self._find_sql_hierarchical_matches(name)
                     )

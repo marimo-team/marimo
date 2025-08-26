@@ -10,14 +10,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from marimo import _loggers
-from marimo._ast.sql_visitor import SQLVisitor
-from marimo._ast.visitor import (
-    ImportData,
-    Language,
-    Name,
-    RefsData,
-    VariableData,
-)
+from marimo._ast.sql_visitor import SQLRef, SQLVisitor
+from marimo._ast.visitor import ImportData, Language, Name, VariableData
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._types.ids import CellId_t
 from marimo._utils.deep_merge import deep_merge
@@ -162,8 +156,8 @@ class CellImpl:
     mod: ast.Module
     defs: set[Name]
     refs: set[Name]
-    # metadata about refs
-    refs_data: dict[Name, RefsData]
+    # metadata about refs, currently only tracks SQL refs
+    refs_data: dict[Name, SQLRef]
     # Variables that should only live for the duration of the cell
     temporaries: set[Name]
 
