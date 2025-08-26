@@ -362,13 +362,16 @@ class SQLRef:
         name = ".".join(parts)
         return name.lower()
 
-    def matches_hierarchical_ref(self, name: str, ref: str) -> bool:
+    def matches_hierarchical_ref(
+        self, name: str, ref: str, kind: str = "any"
+    ) -> bool:
         """
         Determine if a hierarchical reference string matches a SQLRef.
 
         Args:
             name: The name to match against (could be catalog, schema, or table).
             ref: The fully qualified reference string (e.g., "schema.table", "catalog.schema.table").
+            kind: The kind of reference ("table", "view", "schema", "catalog").
 
         Returns:
             True if the reference matches the SQLRef's structure and values, False otherwise.
@@ -378,38 +381,80 @@ class SQLRef:
         parts = ref.split(".")
         num_parts = len(parts)
 
+        if num_parts == 0:
+            return False
+
+        if kind == "catalog":
+            if self.catalog is not None:
+                return name == self.catalog == parts[0]
+            # Fallback to schema if catalog is None
+            kind = "schema"
+
+        if kind == "schema":
+            if num_parts < 3:
+                return name == self.schema == parts[0]
+            return name == self.schema == parts[1]
+
+        # Otherwise, kind is "table" or "view", and we should check the ordering
+        # and return accordingly
         if num_parts == 1:
             # Only table name provided
-            return name == self.table == parts[0]
+            return name == self.table == parts[0] and kind in (
+                "table",
+                "view",
+                "any",
+            )
 
         if num_parts == 2:
             # Format: schema.table or catalog.table
             # sqlglot cannot differentiate between schema and catalog
             # so we check if the qualifier matches either
             qualifier, table = parts
-            if table != self.table:
-                return False
             # Try matching as schema or catalog
             if (self.schema, self.catalog) == (None, None):
-                return name == self.table
+                return name == self.table == table and kind in (
+                    "table",
+                    "view",
+                    "any",
+                )
             if qualifier not in (self.schema, self.catalog):
                 return False
-            return table == name
+
+            return name in (
+                self.catalog,
+                self.schema,
+                self.table,
+            ) and kind in (
+                "table",
+                "view",
+                "catalog",
+                "schema",
+                "any",
+            )
 
         if num_parts == 3:
             # Format: catalog.schema.table
             catalog, schema, table = parts
-            if table != self.table:
-                return False
-            # if catalog == self.catalog:
-            #     return name == self.catalog
-            # if schema == self.schema:
-            #     return name == self.schema
-            if self.catalog in (None, catalog) and self.schema in (
-                None,
-                schema,
-            ):
-                return name == self.table
+            if self.catalog:
+                if catalog != self.catalog:
+                    return False
+                if schema != self.schema:
+                    return name == self.catalog and kind in ("catalog", "any")
+            elif self.schema:
+                if schema != self.schema:
+                    return False
+                return name == self.schema and kind in ("schema", "any")
+            return name in (
+                self.catalog,
+                self.schema,
+                self.table,
+            ) and kind in (
+                "table",
+                "view",
+                "catalog",
+                "schema",
+                "any",
+            )
 
         return False
 

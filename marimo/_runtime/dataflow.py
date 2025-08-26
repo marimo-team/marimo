@@ -114,8 +114,17 @@ class DirectedGraph:
 
                     sql_ref = cell.sql_refs.get(ref)
 
+                    kind = "any"
+                    if name in cell.variable_data:
+                        variable_data = cell.variable_data[name][-1]
+                        kind = variable_data.kind
+                        if sql_ref:
+                            pass
+
                     # Hierarchical reference match
-                    if sql_ref and sql_ref.matches_hierarchical_ref(name, ref):
+                    if sql_ref and sql_ref.matches_hierarchical_ref(
+                        name, ref, kind
+                    ):
                         cells.add(cid)
                         break
 
@@ -293,10 +302,11 @@ class DirectedGraph:
                         # SQL table/db def -> Python ref is not an edge
                         continue
                     if language == "sql" and cell.language == "sql":
-                        # SQL table/db def -> SQL ref is not an edge
+                        # Edges between SQL cells need to respect hierarchy.
                         if sql_ref and not sql_ref.matches_hierarchical_ref(
                             variable_name,
                             other_variable_data.qualified_name or name,
+                            kind=other_variable_data.kind,
                         ):
                             continue
                     parents.add(other_id)

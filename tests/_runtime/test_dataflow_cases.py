@@ -306,8 +306,6 @@ SQL_CASES = [
         },
         # TODO: What should the defs be?
         expected_defs={"0": ["my_table"], "1": ["my_table"], "2": []},
-        # currently:
-        #   {'2': {'1', '0'}}
     ),
     GraphTestCase(
         name="sql definitions with same name as qualified schema and table",
@@ -426,9 +424,6 @@ SQL_CASES = [
             "3": ["mo", "catalog_one.schema_two.my_table"],
         },
         expected_defs={"0": ["my_table"], "1": [], "2": [], "3": []},
-        # Currently:
-        #   '2': {'0'},
-        #   '3': {'0'},
     ),
     GraphTestCase(
         name="sql table substring doesn't cause false positive",
