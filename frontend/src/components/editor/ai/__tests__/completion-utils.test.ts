@@ -64,6 +64,8 @@ describe("getAICompletionBody", () => {
       Columns:
         - col3: boolean
         - col4: date</data>",
+          "schema": [],
+          "variables": [],
         },
         "includeOtherCode": "// Some other code",
       }
@@ -78,6 +80,8 @@ describe("getAICompletionBody", () => {
       {
         "context": {
           "plainText": "",
+          "schema": [],
+          "variables": [],
         },
         "includeOtherCode": "// Some other code",
       }
@@ -108,6 +112,8 @@ describe("getAICompletionBody", () => {
       Columns:
         - col1: number
         - col2: string</data>",
+          "schema": [],
+          "variables": [],
         },
         "includeOtherCode": "// Some other code",
       }
@@ -146,6 +152,8 @@ describe("getAICompletionBody", () => {
       <data name="regular_dataset" source="unknown">
       Columns:
         - col3: boolean</data>",
+          "schema": [],
+          "variables": [],
         },
         "includeOtherCode": "// Some other code",
       }
@@ -193,6 +201,8 @@ describe("getAICompletionBody", () => {
           "plainText": "<data name="table1" source="unknown">
       Columns:
         - col1: number</data>",
+          "schema": [],
+          "variables": [],
         },
         "includeOtherCode": "// Some other code",
       }
@@ -228,6 +238,8 @@ describe("getAICompletionBody", () => {
           "plainText": "<variable name="var1" dataType="string">&quot;string value&quot;</variable>
 
       <variable name="var2" dataType="number">&quot;42&quot;</variable>",
+          "schema": [],
+          "variables": [],
         },
         "includeOtherCode": "// Some other code",
       }
@@ -270,6 +282,8 @@ describe("getAICompletionBody", () => {
         - col2: string</data>
 
       <variable name="var1" dataType="string">&quot;string value&quot;</variable>",
+          "schema": [],
+          "variables": [],
         },
         "includeOtherCode": "// Some other code",
       }
@@ -297,6 +311,8 @@ describe("getAICompletionBody", () => {
       {
         "context": {
           "plainText": "<variable name="existingVar" dataType="string">&quot;string value&quot;</variable>",
+          "schema": [],
+          "variables": [],
         },
         "includeOtherCode": "// Some other code",
       }
@@ -333,6 +349,8 @@ describe("getAICompletionBody", () => {
           "plainText": "<data name="conflict" source="unknown">
       Columns:
         - col1: number</data>",
+          "schema": [],
+          "variables": [],
         },
         "includeOtherCode": "// Some other code",
       }

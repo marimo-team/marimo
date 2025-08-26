@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
