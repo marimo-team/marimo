@@ -8,11 +8,14 @@ import { useAtom, useAtomValue } from "jotai";
 import {
   BotMessageSquareIcon,
   ClockIcon,
+  FileIcon,
   Loader2,
+  PaperclipIcon,
   PlusIcon,
   SendIcon,
   SettingsIcon,
   SquareIcon,
+  XIcon,
 } from "lucide-react";
 import {
   type Dispatch,
@@ -65,6 +68,7 @@ import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import { getAICompletionBody } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
+import { Input } from "../ui/input";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
@@ -247,12 +251,55 @@ interface ChatInputFooterProps {
 
 const DEFAULT_MODE = "manual";
 
+const FileAttachmentPill = ({
+  file,
+  onRemove,
+}: {
+  file: File;
+  onRemove: () => void;
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div
+      className="py-0.5 px-1.5 border border-border hover:bg-muted/70 rounded-md w-fit 
+      cursor-pointer flex flex-row gap-1 items-center text-xs"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {isHovered ? (
+        <XIcon className="h-3 w-3" onClick={onRemove} />
+      ) : (
+        // TODO: Add icons for different file types
+        <FileIcon className="h-3 w-3" />
+      )}
+      {file.name}
+    </div>
+  );
+};
+
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
   ({ isEmpty, onSendClick, isLoading, onStop }) => {
+    const [files, setFiles] = useState<File[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const ai = useAtomValue(aiAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
     const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
     const { saveModeChange, saveModelChange } = useModelChange();
+
+    const handleFileChange = useEvent(
+      (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (files) {
+          setFiles([...files]);
+        }
+      },
+    );
+
+    const removeFile = useEvent((file: File) => {
+      setFiles(files.filter((f) => f !== file));
+    });
 
     const modeOptions = [
       {
@@ -269,57 +316,90 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
     ];
 
     return (
-      <div className="px-3 py-2 border-t border-border/20 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FeatureFlagged feature="mcp_docs">
-            <Select value={currentMode} onValueChange={saveModeChange}>
-              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
-                {currentMode}
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>AI Mode</SelectLabel>
-                  {modeOptions.map((option) => (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      className="text-xs"
-                    >
-                      <div className="flex flex-col">
-                        {option.label}
-                        <div className="text-muted-foreground text-xs pt-1 block">
-                          {option.subtitle}
-                        </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FeatureFlagged>
-          <AIModelDropdown
-            value={currentModel}
-            placeholder="Model"
-            onSelect={(model) => saveModelChange(model, "chat")}
-            triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
-            iconSize="small"
-            showAddCustomModelDocs={true}
-            forRole="chat"
-          />
+      <div className="px-3 py-2 border-t border-border/20 flex flex-col gap-1">
+        <div className="flex flex-row gap-1 flex-wrap">
+          {files.map((file) => (
+            <FileAttachmentPill
+              file={file}
+              key={file.name}
+              onRemove={() => removeFile(file)}
+            />
+          ))}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 hover:bg-muted/30"
-          onClick={isLoading ? onStop : onSendClick}
-          disabled={isLoading ? false : isEmpty}
-        >
-          {isLoading ? (
-            <SquareIcon className="h-3 w-3 fill-current" />
-          ) : (
-            <SendIcon className="h-3 w-3" />
-          )}
-        </Button>
+
+        <div className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FeatureFlagged feature="mcp_docs">
+              <Select value={currentMode} onValueChange={saveModeChange}>
+                <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
+                  {currentMode}
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>AI Mode</SelectLabel>
+                    {modeOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="text-xs"
+                      >
+                        <div className="flex flex-col">
+                          {option.label}
+                          <div className="text-muted-foreground text-xs pt-1 block">
+                            {option.subtitle}
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </FeatureFlagged>
+            <AIModelDropdown
+              value={currentModel}
+              placeholder="Model"
+              onSelect={(model) => saveModelChange(model, "chat")}
+              triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
+              iconSize="small"
+              showAddCustomModelDocs={true}
+              forRole="chat"
+            />
+          </div>
+          <div className="flex flex-row">
+            <Button
+              variant="text"
+              size="icon"
+              className="cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach a file"
+            >
+              <PaperclipIcon className="h-3.5 w-3.5" />
+            </Button>
+            <Input
+              ref={fileInputRef}
+              type="file"
+              multiple={true}
+              hidden={true}
+              onChange={handleFileChange}
+              // TODO: Add support for other file types
+              accept="image/*"
+            />
+
+            <Button
+              variant="text"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-muted/30 cursor-pointer"
+              onClick={isLoading ? onStop : onSendClick}
+              disabled={isLoading ? false : isEmpty}
+            >
+              {isLoading ? (
+                <SquareIcon className="h-3 w-3 fill-current" />
+              ) : (
+                <SendIcon className="h-3 w-3" />
+              )}
+            </Button>
+          </div>
+        </div>
       </div>
     );
   },
