@@ -1131,48 +1131,39 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
           ))}
         </Tree>
       </div>
-      <AddModelForm
-        form={form}
-        onSubmit={onSubmit}
-        customModels={customModels}
-      />
+      <AddModelForm form={form} customModels={customModels} />
     </SettingGroup>
   );
 };
 
 export const AddModelForm: React.FC<{
   form: UseFormReturn<UserConfig>;
-  onSubmit: (values: UserConfig) => void;
   customModels: QualifiedModelId[];
-}> = ({ form, onSubmit, customModels }) => {
-  const [addingModel, setAddingModel] = useState(false);
+}> = ({ form, customModels }) => {
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
-  const [provider, setProvider] = useState("");
+  const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
   const [customProviderName, setCustomProviderName] = useState("");
   const [modelName, setModelName] = useState("");
 
   const customProviderInputId = useId();
   const providerSelectId = useId();
+  const modelNameInputId = useId();
 
   const isCustomProvider = provider === "custom";
-  const hasValidValues =
-    provider && modelName && (!isCustomProvider || customProviderName);
+  const providerName = isCustomProvider ? customProviderName : provider;
+  const hasValidValues = providerName?.trim() && modelName?.trim();
 
   const resetForm = () => {
-    setProvider("");
+    setProvider(null);
     setCustomProviderName("");
     setModelName("");
-    setAddingModel(false);
+    setIsFormOpen(false);
   };
 
   const handleAddModel = () => {
     if (!hasValidValues) {
       return;
-    }
-
-    let providerName = provider;
-    if (provider === "custom") {
-      providerName = customProviderName;
     }
 
     const newModel = new AiModelId(
@@ -1181,7 +1172,6 @@ export const AddModelForm: React.FC<{
     );
 
     form.setValue("ai.models.custom_models", [newModel.id, ...customModels]);
-    onSubmit(form.getValues());
     resetForm();
 
     // Show model added message for 2 seconds
@@ -1200,7 +1190,10 @@ export const AddModelForm: React.FC<{
         >
           Provider
         </Label>
-        <Select value={provider} onValueChange={(v) => setProvider(v)}>
+        <Select
+          value={provider || ""}
+          onValueChange={(v) => setProvider(v as ProviderId | "custom")}
+        >
           <SelectTrigger id={providerSelectId} className={providerClassName}>
             {provider ? (
               <div className="flex items-center gap-1.5">
@@ -1266,7 +1259,7 @@ export const AddModelForm: React.FC<{
     </div>
   );
 
-  const modelSelect = (
+  const modelInput = (
     <div
       className={cn(
         "flex items-center gap-2",
@@ -1274,13 +1267,13 @@ export const AddModelForm: React.FC<{
       )}
     >
       <Label
-        htmlFor="model-name"
+        htmlFor={modelNameInputId}
         className="text-sm font-medium text-muted-foreground"
       >
         Model
       </Label>
       <Input
-        data-testid="model-name"
+        id={modelNameInputId}
         value={modelName}
         onChange={(e) => setModelName(e.target.value)}
         placeholder="gpt-4"
@@ -1289,36 +1282,34 @@ export const AddModelForm: React.FC<{
     </div>
   );
 
-  const addModelButtons = (
-    <div className={cn("flex gap-1.5 ml-auto", isCustomProvider && "self-end")}>
-      <Button onClick={handleAddModel} disabled={!hasValidValues} size="xs">
-        Add
-      </Button>
-      <Button variant="outline" onClick={resetForm} size="xs">
-        Cancel
-      </Button>
-    </div>
-  );
-
   const inputForm = (
     <div className="flex items-center gap-3 p-3 border border-border rounded-md">
       {providerSelect}
-      {modelSelect}
-      {addModelButtons}
+      {modelInput}
+      <div
+        className={cn("flex gap-1.5 ml-auto", isCustomProvider && "self-end")}
+      >
+        <Button onClick={handleAddModel} disabled={!hasValidValues} size="xs">
+          Add
+        </Button>
+        <Button variant="outline" onClick={resetForm} size="xs">
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 
   return (
     <div>
-      {addingModel && inputForm}
+      {isFormOpen && inputForm}
       <div className="flex flex-row text-sm">
         <Button
           onClick={(e) => {
             e.preventDefault();
-            setAddingModel(true);
+            setIsFormOpen(true);
           }}
           variant="link"
-          disabled={addingModel}
+          disabled={isFormOpen}
         >
           <PlusIcon className="h-4 w-4 mr-2 mb-0.5" />
           Add Model
