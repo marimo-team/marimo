@@ -13,6 +13,18 @@ import { once } from "@/utils/once";
 import type { ProviderId } from "./ids/ids";
 import { AiModelId, type QualifiedModelId, type ShortModelId } from "./ids/ids";
 
+export const PROVIDER_SORT_ORDER: ProviderId[] = [
+  // Sort by popular ones
+  "anthropic",
+  "openai",
+  "google",
+  "github",
+  "deepseek",
+  "azure",
+  "bedrock",
+  "ollama",
+];
+
 export interface AiModel extends AiModelType {
   roles: Role[];
   model: ShortModelId;
@@ -41,13 +53,21 @@ const getKnownModelMap = once((): ReadonlyMap<QualifiedModelId, AiModel> => {
   return modelMap;
 });
 
-const getProviderMap = once((): ReadonlyMap<ProviderId, AiProvider> => {
-  const providerMap = new Map<ProviderId, AiProvider>();
-  for (const provider of providers) {
-    providerMap.set(provider.id as ProviderId, provider);
-  }
-  return providerMap;
-});
+const getProviderMap = once(
+  (): {
+    providerMap: ReadonlyMap<ProviderId, AiProvider>;
+    providerToOrderIdx: ReadonlyMap<ProviderId, number>;
+  } => {
+    const providerMap = new Map<ProviderId, AiProvider>();
+    const providerToOrderIdx = new Map<ProviderId, number>();
+    providers.forEach((provider, idx) => {
+      const providerId = provider.id as ProviderId;
+      providerMap.set(providerId, provider);
+      providerToOrderIdx.set(providerId, idx);
+    });
+    return { providerMap, providerToOrderIdx };
+  },
+);
 
 export class AiModelRegistry {
   private modelsByProviderMap = new MultiMap<ProviderId, AiModel>();
@@ -66,7 +86,8 @@ export class AiModelRegistry {
   }
 
   static getProviderInfo(providerId: ProviderId) {
-    return getProviderMap().get(providerId);
+    const { providerMap } = getProviderMap();
+    return providerMap.get(providerId);
   }
 
   /**
@@ -178,6 +199,21 @@ export class AiModelRegistry {
 
   getGroupedModelsByProvider() {
     return this.modelsByProviderMap;
+  }
+
+  getListModelsByProvider(): Array<[ProviderId, AiModel[]]> {
+    const modelsByProvider = this.getGroupedModelsByProvider();
+    const arrayModels = [...modelsByProvider.entries()];
+    const providerToOrderIdx = getProviderMap().providerToOrderIdx;
+
+    arrayModels.sort((a, b) => {
+      const aProvider = a[0];
+      const bProvider = b[0];
+      const aOrderIdx = providerToOrderIdx.get(aProvider) ?? 0;
+      const bOrderIdx = providerToOrderIdx.get(bProvider) ?? 0;
+      return aOrderIdx - bOrderIdx;
+    });
+    return arrayModels;
   }
 
   getModelsMap() {

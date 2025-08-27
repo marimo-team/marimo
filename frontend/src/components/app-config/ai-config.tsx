@@ -1,7 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { BrainIcon, ChevronRightIcon, InfoIcon } from "lucide-react";
-import React, { useMemo } from "react";
+import {
+  BotIcon,
+  BrainIcon,
+  ChevronRightIcon,
+  InfoIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react";
+import React, { useId, useMemo, useState } from "react";
 import {
   Button as AriaButton,
   Tree,
@@ -26,8 +33,10 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AiModelId,
+  PROVIDERS,
   type ProviderId,
   type QualifiedModelId,
+  type ShortModelId,
 } from "@/core/ai/ids/ids";
 import { type AiModel, AiModelRegistry } from "@/core/ai/model-registry";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
@@ -36,7 +45,7 @@ import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { Strings } from "@/utils/strings";
-import { AIModelDropdown } from "../ai/ai-model-dropdown";
+import { AIModelDropdown, getProviderLabel } from "../ai/ai-model-dropdown";
 import {
   AiProviderIcon,
   type AiProviderIconProps,
@@ -48,9 +57,18 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../ui/accordion";
+import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { DropdownMenuSeparator } from "../ui/dropdown-menu";
+import { Label } from "../ui/label";
 import { ExternalLink } from "../ui/links";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+} from "../ui/select";
 import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
@@ -424,6 +442,7 @@ interface ModelListItemProps {
   model: AiModel;
   isEnabled: boolean;
   onToggle: (modelId: QualifiedModelId) => void;
+  onDelete: (modelId: QualifiedModelId) => void;
 }
 
 const ModelListItem: React.FC<ModelListItemProps> = ({
@@ -431,9 +450,16 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
   model,
   isEnabled,
   onToggle,
+  onDelete,
 }) => {
   const handleToggle = () => {
     onToggle(qualifiedId);
+  };
+
+  const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onDelete(qualifiedId);
   };
 
   return (
@@ -446,6 +472,16 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
       <TreeItemContent>
         <div className="flex items-center justify-between px-4 py-3 border-b last:border-b-0 cursor-pointer outline-none">
           <ModelInfoCard model={model} qualifiedId={qualifiedId} />
+          {model.custom && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleDelete}
+              className="mr-2 hover:bg-transparent"
+            >
+              <Trash2Icon className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          )}
           <Switch checked={isEnabled} onClick={handleToggle} size="sm" />
         </div>
       </TreeItemContent>
@@ -465,6 +501,9 @@ const ModelInfoCard = ({
       <div className="flex flex-col flex-1">
         <div className="flex items-center gap-2">
           <h3 className="font-medium">{model.name}</h3>
+          <Tooltip content="Custom model">
+            {model.custom && <BotIcon className="h-4 w-4" />}
+          </Tooltip>
         </div>
         <span className="text-xs text-muted-foreground font-mono">
           {qualifiedId}
@@ -932,6 +971,7 @@ interface ProviderTreeItemProps {
   enabledModels: Set<QualifiedModelId>;
   onToggleModel: (modelId: QualifiedModelId) => void;
   onToggleProvider: (providerId: ProviderId, enable: boolean) => void;
+  onDeleteModel: (modelId: QualifiedModelId) => void;
 }
 
 const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
@@ -940,6 +980,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
   enabledModels,
   onToggleModel,
   onToggleProvider,
+  onDeleteModel,
 }) => {
   const enabledCount = models.filter((model) =>
     enabledModels.has(new AiModelId(providerId, model.model).id),
@@ -996,6 +1037,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
             model={model}
             isEnabled={enabledModels.has(qualifiedId)}
             onToggle={onToggleModel}
+            onDelete={onDeleteModel}
           />
         );
       })}
@@ -1007,13 +1049,18 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
   form,
   onSubmit,
 }) => {
+  const customModels = useWatch({
+    control: form.control,
+    name: "ai.models.custom_models",
+  }) as QualifiedModelId[];
+
   const aiModelRegistry = useMemo(
     () =>
       AiModelRegistry.create({
         displayedModels: [],
-        customModels: ["openrouter/deepseek-r1-distill-llama-70b"],
+        customModels: customModels,
       }),
-    [],
+    [customModels],
   );
   const currentDisplayedModels = useWatch({
     control: form.control,
@@ -1022,6 +1069,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
   }) as QualifiedModelId[];
   const currentDisplayedModelsSet = new Set(currentDisplayedModels);
   const modelsByProvider = aiModelRegistry.getGroupedModelsByProvider();
+  const listModelsByProvider = aiModelRegistry.getListModelsByProvider();
 
   const toggleModelDisplay = useEvent((modelId: QualifiedModelId) => {
     const newModels = currentDisplayedModelsSet.has(modelId)
@@ -1050,9 +1098,15 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
     },
   );
 
+  const deleteModel = useEvent((modelId: QualifiedModelId) => {
+    const newModels = customModels.filter((id) => id !== modelId);
+    form.setValue("ai.models.custom_models", newModels);
+    onSubmit(form.getValues());
+  });
+
   return (
-    <SettingGroup>
-      <p className="text-sm text-muted-secondary mb-4">
+    <SettingGroup className="gap-2">
+      <p className="text-sm text-muted-secondary mb-6">
         Control which AI models are displayed in model selection dropdowns. When
         no models are selected, all available models will be shown.
       </p>
@@ -1063,7 +1117,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
           className="flex-1 overflow-auto outline-none focus-visible:outline-none"
           selectionMode="none"
         >
-          {[...modelsByProvider.entries()].map(([providerId, models]) => (
+          {listModelsByProvider.map(([providerId, models]) => (
             <ProviderTreeItem
               key={providerId}
               providerId={providerId}
@@ -1071,11 +1125,193 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
               enabledModels={currentDisplayedModelsSet}
               onToggleModel={toggleModelDisplay}
               onToggleProvider={toggleProviderModels}
+              onDeleteModel={deleteModel}
             />
           ))}
         </Tree>
       </div>
+      <AddModelForm form={form} customModels={customModels} />
     </SettingGroup>
+  );
+};
+
+export const AddModelForm: React.FC<{
+  form: UseFormReturn<UserConfig>;
+  customModels: QualifiedModelId[];
+}> = ({ form, customModels }) => {
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [modelAdded, setModelAdded] = useState(false);
+  const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
+  const [customProviderName, setCustomProviderName] = useState("");
+  const [modelName, setModelName] = useState("");
+
+  const providerSelectId = useId();
+  const customProviderInputId = useId();
+  const modelNameInputId = useId();
+
+  const isCustomProvider = provider === "custom";
+  const providerName = isCustomProvider ? customProviderName : provider;
+  const hasValidValues = providerName?.trim() && modelName?.trim();
+
+  const resetForm = () => {
+    setProvider(null);
+    setCustomProviderName("");
+    setModelName("");
+    setIsFormOpen(false);
+  };
+
+  const handleAddModel = () => {
+    if (!hasValidValues) {
+      return;
+    }
+
+    const newModel = new AiModelId(
+      providerName as ProviderId,
+      modelName as ShortModelId,
+    );
+
+    form.setValue("ai.models.custom_models", [newModel.id, ...customModels]);
+    resetForm();
+
+    // Show model added message for 2 seconds
+    setModelAdded(true);
+    setTimeout(() => setModelAdded(false), 2000);
+  };
+
+  const providerClassName = "w-40 truncate";
+
+  const providerSelect = (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <Label
+          htmlFor={providerSelectId}
+          className="text-sm font-medium text-muted-foreground min-w-12"
+        >
+          Provider
+        </Label>
+        <Select
+          value={provider || ""}
+          onValueChange={(v) => setProvider(v as ProviderId | "custom")}
+        >
+          <SelectTrigger id={providerSelectId} className={providerClassName}>
+            {provider ? (
+              <div className="flex items-center gap-1.5">
+                <AiProviderIcon
+                  provider={provider as ProviderId}
+                  className="h-3.5 w-3.5"
+                />
+                <span>{getProviderLabel(provider as ProviderId)}</span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground">Select...</span>
+            )}
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="custom">
+                <div className="flex items-center gap-2">
+                  <AiProviderIcon
+                    provider="openai-compatible"
+                    className="h-4 w-4"
+                  />
+                  <span>Custom</span>
+                </div>
+              </SelectItem>
+              {PROVIDERS.filter((p) => p !== "marimo").map((p) => (
+                <SelectItem key={p} value={p}>
+                  <div className="flex items-center gap-2">
+                    <AiProviderIcon provider={p} className="h-4 w-4" />
+                    <span>{getProviderLabel(p)}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isCustomProvider && (
+        <div className="flex items-center gap-2">
+          <Label
+            htmlFor={customProviderInputId}
+            className="text-sm font-medium text-muted-foreground min-w-12"
+          >
+            Name
+          </Label>
+          <Input
+            id={customProviderInputId}
+            value={customProviderName}
+            onChange={(e) => setCustomProviderName(e.target.value)}
+            placeholder="openrouter"
+            className={providerClassName}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  const modelInput = (
+    <div
+      className={cn(
+        "flex items-center gap-2",
+        isCustomProvider && "self-start",
+      )}
+    >
+      <Label
+        htmlFor={modelNameInputId}
+        className="text-sm font-medium text-muted-foreground"
+      >
+        Model
+      </Label>
+      <Input
+        id={modelNameInputId}
+        value={modelName}
+        onChange={(e) => setModelName(e.target.value)}
+        placeholder="gpt-4"
+        className="text-xs mb-0"
+      />
+    </div>
+  );
+
+  const inputForm = (
+    <div className="flex items-center gap-3 p-3 border border-border rounded-md">
+      {providerSelect}
+      {modelInput}
+      <div
+        className={cn("flex gap-1.5 ml-auto", isCustomProvider && "self-end")}
+      >
+        <Button onClick={handleAddModel} disabled={!hasValidValues} size="xs">
+          Add
+        </Button>
+        <Button variant="outline" onClick={resetForm} size="xs">
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      {isFormOpen && inputForm}
+      <div className="flex flex-row text-sm">
+        <Button
+          onClick={(e) => {
+            e.preventDefault();
+            setIsFormOpen(true);
+          }}
+          variant="link"
+          disabled={isFormOpen}
+        >
+          <PlusIcon className="h-4 w-4 mr-2 mb-0.5" />
+          Add Model
+        </Button>
+        {modelAdded && (
+          <div className="flex items-center gap-1 text-green-700 bg-green-500/10 px-2 py-1 rounded-md ml-auto">
+            ✓ Model added
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
