@@ -147,7 +147,7 @@ class TokenExtractor:
 @dataclass
 class SQLDefs:
     tables: list[SQLRef] = field(default_factory=list)
-    views: list[str] = field(default_factory=list)
+    views: list[SQLRef] = field(default_factory=list)
     schemas: list[str] = field(default_factory=list)
     catalogs: list[str] = field(default_factory=list)
 
@@ -182,7 +182,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
         sql_statement=sql_statement, tokens=tokens
     )
     created_tables: list[SQLRef] = []
-    created_views: list[str] = []
+    created_views: list[SQLRef] = []
     created_schemas: list[str] = []
     created_catalogs: list[str] = []
 
@@ -263,7 +263,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                             reffed_catalogs.append(parts[0])
                     elif is_view:
                         # only add the table name
-                        created_tables.append(SQLRef.from_parts(parts))
+                        created_views.append(SQLRef.from_parts(parts))
                         # add the catalog and schema if exist
                         if len(parts) == 3:
                             reffed_catalogs.append(parts[0])

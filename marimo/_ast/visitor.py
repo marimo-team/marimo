@@ -686,7 +686,13 @@ class ScopedVisitor(ast.NodeVisitor):
                             ),
                         )
                     for _view in sql_defs.views:
-                        self._define(None, _view, VariableData("view"))
+                        self._define(
+                            None,
+                            _view.table,
+                            VariableData(
+                                "view", qualified_name=_view.qualified_name
+                            ),
+                        )
                     for _schema in sql_defs.schemas:
                         self._define(None, _schema, VariableData("schema"))
                     for _catalog in sql_defs.catalogs:
