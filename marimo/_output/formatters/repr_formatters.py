@@ -1,12 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, cast
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.iframe import maybe_wrap_in_iframe
 from marimo._plugins.core.media import io_to_data_url
 from marimo._utils.methods import is_callable_method
+
+MEDIA_MIME_PREFIXES = (
+    "image/",
+    "audio/",
+    "video/",
+    "application/pdf",
+)
 
 
 def maybe_get_repr_formatter(
@@ -44,6 +51,7 @@ def maybe_get_repr_formatter(
                     continue
 
                 method = getattr(obj, attr)
+                contents: Any
                 # Try to call _repr_mimebundle_ with include/exclude parameters
                 if attr == "_repr_mimebundle_":
                     try:
@@ -51,6 +59,27 @@ def maybe_get_repr_formatter(
                     except TypeError:
                         # If that fails, call the method without parameters
                         contents = method()
+
+                    # Handle tuple return format: (data, metadata)
+                    # According to Jupyter spec, _repr_mimebundle_ can return either:
+                    # 1. A dict (just the data)
+                    # 2. A tuple of (data_dict, metadata_dict)
+                    if isinstance(contents, tuple) and len(contents) == 2:
+                        contents, _metadata = cast(
+                            tuple[dict[str, Any], dict[str, Any]], contents
+                        )
+
+                    # Convert binary or audio/video data to data URLs for web display
+                    if isinstance(contents, dict):
+                        for mime_key, data in list(contents.items()):
+                            # image/*, audio/*, video/*, and application/pdf are common binary types
+                            if mime_key.startswith(
+                                MEDIA_MIME_PREFIXES
+                            ) and isinstance(data, bytes):
+                                data_url = io_to_data_url(data, mime_key)
+                                if data_url:
+                                    contents[mime_key] = data_url
+
                     # Remove text/plain from the mimebundle if it's present
                     # since there are other representations available
                     # N.B. We cannot pass this as an argument to the method

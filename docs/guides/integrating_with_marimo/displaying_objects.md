@@ -76,6 +76,8 @@ We support the following methods:
 - `_repr_latex_`
 - `_repr_text_`
 
+**Note:** marimo currently does not handle any optional metadata returned by `_repr_mimebundle_`.
+
 ## Option 3: Implement a `_mime_` method
 
 When displaying an object, marimo's media viewer checks for the presence of a
