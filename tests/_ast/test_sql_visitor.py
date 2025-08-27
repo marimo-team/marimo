@@ -99,13 +99,11 @@ class TestFindSQLDefs:
     def test_find_sql_defs_simple() -> None:
         sql = "CREATE TABLE test_table (id INT, name VARCHAR(255));"
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["test_table"],
+            tables=[SQLRef(table="test_table")]
         )
 
         sql = "CREATE VIEW test_view (id INT, name VARCHAR(255));"
-        assert find_sql_defs(sql) == SQLDefs(
-            views=["test_view"],
-        )
+        assert find_sql_defs(sql) == SQLDefs(views=[SQLRef(table="test_view")])
 
     @staticmethod
     def test_find_sql_defs_multiple() -> None:
@@ -115,8 +113,8 @@ class TestFindSQLDefs:
         """
         assert find_sql_defs(sql) == SQLDefs(
             tables=[
-                "table1",
-                "table2",
+                SQLRef(table="table1"),
+                SQLRef(table="table2"),
             ],
         )
 
@@ -126,8 +124,8 @@ class TestFindSQLDefs:
         """
         assert find_sql_defs(sql) == SQLDefs(
             views=[
-                "table1",
-                "table2",
+                SQLRef(table="table1"),
+                SQLRef(table="table2"),
             ],
         )
 
@@ -144,8 +142,8 @@ class TestFindSQLDefs:
         """
         assert find_sql_defs(sql) == SQLDefs(
             tables=[
-                "table1",
-                "table2",
+                SQLRef(table="table1"),
+                SQLRef(table="table2"),
             ],
         )
 
@@ -160,8 +158,8 @@ class TestFindSQLDefs:
         """
         assert find_sql_defs(sql) == SQLDefs(
             views=[
-                "table1",
-                "table2",
+                SQLRef(table="table1"),
+                SQLRef(table="table2"),
             ],
         )
 
@@ -169,37 +167,33 @@ class TestFindSQLDefs:
     def test_find_sql_defs_with_or_replace() -> None:
         sql = "CREATE OR REPLACE TABLE test_table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["test_table"],
+            tables=[SQLRef(table="test_table")]
         )
 
         sql = "CREATE OR REPLACE VIEW test_view (id INT);"
-        assert find_sql_defs(sql) == SQLDefs(
-            views=["test_view"],
-        )
+        assert find_sql_defs(sql) == SQLDefs(views=[SQLRef(table="test_view")])
 
     @staticmethod
     def test_find_sql_defs_temporary() -> None:
         sql = "CREATE TEMPORARY TABLE temp_table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["temp_table"],
+            tables=[SQLRef(table="temp_table")],
         )
 
         sql = "CREATE TEMPORARY VIEW temp_table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            views=["temp_table"],
+            views=[SQLRef(table="temp_table")],
         )
 
     @staticmethod
     def test_find_sql_defs_if_not_exists() -> None:
         sql = "CREATE TABLE IF NOT EXISTS new_table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["new_table"],
+            tables=[SQLRef(table="new_table")],
         )
 
         sql = "CREATE VIEW IF NOT EXISTS new_table (id INT);"
-        assert find_sql_defs(sql) == SQLDefs(
-            views=["new_table"],
-        )
+        assert find_sql_defs(sql) == SQLDefs(views=[SQLRef(table="new_table")])
 
     @staticmethod
     def test_find_sql_defs_complex() -> None:
@@ -210,9 +204,9 @@ class TestFindSQLDefs:
         """  # noqa: E501
         assert find_sql_defs(sql) == SQLDefs(
             tables=[
-                "table1",
-                "table2",
-                "table3",
+                SQLRef(table="table1"),
+                SQLRef(table="table2"),
+                SQLRef(table="table3"),
             ],
         )
 
@@ -223,9 +217,9 @@ class TestFindSQLDefs:
         """  # noqa: E501
         assert find_sql_defs(sql) == SQLDefs(
             views=[
-                "table1",
-                "table2",
-                "table3",
+                SQLRef(table="table1"),
+                SQLRef(table="table2"),
+                SQLRef(table="table3"),
             ],
         )
 
@@ -238,12 +232,12 @@ class TestFindSQLDefs:
     def test_find_sql_defs_case_insensitive() -> None:
         sql = "create TABLE Test_Table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["Test_Table"],
+            tables=[SQLRef(table="test_table")],
         )
 
         sql = "create VIEW Test_Table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            views=["Test_Table"],
+            views=[SQLRef(table="test_table")]
         )
 
     @staticmethod
@@ -305,7 +299,7 @@ class TestFindSQLDefs:
         query: str,
     ) -> None:
         assert find_sql_defs(query) == SQLDefs(
-            tables=["my_table"],
+            tables=[SQLRef(table="my_table")],
         )
 
     @staticmethod
@@ -333,12 +327,12 @@ class TestFindSQLDefs:
         """
         assert find_sql_defs(sql) == SQLDefs(
             tables=[
-                "my--table",
-                "my_table_with_select",
-                "my/*weird*/table",
-                "with a space",
-                "single-quotes",
-                r"escaped\ntable",
+                SQLRef(table="my--table"),
+                SQLRef(table="my_table_with_select"),
+                SQLRef(table="my/*weird*/table"),
+                SQLRef(table="with a space"),
+                SQLRef(table="single-quotes"),
+                SQLRef(table=r"escaped\ntable"),
             ],
         )
 
@@ -381,7 +375,7 @@ class TestFindSQLDefs:
         CREATE TABLE my_catalog.my_table (id INT);
         """
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["my_table"],
+            tables=[SQLRef(table="my_table", schema="my_catalog")],
             reffed_catalogs=["my_catalog"],
         )
 
@@ -391,7 +385,7 @@ class TestFindSQLDefs:
         CREATE OR REPLACE TABLE my_db.my_table as (SELECT 42);
         """
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["my_table"],
+            tables=[SQLRef(table="my_table", schema="my_db")],
             reffed_catalogs=["my_db"],
         )
 
@@ -401,7 +395,11 @@ class TestFindSQLDefs:
         CREATE TABLE my_catalog.my_schema.my_table (id INT);
         """
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["my_table"],
+            tables=[
+                SQLRef(
+                    table="my_table", catalog="my_catalog", schema="my_schema"
+                )
+            ],
             reffed_catalogs=["my_catalog"],
             reffed_schemas=["my_schema"],
         )
@@ -412,7 +410,9 @@ class TestFindSQLDefs:
         CREATE TABLE my_catalog.main.my_table (id INT);
         """
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["my_table"],
+            tables=[
+                SQLRef(table="my_table", catalog="my_catalog", schema="main")
+            ],
             reffed_catalogs=["my_catalog"],
             reffed_schemas=[],  # main not included, since that is the default
         )
@@ -433,7 +433,7 @@ class TestFindSQLDefs:
         CREATE TABLE memory.main.my_table (id INT);
         """
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["my_table"],
+            tables=[SQLRef(table="my_table", catalog="memory", schema="main")],
         )
 
     @staticmethod
@@ -442,7 +442,7 @@ class TestFindSQLDefs:
         CREATE TABLE memory.my_table (id INT);
         """
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["my_table"],
+            tables=[SQLRef(table="my_table", schema="memory")],
         )
 
     @staticmethod
@@ -451,7 +451,7 @@ class TestFindSQLDefs:
         CREATE TEMP TABLE my_temp_table (id INT);
         """
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["my_temp_table"],
+            tables=[SQLRef(table="my_temp_table")],
         )
 
     @staticmethod
@@ -460,7 +460,7 @@ class TestFindSQLDefs:
         CREATE TABLE IF NOT EXISTS my_table (id INT);
         """
         assert find_sql_defs(sql) == SQLDefs(
-            tables=["my_table"],
+            tables=[SQLRef(table="my_table")],
         )
 
 

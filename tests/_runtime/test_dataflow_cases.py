@@ -206,8 +206,6 @@ SQL_CASES = [
         expected_parents={"0": [], "1": []},
         expected_children={"0": [], "1": []},
         expected_refs={"0": ["pd"], "1": ["mo", "my_schema.df"]},
-        # This is correct
-        # expected_refs={"0": ["pd"], "1": ["df.my_schema", "mo"]},
         expected_defs={"0": ["df"], "1": ["result"]},
     ),
     GraphTestCase(
@@ -220,8 +218,6 @@ SQL_CASES = [
         expected_parents={"0": [], "1": []},
         expected_children={"0": [], "1": []},
         expected_refs={"0": [], "1": ["mo", "my_schema.df"]},
-        # This is correct
-        # expected_refs={"0": ["pd"], "1": ["my_schema.df", "mo"]},
         expected_defs={"0": ["my_schema"], "1": []},
     ),
     GraphTestCase(
@@ -234,8 +230,6 @@ SQL_CASES = [
         expected_parents={"0": [], "1": []},
         expected_children={"0": [], "1": []},
         expected_refs={"0": [], "1": ["mo", "my_catalog.my_schema.df"]},
-        # This is correct
-        # expected_refs={"0": ["pd"], "1": ["my_catalog.my_schema.df", "mo"]},
         expected_defs={"0": ["my_catalog"], "1": []},
     ),
     GraphTestCase(
@@ -304,11 +298,7 @@ SQL_CASES = [
             "1": ["mo"],
             "2": ["mo", "schema_one.my_table"],
         },
-        # TODO: What should the defs be?
         expected_defs={"0": ["my_table"], "1": ["my_table"], "2": []},
-        # currently:
-        #   {'2': {'1', '0'}}
-        xfail=True,
     ),
     GraphTestCase(
         name="sql definitions with same name as qualified schema and table",
@@ -427,10 +417,6 @@ SQL_CASES = [
             "3": ["mo", "catalog_one.schema_two.my_table"],
         },
         expected_defs={"0": ["my_table"], "1": [], "2": [], "3": []},
-        # Currently:
-        #   '2': {'0'},
-        #   '3': {'0'},
-        xfail=True,
     ),
     GraphTestCase(
         name="sql table substring doesn't cause false positive",
@@ -463,6 +449,50 @@ SQL_CASES = [
             "1": ["mo", "catalog_one.my_table.suffix"],
         },
         expected_defs={"0": ["my_table"], "1": []},
+    ),
+    GraphTestCase(
+        name="sql table ordering doesn't cause false positives",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE TABLE catalog_one.schema_one.my_table (name STRING)')",
+            "1": "_ = mo.sql(f'CREATE TABLE catalog_one.my_table.schema_one (name STRING)')",
+            "2": "_ = mo.sql(f'CREATE TABLE schema_one.my_table.catalog_one (name STRING)')",
+            "3": "_ = mo.sql(f'CREATE TABLE schema_one.catalog_one.my_table (name STRING)')",
+            "4": "_ = mo.sql(f'CREATE TABLE my_table.catalog_one.schema_one (name STRING)')",
+            "5": "_ = mo.sql(f'CREATE TABLE my_table.schema_one.catalog_one (name STRING)')",
+        },
+        expected_parents={
+            "0": [],
+            "1": [],
+            "2": [],
+            "3": [],
+            "4": [],
+            "5": [],
+        },
+        expected_children={
+            "0": [],
+            "1": [],
+            "2": [],
+            "3": [],
+            "4": [],
+            "5": [],
+        },
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo"],
+            "2": ["mo"],
+            "3": ["mo"],
+            "4": ["mo"],
+            "5": ["mo"],
+        },
+        expected_defs={
+            "0": ["my_table"],
+            "1": ["schema_one"],
+            "2": ["catalog_one"],
+            "3": ["my_table"],
+            "4": ["schema_one"],
+            "5": ["catalog_one"],
+        },
     ),
 ]
 

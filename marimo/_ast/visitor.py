@@ -14,6 +14,7 @@ from marimo import _loggers
 from marimo._ast.errors import ImportStarError
 from marimo._ast.sql_visitor import (
     SQLDefs,
+    SQLKind,
     SQLRef,
     find_sql_defs,
     find_sql_refs,
@@ -57,15 +58,14 @@ class AnnotationData:
 @dataclass
 class VariableData:
     # "table", "view", "schema", and "catalog" are SQL variables, not Python.
-    kind: Literal[
-        "function",
-        "class",
-        "import",
-        "variable",
-        "table",
-        "view",
-        "schema",
-        "catalog",
+    kind: Union[
+        Literal[
+            "function",
+            "class",
+            "import",
+            "variable",
+        ],
+        SQLKind,
     ] = "variable"
 
     # If kind == function or class, it may be dependent on externally defined
@@ -88,6 +88,9 @@ class VariableData:
 
     # For kind == import
     import_data: Optional[ImportData] = None
+
+    # In the sql case, the name may be qualified
+    qualified_name: Optional[str] = None
 
     @property
     def language(self) -> Language:
@@ -675,9 +678,21 @@ class ScopedVisitor(ast.NodeVisitor):
                         sql_defs = SQLDefs()
 
                     for _table in sql_defs.tables:
-                        self._define(None, _table, VariableData("table"))
+                        self._define(
+                            None,
+                            _table.table,
+                            VariableData(
+                                "table", qualified_name=_table.qualified_name
+                            ),
+                        )
                     for _view in sql_defs.views:
-                        self._define(None, _view, VariableData("view"))
+                        self._define(
+                            None,
+                            _view.table,
+                            VariableData(
+                                "view", qualified_name=_view.qualified_name
+                            ),
+                        )
                     for _schema in sql_defs.schemas:
                         self._define(None, _schema, VariableData("schema"))
                     for _catalog in sql_defs.catalogs:
