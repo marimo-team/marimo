@@ -45,6 +45,25 @@ V = TypeVar("V")
 U = TypeVar("U")
 
 
+def fixed_dedent(text: str) -> str:
+    """Manually edited code, can dedent"""
+    # Added robustness for AI generated code
+    lines = text.splitlines()
+    for line in lines:
+        if content := line.lstrip():
+            indent = line[:len(line) - len(content)]
+            break
+    else:
+        # Quit early, no clear leading spaces
+        return dedent(text)
+
+    def refill(line: str) -> str:
+        if not line.startswith(indent):
+            return indent + line
+        return line
+    return dedent("\n".join(map(refill, lines)))
+
+
 class MarimoFileError(Exception):
     pass
 
@@ -112,7 +131,7 @@ class Extractor:
             _none_to_0(node.end_lineno) - 1,
             _none_to_0(node.end_col_offset),
         )
-        return dedent(code)
+        return fixed_dedent(code)
 
     def to_cell_def(self, node: FnNode, kwargs: dict[str, Any]) -> CellDef:
         # A general note on the apparent brittleness of this code:
@@ -223,7 +242,7 @@ class Extractor:
         # Line positioning here is still consequential for correct stack tracing
         # produced in _ast.compiler.
         return CellDef(
-            code=dedent(cell_code),
+            code=fixed_dedent(cell_code),
             options=kwargs,
             lineno=start_lineno - 1,
             col_offset=node.col_offset + col_offset,
@@ -235,7 +254,7 @@ class Extractor:
     def to_setup_cell(self, node: Node) -> SetupCell:
         kwargs, _violations = _maybe_kwargs(node.items[0].context_expr)  # type: ignore
         code = self.extract_from_code(node)
-        code = dedent(code)
+        code = fixed_dedent(code)
         if code.endswith("\npass"):
             code = code[: -len("\npass")]
         return SetupCell(
@@ -385,7 +404,14 @@ class Parser:
         # Attempt to find import statement
         node = body.last
         while node:
-            if is_marimo_import(node):
+            if isinstance(node, ast.Import) and is_marimo_import(node):
+                if node.names[0].asname:
+                    violations.append(
+                        Violation(
+                            "`marimo` is typically not imported with an alias. ",
+                            node.lineno,
+                        )
+                    )
                 return ParseResult(node, violations=violations)
             violations.append(
                 Violation(
@@ -415,20 +441,20 @@ class Parser:
         return ParseResult(version, violations=violations)
 
     def parse_app(
-        self, body: PeekStack[Node]
+        self, body: PeekStack[Node], import_alias: str = "marimo"
     ) -> ParseResult[AppInstantiation]:
         # app = import marimo + __generated_with + App(kwargs*)
         violations: list[Violation] = []
         node = body.last
         while node:
-            if is_app_def(node):
+            if is_app_def(node, import_alias=import_alias):
                 # type caught by is_app_def
                 _kwargs, _violations = _eval_kwargs(node.value.keywords)  # type: ignore
                 violations.extend(_violations)
                 return ParseResult(
                     AppInstantiation(
                         options=_kwargs,
-                    )
+                    ), violations=violations,
                 )
             violations.append(
                 Violation(
@@ -709,8 +735,8 @@ def get_valid_decorator(
     return None
 
 
-def is_marimo_import(node: Node) -> bool:
-    return isinstance(node, ast.Import) and node.names[0].name == "marimo"
+def is_marimo_import(node: ast.Import) -> bool:
+    return node.names[0].name == "marimo"
 
 
 def is_string(node: Node) -> bool:
@@ -721,7 +747,7 @@ def is_string(node: Node) -> bool:
     )
 
 
-def is_app_def(node: Node) -> bool:
+def is_app_def(node: Node, import_alias="marimo") -> bool:
     # Expected Ast:
     #
     #    Assign(
@@ -740,7 +766,6 @@ def is_app_def(node: Node) -> bool:
     #        ]
     #      )
     #    )
-
     # A bit obnoxious as a huge conditional, but also better for line coverage.
     return (
         isinstance(node, ast.Assign)
@@ -750,7 +775,7 @@ def is_app_def(node: Node) -> bool:
         and isinstance(node.value, ast.Call)
         and isinstance(node.value.func, ast.Attribute)
         and isinstance(node.value.func.value, ast.Name)
-        and node.value.func.value.id == "marimo"
+        and node.value.func.value.id == import_alias
         and node.value.func.attr == "App"
     )
 
@@ -864,13 +889,20 @@ def parse_notebook(contents: str) -> Optional[NotebookSerialization]:
             valid=False,
         )
     violations.extend(import_result.violations)
+    # Extract import alias for the reference
+    # Import(names=[alias(name='marimo', asname='mo')])
+    import_alias = "marimo"
+    if import_result:
+        imported_node = import_result.unwrap()
+        if isinstance(imported_node, ast.Import):
+            import_alias = imported_node.names[0].asname or imported_node.names[0].name
 
     version = None
     if version_result := parser.parse_version(body):
         version = version_result.unwrap()
     violations.extend(version_result.violations)
 
-    if not (app_result := parser.parse_app(body)):
+    if not (app_result := parser.parse_app(body, import_alias=import_alias)):
         raise MarimoFileError("`marimo.App` definition expected.")
     app = app_result.unwrap()
     violations.extend(app_result.violations)
