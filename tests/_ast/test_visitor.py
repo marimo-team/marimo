@@ -1285,7 +1285,9 @@ def test_sql_statement_with_url() -> None:
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set(["cars"])
-    assert v.variable_data == {"cars": [VariableData("table")]}
+    assert v.variable_data == {
+        "cars": [VariableData("table", qualified_name="cars")]
+    }
     assert v.refs == set(["mo"])
 
 

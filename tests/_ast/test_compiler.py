@@ -268,7 +268,9 @@ class TestParseSQLCell:
         assert cell.defs == set(["t1"])
         assert cell.refs == set(["mo"])
         assert cell.language == "sql"
-        assert cell.variable_data == {"t1": [VariableData("table")]}
+        assert cell.variable_data == {
+            "t1": [VariableData("table", qualified_name="t1")]
+        }
 
     @staticmethod
     def test_table_reference() -> None:
@@ -296,7 +298,9 @@ class TestParseSQLCell:
         assert cell.defs == set(["t1"])
         assert cell.refs == set(["duckdb"])
         assert cell.language == "sql"
-        assert cell.variable_data == {"t1": [VariableData("table")]}
+        assert cell.variable_data == {
+            "t1": [VariableData("table", qualified_name="t1")]
+        }
 
     @staticmethod
     @pytest.mark.parametrize(
