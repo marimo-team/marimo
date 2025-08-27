@@ -77,7 +77,7 @@ export const AIModelDropdown = ({
     ].filter(Boolean),
     displayedModels: ai?.models?.displayed_models,
   });
-  const modelsByProvider = aiModelRegistry.getGroupedModelsByProvider();
+  const modelsByProvider = aiModelRegistry.getListModelsByProvider();
 
   const activeModel =
     forRole === "autocomplete"
@@ -157,7 +157,7 @@ export const AIModelDropdown = ({
           renderModelWithRole(AiModelId.parse(activeModel), forRole)}
         {activeModel && forRole && <DropdownMenuSeparator />}
 
-        {[...modelsByProvider.entries()].map(([provider, models]) => (
+        {modelsByProvider.map(([provider, models]) => (
           <ProviderDropdownContent
             key={provider}
             provider={provider}

@@ -13,7 +13,7 @@ import { once } from "@/utils/once";
 import type { ProviderId } from "./ids/ids";
 import { AiModelId, type QualifiedModelId, type ShortModelId } from "./ids/ids";
 
-const PROVIDER_SORT_ORDER: ProviderId[] = [
+export const PROVIDER_SORT_ORDER: ProviderId[] = [
   // Sort by popular ones
   "anthropic",
   "openai",

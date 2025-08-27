@@ -3,7 +3,6 @@
 import {
   BotIcon,
   BrainIcon,
-  CheckIcon,
   ChevronRightIcon,
   InfoIcon,
   PlusIcon,
@@ -1146,8 +1145,8 @@ export const AddModelForm: React.FC<{
   const [customProviderName, setCustomProviderName] = useState("");
   const [modelName, setModelName] = useState("");
 
-  const customProviderInputId = useId();
   const providerSelectId = useId();
+  const customProviderInputId = useId();
   const modelNameInputId = useId();
 
   const isCustomProvider = provider === "custom";
@@ -1179,7 +1178,7 @@ export const AddModelForm: React.FC<{
     setTimeout(() => setModelAdded(false), 2000);
   };
 
-  const providerClassName = "w-36 truncate";
+  const providerClassName = "w-40 truncate";
 
   const providerSelect = (
     <div className="flex flex-col gap-2">
@@ -1201,17 +1200,15 @@ export const AddModelForm: React.FC<{
                   provider={provider as ProviderId}
                   className="h-3.5 w-3.5"
                 />
-                <span className="font-medium text-xs">
-                  {getProviderLabel(provider as ProviderId)}
-                </span>
+                <span>{getProviderLabel(provider as ProviderId)}</span>
               </div>
             ) : (
-              <span className="text-muted-foreground text-xs">Select...</span>
+              <span className="text-muted-foreground">Select...</span>
             )}
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="custom" className="cursor-pointer">
+              <SelectItem value="custom">
                 <div className="flex items-center gap-2">
                   <AiProviderIcon
                     provider="openai-compatible"
@@ -1220,20 +1217,14 @@ export const AddModelForm: React.FC<{
                   <span>Custom</span>
                 </div>
               </SelectItem>
-              {PROVIDERS.filter((provider) => provider !== "marimo").map(
-                (provider) => (
-                  <SelectItem
-                    key={provider}
-                    value={provider}
-                    className="cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <AiProviderIcon provider={provider} className="h-4 w-4" />
-                      <span>{getProviderLabel(provider)}</span>
-                    </div>
-                  </SelectItem>
-                ),
-              )}
+              {PROVIDERS.filter((p) => p !== "marimo").map((p) => (
+                <SelectItem key={p} value={p}>
+                  <div className="flex items-center gap-2">
+                    <AiProviderIcon provider={p} className="h-4 w-4" />
+                    <span>{getProviderLabel(p)}</span>
+                  </div>
+                </SelectItem>
+              ))}
             </SelectGroup>
           </SelectContent>
         </Select>
@@ -1252,7 +1243,7 @@ export const AddModelForm: React.FC<{
             value={customProviderName}
             onChange={(e) => setCustomProviderName(e.target.value)}
             placeholder="openrouter"
-            className={cn("text-xs", providerClassName)}
+            className={providerClassName}
           />
         </div>
       )}
@@ -1277,7 +1268,7 @@ export const AddModelForm: React.FC<{
         value={modelName}
         onChange={(e) => setModelName(e.target.value)}
         placeholder="gpt-4"
-        className="text-xs"
+        className="text-xs mb-0"
       />
     </div>
   );
@@ -1314,11 +1305,9 @@ export const AddModelForm: React.FC<{
           <PlusIcon className="h-4 w-4 mr-2 mb-0.5" />
           Add Model
         </Button>
-
         {modelAdded && (
-          <div className="flex items-center gap-1 text-green-700 bg-green-500/10 p-2 rounded-md ml-auto">
-            <CheckIcon className="h-4 w-4" />
-            Model added
+          <div className="flex items-center gap-1 text-green-700 bg-green-500/10 px-2 py-1 rounded-md ml-auto">
+            ✓ Model added
           </div>
         )}
       </div>
