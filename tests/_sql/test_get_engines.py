@@ -102,10 +102,9 @@ def test_engine_to_data_source_connection() -> None:
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
 def test_engine_to_datasource_connection_error() -> None:
-    # Create the IbisEngine first
     ibis_engine = IbisEngine(MagicMock())
 
-    # Then mock its methods to raise errors
+    # Mock the get_databases method to raise an error
     ibis_engine.get_databases = MagicMock(
         side_effect=Exception("Database connection failed")
     )
