@@ -53,13 +53,21 @@ const getKnownModelMap = once((): ReadonlyMap<QualifiedModelId, AiModel> => {
   return modelMap;
 });
 
-const getProviderMap = once((): ReadonlyMap<ProviderId, AiProvider> => {
-  const providerMap = new Map<ProviderId, AiProvider>();
-  for (const provider of providers) {
-    providerMap.set(provider.id as ProviderId, provider);
-  }
-  return providerMap;
-});
+const getProviderMap = once(
+  (): {
+    providerMap: ReadonlyMap<ProviderId, AiProvider>;
+    providerToOrderIdx: Record<ProviderId, number>;
+  } => {
+    const providerMap = new Map<ProviderId, AiProvider>();
+    const providerToOrderIdx = {} as Record<ProviderId, number>;
+    providers.forEach((provider, idx) => {
+      const providerId = provider.id as ProviderId;
+      providerMap.set(providerId, provider);
+      providerToOrderIdx[providerId] = idx;
+    });
+    return { providerMap, providerToOrderIdx };
+  },
+);
 
 export class AiModelRegistry {
   private modelsByProviderMap = new MultiMap<ProviderId, AiModel>();
@@ -78,7 +86,8 @@ export class AiModelRegistry {
   }
 
   static getProviderInfo(providerId: ProviderId) {
-    return getProviderMap().get(providerId);
+    const { providerMap } = getProviderMap();
+    return providerMap.get(providerId);
   }
 
   /**
@@ -195,15 +204,12 @@ export class AiModelRegistry {
   getListModelsByProvider(): Array<[ProviderId, AiModel[]]> {
     const modelsByProvider = this.getGroupedModelsByProvider();
     const arrayModels = [...modelsByProvider.entries()];
+    const providerToOrderIdx = getProviderMap().providerToOrderIdx;
 
-    // Sort the models by provider alphabetically
     arrayModels.sort((a, b) => {
       const aProvider = a[0];
       const bProvider = b[0];
-      return (
-        PROVIDER_SORT_ORDER.indexOf(aProvider) -
-        PROVIDER_SORT_ORDER.indexOf(bProvider)
-      );
+      return providerToOrderIdx[aProvider] - providerToOrderIdx[bProvider];
     });
     return arrayModels;
   }

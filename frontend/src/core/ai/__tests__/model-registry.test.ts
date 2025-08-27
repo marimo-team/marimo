@@ -235,7 +235,11 @@ describe("AiModelRegistry", () => {
   });
 
   describe("getListModelsByProvider", () => {
-    const PROVIDER_SORT_ORDER = ["anthropic", "openai", "google"];
+    /**
+     * Provider sort order depends on `provider.json`. We can hardcode for tests
+     * OpenAI, Bedrock, Azure, Anthropic, Google, Ollama, GitHub, Marimo
+     */
+    const PROVIDER_SORT_ORDER = ["openai", "anthropic", "google"];
 
     it("should return list of models by provider", () => {
       const registry = AiModelRegistry.create({});
