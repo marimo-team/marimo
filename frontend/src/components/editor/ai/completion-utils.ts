@@ -19,8 +19,12 @@ export function getAICompletionBody({
 }: {
   input: string;
 }): Omit<AiCompletionRequest, "language" | "prompt" | "code"> {
-  const contextString = extractDatasetsAndVariables(input);
-  Logger.debug("Included context", contextString);
+  let contextString = "";
+  // Skip if no '@' in the input
+  if (input.includes("@")) {
+    contextString = extractDatasetsAndVariables(input);
+    Logger.debug("Included context", contextString);
+  }
 
   return {
     includeOtherCode: getCodes(""),
