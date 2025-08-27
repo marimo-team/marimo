@@ -51,7 +51,7 @@ def fixed_dedent(text: str) -> str:
     lines = text.splitlines()
     for line in lines:
         if content := line.lstrip():
-            indent = line[:len(line) - len(content)]
+            indent = line[: len(line) - len(content)]
             break
     else:
         # Quit early, no clear leading spaces
@@ -61,6 +61,7 @@ def fixed_dedent(text: str) -> str:
         if not line.startswith(indent):
             return indent + line
         return line
+
     return dedent("\n".join(map(refill, lines)))
 
 
@@ -455,7 +456,8 @@ class Parser:
                 return ParseResult(
                     AppInstantiation(
                         options=_kwargs,
-                    ), violations=violations,
+                    ),
+                    violations=violations,
                 )
             violations.append(
                 Violation(
@@ -748,7 +750,7 @@ def is_string(node: Node) -> bool:
     )
 
 
-def is_app_def(node: Node, import_alias="marimo") -> bool:
+def is_app_def(node: Node, import_alias: str = "marimo") -> bool:
     # Expected Ast:
     #
     #    Assign(
@@ -896,7 +898,9 @@ def parse_notebook(contents: str) -> Optional[NotebookSerialization]:
     if import_result:
         imported_node = import_result.unwrap()
         if isinstance(imported_node, ast.Import):
-            import_alias = imported_node.names[0].asname or imported_node.names[0].name
+            import_alias = (
+                imported_node.names[0].asname or imported_node.names[0].name
+            )
 
     version = None
     if version_result := parser.parse_version(body):
