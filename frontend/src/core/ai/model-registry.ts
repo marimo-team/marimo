@@ -13,6 +13,18 @@ import { once } from "@/utils/once";
 import type { ProviderId } from "./ids/ids";
 import { AiModelId, type QualifiedModelId, type ShortModelId } from "./ids/ids";
 
+const PROVIDER_SORT_ORDER: ProviderId[] = [
+  // Sort by popular ones
+  "anthropic",
+  "openai",
+  "google",
+  "github",
+  "deepseek",
+  "azure",
+  "bedrock",
+  "ollama",
+];
+
 export interface AiModel extends AiModelType {
   roles: Role[];
   model: ShortModelId;
@@ -178,6 +190,22 @@ export class AiModelRegistry {
 
   getGroupedModelsByProvider() {
     return this.modelsByProviderMap;
+  }
+
+  getListModelsByProvider(): Array<[ProviderId, AiModel[]]> {
+    const modelsByProvider = this.getGroupedModelsByProvider();
+    const arrayModels = [...modelsByProvider.entries()];
+
+    // Sort the models by provider alphabetically
+    arrayModels.sort((a, b) => {
+      const aProvider = a[0];
+      const bProvider = b[0];
+      return (
+        PROVIDER_SORT_ORDER.indexOf(aProvider) -
+        PROVIDER_SORT_ORDER.indexOf(bProvider)
+      );
+    });
+    return arrayModels;
   }
 
   getModelsMap() {

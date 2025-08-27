@@ -367,7 +367,7 @@ export const AiModelInfoDisplay = ({
   );
 };
 
-function getProviderLabel(provider: ProviderId): string {
+export function getProviderLabel(provider: ProviderId): string {
   const providerInfo = AiModelRegistry.getProviderInfo(provider);
   if (providerInfo) {
     return providerInfo.name;
