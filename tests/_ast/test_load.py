@@ -225,6 +225,13 @@ class TestGetCodes:
             )
 
     @staticmethod
+    def test_import_alias(static_load) -> None:
+        app = static_load(get_filepath("test_get_alias_import"))
+        assert app is not None
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == ["one"]
+
+    @staticmethod
     def test_get_codes_app_with_no_cells(load_app) -> None:
         app = load_app(get_filepath("test_app_with_no_cells"))
         assert app is not None
