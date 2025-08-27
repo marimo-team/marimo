@@ -425,7 +425,8 @@ class Parser:
     def parse_version(self, body: PeekStack[Node]) -> ParseResult[str]:
         # __generated_with not being correctly set should not break marimo.
         violations: list[Violation] = []
-        node = body.peek()
+        next(body)
+        node = body.last
         version = _maybe_version(node) if node else None
         if not version:
             lineno = node.lineno if node else 0
