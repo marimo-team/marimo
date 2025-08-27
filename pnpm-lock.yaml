@@ -137,8 +137,8 @@ importers:
         specifier: ^0.1.5
         version: 0.1.5(@codemirror/autocomplete@6.18.6)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@modelcontextprotocol/sdk@1.17.2)
       '@marimo-team/codemirror-sql':
-        specifier: ^0.1.3
-        version: 0.1.3(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+        specifier: ^0.2.1
+        version: 0.2.1(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
       '@marimo-team/llm-info':
         specifier: workspace:*
         version: link:../packages/llm-info
@@ -1814,8 +1814,8 @@ packages:
       '@codemirror/view': ^6
       '@modelcontextprotocol/sdk': ^1
 
-  '@marimo-team/codemirror-sql@0.1.3':
-    resolution: {integrity: sha512-3qx3lzLfxl8x4F4aDxor4lmMFds9xBdkxvWRcU1ILmjXtsnnoStG0BHuMlTpmx7up+sOjGosr0JGGaHycHmZYQ==}
+  '@marimo-team/codemirror-sql@0.2.1':
+    resolution: {integrity: sha512-k/5IwEOIdSUB7wVoazF5qqhogOwaCW63Wpfk0uQ0oc1r5pNolfC0h6ZdZuf+pIHzkWun2u2dg0rMc9UOFtzIHQ==}
     peerDependencies:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
@@ -11230,7 +11230,7 @@ snapshots:
       '@codemirror/view': 6.38.1
       '@modelcontextprotocol/sdk': 1.17.2
 
-  '@marimo-team/codemirror-sql@0.1.3(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+  '@marimo-team/codemirror-sql@0.2.1(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
     dependencies:
       '@codemirror/autocomplete': 6.18.6
       '@codemirror/lint': 6.8.5
