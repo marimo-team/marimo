@@ -206,8 +206,6 @@ SQL_CASES = [
         expected_parents={"0": [], "1": []},
         expected_children={"0": [], "1": []},
         expected_refs={"0": ["pd"], "1": ["mo", "my_schema.df"]},
-        # This is correct
-        # expected_refs={"0": ["pd"], "1": ["df.my_schema", "mo"]},
         expected_defs={"0": ["df"], "1": ["result"]},
     ),
     GraphTestCase(
@@ -220,8 +218,6 @@ SQL_CASES = [
         expected_parents={"0": [], "1": []},
         expected_children={"0": [], "1": []},
         expected_refs={"0": [], "1": ["mo", "my_schema.df"]},
-        # This is correct
-        # expected_refs={"0": ["pd"], "1": ["my_schema.df", "mo"]},
         expected_defs={"0": ["my_schema"], "1": []},
     ),
     GraphTestCase(
@@ -234,8 +230,6 @@ SQL_CASES = [
         expected_parents={"0": [], "1": []},
         expected_children={"0": [], "1": []},
         expected_refs={"0": [], "1": ["mo", "my_catalog.my_schema.df"]},
-        # This is correct
-        # expected_refs={"0": ["pd"], "1": ["my_catalog.my_schema.df", "mo"]},
         expected_defs={"0": ["my_catalog"], "1": []},
     ),
     GraphTestCase(
@@ -304,7 +298,6 @@ SQL_CASES = [
             "1": ["mo"],
             "2": ["mo", "schema_one.my_table"],
         },
-        # TODO: What should the defs be?
         expected_defs={"0": ["my_table"], "1": ["my_table"], "2": []},
     ),
     GraphTestCase(
