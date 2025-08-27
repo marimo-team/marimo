@@ -100,6 +100,23 @@ def test_engine_to_data_source_connection() -> None:
     assert connection.display_name == f"{backend_name} ({var_name})"
 
 
+@pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
+def test_engine_to_datasource_connection_error() -> None:
+    # Create the IbisEngine first
+    ibis_engine = IbisEngine(MagicMock())
+
+    # Then mock its methods to raise errors
+    ibis_engine.get_databases = MagicMock(
+        side_effect=Exception("Database connection failed")
+    )
+
+    connection = engine_to_data_source_connection(
+        VariableName("my_ibis"), ibis_engine
+    )
+    assert isinstance(connection, DataSourceConnection)
+    assert connection.databases == []
+
+
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
 def test_get_engines_from_variables_duckdb():
     import duckdb
