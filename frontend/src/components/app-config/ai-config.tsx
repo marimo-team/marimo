@@ -1155,6 +1155,8 @@ export const AddModelForm: React.FC<{
   const providerSelectId = useId();
 
   const isCustomProvider = provider === "custom";
+  const hasValidValues =
+    provider && modelName && (!isCustomProvider || customProviderName);
 
   const resetForm = () => {
     setProvider("");
@@ -1164,6 +1166,10 @@ export const AddModelForm: React.FC<{
   };
 
   const handleAddModel = () => {
+    if (!hasValidValues) {
+      return;
+    }
+
     let providerName = provider;
     if (provider === "custom") {
       providerName = customProviderName;
@@ -1278,27 +1284,17 @@ export const AddModelForm: React.FC<{
         value={modelName}
         onChange={(e) => setModelName(e.target.value)}
         placeholder="gpt-4"
-        className="w-40 text-xs"
+        className="text-xs"
       />
     </div>
   );
 
   const addModelButtons = (
     <div className={cn("flex gap-1.5 ml-auto", isCustomProvider && "self-end")}>
-      <Button
-        onClick={handleAddModel}
-        disabled={!provider || !modelName}
-        size="sm"
-        className="px-3 h-7 bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-      >
+      <Button onClick={handleAddModel} disabled={!hasValidValues} size="xs">
         Add
       </Button>
-      <Button
-        variant="outline"
-        onClick={resetForm}
-        size="sm"
-        className="px-3 h-7 border-border hover:bg-muted/50 transition-colors text-xs"
-      >
+      <Button variant="outline" onClick={resetForm} size="xs">
         Cancel
       </Button>
     </div>
