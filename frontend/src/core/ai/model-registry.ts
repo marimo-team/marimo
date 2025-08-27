@@ -56,14 +56,14 @@ const getKnownModelMap = once((): ReadonlyMap<QualifiedModelId, AiModel> => {
 const getProviderMap = once(
   (): {
     providerMap: ReadonlyMap<ProviderId, AiProvider>;
-    providerToOrderIdx: Record<ProviderId, number>;
+    providerToOrderIdx: ReadonlyMap<ProviderId, number>;
   } => {
     const providerMap = new Map<ProviderId, AiProvider>();
-    const providerToOrderIdx = {} as Record<ProviderId, number>;
+    const providerToOrderIdx = new Map<ProviderId, number>();
     providers.forEach((provider, idx) => {
       const providerId = provider.id as ProviderId;
       providerMap.set(providerId, provider);
-      providerToOrderIdx[providerId] = idx;
+      providerToOrderIdx.set(providerId, idx);
     });
     return { providerMap, providerToOrderIdx };
   },
@@ -209,7 +209,9 @@ export class AiModelRegistry {
     arrayModels.sort((a, b) => {
       const aProvider = a[0];
       const bProvider = b[0];
-      return providerToOrderIdx[aProvider] - providerToOrderIdx[bProvider];
+      const aOrderIdx = providerToOrderIdx.get(aProvider) ?? 0;
+      const bOrderIdx = providerToOrderIdx.get(bProvider) ?? 0;
+      return aOrderIdx - bOrderIdx;
     });
     return arrayModels;
   }
