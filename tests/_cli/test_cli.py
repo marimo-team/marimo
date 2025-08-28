@@ -1189,6 +1189,7 @@ def test_cli_edit_with_convert(
     p = subprocess.Popen(
         [
             "marimo",
+            "-y",
             "edit",
             "--convert",
             temp_possible_file,
