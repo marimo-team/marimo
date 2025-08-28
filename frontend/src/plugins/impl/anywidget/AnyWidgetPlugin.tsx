@@ -62,11 +62,28 @@ const AnyWidgetSlot = (props: Props) => {
   // JS is an ESM file with a render function on it
   // export function render({ model, el }) {
   //   ...
-  const { data: module, error } = useAsyncData(async () => {
+  const {
+    data: module,
+    error,
+    refetch,
+  } = useAsyncData(async () => {
     const url = asRemoteURL(jsUrl).toString();
     return await import(/* @vite-ignore */ url);
-    // Re-render on jsHash change instead of url change (since URLs may change)
+    // Re-render on jsHash change (which is a hash of the contents of the file)
+    // instead of a jsUrl change because URLs may change without the contents
+    // actually changing (and we don't want to re-render on every change).
+    // If there is an error loading the URL (e.g. maybe an invalid or old URL),
+    // we also want to re-render.
   }, [jsHash]);
+
+  // If there is an error and the jsUrl has changed, we want to re-render
+  // because the URL may have changed to a valid URL.
+  const hasError = Boolean(error);
+  useEffect(() => {
+    if (hasError && jsUrl) {
+      refetch();
+    }
+  }, [hasError, jsUrl]);
 
   const valueWithBuffer = useMemo(() => {
     return updateBufferPaths(props.value, bufferPaths);

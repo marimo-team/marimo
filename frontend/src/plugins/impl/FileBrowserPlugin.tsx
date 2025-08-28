@@ -17,13 +17,13 @@ import { toast } from "@/components/ui/use-toast";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { cn } from "@/utils/cn";
-import { Logger } from "@/utils/Logger";
 import { type FilePath, PathBuilder, Paths } from "@/utils/paths";
 import { getProtocolAndParentDirectories } from "@/utils/pathUtils";
 import { PluralWords } from "@/utils/pluralize";
 import { createPlugin } from "../core/builder";
 import { renderHTML } from "../core/RenderHTML";
 import { rpc } from "../core/rpc";
+import { Banner } from "./common/error-banner";
 
 /**
  * Arguments for a file browser component.
@@ -108,6 +108,7 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
     <FileBrowser
       {...props.data}
       {...props.functions}
+      host={props.host}
       value={props.value}
       setValue={props.setValue}
     />
@@ -122,6 +123,7 @@ const PARENT_DIRECTORY = "..";
 interface FileBrowserProps extends Data, PluginFunctions {
   value: S;
   setValue: (value: S) => void;
+  host: HTMLElement;
 }
 
 /**
@@ -138,27 +140,19 @@ export const FileBrowser = ({
   label,
   restrictNavigation,
   list_directory,
+  host,
 }: FileBrowserProps): JSX.Element | null => {
   const [path, setPath] = useInternalStateWithSync(initialPath);
   const [selectAllLabel, setSelectAllLabel] = useState("Select all");
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
 
-  const { data, error, isPending } = useAsyncData(
-    () =>
-      list_directory({
-        path: path,
-      }),
-    [path],
-  );
+  // HACK: use the random-id of the host element to force a re-render
+  // when the random-id changes, this means the cell was re-rendered
+  const randomId = host.closest("[random-id]")?.getAttribute("random-id");
 
-  if (error) {
-    Logger.error(error);
-    toast({
-      title: `Could not load files in directory ${path}`,
-      description: error.message,
-      variant: "danger",
-    });
-  }
+  const { data, error, isPending } = useAsyncData(() => {
+    return list_directory({ path: path });
+  }, [path, randomId]);
 
   if (isPending) {
     return null;
@@ -413,13 +407,12 @@ export const FileBrowser = ({
 
     if (multiple) {
       return (
-        <div className="grid grid-cols-2 items-center border">
-          <div className="justify-self-start mb-1">{labelText}</div>
-          <div className="justify-self-end">
+        <div className="flex items-center justify-between border px-2">
+          <div className="mb-1">{labelText}</div>
+          <div>
             <Button
               size="xs"
               variant="link"
-              className="w-full"
               onClick={
                 selectAllLabel === "Select all"
                   ? () => selectAllFiles()
@@ -438,6 +431,7 @@ export const FileBrowser = ({
 
   return (
     <div>
+      {error && <Banner kind="danger">{error.message}</Banner>}
       {renderHeader()}
       <NativeSelect
         className="mt-2 w-full"
