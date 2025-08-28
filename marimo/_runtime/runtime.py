@@ -487,6 +487,7 @@ class Kernel:
         pre_execution_hooks: list[PreExecutionHookType] | None = None,
         post_execution_hooks: list[PostExecutionHookType] | None = None,
         on_finish_hooks: list[OnFinishHookType] | None = None,
+        render_hook: PostExecutionHookType | None = None,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
     ) -> None:
         self.app_metadata = app_metadata
@@ -558,7 +559,8 @@ class Kernel:
             self._post_execution_hooks.append(attempt_pytest)
 
         # Must be last to properly trigger render.
-        self._post_execution_hooks.append(render_toplevel_defs)
+        if render_hook is not None:
+            self._post_execution_hooks.append(render_hook)
 
         self._globals_lock = threading.RLock()
         self._state_lock = threading.RLock()
@@ -2715,6 +2717,9 @@ def launch_kernel(
         else None
     )
 
+    # Run mode kernels do not need additional rendering for toplevel defs
+    render_hook = render_toplevel_defs if is_edit_mode else None
+
     # In run mode, the kernel should always be in autorun, and the module
     # autoreloader is disabled
     if not is_edit_mode:
@@ -2742,6 +2747,7 @@ def launch_kernel(
         debugger_override=debugger,
         user_config=user_config,
         enqueue_control_request=_enqueue_control_request,
+        render_hook=render_hook,
     )
     ctx = initialize_kernel_context(
         kernel=kernel,
