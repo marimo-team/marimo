@@ -178,8 +178,11 @@ class TestGetCodes:
         app = load_app(get_filepath("test_get_codes_multiline_string"))
         assert app is not None
         cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["one"]
-        assert list(cell_manager.codes()) == ['c = """\n  a, b"""; ']
+        assert list(cell_manager.names()) == ["one", "two"]
+        assert list(cell_manager.codes()) == [
+            'c = """\n  a, b"""; ',
+            'd = """\na, b"""\n# comment',
+        ]
 
     @staticmethod
     def test_get_codes_comment_after_sig(load_app) -> None:
@@ -223,6 +226,13 @@ class TestGetCodes:
             static_load(
                 get_filepath("test_get_codes_non_marimo_python_script")
             )
+
+    @staticmethod
+    def test_import_alias(static_load) -> None:
+        app = static_load(get_filepath("test_get_alias_import"))
+        assert app is not None
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == ["one"]
 
     @staticmethod
     def test_get_codes_app_with_no_cells(load_app) -> None:
