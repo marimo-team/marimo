@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from http.client import HTTPResponse, HTTPSConnection
@@ -40,6 +41,8 @@ from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.codes import WebSocketCodes
 from marimo._server.model import SessionMode
+from marimo._server.print import print_timeout
+from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._tracer import server_tracer
 
 if TYPE_CHECKING:
@@ -533,3 +536,53 @@ class ProxyMiddleware:
             if websocket.client_state != WebSocketState.DISCONNECTED:
                 await websocket.close(code=WebSocketCodes.UNEXPECTED_ERROR)
             raise
+
+
+class TimeoutMiddleware(BaseHTTPMiddleware):
+    def __init__(
+        self,
+        app: ASGIApp,
+        dispatch: DispatchFunction | None = None,
+        app_state: Any = None,
+        timeout_duration_minutes: float = 10,
+    ) -> None:
+        super().__init__(app, dispatch)
+
+        self.app_state = app_state
+        self.app_state.timeout_tracker = time.time()
+        self.timeout_duration_minutes = timeout_duration_minutes
+        LOGGER.info("Creating a TimeoutMiddleware")
+
+        asyncio.create_task(self.monitor())
+
+    async def __call__(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        request = Request(scope)
+
+        request.app.state.timeout_tracker = time.time()
+
+        LOGGER.info(f"Connection detected {request.app.state.timeout_tracker}")
+
+        return await self.app(scope, receive, send)
+
+    async def monitor(self) -> None:
+        while True:
+            await asyncio.sleep(10)
+            LOGGER.info("Checking time!")
+
+            time_delta = time.time() - self.app_state.timeout_tracker
+
+            if time_delta > self.timeout_duration_minutes * 60:
+                print_timeout()
+                self.shutdown()
+
+    def shutdown(self) -> None:
+        manager = self.app_state.session_manager
+
+        manager.shutdown()
+        if self.app_state.server:
+            close_uvicorn(self.app_state.server)

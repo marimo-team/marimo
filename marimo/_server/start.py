@@ -90,6 +90,7 @@ def start(
     redirect_console_to_browser: bool,
     skew_protection: bool,
     remote_url: Optional[str] = None,
+    timeout: Optional[float] = None,
 ) -> None:
     """
     Start the server.
@@ -182,6 +183,7 @@ def start(
         if lsp_composite_server is not None
         else None,
         skew_protection=skew_protection,
+        timeout=timeout,
     )
 
     app.state.port = external_port

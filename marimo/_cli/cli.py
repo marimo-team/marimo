@@ -451,6 +451,14 @@ https://github.com/marimo-team/marimo/issues/5219.""",
     type=click.Path(),
 )
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
+@click.option(
+    "--timeout",
+    required=False,
+    default=None,
+    show_default=False,
+    type=float,
+    help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
+)
 def edit(
     port: Optional[int],
     host: str,
@@ -470,6 +478,7 @@ def edit(
     convert: bool,
     name: Optional[str],
     args: tuple[str, ...],
+    timeout: Optional[float],
 ) -> None:
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
     if name is None and (stdin_contents := _get_stdin_contents()) is not None:
@@ -595,6 +604,7 @@ def edit(
         redirect_console_to_browser=True,
         ttl_seconds=None,
         remote_url=remote_url,
+        timeout=timeout,
     )
 
 
@@ -694,6 +704,14 @@ new_help_msg = "\n".join(
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
 @click.argument("prompt", required=False)
+@click.option(
+    "--timeout",
+    required=False,
+    default=None,
+    show_default=False,
+    type=float,
+    help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
+)
 def new(
     port: Optional[int],
     host: str,
@@ -705,6 +723,7 @@ def new(
     sandbox: Optional[bool],
     skew_protection: bool,
     prompt: Optional[str],
+    timeout: Optional[float],
 ) -> None:
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
@@ -782,6 +801,7 @@ def new(
         base_url=base_url,
         redirect_console_to_browser=True,
         ttl_seconds=None,
+        timeout=timeout,
     )
 
 
