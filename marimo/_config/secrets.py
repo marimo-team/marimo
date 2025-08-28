@@ -41,9 +41,7 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
             elif obj[key]:
                 obj[key] = SECRET_PLACEHOLDER
         else:
-            deep_remove_from_path(
-                remaining_path, cast(dict[str, Any], obj[key])
-            )
+            deep_remove_from_path(remaining_path, obj[key])
 
     secrets = (
         ("ai", "*", "api_key"),
