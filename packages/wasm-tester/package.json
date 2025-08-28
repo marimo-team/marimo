@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "start": "tsc && node dist/index.js"
+    "start": "tsc && node dist/index.js serve",
+    "cli": "tsc && node dist/index.js"
   },
   "keywords": [],
   "author": "",
@@ -13,9 +14,14 @@
   "dependencies": {
     "@types/express": "^5.0.3",
     "@types/node": "^24.3.0",
+    "@types/yargs": "^17.0.33",
+    "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "http-proxy-3": "^1.20.14",
+    "minimatch": "^10.0.3",
     "pyodide": "0.27.7",
-    "typescript": "^5.9.2"
+    "smol-toml": "^1.4.2",
+    "typescript": "^5.9.2",
+    "yargs": "^18.0.0"
   }
 }

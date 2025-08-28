@@ -9,29 +9,53 @@
 
 set -euxo pipefail
 
+# CHECK IF USE_OVERLAYFS is on it is off by default
+USE_OVERLAYFS=${USE_OVERLAYFS:-false}
+
 CURRENT_DIR=$(pwd)
 
-always_unmount() {
-    echo "unmounting after error"
-    cd /
-    umount /container/workspace/.pixi
-    umount /container/workspace
-    umount /tmp/overlay
+cleanup() {
+    echo "Cleaning up"
+    # Usually this does nothing unless we are using the overlayfs
 }
 
-trap 'always_unmount' ERR
+if [ "$USE_OVERLAYFS" = true ]; then
+    echo "Using overlayfs"
 
-echo "Creating overlayfs for marimo-base build so we can modify pyproject.toml on the fly"
-# Create an overlayfs of the main repository
-mkdir -p /tmp/pixi
-mkdir -p /tmp/overlay
-mount -t tmpfs tmpfs /tmp/overlay
-mkdir -p /tmp/overlay/{upper,work}
-mkdir -p /container/workspace
-mount -t overlay overlay -o lowerdir=${CURRENT_DIR},upperdir=/tmp/overlay/upper,workdir=/tmp/overlay/work /container/workspace
+    # Unset the original cleanup function to override
+    unset cleanup
+    
+    cleanup() {
+        echo "Cleaning up"
+        cd /
+        umount /container/workspace/.pixi
+        umount /container/workspace
+        umount /tmp/overlay
+    }
 
-# Bind mount the pixi environment on top of the overlayfs so we can use pixi
-mount --bind /tmp/pixi /container/workspace/.pixi
+    always_unmount() {
+        echo "unmounting after error"
+        cleanup
+    }
+
+    trap 'always_unmount' ERR
+
+    echo "Creating overlayfs for marimo-base build so we can modify pyproject.toml on the fly"
+    # Create an overlayfs of the main repository
+    mkdir -p /tmp/pixi
+    mkdir -p /tmp/overlay
+    mount -t tmpfs tmpfs /tmp/overlay
+    mkdir -p /tmp/overlay/{upper,work}
+    mkdir -p /container/workspace
+    mount -t overlay overlay -o lowerdir=${CURRENT_DIR},upperdir=/tmp/overlay/upper,workdir=/tmp/overlay/work /container/workspace
+
+    # Bind mount the pixi environment on top of the overlayfs so we can use pixi
+    mount --bind /tmp/pixi /container/workspace/.pixi
+else
+    echo "Not using overlayfs copying files directly"
+
+    cp -r ${CURRENT_DIR}/* /container/workspace/
+fi
 
 pushd /container/workspace
 
@@ -61,9 +85,6 @@ cp dist/*.whl ${OUTPUT_DIR}
 
 popd
 
-# Unmount all
-umount /container/workspace/.pixi
-umount /container/workspace
-umount /tmp/overlay
+cleanup
 
 echo "BUILD COMPLETE: ${wheel_file}"
