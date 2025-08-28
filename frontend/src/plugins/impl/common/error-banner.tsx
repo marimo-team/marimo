@@ -17,9 +17,11 @@ import { Logger } from "@/utils/Logger";
 export const ErrorBanner = ({
   error,
   className,
+  action,
 }: {
   error: Error | string;
   className?: string;
+  action?: React.ReactNode;
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -39,6 +41,7 @@ export const ErrorBanner = ({
         onClick={() => setOpen(true)}
       >
         <span className="line-clamp-4">{message}</span>
+        {action && <div className="flex justify-end">{action}</div>}
       </Banner>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent className="max-w-[80%] max-h-[80%] overflow-hidden flex flex-col">
