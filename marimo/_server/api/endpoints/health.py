@@ -28,7 +28,7 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 
-async def health_check(request: Request) -> JSONResponse:
+def health_check(request: Request) -> JSONResponse:
     del request  # Unused
     return JSONResponse({"status": "healthy"})
 
