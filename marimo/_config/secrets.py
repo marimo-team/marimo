@@ -18,6 +18,13 @@ def mask_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
 def mask_secrets(config: MarimoConfig) -> MarimoConfig:
     def deep_remove_from_path(path: list[str], obj: dict[str, Any]) -> None:
         key = path[0]
+        if key == "*":
+            for v in obj.values():
+                if isinstance(v, dict):
+                    deep_remove_from_path(path[1:], cast(dict[str, Any], v))
+                elif isinstance(v, list):
+                    deep_remove_from_path(path[1:], cast(dict[str, Any], v))
+            return
         if key not in obj:
             return
         if len(path) == 1:
@@ -29,12 +36,7 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
             deep_remove_from_path(path[1:], cast(dict[str, Any], obj[key]))
 
     secrets = [
-        ["ai", "open_ai", "api_key"],
-        ["ai", "open_ai_compatible", "api_key"],
-        ["ai", "azure", "api_key"],
-        ["ai", "ollama", "api_key"],
-        ["ai", "anthropic", "api_key"],
-        ["ai", "google", "api_key"],
+        ["ai", "*", "api_key"],
         ["ai", "bedrock", "aws_access_key_id"],
         ["ai", "bedrock", "aws_secret_access_key"],
         ["runtime", "dotenv"],
