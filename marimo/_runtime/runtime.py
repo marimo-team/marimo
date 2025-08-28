@@ -842,8 +842,13 @@ class Kernel:
     ) -> tuple[Optional[CellImpl], Optional[Error]]:
         error: Optional[Error] = None
         try:
+            from marimo._ast.compiler import lookup
+
             cell = compile_cell(
-                code, cell_id=cell_id, carried_imports=carried_imports
+                code,
+                cell_id=cell_id,
+                carried_imports=carried_imports,
+                source_position=lookup.get(cell_id, None),
             )
         except Exception as e:
             cell = None
