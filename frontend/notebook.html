@@ -1,0 +1,123 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script type="module" src="/@vite/client"></script>
+
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <!-- Preload is necessary because we show these images when we disconnect from the server,
+    but at that point we cannot load these images from the server -->
+    <link rel="preload" href="/src/assets/gradient.png" as="image" />
+    <link rel="preload" href="/src/assets/noise.png" as="image" />
+    <!-- Preload the fonts -->
+    <link rel="preload" href="/src/fonts/Lora/Lora-VariableFont_wght.ttf" as="font" crossorigin="anonymous" />
+    <link rel="preload" href="/src/fonts/PT_Sans/PTSans-Regular.ttf" as="font" crossorigin="anonymous" />
+    <link rel="preload" href="/src/fonts/PT_Sans/PTSans-Bold.ttf" as="font" crossorigin="anonymous" />
+    <link rel="preload" href="/src/fonts/Fira_Mono/FiraMono-Regular.ttf" as="font" crossorigin="anonymous" />
+    <link rel="preload" href="/src/fonts/Fira_Mono/FiraMono-Medium.ttf" as="font" crossorigin="anonymous" />
+    <link rel="preload" href="/src/fonts/Fira_Mono/FiraMono-Bold.ttf" as="font" crossorigin="anonymous" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="a marimo app" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <script data-marimo="true">
+      function __resizeIframe(obj) {
+        var scrollbarHeight = 20; // Max between windows, mac, and linux
+
+        function setHeight() {
+          var element = obj.contentWindow.document.documentElement;
+          // If there is no vertical scrollbar, we don't need to resize the iframe
+          if (element.scrollHeight === element.clientHeight) {
+            return;
+          }
+
+          // Create a new height that includes the scrollbar height if it's visible
+          var hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
+          var newHeight = element.scrollHeight + (hasHorizontalScrollbar ? scrollbarHeight : 0);
+
+          // Only update the height if it's different from the current height
+          if (obj.style.height !== `${newHeight}px`) {
+            obj.style.height = `${newHeight}px`;
+          }
+        }
+
+        // Resize the iframe to the height of the content and bottom scrollbar height
+        setHeight();
+
+        // Resize the iframe when the content changes
+        const resizeObserver = new ResizeObserver((entries) => {
+          setHeight();
+        });
+        resizeObserver.observe(obj.contentWindow.document.body);
+      }
+    </script>
+    <marimo-filename hidden>{{ filename }}</marimo-filename>
+    <!-- TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see marimo/server/_templates/template.py) -->
+    <marimo-version data-version="{{ version }}" hidden></marimo-version>
+    <marimo-user-config data-config="{{ user_config }}" hidden></marimo-user-config>
+    <marimo-server-token data-token="{{ server_token }}" hidden></marimo-server-token>
+    <!-- /TODO -->
+    <title>marimo</title>
+  <marimo-wasm></marimo-wasm></head>
+  <body>
+    <div id="root"></div>
+    <!-- This is a portal for the data editor to render in -->
+    <div id="portal" data-testid="glide-portal" style="position: fixed; left: 0; top: 0; z-index: 9999"></div>
+    <script data-marimo="true">
+      window.__MARIMO_MOUNT_CONFIG__ = {
+        "filename":"notebook.py",
+        "mode":"edit",
+        "version":"latest",
+        "config":{},
+        "configOverrides":{},
+        "appConfig":{},
+        "serverToken":"",
+        "fileStores": [
+          {
+            "saveFile": (contents) => {
+              console.log("Saving file with contents:", contents);
+            },
+            "readFile": () => {
+      const notebookCode = `
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "drawdata",
+# ]
+# ///
+import marimo
+app = marimo.App()
+
+@app.cell
+def __():
+    import pandas
+    import polars
+    print("hi there")
+    return
+
+@app.cell
+def setup_pyoso():
+    import pyoso as oso
+    client = oso.Client()
+    pyoso = client.dbapi_connection()
+    return 
+
+if __name__ == "__main__":
+    print("running notebook!!!!!!!!!!!!!!!!!")
+    app.run()
+`;
+              return notebookCode;
+            }
+          }
+        ]
+      };
+    </script>
+    <script type="module" src="/src/oso.tsx"></script>
+  </body>
+</html>
+
+</html>
