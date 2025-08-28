@@ -17,13 +17,21 @@ def mask_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
 
 def mask_secrets(config: MarimoConfig) -> MarimoConfig:
     def deep_remove_from_path(path: list[str], obj: dict[str, Any]) -> None:
+        if not path:
+            return
+
         key = path[0]
+        remaining_path = path[1:]
+
         if key == "*":
             for v in obj.values():
                 if isinstance(v, dict):
-                    deep_remove_from_path(path[1:], cast(dict[str, Any], v))
-                elif isinstance(v, list):
-                    deep_remove_from_path(path[1:], cast(dict[str, Any], v))
+                    deep_remove_from_path(remaining_path, v)
+                elif isinstance(v, list) and remaining_path:
+                    # Only first layer recursion
+                    for item in v:
+                        if isinstance(item, dict):
+                            deep_remove_from_path(remaining_path, item)
             return
         if key not in obj:
             return
@@ -33,18 +41,22 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
             elif obj[key]:
                 obj[key] = SECRET_PLACEHOLDER
         else:
-            deep_remove_from_path(path[1:], cast(dict[str, Any], obj[key]))
+            deep_remove_from_path(
+                remaining_path, cast(dict[str, Any], obj[key])
+            )
 
-    secrets = [
-        ["ai", "*", "api_key"],
-        ["ai", "bedrock", "aws_access_key_id"],
-        ["ai", "bedrock", "aws_secret_access_key"],
-        ["runtime", "dotenv"],
-    ]
+    secrets = (
+        ("ai", "*", "api_key"),
+        ("ai", "bedrock", "aws_access_key_id"),
+        ("ai", "bedrock", "aws_secret_access_key"),
+        ("runtime", "dotenv"),
+    )
 
     new_config = deep_copy(config)
+    config_dict = cast(dict[str, Any], new_config)
+
     for secret in secrets:
-        deep_remove_from_path(secret, cast(dict[str, Any], new_config))
+        deep_remove_from_path(list(secret), config_dict)
 
     return new_config  # type: ignore
 
