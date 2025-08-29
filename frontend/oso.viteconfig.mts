@@ -8,11 +8,12 @@ export default defineConfig({
   // Add any OSO-specific config here
   build: {
     rollupOptions: {
+      preserveEntrySignatures: "allow-extension",
       input: {
-        "oso.js": path.resolve(__dirname, "./src/oso.tsx"),
-        "wasm/controller.js": path.resolve(__dirname, "./src/oso-extensions/wasm/controller.tsx"),
+        "oso": path.resolve(__dirname, "./src/oso.tsx"),
+        "wasm/controller": path.resolve(__dirname, "./src/oso-extensions/wasm/controller.tsx"),
         "index": path.resolve(__dirname, "./index.html"),
-        "notebook": path.resolve(__dirname, "./notebook.html")
+        "notebook": path.resolve(__dirname, "./notebook.html"),
       },
       output: {
         entryFileNames: (chunk) => {
