@@ -1,9 +1,6 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <script type="module" src="/@vite/client"></script>
-
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.ico" />
     <!-- Preload is necessary because we show these images when we disconnect from the server,
@@ -61,12 +58,14 @@
     <marimo-user-config data-config="{{ user_config }}" hidden></marimo-user-config>
     <marimo-server-token data-token="{{ server_token }}" hidden></marimo-server-token>
     <!-- /TODO -->
-    <title>marimo</title>
-  <marimo-wasm></marimo-wasm></head>
+    <title>{{ title }}</title>
+    <marimo-wasm></marimo-wasm>
+  </head>
   <body>
     <div id="root"></div>
     <!-- This is a portal for the data editor to render in -->
     <div id="portal" data-testid="glide-portal" style="position: fixed; left: 0; top: 0; z-index: 9999"></div>
+
     <script data-marimo="true">
       window.__MARIMO_MOUNT_CONFIG__ = {
         "filename":"notebook.py",
@@ -118,6 +117,4 @@ if __name__ == "__main__":
     </script>
     <script type="module" src="/src/oso.tsx"></script>
   </body>
-</html>
-
 </html>
