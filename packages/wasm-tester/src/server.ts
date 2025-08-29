@@ -149,7 +149,7 @@ export async function startServer(config: BuildConfig) {
     return lockfileJson;
   }
 
-  app.all("/pyodide-lock.json", async (_req, res) => {
+  app.all("/wasm/pyodide-lock.json", async (_req, res) => {
     const lockfileJson = await lockFileGenerator();
     res
       .status(200)
