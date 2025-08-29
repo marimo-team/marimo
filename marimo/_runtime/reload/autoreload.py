@@ -146,7 +146,11 @@ class ModuleReloader:
     def filename_and_mtime(
         self, module: types.ModuleType
     ) -> ModuleMTime | None:
-        if not hasattr(module, "__file__") or module.__file__ is None:
+        try:
+            if not hasattr(module, "__file__") or module.__file__ is None:
+                return None
+        # Compat with cmodules in Python < 3.10
+        except ModuleNotFoundError:
             return None
 
         if getattr(module, "__name__", None) in [
