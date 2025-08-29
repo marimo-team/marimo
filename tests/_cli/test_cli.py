@@ -1232,5 +1232,5 @@ def test_cli_edit_with_timeout() -> None:
         text=True,
     )
 
-    stdout, _ = p.communicate(timeout=60)
+    stdout, _ = p.communicate(timeout=5)
     assert "Timeout due to inactivity" in stdout
