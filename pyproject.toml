@@ -15,10 +15,10 @@ dependencies = [
     # code completion
     "jedi>=0.18.0",
     # compile markdown to html
-    "markdown>=3.4,<4",
+    "markdown>=3.6,<4",
     # add features to markdown
     # Pinned to specific version for introduction of codeblock handling.
-    "pymdown-extensions>=10.12,<11",
+    "pymdown-extensions>=10.15,<11",
     # syntax highlighting of code in markdown
     "pygments>=2.13,<3",
     # for reading, writing configs
