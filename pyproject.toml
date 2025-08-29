@@ -29,9 +29,9 @@ dependencies = [
     # - 0.22.0 introduced timeout-graceful-shutdown, which we use
     "uvicorn >= 0.22.0",
     # web framework
-    # - 0.29.0 introduced TestClient options, which we use
+    # - 0.29.0 introduced Middleware kwargs, which we use
     # - starlette 0.36.0 introduced a bug
-    "starlette>=0.29.0,!=0.36.0",
+    "starlette>=0.35.0,!=0.36.0",
     # websockets for use with starlette, and for lsp
     "websockets >= 14.2.0",
     # loro for collaborative editing
@@ -45,7 +45,7 @@ dependencies = [
     # required dependency in Starlette for SessionMiddleware support
     "itsdangerous>=2.0.0",
     # for dataframe support
-    "narwhals>=1.12.0",
+    "narwhals>=1.34.1",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
 ]
@@ -170,7 +170,7 @@ dependencies = [
     "panel~=1.5.3",
     "polars~=1.9.0",
     # Types in 2.2.0 don't work great with mypy
-    "narwhals>=1.12.0, <2.2.0",
+    "narwhals>=1.34.1, <2.2.0",
     "matplotlib>=3.8.0",
     "sqlglot>=25.11",
     "sqlalchemy>=2.0.40",
