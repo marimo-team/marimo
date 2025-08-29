@@ -7,7 +7,10 @@ set -euxo pipefail
 # Check for USE_OVERLAYFS
 USE_OVERLAYFS=${USE_OVERLAYFS:-false}
 
-rm -r .wasmbuilds
+# Delete .wasmbuilds if it exists
+if [ -d .wasmbuilds ]; then
+    rm -rf .wasmbuilds
+fi
 mkdir -p .wasmbuilds
 
 # If the docker container is not running, start it
