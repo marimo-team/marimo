@@ -14,6 +14,7 @@ from marimo._runtime import dataflow
 from marimo._runtime.reload.autoreload import (
     ModuleReloader,
     modules_imported_by_cell,
+    safe_getattr,
 )
 
 if TYPE_CHECKING:
@@ -56,7 +57,7 @@ def _depends_on(
     for found_module in itertools.chain(
         [src_module], module_dependencies.values()
     ):
-        file = getattr(found_module, "__file__", None)
+        file = safe_getattr(found_module, "__file__", None)
         if file is None:
             continue
 
@@ -76,7 +77,7 @@ def _depends_on(
 
 
 def _is_third_party_module(module: types.ModuleType) -> bool:
-    filepath = getattr(module, "__file__", None)
+    filepath = safe_getattr(module, "__file__", None)
     if filepath is None:
         return False
     return "site-packages" in pathlib.Path(filepath).parts
