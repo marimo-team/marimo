@@ -63,28 +63,62 @@ def test_convert_to_openai_messages(sample_messages: list[ChatMessage]):
 
     assert len(result) == 2
 
-    # Check user message
-    assert result[0]["role"] == "user"
-    assert len(result[0]["content"]) == 3
-    assert result[0]["content"][0] == {
-        "type": "text",
-        "text": "Hello, I have a question.",
-    }
-    assert result[0]["content"][1] == {
-        "type": "image_url",
-        "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
-    }
-    assert result[0]["content"][2] == {
-        "type": "text",
-        "text": "A\n1\n2\n3\n",
-    }
+    assert result == [
+        # User message
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Hello, I have a question."},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
+                },
+                {"type": "text", "text": "A\n1\n2\n3\n"},
+            ],
+        },
+        # Assistant message
+        {
+            "role": "assistant",
+            "content": "Sure, I'd be happy to help. What's your question?",
+        },
+    ]
 
-    # Check assistant message
-    assert result[1]["role"] == "assistant"
-    assert (
-        result[1]["content"]
-        == "Sure, I'd be happy to help. What's your question?"
-    )
+
+def test_convert_to_openai_messages_with_parts_and_attachments():
+    sample_messages = [
+        ChatMessage(
+            role="user",
+            content="Message with parts and attachments",
+            attachments=[
+                ChatAttachment(
+                    name="image.png",
+                    content_type="image/png",
+                    url=f"data:image/png;base64,{base64.b64encode(b'hello')}",
+                ),
+            ],
+            parts=[
+                TextPart(
+                    type="text", text="Message with parts and attachments"
+                ),
+            ],
+        ),
+    ]
+    result = convert_to_openai_messages(sample_messages)
+    assert result == [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Message with parts and attachments",
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
+                },
+            ],
+        },
+    ]
 
 
 def test_convert_to_anthropic_messages(sample_messages: list[ChatMessage]):

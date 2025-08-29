@@ -51,7 +51,7 @@ import {
   type ChatState,
   chatStateAtom,
 } from "@/core/ai/state";
-import { getCodes } from "@/core/codemirror/copilot/getCodes";
+import type { ChatAttachment } from "@/core/ai/types";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
@@ -60,6 +60,7 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
+import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
 import { generateUUID } from "@/utils/uuid";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
@@ -509,24 +510,36 @@ const ChatPanelBody = () => {
     api: runtimeManager.getAiURL("chat").toString(),
     headers: runtimeManager.headers(),
     experimental_prepareRequestBody: (options) => {
-      return {
+      const completionBody = getAICompletionBody({
+        input: options.messages.map((m) => m.content).join("\n"),
+      });
+
+      // Backend accepts attachments, so we convert the key
+      const newOptions = {
         ...options,
-        ...getAICompletionBody({
-          input: options.messages.map((m) => m.content).join("\n"),
-        }),
-        includeOtherCode: getCodes(""),
+        messages: options.messages.map((m) => ({
+          ...m,
+          attachments: m.experimental_attachments,
+          experimental_attachments: undefined,
+        })),
+      };
+
+      return {
+        ...newOptions,
+        ...completionBody,
       };
     },
     onFinish: (message) => {
       setChatState((prev) => {
-        return addMessageToChat(
-          prev,
-          prev.activeChatId,
-          message.id,
-          "assistant",
-          message.content,
-          message.parts,
-        );
+        return addMessageToChat({
+          chatState: prev,
+          chatId: prev.activeChatId,
+          messageId: message.id,
+          role: "assistant",
+          content: message.content,
+          parts: message.parts,
+          attachments: message.experimental_attachments,
+        });
       });
     },
     onToolCall: async ({ toolCall }) => {
@@ -598,13 +611,15 @@ const ChatPanelBody = () => {
         let result = prev;
 
         for (const userMessage of missingUserMessages) {
-          result = addMessageToChat(
-            result,
-            prev.activeChatId,
-            userMessage.id,
-            "user",
-            userMessage.content,
-          );
+          result = addMessageToChat({
+            chatState: result,
+            chatId: prev.activeChatId,
+            messageId: userMessage.id,
+            role: "user",
+            content: userMessage.content,
+            parts: userMessage.parts,
+            attachments: userMessage.experimental_attachments,
+          });
         }
 
         return result;
@@ -634,7 +649,10 @@ const ChatPanelBody = () => {
     requestAnimationFrame(scrollToBottom);
   }, [chatState.activeChatId]);
 
-  const createNewThread = (initialMessage: string) => {
+  const createNewThread = async (
+    initialMessage: string,
+    initialAttachments?: File[],
+  ) => {
     const CURRENT_TIME = Date.now();
     const newChat: Chat = {
       id: generateUUID() as ChatId,
@@ -659,12 +677,19 @@ const ChatPanelBody = () => {
       return newState;
     });
 
+    const attachments =
+      initialAttachments && initialAttachments.length > 0
+        ? await convertToChatAttachments(initialAttachments)
+        : undefined;
+
     // Trigger AI conversation with append
     append({
       id: generateUUID(),
       role: "user",
       content: initialMessage,
+      experimental_attachments: attachments,
     });
+    setFiles(undefined);
     setInput("");
   };
 
@@ -672,6 +697,7 @@ const ChatPanelBody = () => {
     setActiveChat(null);
     setInput("");
     setNewThreadInput("");
+    setFiles(undefined);
   });
 
   const handleMessageEdit = useEvent((index: number, newValue: string) => {
@@ -711,10 +737,8 @@ const ChatPanelBody = () => {
       if (newMessageInputRef.current?.view) {
         storePrompt(newMessageInputRef.current.view);
       }
-      const attachments = files ? convertToFileList(files) : undefined;
-      handleSubmit(e, {
-        experimental_attachments: attachments,
-      });
+      handleSubmit(e);
+      setFiles(undefined);
     },
   );
 
@@ -729,7 +753,7 @@ const ChatPanelBody = () => {
     if (newThreadInputRef.current?.view) {
       storePrompt(newThreadInputRef.current.view);
     }
-    createNewThread(newThreadInput.trim());
+    createNewThread(newThreadInput.trim(), files);
   });
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
@@ -883,10 +907,18 @@ function isLastMessageReasoning(messages: Message[]): boolean {
   return lastPart.type === "reasoning";
 }
 
-function convertToFileList(files: File[]): FileList {
-  const dataTransfer = new DataTransfer();
-  files.forEach((file) => {
-    dataTransfer.items.add(file);
-  });
-  return dataTransfer.files;
+async function convertToChatAttachments(
+  files: File[],
+): Promise<ChatAttachment[]> {
+  const attachments = await Promise.all(
+    files.map(async (file) => {
+      return {
+        name: file.name,
+        url: await blobToString(file, "dataUrl"),
+        contentType: file.type,
+      };
+    }),
+  );
+
+  return attachments;
 }

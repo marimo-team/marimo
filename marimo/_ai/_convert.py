@@ -85,7 +85,6 @@ def convert_to_openai_messages(
                 openai_messages.extend(parts_messages)
             continue
 
-        # Handle attachments
         parts: list[dict[Any, Any]] = []
         if not message.parts or len(message.parts) == 0:
             parts.append({"type": "text", "text": message.content})
@@ -94,6 +93,7 @@ def convert_to_openai_messages(
                 get_openai_messages_from_parts(message.role, message.parts)
             )
 
+        # Handle attachments
         for attachment in message.attachments:
             content_type = attachment.content_type or "text/plain"
 
