@@ -8,14 +8,12 @@ import { useAtom, useAtomValue } from "jotai";
 import {
   BotMessageSquareIcon,
   ClockIcon,
-  FileIcon,
   Loader2,
   PaperclipIcon,
   PlusIcon,
   SendIcon,
   SettingsIcon,
   SquareIcon,
-  XIcon,
 } from "lucide-react";
 import {
   type Dispatch,
@@ -44,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { addMessageToChat } from "@/core/ai/chat-utils";
 import { useModelChange } from "@/core/ai/config";
+import { AiModelId, type ProviderId } from "@/core/ai/ids/ids";
 import {
   activeChatAtom,
   type Chat,
@@ -71,9 +70,20 @@ import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Input } from "../ui/input";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
+import { toast } from "../ui/use-toast";
+import { AttachmentRenderer, FileAttachmentPill } from "./chat-components";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
 import { ToolCallAccordion } from "./tool-call-accordion";
+
+// Default mode for the AI
+const DEFAULT_MODE = "manual";
+
+// We need to modify the backend to support attachments for other providers
+// And other types
+const PROVIDERS_THAT_SUPPORT_ATTACHMENTS = new Set<ProviderId>(["openai"]);
+const SUPPORTED_ATTACHMENT_TYPES = ["image/*", "text/*"];
+const MAX_ATTACHMENT_SIZE = 1024 * 1024 * 50; // 50MB
 
 interface ChatHeaderProps {
   onNewChat: () => void;
@@ -173,6 +183,9 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
     >
       {message.role === "user" ? (
         <div className="w-[95%] bg-background border p-1 rounded-sm">
+          {message.experimental_attachments?.map((attachment, idx) => (
+            <AttachmentRenderer attachment={attachment} key={idx} />
+          ))}
           <PromptInput
             key={message.id}
             value={message.content}
@@ -252,39 +265,6 @@ interface ChatInputFooterProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
-const DEFAULT_MODE = "manual";
-
-const FileAttachmentPill = ({
-  file,
-  className,
-  onRemove,
-}: {
-  file: File;
-  className?: string;
-  onRemove: () => void;
-}) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <div
-      className={cn(
-        "py-1 px-1.5 bg-muted rounded-md cursor-pointer flex flex-row gap-1 items-center text-xs",
-        className,
-      )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {isHovered ? (
-        <XIcon className="h-3 w-3 mt-0.5" onClick={onRemove} />
-      ) : (
-        // TODO: Add icons for different file types
-        <FileIcon className="h-3 w-3 mt-0.5" />
-      )}
-      {file.name}
-    </div>
-  );
-};
-
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
   ({
     isEmpty,
@@ -297,6 +277,8 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
     const ai = useAtomValue(aiAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
     const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
+    const currentProvider = AiModelId.parse(currentModel).providerId;
+
     const { saveModeChange, saveModelChange } = useModelChange();
 
     const modeOptions = [
@@ -312,6 +294,9 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
         subtitle: "Pure chat, no tool usage",
       },
     ];
+
+    const isAttachmentSupported =
+      PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
 
     return (
       <div className="px-3 py-2 border-t border-border/20 flex flex-row items-center justify-between">
@@ -353,24 +338,27 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
           />
         </div>
         <div className="flex flex-row">
-          <Button
-            variant="text"
-            size="icon"
-            className="cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
-            title="Attach a file"
-          >
-            <PaperclipIcon className="h-3.5 w-3.5" />
-          </Button>
-          <Input
-            ref={fileInputRef}
-            type="file"
-            multiple={true}
-            hidden={true}
-            onChange={handleFileChange}
-            // TODO: Add support for other file types
-            accept="image/*"
-          />
+          {isAttachmentSupported && (
+            <>
+              <Button
+                variant="text"
+                size="icon"
+                className="cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach a file"
+              >
+                <PaperclipIcon className="h-3.5 w-3.5" />
+              </Button>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                multiple={true}
+                hidden={true}
+                onChange={handleFileChange}
+                accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
+              />
+            </>
+          )}
 
           <Button
             variant="text"
@@ -567,9 +555,24 @@ const ChatPanelBody = () => {
   const handleFileChange = useEvent(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
-      if (files) {
-        setFiles([...files]);
+      if (!files) {
+        return;
       }
+
+      let fileSize = 0;
+      for (const file of files) {
+        fileSize += file.size;
+      }
+
+      if (fileSize > MAX_ATTACHMENT_SIZE) {
+        toast({
+          title: "File size exceeds 50MB limit",
+          description: "Please remove some files and try again.",
+        });
+        return;
+      }
+
+      setFiles([...files]);
     },
   );
 
@@ -730,14 +733,20 @@ const ChatPanelBody = () => {
   });
 
   const handleChatInputSubmit = useEvent(
-    (e: KeyboardEvent | undefined, newValue: string): void => {
+    async (e: KeyboardEvent | undefined, newValue: string): Promise<void> => {
       if (!newValue.trim()) {
         return;
       }
       if (newMessageInputRef.current?.view) {
         storePrompt(newMessageInputRef.current.view);
       }
-      handleSubmit(e);
+      const attachments = files
+        ? await convertToChatAttachments(files)
+        : undefined;
+
+      handleSubmit(e, {
+        experimental_attachments: attachments,
+      });
       setFiles(undefined);
     },
   );

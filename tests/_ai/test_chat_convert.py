@@ -100,6 +100,26 @@ def test_convert_to_openai_messages_with_parts_and_attachments():
                 TextPart(
                     type="text", text="Message with parts and attachments"
                 ),
+                ReasoningPart(
+                    type="reasoning",
+                    reasoning="Deep thinking process",
+                    details=[
+                        ReasoningDetails(
+                            type="text", text="Analysis", signature=None
+                        )
+                    ],
+                ),
+                ToolInvocationPart(
+                    type="tool-invocation",
+                    tool_invocation=ToolInvocationResult(
+                        state="result",
+                        result={"answer": 4},
+                        tool_call_id="call_123",
+                        tool_name="calculator",
+                        step=1,
+                        args={"expression": "2 + 2"},
+                    ),
+                ),
             ],
         ),
     ]
@@ -108,16 +128,31 @@ def test_convert_to_openai_messages_with_parts_and_attachments():
         {
             "role": "user",
             "content": [
+                {"type": "text", "text": "Message with parts and attachments"},
                 {
-                    "type": "text",
-                    "text": "Message with parts and attachments",
+                    "type": "reasoning",
+                    "reasoning": "Deep thinking process",
+                    "details": [
+                        {"type": "text", "text": "Analysis", "signature": None}
+                    ],
+                },
+                {
+                    "type": "tool-invocation",
+                    "tool_invocation": {
+                        "state": "result",
+                        "result": {"answer": 4},
+                        "tool_call_id": "call_123",
+                        "tool_name": "calculator",
+                        "step": 1,
+                        "args": {"expression": "2 + 2"},
+                    },
                 },
                 {
                     "type": "image_url",
                     "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
                 },
             ],
-        },
+        }
     ]
 
 

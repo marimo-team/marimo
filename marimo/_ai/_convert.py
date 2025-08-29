@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
+from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, Literal, Union, cast
 
 from marimo._ai._types import (
@@ -89,9 +90,8 @@ def convert_to_openai_messages(
         if not message.parts or len(message.parts) == 0:
             parts.append({"type": "text", "text": message.content})
         else:
-            parts.extend(
-                get_openai_messages_from_parts(message.role, message.parts)
-            )
+            parts_dict = [asdict(part) for part in message.parts]
+            parts.extend(parts_dict)
 
         # Handle attachments
         for attachment in message.attachments:
