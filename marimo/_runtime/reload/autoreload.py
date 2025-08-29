@@ -59,14 +59,14 @@ OldObjectsMapping = dict[
 def safe_getattr(obj: M, attr: str, default: T | None = None) -> T | None:
     try:
         return getattr(obj, attr, default)
-    except AttributeError:
+    except ModuleNotFoundError:
         return default
 
 
 def safe_hasattr(obj: M, attr: str) -> bool:
     try:
         return hasattr(obj, attr)
-    except AttributeError:
+    except ModuleNotFoundError:
         return False
 
 
