@@ -704,6 +704,9 @@ const ChatPanelBody = () => {
   });
 
   const handleMessageEdit = useEvent((index: number, newValue: string) => {
+    const editedMessage = messages[index];
+    const attachments = editedMessage.experimental_attachments;
+
     // Truncate both useChat and storage
     setMessages((messages) => messages.slice(0, index));
     const activeChatId = chatState.activeChatId;
@@ -729,6 +732,7 @@ const ChatPanelBody = () => {
     append({
       role: "user",
       content: newValue,
+      experimental_attachments: attachments,
     });
   });
 
