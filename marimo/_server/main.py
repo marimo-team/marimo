@@ -1,5 +1,4 @@
 # Copyright 2024 Marimo. All rights reserved.
-# Middleware(TimeoutMiddleware),
 from __future__ import annotations
 
 from dataclasses import dataclass
