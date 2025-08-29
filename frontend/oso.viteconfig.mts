@@ -11,7 +11,8 @@ export default defineConfig({
         "oso.js": "./src/oso.tsx",
         "wasm/controller.js": "./src/oso-extensions/wasm/controller.tsx",
         "wasm/controller-[hash].js": "./src/oso-extensions/wasm/controller.tsx",
-        "notebook.html": "./notebook.html",
+        "index.html": "./index.html",
+        "notebook.html": "./notebook.html"
       },
       output: {
         entryFileNames: (chunk) => {
@@ -23,9 +24,9 @@ export default defineConfig({
           }
           if (extension === "html") {
             // HTML files are not hashed
-            return `${name}.${extension}`;
+            return `${name}-[hash].js`;
           }
-          return `${name}-[hash].${extension}`;
+          return `${name}-[hash].js`;
         },
       },
     },
