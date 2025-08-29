@@ -231,6 +231,7 @@ export class DefaultWasmController implements WasmController {
 // This is a workaround to make sure that the default controller is resolved
 // when this is dynamically imported
 export function then(resolve: (value: DefaultWasmController) => void) {
+  console.log("hello")
   resolve(new DefaultWasmController());
 
 }

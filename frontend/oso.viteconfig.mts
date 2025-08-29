@@ -19,7 +19,7 @@ export default defineConfig({
         entryFileNames: (chunk) => {
           const splitName = chunk.name.split(".");
           const name = splitName.join(".");
-          if (name === "wasm/controller.js") {
+          if (name === "wasm/controller") {
             return "wasm/controller.js";
           }
           return `${name}-[hash].js`;
