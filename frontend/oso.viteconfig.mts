@@ -7,12 +7,27 @@ export default defineConfig({
   // Add any OSO-specific config here
   build: {
     rollupOptions: {
-        input: {
-            "main": "./src/main.tsx", 
-            "oso": "./src/oso.tsx",
-            "wasmController": "./src/oso-extensions/wasm/controller.tsx",
-            "notebook.html": "./notebook.html",
-        }
-    }
-  }
+      input: {
+        "oso.js": "./src/oso.tsx",
+        "wasm/controller.js": "./src/oso-extensions/wasm/controller.tsx",
+        "wasm/controller-[hash].js": "./src/oso-extensions/wasm/controller.tsx",
+        "notebook.html": "./notebook.html",
+      },
+      output: {
+        entryFileNames: (chunk) => {
+          const splitName = chunk.name.split(".");
+          const extension = splitName.pop();
+          const name = splitName.join(".");
+          if (name === "wasm/controller") {
+            return "wasm/controller.js";
+          }
+          if (extension === "html") {
+            // HTML files are not hashed
+            return `${name}.${extension}`;
+          }
+          return `${name}-[hash].${extension}`;
+        },
+      },
+    },
+  },
 });
