@@ -67,7 +67,7 @@ export class DefaultWasmController implements WasmController {
         ],
         _makeSnapshot: MAKE_SNAPSHOT,
 
-        lockFileURL: `${globalThis.location.protocol}//${globalThis.location.host}/pyodide-lock.json`,
+        lockFileURL: `${globalThis.location.protocol}//${globalThis.location.host}/wasm/pyodide-lock.json`,
         // Without this, this fails in Firefox with
         // `Could not extract indexURL path from pyodide module`
         // This fixes for Firefox and does not break Chrome/others
