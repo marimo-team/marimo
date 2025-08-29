@@ -88,6 +88,9 @@ jobs:
           - os: ubuntu-latest
             python-version: '3.13'
             dependencies: 'core,optional'
+          - os: ubuntu-latest
+            python-version: '3.9'
+            dependencies: 'minimal'
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
@@ -112,8 +115,8 @@ jobs:
         if: ${{ matrix.python-version == '3.12' }}
         run: hatch run typecheck:check
 
-      # Test with minimal dependencies
-      - name: Test with minimal dependencies
+      # Test with base dependencies
+      - name: Test with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
           hatch run +py=${{ matrix.python-version }} test:test -v tests/ -k "not test_cli" --durations=10
@@ -123,6 +126,16 @@ jobs:
         if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
           hatch run +py=${{ matrix.python-version }} test-optional:test -v tests/ -k "not test_cli" --durations=10
+
+      # Test with minimal dependencies using lowest resolution
+      # https://docs.astral.sh/uv/concepts/resolution/#lowest-resolution
+      # https://docs.astral.sh/uv/reference/environment/#uv_resolution
+      - name: Test with minimal dependencies (lowest resolution)
+        if: ${{ matrix.dependencies == 'minimal' }}
+        run: |
+          hatch run +py=${{ matrix.python-version }} test:test -v tests/ -k "not test_cli" --durations=10
+        env:
+          UV_RESOLUTION: lowest
 
   # Only run coverage on `main` so it is not blocking
   test_coverage:
