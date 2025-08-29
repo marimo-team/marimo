@@ -35,12 +35,14 @@ mv dist "${build_path}"
 popd
 pushd packages/wasm-tester
 # If we are not on production node env
-if [ "${NODE_ENV}" == "production" ]; then
+if [ "${NODE_ENV}" != "production" ]; then
+  echo "Building for development..."
   pnpm cli build --output-dir \
       "${build_path}${wasm_base_path}" \
       --public-packages-host "${public_packages_host}" \
       --public-packages-base-path "${wasm_base_path}"
 else
+  echo "Building for production..."
   pnpm cli build --output-dir \
       "${build_path}${wasm_base_path}" \
       --is-production \
