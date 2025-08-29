@@ -19,6 +19,8 @@ cleanup() {
     # Usually this does nothing unless we are using the overlayfs
 }
 
+mkdir -p /container/workspace
+
 if [ "$USE_OVERLAYFS" = true ]; then
     echo "Using overlayfs"
 
@@ -46,7 +48,6 @@ if [ "$USE_OVERLAYFS" = true ]; then
     mkdir -p /tmp/overlay
     mount -t tmpfs tmpfs /tmp/overlay
     mkdir -p /tmp/overlay/{upper,work}
-    mkdir -p /container/workspace
     mount -t overlay overlay -o lowerdir=${CURRENT_DIR},upperdir=/tmp/overlay/upper,workdir=/tmp/overlay/work /container/workspace
 
     # Bind mount the pixi environment on top of the overlayfs so we can use pixi
