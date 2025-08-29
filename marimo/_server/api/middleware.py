@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from http.client import HTTPResponse, HTTPSConnection
@@ -40,9 +41,12 @@ from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.codes import WebSocketCodes
 from marimo._server.model import SessionMode
+from marimo._server.utils import print_tabbed
+from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._tracer import server_tracer
 
 if TYPE_CHECKING:
+    from starlette.datastructures import State
     from starlette.requests import HTTPConnection
     from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -533,3 +537,57 @@ class ProxyMiddleware:
             if websocket.client_state != WebSocketState.DISCONNECTED:
                 await websocket.close(code=WebSocketCodes.UNEXPECTED_ERROR)
             raise
+
+
+class TimeoutMiddleware(BaseHTTPMiddleware):
+    def __init__(
+        self,
+        app: ASGIApp,
+        dispatch: DispatchFunction | None = None,
+        *,
+        timeout_duration_minutes: float,
+        app_state: State,
+    ) -> None:
+        super().__init__(app, dispatch)
+
+        self.app_state = app_state
+        self.app_state.timeout_tracker = time.time()
+        self.timeout_duration_minutes = timeout_duration_minutes
+
+        asyncio.create_task(self.monitor())
+
+    async def __call__(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        request = Request(scope)
+
+        request.app.state.timeout_tracker = time.time()
+
+        return await self.app(scope, receive, send)
+
+    async def monitor(self) -> None:
+        while True:
+            LOGGER.debug("Checking inactivity timeout")
+            timeout_at = (
+                self.app_state.timeout_tracker
+                + self.timeout_duration_minutes * 60
+            )
+
+            now = time.time()
+            if now >= timeout_at:
+                print_tabbed("Timeout due to inactivity")
+                self.shutdown()
+                break
+
+            # Sleep until 1s after the next potential activity timeout
+            await asyncio.sleep(timeout_at - now + 1)
+
+    def shutdown(self) -> None:
+        manager = self.app_state.session_manager
+
+        manager.shutdown()
+        if self.app_state.server:
+            close_uvicorn(self.app_state.server)
