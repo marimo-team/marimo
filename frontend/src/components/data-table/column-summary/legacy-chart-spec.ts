@@ -3,7 +3,7 @@
 // New spec is under a feature flag, we keep this until full migration
 
 import { mint, orange, slate } from "@radix-ui/colors";
-import type { Scale } from "vega-lite/build/src/scale";
+import type { Scale } from "vega-lite/types_unstable/scale.js";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 
 export function getLegacyNumericSpec(

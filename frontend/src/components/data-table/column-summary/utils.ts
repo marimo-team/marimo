@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { StringFieldDef } from "vega-lite/build/src/channeldef";
+import type { StringFieldDef } from "vega-lite/types_unstable/channeldef.js";
 import { Logger } from "@/utils/Logger";
 import type { BinValues } from "../types";
 
