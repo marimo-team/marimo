@@ -517,7 +517,13 @@ def convert_to_google_tools(tools: list[Tool]) -> list[dict[str, Any]]:
                 {
                     "name": tool.name,
                     "description": tool.description,
-                    "parameters": tool.parameters,
+                    "parameters": {
+                        # Pydantic will raise validation errors if unknown keys are present
+                        # So we only include necessary keys
+                        "type": tool.parameters.get("type", "object"),
+                        "properties": tool.parameters.get("properties", {}),
+                        "required": tool.parameters.get("required", []),
+                    },
                 }
             ]
         }
