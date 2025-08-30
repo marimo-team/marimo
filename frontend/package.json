@@ -165,6 +165,7 @@
     "typescript-memoize": "^1.1.1",
     "use-acp": "^0.2.3",
     "use-resize-observer": "^9.1.0",
+    "vega": "^6.1.2",
     "vega-lite": "^6.2.0",
     "vega-loader": "^5.0.0",
     "vscode-jsonrpc": "^8.2.1",
