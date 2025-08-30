@@ -5,7 +5,7 @@ import { z } from "zod";
 import { AudioRecorder } from "@/components/audio/audio-recorder";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import type { IPlugin, IPluginProps } from "@/plugins/types";
-import { blobToBase64 } from "@/utils/fileToBase64";
+import { blobToString } from "@/utils/fileToBase64";
 import { Labeled } from "./common/labeled";
 
 /**
@@ -33,7 +33,7 @@ const Microphone = ({ setValue, data }: IPluginProps<Value, Data>) => {
   const { start, stop, pauseResume, recordingStatus, recordingTime, allowed } =
     useAudioRecorder({
       onDone: async (file) => {
-        const base64 = await blobToBase64(file);
+        const base64 = await blobToString(file, "base64");
         setValue(base64);
       },
     });

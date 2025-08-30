@@ -3,15 +3,27 @@
 import type { Message as AIMessage } from "@ai-sdk/react";
 import { Logger } from "@/utils/Logger";
 import type { ChatId, ChatState } from "./state";
+import type { ChatAttachment } from "./types";
 
-export const addMessageToChat = (
-  chatState: ChatState,
-  chatId: ChatId | null,
-  messageId: string,
-  role: "user" | "assistant",
-  content: string,
-  parts?: AIMessage["parts"],
-): ChatState => {
+interface AddMessageToChatParams {
+  chatState: ChatState;
+  chatId: ChatId | null;
+  messageId: string;
+  role: "user" | "assistant";
+  content: string;
+  parts?: AIMessage["parts"];
+  attachments?: ChatAttachment[];
+}
+
+export const addMessageToChat = ({
+  chatState,
+  chatId,
+  messageId,
+  role,
+  content,
+  parts,
+  attachments,
+}: AddMessageToChatParams): ChatState => {
   if (!chatId) {
     Logger.warn("No active chat");
     return chatState;
@@ -42,6 +54,7 @@ export const addMessageToChat = (
           content,
           timestamp: timestamp,
           parts,
+          attachments,
         },
       ],
       updatedAt: timestamp,
@@ -53,6 +66,7 @@ export const addMessageToChat = (
       ...newMessages[messageIndex],
       content,
       parts,
+      attachments,
     };
     newChats.set(chat.id, {
       ...chat,

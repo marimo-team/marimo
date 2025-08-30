@@ -1,14 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-export function blobToBase64(blob: Blob): Promise<string> {
+
+/**
+ * Converts a Blob or File to either a base64-encoded string or a data URL.
+ *
+ * @param input - The Blob or File to convert.
+ * @param format - The output format: "base64" for the base64-encoded string, "dataUrl" for the full data URL.
+ * @returns A promise that resolves to the requested string representation.
+ */
+export function blobToString(
+  input: Blob | File,
+  format: "base64" | "dataUrl",
+): Promise<string> {
   return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.readAsDataURL(blob);
+    reader.readAsDataURL(input);
     reader.onload = (e) => {
       if (e.target?.result) {
         const dataURL = e.target.result as string;
-        // Get contents from a string of the form: data:*/*;base64,contents
-        const b64EncodedContents = dataURL.slice(dataURL.indexOf(",") + 1);
-        resolve(b64EncodedContents);
+        if (format === "base64") {
+          // Extract base64 content from data URL. data:*/*;base64,contents
+          const base64Content = dataURL.slice(dataURL.indexOf(",") + 1);
+          resolve(base64Content);
+        } else {
+          resolve(dataURL);
+        }
       }
     };
   });
@@ -22,7 +37,7 @@ export function blobToBase64(blob: Blob): Promise<string> {
 export function filesToBase64(files: File[]): Promise<Array<[string, string]>> {
   return Promise.all(
     files.map((file) =>
-      blobToBase64(file).then(
+      blobToString(file, "base64").then(
         (contents) => [file.name, contents] as [string, string],
       ),
     ),
