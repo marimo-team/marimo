@@ -335,6 +335,8 @@ class table(
         max_columns (int, optional): Maximum number of columns to display. Defaults to the
             configured default_table_max_columns (50 by default). Set to None to show all columns.
         label (str, optional): A descriptive name for the table. Defaults to "".
+        default_sort (str, optional): Column name to sort by initially.
+        ascending (bool, optional): Sort ascending (default True). Set to False for descending.
     """
 
     _name: Final[str] = "marimo-table"
@@ -345,6 +347,8 @@ class table(
         *,
         page_size: Optional[int] = None,
         preload: bool = False,
+        default_sort: Optional[str] = None,
+        ascending: bool = True,
     ) -> table:
         """
         Create a table from a Polars LazyFrame.
@@ -392,6 +396,8 @@ class table(
             _internal_total_rows="too_many",
             _internal_lazy=True,
             _internal_preload=preload,
+            default_sort=default_sort,
+            ascending=ascending,
         )
 
     def __init__(
@@ -446,6 +452,8 @@ class table(
         _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
         _internal_lazy: bool = False,
         _internal_preload: bool = False,
+        default_sort: Optional[str] = None,
+        ascending: bool = True,
     ) -> None:
         if page_size is None:
             page_size = self.default_page_size
@@ -609,14 +617,23 @@ class table(
         field_types: Optional[FieldTypes] = None
         num_columns = 0
 
+        # Default sort support
+        initial_sort: Optional[SortArgs] = None
+        if default_sort is not None:
+            # Only sort if column exists
+            colnames = set(self._manager.get_column_names())
+            if default_sort in colnames:
+                initial_sort = SortArgs(by=default_sort, descending=not ascending)
+        
+
         if not _internal_lazy:
-            # Search first page
+            # Search first page, with initial sort if specified
             search_result = self._search(
                 SearchTableArgs(
                     page_size=page_size,
                     page_number=0,
                     query=None,
-                    sort=None,
+                    sort=initial_sort,
                     filters=None,
                 )
             )
