@@ -271,16 +271,19 @@ export function useNotebookActions() {
       icon: <PanelLeftIcon size={14} strokeWidth={1.5} />,
       label: "Helper panel",
       handle: NOOP_HANDLER,
-      dropdown: PANELS.flatMap(({ type, Icon, hidden }) => {
+      dropdown: PANELS.flatMap(({ type, Icon, hidden, extraDescription }) => {
         if (hidden) {
           return [];
         }
-        return {
-          label: startCase(type),
+        const descriptions = extraDescription
+          ? [...extraDescription, type]
+          : [type];
+        return descriptions.map((description) => ({
+          label: startCase(description),
           rightElement: renderCheckboxElement(selectedPanel === type),
           icon: <Icon size={14} strokeWidth={1.5} />,
           handle: () => toggleApplication(type),
-        };
+        }));
       }),
     },
 
