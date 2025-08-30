@@ -93,6 +93,7 @@ async def index(request: Request) -> HTMLResponse:
             user_config=app_state.config_manager.get_user_config(),
             config_overrides=app_state.config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,
+            asset_url=app_state.asset_url,
         )
     else:
         config_manager = app_state.config_manager_at_file(file_key)
@@ -112,6 +113,7 @@ async def index(request: Request) -> HTMLResponse:
             filename=app_manager.filename,
             mode=app_state.mode,
             remote_url=app_state.remote_url,
+            asset_url=app_state.asset_url,
         )
 
         # Inject service worker registration with the notebook ID

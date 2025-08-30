@@ -89,6 +89,7 @@ def home_page_template(
     user_config: MarimoConfig,
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
+    asset_url: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
     html = html.replace("{{ title }}", "marimo")
@@ -100,7 +101,8 @@ def home_page_template(
         "{{ user_config }}", _html_escape(json.dumps(user_config))
     )
     html = html.replace("{{ server_token }}", str(server_token))
-    # /TODO
+
+    html = _replace_asset_urls(html, asset_url)
 
     html = html.replace(
         MOUNT_CONFIG_TEMPLATE,
@@ -131,6 +133,7 @@ def notebook_page_template(
     filename: Optional[str],
     mode: SessionMode,
     remote_url: Optional[str] = None,
+    asset_url: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
@@ -152,7 +155,8 @@ def notebook_page_template(
         "{{ user_config }}", _html_escape(json.dumps(user_config))
     )
     html = html.replace("{{ server_token }}", str(server_token))
-    # /TODO
+
+    html = _replace_asset_urls(html, asset_url)
 
     html = html.replace(
         MOUNT_CONFIG_TEMPLATE,
@@ -301,12 +305,7 @@ def static_notebook_template(
     )
 
     # Replace all relative href and src with absolute URL
-    html = (
-        html.replace("href='./", f"crossorigin='anonymous' href='{asset_url}/")
-        .replace("src='./", f"crossorigin='anonymous' src='{asset_url}/")
-        .replace('href="./', f'crossorigin="anonymous" href="{asset_url}/')
-        .replace('src="./', f'crossorigin="anonymous" src="{asset_url}/')
-    )
+    html = _replace_asset_urls(html, asset_url)
 
     # Append to head
     html = html.replace("</head>", f"{static_block}</head>")
@@ -472,3 +471,25 @@ def _inject_custom_css_for_config(
 
     css_block = "\n".join(css_contents)
     return html.replace("</head>", f"{css_block}</head>")
+
+
+def _replace_asset_urls(html: str, asset_url: Optional[str]) -> str:
+    """Replace asset URLs with the given asset URL.
+
+    These are naturally relative URLs. This can be used load assets
+    from a CDN instead of from the marimo server.
+
+    The asset URL can be parameterized with {version}
+    """
+    if asset_url is None:
+        return html
+
+    if "{version}" in asset_url:
+        asset_url = asset_url.replace("{version}", __version__)
+
+    return (
+        html.replace("href='./", f"crossorigin='anonymous' href='{asset_url}/")
+        .replace("src='./", f"crossorigin='anonymous' src='{asset_url}/")
+        .replace('href="./', f'crossorigin="anonymous" href="{asset_url}/')
+        .replace('src="./', f'crossorigin="anonymous" src="{asset_url}/')
+    )

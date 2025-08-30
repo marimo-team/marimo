@@ -90,6 +90,7 @@ def start(
     redirect_console_to_browser: bool,
     skew_protection: bool,
     remote_url: Optional[str] = None,
+    asset_url: Optional[str] = None,
 ) -> None:
     """
     Start the server.
@@ -191,6 +192,7 @@ def start(
     app.state.watch = watch
     app.state.session_manager = session_manager
     app.state.base_url = base_url
+    app.state.asset_url = asset_url
     app.state.config_manager = config_reader
     app.state.remote_url = remote_url
 
