@@ -387,17 +387,24 @@ def test_convert_to_anthropic_tools(sample_tools):
 
 
 def test_convert_to_google_tools(sample_tools):
+    # Add some additional parameters in tools, it should be ignored
+    sample_tools[0].parameters["maxNumResults"] = 10
     result = convert_to_google_tools(sample_tools)
-    assert len(result) == 1
-    assert "function_declarations" in result[0]
-    assert result[0]["function_declarations"][0]["name"] == "test_tool"
-    assert (
-        result[0]["function_declarations"][0]["description"] == "A test tool"
-    )
-    assert result[0]["function_declarations"][0]["parameters"] == {
-        "type": "object",
-        "properties": {"x": {"type": "integer"}},
-    }
+    assert result == [
+        {
+            "function_declarations": [
+                {
+                    "name": "test_tool",
+                    "description": "A test tool",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"x": {"type": "integer"}},
+                        "required": [],
+                    },
+                }
+            ]
+        }
+    ]
 
 
 def test_convert_to_ai_sdk_messages():
