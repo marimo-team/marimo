@@ -1319,6 +1319,7 @@ def test_download_as_for_unsupported_cell_selection() -> None:
         with pytest.raises(NotImplementedError):
             table._download_as(DownloadAsArgs(format="csv"))
 
+
 @pytest.mark.skipif(
     not DependencyManager.pandas.has() or not DependencyManager.polars.has(),
     reason="Pandas or Polars not installed",
@@ -1328,7 +1329,8 @@ def test_download_as_for_supported_cell_selection() -> None:
     for selection in ["single", "multi", None]:
         table = ui.table(data=[], selection=selection)
         table._download_as(DownloadAsArgs(format="csv"))
-        
+
+
 @pytest.mark.skipif(
     not DependencyManager.polars.has(),
     reason="Polars not installed",
@@ -2204,7 +2206,9 @@ def test_table_default_sort_ascending() -> None:
         {"Title": "B", "Value": 2},
     ]
     table = ui.table(data, default_sort="Title")
-    sorted_titles = [row["Title"] for row in json.loads(table._component_args["data"])]
+    sorted_titles = [
+        row["Title"] for row in json.loads(table._component_args["data"])
+    ]
     assert sorted_titles == ["A", "B", "C"]
 
 
@@ -2212,10 +2216,12 @@ def test_table_default_sort_descending_dicts() -> None:
     data = [
         {"Title": "C", "Value": 3},
         {"Title": "A", "Value": 1},
-        {"Title": "B", "Value": 2}
+        {"Title": "B", "Value": 2},
     ]
     table_desc = ui.table(data, default_sort="Title", ascending=False)
-    sorted_titles_desc = [row["Title"] for row in json.loads(table_desc._component_args["data"])]
+    sorted_titles_desc = [
+        row["Title"] for row in json.loads(table_desc._component_args["data"])
+    ]
     assert sorted_titles_desc == ["C", "B", "A"]
 
 
@@ -2223,28 +2229,32 @@ def test_table_default_sort_nonexistent_column_dicts() -> None:
     data = [
         {"Title": "C", "Value": 3},
         {"Title": "A", "Value": 1},
-        {"Title": "B", "Value": 2}
+        {"Title": "B", "Value": 2},
     ]
     table_no_sort = ui.table(data, default_sort="NotAColumn")
-    titles_no_sort = [row["Title"] for row in json.loads(table_no_sort._component_args["data"])]
+    titles_no_sort = [
+        row["Title"]
+        for row in json.loads(table_no_sort._component_args["data"])
+    ]
     assert titles_no_sort == ["C", "A", "B"]
 
 
 def test_table_default_sort_ascending_dict_of_lists() -> None:
-    data_dict = {
-        "Title": ["C", "A", "B"],
-        "Value": [3, 1, 2]
-    }
+    data_dict = {"Title": ["C", "A", "B"], "Value": [3, 1, 2]}
     table_dict = ui.table(data_dict, default_sort="Title")
-    sorted_titles_dict = [row["Title"] for row in json.loads(table_dict._component_args["data"])]
+    sorted_titles_dict = [
+        row["Title"] for row in json.loads(table_dict._component_args["data"])
+    ]
     assert sorted_titles_dict == ["A", "B", "C"]
 
 
 def test_table_default_sort_descending_dict_of_lists() -> None:
-    data_dict = {
-        "Title": ["C", "A", "B"],
-        "Value": [3, 1, 2]
-    }
-    table_dict_desc = ui.table(data_dict, default_sort="Title", ascending=False)
-    sorted_titles_dict_desc = [row["Title"] for row in json.loads(table_dict_desc._component_args["data"])]
+    data_dict = {"Title": ["C", "A", "B"], "Value": [3, 1, 2]}
+    table_dict_desc = ui.table(
+        data_dict, default_sort="Title", ascending=False
+    )
+    sorted_titles_dict_desc = [
+        row["Title"]
+        for row in json.loads(table_dict_desc._component_args["data"])
+    ]
     assert sorted_titles_dict_desc == ["C", "B", "A"]

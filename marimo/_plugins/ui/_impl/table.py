@@ -623,8 +623,9 @@ class table(
             # Only sort if column exists
             colnames = set(self._manager.get_column_names())
             if default_sort in colnames:
-                initial_sort = SortArgs(by=default_sort, descending=not ascending)
-        
+                initial_sort = SortArgs(
+                    by=default_sort, descending=not ascending
+                )
 
         if not _internal_lazy:
             # Search first page, with initial sort if specified
