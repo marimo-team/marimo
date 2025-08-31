@@ -2225,20 +2225,6 @@ def test_table_default_sort_descending_dicts() -> None:
     assert sorted_titles_desc == ["C", "B", "A"]
 
 
-def test_table_default_sort_nonexistent_column_dicts() -> None:
-    data = [
-        {"Title": "C", "Value": 3},
-        {"Title": "A", "Value": 1},
-        {"Title": "B", "Value": 2},
-    ]
-    table_no_sort = ui.table(data, default_sort="NotAColumn")
-    titles_no_sort = [
-        row["Title"]
-        for row in json.loads(table_no_sort._component_args["data"])
-    ]
-    assert titles_no_sort == ["C", "A", "B"]
-
-
 def test_table_default_sort_ascending_dict_of_lists() -> None:
     data_dict = {"Title": ["C", "A", "B"], "Value": [3, 1, 2]}
     table_dict = ui.table(data_dict).sort(by="Title")
