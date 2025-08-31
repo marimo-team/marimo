@@ -2238,6 +2238,7 @@ def test_table_default_sort_descending_dict_of_lists() -> None:
     data_dict = {"Title": ["C", "A", "B"], "Value": [3, 1, 2]}
     table_dict_desc = ui.table(data_dict).sort(by="Title", ascending=False)
     sorted_titles_dict_desc = [
-        row["Title"] for row in json.loads(table_dict_desc._component_args["data"])
+        row["Title"]
+        for row in json.loads(table_dict_desc._component_args["data"])
     ]
     assert sorted_titles_dict_desc == ["C", "B", "A"]

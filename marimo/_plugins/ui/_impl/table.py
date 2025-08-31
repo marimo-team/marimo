@@ -709,7 +709,9 @@ class table(
             ),
         )
 
-        self._input_format = "dict_of_lists" if isinstance(data, dict) else "other"
+        self._input_format = (
+            "dict_of_lists" if isinstance(data, dict) else "other"
+        )
 
     @property
     def data(self) -> TableData:
@@ -734,7 +736,9 @@ class table(
             # sorted_data is likely a list of dicts; convert to dict of lists
             if isinstance(sorted_data, list):
                 keys = sorted_data[0].keys() if sorted_data else []
-                sorted_data_dict = {k: [row[k] for row in sorted_data] for k in keys}
+                sorted_data_dict = {
+                    k: [row[k] for row in sorted_data] for k in keys
+                }
                 sorted_data = sorted_data_dict
 
         return table(
@@ -746,9 +750,15 @@ class table(
             show_column_summaries=self._show_column_summaries,
             show_data_types=self._component_args.get("show-data-types", True),
             format_mapping=self._format_mapping,
-            freeze_columns_left=self._component_args.get("freeze-columns-left"),
-            freeze_columns_right=self._component_args.get("freeze-columns-right"),
-            text_justify_columns=self._component_args.get("text-justify-columns"),
+            freeze_columns_left=self._component_args.get(
+                "freeze-columns-left"
+            ),
+            freeze_columns_right=self._component_args.get(
+                "freeze-columns-right"
+            ),
+            text_justify_columns=self._component_args.get(
+                "text-justify-columns"
+            ),
             wrapped_columns=self._component_args.get("wrapped-columns"),
             show_download=self._component_args.get("show-download", True),
             max_columns=self._max_columns,
