@@ -610,14 +610,14 @@ class table(
         num_columns = 0
 
         # Default sort support
-        def sort(self, column, ascending = False):
-            initial_sort: Optional[SortArgs] = None
-            if column is not None:
-                # Only sort if column exists
-                colnames = set(self._manager.get_column_names())
-                if column in colnames:
-                    initial_sort = SortArgs(
-                    by=column, descending= not ascending
+    def sort(self, column, ascending = False):
+        initial_sort: Optional[SortArgs] = None
+        if column is not None:
+            # Only sort if column exists
+            colnames = set(self._manager.get_column_names())
+            if column in colnames:
+                initial_sort = SortArgs(
+                by=column, descending= not ascending
                 )
 
         if not _internal_lazy:
