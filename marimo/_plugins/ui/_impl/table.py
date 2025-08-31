@@ -609,19 +609,8 @@ class table(
         field_types: Optional[FieldTypes] = None
         num_columns = 0
 
-        # Default sort support
-    def sort(self, column, ascending = False):
-        initial_sort: Optional[SortArgs] = None
-        if column is not None:
-            # Only sort if column exists
-            colnames = set(self._manager.get_column_names())
-            if column in colnames:
-                initial_sort = SortArgs(
-                by=column, descending= not ascending
-                )
-
         if not _internal_lazy:
-            # Search first page, with initial sort if specified
+            # Search first page
             search_result = self._search(
                 SearchTableArgs(
                     page_size=page_size,
@@ -720,6 +709,8 @@ class table(
             ),
         )
 
+        self._input_format = "dict_of_lists" if isinstance(data, dict) else "other"
+
     @property
     def data(self) -> TableData:
         """Get the original table data.
@@ -729,6 +720,42 @@ class table(
                 original format (list, dict, dataframe, etc.).
         """
         return self._data
+
+    def sort(self, by: str, ascending: bool = True) -> table:
+        """Return a new table instance sorted by a column."""
+        colnames = set(self._manager.get_column_names())
+        if by not in colnames:
+            raise ValueError(f"Column '{by}' not found in table.")
+        sorted_manager = self._manager.sort_values(by, not ascending)
+        sorted_data = sorted_manager.data
+
+        # Convert back to dict of lists if original input was dict of lists
+        if self._input_format == "dict_of_lists":
+            # sorted_data is likely a list of dicts; convert to dict of lists
+            if isinstance(sorted_data, list):
+                keys = sorted_data[0].keys() if sorted_data else []
+                sorted_data_dict = {k: [row[k] for row in sorted_data] for k in keys}
+                sorted_data = sorted_data_dict
+
+        return table(
+            data=sorted_data,
+            pagination=self._component_args.get("pagination"),
+            selection=self._selection,
+            initial_selection=None,
+            page_size=self._page_size,
+            show_column_summaries=self._show_column_summaries,
+            show_data_types=self._component_args.get("show-data-types", True),
+            format_mapping=self._format_mapping,
+            freeze_columns_left=self._component_args.get("freeze-columns-left"),
+            freeze_columns_right=self._component_args.get("freeze-columns-right"),
+            text_justify_columns=self._component_args.get("text-justify-columns"),
+            wrapped_columns=self._component_args.get("wrapped-columns"),
+            show_download=self._component_args.get("show-download", True),
+            max_columns=self._max_columns,
+            label=self._component_args.get("label", ""),
+            on_change=self._on_change,
+            style_cell=self._style_cell,
+        )
 
     def _get_banner_text(self) -> str:
         if self._lazy:
