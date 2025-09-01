@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { createStore, Provider } from "jotai";
 import { createRef } from "react";
@@ -9,6 +10,8 @@ import {
 } from "@/core/cells/types";
 import { defaultUserConfig } from "@/core/config/config-schema";
 import { connectionAtom } from "@/core/network/connection";
+import { requestClientAtom } from "@/core/network/requests";
+import { resolveRequestClient } from "@/core/network/resolve.ts";
 import type { CellConfig } from "@/core/network/types";
 import { WebSocketState } from "@/core/websocket/types";
 import { MultiColumn } from "@/utils/id-tree";
@@ -78,6 +81,7 @@ const Cell: React.FC<{
   const store = createStore();
   store.set(notebookAtom, notebook);
   store.set(connectionAtom, { state: WebSocketState.OPEN });
+  store.set(requestClientAtom, resolveRequestClient());
   return (
     <Provider store={store}>
       <TooltipProvider>
