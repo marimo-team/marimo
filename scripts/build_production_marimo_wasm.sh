@@ -33,7 +33,7 @@ mv dist "${build_path}"
 
 # Build the pyodide lock and marimo whl
 popd
-pushd packages/wasm-tester
+pushd packages/wasm-builder
 # If we are not on production node env
 if [ "${NODE_ENV}" != "production" ]; then
   echo "Building for development..."
