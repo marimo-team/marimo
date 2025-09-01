@@ -39,6 +39,9 @@ func_attrs = [
     "__dict__",
 ]
 
+M = TypeVar("M", bound=types.ModuleType)
+T = TypeVar("T")
+
 
 @dataclass
 class ModuleMTime:
@@ -50,6 +53,21 @@ class ModuleMTime:
 OldObjectsMapping = dict[
     tuple[str, str], list[weakref.ref]  # type:ignore[type-arg]
 ]
+
+
+# Compat with cmodules in Python < 3.10
+def safe_getattr(obj: M, attr: str, default: T | None = None) -> T | None:
+    try:
+        return getattr(obj, attr, default)
+    except ModuleNotFoundError:
+        return default
+
+
+def safe_hasattr(obj: M, attr: str) -> bool:
+    try:
+        return hasattr(obj, attr)
+    except ModuleNotFoundError:
+        return False
 
 
 def modules_imported_by_cell(
@@ -146,7 +164,7 @@ class ModuleReloader:
     def filename_and_mtime(
         self, module: types.ModuleType
     ) -> ModuleMTime | None:
-        if not hasattr(module, "__file__") or module.__file__ is None:
+        if not safe_hasattr(module, "__file__") or module.__file__ is None:
             return None
 
         if getattr(module, "__name__", None) in [
@@ -367,9 +385,6 @@ def update_generic(a: object, b: object) -> bool:
             update(a, b)
             return True
     return False
-
-
-T = TypeVar("T")
 
 
 class StrongRef(Generic[T]):
