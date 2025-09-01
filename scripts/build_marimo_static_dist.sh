@@ -12,6 +12,7 @@ export PYODIDE="true"
 
 build_dir=$1
 public_packages_host=$2
+public_packages_port=${3:-443}
 
 repo_dir=$(pwd)
 
@@ -40,6 +41,7 @@ if [ "${NODE_ENV}" != "production" ]; then
   pnpm cli build --output-dir \
       "${build_path}${wasm_base_path}" \
       --public-packages-host "${public_packages_host}" \
+      --public-packages-port "${public_packages_port}" \
       --public-packages-base-path "${wasm_base_path}"
 else
   echo "Building for production..."
@@ -47,5 +49,6 @@ else
       "${build_path}${wasm_base_path}" \
       --is-production \
       --public-packages-host "${public_packages_host}" \
+      --public-packages-port "${public_packages_port}" \
       --public-packages-base-path "${wasm_base_path}"
 fi
