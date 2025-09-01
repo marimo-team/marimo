@@ -60,6 +60,13 @@
   roles: [chat, edit]
   thinking: false
 
+- name: Gemini 2.5 Flash Preview
+  model: gemini-2.5-flash-preview
+  description: Preview of the upcoming Gemini 2.5 Flash model
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
 - name: Gemini 2.0 Flash
   model: gemini-2.0-flash
   description: Next-generation Flash model with improved performance and capabilities
