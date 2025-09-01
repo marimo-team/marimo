@@ -700,7 +700,7 @@ importers:
 
   packages/ts-config: {}
 
-  packages/wasm-tester:
+  packages/wasm-builder:
     dependencies:
       '@types/express':
         specifier: ^5.0.3
