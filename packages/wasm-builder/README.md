@@ -1,4 +1,4 @@
-# wasm-tester
+# wasm-builder
 
 This is a proxy for testing the wasm version of marimo. This allows us to serve
 a very up to date version of marimo to the wasm frontend, while still being able
@@ -18,15 +18,17 @@ project)
 
 ```bash
 cd frontend
-# Start the frontend
-pnpm dev
+# Start the frontend. You will want to set PYODIDE=true so that you can force the use of the 
+# pyodide backend
+PYODIDE=true pnpm dev
 ```
 
+
 The frontend listens on port 3000 by default. In another terminal, you can start
-the wasm-tester proxy. 
+the wasm-builder proxy. 
 
 ```bash
-cd packages/wasm-tester
+cd packages/wasm-builder
 pnpm start 
 ```
 
