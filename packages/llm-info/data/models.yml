@@ -60,9 +60,16 @@
   roles: [chat, edit]
   thinking: false
 
-- name: Gemini 2.5 Flash Preview
-  model: gemini-2.5-flash-preview
-  description: Preview of the upcoming Gemini 2.5 Flash model
+- name: Gemini 2.5 Flash
+  model: gemini-2.5-flash
+  description: Adaptive thinking, cost efficiency
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 2.5 Flash Lite
+  model: gemini-2.5-flash-lite
+  description: Most cost-efficient model supporting high throughput
   providers: [google]
   roles: [chat, edit]
   thinking: false
@@ -115,6 +122,7 @@
   providers: [google]
   roles: [chat, edit]
   thinking: false
+
 
 # OpenAI
 
