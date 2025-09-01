@@ -38,6 +38,8 @@ if __name__ == "__main__":
 
 For a more complete example, see the [FastAPI example](https://github.com/marimo-team/marimo/tree/main/examples/frameworks/fastapi).
 
+Note that when run in this mode, Marimo will serve its static assets under the name of the notebook (in the example above, that would be `http://hostname/<dashboard|sales>/assets/<assetname.css|js|...>`). If you are using custom authorization middleware, you may wish to skip authentication for these assets to avoid server round trips. There are _many_ of them.
+
 ## Dynamic directory
 
 If you'd like to create a server to dynamically load marimo notebooks from a directory, you can use the `with_dynamic_directory` method. This is useful if the contents of the directory change often, such as a directory of notebooks for a dashboard, without restarting the server.
@@ -122,13 +124,11 @@ The `request` object provides access to:
 - `request.url`: URL information including path, query parameters
 - `request.meta`: Metadata added by your custom middleware
 
-
 ### Documenting and Validating Query Parameters
 
 When mounted apps accept [query parameters](../../api/query_params.md), it can be helpful to declare, validate, and document them with the help of a [Pydantic model](https://fastapi.tiangolo.com/tutorial/query-param-models/).
 
 If a marimo app called `notebooks/items.py` is mounted to `/items`, declaring an endpoint with the same route will take the query parameters through Pydantic model validation first, then redirect to the marimo endpoint.
-
 
 ```python
 # src/main.py
@@ -170,3 +170,15 @@ for filename in notebooks_dir.iterdir():
 
 app.mount("/", server.build())
 ```
+
+## Under the Hood
+
+Behind the scenes, in this mode Marimo is spinning up a new computational kernel
+in a separate sub-thread (same process) for each new session / app created.
+There are a few implications of this from a performance and reliability perspective:
+
+- If you are running multiple instances of this same server for load balancing, you will need to use sticky sessions in your load balancer to ensure that the same client gets the same kernel each time.
+- Similarly, attempting to run multiple instances of the same FastAPI
+  process (a common approach with Python web services) on the same node will not work reliably, since only one of them will actually be running the kernel.
+
+In summary, there are limitations to how far the approach described here can horizontally scale, although it should work for a small to medium number of users.
