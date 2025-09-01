@@ -67,6 +67,13 @@
   roles: [chat, edit]
   thinking: false
 
+- name: Gemini 2.5 Flash Lite
+  model: gemini-2.5-flash-lite
+  description: Most cost-efficient model supporting high throughput
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
 - name: Gemini 2.0 Flash
   model: gemini-2.0-flash
   description: Next-generation Flash model with improved performance and capabilities
