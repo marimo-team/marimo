@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/popover";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import type { ChatAttachment } from "@/core/ai/types";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -49,12 +50,7 @@ import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { ErrorBanner } from "../common/error-banner";
 import type { PluginFunctions } from "./ChatPlugin";
-import type {
-  ChatAttachment,
-  ChatConfig,
-  ChatMessage,
-  ChatRole,
-} from "./types";
+import type { ChatConfig, ChatMessage, ChatRole } from "./types";
 
 interface Props extends PluginFunctions {
   prompts: string[];
