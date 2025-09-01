@@ -287,6 +287,10 @@ class DirectedGraph:
                     _other_ids_defining_name, variable_name = (
                         self._find_sql_hierarchical_matches(sql_ref)
                     )
+                    # Ignore definitions from the current cell,
+                    # cells can't both define and reference the same name
+                    if cell_id in _other_ids_defining_name:
+                        _other_ids_defining_name.remove(cell_id)
                     other_ids_defining_name.update(_other_ids_defining_name)
 
                 # If other_ids_defining_name is empty, the user will get a

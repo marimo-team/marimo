@@ -671,6 +671,25 @@ class TestSQL:
 
         assert graph.get_referring_cells("df", language="python") == set(["1"])
 
+    def test_sql_creation_and_select_from_same_cell(self):
+        graph = dataflow.DirectedGraph()
+        code = "df = mo.sql('CREATE TABLE t1 (i INTEGER); SELECT * FROM t1')"
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        code = "df"
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+        }
+
+        assert graph.parents == {"0": set(), "1": set(["0"])}
+        assert graph.children == {"0": set(["1"]), "1": set([])}
+        assert graph.get_referring_cells("df", language="python") == set(["1"])
+
     def test_get_referring_cells_sql_and_python(self) -> None:
         """Test the get_referring_cells method."""
         graph = dataflow.DirectedGraph()
