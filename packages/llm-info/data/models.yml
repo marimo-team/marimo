@@ -60,13 +60,6 @@
   roles: [chat, edit]
   thinking: false
 
-- name: Gemini 2.5 Flash Preview
-  model: gemini-2.5-flash-preview
-  description: Preview of the upcoming Gemini 2.5 Flash model
-  providers: [google]
-  roles: [chat, edit]
-  thinking: false
-
 - name: Gemini 2.0 Flash
   model: gemini-2.0-flash
   description: Next-generation Flash model with improved performance and capabilities
@@ -118,6 +111,27 @@
 
 # OpenAI
 
+- name: GPT-5
+  model: gpt-5
+  description: The best model for coding and agentic tasks across domains
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-5 Mini
+  model: gpt-5-mini
+  description: A faster, cost-efficient version of GPT-5 for well-defined tasks
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-5 Nano
+  model: gpt-5-nano
+  description: Fastest, most cost-efficient version of GPT-5
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
 - name: GPT-4.1
   model: gpt-4.1
   description: Fast, highly intelligent model with largest context window (1 million tokens)
@@ -143,27 +157,6 @@
   model: gpt-4o-mini
   description: Fast, affordable small model for focused tasks
   providers: [openai, github]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5
-  model: gpt-5
-  description: The best model for coding and agentic tasks across domains
-  providers: [openai]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5 Mini
-  model: gpt-5-mini
-  description: A faster, cost-efficient version of GPT-5 for well-defined tasks
-  providers: [openai]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5 Nano
-  model: gpt-5-nano
-  description: Fastest, most cost-efficient version of GPT-5
-  providers: [openai]
   roles: [chat, edit]
   thinking: false
 
