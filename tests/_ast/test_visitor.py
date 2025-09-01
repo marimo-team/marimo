@@ -1274,6 +1274,72 @@ def test_sql_from_another_module() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_defined_in_same_statement() -> None:
+    code = "\n".join(
+        [
+            "df = mo.sql('create table cars (id int); select * from cars')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df", "cars"])
+    assert v.refs == set(["mo"])
+
+    # drop table
+    code = "\n".join(
+        [
+            "df = mo.sql('drop table schema.cars; select * from cars')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["mo", "cars"])
+
+    # table with schema
+    code = "\n".join(
+        [
+            "df = mo.sql('create table schema.cars (id int); select * from schema.cars')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df", "cars"])
+    assert v.refs == set(["mo"])
+
+    # tables from different catalog
+    code = "\n".join(
+        [
+            "df = mo.sql('create table catalog.schema.cars (id int); select * from catalog_two.schema.cars')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df", "cars"])
+    assert v.refs == set(["mo", "catalog_two.schema.cars"])
+
+
+@pytest.mark.xfail(
+    reason="We cannot determine if the table is deleted in the same statement"
+)
+def test_sql_table_deleted_in_same_statement() -> None:
+    code = "\n".join(
+        [
+            "df = mo.sql('create table cars (id int); drop table cars;')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_url() -> None:
     code = "\n".join(
         [
