@@ -1,7 +1,7 @@
 // Overrides the Vite config for the OSO project
-import config from "./vite.config.mjs";
-import { defineConfig } from "vite";
 import * as path from "node:path";
+import { defineConfig } from "vite";
+import config from "./vite.config.mjs";
 
 export default defineConfig({
   ...config,
