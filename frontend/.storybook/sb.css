@@ -11,5 +11,5 @@
 }
 
 .sbdocs.sbdocs-wrapper h1 {
-  @apply text-foreground !important;
+  @apply !text-foreground;
 }
