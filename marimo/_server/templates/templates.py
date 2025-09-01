@@ -476,7 +476,7 @@ def _inject_custom_css_for_config(
 def _replace_asset_urls(html: str, asset_url: Optional[str]) -> str:
     """Replace asset URLs with the given asset URL.
 
-    These are naturally relative URLs. This can be used load assets
+    These are naturally relative URLs. This can be used to load assets
     from a CDN instead of from the marimo server.
 
     The asset URL can be parameterized with {version}
