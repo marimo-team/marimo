@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import difflib
+import re
+import sys
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Callable
 
@@ -8,6 +11,28 @@ import pytest
 
 from marimo import __version__
 from marimo._utils.paths import maybe_make_dirs
+
+
+class ToText(HTMLParser):
+    def __init__(self) -> None:
+        HTMLParser.__init__(self)
+        self._text = []
+
+    def handle_data(self, data: str) -> None:
+        text = data.strip()
+        if len(text) > 0:
+            text = re.sub("[ \t\r\n]+", " ", text)
+            self._text.append(text.strip())
+
+    def text(self) -> str:
+        return " ".join(self._text).strip()
+
+    @staticmethod
+    def apply(html: str) -> str:
+        parser = ToText()
+        parser.feed(html)
+        parser.close()
+        return parser.text()
 
 
 def snapshotter(current_file: str) -> Callable[[str, str], None]:
@@ -76,6 +101,15 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
             )
 
             if result != expected:
+                # Old versions of markdown are allowed to have different
+                # tags and whitespace
+                if sys.version_info < (3, 10):
+                    if ToText.apply(result) == ToText.apply(expected):
+                        pytest.xfail(
+                            "Different tags in older markdown versions"
+                        )
+                        return
+
                 write_result()
                 print("Snapshot updated")
 
