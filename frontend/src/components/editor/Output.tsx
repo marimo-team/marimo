@@ -34,6 +34,7 @@ import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
 import { Objects } from "@/utils/objects";
+import { LazyVegaEmbed } from "../charts/lazy";
 import { ChartLoadingState } from "../data-table/charts/components/chart-states";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
@@ -41,10 +42,6 @@ import { Tooltip } from "../ui/tooltip";
 import { CsvViewer } from "./file-tree/renderers";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { renderMimeIcon } from "./renderMimeIcon";
-
-const LazyVegaLite = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.VegaLite })),
-);
 
 type MimeBundle = Record<OutputMessage["mimetype"], { [key: string]: unknown }>;
 type MimeBundleOrTuple = MimeBundle | [MimeBundle, { [key: string]: unknown }];
@@ -171,9 +168,12 @@ export const OutputRenderer: React.FC<{
     case "application/vnd.vega.v5+json":
       return (
         <Suspense fallback={<ChartLoadingState />}>
-          <LazyVegaLite
+          <LazyVegaEmbed
             spec={parsedJsonData as TopLevelFacetedUnitSpec}
-            theme={theme === "dark" ? "dark" : undefined}
+            options={{
+              theme: theme === "dark" ? "dark" : "vox",
+              mode: "vega",
+            }}
           />
         </Suspense>
       );

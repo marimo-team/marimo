@@ -4,14 +4,14 @@ import * as cql from "compassql/build/src";
 import { createStore, Provider, useAtomValue } from "jotai";
 import { ListFilterIcon } from "lucide-react";
 import React, { type JSX, useMemo } from "react";
-import { VegaLite } from "react-vega";
-import type { VegaLiteProps } from "react-vega/lib/VegaLite";
+import { VegaEmbed, type VegaEmbedProps } from "react-vega";
+import type { TopLevelSpec } from "vega-lite";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useOnMount } from "@/hooks/useLifecycle";
-import { useTheme } from "@/theme/useTheme";
+import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { Objects } from "@/utils/objects";
 import { ErrorBanner } from "../common/error-banner";
 import { vegaLoadData } from "../vega/loader";
@@ -69,14 +69,18 @@ interface DataTableProps extends DataExplorerData {
   setValue: (value: DataExplorerState) => void;
 }
 
-const ACTIONS: VegaLiteProps["actions"] = {
-  export: { svg: true, png: true },
-  source: false,
-  compiled: false,
-  editor: false,
-};
-
-const PADDING = { left: 20, right: 20, top: 20, bottom: 20 };
+function chartOptions(theme: ResolvedTheme): VegaEmbedProps["options"] {
+  return {
+    padding: { left: 20, right: 20, top: 20, bottom: 20 },
+    actions: {
+      export: { svg: true, png: true },
+      source: false,
+      compiled: false,
+      editor: false,
+    },
+    theme: theme === "dark" ? "dark" : undefined,
+  };
+}
 
 export default ConnectedDataExplorerComponent;
 
@@ -128,15 +132,13 @@ export const DataExplorerComponent = ({
       return <ColumnSummary schema={schema} />;
     }
 
+    const spec = mainPlot.spec;
+    const responsiveSpec = makeResponsive(spec);
+    const augmentedSpec = augmentSpecWithData(responsiveSpec, chartData);
+
     return (
       <div className="flex overflow-y-auto justify-center items-center flex-1 w-[90%]">
-        <VegaLite
-          data={{ source: chartData }}
-          padding={PADDING}
-          actions={ACTIONS}
-          spec={makeResponsive(mainPlot.spec)}
-          theme={theme === "dark" ? "dark" : undefined}
-        />
+        <VegaEmbed spec={augmentedSpec} options={chartOptions(theme)} />
       </div>
     );
   };
@@ -205,12 +207,11 @@ export const DataExplorerComponent = ({
                 </Tooltip>
               }
             >
-              <VegaLite
-                data={{ source: chartData }}
+              <VegaEmbed
+                // data={{ source: chartData }}
+                options={chartOptions(theme)}
                 key={idx}
-                actions={false}
                 spec={plot.spec}
-                theme={theme === "dark" ? "dark" : undefined}
               />
             </HorizontalCarouselItem>
           ))}
@@ -255,7 +256,7 @@ const HorizontalCarouselItem = ({
 };
 // Make the plot responsive
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function makeResponsive(spec: any) {
+function makeResponsive(spec: any): TopLevelSpec {
   // NOTE: for row/column, this applies to the inner plot
   // so we tend to overflow due to the legends,
   // So for row/column, we skip the responsive spec
@@ -265,4 +266,11 @@ function makeResponsive(spec: any) {
     spec.width = "container";
   }
   return spec;
+}
+
+function augmentSpecWithData(spec: TopLevelSpec, data: object[]): TopLevelSpec {
+  return {
+    ...spec,
+    data: { values: data },
+  };
 }
