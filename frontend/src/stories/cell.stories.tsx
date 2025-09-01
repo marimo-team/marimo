@@ -6,7 +6,6 @@ import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve.ts";
 import type { CellConfig } from "@/core/network/types";
-import { store } from "@/core/state/jotai.ts";
 import { WebSocketState } from "@/core/websocket/types";
 import { MultiColumn } from "@/utils/id-tree";
 import type { Milliseconds, Seconds } from "@/utils/time";
