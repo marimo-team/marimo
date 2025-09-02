@@ -451,6 +451,7 @@ https://github.com/marimo-team/marimo/issues/5219.""",
     default=False,
     show_default=True,
     type=bool,
+    hidden=True,
     help="Enable MCP server endpoint at /mcp for LLM integration.",
 )
 @click.argument(
