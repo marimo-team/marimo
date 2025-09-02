@@ -90,6 +90,7 @@ def start(
     redirect_console_to_browser: bool,
     skew_protection: bool,
     remote_url: Optional[str] = None,
+    mcp: bool = False,
 ) -> None:
     """
     Start the server.
@@ -169,6 +170,7 @@ def start(
             [
                 lifespans.lsp,
                 lifespans.mcp,
+                lifespans.mcp_server,
                 lifespans.etc,
                 lifespans.signal_handler,
                 lifespans.logging,
@@ -193,6 +195,8 @@ def start(
     app.state.base_url = base_url
     app.state.config_manager = config_reader
     app.state.remote_url = remote_url
+    app.state.mcp_server_enabled = mcp
+    app.state.skew_protection = skew_protection
 
     # Resource initialization
     # Increase the limit on open file descriptors to prevent resource
