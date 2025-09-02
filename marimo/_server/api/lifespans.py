@@ -141,7 +141,6 @@ async def mcp_server(app: Starlette) -> AsyncIterator[None]:
         from marimo._mcp.server.main import setup_mcp_server
 
         session_manager = setup_mcp_server(app)
-        LOGGER.warning(f"MCP server session manager: {session_manager}")
 
         # Expose the raw handler so your /mcp route can proxy the ASGI triplet
         app.state.mcp_handler = session_manager.handle_request
