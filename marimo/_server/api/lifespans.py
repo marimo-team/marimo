@@ -15,6 +15,7 @@ from marimo._server.lsp import any_lsp_server_running
 from marimo._server.model import SessionMode
 from marimo._server.print import (
     print_experimental_features,
+    print_mcp,
     print_shutdown,
     print_startup,
 )
@@ -119,6 +120,47 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
+async def mcp_server(app: Starlette) -> AsyncIterator[None]:
+    """Lifespan for MCP server functionality (exposing marimo as MCP server)."""
+
+    state = AppState.from_app(app)
+    session_mgr = state.session_manager
+    mcp_server_enabled = state.mcp_server_enabled
+
+    # Only start the MCP server in Edit mode
+    if session_mgr.mode != SessionMode.EDIT:
+        yield
+        return
+
+    if not mcp_server_enabled:
+        yield
+        return
+
+    try:
+        # Import here to avoid circular imports and optional dependency issues
+        from marimo._mcp.server.main import setup_mcp_server
+
+        session_manager = setup_mcp_server(app)
+        LOGGER.warning(f"MCP server session manager: {session_manager}")
+
+        # Expose the raw handler so your /mcp route can proxy the ASGI triplet
+        app.state.mcp_handler = session_manager.handle_request
+
+        async with session_manager.run():
+            LOGGER.info("MCP server session manager started")
+            # Session manager owns request lifecycle during app run
+            yield
+
+    except ImportError as e:
+        LOGGER.warning(f"MCP server dependencies not available: {e}")
+        yield
+        return
+    except Exception as e:
+        LOGGER.error(f"Failed to start MCP server: {e}")
+        raise
+
+
+@contextlib.asynccontextmanager
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     if not state.headless:
@@ -138,6 +180,8 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     manager: SessionManager = state.session_manager
     file_router = manager.file_router
+    mcp_server_enabled = state.mcp_server_enabled
+    skew_protection_enabled = state.skew_protection
 
     # Startup message
     if not manager.quiet:
@@ -151,6 +195,13 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
         )
 
         print_experimental_features(state.config_manager.get_config())
+
+        if mcp_server_enabled:
+            mcp_url = _mcp_startup_url(state)
+            server_token = None
+            if skew_protection_enabled:
+                server_token = str(state.session_manager.skew_protection_token)
+            print_mcp(mcp_url, server_token)
 
     yield
 
@@ -208,6 +259,37 @@ def _startup_url(state: AppStateBase) -> str:
     elif port == 443:
         url = f"https://{host}{state.base_url}"
 
+    if AuthToken.is_empty(state.session_manager.auth_token):
+        return url
+    return f"{url}?access_token={str(state.session_manager.auth_token)}"
+
+
+def _mcp_startup_url(state: AppStateBase) -> str:
+    host = state.host
+    port = state.port
+    base_url = state.base_url
+
+    # Handle localhost pretty printing (same logic as _startup_url)
+    try:
+        if (
+            socket.getnameinfo((host, port), socket.NI_NOFQDN)[0]
+            == "localhost"
+        ):
+            host = "localhost"
+    except Exception:
+        ...
+
+    # Construct MCP endpoint URL
+    mcp_prefix = "/mcp"
+    mcp_name = "server"
+    full_mcp_path = f"{mcp_prefix}/{mcp_name}"
+    url = f"http://{host}:{port}{base_url}{full_mcp_path}"
+    if port == 80:
+        url = f"http://{host}{base_url}{full_mcp_path}"
+    elif port == 443:
+        url = f"https://{host}{base_url}{full_mcp_path}"
+
+    # Add access token if not empty
     if AuthToken.is_empty(state.session_manager.auth_token):
         return url
     return f"{url}?access_token={str(state.session_manager.auth_token)}"

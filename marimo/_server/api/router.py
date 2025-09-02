@@ -22,6 +22,7 @@ from marimo._server.api.endpoints.files import router as files_router
 from marimo._server.api.endpoints.health import router as health_router
 from marimo._server.api.endpoints.home import router as home_router
 from marimo._server.api.endpoints.login import router as login_router
+from marimo._server.api.endpoints.mcp import router as mcp_router
 from marimo._server.api.endpoints.packages import router as packages_router
 from marimo._server.api.endpoints.secrets import router as secrets_router
 from marimo._server.api.endpoints.terminal import router as terminal_router
@@ -69,6 +70,11 @@ def build_routes(base_url: str = "") -> list[BaseRoute]:
     app_router.include_router(
         packages_router, prefix="/api/packages", name="packages"
     )
+    # Note: MCP router requires a prefix (/mcp) to avoid startup conflicts. Without it, the MCP
+    # endpoint gets called immediately when the backend server starts, causing missing
+    # header errors since frontend requests don't match MCP SDK JSON-RPC requirements.
+    # Note: Make sure mcp_router is above the health_router and ws_router to avoid startup conflicts.
+    app_router.include_router(mcp_router, prefix="/mcp", name="server")
     app_router.include_router(health_router, name="health")
     app_router.include_router(ws_router, name="ws")
     app_router.include_router(assets_router, name="assets")
