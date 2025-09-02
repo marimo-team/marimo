@@ -164,7 +164,8 @@ export class DefaultWasmController implements WasmController {
   private async loadNotebookDeps(code: string, foundPackages: Set<string>) {
     const pyodide = this.requirePyodide;
 
-    foundPackages.add("pyoso==0.6.4")
+    // We minimally need pyoso 0.6.4 for wasm support
+    foundPackages.add("pyoso>=0.6.4")
 
     if (code.includes("mo.sql")) {
       // We need pandas and duckdb for mo.sql
