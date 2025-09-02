@@ -43,6 +43,8 @@ def make_tool_success_result(
 ) -> SuccessResult[T]:
     """
     LLM-friendly success payload with explicit instructions.
+
+    Returns a properly typed SuccessResult that FastMCP can validate.
     """
     # Return a dict that matches the SuccessResult structure
     # Type checkers will see this as SuccessResult[T]
