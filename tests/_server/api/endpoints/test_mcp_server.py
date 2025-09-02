@@ -39,15 +39,16 @@ class TestMCPRouter:
             await router(scope, receive, send)
 
             # Verify 404 response
-            send.assert_any_call({
-                "type": "http.response.start",
-                "status": 404,
-                "headers": [(b"content-type", b"text/plain")],
-            })
-            send.assert_any_call({
-                "type": "http.response.body",
-                "body": b"MCP not available"
-            })
+            send.assert_any_call(
+                {
+                    "type": "http.response.start",
+                    "status": 404,
+                    "headers": [(b"content-type", b"text/plain")],
+                }
+            )
+            send.assert_any_call(
+                {"type": "http.response.body", "body": b"MCP not available"}
+            )
 
     async def test_mcp_handler_forwards_asgi(self):
         """Test ASGI forwarding when handler exists."""
@@ -58,11 +59,13 @@ class TestMCPRouter:
 
         async def mock_mcp_handler(scope, receive, send):
             forwarded_calls.append((scope, receive, send))
-            await send({
-                "type": "http.response.start",
-                "status": 200,
-                "headers": [],
-            })
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [],
+                }
+            )
             await send({"type": "http.response.body", "body": b"forwarded"})
 
         # Mock app state with mcp_handler
@@ -81,7 +84,9 @@ class TestMCPRouter:
 
             # Verify forwarding occurred
             assert len(forwarded_calls) == 1
-            forwarded_scope, forwarded_receive, forwarded_send = forwarded_calls[0]
+            forwarded_scope, forwarded_receive, forwarded_send = (
+                forwarded_calls[0]
+            )
 
             # Verify scope is passed through
             assert forwarded_scope is scope
@@ -100,15 +105,16 @@ class TestMCPRouter:
         await router(scope, receive, send)
 
         # Should return 404 when no app
-        send.assert_any_call({
-            "type": "http.response.start",
-            "status": 404,
-            "headers": [(b"content-type", b"text/plain")],
-        })
-        send.assert_any_call({
-            "type": "http.response.body",
-            "body": b"MCP not available"
-        })
+        send.assert_any_call(
+            {
+                "type": "http.response.start",
+                "status": 404,
+                "headers": [(b"content-type", b"text/plain")],
+            }
+        )
+        send.assert_any_call(
+            {"type": "http.response.body", "body": b"MCP not available"}
+        )
 
     async def test_app_state_from_app_exception(self):
         """Test behavior when AppStateBase.from_app raises exception."""
@@ -120,6 +126,7 @@ class TestMCPRouter:
             # Mock from_app to raise an exception
             def failing_from_app(_app):
                 raise AttributeError("No app state")
+
             m.setattr(AppStateBase, "from_app", failing_from_app)
 
             scope = {"app": mock_app, "type": "http", "method": "POST"}
@@ -139,11 +146,13 @@ class TestMCPRouter:
         async def mock_mcp_handler(scope, _receive, send):
             nonlocal captured_scope
             captured_scope = scope
-            await send({
-                "type": "http.response.start",
-                "status": 200,
-                "headers": [],
-            })
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [],
+                }
+            )
             await send({"type": "http.response.body", "body": b"ok"})
 
         mock_app = MagicMock()
@@ -157,7 +166,7 @@ class TestMCPRouter:
                 "app": mock_app,
                 "type": "http",
                 "method": "POST",
-                "path": "/original/path"
+                "path": "/original/path",
             }
             receive = AsyncMock()
             send = AsyncMock()
