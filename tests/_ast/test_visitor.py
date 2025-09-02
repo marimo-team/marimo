@@ -1274,72 +1274,6 @@ def test_sql_from_another_module() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
-def test_sql_defined_in_same_statement() -> None:
-    code = "\n".join(
-        [
-            "df = mo.sql('create table cars (id int); select * from cars')",
-        ]
-    )
-    v = visitor.ScopedVisitor()
-    mod = ast.parse(code)
-    v.visit(mod)
-    assert v.defs == set(["df", "cars"])
-    assert v.refs == set(["mo"])
-
-    # drop table
-    code = "\n".join(
-        [
-            "df = mo.sql('drop table schema.cars; select * from cars')",
-        ]
-    )
-    v = visitor.ScopedVisitor()
-    mod = ast.parse(code)
-    v.visit(mod)
-    assert v.defs == set(["df"])
-    assert v.refs == set(["mo", "cars"])
-
-    # table with schema
-    code = "\n".join(
-        [
-            "df = mo.sql('create table schema.cars (id int); select * from schema.cars')",
-        ]
-    )
-    v = visitor.ScopedVisitor()
-    mod = ast.parse(code)
-    v.visit(mod)
-    assert v.defs == set(["df", "cars"])
-    assert v.refs == set(["mo"])
-
-    # tables from different catalog
-    code = "\n".join(
-        [
-            "df = mo.sql('create table catalog.schema.cars (id int); select * from catalog_two.schema.cars')",
-        ]
-    )
-    v = visitor.ScopedVisitor()
-    mod = ast.parse(code)
-    v.visit(mod)
-    assert v.defs == set(["df", "cars"])
-    assert v.refs == set(["mo", "catalog_two.schema.cars"])
-
-
-@pytest.mark.xfail(
-    reason="We cannot determine if the table is deleted in the same statement"
-)
-def test_sql_table_deleted_in_same_statement() -> None:
-    code = "\n".join(
-        [
-            "df = mo.sql('create table cars (id int); drop table cars;')",
-        ]
-    )
-    v = visitor.ScopedVisitor()
-    mod = ast.parse(code)
-    v.visit(mod)
-    assert v.defs == set(["df"])
-    assert v.refs == set(["mo"])
-
-
-@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_url() -> None:
     code = "\n".join(
         [
@@ -1455,3 +1389,150 @@ def test_sql_table_f_string() -> None:
     v.visit(mod)
     assert not v.defs
     assert v.refs == set(["mo", "my_table", "lim"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+@pytest.mark.parametrize(
+    ("description", "sql_statement", "expected_defs", "expected_refs"),
+    [
+        (
+            "create and select from same table in same schema",
+            "create table cars (id int); select * from cars",
+            {"cars"},
+            {"mo"},
+        ),
+        (
+            "create and select from same table with schema prefix",
+            "create table schema.cars (id int); select * from schema.cars",
+            {"cars"},
+            {"mo"},
+        ),
+        (
+            "create and select from same table with catalog and schema prefix",
+            "create table catalog.schema.cars (id int); select * from catalog.schema.cars",
+            {"cars"},
+            {"mo"},
+        ),
+        (
+            "create in one schema, select from another schema",
+            "create table schema1.cars (id int); select * from schema2.cars",
+            {"cars"},
+            {"mo", "schema2.cars"},
+        ),
+        (
+            "create in one catalog, select from another catalog",
+            "create table catalog1.schema.cars (id int); select * from catalog2.schema.cars",
+            {"cars"},
+            {"mo", "catalog2.schema.cars"},
+        ),
+        (
+            "create schema and use it in same statement",
+            "create schema my_schema; create table my_schema.cars (id int); select * from my_schema.cars",
+            {"my_schema", "cars"},
+            {"mo"},
+        ),
+        (
+            "drop table and reference it in same statement",
+            "drop table schema.cars; select * from cars",
+            set(),
+            {"mo", "cars"},
+        ),
+        (
+            "drop schema and reference table from it in same statement",
+            "drop schema my_schema; select * from my_schema.cars",
+            set(),
+            {"mo", "my_schema.cars"},
+        ),
+        (
+            "multiple tables in same schema",
+            "create table schema.cars (id int); create table schema.drivers (id int); select * from schema.cars inner join schema.drivers on cars.id = drivers.id",
+            {"cars", "drivers"},
+            {"mo"},
+        ),
+        (
+            "multiple tables in different schemas",
+            "create table schema1.cars (id int); create table schema2.drivers (id int); select * from schema1.cars inner join schema2.drivers on cars.id = drivers.id",
+            {"cars", "drivers"},
+            {"mo"},
+        ),
+        (
+            "multiple tables in different catalogs",
+            "create table catalog1.schema.cars (id int); create table catalog2.schema.drivers (id int); select * from catalog1.schema.cars inner join catalog2.schema.drivers on cars.id = drivers.id",
+            {"cars", "drivers"},
+            {"mo"},
+        ),
+        (
+            "create view and reference it in same statement",
+            "create view cars_view as select * from cars; select * from cars_view",
+            {"cars_view"},
+            {"mo", "cars"},
+        ),
+    ],
+)
+def test_sql_defined_in_same_statement(
+    description: str,
+    sql_statement: str,
+    expected_defs: set[str],
+    expected_refs: set[str],
+) -> None:
+    """Test various SQL scenarios with create/select operations in same statement."""
+    code = f"df = mo.sql('{sql_statement}')"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    expected_defs.add("df")
+    assert v.defs == expected_defs, f"Failed for: {description}"
+    assert v.refs == expected_refs, f"Failed for: {description}"
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+@pytest.mark.parametrize(
+    (
+        "description",
+        "sql_statement",
+        "expected_defs",
+        "expected_refs",
+    ),
+    [
+        pytest.param(
+            "create and drop table in same statement",
+            "create table cars (id int); drop table cars;",
+            set(),
+            {"mo"},
+            marks=pytest.mark.xfail(
+                reason="We still set the table as defined even if it is deleted in the same statement"
+            ),
+        ),
+        pytest.param(
+            "create and drop schema in same statement",
+            "create schema my_schema; drop schema my_schema;",
+            set(),
+            {"mo"},
+            marks=pytest.mark.xfail(
+                reason="We still set the schema as defined even if it is deleted in the same statement"
+            ),
+        ),
+        (
+            "attach and detach catalog in same statement",
+            'attach "my_catalog.db" as my_catalog; detach my_catalog;',
+            set(),
+            {"mo"},
+        ),
+    ],
+)
+def test_sql_table_deleted_in_same_statement(
+    description: str,
+    sql_statement: str,
+    expected_defs: set[str],
+    expected_refs: set[str],
+) -> None:
+    """Test various SQL scenarios with create/drop operations in same statement."""
+    code = f"df = mo.sql('{sql_statement}')"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    expected_defs.add("df")
+    assert v.defs == expected_defs, f"Failed for: {description}"
+    assert v.refs == expected_refs, f"Failed for: {description}"
