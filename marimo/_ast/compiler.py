@@ -35,6 +35,9 @@ if sys.version_info < (3, 10):
 else:
     from typing import TypeAlias
 
+# TODO: Hack for POC
+lookup = {}
+
 LOGGER = _loggers.marimo_logger()
 Cls: TypeAlias = type
 
@@ -214,12 +217,19 @@ def compile_cell(
     expr.end_col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
 
     filename: str
+    print(source_position)
     if source_position:
+        print("source_position details")
         # Modify the "source" position for meaningful stacktraces
         fix_source_position(module, source_position)
         fix_source_position(expr, source_position)
         filename = source_position.filename
+        lookup[cell_id] = source_position
     else:
+        print("caching cell code")
+        raise NotImplementedError(
+            "Source position is required for non-anonymous files."
+        )
         # store the cell's code in Python's linecache so debuggers can find it
         filename = get_filename(cell_id)
         # cache the entire cell's code, doesn't need to be done in source case
@@ -298,24 +308,24 @@ def get_source_position(
     f: Cls | Callable[..., Any], lineno: int, col_offset: int
 ) -> Optional[SourcePosition]:
     # Fallback won't capture embedded scripts
-    if inspect.isclass(f):
-        is_script = f.__module__ == "__main__"
-    # Could be something wrapped in a decorator, like
-    # functools._lru_cache_wrapper.
-    elif hasattr(f, "__wrapped__"):
-        return get_source_position(f.__wrapped__, lineno, col_offset)
-    # Larger catch all than if inspect.isfunction(f):
-    elif hasattr(f, "__globals__") and hasattr(f, "__name__"):
-        is_script = f.__globals__["__name__"] == "__main__"  # type: ignore
-    else:
-        return None
-    # TODO: spec is None for markdown notebooks, which is fine for now
-    if module := inspect.getmodule(f):
-        spec = module.__spec__
-        is_script = spec is None or spec.name != "marimo_app"
+    # if inspect.isclass(f):
+    #     is_script = f.__module__ == "__main__"
+    # # Could be something wrapped in a decorator, like
+    # # functools._lru_cache_wrapper.
+    # elif hasattr(f, "__wrapped__"):
+    #     return get_source_position(f.__wrapped__, lineno, col_offset)
+    # # Larger catch all than if inspect.isfunction(f):
+    # elif hasattr(f, "__globals__") and hasattr(f, "__name__"):
+    #     is_script = f.__globals__["__name__"] == "__main__"  # type: ignore
+    # else:
+    #     return None
+    # # TODO: spec is None for markdown notebooks, which is fine for now
+    # if module := inspect.getmodule(f):
+    #     spec = module.__spec__
+    #     is_script = spec is None or spec.name != "marimo_app"
 
-    if not is_script:
-        return None
+    # if not is_script:
+    #     return None
 
     return SourcePosition(
         filename=inspect.getfile(f),
@@ -463,10 +473,11 @@ def cell_factory(
 
     # anonymous file is required for deterministic testing.
     source_position = None
-    if not anonymous_file:
-        source_position = get_source_position(
-            f, lnum + cell_def.lineno - 1, cell_def.col_offset
-        )
+    print("anonymous_file", anonymous_file)
+    # if not anonymous_file:
+    source_position = get_source_position(
+        f, lnum + cell_def.lineno - 1, cell_def.col_offset
+    )
 
     cell = compile_cell(
         cell_def.code,

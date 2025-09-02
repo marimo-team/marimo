@@ -119,6 +119,48 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
+async def debug_server(app: Starlette) -> AsyncIterator[None]:
+    state = AppState.from_app(app)
+    session_mgr = state.session_manager
+
+    dap_server = None  # Track DAP server for cleanup
+
+    # Only start the debug server in Edit mode
+    if session_mgr.mode == SessionMode.EDIT:
+        try:
+            from marimo._server.debug.dap_server import get_dap_server
+            from marimo._server.utils import find_free_port
+
+            dap_server = get_dap_server(session_mgr)
+            LOGGER.info("Starting DAP debug server")
+
+            # Find a free port for debug server
+            debug_port = find_free_port(5678, addr="localhost")
+
+            actual_port = await dap_server.start(
+                host="localhost", port=debug_port
+            )
+            LOGGER.info(f"DAP debug server started on localhost:{actual_port}")
+
+            # Store the port in app state for middleware
+            app.state.debug_port = actual_port
+
+        except Exception as e:
+            LOGGER.warning(f"Failed to start DAP debug server: {e}")
+
+    yield
+
+    # Clean up DAP server on shutdown
+    if dap_server:
+        try:
+            LOGGER.info("Stopping DAP debug server")
+            await dap_server.stop()
+            LOGGER.info("DAP debug server stopped")
+        except Exception as e:
+            LOGGER.error(f"Error during DAP server cleanup: {e}")
+
+
+@contextlib.asynccontextmanager
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     if not state.headless:
