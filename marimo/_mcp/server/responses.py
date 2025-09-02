@@ -8,7 +8,7 @@ T = TypeVar("T")
 if sys.version_info >= (3, 11):
     # Python 3.11+ supports TypedDict with Generic
     from typing import Generic
-    
+
     class SuccessResult(TypedDict, Generic[T]):
         status: Literal["success", "error", "warning"]
         data: T
@@ -20,7 +20,7 @@ if sys.version_info >= (3, 11):
 else:
     # Python 3.10 fallback: Use Protocol for generic typing
     from typing import Generic, Protocol
-    
+
     class SuccessResult(Protocol[T]):
         status: Literal["success", "error", "warning"]
         data: T
@@ -43,8 +43,6 @@ def make_tool_success_result(
 ) -> SuccessResult[T]:
     """
     LLM-friendly success payload with explicit instructions.
-    
-    Returns a properly typed SuccessResult that FastMCP can validate.
     """
     # Return a dict that matches the SuccessResult structure
     # Type checkers will see this as SuccessResult[T]
