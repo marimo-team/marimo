@@ -1,18 +1,34 @@
 from __future__ import annotations
 
-from typing import Any, Generic, Literal, Optional, TypedDict, TypeVar, cast
+import sys
+from typing import Any, Literal, Optional, TypedDict, TypeVar
 
 T = TypeVar("T")
 
-
-class SuccessResult(TypedDict, Generic[T]):
-    status: Literal["success", "error", "warning"]
-    data: T
-    auth_required: bool  # whether the tool requires authentication
-    next_steps: Optional[list[str]]  # additional instructions for the LLM
-    action_url: Optional[str]  # e.g., OAuth/link flow
-    message: Optional[str]  # additional unstructured message
-    meta: Optional[dict[str, Any]]  # additional structured context
+if sys.version_info >= (3, 11):
+    # Python 3.11+ supports TypedDict with Generic
+    from typing import Generic
+    
+    class SuccessResult(TypedDict, Generic[T]):
+        status: Literal["success", "error", "warning"]
+        data: T
+        auth_required: bool  # whether the tool requires authentication
+        next_steps: Optional[list[str]]  # additional instructions for the LLM
+        action_url: Optional[str]  # e.g., OAuth/link flow
+        message: Optional[str]  # additional unstructured message
+        meta: Optional[dict[str, Any]]  # additional structured context
+else:
+    # Python 3.10 fallback: Use Protocol for generic typing
+    from typing import Generic, Protocol
+    
+    class SuccessResult(Protocol[T]):
+        status: Literal["success", "error", "warning"]
+        data: T
+        auth_required: bool
+        next_steps: Optional[list[str]]
+        action_url: Optional[str]
+        message: Optional[str]
+        meta: Optional[dict[str, Any]]
 
 
 def make_tool_success_result(
@@ -27,18 +43,17 @@ def make_tool_success_result(
 ) -> SuccessResult[T]:
     """
     LLM-friendly success payload with explicit instructions.
+    
+    Returns a properly typed SuccessResult that FastMCP can validate.
     """
-    descriptive_success = cast(
-        SuccessResult[T],
-        {
-            "status": status,
-            "data": data,
-            "auth_required": auth_required,
-            "next_steps": next_steps,
-            "action_url": action_url,
-            "message": message,
-            "meta": meta,
-        },
-    )
-    # FastMCP automatically formats success responses to a proper MCP response
-    return descriptive_success
+    # Return a dict that matches the SuccessResult structure
+    # Type checkers will see this as SuccessResult[T]
+    return {  # type: ignore[return-value]
+        "status": status,
+        "data": data,
+        "auth_required": auth_required,
+        "next_steps": next_steps,
+        "action_url": action_url,
+        "message": message,
+        "meta": meta,
+    }
