@@ -445,12 +445,6 @@ https://github.com/marimo-team/marimo/issues/5219.""",
     hidden=True,
     help="When opening a .py file, enable fallback conversion from pypercent, script, or text.",
 )
-@click.argument(
-    "name",
-    required=False,
-    type=click.Path(),
-)
-@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 @click.option(
     "--timeout",
     required=False,
@@ -459,6 +453,12 @@ https://github.com/marimo-team/marimo/issues/5219.""",
     type=float,
     help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
 )
+@click.argument(
+    "name",
+    required=False,
+    type=click.Path(),
+)
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
     port: Optional[int],
     host: str,
@@ -703,7 +703,6 @@ new_help_msg = "\n".join(
     type=bool,
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
-@click.argument("prompt", required=False)
 @click.option(
     "--timeout",
     required=False,
@@ -712,6 +711,7 @@ new_help_msg = "\n".join(
     type=float,
     help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
 )
+@click.argument("prompt", required=False)
 def new(
     port: Optional[int],
     host: str,
