@@ -118,6 +118,11 @@ lsp = [
     "python-lsp-ruff>=2.0.0",
 ]
 
+mcp = [
+    "mcp>=1.0.0; python_version >= '3.10'",
+]
+
+
 docs = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.5.49",
