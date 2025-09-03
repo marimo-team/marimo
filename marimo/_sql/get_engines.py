@@ -82,22 +82,25 @@ def engine_to_data_source_connection(
             display_name=variable_name,
         )
 
-    default_database = engine.get_default_database()
-    default_schema = engine.get_default_schema()
-    inference_config = engine.inference_config
+    try:
+        default_database = engine.get_default_database()
+        default_schema = engine.get_default_schema()
+        inference_config = engine.inference_config
 
-    config = get_datasources_config()
-    databases = engine.get_databases(
-        include_schemas=config.get(
-            "auto_discover_schemas", inference_config.auto_discover_schemas
-        ),
-        include_tables=config.get(
-            "auto_discover_tables", inference_config.auto_discover_tables
-        ),
-        include_table_details=config.get(
-            "auto_discover_columns", inference_config.auto_discover_columns
-        ),
-    )
+        config = get_datasources_config()
+        databases = engine.get_databases(
+            include_schemas=config.get(
+                "auto_discover_schemas", inference_config.auto_discover_schemas
+            ),
+            include_tables=config.get(
+                "auto_discover_tables", inference_config.auto_discover_tables
+            ),
+            include_table_details=config.get(
+                "auto_discover_columns", inference_config.auto_discover_columns
+            ),
+        )
+    except Exception as e:
+        LOGGER.warning(f"Failed to introspect datasource: {e}")
 
     display_name = (
         f"{engine.dialect} ({variable_name})"

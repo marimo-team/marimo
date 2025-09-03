@@ -103,22 +103,29 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         try:
             database_name = self._connection.current_catalog
         except AttributeError:
-            pass
+            LOGGER.debug("Backend doesn't support current_catalog")
+        except Exception:
+            LOGGER.debug("Failed to get default database", exc_info=True)
 
         if database_name is None:
             try:
                 database_name = self._connection.name
             except AttributeError:
-                pass
+                LOGGER.debug("Backend doesn't have a connection name")
+            except Exception:
+                LOGGER.debug("Failed to get default database", exc_info=True)
 
         return database_name
 
     def get_default_schema(self) -> Optional[str]:
         """Get the default schema name"""
+        schema_name = None
         try:
-            schema_name: str | None = self._connection.current_database
+            schema_name = self._connection.current_database
         except AttributeError:
-            schema_name = None
+            LOGGER.debug("Backend doesn't support current_database")
+        except Exception:
+            LOGGER.debug("Failed to get default schema", exc_info=True)
 
         return schema_name
 
@@ -148,10 +155,14 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         # For other Ibis backends, use original logic
         databases = []
 
-        if hasattr(self._connection, "list_catalogs"):
-            database_names = self._connection.list_catalogs()
-        else:
-            database_names = [self.default_database]
+        try:
+            if hasattr(self._connection, "list_catalogs"):
+                database_names = self._connection.list_catalogs()
+            else:
+                database_names = [self.default_database]
+        except Exception:
+            LOGGER.debug("Failed to get databases", exc_info=True)
+            return []
 
         for database_name in database_names:
             if self._resolve_should_auto_discover(include_schemas):

@@ -63,28 +63,97 @@ def test_convert_to_openai_messages(sample_messages: list[ChatMessage]):
 
     assert len(result) == 2
 
-    # Check user message
-    assert result[0]["role"] == "user"
-    assert len(result[0]["content"]) == 3
-    assert result[0]["content"][0] == {
-        "type": "text",
-        "text": "Hello, I have a question.",
-    }
-    assert result[0]["content"][1] == {
-        "type": "image_url",
-        "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
-    }
-    assert result[0]["content"][2] == {
-        "type": "text",
-        "text": "A\n1\n2\n3\n",
-    }
+    assert result == [
+        # User message
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Hello, I have a question."},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
+                },
+                {"type": "text", "text": "A\n1\n2\n3\n"},
+            ],
+        },
+        # Assistant message
+        {
+            "role": "assistant",
+            "content": "Sure, I'd be happy to help. What's your question?",
+        },
+    ]
 
-    # Check assistant message
-    assert result[1]["role"] == "assistant"
-    assert (
-        result[1]["content"]
-        == "Sure, I'd be happy to help. What's your question?"
-    )
+
+def test_convert_to_openai_messages_with_parts_and_attachments():
+    sample_messages = [
+        ChatMessage(
+            role="user",
+            content="Message with parts and attachments",
+            attachments=[
+                ChatAttachment(
+                    name="image.png",
+                    content_type="image/png",
+                    url=f"data:image/png;base64,{base64.b64encode(b'hello')}",
+                ),
+            ],
+            parts=[
+                TextPart(
+                    type="text", text="Message with parts and attachments"
+                ),
+                ReasoningPart(
+                    type="reasoning",
+                    reasoning="Deep thinking process",
+                    details=[
+                        ReasoningDetails(
+                            type="text", text="Analysis", signature=None
+                        )
+                    ],
+                ),
+                ToolInvocationPart(
+                    type="tool-invocation",
+                    tool_invocation=ToolInvocationResult(
+                        state="result",
+                        result={"answer": 4},
+                        tool_call_id="call_123",
+                        tool_name="calculator",
+                        step=1,
+                        args={"expression": "2 + 2"},
+                    ),
+                ),
+            ],
+        ),
+    ]
+    result = convert_to_openai_messages(sample_messages)
+    assert result == [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Message with parts and attachments"},
+                {
+                    "type": "reasoning",
+                    "reasoning": "Deep thinking process",
+                    "details": [
+                        {"type": "text", "text": "Analysis", "signature": None}
+                    ],
+                },
+                {
+                    "type": "tool-invocation",
+                    "tool_invocation": {
+                        "state": "result",
+                        "result": {"answer": 4},
+                        "tool_call_id": "call_123",
+                        "tool_name": "calculator",
+                        "step": 1,
+                        "args": {"expression": "2 + 2"},
+                    },
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
+                },
+            ],
+        }
+    ]
 
 
 def test_convert_to_anthropic_messages(sample_messages: list[ChatMessage]):
@@ -387,17 +456,24 @@ def test_convert_to_anthropic_tools(sample_tools):
 
 
 def test_convert_to_google_tools(sample_tools):
+    # Add some additional parameters in tools, it should be ignored
+    sample_tools[0].parameters["maxNumResults"] = 10
     result = convert_to_google_tools(sample_tools)
-    assert len(result) == 1
-    assert "function_declarations" in result[0]
-    assert result[0]["function_declarations"][0]["name"] == "test_tool"
-    assert (
-        result[0]["function_declarations"][0]["description"] == "A test tool"
-    )
-    assert result[0]["function_declarations"][0]["parameters"] == {
-        "type": "object",
-        "properties": {"x": {"type": "integer"}},
-    }
+    assert result == [
+        {
+            "function_declarations": [
+                {
+                    "name": "test_tool",
+                    "description": "A test tool",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"x": {"type": "integer"}},
+                        "required": [],
+                    },
+                }
+            ]
+        }
+    ]
 
 
 def test_convert_to_ai_sdk_messages():
@@ -452,8 +528,13 @@ def test_convert_to_ai_sdk_messages():
     expected = 'd:{"finishReason": "stop", "usage": {"promptTokens": 0, "completionTokens": 0}}\n'
     assert result == expected
 
-    # Test unknown type defaults to text
-    result = convert_to_ai_sdk_messages("fallback", "unknown")
+    # Test error type
+    error_message = "Model not found"
+    result = convert_to_ai_sdk_messages(error_message, "error")
+    assert result == f"3:{json.dumps(error_message)}\n"
+
+    # Test unknown type defaults to text (using type ignore for testing)
+    result = convert_to_ai_sdk_messages("fallback", "unknown")  # type: ignore
     assert result == f"0:{json.dumps('fallback')}\n"
 
 

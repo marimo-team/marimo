@@ -52,41 +52,40 @@ describe("getAICompletionBody", () => {
     const input = "Use @data://dataset1 and @data://dataset2 for analysis";
     const result = getAICompletionBody({ input });
 
-    expect(result).toEqual({
-      includeOtherCode: "// Some other code",
-      context: {
-        schema: [
-          {
-            name: "dataset1",
-            columns: [
-              { name: "col1", type: "number" },
-              { name: "col2", type: "string" },
-            ],
-          },
-          {
-            name: "dataset2",
-            columns: [
-              { name: "col3", type: "boolean" },
-              { name: "col4", type: "date" },
-            ],
-          },
-        ],
-        variables: [],
-      },
-    });
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "context": {
+          "plainText": "<data name="dataset1" source="unknown">
+      Columns:
+        - col1: number
+        - col2: string</data>
+
+      <data name="dataset2" source="unknown">
+      Columns:
+        - col3: boolean
+        - col4: date</data>",
+          "schema": [],
+          "variables": [],
+        },
+        "includeOtherCode": "// Some other code",
+      }
+    `);
   });
 
   it("should handle input with no mentioned datasets", () => {
     const input = "Perform some analysis without mentioning @data://datasets";
     const result = getAICompletionBody({ input });
 
-    expect(result).toEqual({
-      includeOtherCode: "// Some other code",
-      context: {
-        schema: [],
-        variables: [],
-      },
-    });
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "context": {
+          "plainText": "",
+          "schema": [],
+          "variables": [],
+        },
+        "includeOtherCode": "// Some other code",
+      }
+    `);
   });
 
   it("should handle input with non-existent datasets", () => {
@@ -106,21 +105,19 @@ describe("getAICompletionBody", () => {
       "Use @data://existingDataset and @data://nonExistentDataset for analysis";
     const result = getAICompletionBody({ input });
 
-    expect(result).toEqual({
-      includeOtherCode: "// Some other code",
-      context: {
-        schema: [
-          {
-            name: "existingDataset",
-            columns: [
-              { name: "col1", type: "number" },
-              { name: "col2", type: "string" },
-            ],
-          },
-        ],
-        variables: [],
-      },
-    });
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "context": {
+          "plainText": "<data name="existingDataset" source="unknown">
+      Columns:
+        - col1: number
+        - col2: string</data>",
+          "schema": [],
+          "variables": [],
+        },
+        "includeOtherCode": "// Some other code",
+      }
+    `);
   });
 
   it("should handle dataset names with dots", () => {
@@ -144,25 +141,23 @@ describe("getAICompletionBody", () => {
       "Use @data://dataset.with.dots and @data://regular_dataset for analysis";
     const result = getAICompletionBody({ input });
 
-    expect(result).toEqual({
-      includeOtherCode: "// Some other code",
-      context: {
-        schema: [
-          {
-            name: "dataset.with.dots",
-            columns: [
-              { name: "col1", type: "number" },
-              { name: "col2", type: "string" },
-            ],
-          },
-          {
-            name: "regular_dataset",
-            columns: [{ name: "col3", type: "boolean" }],
-          },
-        ],
-        variables: [],
-      },
-    });
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "context": {
+          "plainText": "<data name="dataset.with.dots" source="unknown">
+      Columns:
+        - col1: number
+        - col2: string</data>
+
+      <data name="regular_dataset" source="unknown">
+      Columns:
+        - col3: boolean</data>",
+          "schema": [],
+          "variables": [],
+        },
+        "includeOtherCode": "// Some other code",
+      }
+    `);
   });
 
   it("should handle connections", () => {
@@ -200,18 +195,18 @@ describe("getAICompletionBody", () => {
     const input = "Use @data://table1 for analysis";
     const result = getAICompletionBody({ input });
 
-    expect(result).toEqual({
-      includeOtherCode: "// Some other code",
-      context: {
-        schema: [
-          {
-            name: "table1",
-            columns: [{ name: "col1", type: "number" }],
-          },
-        ],
-        variables: [],
-      },
-    });
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "context": {
+          "plainText": "<data name="table1" source="unknown">
+      Columns:
+        - col1: number</data>",
+          "schema": [],
+          "variables": [],
+        },
+        "includeOtherCode": "// Some other code",
+      }
+    `);
   });
 
   it("should return the correct completion body with mentioned variables", () => {
@@ -237,24 +232,18 @@ describe("getAICompletionBody", () => {
     const input = "Use @variable://var1 and @variable://var2 for analysis";
     const result = getAICompletionBody({ input });
 
-    expect(result).toEqual({
-      includeOtherCode: "// Some other code",
-      context: {
-        schema: [],
-        variables: [
-          {
-            name: "var1",
-            valueType: "string",
-            previewValue: "string value",
-          },
-          {
-            name: "var2",
-            valueType: "number",
-            previewValue: "42",
-          },
-        ],
-      },
-    });
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "context": {
+          "plainText": "<variable name="var1" dataType="string">"string value"</variable>
+
+      <variable name="var2" dataType="number">"42"</variable>",
+          "schema": [],
+          "variables": [],
+        },
+        "includeOtherCode": "// Some other code",
+      }
+    `);
   });
 
   it("should handle input with both datasets and variables", () => {
@@ -284,27 +273,21 @@ describe("getAICompletionBody", () => {
     const input = "Use @data://dataset1 and @variable://var1 for analysis";
     const result = getAICompletionBody({ input });
 
-    expect(result).toEqual({
-      includeOtherCode: "// Some other code",
-      context: {
-        schema: [
-          {
-            name: "dataset1",
-            columns: [
-              { name: "col1", type: "number" },
-              { name: "col2", type: "string" },
-            ],
-          },
-        ],
-        variables: [
-          {
-            name: "var1",
-            valueType: "string",
-            previewValue: "string value",
-          },
-        ],
-      },
-    });
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "context": {
+          "plainText": "<data name="dataset1" source="unknown">
+      Columns:
+        - col1: number
+        - col2: string</data>
+
+      <variable name="var1" dataType="string">"string value"</variable>",
+          "schema": [],
+          "variables": [],
+        },
+        "includeOtherCode": "// Some other code",
+      }
+    `);
   });
 
   it("should handle non-existent variables", () => {
@@ -324,19 +307,16 @@ describe("getAICompletionBody", () => {
       "Use @variable://existingVar and @variable://nonExistentVar for analysis";
     const result = getAICompletionBody({ input });
 
-    expect(result).toEqual({
-      includeOtherCode: "// Some other code",
-      context: {
-        schema: [],
-        variables: [
-          {
-            name: "existingVar",
-            valueType: "string",
-            previewValue: "string value",
-          },
-        ],
-      },
-    });
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "context": {
+          "plainText": "<variable name="existingVar" dataType="string">"string value"</variable>",
+          "schema": [],
+          "variables": [],
+        },
+        "includeOtherCode": "// Some other code",
+      }
+    `);
   });
 
   it("should prioritize datasets over variables when there's a name conflict", () => {
@@ -363,17 +343,17 @@ describe("getAICompletionBody", () => {
     const input = "Use @data://conflict for analysis";
     const result = getAICompletionBody({ input });
 
-    expect(result).toEqual({
-      includeOtherCode: "// Some other code",
-      context: {
-        schema: [
-          {
-            name: "conflict",
-            columns: [{ name: "col1", type: "number" }],
-          },
-        ],
-        variables: [],
-      },
-    });
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "context": {
+          "plainText": "<data name="conflict" source="unknown">
+      Columns:
+        - col1: number</data>",
+          "schema": [],
+          "variables": [],
+        },
+        "includeOtherCode": "// Some other code",
+      }
+    `);
   });
 });

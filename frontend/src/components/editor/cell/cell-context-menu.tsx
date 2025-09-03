@@ -17,6 +17,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { menuItemVariants } from "@/components/ui/menu-items";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { useCellData, useCellRuntime } from "@/core/cells/cells";
@@ -219,19 +220,40 @@ export const CellActionsContextMenu = ({
               }
 
               return (
-                <ContextMenuItem
-                  key={action.label}
-                  className={action.disabled ? "opacity-50!" : ""}
-                  onSelect={(evt) => {
-                    if (action.disableClick || action.disabled) {
-                      return;
-                    }
-                    action.handle(evt);
-                  }}
-                  variant={action.variant}
-                >
-                  {body}
-                </ContextMenuItem>
+                <Fragment key={action.label}>
+                  {
+                    // Set disableClick items such as cell name input
+                    // to div to prevent roving focus
+                    action.disableClick ? (
+                      <div
+                        className={menuItemVariants({
+                          className: action.disabled ? "opacity-50!" : "",
+                          variant: action.variant,
+                        })}
+                        onKeyDown={(evt) => {
+                          evt.stopPropagation();
+                        }}
+                        // Prevent keydown propagation, that focus does not jump to shortcut which start with same letter
+                        // e.g. input "C", then focus jump to "Copy"
+                      >
+                        {body}
+                      </div>
+                    ) : (
+                      <ContextMenuItem
+                        className={action.disabled ? "opacity-50!" : ""}
+                        onSelect={(evt) => {
+                          if (action.disableClick || action.disabled) {
+                            return;
+                          }
+                          action.handle(evt);
+                        }}
+                        variant={action.variant}
+                      >
+                        {body}
+                      </ContextMenuItem>
+                    )
+                  }
+                </Fragment>
               );
             })}
             {i < allActions.length - 1 && <ContextMenuSeparator />}

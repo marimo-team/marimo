@@ -5,12 +5,26 @@ import ast
 import re
 from dataclasses import dataclass, field
 from textwrap import dedent
-from typing import Any, Optional
+from typing import Any, Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
+
+COMMON_FILE_EXTENSIONS = (
+    ".csv",
+    ".parquet",
+    ".json",
+    ".txt",
+    ".db",
+    ".tsv",
+    ".xlsx",
+)
+
+SQLKind = Literal["table", "view", "schema", "catalog"]
+
+SQLTypes = Union[SQLKind, Literal["any"]]
 
 
 class SQLVisitor(ast.NodeVisitor):
@@ -132,8 +146,8 @@ class TokenExtractor:
 
 @dataclass
 class SQLDefs:
-    tables: list[str] = field(default_factory=list)
-    views: list[str] = field(default_factory=list)
+    tables: list[SQLRef] = field(default_factory=list)
+    views: list[SQLRef] = field(default_factory=list)
     schemas: list[str] = field(default_factory=list)
     catalogs: list[str] = field(default_factory=list)
 
@@ -167,8 +181,8 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     token_extractor = TokenExtractor(
         sql_statement=sql_statement, tokens=tokens
     )
-    created_tables: list[str] = []
-    created_views: list[str] = []
+    created_tables: list[SQLRef] = []
+    created_views: list[SQLRef] = []
     created_schemas: list[str] = []
     created_catalogs: list[str] = []
 
@@ -240,7 +254,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
 
                     if is_table:
                         # only add the table name
-                        created_tables.append(parts[-1])
+                        created_tables.append(SQLRef.from_parts(parts))
                         # add the catalog and schema if exist
                         if len(parts) == 3:
                             reffed_catalogs.append(parts[0])
@@ -249,7 +263,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                             reffed_catalogs.append(parts[0])
                     elif is_view:
                         # only add the table name
-                        created_views.append(parts[-1])
+                        created_views.append(SQLRef.from_parts(parts))
                         # add the catalog and schema if exist
                         if len(parts) == 3:
                             reffed_catalogs.append(parts[0])
@@ -311,9 +325,152 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     )
 
 
-def find_sql_refs(
-    sql_statement: str,
-) -> list[str]:
+@dataclass(frozen=True)
+class SQLRef:
+    # Tables are synonymous with views,
+    # since we can't know the difference in queries
+    table: str
+    schema: Optional[str] = None
+    catalog: Optional[str] = None
+
+    @classmethod
+    def from_parts(
+        cls,
+        parts: list[str],
+    ) -> SQLRef:
+        catalog = None
+        schema = None
+        table = ""
+        if len(parts) == 3:
+            catalog, schema, table = parts
+            catalog = catalog.lower()
+            schema = schema.lower()
+        elif len(parts) == 2:
+            schema, table = parts
+            schema = schema.lower()
+        elif len(parts) == 1:
+            table = parts[0]
+        return cls(table=table.lower(), schema=schema, catalog=catalog)
+
+    @property
+    def qualified_name(self) -> str:
+        """Convert a SQLRef to a fully qualified name to be used as a reference in the visitor"""
+        parts = []
+        if self.catalog is not None:
+            parts.append(self.catalog)
+        if self.schema is not None:
+            parts.append(self.schema)
+
+        # Table is always required
+        parts.append(self.table)
+        name = ".".join(parts)
+        return name.lower()
+
+    def matches_hierarchical_ref(
+        self, name: str, ref: str, kind: SQLTypes = "any"
+    ) -> bool:
+        """
+        Determine if a hierarchical reference string matches a SQLRef.
+
+        Args:
+            name: The name to match against (could be catalog, schema, or table).
+            ref: The fully qualified reference string (e.g., "schema.table", "catalog.schema.table").
+            kind: The kind of reference ("table", "view", "schema", "catalog").
+
+        Returns:
+            True if the reference matches the SQLRef's structure and values, False otherwise.
+        """
+        ref = ref.lower()
+        name = name.lower()
+        parts = ref.split(".")
+        num_parts = len(parts)
+
+        if num_parts == 0:
+            return False
+
+        if kind == "catalog":
+            if self.catalog is not None:
+                return name == self.catalog == parts[0]
+            # Fallback to schema if catalog is None
+            kind = "schema"
+
+        if kind == "schema":
+            if num_parts < 3:
+                return name == self.schema == parts[0]
+            return name == self.schema == parts[1]
+
+        # Otherwise, kind is "table" or "view", and we should check the ordering
+        # and return accordingly
+        if num_parts == 1:
+            # Only table name provided
+            return name == self.table == parts[0] and kind in (
+                "table",
+                "view",
+                "any",
+            )
+
+        if num_parts == 2:
+            # Format: schema.table or catalog.table
+            # sqlglot cannot differentiate between schema and catalog
+            # so we check if the qualifier matches either
+            qualifier, table = parts
+            # Try matching as schema or catalog
+            if (self.schema, self.catalog) == (None, None):
+                return name == self.table == table and kind in (
+                    "table",
+                    "view",
+                    "any",
+                )
+            if qualifier not in (self.schema, self.catalog):
+                return False
+
+            return name in (
+                self.catalog,
+                self.schema,
+                self.table,
+            ) and kind in (
+                "table",
+                "view",
+                "catalog",
+                "schema",
+                "any",
+            )
+
+        if num_parts == 3:
+            # Format: catalog.schema.table
+            catalog, schema, table = parts
+            if self.catalog:
+                if catalog != self.catalog:
+                    return False
+                if schema != self.schema:
+                    return name == self.catalog and kind in ("catalog", "any")
+            elif self.schema:
+                if schema != self.schema:
+                    return False
+                return name == self.schema and kind in ("schema", "any")
+            return name in (
+                self.catalog,
+                self.schema,
+                self.table,
+            ) and kind in (
+                "table",
+                "view",
+                "catalog",
+                "schema",
+                "any",
+            )
+
+        return False
+
+    def contains_hierarchical_ref(self, ref: str, kind: str) -> bool:
+        if kind in ("table", "view"):
+            return ref == self.table
+        if kind == "catalog":
+            return ref == self.catalog or ref == self.schema
+        return False
+
+
+def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     """
     Find table and schema references in a SQL statement.
 
@@ -321,7 +478,18 @@ def find_sql_refs(
         sql_statement: The SQL statement to parse.
 
     Returns:
-        A list of table and schema names referenced in the statement.
+        A set of unique SQLRefs, one for each table reference in the statement.
+        Eg. SELECT * FROM schema1.test_table INNER JOIN schema2.test_table2
+        would return two SQLRefs, one for the first table and one for the second.
+
+    Note:
+        When providing only a single qualification,
+        DuckDB will interpret as either a catalog or a schema, as long as there are no conflicts.
+
+        Eg. SELECT * FROM my_db.my_table, my_db can be a catalog or schema. If a catalog exists,
+        then it would resolve to my_db.main.my_table.
+
+        At the moment, we don't know this, so my_db is treated as a schema.
     """
 
     # Use sqlglot to parse ast (https://github.com/tobymao/sqlglot/blob/main/posts/ast_primer.md)
@@ -332,30 +500,34 @@ def find_sql_refs(
     from sqlglot.errors import ParseError
     from sqlglot.optimizer.scope import build_scope
 
-    refs: list[str] = []
+    def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
+        # The variables might be empty strings, if they are, we set them to None
+        table_name = table.name or None
+        schema_name = table.db or None
+        catalog_name = table.catalog or None
 
-    def append_refs_from_table(table: exp.Table) -> None:
-        if table.catalog == "memory":
-            # Default in-memory catalog, only include table name
-            refs.append(table.name)
-        else:
-            # We skip schema if there is a catalog
-            # Because it may be called "public" or "main" across all catalogs
-            # and they aren't referenced in the code
-            if table.catalog:
-                refs.append(table.catalog)
-            elif table.db:
-                refs.append(table.db)  # schema
+        if table_name is None:
+            LOGGER.warning("Table name cannot be found in the SQL statement")
+            return None
 
-            if table.name:
-                refs.append(table.name)
+        # Check if the table name looks like a URL or has a file extension.
+        # These are often not actual table references, so we skip them.
+        # Note that they can be valid table names, but we skip them to avoid circular deps
+        if "://" in table_name or table_name.endswith(COMMON_FILE_EXTENSIONS):
+            return None
+
+        return SQLRef(
+            table=table_name, schema=schema_name, catalog=catalog_name
+        )
 
     try:
         with _loggers.suppress_warnings_logs("sqlglot"):
             expression_list = parse(sql_statement, dialect="duckdb")
     except ParseError as e:
         LOGGER.error(f"Unable to parse SQL. Error: {e}")
-        return []
+        return set()
+
+    refs: set[SQLRef] = set()
 
     for expression in expression_list:
         if expression is None:
@@ -363,14 +535,15 @@ def find_sql_refs(
 
         if bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
             for table in expression.find_all(exp.Table):
-                append_refs_from_table(table)
+                if ref := get_ref_from_table(table):
+                    refs.add(ref)
 
         # build_scope only works for select statements
         if root := build_scope(expression):
             for scope in root.traverse():  # type: ignore
                 for _node, source in scope.selected_sources.values():
                     if isinstance(source, exp.Table):
-                        append_refs_from_table(source)
+                        if ref := get_ref_from_table(source):
+                            refs.add(ref)
 
-    # remove duplicates while preserving order
-    return list(dict.fromkeys(refs))
+    return refs

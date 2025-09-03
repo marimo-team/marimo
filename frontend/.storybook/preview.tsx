@@ -2,7 +2,7 @@ import type { Decorator, Preview } from "@storybook/react-vite";
 import "../src/css/index.css";
 import "../src/css/app/App.css";
 import "./sb.css";
-import "tailwindcss/tailwind.css";
+import "tailwindcss";
 import React, { useEffect } from "react";
 import { TailwindIndicator } from "../src/components/debug/indicator";
 import { Toaster } from "../src/components/ui/toaster";

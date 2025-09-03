@@ -79,12 +79,15 @@ export const NameCellContentEditable: React.FC<{
       <span
         className={cn(
           "outline-hidden border hover:border-cyan-500/40 focus:border-cyan-500/40",
+          // Prevent layout shift when focusing
+          inputProps.focusing ? "" : "text-ellipsis",
           className,
         )}
         contentEditable={true}
         suppressContentEditableWarning={true}
         onChange={inputProps.onChange}
         onBlur={inputProps.onBlur}
+        onFocus={inputProps.onFocus}
         onKeyDown={Events.onEnter((e) => {
           if (e.target instanceof HTMLElement) {
             e.target.blur();
@@ -99,6 +102,7 @@ export const NameCellContentEditable: React.FC<{
 
 function useCellNameInput(value: string, onChange: (newName: string) => void) {
   const [internalValue, setInternalValue] = useState(value);
+  const [focusing, setFocusing] = useState(false);
 
   const commit = (newValue: string) => {
     // No change
@@ -119,6 +123,7 @@ function useCellNameInput(value: string, onChange: (newName: string) => void) {
 
   return {
     value: isInternalCellName(internalValue) ? "" : internalValue,
+    focusing,
     onChange: (evt: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = evt.target.value;
       const normalized = normalizeName(newValue);
@@ -131,7 +136,14 @@ function useCellNameInput(value: string, onChange: (newName: string) => void) {
       } else if (evt.target instanceof HTMLSpanElement) {
         const newValue = evt.target.innerText.trim();
         commit(normalizeName(newValue));
+
+        // Scroll to the left after committing to make sure showing the start of the cell name
+        evt.target.scrollLeft = 0;
+        setFocusing(false);
       }
+    },
+    onFocus: () => {
+      setFocusing(true);
     },
   };
 }

@@ -49,6 +49,12 @@ def _format_schema_info(tables: Optional[list[SchemaTable]]) -> str:
     return schema_info
 
 
+def _format_plain_text(plain_text: str) -> str:
+    if not plain_text.strip():
+        return ""
+    return f"If the prompt mentions @kind://name, use the following context to help you answer the question:\n\n{plain_text}"
+
+
 def _format_variables(
     variables: Optional[list[Union[VariableContext, str]]],
 ) -> str:
@@ -93,7 +99,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             "You are an AI assistant integrated into the marimo notebook code editor.\n"
             "You goal is to create a new cell in the notebook.\n"
             f"Your output must be valid {language} code.\n"
-            "You can use the provided context to help you write the new cell.\n"
+            "The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
             "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
             "```\n{CELL_CODE}\n```"
@@ -150,6 +156,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
         system_prompt += f"\n\n## Additional rules:\n{custom_rules}"
 
     if context:
+        system_prompt += _format_plain_text(context.plain_text)
         system_prompt += _format_variables(context.variables)
         system_prompt += _format_schema_info(context.schema)
 
@@ -215,6 +222,8 @@ Your goal is to do one of the following two things:
 2. Answer general-purpose questions unrelated to their particular notebook.
 
 It will be up to you to decide which of these you are doing based on what the user has told you. When unclear, ask clarifying questions to understand the user's intent before proceeding.
+
+The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.
 
 You can respond with markdown, code, or a combination of both. You only work with two languages: Python and SQL.
 When responding in code, think of each block of code as a separate cell in the notebook.
@@ -325,6 +334,7 @@ plt.gca()  # Return the current axes to display the plot
         )
 
     if context:
+        system_prompt += _format_plain_text(context.plain_text)
         system_prompt += _format_variables(context.variables)
         system_prompt += _format_schema_info(context.schema)
 

@@ -4,13 +4,14 @@ from __future__ import annotations
 import threading
 from collections import deque
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.cell import (
     CellImpl,
 )
 from marimo._ast.compiler import code_key
+from marimo._ast.sql_visitor import SQLRef, SQLTypes
 from marimo._ast.variables import is_mangled_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._runtime.executor import (
@@ -59,6 +60,10 @@ class DirectedGraph:
 
     # A mapping from defs to the cells that define them
     definitions: dict[Name, set[CellId_t]] = field(default_factory=dict)
+    typed_definitions: dict[tuple[Name, str], set[CellId_t]] = field(
+        default_factory=dict
+    )
+    definition_types: dict[Name, set[str]] = field(default_factory=dict)
 
     # The set of cycles in the graph
     cycles: set[tuple[Edge, ...]] = field(default_factory=set)
@@ -96,16 +101,70 @@ class DirectedGraph:
         """
         if language == "sql":
             # For SQL, only return SQL cells that reference the name
-            return {
-                cid
-                for cid, cell in self.cells.items()
-                if name in cell.refs and cell.language == "sql"
-            }
+            cells = set()
+            for cid, cell in self.cells.items():
+                if cell.language != "sql":
+                    continue
+
+                for ref in cell.refs:
+                    # Direct reference match
+                    if ref == name:
+                        cells.add(cid)
+                        break
+
+                    sql_ref = cell.sql_refs.get(ref)
+
+                    kind: SQLTypes = "any"
+                    if name in cell.variable_data:
+                        variable_data = cell.variable_data[name][-1]
+                        kind = cast(SQLTypes, variable_data.kind)
+
+                    # Hierarchical reference match
+                    if sql_ref and sql_ref.matches_hierarchical_ref(
+                        name, ref, kind
+                    ):
+                        cells.add(cid)
+                        break
+
+            return cells
         else:
             # For Python, return all cells that reference the name
             return {
                 cid for cid, cell in self.cells.items() if name in cell.refs
             }
+
+    def _find_sql_hierarchical_matches(
+        self, sql_ref: SQLRef
+    ) -> tuple[set[CellId_t], Name]:
+        """
+        This method searches through all definitions in the graph to find cells
+        that define the individual components (table, schema, or catalog) of the
+        hierarchical reference.
+
+        For example, given a reference "my_schema.my_table", this method will:
+        - Look for cells that define a table/view named "my_table"
+        - Look for cells that define a catalog named "my_schema"
+          (when the reference has at least 2 parts)
+
+        Args:
+            sql_ref: A hierarchical SQL reference (e.g., "schema.table",
+                  "catalog.schema.table") to find matching definitions for.
+
+        Returns:
+            A tuple containing:
+            - A set of cell IDs that define components of the hierarchical reference
+            - The definition of the name that was found (e.g., "schema.table" -> "table")
+        """
+        variable_name: Name = sql_ref.qualified_name
+        matching_cell_ids = set()
+
+        for (def_name, kind), cell_ids in self.typed_definitions.items():
+            # Match table/view definitions
+            if sql_ref.contains_hierarchical_ref(def_name, kind):
+                variable_name = def_name
+                matching_cell_ids.update(cell_ids)
+
+        return matching_cell_ids, variable_name
 
     def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]:
         """Get a path from `source` to `dst`, if any."""
@@ -158,7 +217,31 @@ class DirectedGraph:
             # any cell that defines a variable defined by this cell becomes
             # a sibling.
             for name, variable_data in cell.variable_data.items():
-                self.definitions.setdefault(name, set()).add(cell_id)
+                # NB. Only the last definition matters.
+                # Technically more nuanced with branching statements, but this is
+                # the best we can do with static analysis.
+                variable = variable_data[-1]
+                typed_def = (name, variable.kind)
+
+                if (
+                    name in self.definitions
+                    and typed_def not in self.typed_definitions
+                ):
+                    # Duplicate if the qualified name is no different
+                    if (
+                        variable.qualified_name == name
+                        or variable.language != "sql"
+                    ):
+                        self.definitions[name].add(cell_id)
+                else:
+                    self.definitions.setdefault(name, set()).add(cell_id)
+                self.typed_definitions.setdefault(typed_def, set()).add(
+                    cell_id
+                )
+                self.definition_types.setdefault(name, set()).add(
+                    variable.kind
+                )
+
                 for sibling in self.definitions[name]:
                     # TODO(akshayka): Distinguish between Python/SQL?
                     if sibling != cell_id:
@@ -196,15 +279,34 @@ class DirectedGraph:
                     if name in self.definitions
                     else set()
                 ) - set((cell_id,))
+
+                variable_name: Name = name
+                # Handle SQL matching for hierarchical references
+                sql_ref = cell.sql_refs.get(name)
+                if sql_ref:
+                    _other_ids_defining_name, variable_name = (
+                        self._find_sql_hierarchical_matches(sql_ref)
+                    )
+                    other_ids_defining_name.update(_other_ids_defining_name)
+
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).
                 for other_id in other_ids_defining_name:
-                    language = (
-                        self.cells[other_id].variable_data[name][-1].language
-                    )
+                    other_variable_data = self.cells[other_id].variable_data[
+                        variable_name
+                    ][-1]
+                    language = other_variable_data.language
                     if language == "sql" and cell.language == "python":
                         # SQL table/db def -> Python ref is not an edge
                         continue
+                    if language == "sql" and cell.language == "sql":
+                        # Edges between SQL cells need to respect hierarchy.
+                        if sql_ref and not sql_ref.matches_hierarchical_ref(
+                            variable_name,
+                            other_variable_data.qualified_name or name,
+                            kind=cast(SQLTypes, other_variable_data.kind),
+                        ):
+                            continue
                     parents.add(other_id)
                     # we are adding an edge (other_id, cell_id). If there
                     # is a path from cell_id to other_id, then the new
@@ -336,6 +438,10 @@ class DirectedGraph:
                     # No more cells define this name, so we remove it from the
                     # graph
                     del self.definitions[name]
+                    # Clean up all typed definitions
+                    for typed_def in self.definition_types[name]:
+                        del self.typed_definitions[(name, typed_def)]
+                    del self.definition_types[name]
 
             # Remove cycles that are broken from removing this cell.
             edges = [(cell_id, child) for child in self.children[cell_id]] + [
@@ -400,6 +506,7 @@ class DirectedGraph:
         return imports
 
     def get_multiply_defined(self) -> list[Name]:
+        """Return a list of names that are defined in multiple cells"""
         names: list[Name] = []
         for name, definers in self.definitions.items():
             if len(definers) > 1:

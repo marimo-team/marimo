@@ -17,7 +17,22 @@ def mask_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
 
 def mask_secrets(config: MarimoConfig) -> MarimoConfig:
     def deep_remove_from_path(path: list[str], obj: dict[str, Any]) -> None:
+        if not path:
+            return
+
         key = path[0]
+        remaining_path = path[1:]
+
+        if key == "*":
+            for v in obj.values():
+                if isinstance(v, dict):
+                    deep_remove_from_path(remaining_path, v)
+                elif isinstance(v, list) and remaining_path:
+                    # Only first layer recursion
+                    for item in v:
+                        if isinstance(item, dict):
+                            deep_remove_from_path(remaining_path, item)
+            return
         if key not in obj:
             return
         if len(path) == 1:
@@ -26,23 +41,20 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
             elif obj[key]:
                 obj[key] = SECRET_PLACEHOLDER
         else:
-            deep_remove_from_path(path[1:], cast(dict[str, Any], obj[key]))
+            deep_remove_from_path(remaining_path, obj[key])
 
-    secrets = [
-        ["ai", "open_ai", "api_key"],
-        ["ai", "open_ai_compatible", "api_key"],
-        ["ai", "azure", "api_key"],
-        ["ai", "ollama", "api_key"],
-        ["ai", "anthropic", "api_key"],
-        ["ai", "google", "api_key"],
-        ["ai", "bedrock", "aws_access_key_id"],
-        ["ai", "bedrock", "aws_secret_access_key"],
-        ["runtime", "dotenv"],
-    ]
+    secrets = (
+        ("ai", "*", "api_key"),
+        ("ai", "bedrock", "aws_access_key_id"),
+        ("ai", "bedrock", "aws_secret_access_key"),
+        ("runtime", "dotenv"),
+    )
 
     new_config = deep_copy(config)
+    config_dict = cast(dict[str, Any], new_config)
+
     for secret in secrets:
-        deep_remove_from_path(secret, cast(dict[str, Any], new_config))
+        deep_remove_from_path(list(secret), config_dict)
 
     return new_config  # type: ignore
 

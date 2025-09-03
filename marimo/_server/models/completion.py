@@ -31,6 +31,7 @@ class VariableContext:
 class AiCompletionContext:
     schema: list[SchemaTable] = field(default_factory=list)
     variables: list[Union[VariableContext, str]] = field(default_factory=list)
+    plain_text: str = ""
 
 
 Language = Literal["python", "markdown", "sql"]

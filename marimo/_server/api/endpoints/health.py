@@ -28,7 +28,7 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 
-async def health_check(request: Request) -> JSONResponse:
+def health_check(request: Request) -> JSONResponse:
     del request  # Unused
     return JSONResponse({"status": "healthy"})
 
@@ -232,11 +232,7 @@ async def usage(request: Request) -> JSONResponse:
     if _is_gpu_available():
         try:
             result = subprocess.run(  # noqa: ASYNC221
-                [
-                    "nvidia-smi",
-                    "--query-gpu=index,name,memory.total,memory.used,memory.free",
-                    "--format=csv,noheader,nounits",
-                ],
+                _GPU_STATS_CMD,
                 capture_output=True,
                 text=True,
                 check=True,
@@ -311,6 +307,27 @@ async def connections(request: Request) -> JSONResponse:
     )
 
 
+_GPU_STATS_CMD = [
+    "nvidia-smi",
+    "--query-gpu=index,name,memory.total,memory.used,memory.free",
+    "--format=csv,noheader,nounits",
+]
+
+
 @lru_cache(maxsize=1)
 def _is_gpu_available() -> bool:
-    return DependencyManager.which("nvidia-smi")
+    import subprocess
+
+    if DependencyManager.which("nvidia-smi"):
+        try:
+            _ = subprocess.run(  # noqa: ASYNC221
+                _GPU_STATS_CMD,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return True
+        except (subprocess.SubprocessError, FileNotFoundError) as e:
+            LOGGER.warning("Failed to extract GPU stats: %s", e)
+            return False
+    return False

@@ -1097,7 +1097,7 @@ class SessionManager:
             return
 
         LOGGER.debug("Starting LSP server...")
-        alert = self.lsp_server.start()
+        alert = await self.lsp_server.start()
 
         if alert is not None:
             LOGGER.warning(

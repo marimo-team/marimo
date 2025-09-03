@@ -316,6 +316,122 @@ def test_uv_list_packages(mock_run: MagicMock):
     assert packages[1] == PackageDescription(name="package2", version="2.1.0")
 
 
+@patch.object(UvPackageManager, "dependency_tree")
+def test_uv_list_packages_with_tree_success(mock_dependency_tree: MagicMock):
+    """Test UV list packages uses uv tree when available"""
+    from marimo._server.models.packages import DependencyTreeNode
+
+    # Mock dependency_tree to return a valid tree
+    mock_tree = DependencyTreeNode(
+        name="root",
+        version="1.0.0",
+        tags=[],
+        dependencies=[
+            DependencyTreeNode(
+                name="z-package1",
+                version="1.0.0",
+                tags=[],
+                dependencies=[
+                    DependencyTreeNode(
+                        name="package3",
+                        version="3.0.0",
+                        tags=[],
+                        dependencies=[],
+                    )
+                ],
+            ),
+            DependencyTreeNode(
+                name="package2",
+                version=None,  # Test None version handling
+                tags=[],
+                dependencies=[
+                    # Duplicate package
+                    DependencyTreeNode(
+                        name="package3",
+                        version="3.0.0",
+                        tags=[],
+                        dependencies=[],
+                    )
+                ],
+            ),
+        ],
+    )
+    mock_dependency_tree.return_value = mock_tree
+
+    mgr = UvPackageManager()
+    packages = mgr.list_packages()
+
+    # Should call dependency_tree first
+    mock_dependency_tree.assert_called_once()
+
+    # Should return packages from tree
+    assert len(packages) == 3
+    assert packages[0] == PackageDescription(name="package2", version="")
+    assert packages[1] == PackageDescription(name="package3", version="3.0.0")
+    assert packages[2] == PackageDescription(
+        name="z-package1", version="1.0.0"
+    )
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "dependency_tree")
+def test_uv_list_packages_tree_fallback_to_pip_list(
+    mock_dependency_tree: MagicMock, mock_run: MagicMock
+):
+    """Test UV list packages falls back to pip list when tree is None"""
+    # Mock dependency_tree to return None (fallback case)
+    mock_dependency_tree.return_value = None
+
+    # Mock subprocess for pip list
+    mock_output = json.dumps(
+        [
+            {"name": "fallback1", "version": "1.5.0"},
+            {"name": "fallback2", "version": "2.3.0"},
+        ]
+    )
+    mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
+
+    mgr = UvPackageManager()
+    packages = mgr.list_packages()
+
+    # Should try dependency_tree first
+    mock_dependency_tree.assert_called_once()
+
+    # Should fall back to subprocess call
+    mock_run.assert_called_once_with(
+        ["uv", "pip", "list", "--format=json", "-p", PY_EXE],
+        capture_output=True,
+        text=True,
+    )
+
+    # Should return packages from fallback method
+    assert len(packages) == 2
+    assert packages[0] == PackageDescription(name="fallback1", version="1.5.0")
+    assert packages[1] == PackageDescription(name="fallback2", version="2.3.0")
+
+
+@patch.object(UvPackageManager, "dependency_tree")
+def test_uv_list_packages_with_empty_tree(mock_dependency_tree: MagicMock):
+    """Test UV list packages handles empty dependency tree"""
+    from marimo._server.models.packages import DependencyTreeNode
+
+    # Mock dependency_tree to return tree with no dependencies
+    mock_tree = DependencyTreeNode(
+        name="root", version="1.0.0", tags=[], dependencies=[]
+    )
+    mock_dependency_tree.return_value = mock_tree
+
+    mgr = UvPackageManager()
+    packages = mgr.list_packages()
+
+    # Should call dependency_tree
+    mock_dependency_tree.assert_called_once()
+
+    # Should return empty list
+    assert len(packages) == 0
+    assert packages == []
+
+
 @patch.dict(
     "os.environ",
     {

@@ -468,6 +468,54 @@ def test_repr_mimebundle_with_latex():
     }
 
 
+def test_repr_mimebundle_with_tuple_return():
+    """Test _repr_mimebundle_ that returns (data, metadata) tuple."""
+
+    class ReprMimeBundleTuple:
+        def _repr_mimebundle_(self):
+            data = {
+                "text/html": "<h1>Hello, World!</h1>",
+                "text/plain": "Hello, World!",
+            }
+            metadata = {"text/html": {"width": 100, "height": 50}}
+            return data, metadata
+
+    obj = ReprMimeBundleTuple()
+    formatter = get_formatter(obj)
+    assert formatter is not None
+    mime, content = formatter(obj)
+    assert mime == "application/vnd.marimo+mimebundle"
+    # Should contain the HTML (text/plain should be removed since other repr exists)
+    assert content == {"text/html": "<h1>Hello, World!</h1>"}
+
+
+def test_repr_mimebundle_with_tuple_return_image():
+    """Test _repr_mimebundle_ with tuple return containing binary image data."""
+
+    class ReprMimeBundleWithImage:
+        def _repr_mimebundle_(self):
+            # Simulate binary PNG data (minimal valid PNG header)
+            fake_png_data = b"\x89PNG\r\n\x1a\nfake_png_data"
+            data = {
+                "image/png": fake_png_data,
+                "text/html": "<span>Image representation</span>",
+            }
+            metadata = {"image/png": {"width": 200, "height": 80}}
+            return data, metadata
+
+    obj = ReprMimeBundleWithImage()
+    formatter = get_formatter(obj)
+    assert formatter is not None
+    mime, content = formatter(obj)
+    assert mime == "application/vnd.marimo+mimebundle"
+    # Should contain both image and HTML
+    assert "image/png" in content
+    assert "text/html" in content
+    # Image data should be converted to data URL
+    assert content["image/png"].startswith("data:image/png;base64,")
+    assert content["text/html"] == "<span>Image representation</span>"
+
+
 def test_display_protocol_takes_precedence() -> None:
     register_formatters()
 

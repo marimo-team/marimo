@@ -426,7 +426,7 @@ class UIElement(Html, Generic[S, T]):
             on_change=on_change,
         )
 
-    def send_message(
+    def _send_message(
         self, message: dict[str, object], buffers: Optional[Sequence[bytes]]
     ) -> None:
         """

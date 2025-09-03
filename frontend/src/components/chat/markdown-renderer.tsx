@@ -17,6 +17,7 @@ import { autoInstantiateAtom } from "@/core/config/config";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";
 import { copyToClipboard } from "@/utils/copy";
+import "./markdown-renderer.css";
 
 const extensions = [EditorView.lineWrapping];
 
@@ -202,7 +203,7 @@ const MemoizedMarkdownBlock = memo(
       <Markdown
         components={COMPONENTS}
         remarkPlugins={PLUGINS}
-        className="prose dark:prose-invert max-w-none prose-pre:pl-0"
+        className="mo-markdown-renderer prose dark:prose-invert max-w-none prose-pre:pl-0"
       >
         {content}
       </Markdown>

@@ -13,6 +13,7 @@ from starlette.responses import (
 )
 
 from marimo import _loggers
+from marimo._ai._convert import convert_to_ai_sdk_messages
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
 from marimo._server.ai.config import (
@@ -51,6 +52,8 @@ from marimo._server.models.models import (
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
     from starlette.requests import Request
 
 
@@ -58,6 +61,33 @@ LOGGER = _loggers.marimo_logger()
 
 # Router for file ai
 router = APIRouter()
+
+
+async def safe_stream_wrapper(
+    stream_generator: AsyncGenerator[str, None],
+    text_only: bool,
+) -> AsyncGenerator[str, None]:
+    """
+    Wraps a streaming generator to catch and handle errors gracefully.
+
+    Args:
+        stream_generator: The original streaming generator
+        text_only: Whether to return text only or the full AI SDK stream protocol format
+
+    Yields:
+        Stream chunks or error messages in AI SDK stream protocol format
+    """
+    try:
+        async for chunk in stream_generator:
+            yield chunk
+    except Exception as e:
+        LOGGER.error("Error in AI streaming response: %s", str(e))
+        # Send an error message using AI SDK stream protocol format
+        # Error Part format: 3:string\n
+        if text_only:
+            yield str(e)
+        else:
+            yield convert_to_ai_sdk_messages(str(e), "error")
 
 
 def get_ai_config(config: MarimoConfig) -> AiConfig:
@@ -127,12 +157,16 @@ async def ai_completion(
     )
 
     return StreamingResponse(
-        content=without_wrapping_backticks(
-            provider.as_stream_response(
-                response, StreamOptions(text_only=True)
-            )
+        content=safe_stream_wrapper(
+            without_wrapping_backticks(
+                provider.as_stream_response(
+                    response, StreamOptions(text_only=True)
+                )
+            ),
+            text_only=True,
         ),
         media_type="application/json",
+        headers={"x-vercel-ai-data-stream": "v1"},
     )
 
 
@@ -183,10 +217,14 @@ async def ai_chat(
     )
 
     return StreamingResponse(
-        content=provider.as_stream_response(
-            response, StreamOptions(format_stream=True)
+        content=safe_stream_wrapper(
+            provider.as_stream_response(
+                response, StreamOptions(format_stream=True, text_only=False)
+            ),
+            text_only=False,
         ),
         media_type="application/json",
+        headers={"x-vercel-ai-data-stream": "v1"},
     )
 
 
@@ -236,13 +274,20 @@ async def ai_inline_completion(
         provider_config.tools.clear()
 
     provider = get_completion_provider(provider_config, model=model)
-    response = await provider.stream_completion(
-        messages=messages,
-        system_prompt=system_prompt,
-        max_tokens=INLINE_COMPLETION_MAX_TOKENS,
-    )
+    try:
+        response = await provider.stream_completion(
+            messages=messages,
+            system_prompt=system_prompt,
+            max_tokens=INLINE_COMPLETION_MAX_TOKENS,
+        )
 
-    content = await provider.collect_stream(response)
+        content = await provider.collect_stream(response)
+    except Exception as e:
+        LOGGER.error("Error in AI inline completion: %s", str(e))
+        raise HTTPException(
+            status_code=500,  # Internal Server Error
+            detail=f"AI completion failed: {str(e)}",
+        ) from None
 
     # Filter out `<|file_separator|>` which is sometimes returned FIM models
     content = content.replace("<|file_separator|>", "")
@@ -280,17 +325,28 @@ async def invoke_tool(
 
     body = await parse_request(request, cls=InvokeAiToolRequest)
 
-    # Invoke the tool
-    result = await get_tool_manager().invoke_tool(
-        body.tool_name, body.arguments
-    )
+    try:
+        # Invoke the tool
+        result = await get_tool_manager().invoke_tool(
+            body.tool_name, body.arguments
+        )
 
-    # Create and return the response
-    response = InvokeAiToolResponse(
-        success=result.error is None,
-        tool_name=result.tool_name,
-        result=result.result,
-        error=result.error,
-    )
+        # Create and return the response
+        response = InvokeAiToolResponse(
+            success=result.error is None,
+            tool_name=result.tool_name,
+            result=result.result,
+            error=result.error,
+        )
 
-    return JSONResponse(content=asdict(response))
+        return JSONResponse(content=asdict(response))
+    except Exception as e:
+        LOGGER.error("Error invoking AI tool %s: %s", body.tool_name, str(e))
+        # Return error response instead of letting it crash
+        error_response = InvokeAiToolResponse(
+            success=False,
+            tool_name=body.tool_name,
+            result=None,
+            error=f"Tool invocation failed: {str(e)}",
+        )
+        return JSONResponse(content=asdict(error_response))

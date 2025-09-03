@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useChat } from "@ai-sdk/react";
+import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import type { Message } from "ai/react";
 import { useAtom, useAtomValue } from "jotai";
@@ -8,6 +9,7 @@ import {
   BotMessageSquareIcon,
   ClockIcon,
   Loader2,
+  PaperclipIcon,
   PlusIcon,
   SendIcon,
   SettingsIcon,
@@ -40,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { addMessageToChat } from "@/core/ai/chat-utils";
 import { useModelChange } from "@/core/ai/config";
+import { AiModelId, type ProviderId } from "@/core/ai/ids/ids";
 import {
   activeChatAtom,
   type Chat,
@@ -47,7 +50,7 @@ import {
   type ChatState,
   chatStateAtom,
 } from "@/core/ai/state";
-import { getCodes } from "@/core/codemirror/copilot/getCodes";
+import type { ChatAttachment } from "@/core/ai/types";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
@@ -56,6 +59,7 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
+import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
 import { generateUUID } from "@/utils/uuid";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
@@ -64,10 +68,22 @@ import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import { getAICompletionBody } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
+import { Input } from "../ui/input";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
+import { toast } from "../ui/use-toast";
+import { AttachmentRenderer, FileAttachmentPill } from "./chat-components";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
 import { ToolCallAccordion } from "./tool-call-accordion";
+
+// Default mode for the AI
+const DEFAULT_MODE = "manual";
+
+// We need to modify the backend to support attachments for other providers
+// And other types
+const PROVIDERS_THAT_SUPPORT_ATTACHMENTS = new Set<ProviderId>(["openai"]);
+const SUPPORTED_ATTACHMENT_TYPES = ["image/*", "text/*"];
+const MAX_ATTACHMENT_SIZE = 1024 * 1024 * 50; // 50MB
 
 interface ChatHeaderProps {
   onNewChat: () => void;
@@ -167,6 +183,9 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
     >
       {message.role === "user" ? (
         <div className="w-[95%] bg-background border p-1 rounded-sm">
+          {message.experimental_attachments?.map((attachment, idx) => (
+            <AttachmentRenderer attachment={attachment} key={idx} />
+          ))}
           <PromptInput
             key={message.id}
             value={message.content}
@@ -242,15 +261,24 @@ interface ChatInputFooterProps {
   onSendClick: () => void;
   isLoading: boolean;
   onStop: () => void;
+  handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
-const DEFAULT_MODE = "manual";
-
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
-  ({ isEmpty, onSendClick, isLoading, onStop }) => {
+  ({
+    isEmpty,
+    onSendClick,
+    isLoading,
+    onStop,
+    fileInputRef,
+    handleFileChange,
+  }) => {
     const ai = useAtomValue(aiAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
     const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
+    const currentProvider = AiModelId.parse(currentModel).providerId;
+
     const { saveModeChange, saveModelChange } = useModelChange();
 
     const modeOptions = [
@@ -267,8 +295,11 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       },
     ];
 
+    const isAttachmentSupported =
+      PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
+
     return (
-      <div className="px-3 py-2 border-t border-border/20 flex items-center justify-between">
+      <div className="px-3 py-2 border-t border-border/20 flex flex-row items-center justify-between">
         <div className="flex items-center gap-2">
           <FeatureFlagged feature="mcp_docs">
             <Select value={currentMode} onValueChange={saveModeChange}>
@@ -306,19 +337,43 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             forRole="chat"
           />
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 hover:bg-muted/30"
-          onClick={isLoading ? onStop : onSendClick}
-          disabled={isLoading ? false : isEmpty}
-        >
-          {isLoading ? (
-            <SquareIcon className="h-3 w-3 fill-current" />
-          ) : (
-            <SendIcon className="h-3 w-3" />
+        <div className="flex flex-row">
+          {isAttachmentSupported && (
+            <>
+              <Button
+                variant="text"
+                size="icon"
+                className="cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach a file"
+              >
+                <PaperclipIcon className="h-3.5 w-3.5" />
+              </Button>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                multiple={true}
+                hidden={true}
+                onChange={handleFileChange}
+                accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
+              />
+            </>
           )}
-        </Button>
+
+          <Button
+            variant="text"
+            size="sm"
+            className="h-6 w-6 p-0 hover:bg-muted/30 cursor-pointer"
+            onClick={isLoading ? onStop : onSendClick}
+            disabled={isLoading ? false : isEmpty}
+          >
+            {isLoading ? (
+              <SquareIcon className="h-3 w-3 fill-current" />
+            ) : (
+              <SendIcon className="h-3 w-3" />
+            )}
+          </Button>
+        </div>
       </div>
     );
   },
@@ -327,16 +382,33 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 ChatInputFooter.displayName = "ChatInputFooter";
 
 interface ChatInputProps {
+  placeholder?: string;
   input: string;
+  inputClassName?: string;
   setInput: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   inputRef: React.RefObject<ReactCodeMirrorRef | null>;
   isLoading: boolean;
   onStop: () => void;
+  onClose: () => void;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = memo(
-  ({ input, setInput, onSubmit, inputRef, isLoading, onStop }) => {
+  ({
+    placeholder,
+    input,
+    inputClassName,
+    setInput,
+    onSubmit,
+    inputRef,
+    isLoading,
+    onStop,
+    fileInputRef,
+    handleFileChange,
+    onClose,
+  }) => {
     const handleSendClick = useEvent(() => {
       if (input.trim()) {
         onSubmit(undefined, input);
@@ -345,13 +417,14 @@ const ChatInput: React.FC<ChatInputProps> = memo(
 
     return (
       <div className="border-t relative shrink-0 min-h-[80px] flex flex-col">
-        <div className="px-2 py-3 flex-1">
+        <div className={cn("px-2 py-3 flex-1", inputClassName)}>
           <PromptInput
+            inputRef={inputRef}
             value={input}
             onChange={setInput}
             onSubmit={onSubmit}
-            onClose={() => inputRef.current?.editor?.blur()}
-            placeholder="Type your message..."
+            onClose={onClose}
+            placeholder={placeholder || "Type your message..."}
           />
         </div>
         <ChatInputFooter
@@ -359,6 +432,8 @@ const ChatInput: React.FC<ChatInputProps> = memo(
           onSendClick={handleSendClick}
           isLoading={isLoading}
           onStop={onStop}
+          fileInputRef={fileInputRef}
+          handleFileChange={handleFileChange}
         />
       </div>
     );
@@ -393,9 +468,11 @@ const ChatPanelBody = () => {
   const [chatState, setChatState] = useAtom(chatStateAtom);
   const [activeChat, setActiveChat] = useAtom(activeChatAtom);
   const [newThreadInput, setNewThreadInput] = useState("");
+  const [files, setFiles] = useState<File[]>();
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();
@@ -421,24 +498,36 @@ const ChatPanelBody = () => {
     api: runtimeManager.getAiURL("chat").toString(),
     headers: runtimeManager.headers(),
     experimental_prepareRequestBody: (options) => {
-      return {
+      const completionBody = getAICompletionBody({
+        input: options.messages.map((m) => m.content).join("\n"),
+      });
+
+      // Backend accepts attachments, so we convert the key
+      const newOptions = {
         ...options,
-        ...getAICompletionBody({
-          input: options.messages.map((m) => m.content).join("\n"),
-        }),
-        includeOtherCode: getCodes(""),
+        messages: options.messages.map((m) => ({
+          ...m,
+          attachments: m.experimental_attachments,
+          experimental_attachments: undefined,
+        })),
+      };
+
+      return {
+        ...newOptions,
+        ...completionBody,
       };
     },
     onFinish: (message) => {
       setChatState((prev) => {
-        return addMessageToChat(
-          prev,
-          prev.activeChatId,
-          message.id,
-          "assistant",
-          message.content,
-          message.parts,
-        );
+        return addMessageToChat({
+          chatState: prev,
+          chatId: prev.activeChatId,
+          messageId: message.id,
+          role: "assistant",
+          content: message.content,
+          parts: message.parts,
+          attachments: message.experimental_attachments,
+        });
       });
     },
     onToolCall: async ({ toolCall }) => {
@@ -461,6 +550,36 @@ const ChatPanelBody = () => {
     onResponse: (response) => {
       Logger.debug("Received HTTP response from server:", response);
     },
+  });
+
+  const handleFileChange = useEvent(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      if (!files) {
+        return;
+      }
+
+      let fileSize = 0;
+      for (const file of files) {
+        fileSize += file.size;
+      }
+
+      if (fileSize > MAX_ATTACHMENT_SIZE) {
+        toast({
+          title: "File size exceeds 50MB limit",
+          description: "Please remove some files and try again.",
+        });
+        return;
+      }
+
+      setFiles([...files]);
+    },
+  );
+
+  const removeFile = useEvent((file: File) => {
+    if (files) {
+      setFiles(files.filter((f) => f !== file));
+    }
   });
 
   const isLoading = status === "submitted" || status === "streaming";
@@ -495,13 +614,15 @@ const ChatPanelBody = () => {
         let result = prev;
 
         for (const userMessage of missingUserMessages) {
-          result = addMessageToChat(
-            result,
-            prev.activeChatId,
-            userMessage.id,
-            "user",
-            userMessage.content,
-          );
+          result = addMessageToChat({
+            chatState: result,
+            chatId: prev.activeChatId,
+            messageId: userMessage.id,
+            role: "user",
+            content: userMessage.content,
+            parts: userMessage.parts,
+            attachments: userMessage.experimental_attachments,
+          });
         }
 
         return result;
@@ -531,7 +652,10 @@ const ChatPanelBody = () => {
     requestAnimationFrame(scrollToBottom);
   }, [chatState.activeChatId]);
 
-  const createNewThread = (initialMessage: string) => {
+  const createNewThread = async (
+    initialMessage: string,
+    initialAttachments?: File[],
+  ) => {
     const CURRENT_TIME = Date.now();
     const newChat: Chat = {
       id: generateUUID() as ChatId,
@@ -556,12 +680,19 @@ const ChatPanelBody = () => {
       return newState;
     });
 
+    const attachments =
+      initialAttachments && initialAttachments.length > 0
+        ? await convertToChatAttachments(initialAttachments)
+        : undefined;
+
     // Trigger AI conversation with append
     append({
       id: generateUUID(),
       role: "user",
       content: initialMessage,
+      experimental_attachments: attachments,
     });
+    setFiles(undefined);
     setInput("");
   };
 
@@ -569,9 +700,13 @@ const ChatPanelBody = () => {
     setActiveChat(null);
     setInput("");
     setNewThreadInput("");
+    setFiles(undefined);
   });
 
   const handleMessageEdit = useEvent((index: number, newValue: string) => {
+    const editedMessage = messages[index];
+    const attachments = editedMessage.experimental_attachments;
+
     // Truncate both useChat and storage
     setMessages((messages) => messages.slice(0, index));
     const activeChatId = chatState.activeChatId;
@@ -597,18 +732,28 @@ const ChatPanelBody = () => {
     append({
       role: "user",
       content: newValue,
+      experimental_attachments: attachments,
     });
   });
 
-  const handleChatInputSubmit = (
-    e: KeyboardEvent | undefined,
-    newValue: string,
-  ): void => {
-    if (!newValue.trim()) {
-      return;
-    }
-    handleSubmit(e);
-  };
+  const handleChatInputSubmit = useEvent(
+    async (e: KeyboardEvent | undefined, newValue: string): Promise<void> => {
+      if (!newValue.trim()) {
+        return;
+      }
+      if (newMessageInputRef.current?.view) {
+        storePrompt(newMessageInputRef.current.view);
+      }
+      const attachments = files
+        ? await convertToChatAttachments(files)
+        : undefined;
+
+      handleSubmit(e, {
+        experimental_attachments: attachments,
+      });
+      setFiles(undefined);
+    },
+  );
 
   const handleReload = () => {
     reload();
@@ -618,7 +763,10 @@ const ChatPanelBody = () => {
     if (!newThreadInput.trim()) {
       return;
     }
-    createNewThread(newThreadInput.trim());
+    if (newThreadInputRef.current?.view) {
+      storePrompt(newThreadInputRef.current.view);
+    }
+    createNewThread(newThreadInput.trim(), files);
   });
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
@@ -628,6 +776,53 @@ const ChatPanelBody = () => {
       (a, b) => b.updatedAt - a.updatedAt,
     );
   }, [chatState.chats]);
+
+  const isNewThread = messages.length === 0;
+  const chatInput = isNewThread ? (
+    <ChatInput
+      key="new-thread-input"
+      placeholder="Ask anything, @ to include context about tables or dataframes"
+      input={newThreadInput}
+      inputRef={newThreadInputRef}
+      inputClassName="px-1 py-0"
+      setInput={setNewThreadInput}
+      onSubmit={handleNewThreadSubmit}
+      isLoading={isLoading}
+      onStop={stop}
+      fileInputRef={fileInputRef}
+      handleFileChange={handleFileChange}
+      onClose={handleOnCloseThread}
+    />
+  ) : (
+    <ChatInput
+      input={input}
+      setInput={setInput}
+      onSubmit={handleChatInputSubmit}
+      inputRef={newMessageInputRef}
+      isLoading={isLoading}
+      onStop={stop}
+      onClose={() => newMessageInputRef.current?.editor?.blur()}
+      fileInputRef={fileInputRef}
+      handleFileChange={handleFileChange}
+    />
+  );
+
+  const filesPills = files && files.length > 0 && (
+    <div
+      className={cn(
+        "flex flex-row gap-1 flex-wrap p-1",
+        isNewThread && "py-2 px-1",
+      )}
+    >
+      {files?.map((file) => (
+        <FileAttachmentPill
+          file={file}
+          key={file.name}
+          onRemove={() => removeFile(file)}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-[calc(100%-53px)]">
@@ -644,24 +839,10 @@ const ChatPanelBody = () => {
         className="flex-1 px-3 bg-(--slate-1) gap-4 py-3 flex flex-col overflow-y-auto"
         ref={scrollContainerRef}
       >
-        {(!messages || messages.length === 0) && (
-          <div className="flex flex-col rounded-md border bg-background">
-            <div className="px-1">
-              <PromptInput
-                key="new-thread-input"
-                value={newThreadInput}
-                placeholder="Ask anything, @ to include context about tables or dataframes"
-                onClose={handleOnCloseThread}
-                onChange={setNewThreadInput}
-                onSubmit={handleNewThreadSubmit}
-              />
-            </div>
-            <ChatInputFooter
-              isEmpty={!newThreadInput.trim()}
-              onSendClick={handleNewThreadSubmit}
-              isLoading={isLoading}
-              onStop={stop}
-            />
+        {isNewThread && (
+          <div className="rounded-md border bg-background">
+            {filesPills}
+            {chatInput}
           </div>
         )}
 
@@ -704,15 +885,12 @@ const ChatPanelBody = () => {
         </div>
       )}
 
-      {messages && messages.length > 0 && (
-        <ChatInput
-          input={input}
-          setInput={setInput}
-          onSubmit={handleChatInputSubmit}
-          inputRef={newMessageInputRef}
-          isLoading={isLoading}
-          onStop={stop}
-        />
+      {/* For existing threads, we place the chat input at the bottom */}
+      {!isNewThread && (
+        <>
+          {filesPills}
+          {chatInput}
+        </>
       )}
     </div>
   );
@@ -740,6 +918,22 @@ function isLastMessageReasoning(messages: Message[]): boolean {
   // Check if the last part is reasoning
   const lastPart = parts[parts.length - 1];
   return lastPart.type === "reasoning";
+}
+
+async function convertToChatAttachments(
+  files: File[],
+): Promise<ChatAttachment[]> {
+  const attachments = await Promise.all(
+    files.map(async (file) => {
+      return {
+        name: file.name,
+        url: await blobToString(file, "dataUrl"),
+        contentType: file.type,
+      };
+    }),
+  );
+
+  return attachments;
 }
 
 export default ChatPanel;

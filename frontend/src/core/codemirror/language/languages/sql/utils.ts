@@ -12,7 +12,10 @@ import {
   SQLite,
   StandardSQL,
 } from "@codemirror/lang-sql";
-import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
+import {
+  BigQueryDialect,
+  DuckDBDialect,
+} from "@marimo-team/codemirror-sql/dialects";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 
 export function guessDialect(
@@ -38,6 +41,8 @@ export function guessDialect(
     case "oracledb":
     case "oracle":
       return PLSQL;
+    case "bigquery":
+      return BigQueryDialect;
     default:
       return undefined;
   }

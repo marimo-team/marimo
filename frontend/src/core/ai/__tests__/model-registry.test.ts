@@ -78,20 +78,44 @@ describe("AiModelRegistry", () => {
       const displayedModels = ["openai/gpt-4", "anthropic/claude-3-sonnet"];
       const registry = AiModelRegistry.create({ displayedModels });
 
+      const ids = [...registry.getModelsMap().keys()];
+      expect(ids).toEqual(["openai/gpt-4", "anthropic/claude-3-sonnet"]);
       expect(registry.getCustomModels()).toEqual(new Set());
       expect(registry.getDisplayedModels()).toEqual(new Set(displayedModels));
     });
 
     it("should create registry with both custom and displayed models", () => {
       const customModels = ["openai/custom-gpt"];
-      const displayedModels = ["openai/gpt-4", "anthropic/claude-3-sonnet"];
+      const displayedModels = ["openai/custom-gpt"];
       const registry = AiModelRegistry.create({
         customModels,
         displayedModels,
       });
 
+      const ids = [...registry.getModelsMap().keys()];
+      expect(ids).toEqual(["openai/custom-gpt"]);
       expect(registry.getCustomModels()).toEqual(new Set(customModels));
       expect(registry.getDisplayedModels()).toEqual(new Set(displayedModels));
+    });
+
+    it("should create registry with non-existent displayed_model", () => {
+      const customModels = ["openai/custom-gpt"];
+      const displayedModels = ["something-wrong/model-id"];
+      const registry = AiModelRegistry.create({
+        customModels,
+        displayedModels,
+      });
+
+      const ids = [...registry.getModelsMap().keys()];
+      // Include custom and all default ones.
+      expect(ids).toEqual([
+        "openai/custom-gpt",
+        "openai/gpt-4",
+        "anthropic/claude-3-sonnet",
+        "google/gemini-pro",
+        "openai/multi-model",
+        "anthropic/multi-model",
+      ]);
     });
   });
 
@@ -207,6 +231,34 @@ describe("AiModelRegistry", () => {
       expect(anthropicModels.length).toBe(1);
       expect(anthropicModels[0].model).toBe("claude-3-sonnet");
       expect(googleModels.length).toBe(0);
+    });
+  });
+
+  describe("getListModelsByProvider", () => {
+    /**
+     * Provider sort order depends on `provider.json`. We can hardcode for tests
+     * OpenAI, Bedrock, Azure, Anthropic, Google, Ollama, GitHub, Marimo
+     */
+    const PROVIDER_SORT_ORDER = ["openai", "anthropic", "google"];
+
+    it("should return list of models by provider", () => {
+      const registry = AiModelRegistry.create({});
+      const listModelsByProvider = registry.getListModelsByProvider();
+      expect(listModelsByProvider).toHaveLength(3);
+
+      // Should be sorted by provider
+      const providers = listModelsByProvider.map(([provider]) => provider);
+      expect(providers).toEqual(PROVIDER_SORT_ORDER);
+    });
+
+    it("should include custom providers at the top", () => {
+      const customModels = ["openrouter/custom-gpt"];
+      const registry = AiModelRegistry.create({ customModels });
+      const listModelsByProvider = registry.getListModelsByProvider();
+      expect(listModelsByProvider).toHaveLength(4);
+
+      const providers = listModelsByProvider.map(([provider]) => provider);
+      expect(providers).toEqual(["openrouter", ...PROVIDER_SORT_ORDER]);
     });
   });
 

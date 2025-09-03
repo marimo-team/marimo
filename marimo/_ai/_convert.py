@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
+from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, Literal, Union, cast
 
 from marimo._ai._types import (
@@ -85,15 +86,14 @@ def convert_to_openai_messages(
                 openai_messages.extend(parts_messages)
             continue
 
-        # Handle attachments
         parts: list[dict[Any, Any]] = []
         if not message.parts or len(message.parts) == 0:
             parts.append({"type": "text", "text": message.content})
         else:
-            parts.extend(
-                get_openai_messages_from_parts(message.role, message.parts)
-            )
+            parts_dict = [asdict(part) for part in message.parts]
+            parts.extend(parts_dict)
 
+        # Handle attachments
         for attachment in message.attachments:
             content_type = attachment.content_type or "text/plain"
 
@@ -427,11 +427,13 @@ def convert_to_ai_sdk_messages(
         "tool_call_end",
         "tool_result",
         "finish_reason",
+        "error",
     ],
 ) -> str:
     """
     Format text events for the AI SDK stream protocol.
-    See: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
+    This follows the data-stream v1 protocol
+    See: https://v4.ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
     """
     TEXT_PREFIX = "0:"
     REASON_PREFIX = "g:"
@@ -441,6 +443,7 @@ def convert_to_ai_sdk_messages(
     TOOL_CALL_PREFIX = "9:"
     TOOL_RESULT_PREFIX = "a:"
     FINISH_REASON_PREFIX = "d:"
+    ERROR_PREFIX = "3:"
 
     # Text events
     if content_type == "text" and isinstance(content_text, str):
@@ -471,6 +474,10 @@ def convert_to_ai_sdk_messages(
         content_text, dict
     ):
         return f"{REASON_SIGNATURE_PREFIX}{json.dumps(content_text)}\n"
+
+    # Error events
+    elif content_type == "error" and isinstance(content_text, str):
+        return f"{ERROR_PREFIX}{json.dumps(content_text)}\n"
 
     else:
         # Default to text for unknown types
@@ -510,7 +517,13 @@ def convert_to_google_tools(tools: list[Tool]) -> list[dict[str, Any]]:
                 {
                     "name": tool.name,
                     "description": tool.description,
-                    "parameters": tool.parameters,
+                    "parameters": {
+                        # Pydantic will raise validation errors if unknown keys are present
+                        # So we only include necessary keys
+                        "type": tool.parameters.get("type", "object"),
+                        "properties": tool.parameters.get("properties", {}),
+                        "required": tool.parameters.get("required", []),
+                    },
                 }
             ]
         }
