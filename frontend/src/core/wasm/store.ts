@@ -106,6 +106,10 @@ export class CompositeFileStore implements FileStore {
     }
     return null;
   }
+
+  overrideStores(stores: FileStore[]) {
+    this.stores = stores;
+  }
 }
 
 export const notebookFileStore = new CompositeFileStore([
