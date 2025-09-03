@@ -17,6 +17,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
     Error as MarimoError,
     MarimoExceptionRaisedError,
+    UnknownError,
 )
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp
@@ -61,13 +62,12 @@ def _normalize_error(error: Union[MarimoError, dict[str, Any]]) -> ErrorOutput:
             traceback=error.get("traceback", []),
         )
     else:
-        # Special handling for MarimoExceptionRaisedError - use exception_type as ename
-        if isinstance(error, MarimoExceptionRaisedError):
-            ename = error.exception_type
+        if isinstance(error, UnknownError) and error.error_type:
+            # UnknownError with custom error_type field
+            ename = error.error_type
         else:
             # For msgspec structs with tagged unions, the type is in the serialized form
-            error_dict = msgspec.to_builtins(error)
-            ename = error_dict.get("type", "UnknownError")
+            ename = msgspec.to_builtins(error).get("type", "UnknownError")
 
         return ErrorOutput(
             type="error",

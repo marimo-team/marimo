@@ -732,11 +732,7 @@ def test_serialize_session_with_mixed_error_formats():
             "traceback": ["line 1", "line 2"],
         },
         # Object format error
-        MarimoExceptionRaisedError(
-            exception_type="RuntimeError",
-            msg="Runtime error occurred",
-            raising_cell=None,
-        ),
+        UnknownError(msg="Runtime error occurred", error_type="RuntimeError"),
         # Dictionary without traceback
         {"type": "TypeError", "msg": "Type mismatch"},
     ]

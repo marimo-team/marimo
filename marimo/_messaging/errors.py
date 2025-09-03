@@ -89,6 +89,7 @@ class MarimoSyntaxError(msgspec.Struct, tag_field="type", tag="syntax"):
 
 class UnknownError(msgspec.Struct, tag_field="type", tag="unknown"):
     msg: str
+    error_type: Optional[str] = None
 
     def describe(self) -> str:
         return self.msg
