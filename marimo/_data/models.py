@@ -1,10 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from decimal import Decimal
 from typing import Any, Literal, Optional, Union
+
+import msgspec
 
 from marimo._types.ids import VariableName
 
@@ -23,8 +24,7 @@ DataType = Literal[
 ExternalDataType = str
 
 
-@dataclass
-class DataTableColumn:
+class DataTableColumn(msgspec.Struct, rename="camel"):
     """
     Represents a column in a data table.
 
@@ -49,8 +49,7 @@ DataTableSource = Literal["local", "duckdb", "connection", "catalog"]
 DataTableType = Literal["table", "view"]
 
 
-@dataclass
-class DataTable:
+class DataTable(msgspec.Struct, rename="camel"):
     """
     Represents a data table.
 
@@ -81,14 +80,12 @@ class DataTable:
     indexes: Optional[list[str]] = None
 
 
-@dataclass
-class Schema:
+class Schema(msgspec.Struct, rename="camel"):
     name: str
-    tables: list[DataTable] = field(default_factory=list)
+    tables: list[DataTable] = msgspec.field(default_factory=list)
 
 
-@dataclass
-class Database:
+class Database(msgspec.Struct, rename="camel"):
     """
     Represents a collection of schemas.
 
@@ -101,7 +98,7 @@ class Database:
 
     name: str
     dialect: str
-    schemas: list[Schema] = field(default_factory=list)
+    schemas: list[Schema] = msgspec.field(default_factory=list)
     engine: Optional[VariableName] = None
 
 
@@ -110,8 +107,7 @@ TemporalLiteral = Union[date, time, datetime, timedelta]
 NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
 
 
-@dataclass
-class ColumnStats:
+class ColumnStats(msgspec.Struct, rename="camel"):
     """
     Represents stats for a column in a data table.
 
@@ -134,8 +130,7 @@ class ColumnStats:
     p95: Optional[NonNestedLiteral] = None
 
 
-@dataclass
-class BinValue:
+class BinValue(msgspec.Struct, rename="camel"):
     """
     Represents bin values for a column in a data table. This is used for plotting.
 
@@ -150,8 +145,7 @@ class BinValue:
     count: int
 
 
-@dataclass
-class ValueCount:
+class ValueCount(msgspec.Struct, rename="camel"):
     """
     Represents a value and its count in a column in a data table.
     Currently used for string columns.
@@ -165,8 +159,7 @@ class ValueCount:
     count: int
 
 
-@dataclass
-class DataSourceConnection:
+class DataSourceConnection(msgspec.Struct, rename="camel"):
     """
     Represents a data source connection.
 
@@ -184,6 +177,6 @@ class DataSourceConnection:
     dialect: str
     name: str
     display_name: str
-    databases: list[Database] = field(default_factory=list)
+    databases: list[Database] = msgspec.field(default_factory=list)
     default_database: Optional[str] = None
     default_schema: Optional[str] = None
