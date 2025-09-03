@@ -262,13 +262,10 @@ function initStore(options: unknown) {
     parsedOptions.data.fileStores.length > 0
   ) {
     Logger.log("🗄️ Initializing file stores via mount...");
-    // Insert file stores at the beginning (highest priority)
-    // Insert in reverse order so first in array gets highest priority
-    for (let i = parsedOptions.data.fileStores.length - 1; i >= 0; i--) {
-      notebookFileStore.insert(0, parsedOptions.data.fileStores[i]);
-    }
+    // Override all filestores by popping all values in notebookFileStore
+    notebookFileStore.overrideStores(parsedOptions.data.fileStores);
     Logger.log(
-      `🗄️ Injected ${parsedOptions.data.fileStores.length} file store(s) into notebookFileStore`,
+      `🗄️ Overrode filestores with ${parsedOptions.data.fileStores.length} file store(s) into notebookFileStore`,
     );
   }
 
