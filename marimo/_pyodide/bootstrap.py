@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Callable
 
 from marimo._config.config import merge_config
 from marimo._messaging.ops import KernelCapabilities, KernelReady, serialize
-from marimo._plugins.core.json_encoder import WebComponentEncoder
+from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
@@ -79,7 +79,9 @@ def create_session(
 
     def write_kernel_message(op: KernelMessage) -> None:
         message_callback(
-            WebComponentEncoder.json_dumps({"op": op[0], "data": op[1]})
+            msgspec_encoder.encode({"op": op[0], "data": op[1]}).decode(
+                "utf-8"
+            )
         )
 
     # Lazy import to decrease startup time

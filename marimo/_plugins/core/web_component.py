@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 from marimo._output.md import _md
 from marimo._output.mime import MIME
-from marimo._plugins.core.json_encoder import WebComponentEncoder
+from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
 
 JSONType: TypeAlias = Union[
     Mapping[str, "JSONType"],
@@ -42,7 +42,7 @@ S = TypeVar("S", bound=JSONType)
 
 
 def _build_attr(name: str, value: JSONType) -> str:
-    processed = escape(json.dumps(value, cls=WebComponentEncoder))
+    processed = escape(msgspec_encoder.encode(value).decode("utf-8"))
     # manual escapes for things html.escape doesn't escape
     #
     # - backslashes, when unescaped can lead to problems

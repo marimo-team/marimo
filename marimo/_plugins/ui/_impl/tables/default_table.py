@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import functools
-import json
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, Optional, Union, cast
@@ -10,7 +9,7 @@ from typing import Any, Optional, Union, cast
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
-from marimo._plugins.core.json_encoder import WebComponentEncoder
+from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -100,10 +99,10 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def to_json_str(
         self, format_mapping: Optional[FormatMapping] = None
     ) -> str:
-        return json.dumps(
-            self._normalize_data(self.apply_formatting(format_mapping).data),
-            cls=WebComponentEncoder,
+        normalized = self._normalize_data(
+            self.apply_formatting(format_mapping).data
         )
+        return msgspec_encoder.encode(normalized).decode("utf-8")
 
     def to_parquet(self) -> bytes:
         if isinstance(self.data, dict) and not self.is_column_oriented:
