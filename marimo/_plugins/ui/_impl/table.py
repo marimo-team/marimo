@@ -613,13 +613,23 @@ class table(
 
         # Sort support
         initial_sort: Optional[SortArgs] = None
-        delimiter = ":"
-        ascending, column = sort.split(sep=delimiter)
         if sort:
-            # Only sort if column exists
-            colnames = set(self._manager.get_column_names())
-            if column in colnames:
-                initial_sort = SortArgs(by=sort, descending=not ascending)
+            # Expecting sort="ASC:column" or sort="DESC:column"
+            try:
+                # Splits the string
+                direction, column = sort.split(":")
+                # Cleans up any whitespaces in the string
+                direction = direction.strip().upper()
+                column = column.strip()
+                # Raise an error if these keywords don't pop up
+                if direction not in ("ASC", "DESC"):
+                    raise ValueError
+                descending = (direction == "DESC")
+                colnames = set(self._manager.get_column_names())
+                if column in colnames:
+                    initial_sort = SortArgs(by=column, descending=descending)
+            except ValueError:
+                raise ValueError("Sort must be a string in the format 'ASC:column' or 'DESC:column'")
 
         if not _internal_lazy:
             # Search first page, with initial sort if specified
