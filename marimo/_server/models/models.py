@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import dataclasses
 import os
 from typing import Any, Optional
 
@@ -15,7 +14,6 @@ from marimo._runtime.requests import (
     RenameRequest,
 )
 from marimo._types.ids import CellId_t, UIElementId
-from marimo._utils.case import deep_to_camel_case
 
 
 class UpdateComponentValuesRequest(msgspec.Struct, rename="camel"):
