@@ -68,7 +68,7 @@ export function mount(options: unknown, el: Element): Error | undefined {
   const root = createRoot(el);
 
   const fragmentStore = FragmentStore.load();
-  if (window.__DEBUG__) {
+  if (fragmentStore.getString("debug") === "true") {
     window.__fragmentStore = fragmentStore;
   }
 
