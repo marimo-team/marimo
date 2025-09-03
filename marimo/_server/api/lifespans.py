@@ -120,46 +120,6 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
-async def mcp_server(app: Starlette) -> AsyncIterator[None]:
-    """Lifespan for MCP server functionality (exposing marimo as MCP server)."""
-
-    state = AppState.from_app(app)
-    session_mgr = state.session_manager
-    mcp_server_enabled = state.mcp_server_enabled
-
-    # Only start the MCP server in Edit mode
-    if session_mgr.mode != SessionMode.EDIT:
-        yield
-        return
-
-    if not mcp_server_enabled:
-        yield
-        return
-
-    try:
-        # Import here to avoid circular imports and optional dependency issues
-        from marimo._mcp.server.main import setup_mcp_server
-
-        session_manager = setup_mcp_server(app)
-
-        # Expose the raw handler so your /mcp route can proxy the ASGI triplet
-        app.state.mcp_handler = session_manager.handle_request
-
-        async with session_manager.run():
-            LOGGER.info("MCP server session manager started")
-            # Session manager owns request lifecycle during app run
-            yield
-
-    except ImportError as e:
-        LOGGER.warning(f"MCP server dependencies not available: {e}")
-        yield
-        return
-    except Exception as e:
-        LOGGER.error(f"Failed to start MCP server: {e}")
-        raise
-
-
-@contextlib.asynccontextmanager
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     if not state.headless:

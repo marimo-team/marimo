@@ -11,8 +11,8 @@ pytest.importorskip("mcp", reason="MCP requires Python 3.10+")
 from marimo._mcp.server.tools.cells import (
     CellErrors,
     CellRuntimeMetadata,
-    CellType,
     CellVariables,
+    SupportedCellType,
     _determine_cell_type,
     _get_cell_errors,
     _get_cell_metadata,
@@ -92,7 +92,7 @@ class MockCell:
 def test_determine_cell_type_default():
     """Test _determine_cell_type defaults to CODE."""
     result = _determine_cell_type("print('hello')")
-    assert result == CellType.CODE
+    assert result == SupportedCellType.CODE
 
 
 def test_determine_cell_type_with_sql_cell():
@@ -100,7 +100,7 @@ def test_determine_cell_type_with_sql_cell():
     cell = MockCell(language="sql")
 
     result = _determine_cell_type("SELECT * FROM table", cell)
-    assert result == CellType.SQL
+    assert result == SupportedCellType.SQL
 
 
 def test_determine_cell_type_with_python_cell():
@@ -108,7 +108,7 @@ def test_determine_cell_type_with_python_cell():
     cell = MockCell(language="python")
 
     result = _determine_cell_type("x = 1", cell)
-    assert result == CellType.CODE
+    assert result == SupportedCellType.CODE
 
 
 def test_get_cell_errors_no_cell_op():
@@ -118,7 +118,7 @@ def test_get_cell_errors_no_cell_op():
 
     result = _get_cell_errors(session, "nonexistent_cell")
 
-    expected: CellErrors = {"has_errors": False, "error_details": None}
+    expected = CellErrors(has_errors=False, error_details=None)
     assert result == expected
 
 
@@ -135,11 +135,11 @@ def test_get_cell_errors_with_marimo_error():
 
     result = _get_cell_errors(session, "cell1")
 
-    assert result["has_errors"] is True
-    assert len(result["error_details"]) == 1
-    assert result["error_details"][0]["type"] == "NameError"
-    assert result["error_details"][0]["message"] == "name 'x' is not defined"
-    assert result["error_details"][0]["traceback"] == ["line 1", "line 2"]
+    assert result.has_errors is True
+    assert len(result.error_details) == 1
+    assert result.error_details[0].type == "NameError"
+    assert result.error_details[0].message == "name 'x' is not defined"
+    assert result.error_details[0].traceback == ["line 1", "line 2"]
 
 
 def test_get_cell_errors_with_stderr():
@@ -154,13 +154,11 @@ def test_get_cell_errors_with_stderr():
 
     result = _get_cell_errors(session, "cell1")
 
-    assert result["has_errors"] is True
-    assert len(result["error_details"]) == 1
-    assert result["error_details"][0]["type"] == "STDERR"
-    assert (
-        result["error_details"][0]["message"] == "Warning: deprecated function"
-    )
-    assert result["error_details"][0]["traceback"] == []
+    assert result.has_errors is True
+    assert len(result.error_details) == 1
+    assert result.error_details[0].type == "STDERR"
+    assert result.error_details[0].message == "Warning: deprecated function"
+    assert result.error_details[0].traceback == []
 
 
 def test_get_cell_errors_dict_error():
@@ -178,10 +176,10 @@ def test_get_cell_errors_dict_error():
 
     result = _get_cell_errors(session, "cell1")
 
-    assert result["has_errors"] is True
-    assert result["error_details"][0]["type"] == "ValueError"
-    assert result["error_details"][0]["message"] == "invalid value"
-    assert result["error_details"][0]["traceback"] == ["tb1"]
+    assert result.has_errors is True
+    assert result.error_details[0].type == "ValueError"
+    assert result.error_details[0].message == "invalid value"
+    assert result.error_details[0].traceback == ["tb1"]
 
 
 def test_get_cell_metadata_basic():
@@ -194,10 +192,10 @@ def test_get_cell_metadata_basic():
 
     result = _get_cell_metadata(session, "cell1")
 
-    expected: CellRuntimeMetadata = {
-        "runtime_state": "idle",
-        "execution_time": 42.5,
-    }
+    expected = CellRuntimeMetadata(
+        runtime_state="idle",
+        execution_time=42.5,
+    )
     assert result == expected
 
 
@@ -208,10 +206,10 @@ def test_get_cell_metadata_no_cell_op():
 
     result = _get_cell_metadata(session, "nonexistent")
 
-    expected: CellRuntimeMetadata = {
-        "runtime_state": None,
-        "execution_time": None,
-    }
+    expected = CellRuntimeMetadata(
+        runtime_state=None,
+        execution_time=None,
+    )
     assert result == expected
 
 

@@ -162,22 +162,26 @@ def start(
 
     log_level = "info" if development_mode else "error"
 
+    lifespans_list = [
+        lifespans.lsp,
+        lifespans.mcp,
+        lifespans.etc,
+        lifespans.signal_handler,
+        lifespans.logging,
+        lifespans.open_browser,
+        *LIFESPAN_REGISTRY.get_all(),
+    ]
+
+    if mcp and mode == SessionMode.EDIT:
+        from marimo._mcp.server.lifespan import mcp_server_lifespan
+
+        lifespans_list.append(mcp_server_lifespan)
+
     (external_port, external_host) = _resolve_proxy(port, host, proxy)
     app = create_starlette_app(
         base_url=base_url,
         host=external_host,
-        lifespan=Lifespans(
-            [
-                lifespans.lsp,
-                lifespans.mcp,
-                lifespans.mcp_server,
-                lifespans.etc,
-                lifespans.signal_handler,
-                lifespans.logging,
-                lifespans.open_browser,
-                *LIFESPAN_REGISTRY.get_all(),
-            ]
-        ),
+        lifespan=Lifespans(lifespans_list),
         allow_origins=allow_origins,
         enable_auth=not AuthToken.is_empty(session_manager.auth_token),
         lsp_servers=list(lsp_composite_server.servers.values())

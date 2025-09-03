@@ -1,4 +1,5 @@
-from typing import Optional, TypedDict
+from dataclasses import dataclass
+from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
@@ -6,7 +7,6 @@ from starlette.applications import Starlette
 from marimo._mcp.server.exceptions import ToolExecutionError
 from marimo._mcp.server.responses import (
     SuccessResult,
-    make_tool_success_result,
 )
 from marimo._server.api.deps import AppStateBase
 from marimo._server.model import ConnectionState
@@ -15,29 +15,37 @@ from marimo._types.ids import SessionId
 from marimo._utils.paths import pretty_path
 
 
-class NotebookInfo(TypedDict):
+@dataclass(kw_only=True)
+class NotebookInfo:
     name: str
     path: str
     session_id: Optional[SessionId]
     initialization_id: Optional[str]
 
 
-class SummaryInfo(TypedDict):
+@dataclass(kw_only=True)
+class SummaryInfo:
     total_notebooks: int
     total_sessions: int
     active_connections: int
 
 
-class GetActiveNotebooksResponse(TypedDict):
+@dataclass(kw_only=True)
+class GetActiveNotebooksData:
     summary: SummaryInfo
     notebooks: list[NotebookInfo]
+
+
+@dataclass(kw_only=True)
+class GetActiveNotebooksResponse(SuccessResult):
+    data: GetActiveNotebooksData
 
 
 def register_notebooks_tools(mcp: FastMCP, app: Starlette) -> None:
     """Register notebook-level management tools"""
 
     @mcp.tool()
-    def get_active_notebooks() -> SuccessResult[GetActiveNotebooksResponse]:
+    def get_active_notebooks() -> GetActiveNotebooksResponse:
         """List currently active marimo notebooks and a summary block.
 
         Returns:
@@ -51,25 +59,28 @@ def register_notebooks_tools(mcp: FastMCP, app: Starlette) -> None:
             notebooks: list[NotebookInfo] = []
             for file_info in active_files:
                 notebooks.append(
-                    {
-                        "name": file_info.name,
-                        "path": file_info.path,
-                        "session_id": file_info.session_id,
-                        "initialization_id": file_info.initialization_id,
-                    }
+                    NotebookInfo(
+                        name=file_info.name,
+                        path=file_info.path,
+                        session_id=file_info.session_id,
+                        initialization_id=file_info.initialization_id,
+                    )
                 )
 
             # Build summary statistics
             session_manager = app_state.session_manager
-            summary: SummaryInfo = {
-                "total_notebooks": len(active_files),
-                "total_sessions": len(session_manager.sessions),
-                "active_connections": session_manager.get_active_connection_count(),
-            }
+            summary: SummaryInfo = SummaryInfo(
+                total_notebooks=len(active_files),
+                total_sessions=len(session_manager.sessions),
+                active_connections=session_manager.get_active_connection_count(),
+            )
+
+            # Build data object
+            data = GetActiveNotebooksData(summary=summary, notebooks=notebooks)
 
             # Return a success result with summary statistics and notebook details
-            return make_tool_success_result(
-                data={"summary": summary, "notebooks": notebooks},
+            return GetActiveNotebooksResponse(
+                data=data,
                 next_steps=[
                     "Use the `get_lightweight_cell_map` tool to get the content of a notebook"
                 ],

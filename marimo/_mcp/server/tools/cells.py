@@ -1,5 +1,6 @@
+from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Optional, TypedDict
+from typing import TYPE_CHECKING, Optional
 
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
@@ -9,7 +10,6 @@ from marimo._ast.models import CellData
 from marimo._mcp.server.exceptions import ToolExecutionError
 from marimo._mcp.server.responses import (
     SuccessResult,
-    make_tool_success_result,
 )
 from marimo._messaging.ops import VariableValue
 from marimo._server.api.deps import AppStateBase
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from marimo._server.sessions import Session
 
 
-class CellType(Enum):
+class SupportedCellType(Enum):
     """Enum for core marimo cell types."""
 
     CODE = "code"
@@ -28,14 +28,16 @@ class CellType(Enum):
     SQL = "sql"
 
 
-class LightweightCellInfo(TypedDict):
+@dataclass(kw_only=True)
+class LightweightCellInfo:
     cell_id: str
     preview: str  # First X lines of code
     line_count: int
-    cell_type: CellType
+    cell_type: SupportedCellType
 
 
-class GetLightweightCellMapResponse(TypedDict):
+@dataclass(kw_only=True)
+class GetLightweightCellMapData:
     session_id: str
     notebook_name: str
     cells: list[LightweightCellInfo]
@@ -43,18 +45,26 @@ class GetLightweightCellMapResponse(TypedDict):
     preview_lines: int  # How many lines were shown per cell
 
 
-class ErrorDetail(TypedDict):
+@dataclass(kw_only=True)
+class GetLightweightCellMapResponse(SuccessResult):
+    data: GetLightweightCellMapData
+
+
+@dataclass(kw_only=True)
+class ErrorDetail:
     type: str
     message: str
     traceback: list[str]
 
 
-class CellErrors(TypedDict):
+@dataclass(kw_only=True)
+class CellErrors:
     has_errors: bool
     error_details: Optional[list[ErrorDetail]]
 
 
-class CellRuntimeMetadata(TypedDict):
+@dataclass(kw_only=True)
+class CellRuntimeMetadata:
     runtime_state: Optional[RuntimeStateType]
     execution_time: Optional[float]
 
@@ -62,7 +72,8 @@ class CellRuntimeMetadata(TypedDict):
 CellVariables = dict[str, VariableValue]
 
 
-class GetCellRuntimeDataResponse(TypedDict):
+@dataclass(kw_only=True)
+class GetCellRuntimeDataData:
     session_id: str
     cell_id: str
     code: Optional[str]
@@ -71,13 +82,18 @@ class GetCellRuntimeDataResponse(TypedDict):
     variables: Optional[CellVariables]
 
 
+@dataclass(kw_only=True)
+class GetCellRuntimeDataResponse(SuccessResult):
+    data: GetCellRuntimeDataData
+
+
 def register_cells_tools(mcp: FastMCP, app: Starlette) -> None:
     """Register cell-level management tools"""
 
     @mcp.tool()
     def get_lightweight_cell_map(
         session_id: str, preview_lines: int = 3
-    ) -> SuccessResult[GetLightweightCellMapResponse]:
+    ) -> GetLightweightCellMapResponse:
         """Get a lightweight map of cells showing the first few lines of each cell.
 
         This tool provides an overview of notebook structure for initial navigation,
@@ -123,32 +139,30 @@ def register_cells_tools(mcp: FastMCP, app: Starlette) -> None:
                     cell_data.code, cell_data.cell
                 )
 
-                if cell_type in CellType:
-                    # Only add cells that are supported by the tool
-                    cells.append(
-                        {
-                            "cell_id": cell_data.cell_id,
-                            "preview": preview,
-                            "line_count": len(code_lines),
-                            "cell_type": cell_type,
-                        }
+                cells.append(
+                    LightweightCellInfo(
+                        cell_id=cell_data.cell_id,
+                        preview=preview,
+                        line_count=len(code_lines),
+                        cell_type=cell_type,
                     )
+                )
 
             # Return a success result with lightweight cell map
-            return make_tool_success_result(
-                data={
-                    "session_id": session_id,
-                    "notebook_name": notebook_filename,
-                    "cells": cells,
-                    "total_cells": len(cells),
-                    "preview_lines": preview_lines,
-                },
+            return GetLightweightCellMapResponse(
+                data=GetLightweightCellMapData(
+                    session_id=session_id,
+                    notebook_name=notebook_filename,
+                    cells=cells,
+                    total_cells=len(cells),
+                    preview_lines=preview_lines,
+                ),
                 next_steps=[
                     "Use cell_id to get full cell content or execute specific cells",
                     "Identify key sections based on cell types and previews",
                     "Focus on import cells first to understand dependencies",
                 ],
-                message="Refer to cells by position (first cell, second cell, etc.) rather than cell_id when describing them to users.",
+                message="Refer to to cells ordinally in the following format: @[cell:1]. Do _not_ use cell_id when discussing the with users.",
             )
 
         except Exception as e:
@@ -167,7 +181,7 @@ def register_cells_tools(mcp: FastMCP, app: Starlette) -> None:
     @mcp.tool()
     def get_cell_runtime_data(
         session_id: str, cell_id: str
-    ) -> SuccessResult[GetCellRuntimeDataResponse]:
+    ) -> GetCellRuntimeDataResponse:
         """Get runtime data for a specific cell including code, errors, and variables.
 
         This tool provides detailed runtime information for a specific cell,
@@ -221,15 +235,15 @@ def register_cells_tools(mcp: FastMCP, app: Starlette) -> None:
             # Get variable names and values defined by the cell
             cell_variables = _get_cell_variables(session, cell_data)
 
-            return make_tool_success_result(
-                data={
-                    "session_id": session_id,
-                    "cell_id": cell_id,
-                    "code": cell_code,
-                    "errors": cell_errors,
-                    "metadata": cell_metadata,
-                    "variables": cell_variables,
-                },
+            return GetCellRuntimeDataResponse(
+                data=GetCellRuntimeDataData(
+                    session_id=session_id,
+                    cell_id=cell_id,
+                    code=cell_code,
+                    errors=cell_errors,
+                    metadata=cell_metadata,
+                    variables=cell_variables,
+                ),
                 next_steps=[
                     "Review cell code for understanding the implementation",
                     "Check errors to identify any execution issues",
@@ -252,7 +266,16 @@ def register_cells_tools(mcp: FastMCP, app: Starlette) -> None:
 
 
 # Utility functions
-def _determine_cell_type(code: str, cell: Optional["Cell"] = None) -> CellType:
+def is_markdown_cell(code: str) -> bool:
+    """Check if a cell is a markdown cell."""
+    if code.lstrip().startswith("mo.md("):
+        return True
+    return False
+
+
+def _determine_cell_type(
+    code: str, cell: Optional["Cell"] = None
+) -> SupportedCellType:
     """Determine the type of cell based on marimo's compiled cell data.
 
     Uses the actual Language field from CellData.cell.language when available,
@@ -261,29 +284,19 @@ def _determine_cell_type(code: str, cell: Optional["Cell"] = None) -> CellType:
     """
 
     # If we have the compiled cell data, use marimo's official language detection
-    if (
-        cell is not None
-        and hasattr(cell, "_cell")
-        and hasattr(cell._cell, "language")
-    ):
+    if cell is not None:
         language = cell._cell.language
         if language == "sql":
-            return CellType.SQL
+            return SupportedCellType.SQL
         elif language == "python":
             # For Python cells, check if it's actually a markdown cell
             # by using marimo's official markdown detection
-            try:
-                from marimo._server.export.utils import get_markdown_from_cell
-
-                if get_markdown_from_cell(cell, code) is not None:
-                    return CellType.MARKDOWN
-            except (ImportError, AttributeError, Exception):
-                # Fall back to heuristic if import fails
-                pass
-            return CellType.CODE
+            if is_markdown_cell(code):
+                return SupportedCellType.MARKDOWN
+            return SupportedCellType.CODE
 
     # Default to code for all other cases
-    return CellType.CODE
+    return SupportedCellType.CODE
 
 
 def _get_cell_errors(session: "Session", cell_id: CellId_t) -> CellErrors:
@@ -296,7 +309,7 @@ def _get_cell_errors(session: "Session", cell_id: CellId_t) -> CellErrors:
 
     if cell_op is None:
         # No operations recorded for this cell
-        return {"has_errors": False, "error_details": None}
+        return CellErrors(has_errors=False, error_details=None)
 
     # Check for actual error details in the output
     has_errors = False
@@ -309,27 +322,27 @@ def _get_cell_errors(session: "Session", cell_id: CellId_t) -> CellErrors:
             for error in errors:
                 if hasattr(error, "type") and hasattr(error, "describe"):
                     # Rich Error object
-                    error_detail: ErrorDetail = {
-                        "type": error.type,
-                        "message": error.describe(),
-                        "traceback": getattr(error, "traceback", []),
-                    }
+                    error_detail = ErrorDetail(
+                        type=error.type,
+                        message=error.describe(),
+                        traceback=getattr(error, "traceback", []),
+                    )
                     error_details.append(error_detail)
                 elif isinstance(error, dict):
                     # Dict-based error
-                    dict_error_detail: ErrorDetail = {
-                        "type": error.get("type", "UnknownError"),
-                        "message": error.get("msg", str(error)),
-                        "traceback": error.get("traceback", []),
-                    }
+                    dict_error_detail = ErrorDetail(
+                        type=error.get("type", "UnknownError"),
+                        message=error.get("msg", str(error)),
+                        traceback=error.get("traceback", []),
+                    )
                     error_details.append(dict_error_detail)
                 else:
                     # Fallback for other error types
-                    fallback_error_detail: ErrorDetail = {
-                        "type": type(error).__name__,
-                        "message": str(error),
-                        "traceback": [],
-                    }
+                    fallback_error_detail = ErrorDetail(
+                        type=type(error).__name__,
+                        message=str(error),
+                        traceback=[],
+                    )
                     error_details.append(fallback_error_detail)
 
     # Check console outputs for STDERR (includes print statements to stderr, warnings, etc.)
@@ -342,17 +355,17 @@ def _get_cell_errors(session: "Session", cell_id: CellId_t) -> CellErrors:
         for console_output in console_outputs:
             if console_output.channel == CellChannel.STDERR:
                 has_errors = True
-                stderr_error_detail: ErrorDetail = {
-                    "type": "STDERR",
-                    "message": str(console_output.data),
-                    "traceback": [],
-                }
+                stderr_error_detail = ErrorDetail(
+                    type="STDERR",
+                    message=str(console_output.data),
+                    traceback=[],
+                )
                 error_details.append(stderr_error_detail)
 
-    return {
-        "has_errors": has_errors,
-        "error_details": error_details if error_details else None,
-    }
+    return CellErrors(
+        has_errors=has_errors,
+        error_details=error_details if error_details else None,
+    )
 
 
 def _get_cell_metadata(
@@ -370,7 +383,9 @@ def _get_cell_metadata(
     # Get execution time if available
     execution_time = session_view.last_execution_time.get(cell_id)
 
-    return {"runtime_state": runtime_state, "execution_time": execution_time}
+    return CellRuntimeMetadata(
+        runtime_state=runtime_state, execution_time=execution_time
+    )
 
 
 def _get_cell_variables(

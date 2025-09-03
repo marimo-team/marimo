@@ -8,6 +8,12 @@ notebook context and functionality.
 
 from typing import TYPE_CHECKING
 
+from starlette.routing import Mount
+
+from marimo._loggers import marimo_logger
+
+LOGGER = marimo_logger()
+
 if TYPE_CHECKING:
     from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
     from starlette.applications import Starlette
@@ -26,6 +32,7 @@ def setup_mcp_server(app: "Starlette") -> "StreamableHTTPSessionManager":
     """
 
     # Lazily import here to raise import errors if mcp is not installed
+    # The import errors will get caught by the marimo/_mcp/server/lifespan.py
     from mcp.server.fastmcp import FastMCP
 
     from marimo._mcp.server.tools.cells import register_cells_tools
@@ -37,14 +44,17 @@ def setup_mcp_server(app: "Starlette") -> "StreamableHTTPSessionManager":
         log_level="WARNING",
     )
 
+    # Change base path from /mcp to /server
+    mcp.settings.streamable_http_path = "/server"
+
     # Register all tools
     register_notebooks_tools(mcp, app)
     register_cells_tools(mcp, app)
 
-    # Initialize streamable HTTP app to create session manager
-    # This should be called before the session manager is used
-    mcp.streamable_http_app()
+    # Initialize streamable HTTP app
+    mcp_app = mcp.streamable_http_app()
 
-    session_manager = mcp.session_manager
+    # Add to the top of the routes to avoid conflicts with other routes
+    app.routes.insert(0, Mount("/mcp", mcp_app))
 
-    return session_manager
+    return mcp.session_manager
