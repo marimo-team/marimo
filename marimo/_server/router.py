@@ -1,25 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import dataclasses
 from asyncio import iscoroutine
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
 
 from starlette.responses import (
     FileResponse,
-    HTMLResponse,
     JSONResponse,
-    PlainTextResponse,
-    RedirectResponse,
     Response,
-    StreamingResponse,
 )
 from starlette.routing import Mount, Router
 
 from marimo import _loggers
 from marimo._messaging.msgspec_encoder import encoder
-from marimo._utils.case import deep_to_camel_case
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -54,17 +48,12 @@ class APIRouter(Router):
                 response = await func(request=request)
                 if isinstance(response, FileResponse):
                     return response
-                if isinstance(response, StreamingResponse):
-                    return response
-                if isinstance(response, HTMLResponse):
-                    return response
-                if isinstance(response, PlainTextResponse):
-                    return response
-                if isinstance(response, RedirectResponse):
-                    return response
-                if isinstance(response, JSONResponse):
+
+                # If we already have a response, just return it
+                if isinstance(response, Response):
                     return response
 
+                # Otherwise encode as JSON
                 return JSONResponse(
                     content=encoder.encode(response).decode("utf-8")
                 )
@@ -95,31 +84,15 @@ class APIRouter(Router):
                 response = func(request=request)
                 if iscoroutine(response):
                     response = await response
-                if isinstance(response, FileResponse):
-                    return response
-                if isinstance(response, StreamingResponse):
-                    return response
-                if isinstance(response, PlainTextResponse):
-                    return response
-                if isinstance(response, RedirectResponse):
-                    return response
-                if isinstance(response, HTMLResponse):
+
+                # If we already have a response, just return it
+                if isinstance(response, Response):
                     return response
 
-                if dataclasses.is_dataclass(response):
-                    # Handle both dataclass instance and dataclass type
-                    if isinstance(response, type):
-                        # If it's a type, we can't call asdict on it
-                        return JSONResponse(content=deep_to_camel_case({}))
-                    else:
-                        # If it's an instance, we can call asdict
-                        return JSONResponse(
-                            content=deep_to_camel_case(
-                                dataclasses.asdict(response)
-                            )
-                        )
-
-                return response  # type: ignore[no-any-return]
+                # Otherwise encode as JSON
+                return JSONResponse(
+                    content=encoder.encode(response).decode("utf-8")
+                )
 
             # Set docstring of wrapper_func to the docstring of func
             wrapper_func.__doc__ = func.__doc__

@@ -68,7 +68,6 @@ from marimo._server.models.models import (
 from marimo._server.session.session_view import SessionView
 from marimo._snippets.snippets import read_snippets
 from marimo._types.ids import CellId_t
-from marimo._utils.case import deep_to_camel_case
 from marimo._utils.formatter import DefaultFormatter
 from marimo._utils.inline_script_metadata import PyProjectReader
 from marimo._utils.parse_dataclass import parse_raw
