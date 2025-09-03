@@ -11,7 +11,7 @@ import msgspec.json
 from marimo._dependencies.dependencies import DependencyManager
 
 
-def marimo_enc_hook(obj: Any) -> Any:
+def enc_hook(obj: Any) -> Any:
     """Custom encoding hook for marimo types."""
 
     if isinstance(obj, range):
@@ -87,6 +87,4 @@ def marimo_enc_hook(obj: Any) -> Any:
     raise NotImplementedError(f"Objects of type {type(obj)} are not supported")
 
 
-encoder = msgspec.json.Encoder(
-    enc_hook=marimo_enc_hook, decimal_format="number"
-)
+encoder = msgspec.json.Encoder(enc_hook=enc_hook, decimal_format="number")
