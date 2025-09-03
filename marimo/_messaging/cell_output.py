@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import Any, Union
+from typing import Any, Union, cast
 
 import msgspec
 
@@ -39,7 +39,7 @@ class CellOutput(msgspec.Struct):
         return f"CellOutput(channel={self.channel}, mimetype={self.mimetype}, timestamp={self.timestamp})"
 
     def asdict(self) -> dict[str, Any]:
-        return msgspec.to_builtins(self)
+        return cast(dict[str, Any], msgspec.to_builtins(self))
 
     @staticmethod
     def stdout(

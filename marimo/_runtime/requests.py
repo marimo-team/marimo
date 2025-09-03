@@ -61,7 +61,7 @@ class HTTPRequest(msgspec.Struct):
         return getattr(self, key)
 
     def __iter__(self) -> Iterator[str]:
-        return iter(msgspec.structs.fields(self))
+        return iter(field.name for field in msgspec.structs.fields(self))
 
     def __len__(self) -> int:
         return len(msgspec.structs.fields(self))
