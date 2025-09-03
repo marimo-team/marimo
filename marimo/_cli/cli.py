@@ -476,9 +476,9 @@ def edit(
     skew_protection: bool,
     remote_url: Optional[str],
     convert: bool,
+    timeout: Optional[float],
     name: Optional[str],
     args: tuple[str, ...],
-    timeout: Optional[float],
 ) -> None:
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
     if name is None and (stdin_contents := _get_stdin_contents()) is not None:
@@ -722,8 +722,8 @@ def new(
     base_url: str,
     sandbox: Optional[bool],
     skew_protection: bool,
-    prompt: Optional[str],
     timeout: Optional[float],
+    prompt: Optional[str],
 ) -> None:
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
