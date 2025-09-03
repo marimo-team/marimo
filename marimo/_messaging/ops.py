@@ -6,11 +6,9 @@ Messages that the kernel sends to the frontend.
 
 from __future__ import annotations
 
-import json
 import sys
 import time
 from collections.abc import Sequence  # noqa: TC003
-from dataclasses import asdict, dataclass, field
 from types import ModuleType
 from typing import (
     Any,
@@ -21,6 +19,8 @@ from typing import (
     cast,
 )
 from uuid import uuid4
+
+import msgspec
 
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
@@ -46,7 +46,6 @@ from marimo._messaging.streams import output_max_bytes
 from marimo._messaging.types import Stream
 from marimo._messaging.variables import get_variable_preview
 from marimo._output.hypertext import Html
-from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
@@ -60,29 +59,22 @@ from marimo._utils.platform import is_pyodide, is_windows
 LOGGER = loggers.marimo_logger()
 
 
-def serialize(datacls: Any) -> dict[str, JSONType]:
-    # TODO(akshayka): maybe serialize as bytes (JSON), not objects ...,
-    # then `send_bytes` over connection ... to try to avoid pickling
-    # issues
-    try:
-        # Try to serialize as a dataclass
-        return cast(
-            dict[str, JSONType],
-            asdict(datacls),
-        )
-    except Exception:
-        # If that fails, try to serialize using the WebComponentEncoder
-        return cast(
-            dict[str, JSONType],
-            json.loads(WebComponentEncoder.json_dumps(datacls)),
-        )
+def serialize(obj: Any) -> dict[str, JSONType]:
+    """Serialize an object to a dictionary suitable for JSON encoding.
+
+    For msgspec.Struct objects, this is effectively a passthrough since
+    they already serialize correctly. For other objects, converts to builtins.
+    """
+    # msgspec.to_builtins handles both Structs and regular objects efficiently
+    return cast(
+        dict[str, JSONType],
+        msgspec.to_builtins(obj),
+    )
 
 
-@dataclass
-class Op:
+class Op(msgspec.Struct, rename="camel"):
     name: ClassVar[str]
 
-    # TODO(akshayka): fix typing once mypy has stricter typing for asdict
     def broadcast(self, stream: Optional[Stream] = None) -> None:
         if stream is None:
             try:
@@ -107,7 +99,6 @@ class Op:
         return serialize(self)
 
 
-@dataclass
 class CellOp(Op):
     """Op to transition a cell.
 
@@ -136,7 +127,7 @@ class CellOp(Op):
     stale_inputs: Optional[bool] = None
     run_id: Optional[RunId_t] = None
     serialization: Optional[str] = None
-    timestamp: float = field(default_factory=lambda: time.time())
+    timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
         if self.run_id is not None:
@@ -327,8 +318,7 @@ class CellOp(Op):
         CellOp(cell_id=cell_id, serialization=str(status)).broadcast(stream)
 
 
-@dataclass
-class HumanReadableStatus:
+class HumanReadableStatus(msgspec.Struct, rename="camel"):
     """Human-readable status."""
 
     code: Literal["ok", "error"]
@@ -336,7 +326,6 @@ class HumanReadableStatus:
     message: Union[str, None] = None
 
 
-@dataclass
 class FunctionCallResult(Op):
     """Result of calling a function."""
 
@@ -347,17 +336,9 @@ class FunctionCallResult(Op):
     status: HumanReadableStatus
 
     def __post_init__(self) -> None:
-        # We want to serialize the return_value using our custom JSON encoder
-        try:
-            self.return_value = json.loads(
-                WebComponentEncoder.json_dumps(self.return_value)
-            )
-        except Exception as e:
-            LOGGER.exception(
-                "Error serializing function call result %s: %s",
-                self.__class__.__name__,
-                e,
-            )
+        # Ensure return_value is JSON-serializable
+        # msgspec handles this during encoding
+        pass
 
     def serialize(self) -> dict[str, Any]:
         try:
@@ -381,7 +362,6 @@ class FunctionCallResult(Op):
             )
 
 
-@dataclass
 class RemoveUIElements(Op):
     """Invalidate UI elements for a given cell."""
 
@@ -389,7 +369,6 @@ class RemoveUIElements(Op):
     cell_id: CellId_t
 
 
-@dataclass
 class SendUIElementMessage(Op):
     """Send a message to a UI element."""
 
@@ -400,22 +379,19 @@ class SendUIElementMessage(Op):
     buffers: Optional[list[str]] = None
 
 
-@dataclass
 class Interrupted(Op):
     """Written when the kernel is interrupted by the user."""
 
     name: ClassVar[str] = "interrupted"
 
 
-@dataclass
 class CompletedRun(Op):
     """Written on run completion (of submitted cells and their descendants."""
 
     name: ClassVar[str] = "completed-run"
 
 
-@dataclass
-class KernelCapabilities:
+class KernelCapabilities(msgspec.Struct, rename="camel"):
     terminal: bool = False
     pylsp: bool = False
     ty: bool = False
@@ -429,7 +405,6 @@ class KernelCapabilities:
         self.ty = DependencyManager.ty.has()
 
 
-@dataclass
 class KernelReady(Op):
     """Kernel is ready for execution."""
 
@@ -455,7 +430,6 @@ class KernelReady(Op):
     capabilities: KernelCapabilities
 
 
-@dataclass
 class CompletionResult(Op):
     """Code completion result."""
 
@@ -465,7 +439,6 @@ class CompletionResult(Op):
     options: list[CompletionOption]
 
 
-@dataclass
 class Alert(Op):
     name: ClassVar[str] = "alert"
     title: str
@@ -474,7 +447,6 @@ class Alert(Op):
     variant: Optional[Literal["danger"]] = None
 
 
-@dataclass
 class MissingPackageAlert(Op):
     name: ClassVar[str] = "missing-package-alert"
     packages: list[str]
@@ -487,18 +459,15 @@ PackageStatusType = dict[
 ]
 
 
-@dataclass
 class InstallingPackageAlert(Op):
     name: ClassVar[str] = "installing-package-alert"
     packages: PackageStatusType
 
 
-@dataclass
 class Reconnected(Op):
     name: ClassVar[str] = "reconnected"
 
 
-@dataclass
 class Banner(Op):
     name: ClassVar[str] = "banner"
     title: str
@@ -508,48 +477,50 @@ class Banner(Op):
     action: Optional[Literal["restart"]] = None
 
 
-@dataclass
 class Reload(Op):
     name: ClassVar[str] = "reload"
 
 
-@dataclass
-class VariableDeclaration:
+class VariableDeclaration(msgspec.Struct, rename="camel"):
     name: str
     declared_by: list[CellId_t]
     used_by: list[CellId_t]
 
 
-@dataclass
-class VariableValue:
+class VariableValue(msgspec.Struct, rename="camel"):
     name: str
     value: Optional[str]
     datatype: Optional[str]
 
-    def __init__(
-        self, name: str, value: object, datatype: Optional[str] = None
-    ) -> None:
-        self.name = name
-
+    @staticmethod
+    def create(
+        name: str, value: object, datatype: Optional[str] = None
+    ) -> VariableValue:
+        """Factory method to create a VariableValue from an object."""
         # Defensively try-catch attribute accesses, which could raise
         # exceptions
         # If datatype is already defined, don't try to infer it
         if datatype is None:
             try:
-                self.datatype = (
+                computed_datatype = (
                     type(value).__name__ if value is not None else None
                 )
             except Exception:
-                self.datatype = datatype
+                computed_datatype = datatype
         else:
-            self.datatype = datatype
+            computed_datatype = datatype
 
         try:
-            self.value = self._format_value(value)
+            formatted_value = VariableValue._format_value_static(value)
         except Exception:
-            self.value = None
+            formatted_value = None
 
-    def _stringify(self, value: object) -> str:
+        return VariableValue(
+            name=name, value=formatted_value, datatype=computed_datatype
+        )
+
+    @staticmethod
+    def _stringify_static(value: object) -> str:
         MAX_STR_LEN = 50
 
         if isinstance(value, str):
@@ -566,7 +537,8 @@ class VariableValue:
             # BaseExceptions, which shouldn't crash the kernel
             return "<UNKNOWN>"
 
-    def _format_value(self, value: object) -> str:
+    @staticmethod
+    def _format_value_static(value: object) -> str:
         resolved = value
         if isinstance(value, UIElement):
             resolved = value.value
@@ -574,10 +546,9 @@ class VariableValue:
             resolved = value.text
         elif isinstance(value, ModuleType):
             resolved = value.__name__
-        return self._stringify(resolved)
+        return VariableValue._stringify_static(resolved)
 
 
-@dataclass
 class Variables(Op):
     """List of variable declarations."""
 
@@ -585,7 +556,6 @@ class Variables(Op):
     variables: list[VariableDeclaration]
 
 
-@dataclass
 class VariableValues(Op):
     """List of variables and their types/values."""
 
@@ -593,7 +563,6 @@ class VariableValues(Op):
     variables: list[VariableValue]
 
 
-@dataclass
 class Datasets(Op):
     """List of datasets."""
 
@@ -602,7 +571,6 @@ class Datasets(Op):
     clear_channel: Optional[DataTableSource] = None
 
 
-@dataclass
 class SQLTablePreview(Op):
     """Preview of a table in a SQL database."""
 
@@ -612,18 +580,16 @@ class SQLTablePreview(Op):
     error: Optional[str] = None
 
 
-@dataclass
 class SQLTableListPreview(Op):
     """Preview of a list of tables in a schema."""
 
     name: ClassVar[str] = "sql-table-list-preview"
     request_id: RequestId
-    tables: list[DataTable] = field(default_factory=list)
+    tables: list[DataTable] = msgspec.field(default_factory=list)
     error: Optional[str] = None
 
 
-@dataclass
-class ColumnPreview:
+class ColumnPreview(msgspec.Struct, rename="camel"):
     chart_spec: Optional[str] = None
     chart_code: Optional[str] = None
     error: Optional[str] = None
@@ -633,7 +599,6 @@ class ColumnPreview:
 
 # We shouldn't need to make table_name and column_name have default values.
 # We can use kw_only=True once we drop support for Python 3.9.
-@dataclass()
 class DataColumnPreview(Op, ColumnPreview):
     """Preview of a column in a dataset."""
 
@@ -642,13 +607,11 @@ class DataColumnPreview(Op, ColumnPreview):
     column_name: str = ""
 
 
-@dataclass
 class DataSourceConnections(Op):
     name: ClassVar[str] = "data-source-connections"
     connections: list[DataSourceConnection]
 
 
-@dataclass
 class QueryParamsSet(Op):
     """Set query parameters."""
 
@@ -657,14 +620,12 @@ class QueryParamsSet(Op):
     value: Union[str, list[str]]
 
 
-@dataclass
 class QueryParamsAppend(Op):
     name: ClassVar[str] = "query-params-append"
     key: str
     value: str
 
 
-@dataclass
 class QueryParamsDelete(Op):
     name: ClassVar[str] = "query-params-delete"
     key: str
@@ -673,19 +634,16 @@ class QueryParamsDelete(Op):
     value: Optional[str]
 
 
-@dataclass
 class QueryParamsClear(Op):
     # Clear all query parameters
     name: ClassVar[str] = "query-params-clear"
 
 
-@dataclass
 class FocusCell(Op):
     name: ClassVar[str] = "focus-cell"
     cell_id: CellId_t
 
 
-@dataclass
 class UpdateCellCodes(Op):
     name: ClassVar[str] = "update-cell-codes"
     cell_ids: list[CellId_t]
@@ -695,7 +653,6 @@ class UpdateCellCodes(Op):
     code_is_stale: bool
 
 
-@dataclass
 class SecretKeysResult(Op):
     """Result of listing secret keys."""
 
@@ -704,7 +661,6 @@ class SecretKeysResult(Op):
     secrets: list[SecretKeysWithProvider]
 
 
-@dataclass
 class UpdateCellIdsRequest(Op):
     """
     Update the cell ID ordering of the cells in the notebook.

@@ -117,8 +117,8 @@ def test_session_view_variable_values() -> None:
     # Create VariableValues operation
     variable_values_op = VariableValues(
         variables=[
-            VariableValue(name="var1", value=1),
-            VariableValue(name="var2", value="hello"),
+            VariableValue.create(name="var1", value=1),
+            VariableValue.create(name="var2", value="hello"),
         ]
     )
     session_view.add_operation(variable_values_op)
@@ -255,7 +255,7 @@ def test_last_run_code() -> None:
 
 
 def test_serialize_parse_variable_value() -> None:
-    original = VariableValue(name="var1", value=1)
+    original = VariableValue.create(name="var1", value=1)
     serialized = serialize(original)
     assert serialized == {"datatype": "int", "name": "var1", "value": "1"}
     parsed = parse_raw(serialized, VariableValue)
@@ -283,8 +283,8 @@ def test_add_variables() -> None:
         serialize(
             VariableValues(
                 variables=[
-                    VariableValue(name="var1", value=1),
-                    VariableValue(name="var2", value="hello"),
+                    VariableValue.create(name="var1", value=1),
+                    VariableValue.create(name="var2", value="hello"),
                 ]
             )
         )

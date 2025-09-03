@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Any
 
 import msgspec
@@ -13,17 +12,12 @@ from marimo._dependencies.dependencies import DependencyManager
 
 def marimo_enc_hook(obj: Any) -> Any:
     """Custom encoding hook for marimo types."""
-    
-    # Handle range objects
+
     if isinstance(obj, range):
         return list(obj)
-    
-    # Handle complex numbers
+
     if isinstance(obj, complex):
         return str(obj)
-    
-    # Note: Enum is handled natively by msgspec using the value (not name)
-    # This differs from WebComponentEncoder which used the name
 
     if hasattr(obj, "_mime_"):
         mimetype, data = obj._mime_()

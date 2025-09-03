@@ -12,14 +12,14 @@ from marimo._utils.parse_dataclass import parse_raw
 
 
 def test_value_ui_element() -> None:
-    variable_value = VariableValue(name="s", value=slider(1, 10, value=5))
+    variable_value = VariableValue.create(name="s", value=slider(1, 10, value=5))
     assert variable_value.datatype == "slider"
     assert variable_value.value == "5"
 
 
 def test_value_html() -> None:
     h = Html("<span></span>")
-    variable_value = VariableValue(name="h", value=h)
+    variable_value = VariableValue.create(name="h", value=h)
     assert variable_value.datatype == "Html"
     assert variable_value.value == h.text
 
@@ -29,7 +29,7 @@ def test_variable_value_broken_str() -> None:
         def __str__(self) -> str:
             raise BaseException  # noqa: TRY002
 
-    variable_value = VariableValue(name="o", value=Broken())
+    variable_value = VariableValue.create(name="o", value=Broken())
     assert variable_value.datatype == "Broken"
     assert variable_value.value is not None
     assert variable_value.value.startswith("<Broken object at")
