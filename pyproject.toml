@@ -48,6 +48,7 @@ dependencies = [
     "narwhals>=1.34.1",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
+    "msgspec>=0.19.0",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
