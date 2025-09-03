@@ -335,8 +335,7 @@ class table(
         max_columns (int, optional): Maximum number of columns to display. Defaults to the
             configured default_table_max_columns (50 by default). Set to None to show all columns.
         label (str, optional): A descriptive name for the table. Defaults to "".
-        default_sort (str, optional): Column name to sort by initially.
-        ascending (bool, optional): Sort ascending (default True). Set to False for descending.
+        sort (str, optional): Column name to sort by initially.
     """
 
     _name: Final[str] = "marimo-table"
@@ -347,8 +346,6 @@ class table(
         *,
         page_size: Optional[int] = None,
         preload: bool = False,
-        default_sort: Optional[str] = None,
-        ascending: bool = True,
     ) -> table:
         """
         Create a table from a Polars LazyFrame.
@@ -396,8 +393,6 @@ class table(
             _internal_total_rows="too_many",
             _internal_lazy=True,
             _internal_preload=preload,
-            default_sort=default_sort,
-            ascending=ascending,
         )
 
     def __init__(
@@ -452,8 +447,7 @@ class table(
         _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
         _internal_lazy: bool = False,
         _internal_preload: bool = False,
-        default_sort: Optional[str] = None,
-        ascending: bool = True,
+        sort: Optional[str] = None,
     ) -> None:
         if page_size is None:
             page_size = self.default_page_size
@@ -617,14 +611,15 @@ class table(
         field_types: Optional[FieldTypes] = None
         num_columns = 0
 
-        # Default sort support
+        # Sort support
         initial_sort: Optional[SortArgs] = None
-        if default_sort is not None:
+        delimiter = ":"
+        ascending, column = sort.split(sep=delimiter)
+        if sort:
             # Only sort if column exists
             colnames = set(self._manager.get_column_names())
-            if default_sort in colnames:
-                initial_sort = SortArgs(by=default_sort, descending=not ascending)
-        
+            if column in colnames:
+                initial_sort = SortArgs(by=sort, descending=not ascending)
 
         if not _internal_lazy:
             # Search first page, with initial sort if specified
@@ -739,50 +734,6 @@ class table(
                 original format (list, dict, dataframe, etc.).
         """
         return self._data
-
-    def sort(self, by: str, ascending: bool = True) -> table:
-        """Return a new table instance sorted by a column."""
-        colnames = set(self._manager.get_column_names())
-        if by not in colnames:
-            raise ValueError(f"Column '{by}' not found in table.")
-        sorted_manager = self._manager.sort_values(by, not ascending)
-        sorted_data = sorted_manager.data
-
-        # Convert back to dict of lists if original input was dict of lists
-        if self._input_format == "dict_of_lists":
-            # sorted_data is likely a list of dicts; convert to dict of lists
-            if isinstance(sorted_data, list):
-                keys = sorted_data[0].keys() if sorted_data else []
-                sorted_data_dict = {
-                    k: [row[k] for row in sorted_data] for k in keys
-                }
-                sorted_data = sorted_data_dict
-
-        return table(
-            data=sorted_data,
-            pagination=self._component_args.get("pagination"),
-            selection=self._selection,
-            initial_selection=None,
-            page_size=self._page_size,
-            show_column_summaries=self._show_column_summaries,
-            show_data_types=self._component_args.get("show-data-types", True),
-            format_mapping=self._format_mapping,
-            freeze_columns_left=self._component_args.get(
-                "freeze-columns-left"
-            ),
-            freeze_columns_right=self._component_args.get(
-                "freeze-columns-right"
-            ),
-            text_justify_columns=self._component_args.get(
-                "text-justify-columns"
-            ),
-            wrapped_columns=self._component_args.get("wrapped-columns"),
-            show_download=self._component_args.get("show-download", True),
-            max_columns=self._max_columns,
-            label=self._component_args.get("label", ""),
-            on_change=self._on_change,
-            style_cell=self._style_cell,
-        )
 
     def _get_banner_text(self) -> str:
         if self._lazy:
