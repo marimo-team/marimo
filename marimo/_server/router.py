@@ -7,12 +7,8 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
 
 from starlette.responses import (
     FileResponse,
-    HTMLResponse,
     JSONResponse,
-    PlainTextResponse,
-    RedirectResponse,
     Response,
-    StreamingResponse,
 )
 from starlette.routing import Mount, Router
 
@@ -52,17 +48,12 @@ class APIRouter(Router):
                 response = await func(request=request)
                 if isinstance(response, FileResponse):
                     return response
-                if isinstance(response, StreamingResponse):
-                    return response
-                if isinstance(response, HTMLResponse):
-                    return response
-                if isinstance(response, PlainTextResponse):
-                    return response
-                if isinstance(response, RedirectResponse):
-                    return response
-                if isinstance(response, JSONResponse):
+
+                # If we already have a response, just return it
+                if isinstance(response, Response):
                     return response
 
+                # Otherwise encode as JSON
                 return JSONResponse(
                     content=encoder.encode(response).decode("utf-8")
                 )
@@ -93,17 +84,12 @@ class APIRouter(Router):
                 response = func(request=request)
                 if iscoroutine(response):
                     response = await response
-                if isinstance(response, FileResponse):
-                    return response
-                if isinstance(response, StreamingResponse):
-                    return response
-                if isinstance(response, PlainTextResponse):
-                    return response
-                if isinstance(response, RedirectResponse):
-                    return response
-                if isinstance(response, HTMLResponse):
+
+                # If we already have a response, just return it
+                if isinstance(response, Response):
                     return response
 
+                # Otherwise encode as JSON
                 return JSONResponse(
                     content=encoder.encode(response).decode("utf-8")
                 )
