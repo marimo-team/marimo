@@ -35,7 +35,7 @@ Primitive = Union[str, bool, int, float]
 SerializedCLIArgs = dict[str, ListOrValue[Primitive]]
 
 
-class HTTPRequest(msgspec.Struct):
+class HTTPRequest(msgspec.Struct, rename="camel"):
     """
     A class that mimics the Request object from Starlette or FastAPI.
 
@@ -117,7 +117,7 @@ class HTTPRequest(msgspec.Struct):
         )
 
 
-class PdbRequest(msgspec.Struct):
+class PdbRequest(msgspec.Struct, rename="camel"):
     cell_id: CellId_t
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
@@ -126,7 +126,7 @@ class PdbRequest(msgspec.Struct):
         return f"PdbRequest(cell={self.cell_id})"
 
 
-class ExecutionRequest(msgspec.Struct):
+class ExecutionRequest(msgspec.Struct, rename="camel"):
     cell_id: CellId_t
     code: str
     # incoming request, e.g. from Starlette or FastAPI
@@ -138,11 +138,11 @@ class ExecutionRequest(msgspec.Struct):
         return f"ExecutionRequest(cell={self.cell_id}, code_preview={preview})"
 
 
-class ExecuteStaleRequest(msgspec.Struct):
+class ExecuteStaleRequest(msgspec.Struct, rename="camel"):
     request: Optional[HTTPRequest] = None
 
 
-class ExecuteMultipleRequest(msgspec.Struct):
+class ExecuteMultipleRequest(msgspec.Struct, rename="camel"):
     # ids of cells to run
     cell_ids: list[CellId_t]
     # code to register/run for each cell
@@ -173,17 +173,17 @@ class ExecuteMultipleRequest(msgspec.Struct):
         )
 
 
-class ExecuteScratchpadRequest(msgspec.Struct):
+class ExecuteScratchpadRequest(msgspec.Struct, rename="camel"):
     code: str
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
 
 
-class RenameRequest(msgspec.Struct):
+class RenameRequest(msgspec.Struct, rename="camel"):
     filename: str
 
 
-class SetUIElementValueRequest(msgspec.Struct):
+class SetUIElementValueRequest(msgspec.Struct, rename="camel"):
     object_ids: list[UIElementId]
     values: list[Any]
     # Incoming request, e.g. from Starlette or FastAPI
@@ -220,7 +220,7 @@ class SetUIElementValueRequest(msgspec.Struct):
         return list(zip(self.object_ids, self.values))
 
 
-class FunctionCallRequest(msgspec.Struct):
+class FunctionCallRequest(msgspec.Struct, rename="camel"):
     function_call_id: RequestId
     namespace: str
     function_name: str
@@ -230,7 +230,7 @@ class FunctionCallRequest(msgspec.Struct):
         return f"FunctionCallRequest(id={self.function_call_id}, fn={self.namespace}.{self.function_name})"
 
 
-class AppMetadata(msgspec.Struct):
+class AppMetadata(msgspec.Struct, rename="camel"):
     """Hold metadata about the app, like its filename."""
 
     query_params: SerializedQueryParams
@@ -241,12 +241,12 @@ class AppMetadata(msgspec.Struct):
     filename: Optional[str] = None
 
 
-class SetCellConfigRequest(msgspec.Struct):
+class SetCellConfigRequest(msgspec.Struct, rename="camel"):
     # Map from Cell ID to (possibly partial) CellConfig
     configs: dict[CellId_t, dict[str, Any]]
 
 
-class SetUserConfigRequest(msgspec.Struct):
+class SetUserConfigRequest(msgspec.Struct, rename="camel"):
     # MarimoConfig TypedDict
     config: MarimoConfig
 
@@ -254,22 +254,22 @@ class SetUserConfigRequest(msgspec.Struct):
         return "SetUserConfigRequest(config=...)"
 
 
-class CreationRequest(msgspec.Struct):
+class CreationRequest(msgspec.Struct, rename="camel"):
     execution_requests: tuple[ExecutionRequest, ...]
     set_ui_element_value_request: SetUIElementValueRequest
     auto_run: bool
     request: Optional[HTTPRequest] = None
 
 
-class DeleteCellRequest(msgspec.Struct):
+class DeleteCellRequest(msgspec.Struct, rename="camel"):
     cell_id: CellId_t
 
 
-class StopRequest(msgspec.Struct):
+class StopRequest(msgspec.Struct, rename="camel"):
     pass
 
 
-class CodeCompletionRequest(msgspec.Struct):
+class CodeCompletionRequest(msgspec.Struct, rename="camel"):
     id: CompletionRequestId
     document: str
     """Source code found in the cell up to the cursor position."""
@@ -279,7 +279,7 @@ class CodeCompletionRequest(msgspec.Struct):
         return f"CodeCompletionRequest(id={self.id}, cell={self.cell_id})"
 
 
-class InstallMissingPackagesRequest(msgspec.Struct):
+class InstallMissingPackagesRequest(msgspec.Struct, rename="camel"):
     # TODO: index URL (index/channel/...)
     manager: str
 
@@ -289,7 +289,7 @@ class InstallMissingPackagesRequest(msgspec.Struct):
     versions: dict[str, str]
 
 
-class PreviewDatasetColumnRequest(msgspec.Struct):
+class PreviewDatasetColumnRequest(msgspec.Struct, rename="camel"):
     # The source type of the dataset
     source_type: DataTableSource
     # The source of the dataset
@@ -305,7 +305,7 @@ class PreviewDatasetColumnRequest(msgspec.Struct):
     fully_qualified_table_name: Optional[str] = None
 
 
-class PreviewSQLTableRequest(msgspec.Struct):
+class PreviewSQLTableRequest(msgspec.Struct, rename="camel"):
     """Preview table details in an SQL database"""
 
     request_id: RequestId
@@ -315,7 +315,7 @@ class PreviewSQLTableRequest(msgspec.Struct):
     table_name: str
 
 
-class PreviewSQLTableListRequest(msgspec.Struct):
+class PreviewSQLTableListRequest(msgspec.Struct, rename="camel"):
     """Preview list of tables in an SQL schema"""
 
     request_id: RequestId
@@ -324,28 +324,28 @@ class PreviewSQLTableListRequest(msgspec.Struct):
     schema: str
 
 
-class PreviewDataSourceConnectionRequest(msgspec.Struct):
+class PreviewDataSourceConnectionRequest(msgspec.Struct, rename="camel"):
     """Fetch a datasource connection"""
 
     engine: str
 
 
-class ListSecretKeysRequest(msgspec.Struct):
+class ListSecretKeysRequest(msgspec.Struct, rename="camel"):
     request_id: RequestId
 
 
-class ModelMessage(msgspec.Struct):
+class ModelMessage(msgspec.Struct, rename="camel"):
     state: dict[str, Any]
     buffer_paths: list[list[Union[str, int]]]
 
 
-class SetModelMessageRequest(msgspec.Struct):
+class SetModelMessageRequest(msgspec.Struct, rename="camel"):
     model_id: WidgetModelId
     message: ModelMessage
     buffers: Optional[list[str]] = None
 
 
-class RefreshSecretsRequest(msgspec.Struct):
+class RefreshSecretsRequest(msgspec.Struct, rename="camel"):
     pass
 
 

@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import dataclasses
 import os
-from dataclasses import dataclass
 from typing import Any, Optional
+
+import msgspec
 
 from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig
@@ -17,8 +18,7 @@ from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.case import deep_to_camel_case
 
 
-@dataclass
-class UpdateComponentValuesRequest:
+class UpdateComponentValuesRequest(msgspec.Struct, rename="camel"):
     object_ids: list[UIElementId]
     values: list[Any]
 
@@ -34,56 +34,44 @@ class UpdateComponentValuesRequest:
         )
 
 
-@dataclass
 class InstantiateRequest(UpdateComponentValuesRequest):
     auto_run: bool = True
 
 
-@dataclass
-class BaseResponse:
+class BaseResponse(msgspec.Struct, rename="camel"):
     success: bool
 
-    def as_camel_case(self) -> dict[str, Any]:
-        return deep_to_camel_case(dataclasses.asdict(self))
 
-
-@dataclass
 class SuccessResponse(BaseResponse):
     success: bool = True
 
 
-@dataclass
 class ErrorResponse(BaseResponse):
     success: bool = False
     message: Optional[str] = None
 
 
-@dataclass
-class FormatRequest:
+class FormatRequest(msgspec.Struct, rename="camel"):
     codes: dict[CellId_t, str]
     line_length: int
 
 
-@dataclass
-class FormatResponse:
+class FormatResponse(msgspec.Struct, rename="camel"):
     codes: dict[CellId_t, str]
 
 
-@dataclass
-class ReadCodeResponse:
+class ReadCodeResponse(msgspec.Struct, rename="camel"):
     contents: str
 
 
-@dataclass
-class RenameFileRequest:
+class RenameFileRequest(msgspec.Struct, rename="camel"):
     filename: str
 
     def as_execution_request(self) -> RenameRequest:
         return RenameRequest(filename=os.path.abspath(self.filename))
 
 
-@dataclass
-class RunRequest:
+class RunRequest(msgspec.Struct, rename="camel"):
     # ids of cells to run
     cell_ids: list[CellId_t]
     # code to register/run for each cell
@@ -105,8 +93,7 @@ class RunRequest:
         )
 
 
-@dataclass
-class SaveNotebookRequest:
+class SaveNotebookRequest(msgspec.Struct, rename="camel"):
     # id of each cell
     cell_ids: list[CellId_t]
     # code for each cell
@@ -135,8 +122,7 @@ class SaveNotebookRequest:
         )
 
 
-@dataclass
-class CopyNotebookRequest:
+class CopyNotebookRequest(msgspec.Struct, rename="camel"):
     # path to app
     source: str
     destination: str
@@ -155,30 +141,25 @@ class CopyNotebookRequest:
         )
 
 
-@dataclass
-class SaveAppConfigurationRequest:
+class SaveAppConfigurationRequest(msgspec.Struct, rename="camel"):
     # partial app config
     config: dict[str, Any]
 
 
-@dataclass
-class SaveUserConfigurationRequest:
+class SaveUserConfigurationRequest(msgspec.Struct, rename="camel"):
     # user configuration
     config: MarimoConfig
 
 
-@dataclass
-class StdinRequest:
+class StdinRequest(msgspec.Struct, rename="camel"):
     text: str
 
 
-@dataclass
-class InvokeAiToolRequest:
+class InvokeAiToolRequest(msgspec.Struct, rename="camel"):
     tool_name: str
     arguments: dict[str, Any]
 
 
-@dataclass
 class InvokeAiToolResponse(BaseResponse):
     tool_name: str
     result: Any
