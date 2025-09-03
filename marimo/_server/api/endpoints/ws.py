@@ -25,7 +25,7 @@ from marimo._messaging.ops import (
     serialize,
 )
 from marimo._messaging.types import KernelMessage, NoopStream
-from marimo._plugins.core.json_encoder import WebComponentEncoder
+from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.params import QueryParams
 from marimo._server.api.deps import AppState
@@ -618,14 +618,13 @@ class WebsocketHandler(SessionConsumer):
                     continue
 
                 try:
-                    text = json.dumps(
+                    text = msgspec_encoder.encode(
                         {
                             "op": op,
                             "data": data,
-                        },
-                        cls=WebComponentEncoder,
-                    )
-                except TypeError as e:
+                        }
+                    ).decode("utf-8")
+                except Exception as e:
                     # This is a deserialization error
                     LOGGER.error(
                         "Failed to send message to frontend: %s", str(e)

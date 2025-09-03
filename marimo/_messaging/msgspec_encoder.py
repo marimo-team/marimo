@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 import msgspec
+import msgspec.json
 
 from marimo._dependencies.dependencies import DependencyManager
 

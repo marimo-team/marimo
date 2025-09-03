@@ -17,6 +17,9 @@ from typing import (
     get_type_hints,
 )
 
+import msgspec
+import msgspec.json
+
 # Import NotRequired from typing_extensions for Python < 3.11
 if sys.version_info < (3, 11):
     from typing_extensions import NotRequired
@@ -213,11 +216,9 @@ def parse_raw(
 
         Transforms all fields in the parsed JSON from camel case to snake case.
     """
-    # If it is a dict, it is already parsed and we can just build the
-    # dataclass.
+    # If it is a dict, it is already parsed and we can just build the dataclass.
     if isinstance(message, dict):
-        return DataclassParser(allow_unknown_keys).build_dataclass(
-            message, cls
-        )
-    parsed = json.loads(message)
-    return DataclassParser(allow_unknown_keys).build_dataclass(parsed, cls)
+        return msgspec.convert(message, type=cls)
+    return msgspec.json.decode(
+        message, strict=not allow_unknown_keys, type=cls
+    )
