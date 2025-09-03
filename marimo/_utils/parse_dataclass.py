@@ -193,7 +193,7 @@ class DataclassParser:
 
 
 def parse_raw(
-    message: Union[bytes, dict[Any, Any]],
+    message: Union[bytes, str, dict[Any, Any]],
     cls: type[T],
     allow_unknown_keys: bool = False,
 ) -> T:

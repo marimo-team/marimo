@@ -8,6 +8,7 @@ from starlette.background import BackgroundTask
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
+from marimo._messaging.msgspec_encoder import encoder
 from marimo._runtime.requests import SetUserConfigRequest
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
@@ -74,6 +75,6 @@ async def save_user_config(
         )
 
     return JSONResponse(
-        content=SuccessResponse().as_camel_case(),
+        content=encoder.encode(SuccessResponse()).decode("utf-8"),
         background=background_task,
     )

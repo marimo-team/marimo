@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import dataclasses
-import json
 from asyncio import iscoroutine
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
@@ -19,6 +18,7 @@ from starlette.responses import (
 from starlette.routing import Mount, Router
 
 from marimo import _loggers
+from marimo._messaging.msgspec_encoder import encoder
 from marimo._utils.case import deep_to_camel_case
 
 if TYPE_CHECKING:
@@ -65,20 +65,9 @@ class APIRouter(Router):
                 if isinstance(response, JSONResponse):
                     return response
 
-                if dataclasses.is_dataclass(response):
-                    # Handle both dataclass instance and dataclass type
-                    if isinstance(response, type):
-                        # If it's a type, we can't call asdict on it
-                        return JSONResponse(content=deep_to_camel_case({}))
-                    else:
-                        # If it's an instance, we can call asdict
-                        return JSONResponse(
-                            content=deep_to_camel_case(
-                                dataclasses.asdict(response)
-                            )
-                        )
-
-                return JSONResponse(content=json.dumps(response))
+                return JSONResponse(
+                    content=encoder.encode(response).decode("utf-8")
+                )
 
             # Set docstring of wrapper_func to the docstring of func
             wrapper_func.__doc__ = func.__doc__

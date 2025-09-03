@@ -14,6 +14,7 @@ else:
     from typing import NotRequired
 
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     Optional,
@@ -492,7 +493,6 @@ class StoreConfig(TypedDict, total=False):
 CacheConfig = Union[list[StoreConfig], StoreConfig]
 
 
-@dataclass
 class ExperimentalConfig(TypedDict, total=False):
     """
     Configuration for experimental features.
@@ -513,9 +513,12 @@ class ExperimentalConfig(TypedDict, total=False):
     execution_type: ExecutionType
 
 
-# Prefer to accept any dict since feature flags can change frequently
-# But maintain type safety for known flags
-ExperimentalConfigType = Union[dict[str, Any], ExperimentalConfig]
+if TYPE_CHECKING:
+    # Prefer to accept any dict since feature flags can change frequently
+    # But maintain type safety for known flags
+    ExperimentalConfigType = Union[dict[str, Any], ExperimentalConfig]
+else:
+    ExperimentalConfigType = dict
 
 
 @mddoc

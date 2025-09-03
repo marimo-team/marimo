@@ -13,6 +13,7 @@ from typing import Any, Callable, TypeVar
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig, merge_default_config
+from marimo._messaging.msgspec_encoder import encoder
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.restartable_task import RestartableTask
 from marimo._pyodide.streams import (
@@ -350,10 +351,10 @@ class PyodideBridge:
         return json.dumps(md)
 
     def _parse(self, request: str, cls: type[T]) -> T:
-        return parse_raw(json.loads(request), cls)
+        return parse_raw(request, cls)
 
     def _dump(self, response: Any) -> str:
-        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+        return encoder.encode(response).decode("utf-8")
 
 
 def _launch_pyodide_kernel(
