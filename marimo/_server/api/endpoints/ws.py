@@ -12,7 +12,7 @@ from marimo._ast.cell import CellConfig
 from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.msgspec_encoder import encoder
+from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._messaging.ops import (
     Alert,
     Banner,
@@ -321,7 +321,7 @@ class WebsocketHandler(SessionConsumer):
         self.message_queue.put_nowait(
             (
                 KernelReady.name,
-                encoder.encode(
+                encode_json_bytes(
                     KernelReady(
                         codes=codes,
                         names=names,
@@ -679,7 +679,7 @@ class WebsocketHandler(SessionConsumer):
         return listener
 
     def write_operation(self, op: MessageOperation) -> None:
-        self.message_queue.put_nowait((op.name, encoder.encode(op)))
+        self.message_queue.put_nowait((op.name, encode_json_bytes(op)))
 
     def on_stop(self) -> None:
         # Cancel the heartbeat task, reader

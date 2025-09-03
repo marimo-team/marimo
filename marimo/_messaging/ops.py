@@ -41,7 +41,7 @@ from marimo._messaging.errors import (
     is_sensitive_error,
 )
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._messaging.msgspec_encoder import encoder
+from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._messaging.streams import output_max_bytes
 from marimo._messaging.types import Stream
 from marimo._messaging.variables import get_variable_preview
@@ -83,7 +83,7 @@ class Op(msgspec.Struct, tag_field="op"):
             return
 
     def serialize(self) -> bytes:
-        return encoder.encode(self)
+        return encode_json_bytes(self)
 
 
 class CellOp(Op, tag="cell-op"):
@@ -324,14 +324,14 @@ class FunctionCallResult(Op, tag="function-call-result"):
 
     def serialize(self) -> bytes:
         try:
-            return encoder.encode(self)
+            return encode_json_bytes(self)
         except Exception as e:
             LOGGER.exception(
                 "Error serializing function call result %s: %s",
                 self.__class__.__name__,
                 e,
             )
-            return encoder.encode(
+            return encode_json_bytes(
                 FunctionCallResult(
                     function_call_id=self.function_call_id,
                     return_value=None,

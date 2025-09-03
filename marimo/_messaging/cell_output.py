@@ -5,12 +5,13 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import Any, Union, cast
+from typing import Any, Union
 
 import msgspec
 
 from marimo._messaging.errors import Error
 from marimo._messaging.mimetypes import ConsoleMimeType, KnownMimeType
+from marimo._messaging.msgspec_encoder import asdict
 
 
 class CellChannel(str, Enum):
@@ -39,7 +40,7 @@ class CellOutput(msgspec.Struct):
         return f"CellOutput(channel={self.channel}, mimetype={self.mimetype}, timestamp={self.timestamp})"
 
     def asdict(self) -> dict[str, Any]:
-        return cast(dict[str, Any], msgspec.to_builtins(self))
+        return asdict(self)
 
     @staticmethod
     def stdout(

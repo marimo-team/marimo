@@ -81,4 +81,27 @@ def enc_hook(obj: Any) -> Any:
     raise NotImplementedError(f"Objects of type {type(obj)} are not supported")
 
 
-encoder = msgspec.json.Encoder(enc_hook=enc_hook, decimal_format="number")
+_encoder = msgspec.json.Encoder(enc_hook=enc_hook, decimal_format="number")
+
+
+def encode_json_bytes(obj: Any) -> bytes:
+    """
+    Encode an object as JSON and return the result as bytes.
+    """
+    return _encoder.encode(obj)
+
+
+def encode_json_str(obj: Any) -> str:
+    """
+    Encode an object as JSON and return the result as a UTF-8 string.
+    """
+    return _encoder.encode(obj).decode("utf-8")
+
+
+def asdict(obj: msgspec.Struct) -> dict[str, Any]:
+    """
+    Convert a msgspec.Struct into a dict of builtin Python types.
+
+    Uses `msgspec.to_builtins` with `enc_hook` to handle unsupported values.
+    """
+    return msgspec.to_builtins(obj, enc_hook=enc_hook)  # type: ignore[no-any-return]

@@ -9,8 +9,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
-import msgspec
-
 from marimo import _loggers
 from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -20,6 +18,7 @@ from marimo._messaging.errors import (
     UnknownError,
 )
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.ops import CellOp
 from marimo._schemas.notebook import (
     NotebookCell,
@@ -67,7 +66,7 @@ def _normalize_error(error: Union[MarimoError, dict[str, Any]]) -> ErrorOutput:
             ename = error.error_type
         else:
             # For msgspec structs with tagged unions, the type is in the serialized form
-            ename = msgspec.to_builtins(error).get("type", "UnknownError")
+            ename = asdict(error).get("type", "UnknownError")
 
         return ErrorOutput(
             type="error",

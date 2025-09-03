@@ -13,7 +13,7 @@ from starlette.responses import (
 from starlette.routing import Mount, Router
 
 from marimo import _loggers
-from marimo._messaging.msgspec_encoder import encoder
+from marimo._messaging.msgspec_encoder import encode_json_str
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -54,9 +54,7 @@ class APIRouter(Router):
                     return response
 
                 # Otherwise encode as JSON
-                return JSONResponse(
-                    content=encoder.encode(response).decode("utf-8")
-                )
+                return JSONResponse(content=encode_json_str(response))
 
             # Set docstring of wrapper_func to the docstring of func
             wrapper_func.__doc__ = func.__doc__
@@ -90,9 +88,7 @@ class APIRouter(Router):
                     return response
 
                 # Otherwise encode as JSON
-                return JSONResponse(
-                    content=encoder.encode(response).decode("utf-8")
-                )
+                return JSONResponse(content=encode_json_str(response))
 
             # Set docstring of wrapper_func to the docstring of func
             wrapper_func.__doc__ = func.__doc__
