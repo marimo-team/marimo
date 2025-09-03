@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
@@ -13,6 +12,7 @@ from marimo._ast.cell import CellConfig
 from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
 from marimo._messaging.ops import (
     Alert,
     Banner,
@@ -25,7 +25,6 @@ from marimo._messaging.ops import (
     serialize,
 )
 from marimo._messaging.types import KernelMessage, NoopStream
-from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.params import QueryParams
 from marimo._server.api.deps import AppState

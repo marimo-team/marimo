@@ -1860,7 +1860,9 @@ class Kernel:
         referring_cells: set[CellId_t] = set()
         for name in bound_names:
             # TODO update variable values even for namespaces? lenses? etc
-            variable_values.append(VariableValue.create(name=name, value=value))
+            variable_values.append(
+                VariableValue.create(name=name, value=value)
+            )
             try:
                 # subtracting self.graph.definitions[name]: never rerun the
                 # cell that created the name

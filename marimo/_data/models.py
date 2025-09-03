@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
-from decimal import Decimal
-from typing import Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+
+if TYPE_CHECKING:
+    from decimal import Decimal
 
 import msgspec
 
@@ -102,9 +104,14 @@ class Database(msgspec.Struct):
     engine: Optional[VariableName] = None
 
 
-NumericLiteral = Union[int, float, Decimal]
-TemporalLiteral = Union[date, time, datetime, timedelta]
-NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
+if TYPE_CHECKING:
+    NumericLiteral = Union[int, float, Decimal]
+    TemporalLiteral = Union[date, time, datetime, timedelta]
+    NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
+else:
+    # For runtime/msgspec, use Any since msgspec can't handle unions with
+    # multiple str-like types (str, datetime, date, time, timedelta)
+    NonNestedLiteral = Any
 
 
 class ColumnStats(msgspec.Struct):

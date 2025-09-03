@@ -8,8 +8,8 @@ from typing import Any, Optional, Union, cast
 
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._output.mime import MIME
 from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
+from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,

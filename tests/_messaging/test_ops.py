@@ -12,7 +12,9 @@ from marimo._utils.parse_dataclass import parse_raw
 
 
 def test_value_ui_element() -> None:
-    variable_value = VariableValue.create(name="s", value=slider(1, 10, value=5))
+    variable_value = VariableValue.create(
+        name="s", value=slider(1, 10, value=5)
+    )
     assert variable_value.datatype == "slider"
     assert variable_value.value == "5"
 

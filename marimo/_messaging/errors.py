@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal, Optional, Union
+from typing import Optional, Union
 
 import msgspec
 
@@ -23,7 +23,9 @@ class CycleError(msgspec.Struct, tag_field="type", tag="cycle"):
         return "This cell is in a cycle"
 
 
-class MultipleDefinitionError(msgspec.Struct, tag_field="type", tag="multiple-defs"):
+class MultipleDefinitionError(
+    msgspec.Struct, tag_field="type", tag="multiple-defs"
+):
     name: str
     cells: tuple[CellId_t, ...]
 
@@ -38,13 +40,16 @@ class ImportStarError(msgspec.Struct, tag_field="type", tag="import-star"):
         return self.msg
 
 
-class MarimoInterruptionError(msgspec.Struct, tag_field="type", tag="interruption"):
-
+class MarimoInterruptionError(
+    msgspec.Struct, tag_field="type", tag="interruption"
+):
     def describe(self) -> str:
         return "This cell was interrupted and needs to be re-run"
 
 
-class MarimoAncestorPreventedError(msgspec.Struct, tag_field="type", tag="ancestor-prevented"):
+class MarimoAncestorPreventedError(
+    msgspec.Struct, tag_field="type", tag="ancestor-prevented"
+):
     msg: str
     raising_cell: CellId_t
     blamed_cell: Optional[CellId_t]
@@ -53,7 +58,9 @@ class MarimoAncestorPreventedError(msgspec.Struct, tag_field="type", tag="ancest
         return self.msg
 
 
-class MarimoAncestorStoppedError(msgspec.Struct, tag_field="type", tag="ancestor-stopped"):
+class MarimoAncestorStoppedError(
+    msgspec.Struct, tag_field="type", tag="ancestor-stopped"
+):
     msg: str
     raising_cell: CellId_t
 
@@ -61,7 +68,9 @@ class MarimoAncestorStoppedError(msgspec.Struct, tag_field="type", tag="ancestor
         return self.msg
 
 
-class MarimoExceptionRaisedError(msgspec.Struct, tag_field="type", tag="exception"):
+class MarimoExceptionRaisedError(
+    msgspec.Struct, tag_field="type", tag="exception"
+):
     msg: str
     exception_type: str
     # None for if raising_cell is the current cell
@@ -85,7 +94,9 @@ class UnknownError(msgspec.Struct, tag_field="type", tag="unknown"):
         return self.msg
 
 
-class MarimoStrictExecutionError(msgspec.Struct, tag_field="type", tag="strict-exception"):
+class MarimoStrictExecutionError(
+    msgspec.Struct, tag_field="type", tag="strict-exception"
+):
     msg: str
     ref: str
     blamed_cell: Optional[CellId_t]
@@ -118,22 +129,28 @@ def is_unexpected_error(error: Error) -> bool:
     These errors are unexpected, in that they are not intentional.
     mo.stop and interrupt are intentional.
     """
-    return not isinstance(error, (
-        MarimoAncestorPreventedError,
-        MarimoAncestorStoppedError,
-        MarimoInterruptionError,
-    ))
+    return not isinstance(
+        error,
+        (
+            MarimoAncestorPreventedError,
+            MarimoAncestorStoppedError,
+            MarimoInterruptionError,
+        ),
+    )
 
 
 def is_sensitive_error(error: Error) -> bool:
     """
     These errors are sensitive, in that they are intentional.
     """
-    return not isinstance(error, (
-        MarimoAncestorPreventedError,
-        MarimoAncestorStoppedError,
-        MarimoInternalError,
-    ))
+    return not isinstance(
+        error,
+        (
+            MarimoAncestorPreventedError,
+            MarimoAncestorStoppedError,
+            MarimoInternalError,
+        ),
+    )
 
 
 Error = Union[
