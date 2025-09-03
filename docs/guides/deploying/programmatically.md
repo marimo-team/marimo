@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
 For a more complete example, see the [FastAPI example](https://github.com/marimo-team/marimo/tree/main/examples/frameworks/fastapi).
 
-Note that when run in this mode, Marimo will serve its static assets under the name of the notebook (in the example above, that would be `http://hostname/<dashboard|sales>/assets/<assetname.css|js|...>`). If you are using custom authorization middleware, you may wish to skip authentication for these assets to avoid server round trips. There are _many_ of them.
+Note that when run in this mode, marimo will serve its static assets under the name of the notebook (in the example above, that would be `http://hostname/<dashboard|sales>/assets/<assetname.css|js|...>`). If you are using custom authorization middleware, skip authentication for these assets to avoid server round-trips. There are _many_ of them.
 
 ## Dynamic directory
 
@@ -173,7 +173,7 @@ app.mount("/", server.build())
 
 ## Under the Hood
 
-Behind the scenes, in this mode Marimo is spinning up a new computational kernel
+Behind the scenes, in this mode, marimo is spinning up a new computational kernel
 in a separate sub-thread (same process) for each new session / app created.
 There are a few implications of this from a performance and reliability perspective:
 
@@ -181,4 +181,4 @@ There are a few implications of this from a performance and reliability perspect
 - Similarly, attempting to run multiple instances of the same FastAPI
   process (a common approach with Python web services) on the same node will not work reliably, since only one of them will actually be running the kernel.
 
-In summary, there are limitations to how far the approach described here can horizontally scale, although it should work for a small to medium number of users.
+In summary, there are limitations to how far the approach described here can horizontally scale, so we recommend scaling vertically first. In other words, increase the container CPU/Memory specs before increasing the number of container instances.
