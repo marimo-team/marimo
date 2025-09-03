@@ -59,14 +59,35 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
 
       window.addEventListener("message", windowMessageCallback);
 
-      // This is a hack to inject environment variables. Leaving this here for
-      // now as an example
-      await bridge.sendRun({
-        cellIds: ["____"],
-        codes: [
-          `exec("""import os\nos.environ['TEST_INJECT'] = 'blah'\n""")\n`,
-        ]
-      });
+      // Parse the fragment identifier for the `env` parameter and JSON parse it
+      const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
+      const hashParams = new URLSearchParams(hash);
+      const envParam = hashParams.get("env");
+      let envVars: Record<string, string> = {};
+      if (envParam) {
+        try {
+          envVars = JSON.parse(envParam) as Record<string, string>;
+          console.debug("Parsed env vars from query:", envVars);
+        } catch (err) {
+          console.error("Failed to parse env query parameter:", err);
+        }
+      }
+
+      // Inject environment variables into Pyodide
+      if (Object.keys(envVars).length > 0) {
+        const envCode = Object.entries(envVars)
+          .map(
+        ([key, value]) =>
+          `os.environ['${key}'] = '${value.replace(/'/g, "\\'")}'`
+          )
+          .join("\n");
+        await bridge.sendRun({
+          cellIds: ["____"],
+          codes: [
+        `exec("""import os\n${envCode}\n""")\n`,
+          ],
+        });
+      }
 
       // This will automatically set the database connection. Leaving this here
       // for history in git but this feels a bit too magical as it might not be
