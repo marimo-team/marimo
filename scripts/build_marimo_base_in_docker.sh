@@ -64,6 +64,13 @@ OUTPUT_DIR=${1}
 
 mkdir -p ${OUTPUT_DIR}
 
+# Determine if in aarch64
+if [[ "$(uname -m)" == "aarch64" ]]; then
+    echo "Running on aarch64 architecture"
+    # Set any architecture-specific variables here
+    pixi workspace platform add linux-aarch64
+fi
+
 pixi run python scripts/modify_pyproject_for_marimo_base.py
 pixi run python scripts/modify_pyproject_for_marimo_base_wasm.py
 
