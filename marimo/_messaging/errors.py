@@ -1,15 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Literal, Optional, Union
+
+import msgspec
 
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._types.ids import CellId_t
 
 
-@dataclass
-class SetupRootError:
+class SetupRootError(msgspec.Struct, rename="camel"):
     edges_with_vars: tuple[EdgeWithVar, ...]
     type: Literal["setup-refs"] = "setup-refs"
 
@@ -17,8 +17,7 @@ class SetupRootError:
         return "The setup cell cannot have references"
 
 
-@dataclass
-class CycleError:
+class CycleError(msgspec.Struct, rename="camel"):
     edges_with_vars: tuple[EdgeWithVar, ...]
     type: Literal["cycle"] = "cycle"
 
@@ -26,8 +25,7 @@ class CycleError:
         return "This cell is in a cycle"
 
 
-@dataclass
-class MultipleDefinitionError:
+class MultipleDefinitionError(msgspec.Struct, rename="camel"):
     name: str
     cells: tuple[CellId_t, ...]
     type: Literal["multiple-defs"] = "multiple-defs"
@@ -36,8 +34,7 @@ class MultipleDefinitionError:
         return f"The variable '{self.name}' was defined by another cell"
 
 
-@dataclass
-class ImportStarError:
+class ImportStarError(msgspec.Struct, rename="camel"):
     msg: str
     type: Literal["import-star"] = "import-star"
 
@@ -45,16 +42,14 @@ class ImportStarError:
         return self.msg
 
 
-@dataclass
-class MarimoInterruptionError:
+class MarimoInterruptionError(msgspec.Struct, rename="camel"):
     type: Literal["interruption"] = "interruption"
 
     def describe(self) -> str:
         return "This cell was interrupted and needs to be re-run"
 
 
-@dataclass
-class MarimoAncestorPreventedError:
+class MarimoAncestorPreventedError(msgspec.Struct, rename="camel"):
     msg: str
     raising_cell: CellId_t
     blamed_cell: Optional[CellId_t]
@@ -64,8 +59,7 @@ class MarimoAncestorPreventedError:
         return self.msg
 
 
-@dataclass
-class MarimoAncestorStoppedError:
+class MarimoAncestorStoppedError(msgspec.Struct, rename="camel"):
     msg: str
     raising_cell: CellId_t
     type: Literal["ancestor-stopped"] = "ancestor-stopped"
@@ -74,8 +68,7 @@ class MarimoAncestorStoppedError:
         return self.msg
 
 
-@dataclass
-class MarimoExceptionRaisedError:
+class MarimoExceptionRaisedError(msgspec.Struct, rename="camel"):
     msg: str
     exception_type: str
     # None for if raising_cell is the current cell
@@ -86,8 +79,7 @@ class MarimoExceptionRaisedError:
         return self.msg
 
 
-@dataclass
-class MarimoSyntaxError:
+class MarimoSyntaxError(msgspec.Struct, rename="camel"):
     msg: str
     type: Literal["syntax"] = "syntax"
 
@@ -95,8 +87,7 @@ class MarimoSyntaxError:
         return self.msg
 
 
-@dataclass
-class UnknownError:
+class UnknownError(msgspec.Struct, rename="camel"):
     msg: str
     type: Literal["unknown"] = "unknown"
 
@@ -104,8 +95,7 @@ class UnknownError:
         return self.msg
 
 
-@dataclass
-class MarimoStrictExecutionError:
+class MarimoStrictExecutionError(msgspec.Struct, rename="camel"):
     msg: str
     ref: str
     blamed_cell: Optional[CellId_t]
@@ -115,8 +105,7 @@ class MarimoStrictExecutionError:
         return self.msg
 
 
-@dataclass
-class MarimoInternalError:
+class MarimoInternalError(msgspec.Struct, rename="camel"):
     """
     An internal error that should be hidden from the user.
     The error is logged to the console and then a new error is broadcasted
