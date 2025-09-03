@@ -12,7 +12,7 @@ from marimo._ast.app import App, InternalApp
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
+from marimo._messaging.msgspec_encoder import encoder
 from marimo._messaging.ops import CellOp
 from marimo._server.export import (
     export_as_wasm,
@@ -423,7 +423,7 @@ def _print_messages(messages: list[CellOp]) -> str:
             }
         )
     # Use msgspec for encoding, then format with json for readable snapshots
-    encoded = msgspec_encoder.encode(result).decode("utf-8")
+    encoded = encoder.encode(result).decode("utf-8")
     return json.dumps(json.loads(encoded), indent=2)
 
 

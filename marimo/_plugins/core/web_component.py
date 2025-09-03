@@ -12,7 +12,7 @@ from typing import (
     cast,
 )
 
-from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
+from marimo._messaging.msgspec_encoder import encoder
 from marimo._output.md import _md
 from marimo._output.mime import MIME
 
@@ -46,7 +46,7 @@ S = TypeVar("S", bound=JSONType)
 
 
 def _build_attr(name: str, value: JSONType) -> str:
-    processed = escape(msgspec_encoder.encode(value).decode("utf-8"))
+    processed = escape(encoder.encode(value).decode("utf-8"))
     # manual escapes for things html.escape doesn't escape
     #
     # - backslashes, when unescaped can lead to problems

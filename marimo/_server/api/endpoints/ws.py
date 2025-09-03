@@ -12,7 +12,7 @@ from marimo._ast.cell import CellConfig
 from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
+from marimo._messaging.msgspec_encoder import encoder
 from marimo._messaging.ops import (
     Alert,
     Banner,
@@ -617,7 +617,7 @@ class WebsocketHandler(SessionConsumer):
                     continue
 
                 try:
-                    text = msgspec_encoder.encode(
+                    text = encoder.encode(
                         {
                             "op": op,
                             "data": data,

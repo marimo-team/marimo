@@ -8,7 +8,7 @@ from typing import Any, Optional, Union, cast
 
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
+from marimo._messaging.msgspec_encoder import encoder
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.format import (
@@ -102,7 +102,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         normalized = self._normalize_data(
             self.apply_formatting(format_mapping).data
         )
-        return msgspec_encoder.encode(normalized).decode("utf-8")
+        return encoder.encode(normalized).decode("utf-8")
 
     def to_parquet(self) -> bytes:
         if isinstance(self.data, dict) and not self.is_column_oriented:
