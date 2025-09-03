@@ -81,34 +81,43 @@
               console.log("Saving file with contents:", contents);
             },
             "readFile": () => {
-      const notebookCode = `
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#     "drawdata",
-# ]
-# ///
-import marimo
-app = marimo.App()
+              // Attempt to read this from the fragment identifier
+              const params = new URLSearchParams(window.location.hash.slice(1));
+              const codeParam = params.get("code");
+              let notebookCode = "";
+              if (codeParam) {
+                try {
+                  notebookCode = atob(codeParam);
+                } catch (e) {
+                  notebookCode = `
+                    # /// script
+                    # requires-python = ">=3.11"
+                    # dependencies = [
+                    #     "drawdata",
+                    # ]
+                    # ///
+                    import marimo
+                    app = marimo.App()
 
-@app.cell
-def __():
-    import pandas
-    import polars
-    print("hi there")
-    return
+                    @app.cell
+                    def __():
+                        import pandas
+                        import polars
+                        return
 
-@app.cell
-def setup_pyoso():
-    import pyoso as oso
-    client = oso.Client()
-    pyoso = client.dbapi_connection()
-    return 
+                    @app.cell
+                    def setup_pyoso():
+                        import pyoso as oso
+                        client = oso.Client()
+                        pyoso = client.dbapi_connection()
+                        return 
 
-if __name__ == "__main__":
-    print("running notebook!!!!!!!!!!!!!!!!!")
-    app.run()
-`;
+                    if __name__ == "__main__":
+                        print("running notebook!!!!!!!!!!!!!!!!!")
+                        app.run()
+                  `;
+                }
+              }          
               return notebookCode;
             }
           }
