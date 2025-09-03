@@ -8,7 +8,7 @@ from typing import Optional
 import msgspec
 
 
-class CompletionOption(msgspec.Struct, rename="camel"):
+class CompletionOption(msgspec.Struct):
     # completed symbol name
     name: str
     # type of symbol

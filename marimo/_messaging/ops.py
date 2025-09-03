@@ -72,7 +72,7 @@ def serialize(obj: Any) -> dict[str, JSONType]:
     )
 
 
-class Op(msgspec.Struct, rename="camel"):
+class Op(msgspec.Struct):
     name: ClassVar[str]
 
     def broadcast(self, stream: Optional[Stream] = None) -> None:
@@ -318,7 +318,7 @@ class CellOp(Op):
         CellOp(cell_id=cell_id, serialization=str(status)).broadcast(stream)
 
 
-class HumanReadableStatus(msgspec.Struct, rename="camel"):
+class HumanReadableStatus(msgspec.Struct):
     """Human-readable status."""
 
     code: Literal["ok", "error"]
@@ -391,7 +391,7 @@ class CompletedRun(Op):
     name: ClassVar[str] = "completed-run"
 
 
-class KernelCapabilities(msgspec.Struct, rename="camel"):
+class KernelCapabilities(msgspec.Struct):
     terminal: bool = False
     pylsp: bool = False
     ty: bool = False
@@ -481,13 +481,13 @@ class Reload(Op):
     name: ClassVar[str] = "reload"
 
 
-class VariableDeclaration(msgspec.Struct, rename="camel"):
+class VariableDeclaration(msgspec.Struct):
     name: str
     declared_by: list[CellId_t]
     used_by: list[CellId_t]
 
 
-class VariableValue(msgspec.Struct, rename="camel"):
+class VariableValue(msgspec.Struct):
     name: str
     value: Optional[str]
     datatype: Optional[str]
@@ -589,7 +589,7 @@ class SQLTableListPreview(Op):
     error: Optional[str] = None
 
 
-class ColumnPreview(msgspec.Struct, rename="camel"):
+class ColumnPreview(msgspec.Struct):
     chart_spec: Optional[str] = None
     chart_code: Optional[str] = None
     error: Optional[str] = None

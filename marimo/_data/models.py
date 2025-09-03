@@ -24,7 +24,7 @@ DataType = Literal[
 ExternalDataType = str
 
 
-class DataTableColumn(msgspec.Struct, rename="camel"):
+class DataTableColumn(msgspec.Struct):
     """
     Represents a column in a data table.
 
@@ -49,7 +49,7 @@ DataTableSource = Literal["local", "duckdb", "connection", "catalog"]
 DataTableType = Literal["table", "view"]
 
 
-class DataTable(msgspec.Struct, rename="camel"):
+class DataTable(msgspec.Struct):
     """
     Represents a data table.
 
@@ -80,12 +80,12 @@ class DataTable(msgspec.Struct, rename="camel"):
     indexes: Optional[list[str]] = None
 
 
-class Schema(msgspec.Struct, rename="camel"):
+class Schema(msgspec.Struct):
     name: str
     tables: list[DataTable] = msgspec.field(default_factory=list)
 
 
-class Database(msgspec.Struct, rename="camel"):
+class Database(msgspec.Struct):
     """
     Represents a collection of schemas.
 
@@ -107,7 +107,7 @@ TemporalLiteral = Union[date, time, datetime, timedelta]
 NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
 
 
-class ColumnStats(msgspec.Struct, rename="camel"):
+class ColumnStats(msgspec.Struct):
     """
     Represents stats for a column in a data table.
 
@@ -130,7 +130,7 @@ class ColumnStats(msgspec.Struct, rename="camel"):
     p95: Optional[NonNestedLiteral] = None
 
 
-class BinValue(msgspec.Struct, rename="camel"):
+class BinValue(msgspec.Struct):
     """
     Represents bin values for a column in a data table. This is used for plotting.
 
@@ -145,7 +145,7 @@ class BinValue(msgspec.Struct, rename="camel"):
     count: int
 
 
-class ValueCount(msgspec.Struct, rename="camel"):
+class ValueCount(msgspec.Struct):
     """
     Represents a value and its count in a column in a data table.
     Currently used for string columns.
@@ -159,7 +159,7 @@ class ValueCount(msgspec.Struct, rename="camel"):
     count: int
 
 
-class DataSourceConnection(msgspec.Struct, rename="camel"):
+class DataSourceConnection(msgspec.Struct):
     """
     Represents a data source connection.
 

@@ -28,7 +28,7 @@ class CellChannel(str, Enum):
         return self.value
 
 
-class CellOutput(msgspec.Struct, rename="camel"):
+class CellOutput(msgspec.Struct):
     # descriptive name about the kind of output: e.g., stdout, stderr, ...
     channel: CellChannel
     mimetype: KnownMimeType
