@@ -12,9 +12,9 @@
   {
     "output": [
       {
+        "type": "ancestor-stopped",
         "msg": "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
-        "raising_cell": "MJUe",
-        "type": "ancestor-stopped"
+        "raising_cell": "MJUe"
       }
     ],
     "console": [],

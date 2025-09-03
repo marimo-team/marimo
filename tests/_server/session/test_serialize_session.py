@@ -62,7 +62,7 @@ def test_serialize_session_with_error():
         output=CellOutput(
             channel=CellChannel.MARIMO_ERROR,
             mimetype="application/vnd.marimo+error",
-            data=[UnknownError(type="unknown", msg="Something went wrong")],
+            data=[UnknownError(msg="Something went wrong")],
         ),
         console=[],
         timestamp=0,
@@ -732,7 +732,11 @@ def test_serialize_session_with_mixed_error_formats():
             "traceback": ["line 1", "line 2"],
         },
         # Object format error
-        UnknownError(type="RuntimeError", msg="Runtime error occurred"),
+        MarimoExceptionRaisedError(
+            exception_type="RuntimeError",
+            msg="Runtime error occurred",
+            raising_cell=None,
+        ),
         # Dictionary without traceback
         {"type": "TypeError", "msg": "Type mismatch"},
     ]

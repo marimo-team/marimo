@@ -12,8 +12,8 @@ from marimo._ast.app import App, InternalApp
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.msgspec_encoder import encoder as msgspec_encoder
 from marimo._messaging.ops import CellOp
-from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._server.export import (
     export_as_wasm,
     run_app_then_export_as_ipynb,
@@ -422,7 +422,9 @@ def _print_messages(messages: list[CellOp]) -> str:
                 "status": message.status,
             }
         )
-    return json.dumps(result, indent=2, cls=WebComponentEncoder)
+    # Use msgspec for encoding, then format with json for readable snapshots
+    encoded = msgspec_encoder.encode(result).decode("utf-8")
+    return json.dumps(json.loads(encoded), indent=2)
 
 
 def _as_list(data: Any) -> list[Any]:
@@ -807,7 +809,6 @@ def test_export_as_html_with_error_outputs():
     from marimo._messaging.errors import MarimoExceptionRaisedError
 
     error = MarimoExceptionRaisedError(
-        type="exception",
         exception_type="ValueError",
         msg="Test error",
         raising_cell=cell_ids[0],
