@@ -36,7 +36,7 @@ from marimo._server.ai.providers import (
     get_completion_provider,
     without_wrapping_backticks,
 )
-from marimo._server.ai.tools import get_tool_manager
+from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
