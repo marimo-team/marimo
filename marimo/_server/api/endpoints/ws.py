@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Optional
+import json
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
@@ -616,12 +617,7 @@ class WebsocketHandler(SessionConsumer):
                     continue
 
                 try:
-                    text = encoder.encode(
-                        {
-                            "op": op,
-                            "data": data,
-                        }
-                    ).decode("utf-8")
+                    text = f'{{"op": "{op}", "data": {data.decode("utf-8")}}}'
                 except Exception as e:
                     # This is a deserialization error
                     LOGGER.error(
