@@ -47,6 +47,7 @@ import { ThemeProvider } from "./theme/ThemeProvider";
 import { reportVitals } from "./utils/vitals";
 import { OSOWrapper } from "./oso-extensions/wrapper";
 import { OSONotebook, LazyOSONotebookPage } from "./oso-extensions/OSONotebook";
+import { FragmentStore } from "./oso-extensions/fragment-store";
 
 
 let hasMounted = false;
@@ -66,6 +67,12 @@ export function mount(options: unknown, el: Element): Error | undefined {
 
   const root = createRoot(el);
 
+  const fragmentStore = FragmentStore.load();
+  if (window.__ENABLE_DEBUG__) {
+    window.__fragmentStore = fragmentStore;
+  }
+
+
   try {
     // Init side-effects
     maybeRegisterVSCodeBindings();
@@ -80,12 +87,12 @@ export function mount(options: unknown, el: Element): Error | undefined {
     }
 
     // Init store
-    initStore(options);
+    initStore(fragmentStore, options);
 
     root.render(
       <Provider store={store}>
         <ThemeProvider>
-          <OSOWrapper>
+          <OSOWrapper fragmentStore={fragmentStore}>
             <OSONotebook />
           </OSOWrapper>
         </ThemeProvider>
@@ -247,7 +254,23 @@ const mountOptionsSchema = z.object({
     .transform((val) => val ?? []),
 });
 
-function initStore(options: unknown) {
+class OSOFileStore implements FileStore {
+  private fragmentStore: FragmentStore;
+  constructor(fragmentStore: FragmentStore) {
+    this.fragmentStore = fragmentStore;
+  }
+
+  saveFile(contents: string): void {
+    this.fragmentStore.setString("code", contents);
+    this.fragmentStore.commit();
+  }
+
+  readFile(): string | null | Promise<string | null> {
+    return this.fragmentStore.getString("code");
+  }
+}
+
+function initStore(fragmentStore: FragmentStore, options: unknown) {
   const parsedOptions = mountOptionsSchema.safeParse(options);
   if (!parsedOptions.success) {
     Logger.error("Invalid marimo mount options", parsedOptions.error);
@@ -263,7 +286,9 @@ function initStore(options: unknown) {
   ) {
     Logger.log("🗄️ Initializing file stores via mount...");
     // Override all filestores by popping all values in notebookFileStore
-    notebookFileStore.overrideStores(parsedOptions.data.fileStores);
+    notebookFileStore.overrideStores([
+      new OSOFileStore(fragmentStore),
+    ]);
     Logger.log(
       `🗄️ Overrode filestores with ${parsedOptions.data.fileStores.length} file store(s) into notebookFileStore`,
     );

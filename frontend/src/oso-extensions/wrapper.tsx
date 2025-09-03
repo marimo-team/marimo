@@ -2,14 +2,19 @@
 import { useCallback, useEffect, type PropsWithChildren } from "react";
 import { useCellActions } from "@/core/cells/cells";
 import { PyodideBridge } from "@/core/wasm/bridge";
+import type { FragmentStore } from "./fragment-store";
 
 
 const COMMAND_PREFIX = "oso_commands:";
 
+interface WrapperProps {
+  fragmentStore: FragmentStore
+}
+
 /**
  * OSO's wrapper component
  */
-export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
+export const OSOWrapper: React.FC<PropsWithChildren<WrapperProps>> = ({ children, fragmentStore }) => {
   console.log("Setting up oso wrapper");
   //const config = { column: 0, hide_code: false, disabled: false };
 
