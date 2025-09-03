@@ -1,0 +1,97 @@
+# Copyright 2024 Marimo. All rights reserved.
+"""Msgspec encoder with custom type support for marimo."""
+
+from __future__ import annotations
+
+from enum import Enum
+from typing import Any
+
+import msgspec
+
+from marimo._dependencies.dependencies import DependencyManager
+
+
+def marimo_enc_hook(obj: Any) -> Any:
+    """Custom encoding hook for marimo types."""
+    
+    # Handle range objects
+    if isinstance(obj, range):
+        return list(obj)
+    
+    # Handle complex numbers
+    if isinstance(obj, complex):
+        return str(obj)
+    
+    # Note: Enum is handled natively by msgspec using the value (not name)
+    # This differs from WebComponentEncoder which used the name
+
+    if hasattr(obj, "_mime_"):
+        mimetype, data = obj._mime_()
+        return {"mimetype": mimetype, "data": data}
+
+    if isinstance(obj, tuple) and hasattr(obj, "_fields"):
+        return {
+            field: marimo_enc_hook(getattr(obj, field))
+            for field in obj._fields  # type: ignore
+        }
+
+    if DependencyManager.numpy.imported():
+        import numpy as np
+
+        if isinstance(obj, (np.datetime64, np.complexfloating)):
+            return str(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            if any(
+                np.issubdtype(obj.dtype, dtype)
+                for dtype in (np.datetime64, np.complexfloating)
+            ):
+                return obj.astype(str).tolist()
+            return obj.tolist()
+        if isinstance(obj, np.dtype):
+            return str(obj)
+
+    if DependencyManager.pandas.imported():
+        import pandas as pd
+
+        if isinstance(obj, pd.DataFrame):
+            return obj.to_dict("records")
+        if isinstance(obj, pd.Series):
+            return obj.to_list()
+        if isinstance(obj, pd.Categorical):
+            return obj.tolist()
+        if isinstance(
+            obj,
+            (pd.CategoricalDtype, pd.Timestamp, pd.Timedelta, pd.Interval),
+        ):
+            return str(obj)
+        if isinstance(obj, pd.TimedeltaIndex):
+            return obj.astype(str).tolist()
+
+        # Catch-all for other pandas objects
+        try:
+            if isinstance(obj, pd.core.base.PandasObject):  # type: ignore
+                import json
+
+                return json.loads(obj.to_json(date_format="iso"))
+        except AttributeError:
+            pass
+
+    if DependencyManager.polars.imported():
+        import polars as pl
+
+        if isinstance(obj, pl.DataFrame):
+            return obj.to_dict()
+
+        if isinstance(obj, pl.Series):
+            return obj.to_list()
+
+    raise NotImplementedError(f"Objects of type {type(obj)} are not supported")
+
+
+encoder = msgspec.json.Encoder(
+    enc_hook=marimo_enc_hook, decimal_format="number"
+)
