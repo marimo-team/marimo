@@ -162,7 +162,7 @@ def register_cells_tools(mcp: FastMCP, app: Starlette) -> None:
                     "Identify key sections based on cell types and previews",
                     "Focus on import cells first to understand dependencies",
                 ],
-                message="Refer to to cells ordinally in the following format: @[cell:1]. Do _not_ use cell_id when discussing the with users.",
+                message="Refer to cells ordinally in the following format: @[cell:1]. Do _not_ use cell_id when discussing the with users.",
             )
 
         except Exception as e:
