@@ -72,7 +72,7 @@ def serialize(obj: Any) -> dict[str, JSONType]:
     )
 
 
-class Op(msgspec.Struct):
+class Op(msgspec.Struct, tag_field="op"):
     name: ClassVar[str]
 
     def broadcast(self, stream: Optional[Stream] = None) -> None:
@@ -99,7 +99,7 @@ class Op(msgspec.Struct):
         return serialize(self)
 
 
-class CellOp(Op):
+class CellOp(Op, tag="cell-op"):
     """Op to transition a cell.
 
     A CellOp's data has some optional fields:
@@ -326,7 +326,7 @@ class HumanReadableStatus(msgspec.Struct):
     message: Union[str, None] = None
 
 
-class FunctionCallResult(Op):
+class FunctionCallResult(Op, tag="function-call-result"):
     """Result of calling a function."""
 
     name: ClassVar[str] = "function-call-result"
@@ -362,14 +362,14 @@ class FunctionCallResult(Op):
             )
 
 
-class RemoveUIElements(Op):
+class RemoveUIElements(Op, tag="remove-ui-elements"):
     """Invalidate UI elements for a given cell."""
 
     name: ClassVar[str] = "remove-ui-elements"
     cell_id: CellId_t
 
 
-class SendUIElementMessage(Op):
+class SendUIElementMessage(Op, tag="send-ui-element-message"):
     """Send a message to a UI element."""
 
     name: ClassVar[str] = "send-ui-element-message"
@@ -379,13 +379,13 @@ class SendUIElementMessage(Op):
     buffers: Optional[list[str]] = None
 
 
-class Interrupted(Op):
+class Interrupted(Op, tag="interrupted"):
     """Written when the kernel is interrupted by the user."""
 
     name: ClassVar[str] = "interrupted"
 
 
-class CompletedRun(Op):
+class CompletedRun(Op, tag="completed-run"):
     """Written on run completion (of submitted cells and their descendants."""
 
     name: ClassVar[str] = "completed-run"
@@ -405,7 +405,7 @@ class KernelCapabilities(msgspec.Struct):
         self.ty = DependencyManager.ty.has()
 
 
-class KernelReady(Op):
+class KernelReady(Op, tag="kernel-ready"):
     """Kernel is ready for execution."""
 
     name: ClassVar[str] = "kernel-ready"
@@ -430,7 +430,7 @@ class KernelReady(Op):
     capabilities: KernelCapabilities
 
 
-class CompletionResult(Op):
+class CompletionResult(Op, tag="completion-result"):
     """Code completion result."""
 
     name: ClassVar[str] = "completion-result"
@@ -439,7 +439,7 @@ class CompletionResult(Op):
     options: list[CompletionOption]
 
 
-class Alert(Op):
+class Alert(Op, tag="alert"):
     name: ClassVar[str] = "alert"
     title: str
     # description may be HTML
@@ -447,7 +447,7 @@ class Alert(Op):
     variant: Optional[Literal["danger"]] = None
 
 
-class MissingPackageAlert(Op):
+class MissingPackageAlert(Op, tag="missing-package-alert"):
     name: ClassVar[str] = "missing-package-alert"
     packages: list[str]
     isolated: bool
@@ -459,16 +459,16 @@ PackageStatusType = dict[
 ]
 
 
-class InstallingPackageAlert(Op):
+class InstallingPackageAlert(Op, tag="installing-package-alert"):
     name: ClassVar[str] = "installing-package-alert"
     packages: PackageStatusType
 
 
-class Reconnected(Op):
+class Reconnected(Op, tag="reconnected"):
     name: ClassVar[str] = "reconnected"
 
 
-class Banner(Op):
+class Banner(Op, tag="banner"):
     name: ClassVar[str] = "banner"
     title: str
     # description may be HTML
@@ -477,7 +477,7 @@ class Banner(Op):
     action: Optional[Literal["restart"]] = None
 
 
-class Reload(Op):
+class Reload(Op, tag="reload"):
     name: ClassVar[str] = "reload"
 
 
@@ -549,21 +549,21 @@ class VariableValue(msgspec.Struct):
         return VariableValue._stringify_static(resolved)
 
 
-class Variables(Op):
+class Variables(Op, tag="variables"):
     """List of variable declarations."""
 
     name: ClassVar[str] = "variables"
     variables: list[VariableDeclaration]
 
 
-class VariableValues(Op):
+class VariableValues(Op, tag="variable-values"):
     """List of variables and their types/values."""
 
     name: ClassVar[str] = "variable-values"
     variables: list[VariableValue]
 
 
-class Datasets(Op):
+class Datasets(Op, tag="datasets"):
     """List of datasets."""
 
     name: ClassVar[str] = "datasets"
@@ -571,7 +571,7 @@ class Datasets(Op):
     clear_channel: Optional[DataTableSource] = None
 
 
-class SQLTablePreview(Op):
+class SQLTablePreview(Op, tag="sql-table-preview"):
     """Preview of a table in a SQL database."""
 
     name: ClassVar[str] = "sql-table-preview"
@@ -580,7 +580,7 @@ class SQLTablePreview(Op):
     error: Optional[str] = None
 
 
-class SQLTableListPreview(Op):
+class SQLTableListPreview(Op, tag="sql-table-list-preview"):
     """Preview of a list of tables in a schema."""
 
     name: ClassVar[str] = "sql-table-list-preview"
@@ -599,7 +599,7 @@ class ColumnPreview(msgspec.Struct):
 
 # We shouldn't need to make table_name and column_name have default values.
 # We can use kw_only=True once we drop support for Python 3.9.
-class DataColumnPreview(Op, ColumnPreview):
+class DataColumnPreview(Op, ColumnPreview, tag="data-column-preview"):
     """Preview of a column in a dataset."""
 
     name: ClassVar[str] = "data-column-preview"
@@ -607,12 +607,12 @@ class DataColumnPreview(Op, ColumnPreview):
     column_name: str = ""
 
 
-class DataSourceConnections(Op):
+class DataSourceConnections(Op, tag="data-source-connections"):
     name: ClassVar[str] = "data-source-connections"
     connections: list[DataSourceConnection]
 
 
-class QueryParamsSet(Op):
+class QueryParamsSet(Op, tag="query-params-set"):
     """Set query parameters."""
 
     name: ClassVar[str] = "query-params-set"
@@ -620,13 +620,13 @@ class QueryParamsSet(Op):
     value: Union[str, list[str]]
 
 
-class QueryParamsAppend(Op):
+class QueryParamsAppend(Op, tag="query-params-append"):
     name: ClassVar[str] = "query-params-append"
     key: str
     value: str
 
 
-class QueryParamsDelete(Op):
+class QueryParamsDelete(Op, tag="query-params-delete"):
     name: ClassVar[str] = "query-params-delete"
     key: str
     # If value is None, delete all values for the key
@@ -634,17 +634,17 @@ class QueryParamsDelete(Op):
     value: Optional[str]
 
 
-class QueryParamsClear(Op):
+class QueryParamsClear(Op, tag="query-params-clear"):
     # Clear all query parameters
     name: ClassVar[str] = "query-params-clear"
 
 
-class FocusCell(Op):
+class FocusCell(Op, tag="focus-cell"):
     name: ClassVar[str] = "focus-cell"
     cell_id: CellId_t
 
 
-class UpdateCellCodes(Op):
+class UpdateCellCodes(Op, tag="update-cell-codes"):
     name: ClassVar[str] = "update-cell-codes"
     cell_ids: list[CellId_t]
     codes: list[str]
@@ -653,7 +653,7 @@ class UpdateCellCodes(Op):
     code_is_stale: bool
 
 
-class SecretKeysResult(Op):
+class SecretKeysResult(Op, tag="secret-keys-result"):
     """Result of listing secret keys."""
 
     request_id: RequestId
@@ -661,7 +661,7 @@ class SecretKeysResult(Op):
     secrets: list[SecretKeysWithProvider]
 
 
-class UpdateCellIdsRequest(Op):
+class UpdateCellIdsRequest(Op, tag="update-cell-ids"):
     """
     Update the cell ID ordering of the cells in the notebook.
 
