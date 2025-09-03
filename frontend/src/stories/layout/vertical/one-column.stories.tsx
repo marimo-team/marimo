@@ -1,7 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { notebookAtom, type NotebookState } from "@/core/cells/cells";
-import { createCellRuntimeState, } from "@/core/cells/types";
+import type { Meta } from "@storybook/react-vite";
+import { createStore, Provider } from "jotai";
+import { createRef, useEffect } from "react";
+import { type NotebookState, notebookAtom } from "@/core/cells/cells";
+import { createCellRuntimeState } from "@/core/cells/types";
 import { defaultUserConfig, parseAppConfig } from "@/core/config/config-schema";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { connectionAtom } from "@/core/network/connection";
@@ -10,15 +13,15 @@ import { resolveRequestClient } from "@/core/network/resolve.ts";
 import { WebSocketState } from "@/core/websocket/types";
 import { MultiColumn } from "@/utils/id-tree";
 import type { Milliseconds, Seconds } from "@/utils/time";
-import type { Meta } from "@storybook/react-vite";
-import { createStore, Provider } from "jotai";
-import { createRef, useEffect } from "react";
 import { CellArray } from "../../../components/editor/renderers/CellArray";
 import { CellsRenderer } from "../../../components/editor/renderers/cells-renderer";
 import { TooltipProvider } from "../../../components/ui/tooltip";
 import type { CellId } from "../../../core/cells/ids";
 
-const createLongReprNotebook = (cellId: CellId, hideCode = false): NotebookState => ({
+const createLongReprNotebook = (
+  cellId: CellId,
+  hideCode = false,
+): NotebookState => ({
   cellData: {
     [cellId]: {
       id: cellId,
@@ -66,7 +69,7 @@ LongReprA()`,
           mimetype: "text/plain",
           data: "hello",
           timestamp: 1_686_863_705,
-        }
+        },
       ],
       interrupted: false,
       errored: false,
@@ -99,17 +102,14 @@ const EditModeCodeShown = () => {
 
   const store = createStore();
   store.set(notebookAtom, notebook);
-  store.set(connectionAtom, {state: WebSocketState.OPEN});
+  store.set(connectionAtom, { state: WebSocketState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
 
   return (
     <Provider store={store}>
       <TooltipProvider>
-        <CellsRenderer
-          appConfig={parseAppConfig({})}
-          mode="edit"
-        >
+        <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
           <CellArray
             mode="edit"
             userConfig={defaultUserConfig()}
@@ -127,17 +127,14 @@ const EditModeCodeHidden = () => {
 
   const store = createStore();
   store.set(notebookAtom, notebook);
-  store.set(connectionAtom, {state: WebSocketState.OPEN});
+  store.set(connectionAtom, { state: WebSocketState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
 
   return (
     <Provider store={store}>
       <TooltipProvider>
-        <CellsRenderer
-          appConfig={parseAppConfig({})}
-          mode="edit"
-        >
+        <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
           <CellArray
             mode="edit"
             userConfig={defaultUserConfig()}
@@ -156,23 +153,24 @@ const ReadModeCodeShown = () => {
   // Set up as static notebook to show code by default
   useEffect(() => {
     if (typeof window !== "undefined") {
-      (window as Window & { __MARIMO_STATIC__?: { files: Record<string, unknown> } }).__MARIMO_STATIC__ = {files: {}};
+      (
+        window as Window & {
+          __MARIMO_STATIC__?: { files: Record<string, unknown> };
+        }
+      ).__MARIMO_STATIC__ = { files: {} };
     }
   }, []);
 
   const store = createStore();
   store.set(notebookAtom, notebook);
-  store.set(connectionAtom, {state: WebSocketState.OPEN});
+  store.set(connectionAtom, { state: WebSocketState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
 
   return (
     <Provider store={store}>
       <TooltipProvider>
-        <CellsRenderer
-          appConfig={parseAppConfig({})}
-          mode="read"
-        >
+        <CellsRenderer appConfig={parseAppConfig({})} mode="read">
           <CellArray
             mode="read"
             userConfig={defaultUserConfig()}
@@ -191,23 +189,24 @@ const ReadModeCodeHidden = () => {
   // Don't set up static notebook mode so showCode defaults to false
   useEffect(() => {
     if (typeof window !== "undefined") {
-      delete (window as Window & { __MARIMO_STATIC__?: { files: Record<string, unknown> } }).__MARIMO_STATIC__;
+      delete (
+        window as Window & {
+          __MARIMO_STATIC__?: { files: Record<string, unknown> };
+        }
+      ).__MARIMO_STATIC__;
     }
   }, []);
 
   const store = createStore();
   store.set(notebookAtom, notebook);
-  store.set(connectionAtom, {state: WebSocketState.OPEN});
+  store.set(connectionAtom, { state: WebSocketState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
 
   return (
     <Provider store={store}>
       <TooltipProvider>
-        <CellsRenderer
-          appConfig={parseAppConfig({})}
-          mode="read"
-        >
+        <CellsRenderer appConfig={parseAppConfig({})} mode="read">
           <CellArray
             mode="read"
             userConfig={defaultUserConfig()}
@@ -220,26 +219,18 @@ const ReadModeCodeHidden = () => {
 };
 
 export const EditModeCodeShownStory = {
-  render: () => (
-    <EditModeCodeShown/>
-  ),
+  render: () => <EditModeCodeShown />,
   name: "Edit Mode - Code Shown",
 };
 export const EditModeCodeHiddenStory = {
-  render: () => (
-    <EditModeCodeHidden/>
-  ),
+  render: () => <EditModeCodeHidden />,
   name: "Edit Mode - Code Hidden",
 };
 export const ReadModeCodeShownStory = {
-  render: () => (
-    <ReadModeCodeShown/>
-  ),
+  render: () => <ReadModeCodeShown />,
   name: "Read Mode - Code Shown",
 };
 export const ReadModeCodeHiddenStory = {
-  render: () => (
-    <ReadModeCodeHidden/>
-  ),
+  render: () => <ReadModeCodeHidden />,
   name: "Read Mode - Code Hidden",
 };
