@@ -446,6 +446,13 @@ https://github.com/marimo-team/marimo/issues/5219.""",
     help="When opening a .py file, enable fallback conversion from pypercent, script, or text.",
 )
 @click.option(
+    "--asset-url",
+    default=None,
+    type=str,
+    hidden=True,
+    help="Custom asset URL for loading static resources. Can include {version} placeholder.",
+)
+@click.option(
     "--timeout",
     required=False,
     default=None,
@@ -476,6 +483,7 @@ def edit(
     skew_protection: bool,
     remote_url: Optional[str],
     convert: bool,
+    asset_url: Optional[str],
     timeout: Optional[float],
     name: Optional[str],
     args: tuple[str, ...],
@@ -604,6 +612,7 @@ def edit(
         redirect_console_to_browser=True,
         ttl_seconds=None,
         remote_url=remote_url,
+        asset_url=asset_url,
         timeout=timeout,
     )
 
@@ -923,6 +932,13 @@ Example:
     type=bool,
     help=sandbox_message,
 )
+@click.option(
+    "--asset-url",
+    default=None,
+    type=str,
+    hidden=True,
+    help="Custom asset URL for loading static resources. Can include {version} placeholder.",
+)
 @click.argument(
     "name",
     required=True,
@@ -944,6 +960,7 @@ def run(
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
     sandbox: Optional[bool],
+    asset_url: Optional[str],
     name: str,
     args: tuple[str, ...],
 ) -> None:
@@ -1000,6 +1017,7 @@ def run(
         argv=list(args),
         auth_token=_resolve_token(token, token_password),
         redirect_console_to_browser=redirect_console_to_browser,
+        asset_url=asset_url,
     )
 
 
