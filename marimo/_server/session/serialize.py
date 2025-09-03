@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
+import msgspec
+
 from marimo import _loggers
 from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -59,9 +61,17 @@ def _normalize_error(error: Union[MarimoError, dict[str, Any]]) -> ErrorOutput:
             traceback=error.get("traceback", []),
         )
     else:
+        # Special handling for MarimoExceptionRaisedError - use exception_type as ename
+        if isinstance(error, MarimoExceptionRaisedError):
+            ename = error.exception_type
+        else:
+            # For msgspec structs with tagged unions, the type is in the serialized form
+            error_dict = msgspec.to_builtins(error)
+            ename = error_dict.get("type", "UnknownError")
+
         return ErrorOutput(
             type="error",
-            ename=error.type,
+            ename=ename,
             evalue=error.describe(),
             traceback=getattr(error, "traceback", []),
         )
@@ -177,7 +187,6 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
                     CellOutput.errors(
                         [
                             MarimoExceptionRaisedError(
-                                type="exception",
                                 exception_type=output["ename"],
                                 msg=output["evalue"],
                                 raising_cell=None,
