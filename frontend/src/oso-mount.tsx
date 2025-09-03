@@ -261,12 +261,12 @@ class OSOFileStore implements FileStore {
   }
 
   saveFile(contents: string): void {
-    this.fragmentStore.setString("code", contents);
+    this.fragmentStore.setCompressedString("code", contents);
     this.fragmentStore.commit();
   }
 
   readFile(): string | null | Promise<string | null> {
-    return this.fragmentStore.getString("code");
+    return this.fragmentStore.getCompressedString("code");
   }
 }
 
@@ -280,17 +280,20 @@ function initStore(fragmentStore: FragmentStore, options: unknown) {
   LazyOSONotebookPage.preload();
 
   // Initialize file stores if provided
+  notebookFileStore.overrideStores([
+    new OSOFileStore(fragmentStore),
+  ]);
   if (
     parsedOptions.data.fileStores &&
     parsedOptions.data.fileStores.length > 0
   ) {
     Logger.log("🗄️ Initializing file stores via mount...");
-    // Override all filestores by popping all values in notebookFileStore
-    notebookFileStore.overrideStores([
-      new OSOFileStore(fragmentStore),
-    ]);
+    // Inject file stores if they exist
+    for (let i = parsedOptions.data.fileStores.length - 1; i >= 0; i--) {
+      notebookFileStore.insert(0, parsedOptions.data.fileStores[i]);
+    }
     Logger.log(
-      `🗄️ Overrode filestores with ${parsedOptions.data.fileStores.length} file store(s) into notebookFileStore`,
+      `🗄️ injected ${parsedOptions.data.fileStores.length} file store(s) into notebookFileStore`,
     );
   }
 
