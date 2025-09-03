@@ -2205,7 +2205,7 @@ def test_table_default_sort_ascending() -> None:
         {"Title": "A", "Value": 1},
         {"Title": "B", "Value": 2},
     ]
-    table = ui.table(data).sort(by="Title")
+    table = ui.table(data, sort="ASC:Title")
     sorted_titles = [
         row["Title"] for row in json.loads(table._component_args["data"])
     ]
@@ -2218,7 +2218,7 @@ def test_table_default_sort_descending_dicts() -> None:
         {"Title": "A", "Value": 1},
         {"Title": "B", "Value": 2},
     ]
-    table_desc = ui.table(data).sort(by="Title", ascending=False)
+    table_desc = ui.table(data, sort="DESC:Title")
     sorted_titles_desc = [
         row["Title"] for row in json.loads(table_desc._component_args["data"])
     ]
@@ -2227,7 +2227,7 @@ def test_table_default_sort_descending_dicts() -> None:
 
 def test_table_default_sort_ascending_dict_of_lists() -> None:
     data_dict = {"Title": ["C", "A", "B"], "Value": [3, 1, 2]}
-    table_dict = ui.table(data_dict).sort(by="Title")
+    table_dict = ui.table(data_dict, sort="ASC:Title")
     sorted_titles_dict = [
         row["Title"] for row in json.loads(table_dict._component_args["data"])
     ]
@@ -2236,7 +2236,7 @@ def test_table_default_sort_ascending_dict_of_lists() -> None:
 
 def test_table_default_sort_descending_dict_of_lists() -> None:
     data_dict = {"Title": ["C", "A", "B"], "Value": [3, 1, 2]}
-    table_dict_desc = ui.table(data_dict).sort(by="Title", ascending=False)
+    table_dict_desc = ui.table(data_dict, sort="DESC:Title")
     sorted_titles_dict_desc = [
         row["Title"]
         for row in json.loads(table_dict_desc._component_args["data"])
