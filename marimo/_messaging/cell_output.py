@@ -4,9 +4,10 @@
 from __future__ import annotations
 
 import time
-from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Union
+
+import msgspec
 
 from marimo._messaging.errors import Error
 from marimo._messaging.mimetypes import ConsoleMimeType, KnownMimeType
@@ -27,19 +28,18 @@ class CellChannel(str, Enum):
         return self.value
 
 
-@dataclass
-class CellOutput:
+class CellOutput(msgspec.Struct, rename="camel"):
     # descriptive name about the kind of output: e.g., stdout, stderr, ...
     channel: CellChannel
     mimetype: KnownMimeType
     data: Union[str, list[Error], dict[str, Any]]
-    timestamp: float = field(default_factory=lambda: time.time())
+    timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __repr__(self) -> str:
         return f"CellOutput(channel={self.channel}, mimetype={self.mimetype}, timestamp={self.timestamp})"
 
     def asdict(self) -> dict[str, Any]:
-        return asdict(self)
+        return msgspec.to_builtins(self)
 
     @staticmethod
     def stdout(
