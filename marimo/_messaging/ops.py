@@ -16,7 +16,6 @@ from typing import (
     Literal,
     Optional,
     Union,
-    cast,
 )
 from uuid import uuid4
 
@@ -42,6 +41,7 @@ from marimo._messaging.errors import (
     is_sensitive_error,
 )
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.msgspec_encoder import encoder
 from marimo._messaging.streams import output_max_bytes
 from marimo._messaging.types import Stream
 from marimo._messaging.variables import get_variable_preview
@@ -57,19 +57,6 @@ from marimo._types.ids import CellId_t, RequestId, WidgetModelId
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
-
-
-def serialize(obj: Any) -> dict[str, JSONType]:
-    """Serialize an object to a dictionary suitable for JSON encoding.
-
-    For msgspec.Struct objects, this is effectively a passthrough since
-    they already serialize correctly. For other objects, converts to builtins.
-    """
-    # msgspec.to_builtins handles both Structs and regular objects efficiently
-    return cast(
-        dict[str, JSONType],
-        msgspec.to_builtins(obj),
-    )
 
 
 class Op(msgspec.Struct, tag_field="op"):
@@ -95,8 +82,8 @@ class Op(msgspec.Struct, tag_field="op"):
             )
             return
 
-    def serialize(self) -> dict[str, Any]:
-        return serialize(self)
+    def serialize(self) -> bytes:
+        return encoder.encode(self)
 
 
 class CellOp(Op, tag="cell-op"):
@@ -335,21 +322,16 @@ class FunctionCallResult(Op, tag="function-call-result"):
     return_value: JSONType
     status: HumanReadableStatus
 
-    def __post_init__(self) -> None:
-        # Ensure return_value is JSON-serializable
-        # msgspec handles this during encoding
-        pass
-
-    def serialize(self) -> dict[str, Any]:
+    def serialize(self) -> bytes:
         try:
-            return serialize(self)
+            return encoder.encode(self)
         except Exception as e:
             LOGGER.exception(
                 "Error serializing function call result %s: %s",
                 self.__class__.__name__,
                 e,
             )
-            return serialize(
+            return encoder.encode(
                 FunctionCallResult(
                     function_call_id=self.function_call_id,
                     return_value=None,

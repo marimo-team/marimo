@@ -24,12 +24,6 @@ def enc_hook(obj: Any) -> Any:
         mimetype, data = obj._mime_()
         return {"mimetype": mimetype, "data": data}
 
-    if isinstance(obj, tuple) and hasattr(obj, "_fields"):
-        return {
-            field: marimo_enc_hook(getattr(obj, field))
-            for field in obj._fields  # type: ignore
-        }
-
     if DependencyManager.numpy.imported():
         import numpy as np
 

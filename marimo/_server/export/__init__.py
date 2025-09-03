@@ -7,6 +7,8 @@ import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, cast
 
+import msgspec.json
+
 from marimo import _loggers
 from marimo._cli.print import echo
 from marimo._config.config import RuntimeConfig
@@ -248,7 +250,7 @@ async def run_app_until_completion(
             def listener(message: KernelMessage) -> None:
                 # Print errors to stderr
                 if message[0] == "cell-op":
-                    op_data = message[1]
+                    op_data = msgspec.json.decode(message[1], type=dict)
                     output = op_data.get("output")
                     console_output = op_data.get("console")
                     if (

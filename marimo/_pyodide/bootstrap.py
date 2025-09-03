@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Callable
 
 from marimo._config.config import merge_config
 from marimo._messaging.msgspec_encoder import encoder
-from marimo._messaging.ops import KernelCapabilities, KernelReady, serialize
+from marimo._messaging.ops import KernelCapabilities, KernelReady
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
@@ -106,7 +106,7 @@ def create_session(
     write_kernel_message(
         (
             KernelReady.name,
-            serialize(
+            encoder.encode(
                 KernelReady(
                     codes=tuple(app.cell_manager.codes()),
                     names=tuple(app.cell_manager.names()),

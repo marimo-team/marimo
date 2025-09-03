@@ -22,7 +22,6 @@ from marimo._messaging.ops import (
     KernelReady,
     MessageOperation,
     Reconnected,
-    serialize,
 )
 from marimo._messaging.types import KernelMessage, NoopStream
 from marimo._plugins.core.web_component import JSONType
@@ -322,7 +321,7 @@ class WebsocketHandler(SessionConsumer):
         self.message_queue.put_nowait(
             (
                 KernelReady.name,
-                serialize(
+                encoder.encode(
                     KernelReady(
                         codes=codes,
                         names=names,
@@ -685,7 +684,7 @@ class WebsocketHandler(SessionConsumer):
         return listener
 
     def write_operation(self, op: MessageOperation) -> None:
-        self.message_queue.put_nowait((op.name, serialize(op)))
+        self.message_queue.put_nowait((op.name, encoder.encode(op)))
 
     def on_stop(self) -> None:
         # Cancel the heartbeat task, reader
