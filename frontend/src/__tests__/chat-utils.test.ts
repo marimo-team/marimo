@@ -58,13 +58,13 @@ describe("addMessageToChat", () => {
   };
 
   it("should add a new message to an existing chat", () => {
-    const result = addMessageToChat(
-      mockChatState,
-      CHAT_1,
-      "msg-4",
-      "user",
-      "New message",
-    );
+    const result = addMessageToChat({
+      chatState: mockChatState,
+      chatId: CHAT_1,
+      messageId: "msg-4",
+      role: "user",
+      content: "New message",
+    });
 
     expect(result.chats).toHaveLength(2);
     const updatedChat = result.chats.get(CHAT_1);
@@ -81,13 +81,13 @@ describe("addMessageToChat", () => {
   });
 
   it("should update an existing message", () => {
-    const result = addMessageToChat(
-      mockChatState,
-      CHAT_1,
-      "msg-1",
-      "user",
-      "Updated content",
-    );
+    const result = addMessageToChat({
+      chatState: mockChatState,
+      chatId: CHAT_1,
+      messageId: "msg-1",
+      role: "user",
+      content: "Updated content",
+    });
 
     expect(result.chats).toHaveLength(2);
     const updatedChat = result.chats.get(CHAT_1);
@@ -105,14 +105,14 @@ describe("addMessageToChat", () => {
 
   it("should handle message parts", () => {
     const parts = [{ type: "text" as const, text: "Part content" }];
-    const result = addMessageToChat(
-      mockChatState,
-      CHAT_1,
-      "msg-5",
-      "assistant",
-      "Message with parts",
+    const result = addMessageToChat({
+      chatState: mockChatState,
+      chatId: CHAT_1,
+      messageId: "msg-5",
+      role: "assistant",
+      content: "Message with parts",
       parts,
-    );
+    });
 
     const updatedChat = result.chats.get(CHAT_1);
     expect(updatedChat?.messages[2].parts).toEqual(parts);
@@ -140,64 +140,64 @@ describe("addMessageToChat", () => {
       ]),
     };
 
-    const result = addMessageToChat(
-      stateWithParts,
-      CHAT_1,
-      "msg-1",
-      "user",
-      "Updated content",
-      updatedParts,
-    );
+    const result = addMessageToChat({
+      chatState: stateWithParts,
+      chatId: CHAT_1,
+      messageId: "msg-1",
+      role: "user",
+      content: "Updated content",
+      parts: updatedParts,
+    });
 
     const updatedChat = result.chats.get(CHAT_1);
     expect(updatedChat?.messages[0].parts).toEqual(updatedParts);
   });
 
   it("should return unchanged state when chatId is null", () => {
-    const result = addMessageToChat(
-      mockChatState,
-      null,
-      "msg-4",
-      "user",
-      "New message",
-    );
+    const result = addMessageToChat({
+      chatState: mockChatState,
+      chatId: null,
+      messageId: "msg-4",
+      role: "user",
+      content: "New message",
+    });
 
     expect(result).toEqual(mockChatState);
   });
 
   it("should return unchanged state when chatId does not exist", () => {
-    const result = addMessageToChat(
-      mockChatState,
-      "non-existent-chat" as ChatId,
-      "msg-4",
-      "user",
-      "New message",
-    );
+    const result = addMessageToChat({
+      chatState: mockChatState,
+      chatId: "non-existent-chat" as ChatId,
+      messageId: "msg-4",
+      role: "user",
+      content: "New message",
+    });
 
     expect(result).toEqual(mockChatState);
   });
 
   it("should not modify other chats when updating a specific chat", () => {
-    const result = addMessageToChat(
-      mockChatState,
-      CHAT_1,
-      "msg-4",
-      "user",
-      "New message",
-    );
+    const result = addMessageToChat({
+      chatState: mockChatState,
+      chatId: CHAT_1,
+      messageId: "msg-4",
+      role: "user",
+      content: "New message",
+    });
 
     const unchangedChat = result.chats.get(CHAT_2);
     expect(unchangedChat).toEqual([...mockChatState.chats.values()][1]);
   });
 
   it("should preserve message order when adding new messages", () => {
-    const result = addMessageToChat(
-      mockChatState,
-      CHAT_1,
-      "msg-4",
-      "user",
-      "New message",
-    );
+    const result = addMessageToChat({
+      chatState: mockChatState,
+      chatId: CHAT_1,
+      messageId: "msg-4",
+      role: "user",
+      content: "New message",
+    });
 
     const updatedChat = result.chats.get(CHAT_1);
     expect(updatedChat?.messages[0].id).toBe("msg-1");
@@ -220,13 +220,13 @@ describe("addMessageToChat", () => {
       activeChatId: chatId,
     };
 
-    const result = addMessageToChat(
-      emptyChatState,
-      chatId,
-      "msg-1",
-      "user",
-      "First message",
-    );
+    const result = addMessageToChat({
+      chatState: emptyChatState,
+      chatId: chatId,
+      messageId: "msg-1",
+      role: "user",
+      content: "First message",
+    });
 
     const updatedChat = result.chats.get(chatId);
     expect(updatedChat?.messages).toHaveLength(1);
@@ -234,13 +234,13 @@ describe("addMessageToChat", () => {
   });
 
   it("should handle different message roles", () => {
-    const result = addMessageToChat(
-      mockChatState,
-      CHAT_1,
-      "msg-4",
-      "assistant",
-      "Assistant response",
-    );
+    const result = addMessageToChat({
+      chatState: mockChatState,
+      chatId: CHAT_1,
+      messageId: "msg-4",
+      role: "assistant",
+      content: "Assistant response",
+    });
 
     const updatedChat = result.chats.get(CHAT_1);
     expect(updatedChat?.messages[2].role).toBe("assistant");

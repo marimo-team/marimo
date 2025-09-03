@@ -6,6 +6,7 @@ import { atomWithStorage } from "jotai/utils";
 import { adaptForLocalStorage } from "@/utils/storage";
 import type { TypedString } from "@/utils/typed";
 import type { CellId } from "../cells/ids";
+import type { ChatAttachment } from "./types";
 
 const KEY = "marimo:ai:chatState:v4";
 
@@ -28,6 +29,7 @@ export interface Message {
   content: string;
   timestamp: number;
   parts?: AIMessage["parts"];
+  attachments?: ChatAttachment[];
 }
 
 export interface Chat {
