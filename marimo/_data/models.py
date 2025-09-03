@@ -4,9 +4,6 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
-if TYPE_CHECKING:
-    from decimal import Decimal
-
 import msgspec
 
 from marimo._types.ids import VariableName
@@ -105,6 +102,8 @@ class Database(msgspec.Struct):
 
 
 if TYPE_CHECKING:
+    from decimal import Decimal
+
     NumericLiteral = Union[int, float, Decimal]
     TemporalLiteral = Union[date, time, datetime, timedelta]
     NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
