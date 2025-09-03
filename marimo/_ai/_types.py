@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import mimetypes
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict, Union
 
 
 class ChatAttachmentDict(TypedDict):
@@ -129,6 +129,12 @@ class ToolInvocationPart:
     tool_invocation: ToolInvocationResult
 
 
+if TYPE_CHECKING:
+    Part = Union[TextPart, ReasoningPart, ToolInvocationPart]
+else:
+    Part = dict[str, Any]
+
+
 @dataclass
 class ChatMessage:
     """
@@ -139,15 +145,13 @@ class ChatMessage:
     role: Literal["user", "assistant", "system"]
 
     # The content of the message.
-    content: object
+    content: str
 
     # Optional attachments to the message.
     attachments: Optional[list[ChatAttachment]] = None
 
     # Optional parts from AI SDK. (see types above)
-    parts: Optional[
-        list[Union[TextPart, ReasoningPart, ToolInvocationPart]]
-    ] = None
+    parts: Optional[list[Part]] = None
 
 
 @dataclass
