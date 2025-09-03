@@ -22,7 +22,7 @@ import { copyToClipboard } from "@/utils/copy";
 import { PanelEmptyState } from "./empty-state";
 import { sortProviders, WriteSecretModal } from "./write-secret-modal";
 
-export const SecretsPanel: React.FC = () => {
+const SecretsPanel: React.FC = () => {
   const { openModal, closeModal } = useImperativeModal();
   const {
     data: secretKeyProviders,
@@ -124,6 +124,8 @@ export const SecretsPanel: React.FC = () => {
     </div>
   );
 };
+
+export default SecretsPanel;
 
 const CopyButton: React.FC<{
   className?: string;

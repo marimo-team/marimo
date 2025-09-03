@@ -11,13 +11,15 @@ const LazyTracing = React.lazy(() =>
   }),
 );
 
-export const TracingPanel: React.FC = () => {
+const TracingPanel: React.FC = () => {
   return (
     <React.Suspense fallback={<Loading />}>
       <LazyTracing />
     </React.Suspense>
   );
 };
+
+export default TracingPanel;
 
 const Loading = () => {
   return (

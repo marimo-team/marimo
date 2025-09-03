@@ -8,7 +8,7 @@ import "../../documentation.css";
 import { TextSearchIcon } from "lucide-react";
 import { PanelEmptyState } from "./empty-state";
 
-export const DocumentationPanel: React.FC = () => {
+const DocumentationPanel: React.FC = () => {
   const { documentation } = useAtomValue(documentationAtom);
 
   if (!documentation) {
@@ -27,3 +27,5 @@ export const DocumentationPanel: React.FC = () => {
     </div>
   );
 };
+
+export default DocumentationPanel;

@@ -6,7 +6,7 @@ import { useVariables } from "@/core/variables/state";
 import { cn } from "@/utils/cn";
 import { DependencyGraph } from "../../../dependency-graph/dependency-graph";
 
-export const DependencyGraphPanel: React.FC = () => {
+const DependencyGraphPanel: React.FC = () => {
   const variables = useVariables();
   const cellIds = useCellIds();
   const [cells] = useCellDataAtoms();
@@ -21,3 +21,5 @@ export const DependencyGraphPanel: React.FC = () => {
     </div>
   );
 };
+
+export default DependencyGraphPanel;
