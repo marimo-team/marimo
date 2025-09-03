@@ -111,6 +111,13 @@ def test_determine_cell_type_with_python_cell():
     assert result == CellType.CODE
 
 
+def test_determine_markdown_cell():
+    """Test _determine_cell_type with Markdown cell."""
+    cell = MockCell(language="python")
+    result = _determine_cell_type("mo.md('Hello, world!')", cell)
+    assert result == CellType.MARKDOWN
+
+
 def test_get_cell_errors_no_cell_op():
     """Test _get_cell_errors when no cell operation exists."""
     session_view = MockSessionView()

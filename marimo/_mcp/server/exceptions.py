@@ -1,6 +1,17 @@
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional
+import json
+from typing import Any, Optional, TypedDict
+
+
+class ToolExecutionErrorDict(TypedDict):
+    message: str
+    code: str
+    status: int
+    is_retryable: bool
+    suggested_fix: Optional[str]
+    meta: Optional[dict[str, Any]]
 
 
 class ToolExecutionError(Exception):
@@ -29,9 +40,7 @@ class ToolExecutionError(Exception):
 
     def _create_structured_message(self) -> str:
         """Create a message that includes all structured error information."""
-        import json
-
-        error_dict = {
+        error_dict: ToolExecutionErrorDict = {
             "message": self.original_message,
             "code": self.code,
             "status": self.status,
@@ -39,11 +48,11 @@ class ToolExecutionError(Exception):
             "suggested_fix": self.suggested_fix,
             "meta": self.meta,
         }
-        return json.dumps(error_dict, separators=(",", ":"))
+        return json.dumps(error_dict)
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> ToolExecutionErrorDict:
         """Return a dictionary representation of the error details for testing."""
-        return {
+        error_dict: ToolExecutionErrorDict = {
             "code": self.code,
             "message": self.original_message,
             "status": self.status,
@@ -51,3 +60,4 @@ class ToolExecutionError(Exception):
             "suggested_fix": self.suggested_fix,
             "meta": self.meta,
         }
+        return error_dict

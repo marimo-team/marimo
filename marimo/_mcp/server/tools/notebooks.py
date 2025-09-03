@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 from typing import Optional, TypedDict
 
 from mcp.server.fastmcp import FastMCP
@@ -76,7 +77,6 @@ def register_notebooks_tools(mcp: FastMCP, app: Starlette) -> None:
             )
 
         except Exception as e:
-            # Return a structured error result
             raise ToolExecutionError(
                 "Failed to retrieve active notebooks",
                 code="NOTEBOOK_FETCH_ERROR",

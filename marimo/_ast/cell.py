@@ -733,6 +733,12 @@ class Cell:
         )
 
 
+def is_markdown_cell(code: str) -> bool:
+    if code.lstrip().startswith("mo.md("):
+        return True
+    return False
+
+
 @dataclasses.dataclass
 class SourcePosition:
     filename: str

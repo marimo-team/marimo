@@ -1,16 +1,18 @@
+# Copyright 2025 Marimo. All rights reserved.
 from enum import Enum
 from typing import TYPE_CHECKING, Optional, TypedDict
 
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 
-from marimo._ast.cell import RuntimeStateType
+from marimo._ast.cell import Cell, RuntimeStateType, is_markdown_cell
 from marimo._ast.models import CellData
 from marimo._mcp.server.exceptions import ToolExecutionError
 from marimo._mcp.server.responses import (
     SuccessResult,
     make_tool_success_result,
 )
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.ops import VariableValue
 from marimo._server.api.deps import AppStateBase
 from marimo._types.ids import CellId_t, SessionId
@@ -30,7 +32,7 @@ class CellType(Enum):
 
 class LightweightCellInfo(TypedDict):
     cell_id: str
-    preview: str  # First X lines of code
+    code_preview: str  # First X lines of code
     line_count: int
     cell_type: CellType
 
@@ -116,23 +118,19 @@ def register_cells_tools(mcp: FastMCP, app: Starlette) -> None:
             cells: list[LightweightCellInfo] = []
             for cell_data in cell_manager.cell_data():
                 code_lines = cell_data.code.split("\n")
-                preview = "\n".join(code_lines[:preview_lines])
+                code_preview = "\n".join(code_lines[:preview_lines])
 
-                # Determine cell type using actual marimo cell data when available
                 cell_type = _determine_cell_type(
                     cell_data.code, cell_data.cell
                 )
-
-                if cell_type in CellType:
-                    # Only add cells that are supported by the tool
-                    cells.append(
-                        {
-                            "cell_id": cell_data.cell_id,
-                            "preview": preview,
-                            "line_count": len(code_lines),
-                            "cell_type": cell_type,
-                        }
-                    )
+                cells.append(
+                    {
+                        "cell_id": cell_data.cell_id,
+                        "code_preview": code_preview,
+                        "line_count": len(code_lines),
+                        "cell_type": cell_type,
+                    }
+                )
 
             # Return a success result with lightweight cell map
             return make_tool_success_result(
@@ -251,44 +249,33 @@ def register_cells_tools(mcp: FastMCP, app: Starlette) -> None:
             ) from e
 
 
-# Utility functions
 def _determine_cell_type(code: str, cell: Optional["Cell"] = None) -> CellType:
     """Determine the type of cell based on marimo's compiled cell data.
 
     Uses the actual Language field from CellData.cell.language when available,
     falling back to code analysis for edge cases.
-    Only returns types from Literal["code", "markdown", "sql"].
     """
 
-    # If we have the compiled cell data, use marimo's official language detection
-    if (
-        cell is not None
-        and hasattr(cell, "_cell")
-        and hasattr(cell._cell, "language")
-    ):
-        language = cell._cell.language
+    # If we have the compiled cell, use it to infer the cell type
+    if cell:
+        cell_impl = cell._cell
+        language = cell_impl.language
         if language == "sql":
             return CellType.SQL
         elif language == "python":
-            # For Python cells, check if it's actually a markdown cell
-            # by using marimo's official markdown detection
-            try:
-                from marimo._server.export.utils import get_markdown_from_cell
-
-                if get_markdown_from_cell(cell, code) is not None:
-                    return CellType.MARKDOWN
-            except (ImportError, AttributeError, Exception):
-                # Fall back to heuristic if import fails
-                pass
+            if is_markdown_cell(code):
+                return CellType.MARKDOWN
             return CellType.CODE
 
-    # Default to code for all other cases
+    # Else, use code analysis
+    if is_markdown_cell(code):
+        return CellType.MARKDOWN
+
     return CellType.CODE
 
 
 def _get_cell_errors(session: "Session", cell_id: CellId_t) -> CellErrors:
     """Get cell errors from session view with actual error details."""
-    from marimo._messaging.cell_output import CellChannel
 
     # Get cell operation from session view
     session_view = session.session_view
