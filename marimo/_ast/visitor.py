@@ -653,8 +653,44 @@ class ScopedVisitor(ast.NodeVisitor):
                     return node
 
                 for statement in statements:
-                    sql_refs: set[SQLRef] = set()
                     # Parse the refs and defs of each statement
+                    # Add all tables/dbs created in the query to the defs
+                    try:
+                        sql_defs = find_sql_defs(sql)
+                    except duckdb.ProgrammingError:
+                        sql_defs = SQLDefs()
+                    except BaseException as e:
+                        LOGGER.warning("Unexpected duckdb error %s", e)
+                        sql_defs = SQLDefs()
+
+                    defined_names = set()
+
+                    for _table in sql_defs.tables:
+                        self._define(
+                            None,
+                            _table.table,
+                            VariableData(
+                                "table", qualified_name=_table.qualified_name
+                            ),
+                        )
+                        defined_names.add(_table.qualified_name)
+                    for _view in sql_defs.views:
+                        self._define(
+                            None,
+                            _view.table,
+                            VariableData(
+                                "view", qualified_name=_view.qualified_name
+                            ),
+                        )
+                        defined_names.add(_view.qualified_name)
+                    for _schema in sql_defs.schemas:
+                        self._define(None, _schema, VariableData("schema"))
+                        defined_names.add(_schema)
+                    for _catalog in sql_defs.catalogs:
+                        self._define(None, _catalog, VariableData("catalog"))
+                        defined_names.add(_catalog)
+
+                    sql_refs: set[SQLRef] = set()
                     try:
                         sql_refs = find_sql_refs_cached(statement.query)
                     except (duckdb.ProgrammingError, duckdb.IOException):
@@ -666,37 +702,10 @@ class ScopedVisitor(ast.NodeVisitor):
 
                     for ref in sql_refs:
                         name = ref.qualified_name
+                        # Cells that define the same name aren't cycles, so we skip them
+                        if name in defined_names:
+                            continue
                         self._add_ref(None, name, deleted=False, sql_ref=ref)
-
-                    # Add all tables/dbs created in the query to the defs
-                    try:
-                        sql_defs = find_sql_defs(sql)
-                    except duckdb.ProgrammingError:
-                        sql_defs = SQLDefs()
-                    except BaseException as e:
-                        LOGGER.warning("Unexpected duckdb error %s", e)
-                        sql_defs = SQLDefs()
-
-                    for _table in sql_defs.tables:
-                        self._define(
-                            None,
-                            _table.table,
-                            VariableData(
-                                "table", qualified_name=_table.qualified_name
-                            ),
-                        )
-                    for _view in sql_defs.views:
-                        self._define(
-                            None,
-                            _view.table,
-                            VariableData(
-                                "view", qualified_name=_view.qualified_name
-                            ),
-                        )
-                    for _schema in sql_defs.schemas:
-                        self._define(None, _schema, VariableData("schema"))
-                    for _catalog in sql_defs.catalogs:
-                        self._define(None, _catalog, VariableData("catalog"))
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)
