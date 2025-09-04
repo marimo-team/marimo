@@ -48,6 +48,10 @@ export class FragmentStore {
         this.setCompressedString(key, JSON.stringify(value));
     }
 
+    delete(key: string): void {
+        this.params.delete(key);
+    }
+
     commit(): void {
         const hash = this.params.toString();
         window.location.hash = hash;
