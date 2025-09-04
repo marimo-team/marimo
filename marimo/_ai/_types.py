@@ -127,7 +127,6 @@ class FilePart:
     url: str
 
 
-
 if TYPE_CHECKING:
     ChatPart = Union[TextPart, ReasoningPart, ToolInvocationPart, FilePart]
 else:
