@@ -33,47 +33,52 @@ components:
     AiCompletionContext:
       properties:
         plainText:
+          default: ''
           type: string
         schema:
+          default: []
           items:
             $ref: '#/components/schemas/SchemaTable'
           type: array
         variables:
+          default: []
           items:
-            oneOf:
-            - $ref: '#/components/schemas/VariableContext'
+            anyOf:
             - type: string
+            - $ref: '#/components/schemas/VariableContext'
           type: array
-      required:
-      - schema
-      - variables
-      - plainText
+      required: []
+      title: AiCompletionContext
       type: object
     AiCompletionRequest:
       properties:
         code:
           type: string
         context:
-          $ref: '#/components/schemas/AiCompletionContext'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/AiCompletionContext'
+          default: null
         includeOtherCode:
           type: string
         language:
+          default: python
           enum:
-          - python
           - markdown
+          - python
           - sql
-          type: string
         prompt:
           type: string
         selectedText:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
       required:
       - prompt
       - includeOtherCode
       - code
-      - language
+      title: AiCompletionRequest
       type: object
     AiConfig:
       description: "Configuration options for AI.\n\n    **Keys.**\n\n    - `rules`:\
@@ -118,11 +123,11 @@ components:
     AiInlineCompletionRequest:
       properties:
         language:
+          default: python
           enum:
-          - python
           - markdown
+          - python
           - sql
-          type: string
         prefix:
           type: string
         suffix:
@@ -130,7 +135,7 @@ components:
       required:
       - prefix
       - suffix
-      - language
+      title: AiInlineCompletionRequest
       type: object
     AiModelConfig:
       description: "Configuration options for an AI model.\n\n    **Keys.**\n\n  \
@@ -415,7 +420,25 @@ components:
     ChatRequest:
       properties:
         context:
-          $ref: '#/components/schemas/AiCompletionContext'
+          properties:
+            plainText:
+              default: ''
+              type: string
+            schema:
+              default: []
+              items:
+                $ref: '#/components/schemas/SchemaTable'
+              type: array
+            variables:
+              default: []
+              items:
+                anyOf:
+                - type: string
+                - $ref: '#/components/schemas/VariableContext'
+              type: array
+          required: []
+          title: AiCompletionContext
+          type: object
         includeOtherCode:
           type: string
         messages:
@@ -462,7 +485,18 @@ components:
         variables:
           items:
             oneOf:
-            - $ref: '#/components/schemas/VariableContext'
+            - properties:
+                name:
+                  type: string
+                previewValue: {}
+                valueType:
+                  type: string
+              required:
+              - name
+              - valueType
+              - previewValue
+              title: VariableContext
+              type: object
             - type: string
           nullable: true
           type: array
@@ -2766,7 +2800,6 @@ components:
         name:
           type: string
         sampleValues:
-          items: {}
           type: array
         type:
           type: string
@@ -2774,6 +2807,7 @@ components:
       - name
       - type
       - sampleValues
+      title: SchemaColumn
       type: object
     SchemaTable:
       properties:
@@ -2786,6 +2820,7 @@ components:
       required:
       - name
       - columns
+      title: SchemaTable
       type: object
     SecretKeysResult:
       description: Result of listing secret keys.
@@ -3185,6 +3220,7 @@ components:
       - name
       - valueType
       - previewValue
+      title: VariableContext
       type: object
     VariableDeclaration:
       properties:

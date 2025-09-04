@@ -2565,18 +2565,28 @@ export interface components {
       /** @default false */
       upgrade?: boolean | null;
     };
+    /** AiCompletionContext */
     AiCompletionContext: {
-      plainText: string;
-      schema: components["schemas"]["SchemaTable"][];
-      variables: (components["schemas"]["VariableContext"] | string)[];
+      /** @default  */
+      plainText?: string;
+      /** @default [] */
+      schema?: components["schemas"]["SchemaTable"][];
+      /** @default [] */
+      variables?: (string | components["schemas"]["VariableContext"])[];
     };
+    /** AiCompletionRequest */
     AiCompletionRequest: {
       code: string;
-      context?: components["schemas"]["AiCompletionContext"];
+      /** @default null */
+      context?: null | components["schemas"]["AiCompletionContext"];
       includeOtherCode: string;
-      /** @enum {string} */
-      language: "python" | "markdown" | "sql";
+      /**
+       * @default python
+       * @enum {unknown}
+       */
+      language?: "markdown" | "python" | "sql";
       prompt: string;
+      /** @default null */
       selectedText?: string | null;
     };
     /**
@@ -2613,9 +2623,13 @@ export interface components {
       open_ai_compatible?: components["schemas"]["OpenAiConfig"];
       rules?: string;
     };
+    /** AiInlineCompletionRequest */
     AiInlineCompletionRequest: {
-      /** @enum {string} */
-      language: "python" | "markdown" | "sql";
+      /**
+       * @default python
+       * @enum {unknown}
+       */
+      language?: "markdown" | "python" | "sql";
       prefix: string;
       suffix: string;
     };
@@ -2813,7 +2827,15 @@ export interface components {
       timestamp?: number;
     };
     ChatRequest: {
-      context: components["schemas"]["AiCompletionContext"];
+      /** AiCompletionContext */
+      context: {
+        /** @default  */
+        plainText?: string;
+        /** @default [] */
+        schema?: components["schemas"]["SchemaTable"][];
+        /** @default [] */
+        variables?: (string | components["schemas"]["VariableContext"])[];
+      };
       includeOtherCode: string;
       messages: {
         attachments?:
@@ -2833,7 +2855,16 @@ export interface components {
         role: "user" | "assistant" | "system";
       }[];
       model?: string | null;
-      variables?: (components["schemas"]["VariableContext"] | string)[] | null;
+      variables?:
+        | (
+            | {
+                name: string;
+                previewValue: unknown;
+                valueType: string;
+              }
+            | string
+          )[]
+        | null;
     };
     /** CodeCompletionRequest */
     CodeCompletionRequest: {
@@ -4042,11 +4073,13 @@ export interface components {
       name: string;
       tables: components["schemas"]["DataTable"][];
     };
+    /** SchemaColumn */
     SchemaColumn: {
       name: string;
       sampleValues: unknown[];
       type: string;
     };
+    /** SchemaTable */
     SchemaTable: {
       columns: components["schemas"]["SchemaColumn"][];
       name: string;
@@ -4248,6 +4281,7 @@ export interface components {
       query: string;
       scheme: string;
     };
+    /** VariableContext */
     VariableContext: {
       name: string;
       previewValue: unknown;
