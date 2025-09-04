@@ -3784,6 +3784,7 @@ export interface components {
           )
         | "markdown-format";
     };
+    /** PackageDescription */
     PackageDescription: {
       name: string;
       version: string;

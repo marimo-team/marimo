@@ -2274,6 +2274,7 @@ components:
       required:
       - name
       - version
+      title: PackageDescription
       type: object
     PackageManagementConfig:
       description: "Configuration options for package management.\n\n    **Keys.**\n\
