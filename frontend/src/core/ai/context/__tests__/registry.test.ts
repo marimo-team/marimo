@@ -118,7 +118,9 @@ class AttachmentContextProvider extends AIContextProvider<MockContextItem> {
     return this.createBasicCompletion(item);
   }
 
-  async getAttachments(items: MockContextItem[]): Promise<ChatAttachment[]> {
+  override async getAttachments(
+    items: MockContextItem[],
+  ): Promise<ChatAttachment[]> {
     // Return attachments for items that need them
     const itemsNeedingAttachments = items.filter(
       (item) => item.data.needsAttachment,
