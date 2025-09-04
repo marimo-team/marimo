@@ -1124,8 +1124,10 @@ components:
     ExportAsHTMLRequest:
       properties:
         assetUrl:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         download:
           type: boolean
         files:
@@ -1138,6 +1140,7 @@ components:
       - download
       - files
       - includeCode
+      title: ExportAsHTMLRequest
       type: object
     ExportAsIPYNBRequest:
       properties:
@@ -1145,6 +1148,7 @@ components:
           type: boolean
       required:
       - download
+      title: ExportAsIPYNBRequest
       type: object
     ExportAsMarkdownRequest:
       properties:
@@ -1152,6 +1156,7 @@ components:
           type: boolean
       required:
       - download
+      title: ExportAsMarkdownRequest
       type: object
     ExportAsScriptRequest:
       properties:
@@ -1159,6 +1164,7 @@ components:
           type: boolean
       required:
       - download
+      title: ExportAsScriptRequest
       type: object
     FileCreateRequest:
       properties:
@@ -1901,13 +1907,13 @@ components:
                 type: string
               provider:
                 enum:
-                - env
                 - dotenv
-                type: string
+                - env
             required:
             - provider
             - name
             - keys
+            title: SecretKeysWithProvider
             type: object
           type: array
       required:

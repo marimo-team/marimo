@@ -3171,18 +3171,23 @@ export interface components {
       request?: null | components["schemas"]["HTTPRequest"];
       timestamp?: number;
     };
+    /** ExportAsHTMLRequest */
     ExportAsHTMLRequest: {
+      /** @default null */
       assetUrl?: string | null;
       download: boolean;
       files: string[];
       includeCode: boolean;
     };
+    /** ExportAsIPYNBRequest */
     ExportAsIPYNBRequest: {
       download: boolean;
     };
+    /** ExportAsMarkdownRequest */
     ExportAsMarkdownRequest: {
       download: boolean;
     };
+    /** ExportAsScriptRequest */
     ExportAsScriptRequest: {
       download: boolean;
     };
@@ -3574,8 +3579,8 @@ export interface components {
       keys: {
         keys: string[];
         name: string;
-        /** @enum {string} */
-        provider: "env" | "dotenv";
+        /** @enum {unknown} */
+        provider: "dotenv" | "env";
       }[];
     };
     /**

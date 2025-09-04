@@ -1,28 +1,25 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional
 
+import msgspec
 
-@dataclass
-class ExportAsHTMLRequest:
+
+class ExportAsHTMLRequest(msgspec.Struct, rename="camel"):
     download: bool
     files: list[str]
     include_code: bool
     asset_url: Optional[str] = None
 
 
-@dataclass
-class ExportAsScriptRequest:
+class ExportAsScriptRequest(msgspec.Struct, rename="camel"):
     download: bool
 
 
-@dataclass
-class ExportAsIPYNBRequest:
+class ExportAsIPYNBRequest(msgspec.Struct, rename="camel"):
     download: bool
 
 
-@dataclass
-class ExportAsMarkdownRequest:
+class ExportAsMarkdownRequest(msgspec.Struct, rename="camel"):
     download: bool
