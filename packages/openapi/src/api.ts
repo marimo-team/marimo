@@ -2544,7 +2544,7 @@ export interface paths {
     trace?: never;
   };
 }
-export type webhooks = Record<string, never>;
+export type webhooks = Record<string, any>;
 export interface components {
   schemas: {
     AddPackageRequest: {
@@ -2655,6 +2655,7 @@ export interface components {
       /** @default null */
       variant: "danger" | null;
     };
+    /** BaseResponse */
     BaseResponse: {
       success: boolean;
     };
@@ -2771,7 +2772,7 @@ export interface components {
             | components["schemas"]["MarimoInternalError"]
             | components["schemas"]["UnknownError"]
           )[]
-        | Record<string, never>;
+        | Record<string, any>;
       /** @enum {unknown} */
       mimetype:
         | "application/json"
@@ -2822,7 +2823,7 @@ export interface components {
     };
     /** CodeCompletionRequest */
     CodeCompletionRequest: {
-      cell_id: string;
+      cellId: string;
       document: string;
       id: string;
     };
@@ -2907,6 +2908,7 @@ export interface components {
       options: components["schemas"]["CompletionOption"][];
       prefix_length: number;
     };
+    /** CopyNotebookRequest */
     CopyNotebookRequest: {
       destination: string;
       source: string;
@@ -3087,7 +3089,7 @@ export interface components {
     };
     /** DeleteCellRequest */
     DeleteCellRequest: {
-      cell_id: string;
+      cellId: string;
     };
     DeleteSecretRequest: {
       key: string;
@@ -3146,7 +3148,7 @@ export interface components {
     };
     /** ExecuteMultipleRequest */
     ExecuteMultipleRequest: {
-      cell_ids: string[];
+      cellIds: string[];
       codes: string[];
       /** @default null */
       request: null | components["schemas"]["HTTPRequest"];
@@ -3165,7 +3167,7 @@ export interface components {
     };
     /** ExecutionRequest */
     ExecutionRequest: {
-      cell_id: string;
+      cellId: string;
       code: string;
       /** @default null */
       request: null | components["schemas"]["HTTPRequest"];
@@ -3186,68 +3188,95 @@ export interface components {
     ExportAsScriptRequest: {
       download: boolean;
     };
+    /** FileCreateRequest */
     FileCreateRequest: {
-      contents?: string | null;
+      /** @default null */
+      contents: string | null;
       name: string;
       path: string;
-      /** @enum {string} */
-      type: "file" | "directory";
+      /** @enum {unknown} */
+      type: "directory" | "file";
     };
+    /** FileCreateResponse */
     FileCreateResponse: {
-      info?: components["schemas"]["FileInfo"];
-      message?: string | null;
+      /** @default null */
+      info: null | components["schemas"]["FileInfo"];
+      /** @default null */
+      message: string | null;
       success: boolean;
     };
+    /** FileDeleteRequest */
     FileDeleteRequest: {
       path: string;
     };
+    /** FileDeleteResponse */
     FileDeleteResponse: {
-      message?: string | null;
+      /** @default null */
+      message: string | null;
       success: boolean;
     };
+    /** FileDetailsRequest */
     FileDetailsRequest: {
       path: string;
     };
+    /** FileDetailsResponse */
     FileDetailsResponse: {
-      contents?: string | null;
+      /** @default null */
+      contents: string | null;
       file: components["schemas"]["FileInfo"];
-      mimeType?: string | null;
+      /** @default null */
+      mimeType: string | null;
     };
+    /** FileInfo */
     FileInfo: {
+      /** @default [] */
       children: components["schemas"]["FileInfo"][];
       id: string;
       isDirectory: boolean;
       isMarimoFile: boolean;
-      lastModified?: number | null;
+      /** @default null */
+      lastModified: number | null;
       name: string;
       path: string;
     };
+    /** FileListRequest */
     FileListRequest: {
-      path?: string | null;
+      /** @default null */
+      path: string | null;
     };
+    /** FileListResponse */
     FileListResponse: {
       files: components["schemas"]["FileInfo"][];
       root: string;
     };
+    /** FileMoveRequest */
     FileMoveRequest: {
       newPath: string;
       path: string;
     };
+    /** FileMoveResponse */
     FileMoveResponse: {
-      info?: components["schemas"]["FileInfo"];
-      message?: string | null;
+      /** @default null */
+      info: null | components["schemas"]["FileInfo"];
+      /** @default null */
+      message: string | null;
       success: boolean;
     };
+    /** FileOpenRequest */
     FileOpenRequest: {
       path: string;
     };
+    /** FileUpdateRequest */
     FileUpdateRequest: {
       contents: string;
       path: string;
     };
+    /** FileUpdateResponse */
     FileUpdateResponse: {
-      info?: components["schemas"]["FileInfo"];
-      message?: string | null;
+      /** @default null */
+      info: null | components["schemas"]["FileInfo"];
+      /** @default null */
+      message: string | null;
       success: boolean;
     };
     /** FocusCell */
@@ -3256,12 +3285,14 @@ export interface components {
       /** @enum {unknown} */
       op: "focus-cell";
     };
+    /** FormatRequest */
     FormatRequest: {
       codes: {
         [key: string]: string;
       };
       lineLength: number;
     };
+    /** FormatResponse */
     FormatResponse: {
       codes: {
         [key: string]: string;
@@ -3280,9 +3311,9 @@ export interface components {
     };
     /** FunctionCallRequest */
     FunctionCallRequest: {
-      args: Record<string, never>;
-      function_call_id: string;
-      function_name: string;
+      args: Record<string, any>;
+      functionCallId: string;
+      functionName: string;
       namespace: string;
     };
     /**
@@ -3327,19 +3358,19 @@ export interface components {
      *     It is a subset and pickle-able version of the Request object.
      */
     HTTPRequest: {
-      base_url: Record<string, never>;
+      baseUrl: Record<string, any>;
       cookies: {
         [key: string]: string;
       };
       headers: {
         [key: string]: string;
       };
-      meta: Record<string, never>;
-      path_params: Record<string, never>;
-      query_params: {
+      meta: Record<string, any>;
+      pathParams: Record<string, any>;
+      queryParams: {
         [key: string]: string[];
       };
-      url: Record<string, never>;
+      url: Record<string, any>;
       user: unknown;
     };
     /**
@@ -3375,7 +3406,9 @@ export interface components {
         [key: string]: "failed" | "installed" | "installing" | "queued";
       };
     };
+    /** InstantiateRequest */
     InstantiateRequest: {
+      /** @default true */
       autoRun: boolean;
       objectIds: string[];
       values: unknown[];
@@ -3388,14 +3421,15 @@ export interface components {
       /** @enum {unknown} */
       op: "interrupted";
     };
+    /** InvokeAiToolRequest */
     InvokeAiToolRequest: {
-      arguments: {
-        [key: string]: unknown;
-      };
+      arguments: Record<string, any>;
       toolName: string;
     };
+    /** InvokeAiToolResponse */
     InvokeAiToolResponse: {
-      error?: string | null;
+      /** @default null */
+      error: string | null;
       result: unknown;
       success: boolean;
       toolName: string;
@@ -3433,7 +3467,7 @@ export interface components {
       /** @enum {unknown} */
       op: "kernel-ready";
       resumed: boolean;
-      ui_values: Record<string, never> | null;
+      ui_values: Record<string, any> | null;
     };
     /**
      * KeymapConfig
@@ -3455,6 +3489,62 @@ export interface components {
       preset: "default" | "vim";
       vimrc?: string | null;
     };
+    /** KnownUnions */
+    KnownUnions: {
+      /** @enum {unknown} */
+      data_type:
+        | "boolean"
+        | "date"
+        | "datetime"
+        | "integer"
+        | "number"
+        | "string"
+        | "time"
+        | "unknown";
+      error:
+        | components["schemas"]["SetupRootError"]
+        | components["schemas"]["CycleError"]
+        | components["schemas"]["MultipleDefinitionError"]
+        | components["schemas"]["ImportStarError"]
+        | components["schemas"]["MarimoAncestorStoppedError"]
+        | components["schemas"]["MarimoAncestorPreventedError"]
+        | components["schemas"]["MarimoExceptionRaisedError"]
+        | components["schemas"]["MarimoStrictExecutionError"]
+        | components["schemas"]["MarimoInterruptionError"]
+        | components["schemas"]["MarimoSyntaxError"]
+        | components["schemas"]["MarimoInternalError"]
+        | components["schemas"]["UnknownError"];
+      operation:
+        | components["schemas"]["CellOp"]
+        | components["schemas"]["FunctionCallResult"]
+        | components["schemas"]["SendUIElementMessage"]
+        | components["schemas"]["RemoveUIElements"]
+        | components["schemas"]["Reload"]
+        | components["schemas"]["Reconnected"]
+        | components["schemas"]["Interrupted"]
+        | components["schemas"]["CompletedRun"]
+        | components["schemas"]["KernelReady"]
+        | components["schemas"]["CompletionResult"]
+        | components["schemas"]["Alert"]
+        | components["schemas"]["Banner"]
+        | components["schemas"]["MissingPackageAlert"]
+        | components["schemas"]["InstallingPackageAlert"]
+        | components["schemas"]["Variables"]
+        | components["schemas"]["VariableValues"]
+        | components["schemas"]["QueryParamsSet"]
+        | components["schemas"]["QueryParamsAppend"]
+        | components["schemas"]["QueryParamsDelete"]
+        | components["schemas"]["QueryParamsClear"]
+        | components["schemas"]["Datasets"]
+        | components["schemas"]["DataColumnPreview"]
+        | components["schemas"]["SQLTablePreview"]
+        | components["schemas"]["SQLTableListPreview"]
+        | components["schemas"]["DataSourceConnections"]
+        | components["schemas"]["SecretKeysResult"]
+        | components["schemas"]["FocusCell"]
+        | components["schemas"]["UpdateCellCodes"]
+        | components["schemas"]["UpdateCellIdsRequest"];
+    };
     /**
      * LanguageServersConfig
      * @description Configuration options for language servers.
@@ -3470,7 +3560,7 @@ export interface components {
     };
     /** LayoutConfig */
     LayoutConfig: {
-      data: Record<string, never>;
+      data: Record<string, any>;
       type: string;
     };
     ListPackagesResponse: {
@@ -3478,7 +3568,7 @@ export interface components {
     };
     /** ListSecretKeysRequest */
     ListSecretKeysRequest: {
-      request_id: string;
+      requestId: string;
     };
     ListSecretKeysResponse: {
       keys: {
@@ -3495,7 +3585,7 @@ export interface components {
      *         To implement this protocol, a class needs to define
      *         just one method, _mime_.
      */
-    MIME: Record<string, never>;
+    MIME: Record<string, any>;
     /** MarimoAncestorPreventedError */
     MarimoAncestorPreventedError: {
       blamed_cell: string | null;
@@ -3521,7 +3611,7 @@ export interface components {
       datasources?: components["schemas"]["DatasourcesConfig"];
       diagnostics?: components["schemas"]["DiagnosticsConfig"];
       display: components["schemas"]["DisplayConfig"];
-      experimental?: Record<string, never>;
+      experimental?: Record<string, any>;
       formatting: components["schemas"]["FormattingConfig"];
       keymap: components["schemas"]["KeymapConfig"];
       language_servers?: components["schemas"]["LanguageServersConfig"];
@@ -3590,8 +3680,8 @@ export interface components {
     };
     /** ModelMessage */
     ModelMessage: {
-      buffer_paths: (string | number)[][];
-      state: Record<string, never>;
+      bufferPaths: (string | number)[][];
+      state: Record<string, any>;
     };
     /** MultipleDefinitionError */
     MultipleDefinitionError: {
@@ -3661,7 +3751,7 @@ export interface components {
     };
     /** PdbRequest */
     PdbRequest: {
-      cell_id: string;
+      cellId: string;
       /** @default null */
       request: null | components["schemas"]["HTTPRequest"];
     };
@@ -3674,13 +3764,13 @@ export interface components {
     };
     /** PreviewDatasetColumnRequest */
     PreviewDatasetColumnRequest: {
-      column_name: string;
+      columnName: string;
       /** @default null */
-      fully_qualified_table_name: string | null;
+      fullyQualifiedTableName: string | null;
       source: string;
       /** @enum {unknown} */
-      source_type: "catalog" | "connection" | "duckdb" | "local";
-      table_name: string;
+      sourceType: "catalog" | "connection" | "duckdb" | "local";
+      tableName: string;
     };
     /**
      * PreviewSQLTableListRequest
@@ -3689,7 +3779,7 @@ export interface components {
     PreviewSQLTableListRequest: {
       database: string;
       engine: string;
-      request_id: string;
+      requestId: string;
       schema: string;
     };
     /**
@@ -3699,9 +3789,9 @@ export interface components {
     PreviewSQLTableRequest: {
       database: string;
       engine: string;
-      request_id: string;
+      requestId: string;
       schema: string;
-      table_name: string;
+      tableName: string;
     };
     /**
      * PythonLanguageServerConfig
@@ -3747,6 +3837,7 @@ export interface components {
       op: "query-params-set";
       value: string | string[];
     };
+    /** ReadCodeResponse */
     ReadCodeResponse: {
       contents: string;
     };
@@ -3775,6 +3866,7 @@ export interface components {
       /** @enum {unknown} */
       op: "remove-ui-elements";
     };
+    /** RenameFileRequest */
     RenameFileRequest: {
       filename: string;
     };
@@ -3782,31 +3874,12 @@ export interface components {
     RenameRequest: {
       filename: string;
     };
+    /** RunRequest */
     RunRequest: {
       cellIds: string[];
       codes: string[];
-      /**
-       * HTTPRequest
-       * @description A class that mimics the Request object from Starlette or FastAPI.
-       *
-       *     It is a subset and pickle-able version of the Request object.
-       */
-      request?: {
-        base_url: Record<string, never>;
-        cookies: {
-          [key: string]: string;
-        };
-        headers: {
-          [key: string]: string;
-        };
-        meta: Record<string, never>;
-        path_params: Record<string, never>;
-        query_params: {
-          [key: string]: string[];
-        };
-        url: Record<string, never>;
-        user: unknown;
-      } | null;
+      /** @default null */
+      request: null | components["schemas"]["HTTPRequest"];
     };
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
@@ -3899,10 +3972,9 @@ export interface components {
       request_id: string;
       table: null | components["schemas"]["DataTable"];
     };
+    /** SaveAppConfigurationRequest */
     SaveAppConfigurationRequest: {
-      config: {
-        [key: string]: unknown;
-      };
+      config: Record<string, any>;
     };
     /**
      * SaveConfig
@@ -3920,174 +3992,21 @@ export interface components {
       autosave_delay: number;
       format_on_save: boolean;
     };
+    /** SaveNotebookRequest */
     SaveNotebookRequest: {
       cellIds: string[];
       codes: string[];
-      configs: {
-        column?: number | null;
-        disabled: boolean;
-        hideCode: boolean;
-      }[];
+      configs: components["schemas"]["CellConfig"][];
       filename: string;
-      layout?: {
-        [key: string]: unknown;
-      } | null;
+      /** @default null */
+      layout: Record<string, any> | null;
       names: string[];
+      /** @default true */
       persist: boolean;
     };
+    /** SaveUserConfigurationRequest */
     SaveUserConfigurationRequest: {
-      config: {
-        ai?: {
-          anthropic?: {
-            apiKey: string;
-          };
-          azure?: components["schemas"]["OpenAiConfig"];
-          bedrock?: {
-            awsAccessKeyId?: string;
-            awsSecretAccessKey?: string;
-            profileName?: string;
-            regionName?: string;
-          };
-          github?: {
-            apiKey: string;
-            baseUrl?: string;
-          };
-          google?: {
-            apiKey: string;
-          };
-          maxTokens?: number;
-          /** @enum {string} */
-          mode?: "ask" | "manual";
-          models?: {
-            autocompleteModel?: string;
-            chatModel?: string;
-            customModels: string[];
-            displayedModels: string[];
-            editModel?: string;
-          };
-          ollama?: components["schemas"]["OpenAiConfig"];
-          openAi: {
-            apiKey: string;
-            baseUrl?: string;
-            caBundlePath?: string;
-            clientPem?: string;
-            extraHeaders?: {
-              [key: string]: string;
-            };
-            model?: string;
-            sslVerify?: boolean;
-          };
-          openAiCompatible: components["schemas"]["OpenAiConfig"];
-          rules?: string;
-        };
-        completion: {
-          activateOnTyping: boolean;
-          apiKey?: string | null;
-          baseUrl?: string | null;
-          codeiumApiKey?: string | null;
-          copilot: boolean | ("github" | "codeium" | "custom");
-          model?: string | null;
-        };
-        datasources?: {
-          autoDiscoverColumns?: boolean | "auto";
-          autoDiscoverSchemas?: boolean | "auto";
-          autoDiscoverTables?: boolean | "auto";
-        };
-        diagnostics?: {
-          enabled?: boolean;
-        };
-        display: {
-          /** @enum {string} */
-          cellOutput: "above" | "below";
-          codeEditorFontSize: number;
-          customCss?: string[];
-          /** @enum {string} */
-          dataframes: "rich" | "plain";
-          defaultTableMaxColumns: number;
-          defaultTablePageSize: number;
-          /** @enum {string} */
-          defaultWidth: "normal" | "compact" | "medium" | "full" | "columns";
-          referenceHighlighting?: boolean;
-          /** @enum {string} */
-          theme: "light" | "dark" | "system";
-        };
-        experimental?: {
-          [key: string]: unknown;
-        };
-        formatting: {
-          lineLength: number;
-        };
-        keymap: {
-          destructiveDelete?: boolean;
-          overrides?: {
-            [key: string]: string;
-          };
-          /** @enum {string} */
-          preset: "default" | "vim";
-          vimrc?: string | null;
-        };
-        languageServers?: {
-          basedpyright?: {
-            enabled?: boolean;
-          };
-          pylsp?: {
-            enableFlake8: boolean;
-            enableMypy: boolean;
-            enablePydocstyle: boolean;
-            enablePyflakes: boolean;
-            enablePylint: boolean;
-            enableRuff: boolean;
-            enabled?: boolean;
-          };
-          ty?: {
-            enabled?: boolean;
-          };
-        };
-        packageManagement: {
-          /** @enum {string} */
-          manager: "pip" | "rye" | "uv" | "poetry" | "pixi";
-        };
-        runtime: {
-          autoInstantiate: boolean;
-          /** @enum {string} */
-          autoReload: "off" | "lazy" | "autorun";
-          defaultAutoDownload?: ("html" | "markdown" | "ipynb")[];
-          /** @enum {string} */
-          defaultSqlOutput:
-            | "polars"
-            | "lazy-polars"
-            | "pandas"
-            | "native"
-            | "auto";
-          dotenv?: string[];
-          /** @enum {string} */
-          onCellChange: "lazy" | "autorun";
-          outputMaxBytes: number;
-          pythonpath?: string[];
-          reactiveTests: boolean;
-          stdStreamMaxBytes: number;
-          /** @enum {string} */
-          watcherOnSave: "lazy" | "autorun";
-        };
-        save: {
-          /** @enum {string} */
-          autosave: "off" | "after_delay";
-          autosaveDelay: number;
-          formatOnSave: boolean;
-        };
-        server: {
-          browser: "default" | string;
-          followSymlink: boolean;
-        };
-        sharing?: {
-          html?: boolean;
-          wasm?: boolean;
-        };
-        snippets?: {
-          customPaths?: string[];
-          includeDefaultSnippets?: boolean;
-        };
-      };
+      config: components["schemas"]["MarimoConfig"];
     };
     /** Schema */
     Schema: {
@@ -4128,7 +4047,7 @@ export interface components {
     SendUIElementMessage: {
       /** @default null */
       buffers: string[] | null;
-      message: Record<string, never>;
+      message: Record<string, any>;
       model_id: string | null;
       /** @enum {unknown} */
       op: "send-ui-element-message";
@@ -4152,7 +4071,7 @@ export interface components {
     /** SetCellConfigRequest */
     SetCellConfigRequest: {
       configs: {
-        [key: string]: Record<string, never>;
+        [key: string]: Record<string, any>;
       };
     };
     /** SetModelMessageRequest */
@@ -4160,11 +4079,11 @@ export interface components {
       /** @default null */
       buffers: string[] | null;
       message: components["schemas"]["ModelMessage"];
-      model_id: string;
+      modelId: string;
     };
     /** SetUIElementValueRequest */
     SetUIElementValueRequest: {
-      object_ids: string[];
+      objectIds: string[];
       /** @default null */
       request: null | components["schemas"]["HTTPRequest"];
       token?: string;
@@ -4220,21 +4139,24 @@ export interface components {
       custom_paths?: string[];
       include_default_snippets?: boolean;
     };
+    /** StdinRequest */
     StdinRequest: {
       text: string;
     };
     /** StopRequest */
-    StopRequest: Record<string, never>;
+    StopRequest: Record<string, any>;
     /**
      * StoreConfig
      * @description Configuration for cache stores.
      */
     StoreConfig: {
-      args?: Record<string, never>;
+      args?: Record<string, any>;
       /** @enum {unknown} */
       type?: "file" | "redis" | "rest" | "tiered";
     };
+    /** SuccessResponse */
     SuccessResponse: {
+      /** @default true */
       success: boolean;
     };
     /**
@@ -4275,6 +4197,7 @@ export interface components {
       /** @enum {unknown} */
       op: "update-cell-ids";
     };
+    /** UpdateComponentValuesRequest */
     UpdateComponentValuesRequest: {
       objectIds: string[];
       values: unknown[];
@@ -4318,7 +4241,17 @@ export interface components {
       includeMarkdown: boolean;
     };
     WorkspaceFilesResponse: {
-      files: components["schemas"]["FileInfo"][];
+      files: {
+        /** @default [] */
+        children: components["schemas"]["FileInfo"][];
+        id: string;
+        isDirectory: boolean;
+        isMarimoFile: boolean;
+        /** @default null */
+        lastModified: number | null;
+        name: string;
+        path: string;
+      }[];
       root: string;
     };
     /**
@@ -4356,5 +4289,5 @@ export interface components {
   headers: never;
   pathItems: never;
 }
-export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export type $defs = Record<string, any>;
+export type operations = Record<string, any>;

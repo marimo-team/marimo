@@ -13,6 +13,9 @@ import msgspec
 import msgspec.json
 
 from marimo._cli.print import orange
+from marimo._data.models import DataType
+from marimo._messaging.cell_output import Error as MarimoError
+from marimo._messaging.ops import MessageOperation
 from marimo._server.session.serialize import (
     serialize_notebook,
     serialize_session_view,
@@ -254,8 +257,15 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.MessageOperation: "MessageOperation",
     }
 
+    # Hack to get the unions to be included in the schema
+    class KnownUnions(msgspec.Struct):
+        operation: MessageOperation
+        error: MarimoError
+        data_type: DataType
+
     specs = msgspec.json.schema_components(
-        MESSAGES, ref_template="#/components/schemas/{name}"
+        MESSAGES + [KnownUnions],
+        ref_template="#/components/schemas/{name}",
     )
     component_schemas = {
         **specs[1],

@@ -104,12 +104,14 @@ export const MockNotebook = {
       type: "exception",
       msg,
       exception_type,
+      raising_cell: null,
     }),
 
     strictException: (msg: string, ref: string): MarimoError => ({
       type: "strict-exception",
       msg,
       ref,
+      blamed_cell: null,
     }),
 
     interruption: (): MarimoError => ({
@@ -124,6 +126,7 @@ export const MockNotebook = {
     unknown: (msg: string): MarimoError => ({
       type: "unknown",
       msg,
+      error_type: null,
     }),
   },
 

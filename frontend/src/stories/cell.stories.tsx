@@ -223,6 +223,7 @@ export const Disabled: Story = {
           config: {
             disabled: true,
             hide_code: false,
+            column: null,
           },
           output: {
             channel: "output",
@@ -303,6 +304,7 @@ export const DisabledAndStaleStatus: Story = {
         overrides={{
           runElapsedTimeMs: 20 as Milliseconds,
           config: {
+            column: null,
             disabled: true,
             hide_code: false,
           },
