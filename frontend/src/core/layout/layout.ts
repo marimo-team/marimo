@@ -77,11 +77,11 @@ export function getSerializedLayout() {
 
   // Vertical layout has no data, as it is the default.
   if (selectedLayout === "vertical") {
-    return undefined;
+    return null;
   }
 
   if (layoutData === undefined) {
-    return undefined;
+    return null;
   }
 
   const data = layoutData[selectedLayout];
@@ -90,7 +90,7 @@ export function getSerializedLayout() {
   );
   if (plugin === undefined) {
     Logger.error(`Unknown layout type: ${selectedLayout}`);
-    return undefined;
+    return null;
   }
   return {
     type: selectedLayout,

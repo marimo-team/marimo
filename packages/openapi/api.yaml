@@ -56,6 +56,15 @@ components:
       - language
       type: object
     AiConfig:
+      description: "Configuration options for AI.\n\n    **Keys.**\n\n    - `rules`:\
+        \ custom rules to include in all AI completion prompts\n    - `max_tokens`:\
+        \ the maximum number of tokens to use in AI completions\n    - `mode`: the\
+        \ mode to use for AI completions. Can be one of: `\"ask\"` or `\"manual\"\
+        `\n    - `models`: the models to use for AI completions\n    - `open_ai`:\
+        \ the OpenAI config\n    - `anthropic`: the Anthropic config\n    - `google`:\
+        \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
+        \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
+        \ GitHub config\n    - `open_ai_compatible`: the OpenAI-compatible config"
       properties:
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
@@ -73,27 +82,8 @@ components:
           enum:
           - ask
           - manual
-          type: string
         models:
-          properties:
-            autocomplete_model:
-              type: string
-            chat_model:
-              type: string
-            custom_models:
-              items:
-                type: string
-              type: array
-            displayed_models:
-              items:
-                type: string
-              type: array
-            edit_model:
-              type: string
-          required:
-          - displayed_models
-          - custom_models
-          type: object
+          $ref: '#/components/schemas/AiModelConfig'
         ollama:
           $ref: '#/components/schemas/OpenAiConfig'
         open_ai:
@@ -102,6 +92,8 @@ components:
           $ref: '#/components/schemas/OpenAiConfig'
         rules:
           type: string
+      required: []
+      title: AiConfig
       type: object
     AiInlineCompletionRequest:
       properties:
@@ -120,55 +112,89 @@ components:
       - suffix
       - language
       type: object
+    AiModelConfig:
+      description: "Configuration options for an AI model.\n\n    **Keys.**\n\n  \
+        \  - `chat_model`: the model to use for chat completions\n    - `edit_model`:\
+        \ the model to use for edit completions\n    - `autocomplete_model`: the model\
+        \ to use for code completion/autocomplete\n    - `displayed_models`: a list\
+        \ of models to display in the UI\n    - `custom_models`: a list of custom\
+        \ models to use that are not from the default list"
+      properties:
+        autocomplete_model:
+          type: string
+        chat_model:
+          type: string
+        custom_models:
+          items:
+            type: string
+          type: array
+        displayed_models:
+          items:
+            type: string
+          type: array
+        edit_model:
+          type: string
+      required:
+      - custom_models
+      - displayed_models
+      title: AiModelConfig
+      type: object
     Alert:
       properties:
         description:
           type: string
-        name:
+        op:
           enum:
           - alert
-          type: string
         title:
           type: string
         variant:
-          enum:
-          - danger
-          nullable: true
-          type: string
+          anyOf:
+          - enum:
+            - danger
+          - type: 'null'
+          default: null
       required:
+      - op
       - title
       - description
-      - name
+      title: Alert
       type: object
     AnthropicConfig:
+      description: "Configuration options for Anthropic.\n\n    **Keys.**\n\n    -\
+        \ `api_key`: the Anthropic API key"
       properties:
         api_key:
           type: string
+      required: []
+      title: AnthropicConfig
       type: object
     Banner:
       properties:
         action:
-          enum:
-          - restart
-          nullable: true
-          type: string
+          anyOf:
+          - enum:
+            - restart
+          - type: 'null'
+          default: null
         description:
           type: string
-        name:
+        op:
           enum:
           - banner
-          type: string
         title:
           type: string
         variant:
-          enum:
-          - danger
-          nullable: true
-          type: string
+          anyOf:
+          - enum:
+            - danger
+          - type: 'null'
+          default: null
       required:
+      - op
       - title
       - description
-      - name
+      title: Banner
       type: object
     BaseResponse:
       properties:
@@ -176,8 +202,26 @@ components:
           type: boolean
       required:
       - success
+      title: BaseResponse
+      type: object
+    BasedpyrightServerConfig:
+      description: 'Configuration options for basedpyright Language Server.
+
+
+        basedpyright handles completion, hover, go-to-definition, and diagnostics,
+
+        but we only use it for diagnostics.'
+      properties:
+        enabled:
+          type: boolean
+      required: []
+      title: BasedpyrightServerConfig
       type: object
     BedrockConfig:
+      description: "Configuration options for Bedrock.\n\n    **Keys.**\n\n    - `profile_name`:\
+        \ the AWS profile to use\n    - `region_name`: the AWS region to use\n   \
+        \ - `aws_access_key_id`: the AWS access key ID\n    - `aws_secret_access_key`:\
+        \ the AWS secret access key"
       properties:
         aws_access_key_id:
           type: string
@@ -187,88 +231,166 @@ components:
           type: string
         region_name:
           type: string
+      required: []
+      title: BedrockConfig
       type: object
     CellChannel:
+      description: The channel of a cell's output.
       enum:
-      - stdout
-      - stderr
-      - stdin
-      - pdb
-      - output
       - marimo-error
       - media
-      type: string
+      - output
+      - pdb
+      - stderr
+      - stdin
+      - stdout
+      title: CellChannel
     CellConfig:
+      description: 'Internal representation of a cell''s configuration.
+
+        This is not part of the public API.'
       properties:
         column:
-          nullable: true
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
         disabled:
+          default: false
           type: boolean
         hide_code:
+          default: false
           type: boolean
-      required:
-      - disabled
-      - hide_code
+      required: []
+      title: CellConfig
       type: object
     CellOp:
+      description: "Op to transition a cell.\n\n    A CellOp's data has some optional\
+        \ fields:\n\n    output        - a CellOutput\n    console       - a CellOutput\
+        \ (console msg to append), or a list of\n                    CellOutputs\n\
+        \    status        - execution status\n    stale_inputs  - whether the cell\
+        \ has stale inputs (variables, modules, ...)\n    run_id        - the run\
+        \ associated with this cell.\n    serialization - the serialization status\
+        \ of the cell\n\n    Omitting a field means that its value should be unchanged!\n\
+        \n    And one required field:\n\n    cell_id - the cell id"
       properties:
         cell_id:
           type: string
         console:
-          nullable: true
-          oneOf:
-          - $ref: '#/components/schemas/CellOutput'
+          anyOf:
           - items:
               $ref: '#/components/schemas/CellOutput'
             type: array
-        name:
+          - type: 'null'
+          - $ref: '#/components/schemas/CellOutput'
+          default: null
+        op:
           enum:
           - cell-op
-          type: string
         output:
-          $ref: '#/components/schemas/CellOutput'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CellOutput'
+          default: null
         run_id:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         serialization:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         stale_inputs:
-          nullable: true
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: null
         status:
-          $ref: '#/components/schemas/RuntimeState'
-          nullable: true
+          anyOf:
+          - enum:
+            - disabled-transitively
+            - idle
+            - queued
+            - running
+          - type: 'null'
+          default: null
         timestamp:
           type: number
       required:
+      - op
       - cell_id
-      - timestamp
-      - name
+      title: CellOp
       type: object
     CellOutput:
       properties:
         channel:
           $ref: '#/components/schemas/CellChannel'
         data:
-          oneOf:
+          anyOf:
           - type: string
           - items:
-              $ref: '#/components/schemas/Error'
+              anyOf:
+              - $ref: '#/components/schemas/SetupRootError'
+              - $ref: '#/components/schemas/CycleError'
+              - $ref: '#/components/schemas/MultipleDefinitionError'
+              - $ref: '#/components/schemas/ImportStarError'
+              - $ref: '#/components/schemas/MarimoAncestorStoppedError'
+              - $ref: '#/components/schemas/MarimoAncestorPreventedError'
+              - $ref: '#/components/schemas/MarimoExceptionRaisedError'
+              - $ref: '#/components/schemas/MarimoStrictExecutionError'
+              - $ref: '#/components/schemas/MarimoInterruptionError'
+              - $ref: '#/components/schemas/MarimoSyntaxError'
+              - $ref: '#/components/schemas/MarimoInternalError'
+              - $ref: '#/components/schemas/UnknownError'
+              discriminator:
+                mapping:
+                  ancestor-prevented: '#/components/schemas/MarimoAncestorPreventedError'
+                  ancestor-stopped: '#/components/schemas/MarimoAncestorStoppedError'
+                  cycle: '#/components/schemas/CycleError'
+                  exception: '#/components/schemas/MarimoExceptionRaisedError'
+                  import-star: '#/components/schemas/ImportStarError'
+                  internal: '#/components/schemas/MarimoInternalError'
+                  interruption: '#/components/schemas/MarimoInterruptionError'
+                  multiple-defs: '#/components/schemas/MultipleDefinitionError'
+                  setup-refs: '#/components/schemas/SetupRootError'
+                  strict-exception: '#/components/schemas/MarimoStrictExecutionError'
+                  syntax: '#/components/schemas/MarimoSyntaxError'
+                  unknown: '#/components/schemas/UnknownError'
+                propertyName: type
             type: array
-          - additionalProperties: {}
-            type: object
+          - type: object
         mimetype:
-          $ref: '#/components/schemas/MimeType'
+          enum:
+          - application/json
+          - application/vnd.jupyter.widget-view+json
+          - application/vnd.marimo+error
+          - application/vnd.marimo+mimebundle
+          - application/vnd.marimo+traceback
+          - application/vnd.vega.v5+json
+          - application/vnd.vegalite.v5+json
+          - image/avif
+          - image/bmp
+          - image/gif
+          - image/jpeg
+          - image/png
+          - image/svg+xml
+          - image/tiff
+          - text/csv
+          - text/html
+          - text/latex
+          - text/markdown
+          - text/plain
+          - video/mp4
+          - video/mpeg
         timestamp:
           type: number
       required:
       - channel
       - mimetype
       - data
-      - timestamp
+      title: CellOutput
       type: object
     ChatRequest:
       properties:
@@ -296,84 +418,11 @@ components:
                 nullable: true
                 type: array
               content:
-                additionalProperties: true
-                type: object
+                type: string
               parts:
                 items:
-                  oneOf:
-                  - properties:
-                      text:
-                        type: string
-                      type:
-                        enum:
-                        - text
-                        type: string
-                    required:
-                    - type
-                    - text
-                    type: object
-                  - properties:
-                      details:
-                        items:
-                          properties:
-                            signature:
-                              nullable: true
-                              type: string
-                            text:
-                              type: string
-                            type:
-                              enum:
-                              - text
-                              type: string
-                          required:
-                          - type
-                          - text
-                          type: object
-                        type: array
-                      reasoning:
-                        type: string
-                      type:
-                        enum:
-                        - reasoning
-                        type: string
-                    required:
-                    - type
-                    - reasoning
-                    - details
-                    type: object
-                  - properties:
-                      toolInvocation:
-                        properties:
-                          args:
-                            additionalProperties: {}
-                            type: object
-                          result: {}
-                          state:
-                            enum:
-                            - result
-                            type: string
-                          step:
-                            type: integer
-                          toolCallId:
-                            type: string
-                          toolName:
-                            type: string
-                        required:
-                        - state
-                        - result
-                        - toolCallId
-                        - toolName
-                        - step
-                        - args
-                        type: object
-                      type:
-                        enum:
-                        - tool-invocation
-                        type: string
-                    required:
-                    - type
-                    - toolInvocation
-                    type: object
+                  additionalProperties: {}
+                  type: object
                 nullable: true
                 type: array
               role:
@@ -414,91 +463,168 @@ components:
       - id
       - document
       - cellId
+      title: CodeCompletionRequest
       type: object
     ColumnStats:
+      description: Represents stats for a column in a data table.
       properties:
         'false':
-          nullable: true
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
         max:
-          $ref: '#/components/schemas/NonNestedLiteral'
-          nullable: true
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
         mean:
-          $ref: '#/components/schemas/NonNestedLiteral'
-          nullable: true
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
         median:
-          $ref: '#/components/schemas/NonNestedLiteral'
-          nullable: true
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
         min:
-          $ref: '#/components/schemas/NonNestedLiteral'
-          nullable: true
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
         nulls:
-          nullable: true
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
         p25:
-          $ref: '#/components/schemas/NonNestedLiteral'
-          nullable: true
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
         p5:
-          $ref: '#/components/schemas/NonNestedLiteral'
-          nullable: true
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
         p75:
-          $ref: '#/components/schemas/NonNestedLiteral'
-          nullable: true
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
         p95:
-          $ref: '#/components/schemas/NonNestedLiteral'
-          nullable: true
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
         std:
-          $ref: '#/components/schemas/NonNestedLiteral'
-          nullable: true
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
         total:
-          nullable: true
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
         'true':
-          nullable: true
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
         unique:
-          nullable: true
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+      required: []
+      title: ColumnStats
       type: object
     CompletedRun:
+      description: Written on run completion (of submitted cells and their descendants.
       properties:
-        name:
+        op:
           enum:
           - completed-run
+      required:
+      - op
+      title: CompletedRun
+      type: object
+    CompletionConfig:
+      description: "Configuration for code completion.\n\n    A dict with key/value\
+        \ pairs configuring code completion in the marimo\n    editor.\n\n    **Keys.**\n\
+        \n    - `activate_on_typing`: if `False`, completion won't activate\n    until\
+        \ the completion hotkey is entered\n    - `copilot`: one of `\"github\"`,\
+        \ `\"codeium\"`, or `\"custom\"`\n    - `codeium_api_key`: the Codeium API\
+        \ key"
+      properties:
+        activate_on_typing:
+          type: boolean
+        api_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+        base_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+        codeium_api_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+        copilot:
+          anyOf:
+          - type: boolean
+          - enum:
+            - codeium
+            - custom
+            - github
+        model:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - activate_on_typing
+      - copilot
+      title: CompletionConfig
+      type: object
+    CompletionOption:
+      properties:
+        completion_info:
+          anyOf:
+          - type: string
+          - type: 'null'
+        name:
+          type: string
+        type:
           type: string
       required:
       - name
+      - type
+      - completion_info
+      title: CompletionOption
       type: object
     CompletionResult:
+      description: Code completion result.
       properties:
         completion_id:
           type: string
-        name:
+        op:
           enum:
           - completion-result
-          type: string
         options:
           items:
-            properties:
-              completion_info:
-                nullable: true
-                type: string
-              name:
-                type: string
-              type:
-                type: string
-            required:
-            - name
-            - type
-            type: object
+            $ref: '#/components/schemas/CompletionOption'
           type: array
         prefix_length:
           type: integer
       required:
+      - op
       - completion_id
       - prefix_length
       - options
-      - name
+      title: CompletionResult
       type: object
     CopyNotebookRequest:
       properties:
@@ -509,6 +635,7 @@ components:
       required:
       - source
       - destination
+      title: CopyNotebookRequest
       type: object
     CreateSecretRequest:
       properties:
@@ -518,9 +645,8 @@ components:
           type: string
         provider:
           enum:
-          - env
           - dotenv
-          type: string
+          - env
         value:
           type: string
       required:
@@ -528,11 +654,15 @@ components:
       - value
       - provider
       - name
+      title: CreateSecretRequest
       type: object
     CycleError:
       properties:
         edges_with_vars:
           items:
+            items: false
+            maxItems: 3
+            minItems: 3
             prefixItems:
             - type: string
             - items:
@@ -544,81 +674,79 @@ components:
         type:
           enum:
           - cycle
-          type: string
       required:
-      - edges_with_vars
       - type
+      - edges_with_vars
+      title: CycleError
       type: object
     DataColumnPreview:
+      description: Preview of a column in a dataset.
       properties:
         chart_code:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         chart_spec:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         column_name:
+          default: ''
           type: string
         error:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         missing_packages:
-          items:
-            type: string
-          nullable: true
-          type: array
-        name:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
+        op:
           enum:
           - data-column-preview
-          type: string
         stats:
-          $ref: '#/components/schemas/ColumnStats'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/ColumnStats'
+          default: null
         table_name:
+          default: ''
           type: string
       required:
-      - table_name
-      - column_name
-      - name
+      - op
+      title: DataColumnPreview
       type: object
     DataSourceConnection:
+      description: "Represents a data source connection.\n\nAttributes:\n    source\
+        \ (str): The source of the data source connection. E.g 'postgres'.\n    dialect\
+        \ (str): The dialect of the data source connection. E.g 'postgresql'.\n  \
+        \  name (str): The name of the data source connection. E.g 'engine'.\n   \
+        \ display_name (str): The display name of the data source connection. E.g\
+        \ 'PostgresQL (engine)'.\n    databases (List[Database]): The databases in\
+        \ the data source connection.\n    default_database (Optional[str]): The default\
+        \ database in the data source connection.\n    default_schema (Optional[str]):\
+        \ The default schema in the data source connection."
       properties:
         databases:
           items:
-            properties:
-              dialect:
-                type: string
-              engine:
-                nullable: true
-                type: string
-              name:
-                type: string
-              schemas:
-                items:
-                  properties:
-                    name:
-                      type: string
-                    tables:
-                      items:
-                        $ref: '#/components/schemas/DataTable'
-                      type: array
-                  required:
-                  - name
-                  - tables
-                  type: object
-                type: array
-            required:
-            - name
-            - dialect
-            - schemas
-            type: object
+            $ref: '#/components/schemas/Database'
           type: array
         default_database:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         default_schema:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         dialect:
           type: string
         display_name:
@@ -633,6 +761,7 @@ components:
       - name
       - display_name
       - databases
+      title: DataSourceConnection
       type: object
     DataSourceConnections:
       properties:
@@ -640,100 +769,130 @@ components:
           items:
             $ref: '#/components/schemas/DataSourceConnection'
           type: array
-        name:
+        op:
           enum:
           - data-source-connections
-          type: string
       required:
+      - op
       - connections
-      - name
+      title: DataSourceConnections
       type: object
     DataTable:
+      description: "Represents a data table.\n\nAttributes:\n    source_type (DataTableSource):\
+        \ Type of data source ('local', 'duckdb', 'connection').\n    source (str):\
+        \ Can be dialect, or source db name.\n    name (str): Name of the data table.\n\
+        \    num_rows (Optional[int]): Total number of rows in the table, if known.\n\
+        \    num_columns (Optional[int]): Total number of columns in the table, if\
+        \ known.\n    variable_name (Optional[VariableName]): Variable name referencing\
+        \ this table in code.\n    columns (List[DataTableColumn]): List of column\
+        \ definitions and metadata.\n    engine (Optional[VariableName]): Database\
+        \ engine or connection handler, if any.\n    type (DataTableType): Table type,\
+        \ either 'table' or 'view'. Defaults to 'table'.\n    primary_keys (Optional[List[str]]):\
+        \ Column names used as primary keys, if any.\n    indexes (Optional[List[str]]):\
+        \ Column names used as indexes, if any."
       properties:
         columns:
           items:
             $ref: '#/components/schemas/DataTableColumn'
           type: array
         engine:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         indexes:
-          items:
-            type: string
-          nullable: true
-          type: array
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
         name:
           type: string
         num_columns:
-          nullable: true
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
         num_rows:
-          nullable: true
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
         primary_keys:
-          items:
-            type: string
-          nullable: true
-          type: array
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
         source:
           type: string
         source_type:
           enum:
-          - local
-          - duckdb
-          - connection
           - catalog
-          type: string
+          - connection
+          - duckdb
+          - local
         type:
+          default: table
           enum:
           - table
           - view
-          type: string
         variable_name:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
       required:
       - source_type
       - source
       - name
+      - num_rows
+      - num_columns
+      - variable_name
       - columns
-      - type
+      title: DataTable
       type: object
     DataTableColumn:
+      description: "Represents a column in a data table.\n\nAttributes:\n    name\
+        \ (str): The name of the column.\n    type (DataType): The data type of the\
+        \ column.\n    external_type (ExternalDataType): The raw data type of the\
+        \ column.\n    sample_values (List[Any]): The sample values of the column."
       properties:
         external_type:
           type: string
         name:
           type: string
         sample_values:
-          items: {}
           type: array
         type:
-          $ref: '#/components/schemas/DataType'
+          enum:
+          - boolean
+          - date
+          - datetime
+          - integer
+          - number
+          - string
+          - time
+          - unknown
       required:
       - name
       - type
       - external_type
       - sample_values
+      title: DataTableColumn
       type: object
-    DataType:
-      enum:
-      - string
-      - boolean
-      - integer
-      - number
-      - date
-      - datetime
-      - time
-      - unknown
-      type: string
     Database:
+      description: "Represents a collection of schemas.\n\nAttributes:\n    name (str):\
+        \ The name of the database\n    dialect (str): The dialect of the database\n\
+        \    schemas (List[Schema]): List of schemas in the database\n    engine (Optional[VariableName]):\
+        \ Database engine or connection handler, if any."
       properties:
         dialect:
           type: string
         engine:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         name:
           type: string
         schemas:
@@ -744,28 +903,56 @@ components:
       - name
       - dialect
       - schemas
+      title: Database
       type: object
     Datasets:
+      description: List of datasets.
       properties:
         clear_channel:
-          enum:
-          - local
-          - duckdb
-          - connection
-          - catalog
-          nullable: true
-          type: string
-        name:
+          anyOf:
+          - enum:
+            - catalog
+            - connection
+            - duckdb
+            - local
+          - type: 'null'
+          default: null
+        op:
           enum:
           - datasets
-          type: string
         tables:
           items:
             $ref: '#/components/schemas/DataTable'
           type: array
       required:
+      - op
       - tables
-      - name
+      title: Datasets
+      type: object
+    DatasourcesConfig:
+      description: "Configuration for datasources panel.\n\n    **Keys.**\n\n    -\
+        \ `auto_discover_schemas`: if `True`, include schemas in the datasource\n\
+        \    - `auto_discover_tables`: if `True`, include tables in the datasource\n\
+        \    - `auto_discover_columns`: if `True`, include columns & table metadata\
+        \ in the datasource"
+      properties:
+        auto_discover_columns:
+          anyOf:
+          - type: boolean
+          - enum:
+            - auto
+        auto_discover_schemas:
+          anyOf:
+          - type: boolean
+          - enum:
+            - auto
+        auto_discover_tables:
+          anyOf:
+          - type: boolean
+          - enum:
+            - auto
+      required: []
+      title: DatasourcesConfig
       type: object
     DeleteCellRequest:
       properties:
@@ -773,6 +960,7 @@ components:
           type: string
       required:
       - cellId
+      title: DeleteCellRequest
       type: object
     DeleteSecretRequest:
       properties:
@@ -809,20 +997,67 @@ components:
           $ref: '#/components/schemas/DependencyTreeNode'
           nullable: true
       type: object
-    Error:
-      oneOf:
-      - $ref: '#/components/schemas/SetupRootError'
-      - $ref: '#/components/schemas/CycleError'
-      - $ref: '#/components/schemas/MultipleDefinitionError'
-      - $ref: '#/components/schemas/ImportStarError'
-      - $ref: '#/components/schemas/MarimoAncestorStoppedError'
-      - $ref: '#/components/schemas/MarimoAncestorPreventedError'
-      - $ref: '#/components/schemas/MarimoExceptionRaisedError'
-      - $ref: '#/components/schemas/MarimoStrictExecutionError'
-      - $ref: '#/components/schemas/MarimoInterruptionError'
-      - $ref: '#/components/schemas/MarimoSyntaxError'
-      - $ref: '#/components/schemas/MarimoInternalError'
-      - $ref: '#/components/schemas/UnknownError'
+    DiagnosticsConfig:
+      description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
+        \  - `enabled`: if `True`, diagnostics will be shown in the editor"
+      properties:
+        enabled:
+          type: boolean
+      required: []
+      title: DiagnosticsConfig
+      type: object
+    DisplayConfig:
+      description: "Configuration for display.\n\n    **Keys.**\n\n    - `theme`:\
+        \ `\"light\"`, `\"dark\"`, or `\"system\"`\n    - `code_editor_font_size`:\
+        \ font size for the code editor\n    - `cell_output`: `\"above\"` or `\"below\"\
+        `\n    - `dataframes`: `\"rich\"` or `\"plain\"`\n    - `custom_css`: list\
+        \ of paths to custom CSS files\n    - `default_table_page_size`: default number\
+        \ of rows to display in tables\n    - `default_table_max_columns`: default\
+        \ maximum number of columns to display in tables\n    - `reference_highlighting`:\
+        \ if `True`, highlight reactive variable references"
+      properties:
+        cell_output:
+          enum:
+          - above
+          - below
+        code_editor_font_size:
+          type: integer
+        custom_css:
+          items:
+            type: string
+          type: array
+        dataframes:
+          enum:
+          - plain
+          - rich
+        default_table_max_columns:
+          type: integer
+        default_table_page_size:
+          type: integer
+        default_width:
+          enum:
+          - columns
+          - compact
+          - full
+          - medium
+          - normal
+        reference_highlighting:
+          type: boolean
+        theme:
+          enum:
+          - dark
+          - light
+          - system
+      required:
+      - cell_output
+      - code_editor_font_size
+      - dataframes
+      - default_table_max_columns
+      - default_table_page_size
+      - default_width
+      - theme
+      title: DisplayConfig
+      type: object
     ExecuteMultipleRequest:
       properties:
         cellIds:
@@ -834,30 +1069,39 @@ components:
             type: string
           type: array
         request:
-          $ref: '#/components/schemas/HTTPRequest'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/HTTPRequest'
+          default: null
         timestamp:
           type: number
       required:
       - cellIds
       - codes
-      - timestamp
+      title: ExecuteMultipleRequest
       type: object
     ExecuteScratchpadRequest:
       properties:
         code:
           type: string
         request:
-          $ref: '#/components/schemas/HTTPRequest'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/HTTPRequest'
+          default: null
       required:
       - code
+      title: ExecuteScratchpadRequest
       type: object
     ExecuteStaleRequest:
       properties:
         request:
-          $ref: '#/components/schemas/HTTPRequest'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/HTTPRequest'
+          default: null
+      required: []
+      title: ExecuteStaleRequest
       type: object
     ExecutionRequest:
       properties:
@@ -866,14 +1110,16 @@ components:
         code:
           type: string
         request:
-          $ref: '#/components/schemas/HTTPRequest'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/HTTPRequest'
+          default: null
         timestamp:
           type: number
       required:
       - cellId
       - code
-      - timestamp
+      title: ExecutionRequest
       type: object
     ExportAsHTMLRequest:
       properties:
@@ -917,34 +1163,41 @@ components:
     FileCreateRequest:
       properties:
         contents:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         name:
           type: string
         path:
           type: string
         type:
           enum:
-          - file
           - directory
-          type: string
+          - file
       required:
       - path
       - type
       - name
+      title: FileCreateRequest
       type: object
     FileCreateResponse:
       properties:
         info:
-          $ref: '#/components/schemas/FileInfo'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/FileInfo'
+          default: null
         message:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         success:
           type: boolean
       required:
       - success
+      title: FileCreateResponse
       type: object
     FileDeleteRequest:
       properties:
@@ -952,16 +1205,20 @@ components:
           type: string
       required:
       - path
+      title: FileDeleteRequest
       type: object
     FileDeleteResponse:
       properties:
         message:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         success:
           type: boolean
       required:
       - success
+      title: FileDeleteResponse
       type: object
     FileDetailsRequest:
       properties:
@@ -969,23 +1226,30 @@ components:
           type: string
       required:
       - path
+      title: FileDetailsRequest
       type: object
     FileDetailsResponse:
       properties:
         contents:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         file:
           $ref: '#/components/schemas/FileInfo'
         mimeType:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
       required:
       - file
+      title: FileDetailsResponse
       type: object
     FileInfo:
       properties:
         children:
+          default: []
           items:
             $ref: '#/components/schemas/FileInfo'
           type: array
@@ -996,8 +1260,10 @@ components:
         isMarimoFile:
           type: boolean
         lastModified:
-          nullable: true
-          type: number
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
         name:
           type: string
         path:
@@ -1008,13 +1274,17 @@ components:
       - name
       - isDirectory
       - isMarimoFile
-      - children
+      title: FileInfo
       type: object
     FileListRequest:
       properties:
         path:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      required: []
+      title: FileListRequest
       type: object
     FileListResponse:
       properties:
@@ -1027,6 +1297,7 @@ components:
       required:
       - files
       - root
+      title: FileListResponse
       type: object
     FileMoveRequest:
       properties:
@@ -1037,19 +1308,25 @@ components:
       required:
       - path
       - newPath
+      title: FileMoveRequest
       type: object
     FileMoveResponse:
       properties:
         info:
-          $ref: '#/components/schemas/FileInfo'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/FileInfo'
+          default: null
         message:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         success:
           type: boolean
       required:
       - success
+      title: FileMoveResponse
       type: object
     FileOpenRequest:
       properties:
@@ -1057,6 +1334,7 @@ components:
           type: string
       required:
       - path
+      title: FileOpenRequest
       type: object
     FileUpdateRequest:
       properties:
@@ -1067,31 +1345,37 @@ components:
       required:
       - path
       - contents
+      title: FileUpdateRequest
       type: object
     FileUpdateResponse:
       properties:
         info:
-          $ref: '#/components/schemas/FileInfo'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/FileInfo'
+          default: null
         message:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         success:
           type: boolean
       required:
       - success
+      title: FileUpdateResponse
       type: object
     FocusCell:
       properties:
         cell_id:
           type: string
-        name:
+        op:
           enum:
           - focus-cell
-          type: string
       required:
+      - op
       - cell_id
-      - name
+      title: FocusCell
       type: object
     FormatRequest:
       properties:
@@ -1104,6 +1388,7 @@ components:
       required:
       - codes
       - lineLength
+      title: FormatRequest
       type: object
     FormatResponse:
       properties:
@@ -1113,11 +1398,21 @@ components:
           type: object
       required:
       - codes
+      title: FormatResponse
+      type: object
+    FormattingConfig:
+      description: "Configuration for code formatting.\n\n    **Keys.**\n\n    - `line_length`:\
+        \ max line length"
+      properties:
+        line_length:
+          type: integer
+      required:
+      - line_length
+      title: FormattingConfig
       type: object
     FunctionCallRequest:
       properties:
         args:
-          additionalProperties: {}
           type: object
         functionCallId:
           type: string
@@ -1130,67 +1425,106 @@ components:
       - namespace
       - functionName
       - args
+      title: FunctionCallRequest
       type: object
     FunctionCallResult:
+      description: Result of calling a function.
       properties:
         function_call_id:
           type: string
-        name:
+        op:
           enum:
           - function-call-result
-          type: string
-        return_value:
-          nullable: true
-          oneOf:
-          - additionalProperties:
-              $ref: '#/components/schemas/JSONType'
-            type: object
-          - items:
-              $ref: '#/components/schemas/JSONType'
-            type: array
-          - type: string
-          - type: integer
-          - type: number
-          - type: boolean
-          - additionalProperties: true
-            type: object
-          - $ref: '#/components/schemas/MIME'
+        return_value: {}
         status:
           $ref: '#/components/schemas/HumanReadableStatus'
       required:
+      - op
       - function_call_id
+      - return_value
       - status
-      - name
+      title: FunctionCallResult
       type: object
     GitHubConfig:
+      description: "Configuration options for GitHub.\n\n    **Keys.**\n\n    - `api_key`:\
+        \ the GitHub API token\n    - `base_url`: the base URL for the API"
       properties:
         api_key:
           type: string
         base_url:
           type: string
+      required: []
+      title: GitHubConfig
       type: object
     GoogleAiConfig:
+      description: "Configuration options for Google AI.\n\n    **Keys.**\n\n    -\
+        \ `api_key`: the Google AI API key"
       properties:
         api_key:
           type: string
+      required: []
+      title: GoogleAiConfig
       type: object
     HTTPRequest:
-      type: 'null'
+      description: 'A class that mimics the Request object from Starlette or FastAPI.
+
+
+        It is a subset and pickle-able version of the Request object.'
+      properties:
+        baseUrl:
+          type: object
+        cookies:
+          additionalProperties:
+            type: string
+          type: object
+        headers:
+          additionalProperties:
+            type: string
+          type: object
+        meta:
+          type: object
+        pathParams:
+          type: object
+        queryParams:
+          additionalProperties:
+            items:
+              type: string
+            type: array
+          type: object
+        url:
+          type: object
+        user: {}
+      required:
+      - url
+      - baseUrl
+      - headers
+      - queryParams
+      - pathParams
+      - cookies
+      - meta
+      - user
+      title: HTTPRequest
+      type: object
     HumanReadableStatus:
+      description: Human-readable status.
       properties:
         code:
           enum:
-          - ok
           - error
-          type: string
+          - ok
         message:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         title:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
       required:
       - code
+      title: HumanReadableStatus
       type: object
     ImportStarError:
       properties:
@@ -1199,10 +1533,10 @@ components:
         type:
           enum:
           - import-star
-          type: string
       required:
-      - msg
       - type
+      - msg
+      title: ImportStarError
       type: object
     InstallMissingPackagesRequest:
       properties:
@@ -1215,67 +1549,70 @@ components:
       required:
       - manager
       - versions
+      title: InstallMissingPackagesRequest
       type: object
     InstallingPackageAlert:
       properties:
-        name:
+        op:
           enum:
           - installing-package-alert
-          type: string
         packages:
           additionalProperties:
             enum:
-            - queued
-            - installing
-            - installed
             - failed
-            type: string
+            - installed
+            - installing
+            - queued
           type: object
       required:
+      - op
       - packages
-      - name
+      title: InstallingPackageAlert
       type: object
     InstantiateRequest:
       properties:
         autoRun:
+          default: true
           type: boolean
         objectIds:
           items:
             type: string
           type: array
         values:
-          items: {}
           type: array
       required:
       - objectIds
       - values
-      - autoRun
+      title: InstantiateRequest
       type: object
     Interrupted:
+      description: Written when the kernel is interrupted by the user.
       properties:
-        name:
+        op:
           enum:
           - interrupted
-          type: string
       required:
-      - name
+      - op
+      title: Interrupted
       type: object
     InvokeAiToolRequest:
       properties:
         arguments:
-          additionalProperties: {}
           type: object
         toolName:
           type: string
       required:
       - toolName
       - arguments
+      title: InvokeAiToolRequest
       type: object
     InvokeAiToolResponse:
       properties:
         error:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         result: {}
         success:
           type: boolean
@@ -1285,76 +1622,32 @@ components:
       - success
       - toolName
       - result
+      title: InvokeAiToolResponse
       type: object
-    JSONType:
-      oneOf:
-      - type: string
-      - type: number
-      - type: object
-      - type: array
-      - type: boolean
-      - type: 'null'
+    KernelCapabilities:
+      properties:
+        basedpyright:
+          default: false
+          type: boolean
+        pylsp:
+          default: false
+          type: boolean
+        terminal:
+          default: false
+          type: boolean
+        ty:
+          default: false
+          type: boolean
+      required: []
+      title: KernelCapabilities
+      type: object
     KernelReady:
+      description: Kernel is ready for execution.
       properties:
         app_config:
-          properties:
-            app_title:
-              nullable: true
-              type: string
-            auto_download:
-              items:
-                enum:
-                - html
-                - markdown
-                - ipynb
-                type: string
-              type: array
-            css_file:
-              nullable: true
-              type: string
-            html_head_file:
-              nullable: true
-              type: string
-            layout_file:
-              nullable: true
-              type: string
-            sql_output:
-              enum:
-              - polars
-              - lazy-polars
-              - pandas
-              - native
-              - auto
-              type: string
-            width:
-              enum:
-              - normal
-              - compact
-              - medium
-              - full
-              - columns
-              type: string
-          required:
-          - width
-          - auto_download
-          - sql_output
-          type: object
+          $ref: '#/components/schemas/_AppConfig'
         capabilities:
-          properties:
-            basedpyright:
-              type: boolean
-            pylsp:
-              type: boolean
-            terminal:
-              type: boolean
-            ty:
-              type: boolean
-          required:
-          - terminal
-          - pylsp
-          - ty
-          - basedpyright
-          type: object
+          $ref: '#/components/schemas/KernelCapabilities'
         cell_ids:
           items:
             type: string
@@ -1370,94 +1663,208 @@ components:
         kiosk:
           type: boolean
         last_executed_code:
-          additionalProperties:
-            type: string
-          nullable: true
-          type: object
-        last_execution_time:
-          additionalProperties:
-            type: number
-          nullable: true
-          type: object
-        layout:
-          nullable: true
-          properties:
-            data:
-              additionalProperties: {}
-              type: object
-            type:
+          anyOf:
+          - additionalProperties:
               type: string
-          required:
-          - type
-          - data
-          type: object
-        name:
-          enum:
-          - kernel-ready
-          type: string
+            type: object
+          - type: 'null'
+        last_execution_time:
+          anyOf:
+          - additionalProperties:
+              type: number
+            type: object
+          - type: 'null'
+        layout:
+          anyOf:
+          - $ref: '#/components/schemas/LayoutConfig'
+          - type: 'null'
         names:
           items:
             type: string
           type: array
+        op:
+          enum:
+          - kernel-ready
         resumed:
           type: boolean
         ui_values:
-          additionalProperties:
-            nullable: true
-            oneOf:
-            - additionalProperties:
-                nullable: true
-                oneOf:
-                - additionalProperties:
-                    $ref: '#/components/schemas/JSONType'
-                  type: object
-                - items:
-                    $ref: '#/components/schemas/JSONType'
-                  type: array
-                - type: string
-                - type: integer
-                - type: number
-                - type: boolean
-                - additionalProperties: true
-                  type: object
-                - $ref: '#/components/schemas/MIME'
-              type: object
-            - items:
-                nullable: true
-                oneOf:
-                - additionalProperties:
-                    $ref: '#/components/schemas/JSONType'
-                  type: object
-                - items:
-                    $ref: '#/components/schemas/JSONType'
-                  type: array
-                - type: string
-                - type: integer
-                - type: number
-                - type: boolean
-                - additionalProperties: true
-                  type: object
-                - $ref: '#/components/schemas/MIME'
-              type: array
-            - type: string
-            - type: integer
-            - type: number
-            - type: boolean
-            - additionalProperties: true
-              type: object
-            - $ref: '#/components/schemas/MIME'
-          nullable: true
-          type: object
+          anyOf:
+          - type: object
+          - type: 'null'
       required:
+      - op
       - cell_ids
       - codes
       - names
+      - layout
       - configs
       - resumed
+      - ui_values
+      - last_executed_code
+      - last_execution_time
       - app_config
       - kiosk
       - capabilities
-      - name
+      title: KernelReady
+      type: object
+    KeymapConfig:
+      description: "Configuration for keymaps.\n\n    **Keys.**\n\n    - `preset`:\
+        \ one of `\"default\"` or `\"vim\"`\n    - `overrides`: a dict of keymap actions\
+        \ to their keymap override\n    - `vimrc`: path to a vimrc file to load keymaps\
+        \ from\n    - `destructive_delete`: if `True`, allows deleting cells with\
+        \ content."
+      properties:
+        destructive_delete:
+          type: boolean
+        overrides:
+          additionalProperties:
+            type: string
+          type: object
+        preset:
+          enum:
+          - default
+          - vim
+        vimrc:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - preset
+      title: KeymapConfig
+      type: object
+    KnownUnions:
+      properties:
+        data_type:
+          enum:
+          - boolean
+          - date
+          - datetime
+          - integer
+          - number
+          - string
+          - time
+          - unknown
+        error:
+          anyOf:
+          - $ref: '#/components/schemas/SetupRootError'
+          - $ref: '#/components/schemas/CycleError'
+          - $ref: '#/components/schemas/MultipleDefinitionError'
+          - $ref: '#/components/schemas/ImportStarError'
+          - $ref: '#/components/schemas/MarimoAncestorStoppedError'
+          - $ref: '#/components/schemas/MarimoAncestorPreventedError'
+          - $ref: '#/components/schemas/MarimoExceptionRaisedError'
+          - $ref: '#/components/schemas/MarimoStrictExecutionError'
+          - $ref: '#/components/schemas/MarimoInterruptionError'
+          - $ref: '#/components/schemas/MarimoSyntaxError'
+          - $ref: '#/components/schemas/MarimoInternalError'
+          - $ref: '#/components/schemas/UnknownError'
+          discriminator:
+            mapping:
+              ancestor-prevented: '#/components/schemas/MarimoAncestorPreventedError'
+              ancestor-stopped: '#/components/schemas/MarimoAncestorStoppedError'
+              cycle: '#/components/schemas/CycleError'
+              exception: '#/components/schemas/MarimoExceptionRaisedError'
+              import-star: '#/components/schemas/ImportStarError'
+              internal: '#/components/schemas/MarimoInternalError'
+              interruption: '#/components/schemas/MarimoInterruptionError'
+              multiple-defs: '#/components/schemas/MultipleDefinitionError'
+              setup-refs: '#/components/schemas/SetupRootError'
+              strict-exception: '#/components/schemas/MarimoStrictExecutionError'
+              syntax: '#/components/schemas/MarimoSyntaxError'
+              unknown: '#/components/schemas/UnknownError'
+            propertyName: type
+        operation:
+          anyOf:
+          - $ref: '#/components/schemas/CellOp'
+          - $ref: '#/components/schemas/FunctionCallResult'
+          - $ref: '#/components/schemas/SendUIElementMessage'
+          - $ref: '#/components/schemas/RemoveUIElements'
+          - $ref: '#/components/schemas/Reload'
+          - $ref: '#/components/schemas/Reconnected'
+          - $ref: '#/components/schemas/Interrupted'
+          - $ref: '#/components/schemas/CompletedRun'
+          - $ref: '#/components/schemas/KernelReady'
+          - $ref: '#/components/schemas/CompletionResult'
+          - $ref: '#/components/schemas/Alert'
+          - $ref: '#/components/schemas/Banner'
+          - $ref: '#/components/schemas/MissingPackageAlert'
+          - $ref: '#/components/schemas/InstallingPackageAlert'
+          - $ref: '#/components/schemas/Variables'
+          - $ref: '#/components/schemas/VariableValues'
+          - $ref: '#/components/schemas/QueryParamsSet'
+          - $ref: '#/components/schemas/QueryParamsAppend'
+          - $ref: '#/components/schemas/QueryParamsDelete'
+          - $ref: '#/components/schemas/QueryParamsClear'
+          - $ref: '#/components/schemas/Datasets'
+          - $ref: '#/components/schemas/DataColumnPreview'
+          - $ref: '#/components/schemas/SQLTablePreview'
+          - $ref: '#/components/schemas/SQLTableListPreview'
+          - $ref: '#/components/schemas/DataSourceConnections'
+          - $ref: '#/components/schemas/SecretKeysResult'
+          - $ref: '#/components/schemas/FocusCell'
+          - $ref: '#/components/schemas/UpdateCellCodes'
+          - $ref: '#/components/schemas/UpdateCellIdsRequest'
+          discriminator:
+            mapping:
+              alert: '#/components/schemas/Alert'
+              banner: '#/components/schemas/Banner'
+              cell-op: '#/components/schemas/CellOp'
+              completed-run: '#/components/schemas/CompletedRun'
+              completion-result: '#/components/schemas/CompletionResult'
+              data-column-preview: '#/components/schemas/DataColumnPreview'
+              data-source-connections: '#/components/schemas/DataSourceConnections'
+              datasets: '#/components/schemas/Datasets'
+              focus-cell: '#/components/schemas/FocusCell'
+              function-call-result: '#/components/schemas/FunctionCallResult'
+              installing-package-alert: '#/components/schemas/InstallingPackageAlert'
+              interrupted: '#/components/schemas/Interrupted'
+              kernel-ready: '#/components/schemas/KernelReady'
+              missing-package-alert: '#/components/schemas/MissingPackageAlert'
+              query-params-append: '#/components/schemas/QueryParamsAppend'
+              query-params-clear: '#/components/schemas/QueryParamsClear'
+              query-params-delete: '#/components/schemas/QueryParamsDelete'
+              query-params-set: '#/components/schemas/QueryParamsSet'
+              reconnected: '#/components/schemas/Reconnected'
+              reload: '#/components/schemas/Reload'
+              remove-ui-elements: '#/components/schemas/RemoveUIElements'
+              secret-keys-result: '#/components/schemas/SecretKeysResult'
+              send-ui-element-message: '#/components/schemas/SendUIElementMessage'
+              sql-table-list-preview: '#/components/schemas/SQLTableListPreview'
+              sql-table-preview: '#/components/schemas/SQLTablePreview'
+              update-cell-codes: '#/components/schemas/UpdateCellCodes'
+              update-cell-ids: '#/components/schemas/UpdateCellIdsRequest'
+              variable-values: '#/components/schemas/VariableValues'
+              variables: '#/components/schemas/Variables'
+            propertyName: op
+      required:
+      - operation
+      - error
+      - data_type
+      title: KnownUnions
+      type: object
+    LanguageServersConfig:
+      description: "Configuration options for language servers.\n\n    **Keys.**\n\
+        \n    - `pylsp`: the pylsp config"
+      properties:
+        basedpyright:
+          $ref: '#/components/schemas/BasedpyrightServerConfig'
+        pylsp:
+          $ref: '#/components/schemas/PythonLanguageServerConfig'
+        ty:
+          $ref: '#/components/schemas/TyLanguageServerConfig'
+      required: []
+      title: LanguageServersConfig
+      type: object
+    LayoutConfig:
+      properties:
+        data:
+          type: object
+        type:
+          type: string
+      required:
+      - type
+      - data
+      title: LayoutConfig
       type: object
     ListPackagesResponse:
       properties:
@@ -1474,24 +1881,47 @@ components:
           type: string
       required:
       - requestId
+      title: ListSecretKeysRequest
       type: object
     ListSecretKeysResponse:
       properties:
         keys:
           items:
-            $ref: '#/components/schemas/SecretKeysWithProvider'
+            properties:
+              keys:
+                items:
+                  type: string
+                type: array
+              name:
+                type: string
+              provider:
+                enum:
+                - env
+                - dotenv
+                type: string
+            required:
+            - provider
+            - name
+            - keys
+            type: object
           type: array
       required:
       - keys
       type: object
     MIME:
+      description: "Protocol for instantiating objects using marimo's media viewer.\n\
+        \n    To implement this protocol, a class needs to define\n    just one method,\
+        \ _mime_."
       properties: {}
+      required: []
+      title: MIME
       type: object
     MarimoAncestorPreventedError:
       properties:
         blamed_cell:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
         msg:
           type: string
         raising_cell:
@@ -1499,11 +1929,12 @@ components:
         type:
           enum:
           - ancestor-prevented
-          type: string
       required:
+      - type
       - msg
       - raising_cell
-      - type
+      - blamed_cell
+      title: MarimoAncestorPreventedError
       type: object
     MarimoAncestorStoppedError:
       properties:
@@ -1514,343 +1945,55 @@ components:
         type:
           enum:
           - ancestor-stopped
-          type: string
       required:
+      - type
       - msg
       - raising_cell
-      - type
+      title: MarimoAncestorStoppedError
       type: object
     MarimoConfig:
+      description: Configuration for the marimo editor
       properties:
         ai:
           $ref: '#/components/schemas/AiConfig'
         completion:
-          properties:
-            activate_on_typing:
-              type: boolean
-            api_key:
-              nullable: true
-              type: string
-            base_url:
-              nullable: true
-              type: string
-            codeium_api_key:
-              nullable: true
-              type: string
-            copilot:
-              oneOf:
-              - type: boolean
-              - enum:
-                - github
-                - codeium
-                - custom
-                type: string
-            model:
-              nullable: true
-              type: string
-          required:
-          - activate_on_typing
-          - copilot
-          type: object
+          $ref: '#/components/schemas/CompletionConfig'
         datasources:
-          properties:
-            auto_discover_columns:
-              oneOf:
-              - type: boolean
-              - enum:
-                - auto
-                type: string
-            auto_discover_schemas:
-              oneOf:
-              - type: boolean
-              - enum:
-                - auto
-                type: string
-            auto_discover_tables:
-              oneOf:
-              - type: boolean
-              - enum:
-                - auto
-                type: string
-          type: object
+          $ref: '#/components/schemas/DatasourcesConfig'
         diagnostics:
-          properties:
-            enabled:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/DiagnosticsConfig'
         display:
-          properties:
-            cell_output:
-              enum:
-              - above
-              - below
-              type: string
-            code_editor_font_size:
-              type: integer
-            custom_css:
-              items:
-                type: string
-              type: array
-            dataframes:
-              enum:
-              - rich
-              - plain
-              type: string
-            default_table_max_columns:
-              type: integer
-            default_table_page_size:
-              type: integer
-            default_width:
-              enum:
-              - normal
-              - compact
-              - medium
-              - full
-              - columns
-              type: string
-            reference_highlighting:
-              type: boolean
-            theme:
-              enum:
-              - light
-              - dark
-              - system
-              type: string
-          required:
-          - theme
-          - code_editor_font_size
-          - cell_output
-          - default_width
-          - dataframes
-          - default_table_page_size
-          - default_table_max_columns
-          type: object
+          $ref: '#/components/schemas/DisplayConfig'
         experimental:
-          oneOf:
-          - additionalProperties: {}
-            type: object
-          - properties:
-              cache:
-                oneOf:
-                - items:
-                    properties:
-                      args:
-                        additionalProperties: {}
-                        type: object
-                      type:
-                        enum:
-                        - file
-                        - redis
-                        - rest
-                        - tiered
-                        type: string
-                    type: object
-                  type: array
-                - $ref: '#/components/schemas/StoreConfig'
-              execution_type:
-                enum:
-                - relaxed
-                - strict
-                type: string
-              inline_ai_tooltip:
-                type: boolean
-              markdown:
-                type: boolean
-              mcp_docs:
-                type: boolean
-              performant_table_charts:
-                type: boolean
-              rtc_v2:
-                type: boolean
-              sql_linter:
-                type: boolean
-              wasm_layouts:
-                type: boolean
-            type: object
+          type: object
         formatting:
-          properties:
-            line_length:
-              type: integer
-          required:
-          - line_length
-          type: object
+          $ref: '#/components/schemas/FormattingConfig'
         keymap:
-          properties:
-            destructive_delete:
-              type: boolean
-            overrides:
-              additionalProperties:
-                type: string
-              type: object
-            preset:
-              enum:
-              - default
-              - vim
-              type: string
-            vimrc:
-              nullable: true
-              type: string
-          required:
-          - preset
-          type: object
+          $ref: '#/components/schemas/KeymapConfig'
         language_servers:
-          properties:
-            basedpyright:
-              properties:
-                enabled:
-                  type: boolean
-              type: object
-            pylsp:
-              properties:
-                enable_flake8:
-                  type: boolean
-                enable_mypy:
-                  type: boolean
-                enable_pydocstyle:
-                  type: boolean
-                enable_pyflakes:
-                  type: boolean
-                enable_pylint:
-                  type: boolean
-                enable_ruff:
-                  type: boolean
-                enabled:
-                  type: boolean
-              type: object
-            ty:
-              properties:
-                enabled:
-                  type: boolean
-              type: object
-          type: object
+          $ref: '#/components/schemas/LanguageServersConfig'
         package_management:
-          properties:
-            manager:
-              enum:
-              - pip
-              - rye
-              - uv
-              - poetry
-              - pixi
-              type: string
-          required:
-          - manager
-          type: object
+          $ref: '#/components/schemas/PackageManagementConfig'
         runtime:
-          properties:
-            auto_instantiate:
-              type: boolean
-            auto_reload:
-              enum:
-              - 'off'
-              - lazy
-              - autorun
-              type: string
-            default_auto_download:
-              items:
-                enum:
-                - html
-                - markdown
-                - ipynb
-                type: string
-              type: array
-            default_sql_output:
-              enum:
-              - polars
-              - lazy-polars
-              - pandas
-              - native
-              - auto
-              type: string
-            dotenv:
-              items:
-                type: string
-              type: array
-            on_cell_change:
-              enum:
-              - lazy
-              - autorun
-              type: string
-            output_max_bytes:
-              type: integer
-            pythonpath:
-              items:
-                type: string
-              type: array
-            reactive_tests:
-              type: boolean
-            std_stream_max_bytes:
-              type: integer
-            watcher_on_save:
-              enum:
-              - lazy
-              - autorun
-              type: string
-          required:
-          - auto_instantiate
-          - auto_reload
-          - reactive_tests
-          - on_cell_change
-          - watcher_on_save
-          - output_max_bytes
-          - std_stream_max_bytes
-          - default_sql_output
-          type: object
+          $ref: '#/components/schemas/RuntimeConfig'
         save:
-          properties:
-            autosave:
-              enum:
-              - 'off'
-              - after_delay
-              type: string
-            autosave_delay:
-              type: integer
-            format_on_save:
-              type: boolean
-          required:
-          - autosave
-          - autosave_delay
-          - format_on_save
-          type: object
+          $ref: '#/components/schemas/SaveConfig'
         server:
-          properties:
-            browser:
-              oneOf:
-              - enum:
-                - default
-                type: string
-              - type: string
-            follow_symlink:
-              type: boolean
-          required:
-          - browser
-          - follow_symlink
-          type: object
+          $ref: '#/components/schemas/ServerConfig'
         sharing:
-          properties:
-            html:
-              type: boolean
-            wasm:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/SharingConfig'
         snippets:
-          properties:
-            custom_paths:
-              items:
-                type: string
-              type: array
-            include_default_snippets:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/SnippetsConfig'
       required:
       - completion
       - display
       - formatting
       - keymap
+      - package_management
       - runtime
       - save
       - server
-      - package_management
+      title: MarimoConfig
       type: object
     MarimoExceptionRaisedError:
       properties:
@@ -1859,16 +2002,18 @@ components:
         msg:
           type: string
         raising_cell:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
         type:
           enum:
           - exception
-          type: string
       required:
+      - type
       - msg
       - exception_type
-      - type
+      - raising_cell
+      title: MarimoExceptionRaisedError
       type: object
     MarimoFile:
       properties:
@@ -1890,34 +2035,43 @@ components:
       - path
       type: object
     MarimoInternalError:
+      description: 'An internal error that should be hidden from the user.
+
+        The error is logged to the console and then a new error is broadcasted
+
+        such that the data is hidden.
+
+
+        They can be linked back to the original error by the error_id.'
       properties:
         error_id:
           type: string
         msg:
+          default: ''
           type: string
         type:
           enum:
           - internal
-          type: string
       required:
-      - error_id
       - type
-      - msg
+      - error_id
+      title: MarimoInternalError
       type: object
     MarimoInterruptionError:
       properties:
         type:
           enum:
           - interruption
-          type: string
       required:
       - type
+      title: MarimoInterruptionError
       type: object
     MarimoStrictExecutionError:
       properties:
         blamed_cell:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
         msg:
           type: string
         ref:
@@ -1925,11 +2079,12 @@ components:
         type:
           enum:
           - strict-exception
-          type: string
       required:
+      - type
       - msg
       - ref
-      - type
+      - blamed_cell
+      title: MarimoStrictExecutionError
       type: object
     MarimoSyntaxError:
       properties:
@@ -1938,82 +2093,44 @@ components:
         type:
           enum:
           - syntax
-          type: string
       required:
-      - msg
       - type
+      - msg
+      title: MarimoSyntaxError
       type: object
-    MessageOperation:
-      oneOf:
-      - $ref: '#/components/schemas/CellOp'
-      - $ref: '#/components/schemas/FunctionCallResult'
-      - $ref: '#/components/schemas/SendUIElementMessage'
-      - $ref: '#/components/schemas/RemoveUIElements'
-      - $ref: '#/components/schemas/Reload'
-      - $ref: '#/components/schemas/Reconnected'
-      - $ref: '#/components/schemas/Interrupted'
-      - $ref: '#/components/schemas/CompletedRun'
-      - $ref: '#/components/schemas/KernelReady'
-      - $ref: '#/components/schemas/CompletionResult'
-      - $ref: '#/components/schemas/Alert'
-      - $ref: '#/components/schemas/Banner'
-      - $ref: '#/components/schemas/MissingPackageAlert'
-      - $ref: '#/components/schemas/InstallingPackageAlert'
-      - $ref: '#/components/schemas/Variables'
-      - $ref: '#/components/schemas/VariableValues'
-      - $ref: '#/components/schemas/QueryParamsSet'
-      - $ref: '#/components/schemas/QueryParamsAppend'
-      - $ref: '#/components/schemas/QueryParamsDelete'
-      - $ref: '#/components/schemas/QueryParamsClear'
-      - $ref: '#/components/schemas/Datasets'
-      - $ref: '#/components/schemas/DataColumnPreview'
-      - $ref: '#/components/schemas/SQLTablePreview'
-      - $ref: '#/components/schemas/SQLTableListPreview'
-      - $ref: '#/components/schemas/DataSourceConnections'
-      - $ref: '#/components/schemas/SecretKeysResult'
-      - $ref: '#/components/schemas/FocusCell'
-      - $ref: '#/components/schemas/UpdateCellCodes'
-      - $ref: '#/components/schemas/UpdateCellIdsRequest'
-    MimeType:
-      enum:
-      - application/json
-      - application/vnd.marimo+error
-      - application/vnd.marimo+traceback
-      - application/vnd.marimo+mimebundle
-      - application/vnd.vega.v5+json
-      - application/vnd.vegalite.v5+json
-      - application/vnd.jupyter.widget-view+json
-      - image/png
-      - image/svg+xml
-      - image/tiff
-      - image/avif
-      - image/bmp
-      - image/gif
-      - image/jpeg
-      - video/mp4
-      - video/mpeg
-      - text/html
-      - text/plain
-      - text/markdown
-      - text/latex
-      - text/csv
-      type: string
     MissingPackageAlert:
       properties:
         isolated:
           type: boolean
-        name:
+        op:
           enum:
           - missing-package-alert
-          type: string
         packages:
           items:
             type: string
           type: array
       required:
+      - op
       - packages
       - isolated
-      - name
+      title: MissingPackageAlert
+      type: object
+    ModelMessage:
+      properties:
+        bufferPaths:
+          items:
+            items:
+              anyOf:
+              - type: string
+              - type: integer
+            type: array
+          type: array
+        state:
+          type: object
+      required:
+      - state
+      - bufferPaths
+      title: ModelMessage
       type: object
     MultipleDefinitionError:
       properties:
@@ -2026,29 +2143,22 @@ components:
         type:
           enum:
           - multiple-defs
-          type: string
       required:
+      - type
       - name
       - cells
-      - type
+      title: MultipleDefinitionError
       type: object
-    NonNestedLiteral:
-      oneOf:
-      - type: integer
-      - type: number
-      - format: date
-        type: string
-      - format: time
-        type: string
-      - format: date-time
-        type: string
-      - format: duration
-        type: string
-      - type: string
-      - type: boolean
-      - format: byte
-        type: string
     OpenAiConfig:
+      description: "Configuration options for OpenAI or OpenAI-compatible services.\n\
+        \n    **Keys.**\n\n    - `api_key`: the OpenAI API key\n    - `base_url`:\
+        \ the base URL for the API\n    - `ssl_verify` : Boolean argument for httpx\
+        \ passed to open ai client. httpx defaults to true, but some use cases to\
+        \ let users override to False in some testing scenarios\n    - `ca_bundle_path`:\
+        \ custom ca bundle to be used for verifying SSL certificates. Used to create\
+        \ custom SSL context for httpx client\n    - `client_pem` : custom path of\
+        \ a client .pem cert used for verifying identity of client server\n    - `extra_headers`:\
+        \ extra headers to be passed to the OpenAI client"
       properties:
         api_key:
           type: string
@@ -2066,6 +2176,8 @@ components:
           type: string
         ssl_verify:
           type: boolean
+      required: []
+      title: OpenAiConfig
       type: object
     OpenTutorialRequest:
       properties:
@@ -2098,6 +2210,21 @@ components:
       - name
       - version
       type: object
+    PackageManagementConfig:
+      description: "Configuration options for package management.\n\n    **Keys.**\n\
+        \n    - `manager`: the package manager to use"
+      properties:
+        manager:
+          enum:
+          - pip
+          - pixi
+          - poetry
+          - rye
+          - uv
+      required:
+      - manager
+      title: PackageManagementConfig
+      type: object
     PackageOperationResponse:
       properties:
         error:
@@ -2113,34 +2240,40 @@ components:
         cellId:
           type: string
         request:
-          $ref: '#/components/schemas/HTTPRequest'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/HTTPRequest'
+          default: null
       required:
       - cellId
+      title: PdbRequest
       type: object
     PreviewDataSourceConnectionRequest:
+      description: Fetch a datasource connection
       properties:
         engine:
           type: string
       required:
       - engine
+      title: PreviewDataSourceConnectionRequest
       type: object
     PreviewDatasetColumnRequest:
       properties:
         columnName:
           type: string
         fullyQualifiedTableName:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         source:
           type: string
         sourceType:
           enum:
-          - local
-          - duckdb
-          - connection
           - catalog
-          type: string
+          - connection
+          - duckdb
+          - local
         tableName:
           type: string
       required:
@@ -2148,8 +2281,10 @@ components:
       - source
       - tableName
       - columnName
+      title: PreviewDatasetColumnRequest
       type: object
     PreviewSQLTableListRequest:
+      description: Preview list of tables in an SQL schema
       properties:
         database:
           type: string
@@ -2164,8 +2299,10 @@ components:
       - engine
       - database
       - schema
+      title: PreviewSQLTableListRequest
       type: object
     PreviewSQLTableRequest:
+      description: Preview table details in an SQL database
       properties:
         database:
           type: string
@@ -2183,64 +2320,91 @@ components:
       - database
       - schema
       - tableName
+      title: PreviewSQLTableRequest
+      type: object
+    PythonLanguageServerConfig:
+      description: 'Configuration options for Python Language Server.
+
+
+        pylsp handles completion, hover, go-to-definition, and diagnostics.'
+      properties:
+        enable_flake8:
+          type: boolean
+        enable_mypy:
+          type: boolean
+        enable_pydocstyle:
+          type: boolean
+        enable_pyflakes:
+          type: boolean
+        enable_pylint:
+          type: boolean
+        enable_ruff:
+          type: boolean
+        enabled:
+          type: boolean
+      required: []
+      title: PythonLanguageServerConfig
       type: object
     QueryParamsAppend:
       properties:
         key:
           type: string
-        name:
+        op:
           enum:
           - query-params-append
-          type: string
         value:
           type: string
       required:
+      - op
       - key
       - value
-      - name
+      title: QueryParamsAppend
       type: object
     QueryParamsClear:
       properties:
-        name:
+        op:
           enum:
           - query-params-clear
-          type: string
       required:
-      - name
+      - op
+      title: QueryParamsClear
       type: object
     QueryParamsDelete:
       properties:
         key:
           type: string
-        name:
+        op:
           enum:
           - query-params-delete
-          type: string
         value:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
       required:
+      - op
       - key
-      - name
+      - value
+      title: QueryParamsDelete
       type: object
     QueryParamsSet:
+      description: Set query parameters.
       properties:
         key:
           type: string
-        name:
+        op:
           enum:
           - query-params-set
-          type: string
         value:
-          oneOf:
+          anyOf:
           - type: string
           - items:
               type: string
             type: array
       required:
+      - op
       - key
       - value
-      - name
+      title: QueryParamsSet
       type: object
     ReadCodeResponse:
       properties:
@@ -2248,6 +2412,7 @@ components:
           type: string
       required:
       - contents
+      title: ReadCodeResponse
       type: object
     RecentFilesResponse:
       properties:
@@ -2260,21 +2425,21 @@ components:
       type: object
     Reconnected:
       properties:
-        name:
+        op:
           enum:
           - reconnected
-          type: string
       required:
-      - name
+      - op
+      title: Reconnected
       type: object
     Reload:
       properties:
-        name:
+        op:
           enum:
           - reload
-          type: string
       required:
-      - name
+      - op
+      title: Reload
       type: object
     RemovePackageRequest:
       properties:
@@ -2284,16 +2449,17 @@ components:
       - package
       type: object
     RemoveUIElements:
+      description: Invalidate UI elements for a given cell.
       properties:
         cell_id:
           type: string
-        name:
+        op:
           enum:
           - remove-ui-elements
-          type: string
       required:
+      - op
       - cell_id
-      - name
+      title: RemoveUIElements
       type: object
     RenameFileRequest:
       properties:
@@ -2301,6 +2467,7 @@ components:
           type: string
       required:
       - filename
+      title: RenameFileRequest
       type: object
     RenameRequest:
       properties:
@@ -2308,6 +2475,7 @@ components:
           type: string
       required:
       - filename
+      title: RenameRequest
       type: object
     RunRequest:
       properties:
@@ -2320,11 +2488,14 @@ components:
             type: string
           type: array
         request:
-          $ref: '#/components/schemas/HTTPRequest'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/HTTPRequest'
+          default: null
       required:
       - cellIds
       - codes
+      title: RunRequest
       type: object
     RunningNotebooksResponse:
       properties:
@@ -2335,58 +2506,166 @@ components:
       required:
       - files
       type: object
-    RuntimeState:
-      enum:
-      - idle
-      - queued
-      - running
-      - disabled-transitively
-      type: string
+    RuntimeConfig:
+      description: "Configuration for runtime.\n\n    **Keys.**\n\n    - `auto_instantiate`:\
+        \ if `False`, cells won't automatically\n        run on startup. This only\
+        \ applies when editing a notebook,\n        and not when running as an application.\n\
+        \        The default is `True`.\n    - `auto_reload`: if `lazy`, cells importing\
+        \ modified modules will marked\n      as stale; if `autorun`, affected cells\
+        \ will be automatically run. similar\n      to IPython's %autoreload extension\
+        \ but with more code intelligence.\n    - `reactive_tests`: if `True`, marimo\
+        \ will automatically run pytest on cells containing only test functions and\
+        \ test classes.\n      execution.\n    - `on_cell_change`: if `lazy`, cells\
+        \ will be marked stale when their\n      ancestors run but won't autorun;\
+        \ if `autorun`, cells will automatically\n      run when their ancestors run.\n\
+        \    - `execution_type`: if `relaxed`, marimo will not clone cell declarations;\n\
+        \      if `strict` marimo will clone cell declarations by default, avoiding\n\
+        \      hidden potential state build up.\n    - `watcher_on_save`: how to handle\
+        \ file changes when saving. `\"lazy\"` marks\n        affected cells as stale,\
+        \ `\"autorun\"` automatically runs affected cells.\n    - `output_max_bytes`:\
+        \ the maximum size in bytes of cell outputs; larger\n        values may affect\
+        \ frontend performance\n    - `std_stream_max_bytes`: the maximum size in\
+        \ bytes of console outputs;\n      larger values may affect frontend performance\n\
+        \    - `pythonpath`: a list of directories to add to the Python search path.\n\
+        \        Directories will be added to the head of sys.path. Similar to the\n\
+        \        `PYTHONPATH` environment variable, the directories will be included\
+        \ in\n        where Python will look for imported modules.\n    - `dotenv`:\
+        \ a list of paths to `.env` files to load.\n        If the file does not exist,\
+        \ it will be silently ignored.\n        The default is `[\".env\"]` if a pyproject.toml\
+        \ is found, otherwise `[]`.\n    - `default_sql_output`: the default output\
+        \ format for SQL queries. Can be one of:\n        `\"auto\"`, `\"native\"\
+        `, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n        The default\
+        \ is `\"auto\"`.\n    - `default_auto_download`: an Optional list of export\
+        \ types to automatically snapshot your notebook as:\n       `html`, `markdown`,\
+        \ `ipynb`.\n       The default is None."
+      properties:
+        auto_instantiate:
+          type: boolean
+        auto_reload:
+          enum:
+          - autorun
+          - lazy
+          - 'off'
+        default_auto_download:
+          items:
+            enum:
+            - html
+            - ipynb
+            - markdown
+          type: array
+        default_sql_output:
+          enum:
+          - auto
+          - lazy-polars
+          - native
+          - pandas
+          - polars
+        dotenv:
+          items:
+            type: string
+          type: array
+        on_cell_change:
+          enum:
+          - autorun
+          - lazy
+        output_max_bytes:
+          type: integer
+        pythonpath:
+          items:
+            type: string
+          type: array
+        reactive_tests:
+          type: boolean
+        std_stream_max_bytes:
+          type: integer
+        watcher_on_save:
+          enum:
+          - autorun
+          - lazy
+      required:
+      - auto_instantiate
+      - auto_reload
+      - default_sql_output
+      - on_cell_change
+      - output_max_bytes
+      - reactive_tests
+      - std_stream_max_bytes
+      - watcher_on_save
+      title: RuntimeConfig
+      type: object
     SQLTableListPreview:
+      description: Preview of a list of tables in a schema.
       properties:
         error:
-          nullable: true
-          type: string
-        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        op:
           enum:
           - sql-table-list-preview
-          type: string
         request_id:
           type: string
         tables:
+          default: []
           items:
             $ref: '#/components/schemas/DataTable'
           type: array
       required:
+      - op
       - request_id
-      - tables
-      - name
+      title: SQLTableListPreview
       type: object
     SQLTablePreview:
+      description: Preview of a table in a SQL database.
       properties:
         error:
-          nullable: true
-          type: string
-        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        op:
           enum:
           - sql-table-preview
-          type: string
         request_id:
           type: string
         table:
-          $ref: '#/components/schemas/DataTable'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DataTable'
       required:
+      - op
       - request_id
-      - name
+      - table
+      title: SQLTablePreview
       type: object
     SaveAppConfigurationRequest:
       properties:
         config:
-          additionalProperties: {}
           type: object
       required:
       - config
+      title: SaveAppConfigurationRequest
+      type: object
+    SaveConfig:
+      description: "Configuration for saving.\n\n    **Keys.**\n\n    - `autosave`:\
+        \ one of `\"off\"` or `\"after_delay\"`\n    - `delay`: number of milliseconds\
+        \ to wait before autosaving\n    - `format_on_save`: if `True`, format the\
+        \ code on save"
+      properties:
+        autosave:
+          enum:
+          - after_delay
+          - 'off'
+        autosave_delay:
+          type: integer
+        format_on_save:
+          type: boolean
+      required:
+      - autosave
+      - autosave_delay
+      - format_on_save
+      title: SaveConfig
       type: object
     SaveNotebookRequest:
       properties:
@@ -2405,14 +2684,16 @@ components:
         filename:
           type: string
         layout:
-          additionalProperties: {}
-          nullable: true
-          type: object
+          anyOf:
+          - type: object
+          - type: 'null'
+          default: null
         names:
           items:
             type: string
           type: array
         persist:
+          default: true
           type: boolean
       required:
       - cellIds
@@ -2420,7 +2701,7 @@ components:
       - names
       - configs
       - filename
-      - persist
+      title: SaveNotebookRequest
       type: object
     SaveUserConfigurationRequest:
       properties:
@@ -2428,6 +2709,7 @@ components:
           $ref: '#/components/schemas/MarimoConfig'
       required:
       - config
+      title: SaveUserConfigurationRequest
       type: object
     Schema:
       properties:
@@ -2440,6 +2722,7 @@ components:
       required:
       - name
       - tables
+      title: Schema
       type: object
     SchemaColumn:
       properties:
@@ -2468,11 +2751,11 @@ components:
       - columns
       type: object
     SecretKeysResult:
+      description: Result of listing secret keys.
       properties:
-        name:
+        op:
           enum:
           - secret-keys-result
-          type: string
         request_id:
           type: string
         secrets:
@@ -2480,9 +2763,10 @@ components:
             $ref: '#/components/schemas/SecretKeysWithProvider'
           type: array
       required:
+      - op
       - request_id
       - secrets
-      - name
+      title: SecretKeysResult
       type: object
     SecretKeysWithProvider:
       properties:
@@ -2494,77 +2778,90 @@ components:
           type: string
         provider:
           enum:
-          - env
           - dotenv
-          type: string
+          - env
       required:
       - provider
       - name
       - keys
+      title: SecretKeysWithProvider
       type: object
     SendUIElementMessage:
+      description: Send a message to a UI element.
       properties:
         buffers:
-          items:
-            type: string
-          nullable: true
-          type: array
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
         message:
-          additionalProperties: {}
           type: object
         model_id:
-          nullable: true
-          type: string
-        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+        op:
           enum:
           - send-ui-element-message
-          type: string
         ui_element:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
       required:
+      - op
+      - ui_element
+      - model_id
       - message
-      - name
+      title: SendUIElementMessage
+      type: object
+    ServerConfig:
+      description: "Configuration for the server.\n\n    **Keys.**\n\n    - `browser`:\
+        \ the web browser to use. `\"default\"` or a browser registered\n        with\
+        \ Python's webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n    - `follow_symlink`:\
+        \ if true, the server will follow symlinks it finds\n        inside its static\
+        \ assets directory."
+      properties:
+        browser:
+          anyOf:
+          - enum:
+            - default
+          - type: string
+        follow_symlink:
+          type: boolean
+      required:
+      - browser
+      - follow_symlink
+      title: ServerConfig
       type: object
     SetCellConfigRequest:
       properties:
         configs:
           additionalProperties:
-            additionalProperties: {}
             type: object
           type: object
       required:
       - configs
+      title: SetCellConfigRequest
       type: object
     SetModelMessageRequest:
       properties:
         buffers:
-          items:
-            type: string
-          nullable: true
-          type: array
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
         message:
-          properties:
-            bufferPaths:
-              items:
-                items:
-                  oneOf:
-                  - type: string
-                  - type: integer
-                type: array
-              type: array
-            state:
-              additionalProperties: {}
-              type: object
-          required:
-          - state
-          - bufferPaths
-          type: object
+          $ref: '#/components/schemas/ModelMessage'
         modelId:
           type: string
       required:
       - modelId
       - message
+      title: SetModelMessageRequest
       type: object
     SetUIElementValueRequest:
       properties:
@@ -2573,17 +2870,18 @@ components:
             type: string
           type: array
         request:
-          $ref: '#/components/schemas/HTTPRequest'
-          nullable: true
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/HTTPRequest'
+          default: null
         token:
           type: string
         values:
-          items: {}
           type: array
       required:
       - objectIds
       - values
-      - token
+      title: SetUIElementValueRequest
       type: object
     SetUserConfigRequest:
       properties:
@@ -2591,11 +2889,15 @@ components:
           $ref: '#/components/schemas/MarimoConfig'
       required:
       - config
+      title: SetUserConfigRequest
       type: object
     SetupRootError:
       properties:
         edges_with_vars:
           items:
+            items: false
+            maxItems: 3
+            minItems: 3
             prefixItems:
             - type: string
             - items:
@@ -2607,10 +2909,23 @@ components:
         type:
           enum:
           - setup-refs
-          type: string
       required:
-      - edges_with_vars
       - type
+      - edges_with_vars
+      title: SetupRootError
+      type: object
+    SharingConfig:
+      description: "Configuration for sharing features.\n\n    **Keys.**\n\n    -\
+        \ `html`: if `False`, HTML sharing options will be hidden from the UI\n  \
+        \  - `wasm`: if `False`, WebAssembly sharing options will be hidden from the\
+        \ UI"
+      properties:
+        html:
+          type: boolean
+        wasm:
+          type: boolean
+      required: []
+      title: SharingConfig
       type: object
     ShutdownSessionRequest:
       properties:
@@ -2653,20 +2968,36 @@ components:
       required:
       - snippets
       type: object
+    SnippetsConfig:
+      description: "Configuration for snippets.\n\n    **Keys.**\n\n    - `custom_path`:\
+        \ the path to the custom snippets directory"
+      properties:
+        custom_paths:
+          items:
+            type: string
+          type: array
+        include_default_snippets:
+          type: boolean
+      required: []
+      title: SnippetsConfig
+      type: object
     StdinRequest:
       properties:
         text:
           type: string
       required:
       - text
+      title: StdinRequest
       type: object
     StopRequest:
       properties: {}
+      required: []
+      title: StopRequest
       type: object
     StoreConfig:
+      description: Configuration for cache stores.
       properties:
         args:
-          additionalProperties: {}
           type: object
         type:
           enum:
@@ -2674,26 +3005,46 @@ components:
           - redis
           - rest
           - tiered
-          type: string
+      required: []
+      title: StoreConfig
       type: object
     SuccessResponse:
       properties:
         success:
+          default: true
           type: boolean
-      required:
-      - success
+      required: []
+      title: SuccessResponse
+      type: object
+    TyLanguageServerConfig:
+      description: 'Configuration options for Ty Language Server.
+
+
+        ty handles completion, hover, go-to-definition, and diagnostics,
+
+        but we only use it for diagnostics.'
+      properties:
+        enabled:
+          type: boolean
+      required: []
+      title: TyLanguageServerConfig
       type: object
     UnknownError:
       properties:
+        error_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         msg:
           type: string
         type:
           enum:
           - unknown
-          type: string
       required:
-      - msg
       - type
+      - msg
+      title: UnknownError
       type: object
     UpdateCellCodes:
       properties:
@@ -2707,29 +3058,35 @@ components:
           items:
             type: string
           type: array
-        name:
+        op:
           enum:
           - update-cell-codes
-          type: string
       required:
+      - op
       - cell_ids
       - codes
       - code_is_stale
-      - name
+      title: UpdateCellCodes
       type: object
     UpdateCellIdsRequest:
+      description: 'Update the cell ID ordering of the cells in the notebook.
+
+
+        Right now we send the entire list of cell IDs,
+
+        but in the future we might want to send change-deltas.'
       properties:
         cell_ids:
           items:
             type: string
           type: array
-        name:
+        op:
           enum:
           - update-cell-ids
-          type: string
       required:
+      - op
       - cell_ids
-      - name
+      title: UpdateCellIdsRequest
       type: object
     UpdateComponentValuesRequest:
       properties:
@@ -2738,11 +3095,11 @@ components:
             type: string
           type: array
         values:
-          items: {}
           type: array
       required:
       - objectIds
       - values
+      title: UpdateComponentValuesRequest
       type: object
     VariableContext:
       properties:
@@ -2772,47 +3129,55 @@ components:
       - name
       - declared_by
       - used_by
+      title: VariableDeclaration
       type: object
     VariableValue:
       properties:
         datatype:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
         name:
           type: string
         value:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
       required:
       - name
+      - value
+      - datatype
+      title: VariableValue
       type: object
     VariableValues:
+      description: List of variables and their types/values.
       properties:
-        name:
+        op:
           enum:
           - variable-values
-          type: string
         variables:
           items:
             $ref: '#/components/schemas/VariableValue'
           type: array
       required:
+      - op
       - variables
-      - name
+      title: VariableValues
       type: object
     Variables:
+      description: List of variable declarations.
       properties:
-        name:
+        op:
           enum:
           - variables
-          type: string
         variables:
           items:
             $ref: '#/components/schemas/VariableDeclaration'
           type: array
       required:
+      - op
       - variables
-      - name
+      title: Variables
       type: object
     WorkspaceFilesRequest:
       properties:
@@ -2825,7 +3190,35 @@ components:
       properties:
         files:
           items:
-            $ref: '#/components/schemas/FileInfo'
+            properties:
+              children:
+                default: []
+                items:
+                  $ref: '#/components/schemas/FileInfo'
+                type: array
+              id:
+                type: string
+              isDirectory:
+                type: boolean
+              isMarimoFile:
+                type: boolean
+              lastModified:
+                anyOf:
+                - type: number
+                - type: 'null'
+                default: null
+              name:
+                type: string
+              path:
+                type: string
+            required:
+            - id
+            - path
+            - name
+            - isDirectory
+            - isMarimoFile
+            title: FileInfo
+            type: object
           type: array
         root:
           type: string
@@ -2833,9 +3226,59 @@ components:
       - root
       - files
       type: object
+    _AppConfig:
+      description: "Program-specific configuration.\n\n    Configuration for frontends\
+        \ or runtimes that is specific to\n    a single marimo program."
+      properties:
+        app_title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        auto_download:
+          items:
+            enum:
+            - html
+            - ipynb
+            - markdown
+          type: array
+        css_file:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        html_head_file:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        layout_file:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        sql_output:
+          default: auto
+          enum:
+          - auto
+          - lazy-polars
+          - native
+          - pandas
+          - polars
+        width:
+          default: compact
+          enum:
+          - columns
+          - compact
+          - full
+          - medium
+          - normal
+      required: []
+      title: _AppConfig
+      type: object
 info:
   title: marimo API
-  version: 0.15.0
+  version: 0.15.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2848,13 +3291,13 @@ paths:
         schema:
           type: string
       responses:
-        200:
+        '200':
           content:
             application/octet-stream:
               schema:
                 type: string
           description: Get a virtual file
-        404:
+        '404':
           description: Invalid byte length in virtual file request
   /api/ai/chat:
     post:
@@ -2875,7 +3318,7 @@ paths:
         description: The request body for AI completion
         required: true
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -2892,7 +3335,7 @@ paths:
         description: The request body for AI inline completion
         required: true
       responses:
-        200:
+        '200':
           content:
             text/plain:
               schema:
@@ -2908,7 +3351,7 @@ paths:
         description: The request body for tool invocation
         required: true
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -2922,7 +3365,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PreviewDatasetColumnRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -2936,7 +3379,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PreviewDataSourceConnectionRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -2950,7 +3393,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PreviewSQLTableRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -2964,7 +3407,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PreviewSQLTableListRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -2973,7 +3416,7 @@ paths:
   /api/documentation/snippets:
     get:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -2987,13 +3430,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsHTMLRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as HTML
-        400:
+        '400':
           description: File must be saved before downloading
   /api/export/auto_export/ipynb:
     post:
@@ -3003,13 +3446,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsIPYNBRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as IPYNB
-        400:
+        '400':
           description: File must be saved before downloading
   /api/export/auto_export/markdown:
     post:
@@ -3019,13 +3462,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsMarkdownRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as a markdown
-        400:
+        '400':
           description: File must be saved before downloading
   /api/export/html:
     post:
@@ -3035,13 +3478,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsHTMLRequest'
       responses:
-        200:
+        '200':
           content:
             text/html:
               schema:
                 type: string
           description: Export the notebook as HTML
-        400:
+        '400':
           description: File must be saved before downloading
   /api/export/markdown:
     post:
@@ -3051,13 +3494,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsMarkdownRequest'
       responses:
-        200:
+        '200':
           content:
             text/plain:
               schema:
                 type: string
           description: Export the notebook as a markdown
-        400:
+        '400':
           description: File must be saved before downloading
   /api/export/script:
     post:
@@ -3067,13 +3510,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsScriptRequest'
       responses:
-        200:
+        '200':
           content:
             text/plain:
               schema:
                 type: string
           description: Export the notebook as a script
-        400:
+        '400':
           description: File must be saved before downloading
   /api/files/create:
     post:
@@ -3083,7 +3526,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileCreateRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3097,7 +3540,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileDeleteRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3111,7 +3554,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileDetailsRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3125,7 +3568,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileListRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3139,7 +3582,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileMoveRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3153,7 +3596,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileOpenRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3167,7 +3610,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileUpdateRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3176,7 +3619,7 @@ paths:
   /api/home/recent_files:
     post:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3185,7 +3628,7 @@ paths:
   /api/home/running_notebooks:
     post:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3199,7 +3642,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ShutdownSessionRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3213,7 +3656,7 @@ paths:
             schema:
               $ref: '#/components/schemas/OpenTutorialRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3227,7 +3670,7 @@ paths:
             schema:
               $ref: '#/components/schemas/WorkspaceFilesRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3241,7 +3684,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CodeCompletionRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3255,7 +3698,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CopyNotebookRequest'
       responses:
-        200:
+        '200':
           content:
             text/plain:
               schema:
@@ -3269,7 +3712,7 @@ paths:
             schema:
               $ref: '#/components/schemas/DeleteCellRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3283,7 +3726,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FormatRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3297,7 +3740,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FunctionCallRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3311,7 +3754,7 @@ paths:
             schema:
               $ref: '#/components/schemas/InstallMissingPackagesRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3325,7 +3768,7 @@ paths:
             schema:
               $ref: '#/components/schemas/InstantiateRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3334,7 +3777,7 @@ paths:
   /api/kernel/interrupt:
     post:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3348,7 +3791,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PdbRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3357,13 +3800,13 @@ paths:
   /api/kernel/read_code:
     post:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadCodeResponse'
           description: Read the code from the server
-        400:
+        '400':
           description: File must be saved before downloading
   /api/kernel/rename:
     post:
@@ -3373,7 +3816,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RenameFileRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3382,7 +3825,7 @@ paths:
   /api/kernel/restart_session:
     post:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3396,7 +3839,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RunRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3411,7 +3854,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SaveNotebookRequest'
       responses:
-        200:
+        '200':
           content:
             text/plain:
               schema:
@@ -3425,7 +3868,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SaveAppConfigurationRequest'
       responses:
-        200:
+        '200':
           content:
             text/plain:
               schema:
@@ -3439,7 +3882,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SaveUserConfigurationRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3454,7 +3897,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ExecuteScratchpadRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3468,7 +3911,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SetCellConfigRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3482,7 +3925,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SetModelMessageRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3496,7 +3939,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateComponentValuesRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3505,7 +3948,7 @@ paths:
   /api/kernel/shutdown:
     post:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3519,7 +3962,7 @@ paths:
             schema:
               $ref: '#/components/schemas/StdinRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3533,7 +3976,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateCellIdsRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3542,7 +3985,7 @@ paths:
   /api/kernel/takeover:
     post:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3559,7 +4002,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AddPackageRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3568,7 +4011,7 @@ paths:
   /api/packages/list:
     get:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3582,7 +4025,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RemovePackageRequest'
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3591,7 +4034,7 @@ paths:
   /api/packages/tree:
     get:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3606,7 +4049,7 @@ paths:
               $ref: '#/components/schemas/CreateSecretRequest'
         required: true
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3615,7 +4058,7 @@ paths:
   /api/secrets/delete:
     post:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3630,7 +4073,7 @@ paths:
               $ref: '#/components/schemas/ListSecretKeysRequest'
         required: true
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3639,7 +4082,7 @@ paths:
   /api/status:
     get:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3669,7 +4112,7 @@ paths:
   /api/status/connections:
     get:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3681,7 +4124,7 @@ paths:
   /api/usage:
     get:
       responses:
-        200:
+        '200':
           content:
             application/json:
               schema:
@@ -3761,7 +4204,7 @@ paths:
   /api/version:
     get:
       responses:
-        200:
+        '200':
           content:
             text/plain:
               schema:
@@ -3779,13 +4222,13 @@ paths:
                   type: string
               type: object
       responses:
-        200:
+        '200':
           content:
             text/html:
               schema:
                 type: string
           description: Login page
-        302:
+        '302':
           description: Redirect to the next URL
           headers:
             Location:

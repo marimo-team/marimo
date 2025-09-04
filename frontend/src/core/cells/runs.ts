@@ -45,6 +45,7 @@ const {
     opts: { cellOperation: CellMessage; code: string },
   ): RunsState => {
     const { cellOperation, code } = opts;
+    const timestamp = cellOperation.timestamp ?? 0;
     const runId = cellOperation.run_id as RunId | undefined;
     if (!runId) {
       return state;
@@ -84,11 +85,11 @@ const {
               code: code.slice(0, MAX_CODE_LENGTH),
               elapsedTime: 0,
               status: status,
-              startTime: cellOperation.timestamp,
+              startTime: timestamp,
             },
           ],
         ]),
-        runStartTime: cellOperation.timestamp,
+        runStartTime: timestamp,
       };
 
       // Manage run history size
@@ -129,12 +130,12 @@ const {
 
       const startTime =
         cellOperation.status === "running"
-          ? cellOperation.timestamp
+          ? timestamp
           : existingCellRun.startTime;
 
       const elapsedTime =
         status === "success" || status === "error"
-          ? cellOperation.timestamp - existingCellRun.startTime
+          ? timestamp - existingCellRun.startTime
           : undefined;
 
       nextCellRuns.set(cellOperation.cell_id as CellId, {
@@ -149,7 +150,7 @@ const {
         code: code.slice(0, MAX_CODE_LENGTH),
         elapsedTime: 0,
         status: status,
-        startTime: cellOperation.timestamp,
+        startTime: timestamp,
       });
     }
 

@@ -34,6 +34,7 @@ describe("getAutoFixes", () => {
       type: "exception",
       exception_type: "NameError",
       msg: "name 'np' is not defined",
+      raising_cell: null,
     };
 
     const fixes = getAutoFixes(error);
@@ -46,6 +47,7 @@ describe("getAutoFixes", () => {
       type: "exception",
       exception_type: "NameError",
       msg: "name 'unknown_module' is not defined",
+      raising_cell: null,
     };
 
     expect(getAutoFixes(error)).toHaveLength(0);

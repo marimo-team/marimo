@@ -267,6 +267,7 @@ describe("insertImage", () => {
 
     mockRequestClient.sendCreateFileOrFolder.mockResolvedValueOnce({
       success: true,
+      message: null,
       info: {
         path: "nested/public/hello.png",
         name: "hello.png",

@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "codegen": "pnpm run \"/^codegen:.*/\"",
-    "codegen:api": "openapi-typescript ./api.yaml -o ./src/api.ts",
+    "codegen:api": "openapi-typescript ./api.yaml --default-non-nullable=false -o ./src/api.ts && ./convert_types.sh ./src/api.ts",
     "codegen:session": "openapi-typescript ../../marimo/_schemas/generated/session.yaml -o ./src/session.ts",
     "codegen:notebook": "openapi-typescript ../../marimo/_schemas/generated/notebook.yaml -o ./src/notebook.ts"
   },

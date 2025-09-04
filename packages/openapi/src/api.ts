@@ -2544,7 +2544,7 @@ export interface paths {
     trace?: never;
   };
 }
-export type webhooks = Record<string, never>;
+export type webhooks = Record<string, any>;
 export interface components {
   schemas: {
     AddPackageRequest: {
@@ -2565,6 +2565,25 @@ export interface components {
       prompt: string;
       selectedText?: string | null;
     };
+    /**
+     * AiConfig
+     * @description Configuration options for AI.
+     *
+     *         **Keys.**
+     *
+     *         - `rules`: custom rules to include in all AI completion prompts
+     *         - `max_tokens`: the maximum number of tokens to use in AI completions
+     *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+     *         - `models`: the models to use for AI completions
+     *         - `open_ai`: the OpenAI config
+     *         - `anthropic`: the Anthropic config
+     *         - `google`: the Google AI config
+     *         - `bedrock`: the Bedrock config
+     *         - `azure`: the Azure config
+     *         - `ollama`: the Ollama config
+     *         - `github`: the GitHub config
+     *         - `open_ai_compatible`: the OpenAI-compatible config
+     */
     AiConfig: {
       anthropic?: components["schemas"]["AnthropicConfig"];
       azure?: components["schemas"]["OpenAiConfig"];
@@ -2572,15 +2591,9 @@ export interface components {
       github?: components["schemas"]["GitHubConfig"];
       google?: components["schemas"]["GoogleAiConfig"];
       max_tokens?: number;
-      /** @enum {string} */
+      /** @enum {unknown} */
       mode?: "ask" | "manual";
-      models?: {
-        autocomplete_model?: string;
-        chat_model?: string;
-        custom_models: string[];
-        displayed_models: string[];
-        edit_model?: string;
-      };
+      models?: components["schemas"]["AiModelConfig"];
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
       open_ai_compatible?: components["schemas"]["OpenAiConfig"];
@@ -2592,77 +2605,198 @@ export interface components {
       prefix: string;
       suffix: string;
     };
+    /**
+     * AiModelConfig
+     * @description Configuration options for an AI model.
+     *
+     *         **Keys.**
+     *
+     *         - `chat_model`: the model to use for chat completions
+     *         - `edit_model`: the model to use for edit completions
+     *         - `autocomplete_model`: the model to use for code completion/autocomplete
+     *         - `displayed_models`: a list of models to display in the UI
+     *         - `custom_models`: a list of custom models to use that are not from the default list
+     */
+    AiModelConfig: {
+      autocomplete_model?: string;
+      chat_model?: string;
+      custom_models: string[];
+      displayed_models: string[];
+      edit_model?: string;
+    };
+    /** Alert */
     Alert: {
       description: string;
-      /** @enum {string} */
-      name: "alert";
+      /** @enum {unknown} */
+      op: "alert";
       title: string;
-      /** @enum {string|null} */
+      /** @default null */
       variant?: "danger" | null;
     };
+    /**
+     * AnthropicConfig
+     * @description Configuration options for Anthropic.
+     *
+     *         **Keys.**
+     *
+     *         - `api_key`: the Anthropic API key
+     */
     AnthropicConfig: {
       api_key?: string;
     };
+    /** Banner */
     Banner: {
-      /** @enum {string|null} */
+      /** @default null */
       action?: "restart" | null;
       description: string;
-      /** @enum {string} */
-      name: "banner";
+      /** @enum {unknown} */
+      op: "banner";
       title: string;
-      /** @enum {string|null} */
+      /** @default null */
       variant?: "danger" | null;
     };
+    /** BaseResponse */
     BaseResponse: {
       success: boolean;
     };
+    /**
+     * BasedpyrightServerConfig
+     * @description Configuration options for basedpyright Language Server.
+     *
+     *     basedpyright handles completion, hover, go-to-definition, and diagnostics,
+     *     but we only use it for diagnostics.
+     */
+    BasedpyrightServerConfig: {
+      enabled?: boolean;
+    };
+    /**
+     * BedrockConfig
+     * @description Configuration options for Bedrock.
+     *
+     *         **Keys.**
+     *
+     *         - `profile_name`: the AWS profile to use
+     *         - `region_name`: the AWS region to use
+     *         - `aws_access_key_id`: the AWS access key ID
+     *         - `aws_secret_access_key`: the AWS secret access key
+     */
     BedrockConfig: {
       aws_access_key_id?: string;
       aws_secret_access_key?: string;
       profile_name?: string;
       region_name?: string;
     };
-    /** @enum {string} */
+    /**
+     * CellChannel
+     * @description The channel of a cell's output.
+     * @enum {unknown}
+     */
     CellChannel:
-      | "stdout"
+      | "marimo-error"
+      | "media"
+      | "output"
+      | "pdb"
       | "stderr"
       | "stdin"
-      | "pdb"
-      | "output"
-      | "marimo-error"
-      | "media";
+      | "stdout";
+    /**
+     * CellConfig
+     * @description Internal representation of a cell's configuration.
+     *     This is not part of the public API.
+     */
     CellConfig: {
+      /** @default null */
       column?: number | null;
-      disabled: boolean;
-      hide_code: boolean;
+      /** @default false */
+      disabled?: boolean;
+      /** @default false */
+      hide_code?: boolean;
     };
+    /**
+     * CellOp
+     * @description Op to transition a cell.
+     *
+     *         A CellOp's data has some optional fields:
+     *
+     *         output        - a CellOutput
+     *         console       - a CellOutput (console msg to append), or a list of
+     *                         CellOutputs
+     *         status        - execution status
+     *         stale_inputs  - whether the cell has stale inputs (variables, modules, ...)
+     *         run_id        - the run associated with this cell.
+     *         serialization - the serialization status of the cell
+     *
+     *         Omitting a field means that its value should be unchanged!
+     *
+     *         And one required field:
+     *
+     *         cell_id - the cell id
+     */
     CellOp: {
       cell_id: string;
+      /** @default null */
       console?:
-        | (
-            | components["schemas"]["CellOutput"]
-            | components["schemas"]["CellOutput"][]
-          )
-        | null;
-      /** @enum {string} */
-      name: "cell-op";
-      output?: components["schemas"]["CellOutput"];
+        | components["schemas"]["CellOutput"][]
+        | null
+        | components["schemas"]["CellOutput"];
+      /** @enum {unknown} */
+      op: "cell-op";
+      /** @default null */
+      output?: null | components["schemas"]["CellOutput"];
+      /** @default null */
       run_id?: string | null;
+      /** @default null */
       serialization?: string | null;
+      /** @default null */
       stale_inputs?: boolean | null;
-      status?: components["schemas"]["RuntimeState"];
-      timestamp: number;
+      /** @default null */
+      status?: ("disabled-transitively" | "idle" | "queued" | "running") | null;
+      timestamp?: number;
     };
+    /** CellOutput */
     CellOutput: {
       channel: components["schemas"]["CellChannel"];
       data:
         | string
-        | components["schemas"]["Error"][]
-        | {
-            [key: string]: unknown;
-          };
-      mimetype: components["schemas"]["MimeType"];
-      timestamp: number;
+        | (
+            | components["schemas"]["SetupRootError"]
+            | components["schemas"]["CycleError"]
+            | components["schemas"]["MultipleDefinitionError"]
+            | components["schemas"]["ImportStarError"]
+            | components["schemas"]["MarimoAncestorStoppedError"]
+            | components["schemas"]["MarimoAncestorPreventedError"]
+            | components["schemas"]["MarimoExceptionRaisedError"]
+            | components["schemas"]["MarimoStrictExecutionError"]
+            | components["schemas"]["MarimoInterruptionError"]
+            | components["schemas"]["MarimoSyntaxError"]
+            | components["schemas"]["MarimoInternalError"]
+            | components["schemas"]["UnknownError"]
+          )[]
+        | Record<string, any>;
+      /** @enum {unknown} */
+      mimetype:
+        | "application/json"
+        | "application/vnd.jupyter.widget-view+json"
+        | "application/vnd.marimo+error"
+        | "application/vnd.marimo+mimebundle"
+        | "application/vnd.marimo+traceback"
+        | "application/vnd.vega.v5+json"
+        | "application/vnd.vegalite.v5+json"
+        | "image/avif"
+        | "image/bmp"
+        | "image/gif"
+        | "image/jpeg"
+        | "image/png"
+        | "image/svg+xml"
+        | "image/tiff"
+        | "text/csv"
+        | "text/html"
+        | "text/latex"
+        | "text/markdown"
+        | "text/plain"
+        | "video/mp4"
+        | "video/mpeg";
+      timestamp?: number;
     };
     ChatRequest: {
       context: components["schemas"]["AiCompletionContext"];
@@ -2675,43 +2809,11 @@ export interface components {
               url: string;
             }[]
           | null;
-        content: {
-          [key: string]: unknown;
-        };
+        content: string;
         parts?:
-          | (
-              | {
-                  text: string;
-                  /** @enum {string} */
-                  type: "text";
-                }
-              | {
-                  details: {
-                    signature?: string | null;
-                    text: string;
-                    /** @enum {string} */
-                    type: "text";
-                  }[];
-                  reasoning: string;
-                  /** @enum {string} */
-                  type: "reasoning";
-                }
-              | {
-                  toolInvocation: {
-                    args: {
-                      [key: string]: unknown;
-                    };
-                    result: unknown;
-                    /** @enum {string} */
-                    state: "result";
-                    step: number;
-                    toolCallId: string;
-                    toolName: string;
-                  };
-                  /** @enum {string} */
-                  type: "tool-invocation";
-                }
-            )[]
+          | {
+              [key: string]: unknown;
+            }[]
           | null;
         /** @enum {string} */
         role: "user" | "assistant" | "system";
@@ -2719,135 +2821,271 @@ export interface components {
       model?: string | null;
       variables?: (components["schemas"]["VariableContext"] | string)[] | null;
     };
+    /** CodeCompletionRequest */
     CodeCompletionRequest: {
       cellId: string;
       document: string;
       id: string;
     };
+    /**
+     * ColumnStats
+     * @description Represents stats for a column in a data table.
+     */
     ColumnStats: {
+      /** @default null */
       false?: number | null;
-      max?: components["schemas"]["NonNestedLiteral"];
-      mean?: components["schemas"]["NonNestedLiteral"];
-      median?: components["schemas"]["NonNestedLiteral"];
-      min?: components["schemas"]["NonNestedLiteral"];
+      /** @default null */
+      max?: unknown | null;
+      /** @default null */
+      mean?: unknown | null;
+      /** @default null */
+      median?: unknown | null;
+      /** @default null */
+      min?: unknown | null;
+      /** @default null */
       nulls?: number | null;
-      p25?: components["schemas"]["NonNestedLiteral"];
-      p5?: components["schemas"]["NonNestedLiteral"];
-      p75?: components["schemas"]["NonNestedLiteral"];
-      p95?: components["schemas"]["NonNestedLiteral"];
-      std?: components["schemas"]["NonNestedLiteral"];
+      /** @default null */
+      p25?: unknown | null;
+      /** @default null */
+      p5?: unknown | null;
+      /** @default null */
+      p75?: unknown | null;
+      /** @default null */
+      p95?: unknown | null;
+      /** @default null */
+      std?: unknown | null;
+      /** @default null */
       total?: number | null;
+      /** @default null */
       true?: number | null;
+      /** @default null */
       unique?: number | null;
     };
+    /**
+     * CompletedRun
+     * @description Written on run completion (of submitted cells and their descendants.
+     */
     CompletedRun: {
-      /** @enum {string} */
-      name: "completed-run";
+      /** @enum {unknown} */
+      op: "completed-run";
     };
+    /**
+     * CompletionConfig
+     * @description Configuration for code completion.
+     *
+     *         A dict with key/value pairs configuring code completion in the marimo
+     *         editor.
+     *
+     *         **Keys.**
+     *
+     *         - `activate_on_typing`: if `False`, completion won't activate
+     *         until the completion hotkey is entered
+     *         - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
+     *         - `codeium_api_key`: the Codeium API key
+     */
+    CompletionConfig: {
+      activate_on_typing: boolean;
+      api_key?: string | null;
+      base_url?: string | null;
+      codeium_api_key?: string | null;
+      copilot: boolean | ("codeium" | "custom" | "github");
+      model?: string | null;
+    };
+    /** CompletionOption */
+    CompletionOption: {
+      completion_info: string | null;
+      name: string;
+      type: string;
+    };
+    /**
+     * CompletionResult
+     * @description Code completion result.
+     */
     CompletionResult: {
       completion_id: string;
-      /** @enum {string} */
-      name: "completion-result";
-      options: {
-        completion_info?: string | null;
-        name: string;
-        type: string;
-      }[];
+      /** @enum {unknown} */
+      op: "completion-result";
+      options: components["schemas"]["CompletionOption"][];
       prefix_length: number;
     };
+    /** CopyNotebookRequest */
     CopyNotebookRequest: {
       destination: string;
       source: string;
     };
+    /** CreateSecretRequest */
     CreateSecretRequest: {
       key: string;
       name: string;
-      /** @enum {string} */
-      provider: "env" | "dotenv";
+      /** @enum {unknown} */
+      provider: "dotenv" | "env";
       value: string;
     };
+    /** CycleError */
     CycleError: {
       edges_with_vars: [string, string[], string][];
-      /** @enum {string} */
+      /** @enum {unknown} */
       type: "cycle";
     };
+    /**
+     * DataColumnPreview
+     * @description Preview of a column in a dataset.
+     */
     DataColumnPreview: {
+      /** @default null */
       chart_code?: string | null;
+      /** @default null */
       chart_spec?: string | null;
-      column_name: string;
+      /** @default  */
+      column_name?: string;
+      /** @default null */
       error?: string | null;
+      /** @default null */
       missing_packages?: string[] | null;
-      /** @enum {string} */
-      name: "data-column-preview";
-      stats?: components["schemas"]["ColumnStats"];
-      table_name: string;
+      /** @enum {unknown} */
+      op: "data-column-preview";
+      /** @default null */
+      stats?: null | components["schemas"]["ColumnStats"];
+      /** @default  */
+      table_name?: string;
     };
+    /**
+     * DataSourceConnection
+     * @description Represents a data source connection.
+     *
+     *     Attributes:
+     *         source (str): The source of the data source connection. E.g 'postgres'.
+     *         dialect (str): The dialect of the data source connection. E.g 'postgresql'.
+     *         name (str): The name of the data source connection. E.g 'engine'.
+     *         display_name (str): The display name of the data source connection. E.g 'PostgresQL (engine)'.
+     *         databases (List[Database]): The databases in the data source connection.
+     *         default_database (Optional[str]): The default database in the data source connection.
+     *         default_schema (Optional[str]): The default schema in the data source connection.
+     */
     DataSourceConnection: {
-      databases: {
-        dialect: string;
-        engine?: string | null;
-        name: string;
-        schemas: {
-          name: string;
-          tables: components["schemas"]["DataTable"][];
-        }[];
-      }[];
+      databases: components["schemas"]["Database"][];
+      /** @default null */
       default_database?: string | null;
+      /** @default null */
       default_schema?: string | null;
       dialect: string;
       display_name: string;
       name: string;
       source: string;
     };
+    /** DataSourceConnections */
     DataSourceConnections: {
       connections: components["schemas"]["DataSourceConnection"][];
-      /** @enum {string} */
-      name: "data-source-connections";
+      /** @enum {unknown} */
+      op: "data-source-connections";
     };
+    /**
+     * DataTable
+     * @description Represents a data table.
+     *
+     *     Attributes:
+     *         source_type (DataTableSource): Type of data source ('local', 'duckdb', 'connection').
+     *         source (str): Can be dialect, or source db name.
+     *         name (str): Name of the data table.
+     *         num_rows (Optional[int]): Total number of rows in the table, if known.
+     *         num_columns (Optional[int]): Total number of columns in the table, if known.
+     *         variable_name (Optional[VariableName]): Variable name referencing this table in code.
+     *         columns (List[DataTableColumn]): List of column definitions and metadata.
+     *         engine (Optional[VariableName]): Database engine or connection handler, if any.
+     *         type (DataTableType): Table type, either 'table' or 'view'. Defaults to 'table'.
+     *         primary_keys (Optional[List[str]]): Column names used as primary keys, if any.
+     *         indexes (Optional[List[str]]): Column names used as indexes, if any.
+     */
     DataTable: {
       columns: components["schemas"]["DataTableColumn"][];
+      /** @default null */
       engine?: string | null;
+      /** @default null */
       indexes?: string[] | null;
       name: string;
-      num_columns?: number | null;
-      num_rows?: number | null;
+      num_columns: number | null;
+      num_rows: number | null;
+      /** @default null */
       primary_keys?: string[] | null;
       source: string;
-      /** @enum {string} */
-      source_type: "local" | "duckdb" | "connection" | "catalog";
-      /** @enum {string} */
-      type: "table" | "view";
-      variable_name?: string | null;
+      /** @enum {unknown} */
+      source_type: "catalog" | "connection" | "duckdb" | "local";
+      /**
+       * @default table
+       * @enum {unknown}
+       */
+      type?: "table" | "view";
+      variable_name: string | null;
     };
+    /**
+     * DataTableColumn
+     * @description Represents a column in a data table.
+     *
+     *     Attributes:
+     *         name (str): The name of the column.
+     *         type (DataType): The data type of the column.
+     *         external_type (ExternalDataType): The raw data type of the column.
+     *         sample_values (List[Any]): The sample values of the column.
+     */
     DataTableColumn: {
       external_type: string;
       name: string;
       sample_values: unknown[];
-      type: components["schemas"]["DataType"];
+      /** @enum {unknown} */
+      type:
+        | "boolean"
+        | "date"
+        | "datetime"
+        | "integer"
+        | "number"
+        | "string"
+        | "time"
+        | "unknown";
     };
-    /** @enum {string} */
-    DataType:
-      | "string"
-      | "boolean"
-      | "integer"
-      | "number"
-      | "date"
-      | "datetime"
-      | "time"
-      | "unknown";
+    /**
+     * Database
+     * @description Represents a collection of schemas.
+     *
+     *     Attributes:
+     *         name (str): The name of the database
+     *         dialect (str): The dialect of the database
+     *         schemas (List[Schema]): List of schemas in the database
+     *         engine (Optional[VariableName]): Database engine or connection handler, if any.
+     */
     Database: {
       dialect: string;
+      /** @default null */
       engine?: string | null;
       name: string;
       schemas: components["schemas"]["Schema"][];
     };
+    /**
+     * Datasets
+     * @description List of datasets.
+     */
     Datasets: {
-      /** @enum {string|null} */
-      clear_channel?: "local" | "duckdb" | "connection" | "catalog" | null;
-      /** @enum {string} */
-      name: "datasets";
+      /** @default null */
+      clear_channel?: ("catalog" | "connection" | "duckdb" | "local") | null;
+      /** @enum {unknown} */
+      op: "datasets";
       tables: components["schemas"]["DataTable"][];
     };
+    /**
+     * DatasourcesConfig
+     * @description Configuration for datasources panel.
+     *
+     *         **Keys.**
+     *
+     *         - `auto_discover_schemas`: if `True`, include schemas in the datasource
+     *         - `auto_discover_tables`: if `True`, include tables in the datasource
+     *         - `auto_discover_columns`: if `True`, include columns & table metadata in the datasource
+     */
+    DatasourcesConfig: {
+      auto_discover_columns?: boolean | "auto";
+      auto_discover_schemas?: boolean | "auto";
+      auto_discover_tables?: boolean | "auto";
+    };
+    /** DeleteCellRequest */
     DeleteCellRequest: {
       cellId: string;
     };
@@ -2865,37 +3103,73 @@ export interface components {
     DependencyTreeResponse: {
       tree?: components["schemas"]["DependencyTreeNode"];
     };
-    Error:
-      | components["schemas"]["SetupRootError"]
-      | components["schemas"]["CycleError"]
-      | components["schemas"]["MultipleDefinitionError"]
-      | components["schemas"]["ImportStarError"]
-      | components["schemas"]["MarimoAncestorStoppedError"]
-      | components["schemas"]["MarimoAncestorPreventedError"]
-      | components["schemas"]["MarimoExceptionRaisedError"]
-      | components["schemas"]["MarimoStrictExecutionError"]
-      | components["schemas"]["MarimoInterruptionError"]
-      | components["schemas"]["MarimoSyntaxError"]
-      | components["schemas"]["MarimoInternalError"]
-      | components["schemas"]["UnknownError"];
+    /**
+     * DiagnosticsConfig
+     * @description Configuration options for diagnostics.
+     *
+     *         **Keys.**
+     *
+     *         - `enabled`: if `True`, diagnostics will be shown in the editor
+     */
+    DiagnosticsConfig: {
+      enabled?: boolean;
+    };
+    /**
+     * DisplayConfig
+     * @description Configuration for display.
+     *
+     *         **Keys.**
+     *
+     *         - `theme`: `"light"`, `"dark"`, or `"system"`
+     *         - `code_editor_font_size`: font size for the code editor
+     *         - `cell_output`: `"above"` or `"below"`
+     *         - `dataframes`: `"rich"` or `"plain"`
+     *         - `custom_css`: list of paths to custom CSS files
+     *         - `default_table_page_size`: default number of rows to display in tables
+     *         - `default_table_max_columns`: default maximum number of columns to display in tables
+     *         - `reference_highlighting`: if `True`, highlight reactive variable references
+     */
+    DisplayConfig: {
+      /** @enum {unknown} */
+      cell_output: "above" | "below";
+      code_editor_font_size: number;
+      custom_css?: string[];
+      /** @enum {unknown} */
+      dataframes: "plain" | "rich";
+      default_table_max_columns: number;
+      default_table_page_size: number;
+      /** @enum {unknown} */
+      default_width: "columns" | "compact" | "full" | "medium" | "normal";
+      reference_highlighting?: boolean;
+      /** @enum {unknown} */
+      theme: "dark" | "light" | "system";
+    };
+    /** ExecuteMultipleRequest */
     ExecuteMultipleRequest: {
       cellIds: string[];
       codes: string[];
-      request?: components["schemas"]["HTTPRequest"];
-      timestamp: number;
+      /** @default null */
+      request?: null | components["schemas"]["HTTPRequest"];
+      timestamp?: number;
     };
+    /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
       code: string;
-      request?: components["schemas"]["HTTPRequest"];
+      /** @default null */
+      request?: null | components["schemas"]["HTTPRequest"];
     };
+    /** ExecuteStaleRequest */
     ExecuteStaleRequest: {
-      request?: components["schemas"]["HTTPRequest"];
+      /** @default null */
+      request?: null | components["schemas"]["HTTPRequest"];
     };
+    /** ExecutionRequest */
     ExecutionRequest: {
       cellId: string;
       code: string;
-      request?: components["schemas"]["HTTPRequest"];
-      timestamp: number;
+      /** @default null */
+      request?: null | components["schemas"]["HTTPRequest"];
+      timestamp?: number;
     };
     ExportAsHTMLRequest: {
       assetUrl?: string | null;
@@ -2912,419 +3186,446 @@ export interface components {
     ExportAsScriptRequest: {
       download: boolean;
     };
+    /** FileCreateRequest */
     FileCreateRequest: {
+      /** @default null */
       contents?: string | null;
       name: string;
       path: string;
-      /** @enum {string} */
-      type: "file" | "directory";
+      /** @enum {unknown} */
+      type: "directory" | "file";
     };
+    /** FileCreateResponse */
     FileCreateResponse: {
-      info?: components["schemas"]["FileInfo"];
+      /** @default null */
+      info?: null | components["schemas"]["FileInfo"];
+      /** @default null */
       message?: string | null;
       success: boolean;
     };
+    /** FileDeleteRequest */
     FileDeleteRequest: {
       path: string;
     };
+    /** FileDeleteResponse */
     FileDeleteResponse: {
+      /** @default null */
       message?: string | null;
       success: boolean;
     };
+    /** FileDetailsRequest */
     FileDetailsRequest: {
       path: string;
     };
+    /** FileDetailsResponse */
     FileDetailsResponse: {
+      /** @default null */
       contents?: string | null;
       file: components["schemas"]["FileInfo"];
+      /** @default null */
       mimeType?: string | null;
     };
+    /** FileInfo */
     FileInfo: {
-      children: components["schemas"]["FileInfo"][];
+      /** @default [] */
+      children?: components["schemas"]["FileInfo"][];
       id: string;
       isDirectory: boolean;
       isMarimoFile: boolean;
+      /** @default null */
       lastModified?: number | null;
       name: string;
       path: string;
     };
+    /** FileListRequest */
     FileListRequest: {
+      /** @default null */
       path?: string | null;
     };
+    /** FileListResponse */
     FileListResponse: {
       files: components["schemas"]["FileInfo"][];
       root: string;
     };
+    /** FileMoveRequest */
     FileMoveRequest: {
       newPath: string;
       path: string;
     };
+    /** FileMoveResponse */
     FileMoveResponse: {
-      info?: components["schemas"]["FileInfo"];
+      /** @default null */
+      info?: null | components["schemas"]["FileInfo"];
+      /** @default null */
       message?: string | null;
       success: boolean;
     };
+    /** FileOpenRequest */
     FileOpenRequest: {
       path: string;
     };
+    /** FileUpdateRequest */
     FileUpdateRequest: {
       contents: string;
       path: string;
     };
+    /** FileUpdateResponse */
     FileUpdateResponse: {
-      info?: components["schemas"]["FileInfo"];
+      /** @default null */
+      info?: null | components["schemas"]["FileInfo"];
+      /** @default null */
       message?: string | null;
       success: boolean;
     };
+    /** FocusCell */
     FocusCell: {
       cell_id: string;
-      /** @enum {string} */
-      name: "focus-cell";
+      /** @enum {unknown} */
+      op: "focus-cell";
     };
+    /** FormatRequest */
     FormatRequest: {
       codes: {
         [key: string]: string;
       };
       lineLength: number;
     };
+    /** FormatResponse */
     FormatResponse: {
       codes: {
         [key: string]: string;
       };
     };
+    /**
+     * FormattingConfig
+     * @description Configuration for code formatting.
+     *
+     *         **Keys.**
+     *
+     *         - `line_length`: max line length
+     */
+    FormattingConfig: {
+      line_length: number;
+    };
+    /** FunctionCallRequest */
     FunctionCallRequest: {
-      args: {
-        [key: string]: unknown;
-      };
+      args: Record<string, any>;
       functionCallId: string;
       functionName: string;
       namespace: string;
     };
+    /**
+     * FunctionCallResult
+     * @description Result of calling a function.
+     */
     FunctionCallResult: {
       function_call_id: string;
-      /** @enum {string} */
-      name: "function-call-result";
-      return_value?:
-        | (
-            | {
-                [key: string]: components["schemas"]["JSONType"];
-              }
-            | components["schemas"]["JSONType"][]
-            | string
-            | number
-            | boolean
-            | {
-                [key: string]: unknown;
-              }
-            | components["schemas"]["MIME"]
-          )
-        | null;
+      /** @enum {unknown} */
+      op: "function-call-result";
+      return_value: unknown;
       status: components["schemas"]["HumanReadableStatus"];
     };
+    /**
+     * GitHubConfig
+     * @description Configuration options for GitHub.
+     *
+     *         **Keys.**
+     *
+     *         - `api_key`: the GitHub API token
+     *         - `base_url`: the base URL for the API
+     */
     GitHubConfig: {
       api_key?: string;
       base_url?: string;
     };
+    /**
+     * GoogleAiConfig
+     * @description Configuration options for Google AI.
+     *
+     *         **Keys.**
+     *
+     *         - `api_key`: the Google AI API key
+     */
     GoogleAiConfig: {
       api_key?: string;
     };
-    HTTPRequest: null;
+    /**
+     * HTTPRequest
+     * @description A class that mimics the Request object from Starlette or FastAPI.
+     *
+     *     It is a subset and pickle-able version of the Request object.
+     */
+    HTTPRequest: {
+      baseUrl: Record<string, any>;
+      cookies: {
+        [key: string]: string;
+      };
+      headers: {
+        [key: string]: string;
+      };
+      meta: Record<string, any>;
+      pathParams: Record<string, any>;
+      queryParams: {
+        [key: string]: string[];
+      };
+      url: Record<string, any>;
+      user: unknown;
+    };
+    /**
+     * HumanReadableStatus
+     * @description Human-readable status.
+     */
     HumanReadableStatus: {
-      /** @enum {string} */
-      code: "ok" | "error";
+      /** @enum {unknown} */
+      code: "error" | "ok";
+      /** @default null */
       message?: string | null;
+      /** @default null */
       title?: string | null;
     };
+    /** ImportStarError */
     ImportStarError: {
       msg: string;
-      /** @enum {string} */
+      /** @enum {unknown} */
       type: "import-star";
     };
+    /** InstallMissingPackagesRequest */
     InstallMissingPackagesRequest: {
       manager: string;
       versions: {
         [key: string]: string;
       };
     };
+    /** InstallingPackageAlert */
     InstallingPackageAlert: {
-      /** @enum {string} */
-      name: "installing-package-alert";
+      /** @enum {unknown} */
+      op: "installing-package-alert";
       packages: {
-        [key: string]: "queued" | "installing" | "installed" | "failed";
+        [key: string]: "failed" | "installed" | "installing" | "queued";
       };
     };
+    /** InstantiateRequest */
     InstantiateRequest: {
-      autoRun: boolean;
+      /** @default true */
+      autoRun?: boolean;
       objectIds: string[];
       values: unknown[];
     };
+    /**
+     * Interrupted
+     * @description Written when the kernel is interrupted by the user.
+     */
     Interrupted: {
-      /** @enum {string} */
-      name: "interrupted";
+      /** @enum {unknown} */
+      op: "interrupted";
     };
+    /** InvokeAiToolRequest */
     InvokeAiToolRequest: {
-      arguments: {
-        [key: string]: unknown;
-      };
+      arguments: Record<string, any>;
       toolName: string;
     };
+    /** InvokeAiToolResponse */
     InvokeAiToolResponse: {
+      /** @default null */
       error?: string | null;
       result: unknown;
       success: boolean;
       toolName: string;
     };
-    JSONType:
-      | string
-      | number
-      | Record<string, never>
-      | unknown[]
-      | boolean
-      | null;
+    /** KernelCapabilities */
+    KernelCapabilities: {
+      /** @default false */
+      basedpyright?: boolean;
+      /** @default false */
+      pylsp?: boolean;
+      /** @default false */
+      terminal?: boolean;
+      /** @default false */
+      ty?: boolean;
+    };
+    /**
+     * KernelReady
+     * @description Kernel is ready for execution.
+     */
     KernelReady: {
-      app_config: {
-        app_title?: string | null;
-        auto_download: ("html" | "markdown" | "ipynb")[];
-        css_file?: string | null;
-        html_head_file?: string | null;
-        layout_file?: string | null;
-        /** @enum {string} */
-        sql_output: "polars" | "lazy-polars" | "pandas" | "native" | "auto";
-        /** @enum {string} */
-        width: "normal" | "compact" | "medium" | "full" | "columns";
-      };
-      capabilities: {
-        basedpyright: boolean;
-        pylsp: boolean;
-        terminal: boolean;
-        ty: boolean;
-      };
+      app_config: components["schemas"]["_AppConfig"];
+      capabilities: components["schemas"]["KernelCapabilities"];
       cell_ids: string[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
       kiosk: boolean;
-      last_executed_code?: {
+      last_executed_code: {
         [key: string]: string;
       } | null;
-      last_execution_time?: {
+      last_execution_time: {
         [key: string]: number;
       } | null;
-      layout?: {
-        data: {
-          [key: string]: unknown;
-        };
-        type: string;
-      } | null;
-      /** @enum {string} */
-      name: "kernel-ready";
+      layout: components["schemas"]["LayoutConfig"] | null;
       names: string[];
+      /** @enum {unknown} */
+      op: "kernel-ready";
       resumed: boolean;
-      ui_values?: {
-        [key: string]:
-          | (
-              | {
-                  [key: string]:
-                    | (
-                        | {
-                            [key: string]: components["schemas"]["JSONType"];
-                          }
-                        | components["schemas"]["JSONType"][]
-                        | string
-                        | number
-                        | boolean
-                        | {
-                            [key: string]: unknown;
-                          }
-                        | components["schemas"]["MIME"]
-                      )
-                    | null;
-                }
-              | (
-                  | (
-                      | {
-                          [key: string]: components["schemas"]["JSONType"];
-                        }
-                      | components["schemas"]["JSONType"][]
-                      | string
-                      | number
-                      | boolean
-                      | {
-                          [key: string]: unknown;
-                        }
-                      | components["schemas"]["MIME"]
-                    )
-                  | null
-                )[]
-              | string
-              | number
-              | boolean
-              | {
-                  [key: string]: unknown;
-                }
-              | components["schemas"]["MIME"]
-            )
-          | null;
-      } | null;
+      ui_values: Record<string, any> | null;
+    };
+    /**
+     * KeymapConfig
+     * @description Configuration for keymaps.
+     *
+     *         **Keys.**
+     *
+     *         - `preset`: one of `"default"` or `"vim"`
+     *         - `overrides`: a dict of keymap actions to their keymap override
+     *         - `vimrc`: path to a vimrc file to load keymaps from
+     *         - `destructive_delete`: if `True`, allows deleting cells with content.
+     */
+    KeymapConfig: {
+      destructive_delete?: boolean;
+      overrides?: {
+        [key: string]: string;
+      };
+      /** @enum {unknown} */
+      preset: "default" | "vim";
+      vimrc?: string | null;
+    };
+    /** KnownUnions */
+    KnownUnions: {
+      /** @enum {unknown} */
+      data_type:
+        | "boolean"
+        | "date"
+        | "datetime"
+        | "integer"
+        | "number"
+        | "string"
+        | "time"
+        | "unknown";
+      error:
+        | components["schemas"]["SetupRootError"]
+        | components["schemas"]["CycleError"]
+        | components["schemas"]["MultipleDefinitionError"]
+        | components["schemas"]["ImportStarError"]
+        | components["schemas"]["MarimoAncestorStoppedError"]
+        | components["schemas"]["MarimoAncestorPreventedError"]
+        | components["schemas"]["MarimoExceptionRaisedError"]
+        | components["schemas"]["MarimoStrictExecutionError"]
+        | components["schemas"]["MarimoInterruptionError"]
+        | components["schemas"]["MarimoSyntaxError"]
+        | components["schemas"]["MarimoInternalError"]
+        | components["schemas"]["UnknownError"];
+      operation:
+        | components["schemas"]["CellOp"]
+        | components["schemas"]["FunctionCallResult"]
+        | components["schemas"]["SendUIElementMessage"]
+        | components["schemas"]["RemoveUIElements"]
+        | components["schemas"]["Reload"]
+        | components["schemas"]["Reconnected"]
+        | components["schemas"]["Interrupted"]
+        | components["schemas"]["CompletedRun"]
+        | components["schemas"]["KernelReady"]
+        | components["schemas"]["CompletionResult"]
+        | components["schemas"]["Alert"]
+        | components["schemas"]["Banner"]
+        | components["schemas"]["MissingPackageAlert"]
+        | components["schemas"]["InstallingPackageAlert"]
+        | components["schemas"]["Variables"]
+        | components["schemas"]["VariableValues"]
+        | components["schemas"]["QueryParamsSet"]
+        | components["schemas"]["QueryParamsAppend"]
+        | components["schemas"]["QueryParamsDelete"]
+        | components["schemas"]["QueryParamsClear"]
+        | components["schemas"]["Datasets"]
+        | components["schemas"]["DataColumnPreview"]
+        | components["schemas"]["SQLTablePreview"]
+        | components["schemas"]["SQLTableListPreview"]
+        | components["schemas"]["DataSourceConnections"]
+        | components["schemas"]["SecretKeysResult"]
+        | components["schemas"]["FocusCell"]
+        | components["schemas"]["UpdateCellCodes"]
+        | components["schemas"]["UpdateCellIdsRequest"];
+    };
+    /**
+     * LanguageServersConfig
+     * @description Configuration options for language servers.
+     *
+     *         **Keys.**
+     *
+     *         - `pylsp`: the pylsp config
+     */
+    LanguageServersConfig: {
+      basedpyright?: components["schemas"]["BasedpyrightServerConfig"];
+      pylsp?: components["schemas"]["PythonLanguageServerConfig"];
+      ty?: components["schemas"]["TyLanguageServerConfig"];
+    };
+    /** LayoutConfig */
+    LayoutConfig: {
+      data: Record<string, any>;
+      type: string;
     };
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
     };
+    /** ListSecretKeysRequest */
     ListSecretKeysRequest: {
       requestId: string;
     };
     ListSecretKeysResponse: {
-      keys: components["schemas"]["SecretKeysWithProvider"][];
+      keys: {
+        keys: string[];
+        name: string;
+        /** @enum {string} */
+        provider: "env" | "dotenv";
+      }[];
     };
-    MIME: Record<string, never>;
+    /**
+     * MIME
+     * @description Protocol for instantiating objects using marimo's media viewer.
+     *
+     *         To implement this protocol, a class needs to define
+     *         just one method, _mime_.
+     */
+    MIME: Record<string, any>;
+    /** MarimoAncestorPreventedError */
     MarimoAncestorPreventedError: {
-      blamed_cell?: string | null;
+      blamed_cell: string | null;
       msg: string;
       raising_cell: string;
-      /** @enum {string} */
+      /** @enum {unknown} */
       type: "ancestor-prevented";
     };
+    /** MarimoAncestorStoppedError */
     MarimoAncestorStoppedError: {
       msg: string;
       raising_cell: string;
-      /** @enum {string} */
+      /** @enum {unknown} */
       type: "ancestor-stopped";
     };
+    /**
+     * MarimoConfig
+     * @description Configuration for the marimo editor
+     */
     MarimoConfig: {
       ai?: components["schemas"]["AiConfig"];
-      completion: {
-        activate_on_typing: boolean;
-        api_key?: string | null;
-        base_url?: string | null;
-        codeium_api_key?: string | null;
-        copilot: boolean | ("github" | "codeium" | "custom");
-        model?: string | null;
-      };
-      datasources?: {
-        auto_discover_columns?: boolean | "auto";
-        auto_discover_schemas?: boolean | "auto";
-        auto_discover_tables?: boolean | "auto";
-      };
-      diagnostics?: {
-        enabled?: boolean;
-      };
-      display: {
-        /** @enum {string} */
-        cell_output: "above" | "below";
-        code_editor_font_size: number;
-        custom_css?: string[];
-        /** @enum {string} */
-        dataframes: "rich" | "plain";
-        default_table_max_columns: number;
-        default_table_page_size: number;
-        /** @enum {string} */
-        default_width: "normal" | "compact" | "medium" | "full" | "columns";
-        reference_highlighting?: boolean;
-        /** @enum {string} */
-        theme: "light" | "dark" | "system";
-      };
-      experimental?:
-        | {
-            [key: string]: unknown;
-          }
-        | {
-            cache?:
-              | {
-                  args?: {
-                    [key: string]: unknown;
-                  };
-                  /** @enum {string} */
-                  type?: "file" | "redis" | "rest" | "tiered";
-                }[]
-              | components["schemas"]["StoreConfig"];
-            /** @enum {string} */
-            execution_type?: "relaxed" | "strict";
-            inline_ai_tooltip?: boolean;
-            markdown?: boolean;
-            mcp_docs?: boolean;
-            performant_table_charts?: boolean;
-            rtc_v2?: boolean;
-            sql_linter?: boolean;
-            wasm_layouts?: boolean;
-          };
-      formatting: {
-        line_length: number;
-      };
-      keymap: {
-        destructive_delete?: boolean;
-        overrides?: {
-          [key: string]: string;
-        };
-        /** @enum {string} */
-        preset: "default" | "vim";
-        vimrc?: string | null;
-      };
-      language_servers?: {
-        basedpyright?: {
-          enabled?: boolean;
-        };
-        pylsp?: {
-          enable_flake8?: boolean;
-          enable_mypy?: boolean;
-          enable_pydocstyle?: boolean;
-          enable_pyflakes?: boolean;
-          enable_pylint?: boolean;
-          enable_ruff?: boolean;
-          enabled?: boolean;
-        };
-        ty?: {
-          enabled?: boolean;
-        };
-      };
-      package_management: {
-        /** @enum {string} */
-        manager: "pip" | "rye" | "uv" | "poetry" | "pixi";
-      };
-      runtime: {
-        auto_instantiate: boolean;
-        /** @enum {string} */
-        auto_reload: "off" | "lazy" | "autorun";
-        default_auto_download?: ("html" | "markdown" | "ipynb")[];
-        /** @enum {string} */
-        default_sql_output:
-          | "polars"
-          | "lazy-polars"
-          | "pandas"
-          | "native"
-          | "auto";
-        dotenv?: string[];
-        /** @enum {string} */
-        on_cell_change: "lazy" | "autorun";
-        output_max_bytes: number;
-        pythonpath?: string[];
-        reactive_tests: boolean;
-        std_stream_max_bytes: number;
-        /** @enum {string} */
-        watcher_on_save: "lazy" | "autorun";
-      };
-      save: {
-        /** @enum {string} */
-        autosave: "off" | "after_delay";
-        autosave_delay: number;
-        format_on_save: boolean;
-      };
-      server: {
-        browser: "default" | string;
-        follow_symlink: boolean;
-      };
-      sharing?: {
-        html?: boolean;
-        wasm?: boolean;
-      };
-      snippets?: {
-        custom_paths?: string[];
-        include_default_snippets?: boolean;
-      };
+      completion: components["schemas"]["CompletionConfig"];
+      datasources?: components["schemas"]["DatasourcesConfig"];
+      diagnostics?: components["schemas"]["DiagnosticsConfig"];
+      display: components["schemas"]["DisplayConfig"];
+      experimental?: Record<string, any>;
+      formatting: components["schemas"]["FormattingConfig"];
+      keymap: components["schemas"]["KeymapConfig"];
+      language_servers?: components["schemas"]["LanguageServersConfig"];
+      package_management: components["schemas"]["PackageManagementConfig"];
+      runtime: components["schemas"]["RuntimeConfig"];
+      save: components["schemas"]["SaveConfig"];
+      server: components["schemas"]["ServerConfig"];
+      sharing?: components["schemas"]["SharingConfig"];
+      snippets?: components["schemas"]["SnippetsConfig"];
     };
+    /** MarimoExceptionRaisedError */
     MarimoExceptionRaisedError: {
       exception_type: string;
       msg: string;
-      raising_cell?: string | null;
-      /** @enum {string} */
+      raising_cell: string | null;
+      /** @enum {unknown} */
       type: "exception";
     };
     MarimoFile: {
@@ -3334,94 +3635,72 @@ export interface components {
       path: string;
       sessionId?: string | null;
     };
+    /**
+     * MarimoInternalError
+     * @description An internal error that should be hidden from the user.
+     *     The error is logged to the console and then a new error is broadcasted
+     *     such that the data is hidden.
+     *
+     *     They can be linked back to the original error by the error_id.
+     */
     MarimoInternalError: {
       error_id: string;
-      msg: string;
-      /** @enum {string} */
+      /** @default  */
+      msg?: string;
+      /** @enum {unknown} */
       type: "internal";
     };
+    /** MarimoInterruptionError */
     MarimoInterruptionError: {
-      /** @enum {string} */
+      /** @enum {unknown} */
       type: "interruption";
     };
+    /** MarimoStrictExecutionError */
     MarimoStrictExecutionError: {
-      blamed_cell?: string | null;
+      blamed_cell: string | null;
       msg: string;
       ref: string;
-      /** @enum {string} */
+      /** @enum {unknown} */
       type: "strict-exception";
     };
+    /** MarimoSyntaxError */
     MarimoSyntaxError: {
       msg: string;
-      /** @enum {string} */
+      /** @enum {unknown} */
       type: "syntax";
     };
-    MessageOperation:
-      | components["schemas"]["CellOp"]
-      | components["schemas"]["FunctionCallResult"]
-      | components["schemas"]["SendUIElementMessage"]
-      | components["schemas"]["RemoveUIElements"]
-      | components["schemas"]["Reload"]
-      | components["schemas"]["Reconnected"]
-      | components["schemas"]["Interrupted"]
-      | components["schemas"]["CompletedRun"]
-      | components["schemas"]["KernelReady"]
-      | components["schemas"]["CompletionResult"]
-      | components["schemas"]["Alert"]
-      | components["schemas"]["Banner"]
-      | components["schemas"]["MissingPackageAlert"]
-      | components["schemas"]["InstallingPackageAlert"]
-      | components["schemas"]["Variables"]
-      | components["schemas"]["VariableValues"]
-      | components["schemas"]["QueryParamsSet"]
-      | components["schemas"]["QueryParamsAppend"]
-      | components["schemas"]["QueryParamsDelete"]
-      | components["schemas"]["QueryParamsClear"]
-      | components["schemas"]["Datasets"]
-      | components["schemas"]["DataColumnPreview"]
-      | components["schemas"]["SQLTablePreview"]
-      | components["schemas"]["SQLTableListPreview"]
-      | components["schemas"]["DataSourceConnections"]
-      | components["schemas"]["SecretKeysResult"]
-      | components["schemas"]["FocusCell"]
-      | components["schemas"]["UpdateCellCodes"]
-      | components["schemas"]["UpdateCellIdsRequest"];
-    /** @enum {string} */
-    MimeType:
-      | "application/json"
-      | "application/vnd.marimo+error"
-      | "application/vnd.marimo+traceback"
-      | "application/vnd.marimo+mimebundle"
-      | "application/vnd.vega.v5+json"
-      | "application/vnd.vegalite.v5+json"
-      | "application/vnd.jupyter.widget-view+json"
-      | "image/png"
-      | "image/svg+xml"
-      | "image/tiff"
-      | "image/avif"
-      | "image/bmp"
-      | "image/gif"
-      | "image/jpeg"
-      | "video/mp4"
-      | "video/mpeg"
-      | "text/html"
-      | "text/plain"
-      | "text/markdown"
-      | "text/latex"
-      | "text/csv";
+    /** MissingPackageAlert */
     MissingPackageAlert: {
       isolated: boolean;
-      /** @enum {string} */
-      name: "missing-package-alert";
+      /** @enum {unknown} */
+      op: "missing-package-alert";
       packages: string[];
     };
+    /** ModelMessage */
+    ModelMessage: {
+      bufferPaths: (string | number)[][];
+      state: Record<string, any>;
+    };
+    /** MultipleDefinitionError */
     MultipleDefinitionError: {
       cells: string[];
       name: string;
-      /** @enum {string} */
+      /** @enum {unknown} */
       type: "multiple-defs";
     };
-    NonNestedLiteral: number | string | boolean;
+    /**
+     * OpenAiConfig
+     * @description Configuration options for OpenAI or OpenAI-compatible services.
+     *
+     *         **Keys.**
+     *
+     *         - `api_key`: the OpenAI API key
+     *         - `base_url`: the base URL for the API
+     *         - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
+     *         - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
+     *         - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
+     *         - `extra_headers`: extra headers to be passed to the OpenAI client
+     */
     OpenAiConfig: {
       api_key?: string;
       base_url?: string;
@@ -3452,31 +3731,59 @@ export interface components {
       name: string;
       version: string;
     };
+    /**
+     * PackageManagementConfig
+     * @description Configuration options for package management.
+     *
+     *         **Keys.**
+     *
+     *         - `manager`: the package manager to use
+     */
+    PackageManagementConfig: {
+      /** @enum {unknown} */
+      manager: "pip" | "pixi" | "poetry" | "rye" | "uv";
+    };
     PackageOperationResponse: {
       error?: string | null;
       success: boolean;
     };
+    /** PdbRequest */
     PdbRequest: {
       cellId: string;
-      request?: components["schemas"]["HTTPRequest"];
+      /** @default null */
+      request?: null | components["schemas"]["HTTPRequest"];
     };
+    /**
+     * PreviewDataSourceConnectionRequest
+     * @description Fetch a datasource connection
+     */
     PreviewDataSourceConnectionRequest: {
       engine: string;
     };
+    /** PreviewDatasetColumnRequest */
     PreviewDatasetColumnRequest: {
       columnName: string;
+      /** @default null */
       fullyQualifiedTableName?: string | null;
       source: string;
-      /** @enum {string} */
-      sourceType: "local" | "duckdb" | "connection" | "catalog";
+      /** @enum {unknown} */
+      sourceType: "catalog" | "connection" | "duckdb" | "local";
       tableName: string;
     };
+    /**
+     * PreviewSQLTableListRequest
+     * @description Preview list of tables in an SQL schema
+     */
     PreviewSQLTableListRequest: {
       database: string;
       engine: string;
       requestId: string;
       schema: string;
     };
+    /**
+     * PreviewSQLTableRequest
+     * @description Preview table details in an SQL database
+     */
     PreviewSQLTableRequest: {
       database: string;
       engine: string;
@@ -3484,99 +3791,222 @@ export interface components {
       schema: string;
       tableName: string;
     };
+    /**
+     * PythonLanguageServerConfig
+     * @description Configuration options for Python Language Server.
+     *
+     *     pylsp handles completion, hover, go-to-definition, and diagnostics.
+     */
+    PythonLanguageServerConfig: {
+      enable_flake8?: boolean;
+      enable_mypy?: boolean;
+      enable_pydocstyle?: boolean;
+      enable_pyflakes?: boolean;
+      enable_pylint?: boolean;
+      enable_ruff?: boolean;
+      enabled?: boolean;
+    };
+    /** QueryParamsAppend */
     QueryParamsAppend: {
       key: string;
-      /** @enum {string} */
-      name: "query-params-append";
+      /** @enum {unknown} */
+      op: "query-params-append";
       value: string;
     };
+    /** QueryParamsClear */
     QueryParamsClear: {
-      /** @enum {string} */
-      name: "query-params-clear";
+      /** @enum {unknown} */
+      op: "query-params-clear";
     };
+    /** QueryParamsDelete */
     QueryParamsDelete: {
       key: string;
-      /** @enum {string} */
-      name: "query-params-delete";
-      value?: string | null;
+      /** @enum {unknown} */
+      op: "query-params-delete";
+      value: string | null;
     };
+    /**
+     * QueryParamsSet
+     * @description Set query parameters.
+     */
     QueryParamsSet: {
       key: string;
-      /** @enum {string} */
-      name: "query-params-set";
+      /** @enum {unknown} */
+      op: "query-params-set";
       value: string | string[];
     };
+    /** ReadCodeResponse */
     ReadCodeResponse: {
       contents: string;
     };
     RecentFilesResponse: {
       files: components["schemas"]["MarimoFile"][];
     };
+    /** Reconnected */
     Reconnected: {
-      /** @enum {string} */
-      name: "reconnected";
+      /** @enum {unknown} */
+      op: "reconnected";
     };
+    /** Reload */
     Reload: {
-      /** @enum {string} */
-      name: "reload";
+      /** @enum {unknown} */
+      op: "reload";
     };
     RemovePackageRequest: {
       package: string;
     };
+    /**
+     * RemoveUIElements
+     * @description Invalidate UI elements for a given cell.
+     */
     RemoveUIElements: {
       cell_id: string;
-      /** @enum {string} */
-      name: "remove-ui-elements";
+      /** @enum {unknown} */
+      op: "remove-ui-elements";
     };
+    /** RenameFileRequest */
     RenameFileRequest: {
       filename: string;
     };
+    /** RenameRequest */
     RenameRequest: {
       filename: string;
     };
+    /** RunRequest */
     RunRequest: {
       cellIds: string[];
       codes: string[];
-      request?: components["schemas"]["HTTPRequest"];
+      /** @default null */
+      request?: null | components["schemas"]["HTTPRequest"];
     };
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
     };
-    /** @enum {string} */
-    RuntimeState: "idle" | "queued" | "running" | "disabled-transitively";
+    /**
+     * RuntimeConfig
+     * @description Configuration for runtime.
+     *
+     *         **Keys.**
+     *
+     *         - `auto_instantiate`: if `False`, cells won't automatically
+     *             run on startup. This only applies when editing a notebook,
+     *             and not when running as an application.
+     *             The default is `True`.
+     *         - `auto_reload`: if `lazy`, cells importing modified modules will marked
+     *           as stale; if `autorun`, affected cells will be automatically run. similar
+     *           to IPython's %autoreload extension but with more code intelligence.
+     *         - `reactive_tests`: if `True`, marimo will automatically run pytest on cells containing only test functions and test classes.
+     *           execution.
+     *         - `on_cell_change`: if `lazy`, cells will be marked stale when their
+     *           ancestors run but won't autorun; if `autorun`, cells will automatically
+     *           run when their ancestors run.
+     *         - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
+     *           if `strict` marimo will clone cell declarations by default, avoiding
+     *           hidden potential state build up.
+     *         - `watcher_on_save`: how to handle file changes when saving. `"lazy"` marks
+     *             affected cells as stale, `"autorun"` automatically runs affected cells.
+     *         - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
+     *             values may affect frontend performance
+     *         - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
+     *           larger values may affect frontend performance
+     *         - `pythonpath`: a list of directories to add to the Python search path.
+     *             Directories will be added to the head of sys.path. Similar to the
+     *             `PYTHONPATH` environment variable, the directories will be included in
+     *             where Python will look for imported modules.
+     *         - `dotenv`: a list of paths to `.env` files to load.
+     *             If the file does not exist, it will be silently ignored.
+     *             The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
+     *         - `default_sql_output`: the default output format for SQL queries. Can be one of:
+     *             `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
+     *             The default is `"auto"`.
+     *         - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
+     *            `html`, `markdown`, `ipynb`.
+     *            The default is None.
+     */
+    RuntimeConfig: {
+      auto_instantiate: boolean;
+      /** @enum {unknown} */
+      auto_reload: "autorun" | "lazy" | "off";
+      default_auto_download?: ("html" | "ipynb" | "markdown")[];
+      /** @enum {unknown} */
+      default_sql_output:
+        | "auto"
+        | "lazy-polars"
+        | "native"
+        | "pandas"
+        | "polars";
+      dotenv?: string[];
+      /** @enum {unknown} */
+      on_cell_change: "autorun" | "lazy";
+      output_max_bytes: number;
+      pythonpath?: string[];
+      reactive_tests: boolean;
+      std_stream_max_bytes: number;
+      /** @enum {unknown} */
+      watcher_on_save: "autorun" | "lazy";
+    };
+    /**
+     * SQLTableListPreview
+     * @description Preview of a list of tables in a schema.
+     */
     SQLTableListPreview: {
+      /** @default null */
       error?: string | null;
-      /** @enum {string} */
-      name: "sql-table-list-preview";
+      /** @enum {unknown} */
+      op: "sql-table-list-preview";
       request_id: string;
-      tables: components["schemas"]["DataTable"][];
+      /** @default [] */
+      tables?: components["schemas"]["DataTable"][];
     };
+    /**
+     * SQLTablePreview
+     * @description Preview of a table in a SQL database.
+     */
     SQLTablePreview: {
+      /** @default null */
       error?: string | null;
-      /** @enum {string} */
-      name: "sql-table-preview";
+      /** @enum {unknown} */
+      op: "sql-table-preview";
       request_id: string;
-      table?: components["schemas"]["DataTable"];
+      table: null | components["schemas"]["DataTable"];
     };
+    /** SaveAppConfigurationRequest */
     SaveAppConfigurationRequest: {
-      config: {
-        [key: string]: unknown;
-      };
+      config: Record<string, any>;
     };
+    /**
+     * SaveConfig
+     * @description Configuration for saving.
+     *
+     *         **Keys.**
+     *
+     *         - `autosave`: one of `"off"` or `"after_delay"`
+     *         - `delay`: number of milliseconds to wait before autosaving
+     *         - `format_on_save`: if `True`, format the code on save
+     */
+    SaveConfig: {
+      /** @enum {unknown} */
+      autosave: "after_delay" | "off";
+      autosave_delay: number;
+      format_on_save: boolean;
+    };
+    /** SaveNotebookRequest */
     SaveNotebookRequest: {
       cellIds: string[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
       filename: string;
-      layout?: {
-        [key: string]: unknown;
-      } | null;
+      /** @default null */
+      layout?: Record<string, any> | null;
       names: string[];
-      persist: boolean;
+      /** @default true */
+      persist?: boolean;
     };
+    /** SaveUserConfigurationRequest */
     SaveUserConfigurationRequest: {
       config: components["schemas"]["MarimoConfig"];
     };
+    /** Schema */
     Schema: {
       name: string;
       tables: components["schemas"]["DataTable"][];
@@ -3590,58 +4020,94 @@ export interface components {
       columns: components["schemas"]["SchemaColumn"][];
       name: string;
     };
+    /**
+     * SecretKeysResult
+     * @description Result of listing secret keys.
+     */
     SecretKeysResult: {
-      /** @enum {string} */
-      name: "secret-keys-result";
+      /** @enum {unknown} */
+      op: "secret-keys-result";
       request_id: string;
       secrets: components["schemas"]["SecretKeysWithProvider"][];
     };
+    /** SecretKeysWithProvider */
     SecretKeysWithProvider: {
       keys: string[];
       name: string;
-      /** @enum {string} */
-      provider: "env" | "dotenv";
+      /** @enum {unknown} */
+      provider: "dotenv" | "env";
     };
+    /**
+     * SendUIElementMessage
+     * @description Send a message to a UI element.
+     */
     SendUIElementMessage: {
+      /** @default null */
       buffers?: string[] | null;
-      message: {
-        [key: string]: unknown;
-      };
-      model_id?: string | null;
-      /** @enum {string} */
-      name: "send-ui-element-message";
-      ui_element?: string | null;
+      message: Record<string, any>;
+      model_id: string | null;
+      /** @enum {unknown} */
+      op: "send-ui-element-message";
+      ui_element: string | null;
     };
+    /**
+     * ServerConfig
+     * @description Configuration for the server.
+     *
+     *         **Keys.**
+     *
+     *         - `browser`: the web browser to use. `"default"` or a browser registered
+     *             with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
+     *         - `follow_symlink`: if true, the server will follow symlinks it finds
+     *             inside its static assets directory.
+     */
+    ServerConfig: {
+      browser: "default" | string;
+      follow_symlink: boolean;
+    };
+    /** SetCellConfigRequest */
     SetCellConfigRequest: {
       configs: {
-        [key: string]: {
-          [key: string]: unknown;
-        };
+        [key: string]: Record<string, any>;
       };
     };
+    /** SetModelMessageRequest */
     SetModelMessageRequest: {
+      /** @default null */
       buffers?: string[] | null;
-      message: {
-        bufferPaths: (string | number)[][];
-        state: {
-          [key: string]: unknown;
-        };
-      };
+      message: components["schemas"]["ModelMessage"];
       modelId: string;
     };
+    /** SetUIElementValueRequest */
     SetUIElementValueRequest: {
       objectIds: string[];
-      request?: components["schemas"]["HTTPRequest"];
-      token: string;
+      /** @default null */
+      request?: null | components["schemas"]["HTTPRequest"];
+      token?: string;
       values: unknown[];
     };
+    /** SetUserConfigRequest */
     SetUserConfigRequest: {
       config: components["schemas"]["MarimoConfig"];
     };
+    /** SetupRootError */
     SetupRootError: {
       edges_with_vars: [string, string[], string][];
-      /** @enum {string} */
+      /** @enum {unknown} */
       type: "setup-refs";
+    };
+    /**
+     * SharingConfig
+     * @description Configuration for sharing features.
+     *
+     *         **Keys.**
+     *
+     *         - `html`: if `False`, HTML sharing options will be hidden from the UI
+     *         - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
+     */
+    SharingConfig: {
+      html?: boolean;
+      wasm?: boolean;
     };
     ShutdownSessionRequest: {
       sessionId: string;
@@ -3658,37 +4124,77 @@ export interface components {
     Snippets: {
       snippets: components["schemas"]["Snippet"][];
     };
+    /**
+     * SnippetsConfig
+     * @description Configuration for snippets.
+     *
+     *         **Keys.**
+     *
+     *         - `custom_path`: the path to the custom snippets directory
+     */
+    SnippetsConfig: {
+      custom_paths?: string[];
+      include_default_snippets?: boolean;
+    };
+    /** StdinRequest */
     StdinRequest: {
       text: string;
     };
-    StopRequest: Record<string, never>;
+    /** StopRequest */
+    StopRequest: Record<string, any>;
+    /**
+     * StoreConfig
+     * @description Configuration for cache stores.
+     */
     StoreConfig: {
-      args?: {
-        [key: string]: unknown;
-      };
-      /** @enum {string} */
+      args?: Record<string, any>;
+      /** @enum {unknown} */
       type?: "file" | "redis" | "rest" | "tiered";
     };
+    /** SuccessResponse */
     SuccessResponse: {
-      success: boolean;
+      /** @default true */
+      success?: boolean;
     };
+    /**
+     * TyLanguageServerConfig
+     * @description Configuration options for Ty Language Server.
+     *
+     *     ty handles completion, hover, go-to-definition, and diagnostics,
+     *     but we only use it for diagnostics.
+     */
+    TyLanguageServerConfig: {
+      enabled?: boolean;
+    };
+    /** UnknownError */
     UnknownError: {
+      /** @default null */
+      error_type?: string | null;
       msg: string;
-      /** @enum {string} */
+      /** @enum {unknown} */
       type: "unknown";
     };
+    /** UpdateCellCodes */
     UpdateCellCodes: {
       cell_ids: string[];
       code_is_stale: boolean;
       codes: string[];
-      /** @enum {string} */
-      name: "update-cell-codes";
+      /** @enum {unknown} */
+      op: "update-cell-codes";
     };
+    /**
+     * UpdateCellIdsRequest
+     * @description Update the cell ID ordering of the cells in the notebook.
+     *
+     *     Right now we send the entire list of cell IDs,
+     *     but in the future we might want to send change-deltas.
+     */
     UpdateCellIdsRequest: {
       cell_ids: string[];
-      /** @enum {string} */
-      name: "update-cell-ids";
+      /** @enum {unknown} */
+      op: "update-cell-ids";
     };
+    /** UpdateComponentValuesRequest */
     UpdateComponentValuesRequest: {
       objectIds: string[];
       values: unknown[];
@@ -3698,32 +4204,80 @@ export interface components {
       previewValue: unknown;
       valueType: string;
     };
+    /** VariableDeclaration */
     VariableDeclaration: {
       declared_by: string[];
       name: string;
       used_by: string[];
     };
+    /** VariableValue */
     VariableValue: {
-      datatype?: string | null;
+      datatype: string | null;
       name: string;
-      value?: string | null;
+      value: string | null;
     };
+    /**
+     * VariableValues
+     * @description List of variables and their types/values.
+     */
     VariableValues: {
-      /** @enum {string} */
-      name: "variable-values";
+      /** @enum {unknown} */
+      op: "variable-values";
       variables: components["schemas"]["VariableValue"][];
     };
+    /**
+     * Variables
+     * @description List of variable declarations.
+     */
     Variables: {
-      /** @enum {string} */
-      name: "variables";
+      /** @enum {unknown} */
+      op: "variables";
       variables: components["schemas"]["VariableDeclaration"][];
     };
     WorkspaceFilesRequest: {
       includeMarkdown: boolean;
     };
     WorkspaceFilesResponse: {
-      files: components["schemas"]["FileInfo"][];
+      files: {
+        /** @default [] */
+        children?: components["schemas"]["FileInfo"][];
+        id: string;
+        isDirectory: boolean;
+        isMarimoFile: boolean;
+        /** @default null */
+        lastModified?: number | null;
+        name: string;
+        path: string;
+      }[];
       root: string;
+    };
+    /**
+     * _AppConfig
+     * @description Program-specific configuration.
+     *
+     *         Configuration for frontends or runtimes that is specific to
+     *         a single marimo program.
+     */
+    _AppConfig: {
+      /** @default null */
+      app_title?: string | null;
+      auto_download?: ("html" | "ipynb" | "markdown")[];
+      /** @default null */
+      css_file?: string | null;
+      /** @default null */
+      html_head_file?: string | null;
+      /** @default null */
+      layout_file?: string | null;
+      /**
+       * @default auto
+       * @enum {unknown}
+       */
+      sql_output?: "auto" | "lazy-polars" | "native" | "pandas" | "polars";
+      /**
+       * @default compact
+       * @enum {unknown}
+       */
+      width?: "columns" | "compact" | "full" | "medium" | "normal";
     };
   };
   responses: never;
@@ -3732,5 +4286,5 @@ export interface components {
   headers: never;
   pathItems: never;
 }
-export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export type $defs = Record<string, any>;
+export type operations = Record<string, any>;

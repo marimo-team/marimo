@@ -11,5 +11,5 @@ export const capabilitiesAtom = atom<Capabilities>({
 });
 
 export function hasCapability(key: keyof Capabilities): boolean {
-  return store.get(capabilitiesAtom)[key];
+  return store.get(capabilitiesAtom)[key] ?? false;
 }
