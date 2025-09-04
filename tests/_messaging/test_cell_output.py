@@ -1,19 +1,11 @@
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoSyntaxError
-from marimo._messaging.msgspec_encoder import encoder
-from marimo._messaging.ops import serialize
+from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._utils.parse_dataclass import parse_raw
-
-
-def as_json(obj: Any):
-    return encoder.encode(obj).decode("utf-8")
-
 
 timestamp = 0
 
