@@ -3635,11 +3635,15 @@ export interface components {
       /** @enum {unknown} */
       type: "exception";
     };
+    /** MarimoFile */
     MarimoFile: {
+      /** @default null */
       initializationId?: string | null;
+      /** @default null */
       lastModified?: number | null;
       name: string;
       path: string;
+      /** @default null */
       sessionId?: string | null;
     };
     /**
@@ -3719,18 +3723,19 @@ export interface components {
       model?: string;
       ssl_verify?: boolean;
     };
+    /** OpenTutorialRequest */
     OpenTutorialRequest: {
       tutorialId:
         | (
-            | "intro"
             | "dataflow"
-            | "ui"
+            | "fileformat"
+            | "for-jupyter-users"
+            | "intro"
+            | "layout"
             | "markdown"
             | "plots"
             | "sql"
-            | "layout"
-            | "fileformat"
-            | "for-jupyter-users"
+            | "ui"
           )
         | "markdown-format";
     };
@@ -3846,6 +3851,7 @@ export interface components {
     ReadCodeResponse: {
       contents: string;
     };
+    /** RecentFilesResponse */
     RecentFilesResponse: {
       files: components["schemas"]["MarimoFile"][];
     };
@@ -3886,6 +3892,7 @@ export interface components {
       /** @default null */
       request?: null | components["schemas"]["HTTPRequest"];
     };
+    /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
     };
@@ -4116,6 +4123,7 @@ export interface components {
       html?: boolean;
       wasm?: boolean;
     };
+    /** ShutdownSessionRequest */
     ShutdownSessionRequest: {
       sessionId: string;
     };
@@ -4253,21 +4261,14 @@ export interface components {
       op: "variables";
       variables: components["schemas"]["VariableDeclaration"][];
     };
+    /** WorkspaceFilesRequest */
     WorkspaceFilesRequest: {
-      includeMarkdown: boolean;
+      /** @default false */
+      includeMarkdown?: boolean;
     };
+    /** WorkspaceFilesResponse */
     WorkspaceFilesResponse: {
-      files: {
-        /** @default [] */
-        children?: components["schemas"]["FileInfo"][];
-        id: string;
-        isDirectory: boolean;
-        isMarimoFile: boolean;
-        /** @default null */
-        lastModified?: number | null;
-        name: string;
-        path: string;
-      }[];
+      files: components["schemas"]["FileInfo"][];
       root: string;
     };
     /**

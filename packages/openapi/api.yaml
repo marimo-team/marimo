@@ -2029,21 +2029,28 @@ components:
     MarimoFile:
       properties:
         initializationId:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         lastModified:
-          nullable: true
-          type: number
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
         name:
           type: string
         path:
           type: string
         sessionId:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
       required:
       - name
       - path
+      title: MarimoFile
       type: object
     MarimoInternalError:
       description: 'An internal error that should be hidden from the user.
@@ -2193,23 +2200,22 @@ components:
     OpenTutorialRequest:
       properties:
         tutorialId:
-          oneOf:
+          anyOf:
           - enum:
-            - intro
             - dataflow
-            - ui
+            - fileformat
+            - for-jupyter-users
+            - intro
+            - layout
             - markdown
             - plots
             - sql
-            - layout
-            - fileformat
-            - for-jupyter-users
-            type: string
+            - ui
           - enum:
             - markdown-format
-            type: string
       required:
       - tutorialId
+      title: OpenTutorialRequest
       type: object
     PackageDescription:
       properties:
@@ -2433,6 +2439,7 @@ components:
           type: array
       required:
       - files
+      title: RecentFilesResponse
       type: object
     Reconnected:
       properties:
@@ -2516,6 +2523,7 @@ components:
           type: array
       required:
       - files
+      title: RunningNotebooksResponse
       type: object
     RuntimeConfig:
       description: "Configuration for runtime.\n\n    **Keys.**\n\n    - `auto_instantiate`:\
@@ -2944,6 +2952,7 @@ components:
           type: string
       required:
       - sessionId
+      title: ShutdownSessionRequest
       type: object
     Snippet:
       properties:
@@ -3221,49 +3230,23 @@ components:
     WorkspaceFilesRequest:
       properties:
         includeMarkdown:
+          default: false
           type: boolean
-      required:
-      - includeMarkdown
+      required: []
+      title: WorkspaceFilesRequest
       type: object
     WorkspaceFilesResponse:
       properties:
         files:
           items:
-            properties:
-              children:
-                default: []
-                items:
-                  $ref: '#/components/schemas/FileInfo'
-                type: array
-              id:
-                type: string
-              isDirectory:
-                type: boolean
-              isMarimoFile:
-                type: boolean
-              lastModified:
-                anyOf:
-                - type: number
-                - type: 'null'
-                default: null
-              name:
-                type: string
-              path:
-                type: string
-            required:
-            - id
-            - path
-            - name
-            - isDirectory
-            - isMarimoFile
-            title: FileInfo
-            type: object
+            $ref: '#/components/schemas/FileInfo'
           type: array
         root:
           type: string
       required:
       - root
       - files
+      title: WorkspaceFilesResponse
       type: object
     _AppConfig:
       description: "Program-specific configuration.\n\n    Configuration for frontends\

@@ -1,16 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional
+
+import msgspec
 
 from marimo._server.models.files import FileInfo
 from marimo._tutorials import Tutorial  # type: ignore
 from marimo._types.ids import SessionId
 
 
-@dataclass
-class MarimoFile:
+class MarimoFile(msgspec.Struct, rename="camel"):
     # Name of the file
     name: str
     # Absolute path to the file
@@ -24,32 +24,26 @@ class MarimoFile:
     initialization_id: Optional[str] = None
 
 
-@dataclass
-class RecentFilesResponse:
+class RecentFilesResponse(msgspec.Struct, rename="camel"):
     files: list[MarimoFile]
 
 
-@dataclass
-class RunningNotebooksResponse:
+class RunningNotebooksResponse(msgspec.Struct, rename="camel"):
     files: list[MarimoFile]
 
 
-@dataclass
-class OpenTutorialRequest:
+class OpenTutorialRequest(msgspec.Struct, rename="camel"):
     tutorial_id: Tutorial
 
 
-@dataclass
-class WorkspaceFilesRequest:
+class WorkspaceFilesRequest(msgspec.Struct, rename="camel"):
     include_markdown: bool = False
 
 
-@dataclass
-class WorkspaceFilesResponse:
+class WorkspaceFilesResponse(msgspec.Struct, rename="camel"):
     root: str
     files: list[FileInfo]
 
 
-@dataclass
-class ShutdownSessionRequest:
+class ShutdownSessionRequest(msgspec.Struct, rename="camel"):
     session_id: SessionId
