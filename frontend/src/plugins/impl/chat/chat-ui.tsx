@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
+import { convertToFileUIPart } from "@/components/chat/chat-utils";
 import {
   type AdditionalCompletions,
   PromptInput,
@@ -62,8 +63,9 @@ interface Props extends PluginFunctions {
 }
 
 export const Chatbot: React.FC<Props> = (props) => {
+  const [input, setInput] = useState("");
   const [config, setConfig] = useState<ChatConfig>(props.config);
-  const [files, setFiles] = useState<FileList | undefined>(undefined);
+  const [files, setFiles] = useState<File[] | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const codeMirrorInputRef = useRef<ReactCodeMirrorRef>(null);
@@ -71,40 +73,33 @@ export const Chatbot: React.FC<Props> = (props) => {
 
   const { data: initialMessages } = useAsyncData(async () => {
     const chatMessages = await props.get_chat_history({});
-    /* FIXME(@ai-sdk-upgrade-v5): The `experimental_attachments` property has been replaced with the parts array. Please manually migrate following https://ai-sdk.dev/docs/migration-guides/migration-guide-5-0#attachments--file-parts */
     const messages: UIMessage[] = chatMessages.messages.map((message, idx) => ({
       id: idx.toString(),
       role: message.role,
-      content: message.content,
-      experimental_attachments: message.attachments,
+      parts: message.parts,
     }));
     return messages;
   }, []);
 
   const {
     messages,
+    sendMessage,
     setMessages,
-    input,
-    setInput,
-    handleSubmit,
     status,
     stop,
     error,
-    reload,
+    regenerate,
   } = useChat({
-    keepLastMessageOnError: true,
-    streamProtocol: "text",
-    fetch: async (_url, request) => {
-      const body = JSON.parse(request?.body as string) as {
-        messages: Message[];
+    // streamProtocol: "text",
+    fetch: async (_url: string, request: Request) => {
+      const body = JSON.parse(request?.body as unknown as string) as {
+        messages: UIMessage[];
       };
       try {
-        /* FIXME(@ai-sdk-upgrade-v5): The `experimental_attachments` property has been replaced with the parts array. Please manually migrate following https://ai-sdk.dev/docs/migration-guides/migration-guide-5-0#attachments--file-parts */
         const response = await props.send_prompt({
           messages: body.messages.map((m) => ({
             role: m.role as ChatRole,
-            content: m.content,
-            attachments: m.experimental_attachments,
+            parts: m.parts,
           })),
           config: {
             max_tokens: config.max_tokens,
@@ -126,21 +121,17 @@ export const Chatbot: React.FC<Props> = (props) => {
       }
     },
     initialMessages: initialMessages,
-    onFinish: (message, { usage, finishReason }) => {
+    onFinish: (message) => {
       setFiles(undefined);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
       Logger.debug("Finished streaming message:", message);
-      Logger.debug("Token usage:", usage);
-      Logger.debug("Finish reason:", finishReason);
+      // TODO: Log token usage and finish reason
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
-    },
-    onResponse: (response) => {
-      Logger.debug("Received HTTP response from server:", response);
     },
   });
 
@@ -180,13 +171,14 @@ export const Chatbot: React.FC<Props> = (props) => {
   };
 
   const renderMessage = (message: UIMessage) => {
+    const textParts = message.parts?.filter((p) => p.type === "text");
+    const textContent = textParts?.map((p) => p.text).join("\n");
     const content =
       message.role === "assistant"
-        ? renderHTML({ html: message.content })
-        : message.content;
+        ? renderHTML({ html: textContent })
+        : textContent;
 
-    /* FIXME(@ai-sdk-upgrade-v5): The `experimental_attachments` property has been replaced with the parts array. Please manually migrate following https://ai-sdk.dev/docs/migration-guides/migration-guide-5-0#attachments--file-parts */
-    const attachments = message.experimental_attachments;
+    const attachments = message.parts?.filter((p) => p.type === "file");
 
     return (
       <>
@@ -202,7 +194,7 @@ export const Chatbot: React.FC<Props> = (props) => {
                     size: "icon",
                   })}
                   href={attachment.url}
-                  download={attachment.name}
+                  download={attachment.filename}
                 >
                   <DownloadIcon className="size-3" />
                 </a>
@@ -272,50 +264,59 @@ export const Chatbot: React.FC<Props> = (props) => {
             </p>
           </div>
         )}
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={cn(
-              "flex flex-col group gap-2",
-              message.role === "user" ? "items-end" : "items-start",
-            )}
-          >
+        {messages.map((message) => {
+          const textContent = message.parts
+            ?.filter((p) => p.type === "text")
+            .map((p) => p.text)
+            .join("\n");
+
+          return (
             <div
-              className={`max-w-[80%] p-3 rounded-lg ${
-                message.role === "user"
-                  ? "bg-(--sky-11) text-(--slate-1)"
-                  : "bg-(--slate-4) text-(--slate-12)"
-              }`}
+              key={message.id}
+              className={cn(
+                "flex flex-col group gap-2",
+                message.role === "user" ? "items-end" : "items-start",
+              )}
             >
-              <p
-                className={cn(message.role === "user" && "whitespace-pre-wrap")}
+              <div
+                className={`max-w-[80%] p-3 rounded-lg ${
+                  message.role === "user"
+                    ? "bg-(--sky-11) text-(--slate-1)"
+                    : "bg-(--slate-4) text-(--slate-12)"
+                }`}
               >
-                {renderMessage(message)}
-              </p>
+                <p
+                  className={cn(
+                    message.role === "user" && "whitespace-pre-wrap",
+                  )}
+                >
+                  {renderMessage(message)}
+                </p>
+              </div>
+              <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await copyToClipboard(textContent);
+                    toast({
+                      title: "Copied to clipboard",
+                    });
+                  }}
+                  className="text-xs text-(--slate-9) hover:text-(--slate-11)"
+                >
+                  <ClipboardIcon className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(message.id)}
+                  className="text-xs text-(--slate-9) hover:text-(--slate-11)"
+                >
+                  <Trash2Icon className="h-3 w-3 text-(--red-9)" />
+                </button>
+              </div>
             </div>
-            <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
-              <button
-                type="button"
-                onClick={async () => {
-                  await copyToClipboard(message.content);
-                  toast({
-                    title: "Copied to clipboard",
-                  });
-                }}
-                className="text-xs text-(--slate-9) hover:text-(--slate-11)"
-              >
-                <ClipboardIcon className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDelete(message.id)}
-                className="text-xs text-(--slate-9) hover:text-(--slate-11)"
-              >
-                <Trash2Icon className="h-3 w-3 text-(--red-9)" />
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {isLoading && (
           <div className="flex items-center justify-center space-x-2 mb-4">
@@ -334,17 +335,22 @@ export const Chatbot: React.FC<Props> = (props) => {
         {error && (
           <div className="flex items-center justify-center space-x-2 mb-4">
             <ErrorBanner error={error} />
-            <Button variant="outline" size="sm" onClick={() => reload()}>
+            <Button variant="outline" size="sm" onClick={() => regenerate()}>
               Retry
             </Button>
           </div>
         )}
       </div>
       <form
-        onSubmit={(evt) => {
-          /* FIXME(@ai-sdk-upgrade-v5): The `experimental_attachments` property has been replaced with the parts array. Please manually migrate following https://ai-sdk.dev/docs/migration-guides/migration-guide-5-0#attachments--file-parts */
-          handleSubmit(evt, {
-            experimental_attachments: files,
+        onSubmit={async (evt) => {
+          const fileParts = files
+            ? await convertToFileUIPart(files)
+            : undefined;
+
+          evt.preventDefault();
+          sendMessage({
+            role: "user",
+            parts: [{ type: "text", text: input }, ...(fileParts ?? [])],
           });
         }}
         ref={formRef}
@@ -437,7 +443,7 @@ export const Chatbot: React.FC<Props> = (props) => {
               }
               onChange={(event) => {
                 if (event.target.files) {
-                  setFiles(event.target.files);
+                  setFiles([...event.target.files]);
                 }
               }}
             />

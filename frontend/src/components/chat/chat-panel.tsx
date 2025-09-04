@@ -6,7 +6,6 @@ import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import {
   DefaultChatTransport,
-  type FileUIPart,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
 import { useAtom, useAtomValue } from "jotai";
@@ -63,7 +62,6 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
-import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
 import { generateUUID } from "@/utils/uuid";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
@@ -76,6 +74,7 @@ import { Input } from "../ui/input";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 import { AttachmentRenderer, FileAttachmentPill } from "./chat-components";
+import { convertToFileUIPart } from "./chat-utils";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
 import { ToolCallAccordion } from "./tool-call-accordion";
@@ -940,22 +939,6 @@ function isLastMessageReasoning(messages: UIMessage[]): boolean {
   // Check if the last part is reasoning
   const lastPart = parts[parts.length - 1];
   return lastPart.type === "reasoning";
-}
-
-async function convertToFileUIPart(files: File[]): Promise<FileUIPart[]> {
-  const fileUIParts = await Promise.all(
-    files.map(async (file) => {
-      const part: FileUIPart = {
-        type: "file" as const,
-        mediaType: file.type,
-        filename: file.name,
-        url: await blobToString(file, "dataUrl"),
-      };
-      return part;
-    }),
-  );
-
-  return fileUIParts;
 }
 
 export default ChatPanel;
