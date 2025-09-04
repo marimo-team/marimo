@@ -7,6 +7,7 @@ import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
+  type ToolUIPart,
 } from "ai";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
@@ -172,6 +173,10 @@ interface ChatMessageProps {
   isLast: boolean;
 }
 
+function isToolPart(part: UIMessage["parts"][number]): part is ToolUIPart {
+  return part.type.startsWith("tool-");
+}
+
 const ChatMessage: React.FC<ChatMessageProps> = memo(
   ({ message, index, onEdit, isStreamingReasoning, isLast }) => {
     const renderUserMessage = (message: UIMessage) => {
@@ -206,15 +211,27 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
     };
 
     const renderOtherMessage = (message: UIMessage) => {
-      const textParts = message.parts?.filter((p) => p.type === "text");
-      const content = textParts?.map((p) => p.text).join("\n");
+      const textParts = message.parts.filter((p) => p.type === "text");
+      const content = textParts.map((p) => p.text).join("\n");
 
       return (
         <div className="w-[95%] break-words">
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
           </div>
-          {message.parts?.map((part, i) => {
+          {message.parts.map((part, i) => {
+            if (isToolPart(part)) {
+              return (
+                <ToolCallAccordion
+                  key={i}
+                  index={i}
+                  toolName={part.type}
+                  result={part.output}
+                  state={part.state}
+                />
+              );
+            }
+
             switch (part.type) {
               case "text":
                 return <MarkdownRenderer key={i} content={part.text} />;
@@ -229,13 +246,11 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
                       isLast &&
                       isStreamingReasoning &&
                       // If there are multiple reasoning parts, only show the last one
-                      i === (message.parts?.length || 0) - 1
+                      i === (message.parts.length || 0) - 1
                     }
                   />
                 );
 
-              // TODO: It's tool-*
-              case "tool-invocation":
               case "dynamic-tool":
                 return (
                   <ToolCallAccordion
@@ -249,7 +264,18 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
 
               /* handle other part types … */
               default:
-                return null;
+                Logger.error("Unhandled part type:", part.type);
+                try {
+                  return (
+                    <MarkdownRenderer
+                      key={i}
+                      content={JSON.stringify(part, null, 2)}
+                    />
+                  );
+                } catch (error) {
+                  Logger.error("Error rendering part:", part.type, error);
+                  return null;
+                }
             }
           })}
         </div>
