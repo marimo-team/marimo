@@ -166,7 +166,7 @@ async def ai_completion(
             text_only=True,
         ),
         media_type="application/json",
-        headers={"x-vercel-ai-data-stream": "v1"},
+        headers={"x-vercel-ai-ui-message-stream": "v1"},
     )
 
 
@@ -224,7 +224,7 @@ async def ai_chat(
             text_only=False,
         ),
         media_type="application/json",
-        headers={"x-vercel-ai-data-stream": "v1"},
+        headers={"x-vercel-ai-ui-message-stream": "v1"},
     )
 
 
