@@ -7,6 +7,7 @@ from unittest.mock import patch
 from marimo._ast.cell import RuntimeStateType
 from marimo._data.models import DataTable, DataTableColumn
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.ops import (
     CellOp,
     Datasets,
@@ -19,7 +20,6 @@ from marimo._messaging.ops import (
     Variables,
     VariableValue,
     VariableValues,
-    serialize,
 )
 from marimo._runtime.requests import (
     CreationRequest,
@@ -483,18 +483,21 @@ def test_add_data_source_connections() -> None:
                         dialect="duckdb",
                         name="db1",
                         display_name="duckdb (db1)",
+                        databases=[],
                     ),
                     DataSourceConnection(
                         source="sqlalchemy",
                         dialect="postgresql",
                         name="pg1",
                         display_name="postgresql (pg1)",
+                        databases=[],
                     ),
                     DataSourceConnection(
                         source="duckdb",
                         dialect="default",
                         name=INTERNAL_DUCKDB_ENGINE,
                         display_name="duckdb internal",
+                        databases=[],
                     ),
                 ]
             )
@@ -517,12 +520,14 @@ def test_add_data_source_connections() -> None:
                         dialect="duckdb",
                         name="db1",
                         display_name="duckdb (db1_updated)",
+                        databases=[],
                     ),
                     DataSourceConnection(
                         source="sqlalchemy",
                         dialect="mysql",
                         name="mysql1",
                         display_name="mysql (mysql1)",
+                        databases=[],
                     ),
                 ]
             )
