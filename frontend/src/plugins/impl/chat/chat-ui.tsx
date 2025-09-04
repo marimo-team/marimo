@@ -1,10 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useChat } from "@ai-sdk/react";
+import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import type { Message } from "ai/react";
 import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
@@ -72,7 +71,8 @@ export const Chatbot: React.FC<Props> = (props) => {
 
   const { data: initialMessages } = useAsyncData(async () => {
     const chatMessages = await props.get_chat_history({});
-    const messages: Message[] = chatMessages.messages.map((message, idx) => ({
+    /* FIXME(@ai-sdk-upgrade-v5): The `experimental_attachments` property has been replaced with the parts array. Please manually migrate following https://ai-sdk.dev/docs/migration-guides/migration-guide-5-0#attachments--file-parts */
+    const messages: UIMessage[] = chatMessages.messages.map((message, idx) => ({
       id: idx.toString(),
       role: message.role,
       content: message.content,
@@ -99,6 +99,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         messages: Message[];
       };
       try {
+        /* FIXME(@ai-sdk-upgrade-v5): The `experimental_attachments` property has been replaced with the parts array. Please manually migrate following https://ai-sdk.dev/docs/migration-guides/migration-guide-5-0#attachments--file-parts */
         const response = await props.send_prompt({
           messages: body.messages.map((m) => ({
             role: m.role as ChatRole,
@@ -178,12 +179,13 @@ export const Chatbot: React.FC<Props> = (props) => {
     );
   };
 
-  const renderMessage = (message: Message) => {
+  const renderMessage = (message: UIMessage) => {
     const content =
       message.role === "assistant"
         ? renderHTML({ html: message.content })
         : message.content;
 
+    /* FIXME(@ai-sdk-upgrade-v5): The `experimental_attachments` property has been replaced with the parts array. Please manually migrate following https://ai-sdk.dev/docs/migration-guides/migration-guide-5-0#attachments--file-parts */
     const attachments = message.experimental_attachments;
 
     return (
@@ -338,9 +340,9 @@ export const Chatbot: React.FC<Props> = (props) => {
           </div>
         )}
       </div>
-
       <form
         onSubmit={(evt) => {
+          /* FIXME(@ai-sdk-upgrade-v5): The `experimental_attachments` property has been replaced with the parts array. Please manually migrate following https://ai-sdk.dev/docs/migration-guides/migration-guide-5-0#attachments--file-parts */
           handleSubmit(evt, {
             experimental_attachments: files,
           });

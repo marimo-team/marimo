@@ -1,18 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { Message as AIMessage } from "@ai-sdk/react";
+import type { UIMessage } from "@ai-sdk/react";
 import { Logger } from "@/utils/Logger";
 import type { ChatId, ChatState } from "./state";
-import type { ChatAttachment } from "./types";
 
 interface AddMessageToChatParams {
   chatState: ChatState;
   chatId: ChatId | null;
   messageId: string;
   role: "user" | "assistant";
-  content: string;
-  parts?: AIMessage["parts"];
-  attachments?: ChatAttachment[];
+  parts: UIMessage["parts"];
 }
 
 export const addMessageToChat = ({
@@ -20,9 +17,7 @@ export const addMessageToChat = ({
   chatId,
   messageId,
   role,
-  content,
   parts,
-  attachments,
 }: AddMessageToChatParams): ChatState => {
   if (!chatId) {
     Logger.warn("No active chat");
@@ -51,10 +46,10 @@ export const addMessageToChat = ({
         {
           id: messageId,
           role,
-          content,
-          timestamp: timestamp,
+          metadata: {
+            timestamp: timestamp,
+          },
           parts,
-          attachments,
         },
       ],
       updatedAt: timestamp,
@@ -64,9 +59,7 @@ export const addMessageToChat = ({
     const newMessages = [...chat.messages];
     newMessages[messageIndex] = {
       ...newMessages[messageIndex],
-      content,
       parts,
-      attachments,
     };
     newChats.set(chat.id, {
       ...chat,

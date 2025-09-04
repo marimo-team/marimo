@@ -1,9 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { UIMessage } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import type { Message } from "ai/react";
+import {
+  DefaultChatTransport,
+  type FileUIPart,
+  lastAssistantMessageIsCompleteWithToolCalls,
+} from "ai";
 import { useAtom, useAtomValue } from "jotai";
 import {
   BotMessageSquareIcon,
@@ -50,7 +55,6 @@ import {
   type ChatState,
   chatStateAtom,
 } from "@/core/ai/state";
-import type { ChatAttachment } from "@/core/ai/types";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
@@ -164,7 +168,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 };
 
 interface ChatMessageProps {
-  message: Message;
+  message: UIMessage;
   index: number;
   onEdit: (index: number, newValue: string) => void;
   setChatState: Dispatch<SetStateAction<ChatState>>;
@@ -174,21 +178,20 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = memo(
-  ({ message, index, onEdit, isStreamingReasoning, isLast }) => (
-    <div
-      className={cn(
-        "flex group relative",
-        message.role === "user" ? "justify-end" : "justify-start",
-      )}
-    >
-      {message.role === "user" ? (
+  ({ message, index, onEdit, isStreamingReasoning, isLast }) => {
+    const renderUserMessage = (message: UIMessage) => {
+      const textParts = message.parts?.filter((p) => p.type === "text");
+      const content = textParts?.map((p) => p.text).join("\n");
+      const fileParts = message.parts?.filter((p) => p.type === "file");
+
+      return (
         <div className="w-[95%] bg-background border p-1 rounded-sm">
-          {message.experimental_attachments?.map((attachment, idx) => (
-            <AttachmentRenderer attachment={attachment} key={idx} />
+          {fileParts?.map((filePart, idx) => (
+            <AttachmentRenderer attachment={filePart} key={idx} />
           ))}
           <PromptInput
             key={message.id}
-            value={message.content}
+            value={content}
             placeholder="Type your message..."
             onChange={() => {
               // noop
@@ -204,10 +207,17 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
             }}
           />
         </div>
-      ) : (
+      );
+    };
+
+    const renderOtherMessage = (message: UIMessage) => {
+      const textParts = message.parts?.filter((p) => p.type === "text");
+      const content = textParts?.map((p) => p.text).join("\n");
+
+      return (
         <div className="w-[95%] break-words">
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <CopyClipboardIcon className="h-3 w-3" value={message.content} />
+            <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
           </div>
           {message.parts?.map((part, i) => {
             switch (part.type) {
@@ -217,7 +227,7 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
               case "reasoning":
                 return (
                   <ReasoningAccordion
-                    reasoning={part.reasoning}
+                    reasoning={part.text}
                     key={i}
                     index={i}
                     isStreaming={
@@ -229,18 +239,16 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
                   />
                 );
 
+              // TODO: It's tool-*
               case "tool-invocation":
+              case "dynamic-tool":
                 return (
                   <ToolCallAccordion
                     key={i}
                     index={i}
-                    toolName={part.toolInvocation.toolName}
-                    result={
-                      part.toolInvocation.state === "result"
-                        ? part.toolInvocation.result
-                        : null
-                    }
-                    state={part.toolInvocation.state}
+                    toolName={part.type}
+                    result={part.output}
+                    state={part.state}
                   />
                 );
 
@@ -250,9 +258,22 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
             }
           })}
         </div>
-      )}
-    </div>
-  ),
+      );
+    };
+
+    return (
+      <div
+        className={cn(
+          "flex group relative",
+          message.role === "user" ? "justify-end" : "justify-start",
+        )}
+      >
+        {message.role === "user"
+          ? renderUserMessage(message)
+          : renderOtherMessage(message)}
+      </div>
+    );
+  },
 );
 ChatMessage.displayName = "ChatMessage";
 
@@ -467,6 +488,7 @@ const ChatPanel = () => {
 const ChatPanelBody = () => {
   const [chatState, setChatState] = useAtom(chatStateAtom);
   const [activeChat, setActiveChat] = useAtom(activeChatAtom);
+  const [input, setInput] = useState("");
   const [newThreadInput, setNewThreadInput] = useState("");
   const [files, setFiles] = useState<File[]>();
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
@@ -479,54 +501,53 @@ const ChatPanelBody = () => {
 
   const {
     messages,
-    input,
-    setInput,
+    sendMessage,
     setMessages,
-    append,
-    handleSubmit,
     error,
     status,
-    reload,
+    regenerate,
     stop,
+    addToolResult,
   } = useChat({
     id: activeChat?.id,
-    maxSteps: 10,
-    initialMessages: activeChat?.messages || [],
-    keepLastMessageOnError: true,
+    /* FIXME(@ai-sdk-upgrade-v5): The maxSteps parameter has been removed from useChat. You should now use server-side `stopWhen` conditions for multi-step tool execution control. https://ai-sdk.dev/docs/migration-guides/migration-guide-5-0#maxsteps-removal */
+    // maxSteps: 10,
+    // Automatically submit when all tool results are available
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    messages: activeChat?.messages || [],
     // Throttle the messages and data updates to 100ms
     // experimental_throttle: 100,
-    api: runtimeManager.getAiURL("chat").toString(),
-    headers: runtimeManager.headers(),
-    experimental_prepareRequestBody: (options) => {
-      const completionBody = getAICompletionBody({
-        input: options.messages.map((m) => m.content).join("\n"),
-      });
+    transport: new DefaultChatTransport({
+      api: runtimeManager.getAiURL("chat").toString(),
+      headers: runtimeManager.headers(),
+      prepareSendMessagesRequest: (options) => {
+        let input = "";
+        for (const message of options.messages) {
+          const textParts = message.parts.filter((p) => p.type === "text");
+          input += textParts.map((p) => p.text).join("\n");
+        }
+        const completionBody = getAICompletionBody({
+          input,
+        });
 
-      // Backend accepts attachments, so we convert the key
-      const newOptions = {
-        ...options,
-        messages: options.messages.map((m) => ({
-          ...m,
-          attachments: m.experimental_attachments,
-          experimental_attachments: undefined,
-        })),
-      };
+        // TODO: Add attachments
 
-      return {
-        ...newOptions,
-        ...completionBody,
-      };
-    },
+        return {
+          body: {
+            ...options,
+            ...completionBody,
+          },
+        };
+      },
+    }),
     onFinish: (message) => {
       setChatState((prev) => {
         return addMessageToChat({
           chatState: prev,
           chatId: prev.activeChatId,
-          messageId: message.id,
+          messageId: message.message.id,
           role: "assistant",
-          content: message.content,
-          parts: message.parts,
-          attachments: message.experimental_attachments,
+          parts: message.message.parts,
         });
       });
     },
@@ -534,21 +555,24 @@ const ChatPanelBody = () => {
       try {
         const response = await invokeAiTool({
           toolName: toolCall.toolName,
-          arguments: toolCall.args as Record<string, never>,
+          arguments: toolCall.input as Record<string, never>,
         });
-
-        // This response triggers the onFinish callback
-        return response.result || response.error;
+        addToolResult({
+          tool: toolCall.toolName,
+          toolCallId: toolCall.toolCallId,
+          output: response.result || response.error,
+        });
       } catch (error) {
         Logger.error("Tool call failed:", error);
-        return `Error: ${error instanceof Error ? error.message : String(error)}`;
+        addToolResult({
+          tool: toolCall.toolName,
+          toolCallId: toolCall.toolCallId,
+          output: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        });
       }
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
-    },
-    onResponse: (response) => {
-      Logger.debug("Received HTTP response from server:", response);
     },
   });
 
@@ -680,18 +704,19 @@ const ChatPanelBody = () => {
       return newState;
     });
 
-    const attachments =
+    const fileParts =
       initialAttachments && initialAttachments.length > 0
-        ? await convertToChatAttachments(initialAttachments)
+        ? await convertToFileUIPart(initialAttachments)
         : undefined;
 
     // Trigger AI conversation with append
-    append({
-      id: generateUUID(),
-      role: "user",
-      content: initialMessage,
-      experimental_attachments: attachments,
-    });
+    sendMessage({ text: initialMessage, files: fileParts, role: "user" });
+    // append({
+    //   id: generateUUID(),
+    //   role: "user",
+    //   content: initialMessage,
+    //   experimental_attachments: fileParts,
+    // });
     setFiles(undefined);
     setInput("");
   };
@@ -744,19 +769,16 @@ const ChatPanelBody = () => {
       if (newMessageInputRef.current?.view) {
         storePrompt(newMessageInputRef.current.view);
       }
-      const attachments = files
-        ? await convertToChatAttachments(files)
-        : undefined;
+      const fileParts = files ? await convertToFileUIPart(files) : undefined;
 
-      handleSubmit(e, {
-        experimental_attachments: attachments,
-      });
+      e?.preventDefault();
+      sendMessage({ text: newValue, files: fileParts });
       setFiles(undefined);
     },
   );
 
   const handleReload = () => {
-    reload();
+    regenerate();
   };
 
   const handleNewThreadSubmit = useEvent(() => {
@@ -896,7 +918,7 @@ const ChatPanelBody = () => {
   );
 };
 
-function isLastMessageReasoning(messages: Message[]): boolean {
+function isLastMessageReasoning(messages: UIMessage[]): boolean {
   if (messages.length === 0) {
     return false;
   }
@@ -920,20 +942,20 @@ function isLastMessageReasoning(messages: Message[]): boolean {
   return lastPart.type === "reasoning";
 }
 
-async function convertToChatAttachments(
-  files: File[],
-): Promise<ChatAttachment[]> {
-  const attachments = await Promise.all(
+async function convertToFileUIPart(files: File[]): Promise<FileUIPart[]> {
+  const fileUIParts = await Promise.all(
     files.map(async (file) => {
-      return {
-        name: file.name,
+      const part: FileUIPart = {
+        type: "file" as const,
+        mediaType: file.type,
+        filename: file.name,
         url: await blobToString(file, "dataUrl"),
-        contentType: file.type,
       };
+      return part;
     }),
   );
 
-  return attachments;
+  return fileUIParts;
 }
 
 export default ChatPanel;

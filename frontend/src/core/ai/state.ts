@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { Message as AIMessage } from "@ai-sdk/react";
+import type { UIMessage } from "@ai-sdk/react";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { adaptForLocalStorage } from "@/utils/storage";
@@ -28,14 +28,14 @@ export interface Message {
   role: "user" | "assistant" | "data" | "system";
   content: string;
   timestamp: number;
-  parts?: AIMessage["parts"];
+  parts?: UIMessage["parts"];
   attachments?: ChatAttachment[];
 }
 
 export interface Chat {
   id: ChatId;
   title: string;
-  messages: Message[];
+  messages: UIMessage[];
   createdAt: number;
   updatedAt: number;
 }
