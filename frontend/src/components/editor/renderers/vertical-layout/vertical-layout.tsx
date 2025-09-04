@@ -327,7 +327,6 @@ const VerticalCell = memo(
       "hover-actions-parent empty:invisible",
       {
         published: published,
-        interactive: mode === "edit",
         "has-error": errored,
         stopped: stopped,
         borderless: isPureMarkdown && !published,
