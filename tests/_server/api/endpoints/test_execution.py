@@ -31,7 +31,7 @@ class TestExecutionRoutes_EditMode:
             "/api/kernel/set_ui_element_value",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
             },
         )
@@ -46,7 +46,7 @@ class TestExecutionRoutes_EditMode:
             "/api/kernel/instantiate",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
                 "auto_run": True,
             },
@@ -62,7 +62,7 @@ class TestExecutionRoutes_EditMode:
             "/api/kernel/instantiate",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
                 "auto_run": False,
             },
@@ -238,7 +238,7 @@ class TestExecutionRoutes_RunMode:
             "/api/kernel/set_ui_element_value",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
             },
         )
@@ -253,7 +253,7 @@ class TestExecutionRoutes_RunMode:
             "/api/kernel/instantiate",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
                 "auto_run": True,
             },
@@ -269,7 +269,7 @@ class TestExecutionRoutes_RunMode:
             "/api/kernel/instantiate",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
                 "auto_run": False,
             },
