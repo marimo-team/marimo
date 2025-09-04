@@ -15,7 +15,7 @@ from marimo import _loggers
 from marimo._ai._convert import convert_to_ai_sdk_messages
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
-from marimo._messaging.msgspec_encoder import encode_json_bytes
+from marimo._messaging.msgspec_encoder import StructResponse
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -331,28 +331,23 @@ async def invoke_tool(
             body.tool_name, body.arguments
         )
 
-        # Create and return the response
-        response = InvokeAiToolResponse(
-            success=result.error is None,
-            tool_name=result.tool_name,
-            result=result.result,
-            error=result.error,
+        return StructResponse(
+            InvokeAiToolResponse(
+                success=result.error is None,
+                tool_name=result.tool_name,
+                result=result.result,
+                error=result.error,
+            )
         )
 
-        return Response(
-            content=encode_json_bytes(response),
-            media_type="application/json",
-        )
     except Exception as e:
         LOGGER.error("Error invoking AI tool %s: %s", body.tool_name, str(e))
         # Return error response instead of letting it crash
-        error_response = InvokeAiToolResponse(
-            success=False,
-            tool_name=body.tool_name,
-            result=None,
-            error=f"Tool invocation failed: {str(e)}",
-        )
-        return Response(
-            content=encode_json_bytes(error_response),
-            media_type="application/json",
+        return StructResponse(
+            InvokeAiToolResponse(
+                success=False,
+                tool_name=body.tool_name,
+                result=None,
+                error=f"Tool invocation failed: {str(e)}",
+            )
         )
