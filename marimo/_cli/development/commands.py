@@ -53,6 +53,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._utils.dataclass_to_openapi import (
         PythonTypeToOpenAPI,
     )
+    from marimo._ai._types import ChatMessage
     from marimo._version import __version__
 
     # dataclass components used in websocket messages
@@ -135,6 +136,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.UpdateCellIdsRequest,
         ops.FocusCell,
         ops.MessageOperation,
+        # ai
+        ChatMessage,
     ]
 
     # dataclass components used in requests/responses

@@ -52,8 +52,7 @@ class AiInlineCompletionRequest(msgspec.Struct, rename="camel"):
     language: Language = "python"
 
 
-@dataclasses.dataclass
-class ChatRequest:
+class ChatRequest(msgspec.Struct, rename="camel"):
     context: AiCompletionContext
     include_other_code: str
     messages: list[ChatMessage]
