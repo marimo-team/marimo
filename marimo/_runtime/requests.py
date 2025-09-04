@@ -35,6 +35,28 @@ Primitive = Union[str, bool, int, float]
 SerializedCLIArgs = dict[str, ListOrValue[Primitive]]
 
 
+class UrlParts(msgspec.Struct):
+    """Mapping of parsed URL components."""
+
+    path: str
+    port: int | None
+    scheme: str
+    netloc: str
+    query: str
+    hostname: str | None
+
+    @classmethod
+    def from_url(cls, url: URL) -> UrlParts:
+        return cls(
+            path=url.path,
+            port=url.port,
+            scheme=url.scheme,
+            netloc=url.netloc,
+            query=url.query,
+            hostname=url.hostname,
+        )
+
+
 class HTTPRequest(msgspec.Struct, rename="camel"):
     """
     A class that mimics the Request object from Starlette or FastAPI.
@@ -42,11 +64,13 @@ class HTTPRequest(msgspec.Struct, rename="camel"):
     It is a subset and pickle-able version of the Request object.
     """
 
-    url: dict[str, Any]  # Serialized URL
-    base_url: dict[str, Any]  # Serialized URL
+    url: UrlParts  # Serialized URL
+    base_url: UrlParts  # Serialized URL
     headers: dict[str, str]  # Raw headers
     query_params: dict[str, list[str]]  # Raw query params
-    path_params: dict[str, Any]
+    path_params: dict[
+        str, str | int | float
+    ]  # https://www.starlette.io/routing/#path-parameters
     cookies: dict[str, str]
     meta: dict[str, Any]
     user: Any
@@ -74,22 +98,6 @@ class HTTPRequest(msgspec.Struct, rename="camel"):
 
     @staticmethod
     def from_request(request: HTTPConnection) -> HTTPRequest:
-        def _url_to_dict(url: URL) -> dict[str, Any]:
-            return {
-                "path": url.path,
-                "port": url.port,
-                "scheme": url.scheme,
-                "netloc": url.netloc,
-                "query": url.query,
-                "hostname": url.hostname,
-            }
-
-        # Convert URL to dict
-        url_dict = _url_to_dict(request.url)
-
-        # Convert base_url to dict
-        base_url_dict = _url_to_dict(request.base_url)
-
         # Convert query params to dict[str, list[str]]
         query_params: dict[str, list[str]] = defaultdict(list)
         for k, v in request.query_params.multi_items():
@@ -102,8 +110,8 @@ class HTTPRequest(msgspec.Struct, rename="camel"):
                 headers[k] = v
 
         return HTTPRequest(
-            url=url_dict,
-            base_url=base_url_dict,
+            url=UrlParts.from_url(request.url),
+            base_url=UrlParts.from_url(request.base_url),
             headers=headers,
             query_params=query_params,
             path_params=request.path_params,

@@ -1472,7 +1472,7 @@ components:
         It is a subset and pickle-able version of the Request object.'
       properties:
         baseUrl:
-          type: object
+          $ref: '#/components/schemas/UrlParts'
         cookies:
           additionalProperties:
             type: string
@@ -1484,6 +1484,11 @@ components:
         meta:
           type: object
         pathParams:
+          additionalProperties:
+            anyOf:
+            - type: string
+            - type: integer
+            - type: number
           type: object
         queryParams:
           additionalProperties:
@@ -1492,7 +1497,7 @@ components:
             type: array
           type: object
         url:
-          type: object
+          $ref: '#/components/schemas/UrlParts'
         user: {}
       required:
       - url
@@ -3100,6 +3105,34 @@ components:
       - objectIds
       - values
       title: UpdateComponentValuesRequest
+      type: object
+    UrlParts:
+      description: Mapping of parsed URL components.
+      properties:
+        hostname:
+          anyOf:
+          - type: string
+          - type: 'null'
+        netloc:
+          type: string
+        path:
+          type: string
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        query:
+          type: string
+        scheme:
+          type: string
+      required:
+      - path
+      - port
+      - scheme
+      - netloc
+      - query
+      - hostname
+      title: UrlParts
       type: object
     VariableContext:
       properties:

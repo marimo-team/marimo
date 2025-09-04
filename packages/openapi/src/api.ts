@@ -3356,7 +3356,7 @@ export interface components {
      *     It is a subset and pickle-able version of the Request object.
      */
     HTTPRequest: {
-      baseUrl: Record<string, any>;
+      baseUrl: components["schemas"]["UrlParts"];
       cookies: {
         [key: string]: string;
       };
@@ -3364,11 +3364,13 @@ export interface components {
         [key: string]: string;
       };
       meta: Record<string, any>;
-      pathParams: Record<string, any>;
+      pathParams: {
+        [key: string]: string | number;
+      };
       queryParams: {
         [key: string]: string[];
       };
-      url: Record<string, any>;
+      url: components["schemas"]["UrlParts"];
       user: unknown;
     };
     /**
@@ -4198,6 +4200,18 @@ export interface components {
     UpdateComponentValuesRequest: {
       objectIds: string[];
       values: unknown[];
+    };
+    /**
+     * UrlParts
+     * @description Mapping of parsed URL components.
+     */
+    UrlParts: {
+      hostname: string | null;
+      netloc: string;
+      path: string;
+      port: number | null;
+      query: string;
+      scheme: string;
     };
     VariableContext: {
       name: string;
