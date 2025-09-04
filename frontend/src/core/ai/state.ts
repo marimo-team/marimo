@@ -8,7 +8,7 @@ import type { TypedString } from "@/utils/typed";
 import type { CellId } from "../cells/ids";
 import type { ChatAttachment } from "./types";
 
-const KEY = "marimo:ai:chatState:v4";
+const KEY = "marimo:ai:chatState:v5";
 
 export type ChatId = TypedString<"ChatId">;
 
@@ -45,6 +45,12 @@ export interface ChatState {
   activeChatId: ChatId | null;
 }
 
+function removeEmptyChats(chatState: Map<ChatId, Chat>): Map<ChatId, Chat> {
+  return new Map(
+    [...chatState.entries()].filter(([_, chat]) => chat.messages.length > 0),
+  );
+}
+
 export const chatStateAtom = atomWithStorage<ChatState>(
   KEY,
   {
@@ -53,7 +59,7 @@ export const chatStateAtom = atomWithStorage<ChatState>(
   },
   adaptForLocalStorage({
     toSerializable: (value: ChatState) => ({
-      chats: [...value.chats.entries()],
+      chats: [...removeEmptyChats(value.chats).entries()],
       activeChatId: value.activeChatId,
     }),
     fromSerializable: (value) => ({

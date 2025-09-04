@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 from marimo._ai._types import (
     ChatMessage,
+    ChatPart,
     ReasoningPart,
     TextPart,
     ToolInvocationPart,
@@ -32,7 +33,7 @@ if TYPE_CHECKING:
 # Message conversions
 def get_openai_messages_from_parts(
     role: Literal["system", "user", "assistant"],
-    parts: list[Union[TextPart, ReasoningPart, ToolInvocationPart]],
+    parts: list[ChatPart],
 ) -> list[dict[str, Any]]:
     messages: list[dict[str, Any]] = []
     for part in parts:
@@ -46,12 +47,12 @@ def get_openai_messages_from_parts(
                 "content": None,
                 "tool_calls": [
                     {
-                        "id": part.tool_invocation.tool_call_id,
+                        "id": part.tool_call_id,
                         "type": "function",
                         "function": {
-                            "name": part.tool_invocation.tool_name,
-                            "arguments": str(part.tool_invocation.args)
-                            if part.tool_invocation.args
+                            "name": part.tool_name,
+                            "arguments": str(part.input)
+                            if part.input
                             else "{}",
                         },
                     }
@@ -60,9 +61,9 @@ def get_openai_messages_from_parts(
             messages.append(assistant_message)
             tool_result_message = {
                 "role": "tool",
-                "tool_call_id": part.tool_invocation.tool_call_id,
-                "name": part.tool_invocation.tool_name,
-                "content": str(part.tool_invocation.result),
+                "tool_call_id": part.tool_call_id,
+                "name": part.tool_name,
+                "content": str(part.output),
             }
             messages.append(tool_result_message)
     return messages
@@ -119,7 +120,7 @@ def convert_to_openai_messages(
 
 def get_anthropic_messages_from_parts(
     role: Literal["system", "user", "assistant"],
-    parts: list[Union[TextPart, ReasoningPart, ToolInvocationPart]],
+    parts: list[ChatPart],
 ) -> list[dict[Any, Any]]:
     messages: list[dict[Any, Any]] = []
     content_parts: list[dict[str, Any]] = []
@@ -145,9 +146,9 @@ def get_anthropic_messages_from_parts(
             content_parts.append(
                 {
                     "type": "tool_use",
-                    "id": part.tool_invocation.tool_call_id,
-                    "name": part.tool_invocation.tool_name,
-                    "input": part.tool_invocation.args,
+                    "id": part.tool_call_id,
+                    "name": part.tool_name,
+                    "input": part.input,
                 }
             )
 
@@ -168,8 +169,8 @@ def get_anthropic_messages_from_parts(
                 "content": [
                     {
                         "type": "tool_result",
-                        "tool_use_id": part.tool_invocation.tool_call_id,
-                        "content": str(part.tool_invocation.result),
+                        "tool_use_id": part.tool_call_id,
+                        "content": str(part.output),
                     }
                 ],
             }
@@ -275,7 +276,7 @@ def convert_to_groq_messages(
 
 def get_google_messages_from_parts(
     role: Literal["system", "user", "assistant"],
-    parts: list[Union[TextPart, ReasoningPart, ToolInvocationPart]],
+    parts: list[ChatPart],
 ) -> list[ContentDict]:
     messages: list[ContentDict] = []
 
@@ -302,8 +303,8 @@ def get_google_messages_from_parts(
                 "parts": [
                     {
                         "function_call": {
-                            "name": part.tool_invocation.tool_name,
-                            "args": part.tool_invocation.args or {},
+                            "name": part.tool_name,
+                            "args": part.input or {},
                         }
                     }
                 ],
@@ -316,10 +317,8 @@ def get_google_messages_from_parts(
                 "parts": [
                     {
                         "function_response": {
-                            "name": part.tool_invocation.tool_name,
-                            "response": {
-                                "result": str(part.tool_invocation.result)
-                            },
+                            "name": part.tool_name,
+                            "response": {"result": str(part.output)},
                         }
                     }
                 ],
