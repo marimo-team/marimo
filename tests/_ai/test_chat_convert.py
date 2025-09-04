@@ -25,7 +25,6 @@ from marimo._ai._types import (
     ReasoningPart,
     TextPart,
     ToolInvocationPart,
-    ToolInvocationResult,
 )
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 from marimo._server.ai.tools import Tool
@@ -110,15 +109,11 @@ def test_convert_to_openai_messages_with_parts_and_attachments():
                     ],
                 ),
                 ToolInvocationPart(
-                    type="tool-invocation",
-                    tool_invocation=ToolInvocationResult(
-                        state="result",
-                        result={"answer": 4},
-                        tool_call_id="call_123",
-                        tool_name="calculator",
-                        step=1,
-                        args={"expression": "2 + 2"},
-                    ),
+                    type="tool-calculator",
+                    tool_call_id="call_123",
+                    state="output-available",
+                    input={"expression": "2 + 2"},
+                    output={"answer": 4},
                 ),
             ],
         ),
@@ -137,15 +132,11 @@ def test_convert_to_openai_messages_with_parts_and_attachments():
                     ],
                 },
                 {
-                    "type": "tool-invocation",
-                    "tool_invocation": {
-                        "state": "result",
-                        "result": {"answer": 4},
-                        "tool_call_id": "call_123",
-                        "tool_name": "calculator",
-                        "step": 1,
-                        "args": {"expression": "2 + 2"},
-                    },
+                    "type": "tool-calculator",
+                    "tool_call_id": "call_123",
+                    "state": "output-available",
+                    "input": {"expression": "2 + 2"},
+                    "output": {"answer": 4},
                 },
                 {
                     "type": "image_url",
@@ -367,15 +358,11 @@ def test_from_chat_message_dict():
         "content": "Here's the tool result.",
         "parts": [
             {
-                "type": "tool-invocation",
-                "tool_invocation": {
-                    "state": "result",
-                    "result": {"temperature": "72°F", "condition": "sunny"},
-                    "tool_call_id": "call_123",
-                    "tool_name": "weather_tool",
-                    "step": 1,
-                    "args": {"location": "New York"},
-                },
+                "type": "tool-weather_tool",
+                "tool_call_id": "call_123",
+                "state": "output-available",
+                "input": {"location": "New York"},
+                "output": {"temperature": "72°F", "condition": "sunny"},
             }
         ],
     }
@@ -386,22 +373,15 @@ def test_from_chat_message_dict():
     assert result_tool_result.role == "assistant"
     assert result_tool_result.content == "Here's the tool result."
     assert len(result_tool_result.parts) == 1
-    assert result_tool_result.parts[0].type == "tool-invocation"
-    assert result_tool_result.parts[0].tool_invocation.state == "result"
-    assert result_tool_result.parts[0].tool_invocation.result == {
+    assert result_tool_result.parts[0].type == "tool-weather_tool"
+    assert result_tool_result.parts[0].state == "output-available"
+    assert result_tool_result.parts[0].output == {
         "temperature": "72°F",
         "condition": "sunny",
     }
-    assert (
-        result_tool_result.parts[0].tool_invocation.tool_call_id == "call_123"
-    )
-    assert (
-        result_tool_result.parts[0].tool_invocation.tool_name == "weather_tool"
-    )
-    assert result_tool_result.parts[0].tool_invocation.step == 1
-    assert result_tool_result.parts[0].tool_invocation.args == {
-        "location": "New York"
-    }
+    assert result_tool_result.parts[0].tool_call_id == "call_123"
+    assert result_tool_result.parts[0].tool_name == "weather_tool"
+    assert result_tool_result.parts[0].input == {"location": "New York"}
 
     # Test case 6: Existing ChatMessage input (should return as-is)
     existing_message = ChatMessage(
@@ -602,19 +582,14 @@ def test_get_openai_messages_from_parts_text_only():
 
 def test_get_openai_messages_from_parts_with_tool_invocation():
     """Test converting ToolInvocationPart to OpenAI format."""
-    tool_invocation = ToolInvocationResult(
-        state="result",
-        tool_call_id="call_123",
-        tool_name="weather_tool",
-        step=1,
-        args={"location": "New York"},
-        result={"temperature": "72°F", "condition": "sunny"},
-    )
-
     parts = [
         TextPart(type="text", text="Let me check the weather"),
         ToolInvocationPart(
-            type="tool-invocation", tool_invocation=tool_invocation
+            type="tool-weather_tool",
+            tool_call_id="call_123",
+            state="output-available",
+            input={"location": "New York"},
+            output={"temperature": "72°F", "condition": "sunny"},
         ),
     ]
 
@@ -753,19 +728,14 @@ def test_get_anthropic_messages_from_parts_reasoning_empty_details():
 
 def test_get_anthropic_messages_from_parts_with_tool_invocation():
     """Test converting ToolInvocationPart to Anthropic format."""
-    tool_invocation = ToolInvocationResult(
-        state="result",
-        tool_call_id="call_123",
-        tool_name="search_tool",
-        step=1,
-        args={"query": "Python tutorials"},
-        result={"results": ["tutorial1", "tutorial2"]},
-    )
-
     parts = [
         TextPart(type="text", text="I'll search for you"),
         ToolInvocationPart(
-            type="tool-invocation", tool_invocation=tool_invocation
+            type="tool-search_tool",
+            tool_call_id="call_123",
+            state="output-available",
+            input={"query": "Python tutorials"},
+            output={"results": ["tutorial1", "tutorial2"]},
         ),
     ]
 
@@ -866,18 +836,13 @@ def test_get_google_messages_from_parts_with_reasoning():
 
 def test_get_google_messages_from_parts_with_tool_invocation():
     """Test converting ToolInvocationPart to Google function call format."""
-    tool_invocation = ToolInvocationResult(
-        state="result",
-        tool_call_id="call_456",
-        tool_name="calculator",
-        step=1,
-        args={"expression": "2 + 2"},
-        result={"answer": 4},
-    )
-
     parts = [
         ToolInvocationPart(
-            type="tool-invocation", tool_invocation=tool_invocation
+            type="tool-calculator",
+            tool_call_id="call_456",
+            state="output-available",
+            input={"expression": "2 + 2"},
+            output={"answer": 4},
         ),
     ]
 
