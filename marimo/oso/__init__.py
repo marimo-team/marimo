@@ -1,6 +1,7 @@
 # OSO Extensions for marimo
 from ast import parse
 import json
+import logging
 import typing as t
 
 from marimo._ast import names
@@ -10,15 +11,23 @@ from marimo._schemas.serialization import (
     NotebookSerializationV1
 )
 from marimo._convert.converters import MarimoConvert
+from marimo import _loggers
+
+logger = _loggers.marimo_logger()
 
 
 def initialize_env(env: dict[str, str]) -> None:
-    print("Initializing OSO notebook env vars")
+    logger.info("Initializing OSO notebook env vars")
     import os
 
     for key, value in env.items():
-        print(f"   Setting env var {key}")
+        logger.info(f"   Setting env var {key}")
         os.environ[key] = value
+
+def enable_debug_logging() -> None:
+    from marimo import _loggers
+
+    _loggers.set_level(logging.DEBUG)
 
 
 SETUP_PYOSO_CODE = """
@@ -31,7 +40,8 @@ pyoso_db_conn = pyoso.Client().dbapi_connection()
 
 class InterceptingPyodideBridge(PyodideBridge):
     FUNCTIONS: dict[str, t.Callable[..., None]] = {
-        "__oso_initialize_env": initialize_env
+        "__oso_initialize_env": initialize_env,
+        "__oso_enable_debug_logging": enable_debug_logging,
     }
 
     @classmethod
@@ -43,7 +53,7 @@ class InterceptingPyodideBridge(PyodideBridge):
         
         To do this we parse the request string as json
         """
-        print("Intercepting PyodideBridge control request")
+        logger.debug("Intercepting PyodideBridge control request")
         try:
             json_data = json.loads(request)
         except json.JSONDecodeError:
@@ -58,7 +68,7 @@ class InterceptingPyodideBridge(PyodideBridge):
         if namespace != "marimo.oso":
             return super().put_control_request(request)
 
-        print("overriding a function call")
+        logger.debug(f"overriding a function call {function_name}")
 
         # Here we can add OSO specific handling
         # For example, we could modify the function call in some way
