@@ -8,426 +8,447 @@
  * - disabled
  * */
 .marimo-cell {
-  position: relative;
-  border-radius: 10px;
-  max-width: inherit;
-  width: 100%;
-  border: 1px solid var(--gray-4);
+    position: relative;
+    border-radius: 10px;
+    max-width: inherit;
+    width: 100%;
+    border: 1px solid var(--gray-4);
 
-  @apply divide-y divide-[var(--gray-5)] shadow-sm-solid shadow-shade;
+    @apply divide-y divide-[var(--gray-5)] shadow-sm-solid shadow-shade;
 
-  &:focus-visible {
-    /* focus-visible outlines the entire cell body in black, but the cell's
-     * body is an irregular shape because of pseudo-elements that extend
-     * its hit-box / hover area. */
-    outline: none;
-  }
-
-  &:focus-within {
-    z-index: 20;
-  }
-
-  /* Hover z-index is higher than focus-within z-index
-   * This is because you may hover for tooltip docs while
-   * not focused in another cell.
-   */
-  &:hover {
-    z-index: 30;
-  }
-
-  /* Interactive */
-  &.interactive {
-    /* Only restrain output length in edit mode. */
-    .output-area,
-    .console-output-area {
-      max-height: 610px;
-      overflow: auto;
-    }
-
-    /* Special case for particular components */
-    .output-area:has(> .output > marimo-ui-element > marimo-table) {
-      max-height: none;
-      overflow: hidden;
-    }
-
-    & > :first-child {
-      border-top-left-radius: 9px;
-      border-top-right-radius: 9px;
-    }
-
-    & > :last-child {
-      border-bottom-left-radius: 9px;
-      border-bottom-right-radius: 9px;
-    }
-
-    &:hover {
-      @apply shadow-md-solid shadow-shade;
+    &:focus-visible {
+        /* focus-visible outlines the entire cell body in black, but the cell's
+         * body is an irregular shape because of pseudo-elements that extend
+         * its hit-box / hover area. */
+        outline: none;
     }
 
     &:focus-within {
-      border: 1px solid var(--gray-5);
-
-      /* a sharp box shadow with a slight blur to outline the element */
-      @apply shadow-lg-solid shadow-shade;
-
-      /* a little bit of motion
-      *
-      * Note: we use left/top instead of transform because transform creates a new
-      * stacking context and makes completion tooltip appear below surrounding
-      * cells/outputs. See
-      *
-      * https://stackoverflow.com/questions/20851452/z-index-is-canceled-by-setting-transformrotate,
-      * https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
-      * */
-      left: -1px;
-      top: -1px;
+        z-index: 20;
     }
 
-    .cm {
-      border-radius: 8px;
-    }
-  }
-
-  > [data-hidden="true"] ~ * {
-    border-top: none;
-  }
-
-  > * ~ [data-hidden="true"] {
-    border-top: none;
-  }
-
-  /* Stale styles for Cell */
-  &.stale,
-  &.disabled.stale {
-    .output-area,
-    .cm-gutters,
-    .cm {
-      background-color: var(--gray-2);
-      opacity: 0.5;
-    }
-  }
-
-  /* Disabled styles for Cell */
-  &.disabled,
-  &.disabled.has-error,
-  &.disabled:hover,
-  &.disabled.has-error:hover {
-    @apply shadow-sm-solid shadow-shade;
-
-    &:focus-within {
-      @apply shadow-lg-solid shadow-shade;
-    }
-
-    .output-area,
-    .cm-gutters,
-    .cm {
-      background-color: var(--gray-1);
-      opacity: 0.5;
-    }
-  }
-
-  /* Error styles for Cell, less precedence than needs run */
-  &.has-error,
-  &.error-outline {
-    outline: 1px solid var(--red-4);
-    @apply shadow-md-solid shadow-[var(--red-8)];
-  }
-
-  &.has-error:hover {
-    @apply shadow-lg-solid shadow-[var(--red-8)];
-  }
-
-  &.has-error:focus-within,
-  &.has-error:focus-within:hover {
-    @apply shadow-xl-solid shadow-[var(--red-8)];
-  }
-
-  &.error-outline,
-  &.error-outline:focus-within {
-    box-shadow: 8px 8px 0 0 color-mix(in srgb, var(--error), transparent 80%);
-    background-color: var(--red-2);
-  }
-
-  /* Needs Run */
-  &.needs-run {
-    /* TODO(akshayka): Can give this an outline to make more visible. */
-    outline: none;
-    @apply divide-stale shadow-md-solid shadow-stale;
+    /* Hover z-index is higher than focus-within z-index
+     * This is because you may hover for tooltip docs while
+     * not focused in another cell.
+     */
 
     &:hover {
-      @apply shadow-lg-solid shadow-stale;
+        z-index: 30;
     }
 
-    &:focus-within:hover,
-    &:focus-within {
-      @apply shadow-xl-solid shadow-stale;
+    /* Interactive */
+
+    &.interactive {
+        /* Only restrain output length in edit mode. */
+
+        .output-area,
+        .console-output-area {
+            max-height: 610px;
+            overflow: auto;
+        }
+
+        /* Special case for particular components */
+
+        .output-area:has(> .output > marimo-ui-element > marimo-table) {
+            max-height: none;
+            overflow: hidden;
+        }
+
+        & > :first-child {
+            border-top-left-radius: 9px;
+            border-top-right-radius: 9px;
+        }
+
+        & > :last-child {
+            border-bottom-left-radius: 9px;
+            border-bottom-right-radius: 9px;
+        }
+
+        &:hover {
+            @apply shadow-md-solid shadow-shade;
+        }
+
+        &:focus-within {
+            border: 1px solid var(--gray-5);
+
+            /* a sharp box shadow with a slight blur to outline the element */
+            @apply shadow-lg-solid shadow-shade;
+
+            /* a little bit of motion
+            *
+            * Note: we use left/top instead of transform because transform creates a new
+            * stacking context and makes completion tooltip appear below surrounding
+            * cells/outputs. See
+            *
+            * https://stackoverflow.com/questions/20851452/z-index-is-canceled-by-setting-transformrotate,
+            * https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
+            * */
+            left: -1px;
+            top: -1px;
+        }
+
+        .cm {
+            border-radius: 8px;
+        }
     }
 
-    &:focus-within .cm-editor {
-      box-shadow: none;
-      border: 1px solid transparent;
+    > [data-hidden="true"] ~ * {
+        border-top: none;
     }
 
-    .RunButton {
-      visibility: visible;
-    }
-  }
-
-  /* Focus state */
-  &.focus-outline {
-    transition: all 0.6s;
-    border-color: var(--blue-8) !important;
-
-    /* custom shadow until our theme overrides can support colored shadow */
-    @apply shadow-lg shadow-[var(--blue-8)];
-  }
-
-  /* Published - when its just the output */
-  &.published {
-    border: none;
-    box-shadow: none;
-
-    .output-area {
-      /* flow-root interferes with margin collapsing, but appears to be unneeded
-      * when cell outlines are hidden; clear:both is sufficient.
-      *
-      * if developers just use css-grid instead of float, this won't matter.
-      * */
-      display: block;
-      padding-top: 0;
-      padding-bottom: 0;
-      border: none;
-      box-shadow: none;
+    > * ~ [data-hidden="true"] {
+        border-top: none;
     }
 
-    &:hover {
-      border: none;
-      box-shadow: none;
+    /* Stale styles for Cell */
+
+    &.stale,
+    &.disabled.stale {
+        .output-area,
+        .cm-gutters,
+        .cm {
+            background-color: var(--gray-2);
+            opacity: 0.5;
+        }
     }
 
-    &:focus-within {
-      transform: none;
+    /* Disabled styles for Cell */
+
+    &.disabled,
+    &.disabled.has-error,
+    &.disabled:hover,
+    &.disabled.has-error:hover {
+        @apply shadow-sm-solid shadow-shade;
+
+        &:focus-within {
+            @apply shadow-lg-solid shadow-shade;
+        }
+
+        .output-area,
+        .cm-gutters,
+        .cm {
+            background-color: var(--gray-1);
+            opacity: 0.5;
+        }
     }
-  }
 
-  /* Borderless styles for Cell */
-  &.borderless {
-    border-color: transparent;
-    box-shadow: none;
+    /* Error styles for Cell, less precedence than needs run */
 
-    & > * {
-      border-bottom: none;
+    &.has-error,
+    &.error-outline {
+        outline: 1px solid var(--red-4);
+        @apply shadow-md-solid shadow-[var(--red-8)];
     }
 
-    /* Apply the original styles */
-    &:hover {
-      border: 1px solid var(--gray-4);
-      @apply shadow-sm-solid shadow-shade;
+    &.has-error:hover {
+        @apply shadow-lg-solid shadow-[var(--red-8)];
     }
-  }
 
-  /* -------------------------- Shoulders/Buttons ---------------------------- */
-  .shoulder-right {
-    display: inline-flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    height: 100%;
-    position: absolute;
-    left: calc(100% + 12px);
-    width: fit-content;
-    gap: 4px;
-  }
+    &.has-error:focus-within,
+    &.has-error:focus-within:hover {
+        @apply shadow-xl-solid shadow-[var(--red-8)];
+    }
 
-  .shoulder-bottom {
-    position: absolute;
-    bottom: -2px;
-    right: 2px;
-  }
+    &.error-outline,
+    &.error-outline:focus-within {
+        box-shadow: 8px 8px 0 0 color-mix(in srgb, var(--error), transparent 80%);
+        background-color: var(--red-2);
+    }
 
-  @apply bg-background;
+    /* Needs Run */
+
+    &.needs-run {
+        /* TODO(akshayka): Can give this an outline to make more visible. */
+        outline: none;
+        @apply divide-stale shadow-md-solid shadow-stale;
+
+        &:hover {
+            @apply shadow-lg-solid shadow-stale;
+        }
+
+        &:focus-within:hover,
+        &:focus-within {
+            @apply shadow-xl-solid shadow-stale;
+        }
+
+        &:focus-within .cm-editor {
+            box-shadow: none;
+            border: 1px solid transparent;
+        }
+
+        .RunButton {
+            visibility: visible;
+        }
+    }
+
+    /* Focus state */
+
+    &.focus-outline {
+        transition: all 0.6s;
+        border-color: var(--blue-8) !important;
+
+        /* custom shadow until our theme overrides can support colored shadow */
+        @apply shadow-lg shadow-[var(--blue-8)];
+    }
+
+    /* Published - when its just the output */
+
+    &.published {
+        border: none;
+        box-shadow: none;
+
+        .output-area {
+            /* flow-root interferes with margin collapsing, but appears to be unneeded
+            * when cell outlines are hidden; clear:both is sufficient.
+            *
+            * if developers just use css-grid instead of float, this won't matter.
+            * */
+            display: block;
+            padding-top: 0;
+            padding-bottom: 0;
+            border: none;
+            box-shadow: none;
+
+            /*
+                do not restrict the dimensions when outlines are hidden，
+                otherwise text with a scrollbar w/o a container looks weird
+            */
+            overflow: visible;
+        }
+
+        &:hover {
+            border: none;
+            box-shadow: none;
+        }
+
+        &:focus-within {
+            transform: none;
+        }
+    }
+
+    /* Borderless styles for Cell */
+
+    &.borderless {
+        border-color: transparent;
+        box-shadow: none;
+
+        & > * {
+            border-bottom: none;
+        }
+
+        /* Apply the original styles */
+
+        &:hover {
+            border: 1px solid var(--gray-4);
+            @apply shadow-sm-solid shadow-shade;
+        }
+    }
+
+    /* -------------------------- Shoulders/Buttons ---------------------------- */
+
+    .shoulder-right {
+        display: inline-flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        height: 100%;
+        position: absolute;
+        left: calc(100% + 12px);
+        width: fit-content;
+        gap: 4px;
+    }
+
+    .shoulder-bottom {
+        position: absolute;
+        bottom: -2px;
+        right: 2px;
+    }
+
+    @apply bg-background;
 }
 
 .dark .marimo-cell {
-  @apply border-border;
+    @apply border-border;
 
-  &.borderless {
-    border-color: transparent;
-    box-shadow: none;
+    &.borderless {
+        border-color: transparent;
+        box-shadow: none;
 
-    & > * {
-      border-bottom: none;
+        & > * {
+            border-bottom: none;
+        }
+
+        /* Apply the original styles */
+
+        &:hover {
+            border: 1px solid var(--gray-4);
+            @apply shadow-sm-solid shadow-shade;
+        }
     }
-
-    /* Apply the original styles */
-    &:hover {
-      border: 1px solid var(--gray-4);
-      @apply shadow-sm-solid shadow-shade;
-    }
-  }
 }
 
 #App.disconnected {
-  /* Background determined by disconnected gradient/noise. */
-  .marimo-cell,
-  .console-output-area,
-  .cm .cm-gutters,
-  .marimo-cell .cm-editor.cm-focused .cm-activeLineGutter,
-  .marimo-cell .cm-editor.cm-focused .cm-activeLine,
-  .marimo-cell .shoulder-button {
-    background-color: transparent;
-  }
+    /* Background determined by disconnected gradient/noise. */
 
-  /* Hide when disconnected. */
-  .cell-running-icon,
-  .cell-queued-icon,
-  .elapsed-time {
-    visibility: hidden;
-    animation: none;
-  }
+    .marimo-cell,
+    .console-output-area,
+    .cm .cm-gutters,
+    .marimo-cell .cm-editor.cm-focused .cm-activeLineGutter,
+    .marimo-cell .cm-editor.cm-focused .cm-activeLine,
+    .marimo-cell .shoulder-button {
+        background-color: transparent;
+    }
 
-  .console-output-area {
-    border-color: transparent;
-  }
+    /* Hide when disconnected. */
+
+    .cell-running-icon,
+    .cell-queued-icon,
+    .elapsed-time {
+        visibility: hidden;
+        animation: none;
+    }
+
+    .console-output-area {
+        border-color: transparent;
+    }
 }
 
 .tray {
-  display: flex;
-  position: relative;
-  z-index: 1;
+    display: flex;
+    position: relative;
+    z-index: 1;
 
-  &:first-child .cm-editor {
-    border-top-left-radius: 9px;
-    border-top-right-radius: 9px;
-  }
+    &:first-child .cm-editor {
+        border-top-left-radius: 9px;
+        border-top-right-radius: 9px;
+    }
 
-  &:last-child .cm-editor {
-    border-bottom-left-radius: 9px;
-    border-bottom-right-radius: 9px;
-  }
+    &:last-child .cm-editor {
+        border-bottom-left-radius: 9px;
+        border-bottom-right-radius: 9px;
+    }
 
-  /* expand the hover area left and right */
-  &::before,
-  &::after {
-    content: "";
-    position: absolute;
-    width: var(--gutter-width);
-    max-width: var(--gutter-width);
-    height: 100%;
-  }
+    /* expand the hover area left and right */
 
-  &::before {
-    left: calc(var(--gutter-width) * -1);
-  }
+    &::before,
+    &::after {
+        content: "";
+        position: absolute;
+        width: var(--gutter-width);
+        max-width: var(--gutter-width);
+        height: 100%;
+    }
 
-  &::after {
-    right: calc(var(--gutter-width) * -1);
-  }
+    &::before {
+        left: calc(var(--gutter-width) * -1);
+    }
+
+    &::after {
+        right: calc(var(--gutter-width) * -1);
+    }
 }
 
 /* Hide tray when dragging a cell, to prevent messing up the measurements. */
 .marimo-cell.is-moving {
-  .tray::before,
-  .tray::after {
-    display: none;
-  }
+    .tray::before,
+    .tray::after {
+        display: none;
+    }
 }
 
 :root {
-  /* Set a fixed gutter width to ensure the hover area is always wide enough */
-  /* And make the gutter bigger when the window is super wide */
-  --gutter-width: 100px;
+    /* Set a fixed gutter width to ensure the hover area is always wide enough */
+    /* And make the gutter bigger when the window is super wide */
+    --gutter-width: 100px;
 }
 
 /* ------------------------ CodeMirror Editor ----------------------------- */
 .cm {
-  width: 100%;
+    width: 100%;
 }
 
 .cm-editor {
-  font-size: var(--marimo-code-editor-font-size, 0.9rem);
+    font-size: var(--marimo-code-editor-font-size, 0.9rem);
 }
 
 .cm-lineNumbers {
-  font-size: var(--marimo-code-editor-font-size, 0.9rem);
+    font-size: var(--marimo-code-editor-font-size, 0.9rem);
 }
 
 /* .marimo-cell is needed to take precedence over codemirror's generated class ... */
 .marimo-cell .cm-editor {
-  border: 1px solid transparent;
-  padding: 3px;
-  padding-right: 24px;
+    border: 1px solid transparent;
+    padding: 3px;
+    padding-right: 24px;
 
-  &.cm-focused {
-    .cm-activeLineGutter {
-      background: #e2f2ff;
+    &.cm-focused {
+        .cm-activeLineGutter {
+            background: #e2f2ff;
+        }
+
+        .cm-activeLine:not(.cm-error-line) {
+            background: hsl(210deg 100% 50% / 3%);
+        }
     }
 
     .cm-activeLine:not(.cm-error-line) {
-      background: hsl(210deg 100% 50% / 3%);
+        background: transparent;
+
+        /* Soften the corners of the active-line highlight. */
+        border-radius: 2px;
     }
-  }
 
-  .cm-activeLine:not(.cm-error-line) {
-    background: transparent;
+    .cm-activeLineGutter {
+        background: transparent;
+    }
 
-    /* Soften the corners of the active-line highlight. */
-    border-radius: 2px;
-  }
-
-  .cm-activeLineGutter {
-    background: transparent;
-  }
-
-  .cm-content {
-    font-size: var(--marimo-code-editor-font-size, 0.9rem);
-    font-family: var(--monospace-font);
-  }
+    .cm-content {
+        font-size: var(--marimo-code-editor-font-size, 0.9rem);
+        font-family: var(--monospace-font);
+    }
 }
 
 .dark .marimo-cell .cm-editor.cm-focused .cm-activeLineGutter {
-  background: #0e1e25;
+    background: #0e1e25;
 }
 
 .dark .marimo-cell .cm-editor.cm-focused .cm-activeLine {
-  background: hsl(210deg 100% 2% / 20%);
+    background: hsl(210deg 100% 2% / 20%);
 }
 
 /* ------------------------------ Output Areas ------------------------------ */
 
 .output-area {
-  max-width: inherit;
-  width: 100%;
-  padding: 1rem;
+    max-width: inherit;
+    width: 100%;
+    padding: 1rem;
 
-  /* Prevent floated elements from extending out of the output areas and into
-   * the editor. */
-  clear: both;
-  display: flow-root;
+    /* Prevent floated elements from extending out of the output areas and into
+     * the editor. */
+    clear: both;
+    display: flow-root;
 
-  /* TODO: Find a way to accommodate large elements, ideally in a way that
-   * doesn't break margin collapse. Setting overflow (eg, overflow: auto)
-   * breaks margin collapse. */
+    overflow: auto;
 }
 
 .marimo-output-stale,
 .marimo-cell.stale .output-area.marimo-output-stale,
 .marimo-cell.stale .console-output-area.marimo-output-stale {
-  opacity: 0.8;
-  filter: grayscale(50%);
-  transition: 300ms;
-  transition-delay: 200ms;
+    opacity: 0.8;
+    filter: grayscale(50%);
+    transition: 300ms;
+    transition-delay: 200ms;
 }
 
 .marimo-output-stale.marimo-output-loading,
 .marimo-cell.stale .output-area.marimo-output-stale.marimo-output-loading,
 .marimo-cell.stale
-  .console-output-area.marimo-output-stale.marimo-output-loading {
-  opacity: 0.4;
-  filter: grayscale(50%);
-  transition: 300ms;
-  transition-delay: 200ms;
+.console-output-area.marimo-output-stale.marimo-output-loading {
+    opacity: 0.4;
+    filter: grayscale(50%);
+    transition: 300ms;
+    transition-delay: 200ms;
 }
 
 .console-output-area {
-  background-color: var(--gray-1);
+    background-color: var(--gray-1);
 }
