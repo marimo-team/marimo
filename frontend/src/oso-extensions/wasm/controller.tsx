@@ -124,9 +124,12 @@ export class DefaultWasmController implements WasmController {
       import asyncio
       import js
       from marimo._pyodide.bootstrap import create_session, instantiate
+      from marimo.oso import InterceptingPyodideBridge, ensure_pyoso_setup_in_file
 
       assert js.messenger, "messenger is not defined"
       assert js.query_params, "query_params is not defined"
+
+      ensure_pyoso_setup_in_file("${nbFilename}")
 
       session, bridge = create_session(
         filename="${nbFilename}",
@@ -134,6 +137,8 @@ export class DefaultWasmController implements WasmController {
         message_callback=js.messenger.callback,
         user_config=js.user_config.to_py(),
       )
+
+      intercepting_bridge = InterceptingPyodideBridge.from_parent(bridge)
 
       def init(auto_instantiate=True):
         instantiate(session, auto_instantiate)
@@ -143,7 +148,7 @@ export class DefaultWasmController implements WasmController {
       with open("${nbFilename}", "r") as f:
         packages = session.find_packages(f.read())
 
-      bridge, init, packages`,
+      intercepting_bridge, init, packages`,
     );
     span.end();
 
@@ -215,9 +220,14 @@ export class DefaultWasmController implements WasmController {
         import sys
         # Filter out builtins
         missing = [p for p in ${JSON.stringify(missingPackages)} if p not in sys.modules]
-        if len(missing) > 0:
-          print("Loading from micropip:", missing)
-          await micropip.install(missing)
+        # We try to install each separately with try/catch because sometimes 
+        # "detected" packages are incorrect so we just skip things that don't work.
+        for pkg in missing:
+          print("Loading from micropip:", pkg)
+          try:
+            await micropip.install(pkg)
+          except Exception as e:
+            print("Failed to load packages from micropip. skipping", e)
       `)
         .catch((error) => {
           // Don't let micropip loading failures stop the notebook from loading
