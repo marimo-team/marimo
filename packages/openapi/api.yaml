@@ -460,8 +460,7 @@ components:
                   type: object
                 nullable: true
                 type: array
-              content:
-                type: string
+              content: {}
               parts:
                 items:
                   additionalProperties: {}

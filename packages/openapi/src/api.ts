@@ -2845,7 +2845,7 @@ export interface components {
               url: string;
             }[]
           | null;
-        content: string;
+        content: unknown;
         parts?:
           | {
               [key: string]: unknown;
