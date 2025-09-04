@@ -15,7 +15,6 @@ from marimo import _loggers
 from marimo._ai._convert import convert_to_ai_sdk_messages
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
-from marimo._messaging.msgspec_encoder import StructResponse
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -49,6 +48,7 @@ from marimo._server.models.models import (
     InvokeAiToolRequest,
     InvokeAiToolResponse,
 )
+from marimo._server.responses import StructResponse
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:

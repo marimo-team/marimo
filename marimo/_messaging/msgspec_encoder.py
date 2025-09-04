@@ -7,7 +7,6 @@ from typing import Any
 
 import msgspec
 import msgspec.json
-from starlette.responses import Response
 
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -106,10 +105,3 @@ def asdict(obj: msgspec.Struct) -> dict[str, Any]:
     Uses `msgspec.to_builtins` with `enc_hook` to handle unsupported values.
     """
     return msgspec.to_builtins(obj, enc_hook=enc_hook)  # type: ignore[no-any-return]
-
-
-class StructResponse(Response):
-    media_type = "application/json"
-
-    def __init__(self, struct: msgspec.Struct) -> None:
-        super().__init__(content=encode_json_bytes(struct))

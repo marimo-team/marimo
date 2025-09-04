@@ -12,7 +12,7 @@ from starlette.responses import (
 from starlette.routing import Mount, Router
 
 from marimo import _loggers
-from marimo._messaging.msgspec_encoder import StructResponse
+from marimo._server.responses import StructResponse
 
 if TYPE_CHECKING:
     from starlette.requests import Request
