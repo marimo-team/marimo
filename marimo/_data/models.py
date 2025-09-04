@@ -116,7 +116,6 @@ else:
 class ColumnStats(msgspec.Struct):
     """
     Represents stats for a column in a data table.
-
     """
 
     total: Optional[int] = None
