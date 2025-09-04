@@ -2,7 +2,7 @@
 
 import type { Meta } from "@storybook/react-vite";
 import { createStore, Provider } from "jotai";
-import { createRef, useEffect } from "react";
+import { createRef } from "react";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import { createCellRuntimeState } from "@/core/cells/types";
 import { defaultUserConfig, parseAppConfig } from "@/core/config/config-schema";
@@ -96,6 +96,8 @@ export default {
   args: {},
 } satisfies Meta<typeof CellsRenderer>;
 
+type W = Window & { __MARIMO_STATIC__?: { files: Record<string, unknown> } };
+
 const EditModeCodeShown = () => {
   const cellId = "Hbol" as CellId;
   const notebook = createLongReprNotebook(cellId);
@@ -150,17 +152,6 @@ const ReadModeCodeShown = () => {
   const cellId = "Hbol" as CellId;
   const notebook = createLongReprNotebook(cellId);
 
-  // Set up as static notebook to show code by default
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      (
-        window as Window & {
-          __MARIMO_STATIC__?: { files: Record<string, unknown> };
-        }
-      ).__MARIMO_STATIC__ = { files: {} };
-    }
-  }, []);
-
   const store = createStore();
   store.set(notebookAtom, notebook);
   store.set(connectionAtom, { state: WebSocketState.OPEN });
@@ -170,13 +161,7 @@ const ReadModeCodeShown = () => {
   return (
     <Provider store={store}>
       <TooltipProvider>
-        <CellsRenderer appConfig={parseAppConfig({})} mode="read">
-          <CellArray
-            mode="read"
-            userConfig={defaultUserConfig()}
-            appConfig={parseAppConfig({})}
-          />
-        </CellsRenderer>
+        <CellsRenderer appConfig={parseAppConfig({})} mode="read" />
       </TooltipProvider>
     </Provider>
   );
@@ -186,17 +171,6 @@ const ReadModeCodeHidden = () => {
   const cellId = "Hbol" as CellId;
   const notebook = createLongReprNotebook(cellId);
 
-  // Don't set up static notebook mode so showCode defaults to false
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      delete (
-        window as Window & {
-          __MARIMO_STATIC__?: { files: Record<string, unknown> };
-        }
-      ).__MARIMO_STATIC__;
-    }
-  }, []);
-
   const store = createStore();
   store.set(notebookAtom, notebook);
   store.set(connectionAtom, { state: WebSocketState.OPEN });
@@ -206,13 +180,7 @@ const ReadModeCodeHidden = () => {
   return (
     <Provider store={store}>
       <TooltipProvider>
-        <CellsRenderer appConfig={parseAppConfig({})} mode="read">
-          <CellArray
-            mode="read"
-            userConfig={defaultUserConfig()}
-            appConfig={parseAppConfig({})}
-          />
-        </CellsRenderer>
+        <CellsRenderer appConfig={parseAppConfig({})} mode="read" />
       </TooltipProvider>
     </Provider>
   );
@@ -227,10 +195,21 @@ export const EditModeCodeHiddenStory = {
   name: "Edit Mode - Code Hidden",
 };
 export const ReadModeCodeShownStory = {
-  render: () => <ReadModeCodeShown />,
+  render: () => {
+    if (typeof window !== "undefined") {
+      (window as W).__MARIMO_STATIC__ = { files: {} };
+    }
+
+    return <ReadModeCodeShown />;
+  },
   name: "Read Mode - Code Shown",
 };
 export const ReadModeCodeHiddenStory = {
-  render: () => <ReadModeCodeHidden />,
+  render: () => {
+    if (typeof window !== "undefined") {
+      delete (window as W).__MARIMO_STATIC__;
+    }
+    return <ReadModeCodeHidden />;
+  },
   name: "Read Mode - Code Hidden",
 };
