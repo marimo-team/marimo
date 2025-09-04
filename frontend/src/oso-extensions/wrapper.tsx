@@ -77,7 +77,17 @@ export const OSOWrapper: React.FC<PropsWithChildren<WrapperProps>> = ({ children
           namespace: "marimo.oso"
         });
       }
-    }
+
+      // Enable debug logging in pyodide. This could get crazy
+      if (fragmentStore.getString("debug") === "true") {
+        await bridge.sendFunctionRequest({
+          args: {},
+          functionCallId: "__oso_enable_debug_logging",
+          functionName: "__oso_enable_debug_logging",
+          namespace: "marimo.oso"
+        });
+      }
+    };
     setTimeout(setupBridge, 0);
     return () => {
       window.removeEventListener("message", windowMessageCallback);
