@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import json
 import sys
 from enum import Enum
 from typing import (
@@ -215,9 +216,22 @@ def parse_raw(
 
         Transforms all fields in the parsed JSON from camel case to snake case.
     """
+    # Previous behavior (before using msgspec). Our DataClassParser handles
+    # non-discrimated unions, unlike msgspec, so we use dataclasses for non-discrimated
+    # union types. We could move off if we changed the over-the-wire types to have
+    # a tag, but that would require updating the front end.
+    if dataclasses.is_dataclass(cls):
+        if isinstance(message, dict):
+            return DataclassParser(allow_unknown_keys).build_dataclass(
+                message, cls
+            )
+        parsed = json.loads(message)
+        return DataclassParser(allow_unknown_keys).build_dataclass(parsed, cls)
+
     # If it is a dict, it is already parsed and we can just build the dataclass.
     if isinstance(message, dict):
         return msgspec.convert(message, type=cls)
+
     return msgspec.json.decode(
         message, strict=not allow_unknown_keys, type=cls
     )
