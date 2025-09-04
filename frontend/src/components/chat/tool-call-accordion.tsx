@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { ToolUIPart } from "ai";
 import {
   CheckCircleIcon,
   Loader2,
@@ -20,11 +21,7 @@ interface ToolCallAccordionProps {
   result: unknown;
   error?: string;
   index?: number;
-  state?:
-    | "input-streaming"
-    | "input-available"
-    | "output-available"
-    | "output-error";
+  state?: ToolUIPart["state"];
 }
 
 export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
