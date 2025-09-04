@@ -52,6 +52,13 @@ import { FragmentStore } from "./oso-extensions/fragment-store";
 
 let hasMounted = false;
 
+const defaultNotebookCode = `app = marimo.App()
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
+`;
+
 /**
  * Main entry point for the mairmo app.
  *
@@ -254,13 +261,19 @@ const mountOptionsSchema = z.object({
     .transform((val) => val ?? []),
 });
 
+/**
+ * A FileStore that is stored in the fragment identifier of the URL.
+ */
 class OSOFileStore implements FileStore {
+
   private fragmentStore: FragmentStore;
   constructor(fragmentStore: FragmentStore) {
     this.fragmentStore = fragmentStore;
   }
 
   saveFile(contents: string): void {
+    console.log("Saving file to fragment store");
+    console.log("Contents:", contents);
     this.fragmentStore.setCompressedString("code", contents);
     this.fragmentStore.commit();
   }
@@ -281,7 +294,16 @@ function initStore(fragmentStore: FragmentStore, options: unknown) {
 
   // Initialize file stores if provided
   notebookFileStore.overrideStores([
+    // Add the supabaseFilestore here!
     new OSOFileStore(fragmentStore),
+    { // This is a fallback store that does nothing but return a default notebook
+      saveFile: (_contents: string) => {
+        // Do nothing
+      },
+      readFile: () => {
+        return defaultNotebookCode;
+      },
+    }
   ]);
   if (
     parsedOptions.data.fileStores &&
