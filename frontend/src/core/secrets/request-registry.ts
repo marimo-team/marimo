@@ -10,6 +10,7 @@ export const SECRETS_REGISTRY = new DeferredRequestRegistry<
 >("secrets-result", async (requestId, req) => {
   const client = getRequestClient();
   await client.listSecretKeys({
+    type: "list-secret-keys",
     requestId: requestId,
     ...req,
   });

@@ -45,6 +45,7 @@ export const DatasetColumnPreview: React.FC<{
 
   const previewColumn = () => {
     previewDatasetColumn({
+      type: "preview-dataset-column",
       source: table.source,
       tableName: table.name,
       columnName: column.name,

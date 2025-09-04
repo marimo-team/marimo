@@ -62,6 +62,7 @@ async function requestDocumentation({
       ?.ranges.some((range) => pos >= range.from && pos <= range.to) ?? false;
 
   const result = await AUTOCOMPLETER.request({
+    type: "code-completion",
     document: view.state.doc.slice(0, endToken).toString(), // convert Text to string
     cellId: cellId,
   });

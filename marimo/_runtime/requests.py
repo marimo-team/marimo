@@ -262,22 +262,24 @@ class SetUserConfigRequest(msgspec.Struct, rename="camel"):
         return "SetUserConfigRequest(config=...)"
 
 
-class CreationRequest(msgspec.Struct, rename="camel"):
+class CreationRequest(msgspec.Struct, rename="camel", tag="creation"):
     execution_requests: tuple[ExecutionRequest, ...]
     set_ui_element_value_request: SetUIElementValueRequest
     auto_run: bool
     request: Optional[HTTPRequest] = None
 
 
-class DeleteCellRequest(msgspec.Struct, rename="camel"):
+class DeleteCellRequest(msgspec.Struct, rename="camel", tag="delete"):
     cell_id: CellId_t
 
 
-class StopRequest(msgspec.Struct, rename="camel"):
+class StopRequest(msgspec.Struct, rename="camel", tag="stop"):
     pass
 
 
-class CodeCompletionRequest(msgspec.Struct, rename="camel"):
+class CodeCompletionRequest(
+    msgspec.Struct, rename="camel", tag="code-completion"
+):
     id: CompletionRequestId
     document: str
     """Source code found in the cell up to the cursor position."""
@@ -287,7 +289,9 @@ class CodeCompletionRequest(msgspec.Struct, rename="camel"):
         return f"CodeCompletionRequest(id={self.id}, cell={self.cell_id})"
 
 
-class InstallMissingPackagesRequest(msgspec.Struct, rename="camel"):
+class InstallMissingPackagesRequest(
+    msgspec.Struct, rename="camel", tag="install-missing"
+):
     # TODO: index URL (index/channel/...)
     manager: str
 
@@ -297,7 +301,9 @@ class InstallMissingPackagesRequest(msgspec.Struct, rename="camel"):
     versions: dict[str, str]
 
 
-class PreviewDatasetColumnRequest(msgspec.Struct, rename="camel"):
+class PreviewDatasetColumnRequest(
+    msgspec.Struct, rename="camel", tag="preview-dataset-column"
+):
     # The source type of the dataset
     source_type: DataTableSource
     # The source of the dataset
@@ -313,7 +319,9 @@ class PreviewDatasetColumnRequest(msgspec.Struct, rename="camel"):
     fully_qualified_table_name: Optional[str] = None
 
 
-class PreviewSQLTableRequest(msgspec.Struct, rename="camel"):
+class PreviewSQLTableRequest(
+    msgspec.Struct, rename="camel", tag="preview-sql-table"
+):
     """Preview table details in an SQL database"""
 
     request_id: RequestId
@@ -323,7 +331,9 @@ class PreviewSQLTableRequest(msgspec.Struct, rename="camel"):
     table_name: str
 
 
-class PreviewSQLTableListRequest(msgspec.Struct, rename="camel"):
+class PreviewSQLTableListRequest(
+    msgspec.Struct, rename="camel", tag="preview-sql-table-list"
+):
     """Preview list of tables in an SQL schema"""
 
     request_id: RequestId
@@ -332,28 +342,36 @@ class PreviewSQLTableListRequest(msgspec.Struct, rename="camel"):
     schema: str
 
 
-class PreviewDataSourceConnectionRequest(msgspec.Struct, rename="camel"):
+class PreviewDataSourceConnectionRequest(
+    msgspec.Struct, rename="camel", tag="preview-data-source-connection"
+):
     """Fetch a datasource connection"""
 
     engine: str
 
 
-class ListSecretKeysRequest(msgspec.Struct, rename="camel"):
+class ListSecretKeysRequest(
+    msgspec.Struct, rename="camel", tag="list-secret-keys"
+):
     request_id: RequestId
 
 
-class ModelMessage(msgspec.Struct, rename="camel"):
+class ModelMessage(msgspec.Struct, rename="camel", tag="model-message"):
     state: dict[str, Any]
     buffer_paths: list[list[Union[str, int]]]
 
 
-class SetModelMessageRequest(msgspec.Struct, rename="camel"):
+class SetModelMessageRequest(
+    msgspec.Struct, rename="camel", tag="set-model-message"
+):
     model_id: WidgetModelId
     message: ModelMessage
     buffers: Optional[list[str]] = None
 
 
-class RefreshSecretsRequest(msgspec.Struct, rename="camel"):
+class RefreshSecretsRequest(
+    msgspec.Struct, rename="camel", tag="refresh-secrets"
+):
     pass
 
 

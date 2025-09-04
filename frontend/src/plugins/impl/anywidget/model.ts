@@ -281,8 +281,10 @@ export async function handleWidgetMessage({
         // TODO: we may want to extract/undo DataView, to get back buffers and buffer_paths
       }
       getRequestClient().sendModelValue({
+        type: "set-model-message",
         modelId: modelId,
         message: {
+          type: "model-message",
           state: changeData,
           bufferPaths: [],
         },

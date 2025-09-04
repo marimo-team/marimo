@@ -32,6 +32,7 @@ export const pythonCompletionSource: CompletionSource = async (
   }
 
   const result = await AUTOCOMPLETER.request({
+    type: "code-completion",
     document: query,
     cellId: cellId,
   });

@@ -35,6 +35,7 @@ const {
         if (state.expandedColumns.has(tableColumn)) {
           // Fire and forget
           void previewDatasetColumn({
+            type: "preview-dataset-column",
             tableName: table.name,
             columnName: column.name,
             source: table.source,

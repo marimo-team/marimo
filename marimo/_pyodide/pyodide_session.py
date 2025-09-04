@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import dataclasses
 import json
 import re
 import signal
@@ -209,11 +208,7 @@ class PyodideBridge:
         self.file_system = OSFileSystem()
 
     def put_control_request(self, request: str) -> None:
-        @dataclasses.dataclass
-        class Container:
-            body: requests.ControlRequest
-
-        parsed = parse_raw({"body": json.loads(request)}, Container).body
+        parsed = parse_raw(request, cls=requests.ControlRequest)
         self.session.put_control_request(parsed)
 
     def put_input(self, text: str) -> None:

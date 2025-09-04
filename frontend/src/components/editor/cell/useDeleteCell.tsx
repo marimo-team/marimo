@@ -28,7 +28,7 @@ export function useDeleteCellCallback() {
 
     // Optimistic update
     deleteCell({ cellId });
-    sendDeleteCell({ cellId: cellId }).catch(() => {
+    sendDeleteCell({ type: "delete", cellId: cellId }).catch(() => {
       // Fall back on failure
       undoDeleteCell();
     });
@@ -64,7 +64,7 @@ export function useDeleteManyCellsCallback() {
 
     const { cellIds } = opts;
     for (const cellId of cellIds) {
-      await sendDeleteCell({ cellId }).then(() => {
+      await sendDeleteCell({ type: "delete", cellId }).then(() => {
         deleteCell({ cellId });
       });
     }

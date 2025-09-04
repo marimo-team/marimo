@@ -339,6 +339,7 @@ const InstallPackagesButton = ({
         }
 
         await sendInstallMissingPackages({
+          type: "install-missing",
           manager,
           versions: completePackages,
         }).catch((error) => {

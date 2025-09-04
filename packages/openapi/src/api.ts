@@ -2862,6 +2862,8 @@ export interface components {
       cellId: string;
       document: string;
       id: string;
+      /** @enum {unknown} */
+      type: "code-completion";
     };
     /**
      * ColumnStats
@@ -3124,6 +3126,8 @@ export interface components {
     /** DeleteCellRequest */
     DeleteCellRequest: {
       cellId: string;
+      /** @enum {unknown} */
+      type: "delete";
     };
     /** DeleteSecretRequest */
     DeleteSecretRequest: {
@@ -3438,6 +3442,8 @@ export interface components {
     /** InstallMissingPackagesRequest */
     InstallMissingPackagesRequest: {
       manager: string;
+      /** @enum {unknown} */
+      type: "install-missing";
       versions: {
         [key: string]: string;
       };
@@ -3614,6 +3620,8 @@ export interface components {
     /** ListSecretKeysRequest */
     ListSecretKeysRequest: {
       requestId: string;
+      /** @enum {unknown} */
+      type: "list-secret-keys";
     };
     /** ListSecretKeysResponse */
     ListSecretKeysResponse: {
@@ -3727,6 +3735,8 @@ export interface components {
     ModelMessage: {
       bufferPaths: (string | number)[][];
       state: Record<string, any>;
+      /** @enum {unknown} */
+      type: "model-message";
     };
     /** MultipleDefinitionError */
     MultipleDefinitionError: {
@@ -3810,6 +3820,8 @@ export interface components {
      */
     PreviewDataSourceConnectionRequest: {
       engine: string;
+      /** @enum {unknown} */
+      type: "preview-data-source-connection";
     };
     /** PreviewDatasetColumnRequest */
     PreviewDatasetColumnRequest: {
@@ -3820,6 +3832,8 @@ export interface components {
       /** @enum {unknown} */
       sourceType: "catalog" | "connection" | "duckdb" | "local";
       tableName: string;
+      /** @enum {unknown} */
+      type: "preview-dataset-column";
     };
     /**
      * PreviewSQLTableListRequest
@@ -3830,6 +3844,8 @@ export interface components {
       engine: string;
       requestId: string;
       schema: string;
+      /** @enum {unknown} */
+      type: "preview-sql-table-list";
     };
     /**
      * PreviewSQLTableRequest
@@ -3841,6 +3857,8 @@ export interface components {
       requestId: string;
       schema: string;
       tableName: string;
+      /** @enum {unknown} */
+      type: "preview-sql-table";
     };
     /**
      * PythonLanguageServerConfig
@@ -4133,6 +4151,8 @@ export interface components {
       buffers?: string[] | null;
       message: components["schemas"]["ModelMessage"];
       modelId: string;
+      /** @enum {unknown} */
+      type: "set-model-message";
     };
     /** SetUIElementValueRequest */
     SetUIElementValueRequest: {
@@ -4203,7 +4223,10 @@ export interface components {
       text: string;
     };
     /** StopRequest */
-    StopRequest: Record<string, any>;
+    StopRequest: {
+      /** @enum {unknown} */
+      type: "stop";
+    };
     /**
      * StoreConfig
      * @description Configuration for cache stores.

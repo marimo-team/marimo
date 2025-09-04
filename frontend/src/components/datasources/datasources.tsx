@@ -252,6 +252,7 @@ const Engine: React.FC<{
   const handleRefreshConnection = async () => {
     setIsSpinning(true);
     await previewDataSourceConnection({
+      type: "preview-data-source-connection",
       engine: connection.name,
     });
     // Artificially spin the icon if the request is really fast
@@ -456,6 +457,7 @@ const TableList: React.FC<{
 
       const { engine, database, schema } = sqlTableContext;
       const previewTableList = await PreviewSQLTableList.request({
+        type: "preview-sql-table-list",
         engine: engine,
         database: database,
         schema: schema,
@@ -529,6 +531,7 @@ const DatasetTableItem: React.FC<{
       setTableDetailsRequested(true);
       const { engine, database, schema } = sqlTableContext;
       const previewTable = await PreviewSQLTable.request({
+        type: "preview-sql-table",
         engine: engine,
         database: database,
         schema: schema,

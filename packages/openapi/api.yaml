@@ -499,7 +499,11 @@ components:
           type: string
         id:
           type: string
+        type:
+          enum:
+          - code-completion
       required:
+      - type
       - id
       - document
       - cellId
@@ -998,7 +1002,11 @@ components:
       properties:
         cellId:
           type: string
+        type:
+          enum:
+          - delete
       required:
+      - type
       - cellId
       title: DeleteCellRequest
       type: object
@@ -1601,11 +1609,15 @@ components:
       properties:
         manager:
           type: string
+        type:
+          enum:
+          - install-missing
         versions:
           additionalProperties:
             type: string
           type: object
       required:
+      - type
       - manager
       - versions
       title: InstallMissingPackagesRequest
@@ -1939,7 +1951,11 @@ components:
       properties:
         requestId:
           type: string
+        type:
+          enum:
+          - list-secret-keys
       required:
+      - type
       - requestId
       title: ListSecretKeysRequest
       type: object
@@ -2179,7 +2195,11 @@ components:
           type: array
         state:
           type: object
+        type:
+          enum:
+          - model-message
       required:
+      - type
       - state
       - bufferPaths
       title: ModelMessage
@@ -2308,7 +2328,11 @@ components:
       properties:
         engine:
           type: string
+        type:
+          enum:
+          - preview-data-source-connection
       required:
+      - type
       - engine
       title: PreviewDataSourceConnectionRequest
       type: object
@@ -2331,7 +2355,11 @@ components:
           - local
         tableName:
           type: string
+        type:
+          enum:
+          - preview-dataset-column
       required:
+      - type
       - sourceType
       - source
       - tableName
@@ -2349,7 +2377,11 @@ components:
           type: string
         schema:
           type: string
+        type:
+          enum:
+          - preview-sql-table-list
       required:
+      - type
       - requestId
       - engine
       - database
@@ -2369,7 +2401,11 @@ components:
           type: string
         tableName:
           type: string
+        type:
+          enum:
+          - preview-sql-table
       required:
+      - type
       - requestId
       - engine
       - database
@@ -2917,7 +2953,11 @@ components:
           $ref: '#/components/schemas/ModelMessage'
         modelId:
           type: string
+        type:
+          enum:
+          - set-model-message
       required:
+      - type
       - modelId
       - message
       title: SetModelMessageRequest
@@ -3057,8 +3097,12 @@ components:
       title: StdinRequest
       type: object
     StopRequest:
-      properties: {}
-      required: []
+      properties:
+        type:
+          enum:
+          - stop
+      required:
+      - type
       title: StopRequest
       type: object
     StoreConfig:
