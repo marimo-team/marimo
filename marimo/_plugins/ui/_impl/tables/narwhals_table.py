@@ -8,7 +8,6 @@ from functools import cached_property
 from typing import Any, Optional, Union, cast
 
 import msgspec
-
 import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
