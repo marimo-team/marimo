@@ -417,92 +417,79 @@ components:
       - data
       title: CellOutput
       type: object
+    ChatAttachment:
+      properties:
+        content_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        name:
+          default: attachment
+          type: string
+        url:
+          type: string
+      required:
+      - url
+      title: ChatAttachment
+      type: object
+    ChatMessage:
+      description: A message in a chat.
+      properties:
+        attachments:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ChatAttachment'
+            type: array
+          - type: 'null'
+          default: null
+        content: {}
+        parts:
+          anyOf:
+          - items:
+              type: object
+            type: array
+          - type: 'null'
+          default: null
+        role:
+          enum:
+          - assistant
+          - system
+          - user
+      required:
+      - role
+      - content
+      title: ChatMessage
+      type: object
     ChatRequest:
       properties:
         context:
-          properties:
-            plainText:
-              default: ''
-              type: string
-            schema:
-              default: []
-              items:
-                $ref: '#/components/schemas/SchemaTable'
-              type: array
-            variables:
-              default: []
-              items:
-                anyOf:
-                - type: string
-                - $ref: '#/components/schemas/VariableContext'
-              type: array
-          required: []
-          title: AiCompletionContext
-          type: object
+          $ref: '#/components/schemas/AiCompletionContext'
         includeOtherCode:
           type: string
         messages:
           items:
-            properties:
-              attachments:
-                items:
-                  properties:
-                    contentType:
-                      nullable: true
-                      type: string
-                    name:
-                      type: string
-                    url:
-                      type: string
-                  required:
-                  - url
-                  - name
-                  type: object
-                nullable: true
-                type: array
-              content: {}
-              parts:
-                items:
-                  additionalProperties: {}
-                  type: object
-                nullable: true
-                type: array
-              role:
-                enum:
-                - user
-                - assistant
-                - system
-                type: string
-            required:
-            - role
-            - content
-            type: object
+            $ref: '#/components/schemas/ChatMessage'
           type: array
         model:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         variables:
-          items:
-            oneOf:
-            - properties:
-                name:
-                  type: string
-                previewValue: {}
-                valueType:
-                  type: string
-              required:
-              - name
-              - valueType
-              - previewValue
-              title: VariableContext
-              type: object
-            - type: string
-          nullable: true
-          type: array
+          anyOf:
+          - items:
+              anyOf:
+              - type: string
+              - $ref: '#/components/schemas/VariableContext'
+            type: array
+          - type: 'null'
+          default: null
       required:
       - context
       - includeOtherCode
       - messages
+      title: ChatRequest
       type: object
     CodeCompletionRequest:
       properties:

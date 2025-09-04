@@ -2826,45 +2826,36 @@ export interface components {
         | "video/mpeg";
       timestamp?: number;
     };
+    /** ChatAttachment */
+    ChatAttachment: {
+      /** @default null */
+      content_type?: string | null;
+      /** @default attachment */
+      name?: string;
+      url: string;
+    };
+    /**
+     * ChatMessage
+     * @description A message in a chat.
+     */
+    ChatMessage: {
+      /** @default null */
+      attachments?: components["schemas"]["ChatAttachment"][] | null;
+      content: unknown;
+      /** @default null */
+      parts?: Record<string, any>[] | null;
+      /** @enum {unknown} */
+      role: "assistant" | "system" | "user";
+    };
+    /** ChatRequest */
     ChatRequest: {
-      /** AiCompletionContext */
-      context: {
-        /** @default  */
-        plainText?: string;
-        /** @default [] */
-        schema?: components["schemas"]["SchemaTable"][];
-        /** @default [] */
-        variables?: (string | components["schemas"]["VariableContext"])[];
-      };
+      context: components["schemas"]["AiCompletionContext"];
       includeOtherCode: string;
-      messages: {
-        attachments?:
-          | {
-              contentType?: string | null;
-              name: string;
-              url: string;
-            }[]
-          | null;
-        content: unknown;
-        parts?:
-          | {
-              [key: string]: unknown;
-            }[]
-          | null;
-        /** @enum {string} */
-        role: "user" | "assistant" | "system";
-      }[];
+      messages: components["schemas"]["ChatMessage"][];
+      /** @default null */
       model?: string | null;
-      variables?:
-        | (
-            | {
-                name: string;
-                previewValue: unknown;
-                valueType: string;
-              }
-            | string
-          )[]
-        | null;
+      /** @default null */
+      variables?: (string | components["schemas"]["VariableContext"])[] | null;
     };
     /** CodeCompletionRequest */
     CodeCompletionRequest: {

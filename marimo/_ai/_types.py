@@ -6,6 +6,8 @@ import mimetypes
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict, Union
 
+import msgspec
+
 
 class ChatAttachmentDict(TypedDict):
     url: str
@@ -133,8 +135,7 @@ else:
     ChatPart = dict[str, Any]
 
 
-@dataclass
-class ChatMessage:
+class ChatMessage(msgspec.Struct):
     """
     A message in a chat.
     """
