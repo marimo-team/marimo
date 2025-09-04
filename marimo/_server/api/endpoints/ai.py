@@ -1,14 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.responses import (
-    JSONResponse,
     PlainTextResponse,
+    Response,
     StreamingResponse,
 )
 
@@ -49,6 +48,7 @@ from marimo._server.models.models import (
     InvokeAiToolRequest,
     InvokeAiToolResponse,
 )
+from marimo._server.responses import StructResponse
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:
@@ -303,7 +303,7 @@ async def ai_inline_completion(
 async def invoke_tool(
     *,
     request: Request,
-) -> JSONResponse:
+) -> Response:
     """
     requestBody:
         description: The request body for tool invocation
@@ -331,22 +331,23 @@ async def invoke_tool(
             body.tool_name, body.arguments
         )
 
-        # Create and return the response
-        response = InvokeAiToolResponse(
-            success=result.error is None,
-            tool_name=result.tool_name,
-            result=result.result,
-            error=result.error,
+        return StructResponse(
+            InvokeAiToolResponse(
+                success=result.error is None,
+                tool_name=result.tool_name,
+                result=result.result,
+                error=result.error,
+            )
         )
 
-        return JSONResponse(content=asdict(response))
     except Exception as e:
         LOGGER.error("Error invoking AI tool %s: %s", body.tool_name, str(e))
         # Return error response instead of letting it crash
-        error_response = InvokeAiToolResponse(
-            success=False,
-            tool_name=body.tool_name,
-            result=None,
-            error=f"Tool invocation failed: {str(e)}",
+        return StructResponse(
+            InvokeAiToolResponse(
+                success=False,
+                tool_name=body.tool_name,
+                result=None,
+                error=f"Tool invocation failed: {str(e)}",
+            )
         )
-        return JSONResponse(content=asdict(error_response))
