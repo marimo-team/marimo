@@ -643,9 +643,7 @@ const ChatPanelBody = () => {
             chatId: prev.activeChatId,
             messageId: userMessage.id,
             role: "user",
-            content: userMessage.content,
             parts: userMessage.parts,
-            attachments: userMessage.experimental_attachments,
           });
         }
 
@@ -710,13 +708,16 @@ const ChatPanelBody = () => {
         : undefined;
 
     // Trigger AI conversation with append
-    sendMessage({ text: initialMessage, files: fileParts, role: "user" });
-    // append({
-    //   id: generateUUID(),
-    //   role: "user",
-    //   content: initialMessage,
-    //   experimental_attachments: fileParts,
-    // });
+    sendMessage({
+      role: "user",
+      parts: [
+        {
+          type: "text" as const,
+          text: initialMessage,
+        },
+        ...(fileParts ?? []),
+      ],
+    });
     setFiles(undefined);
     setInput("");
   };
@@ -730,7 +731,7 @@ const ChatPanelBody = () => {
 
   const handleMessageEdit = useEvent((index: number, newValue: string) => {
     const editedMessage = messages[index];
-    const attachments = editedMessage.experimental_attachments;
+    const fileParts = editedMessage.parts?.filter((p) => p.type === "file");
 
     // Truncate both useChat and storage
     setMessages((messages) => messages.slice(0, index));
@@ -754,10 +755,9 @@ const ChatPanelBody = () => {
       });
     }
 
-    append({
+    sendMessage({
       role: "user",
-      content: newValue,
-      experimental_attachments: attachments,
+      parts: [{ type: "text", text: newValue }, ...fileParts],
     });
   });
 
