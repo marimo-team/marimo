@@ -2,6 +2,10 @@
 
 import type { Completion } from "@codemirror/autocomplete";
 import type { Resource } from "@marimo-team/codemirror-mcp";
+import { Memoize } from "typescript-memoize";
+import type { ChatAttachment } from "@/core/ai/types";
+import { Logger } from "@/utils/Logger";
+import { MultiMap } from "@/utils/multi-map";
 import type { TypedString } from "@/utils/typed";
 
 /**
@@ -40,6 +44,12 @@ export abstract class AIContextProvider<
 
   /** Format completion */
   abstract formatCompletion(item: T): Completion;
+
+  /** Get attachments for context items (optional, async) */
+  async getAttachments(_items: T[]): Promise<ChatAttachment[]> {
+    // Default implementation returns no attachments
+    return [];
+  }
 
   asURI(id: string): ContextLocatorId {
     return `${this.contextType}://${id}` as ContextLocatorId;
@@ -118,6 +128,7 @@ export class AIContextRegistry<T extends AIContextItem> {
     );
   }
 
+  @Memoize()
   getAllItems(): T[] {
     return [...this.providers].flatMap((provider) => provider.getItems());
   }
@@ -176,5 +187,68 @@ export class AIContextRegistry<T extends AIContextItem> {
         return provider?.formatContext(item) || "";
       })
       .join("\n\n");
+  }
+
+  /**
+   * Get attachments for mentioned items
+   */
+  async getAttachmentsForContext(
+    contextIds: ContextLocatorId[],
+  ): Promise<ChatAttachment[]> {
+    const allItems = new Map<ContextLocatorId, T>(
+      this.getAllItems().map((item) => [item.uri as ContextLocatorId, item]),
+    );
+
+    const contextInfo: T[] = [];
+    for (const contextId of contextIds) {
+      const item = allItems.get(contextId);
+      if (item) {
+        contextInfo.push(item);
+      }
+    }
+
+    if (contextInfo.length === 0) {
+      return [];
+    }
+
+    // Group items by provider type to batch attachment requests
+    const itemsByProvider = new MultiMap<string, T>();
+    for (const item of contextInfo) {
+      const providerType = item.type;
+      itemsByProvider.add(providerType, item);
+    }
+
+    // Collect attachments from all providers
+    const attachmentPromises = Array.from(itemsByProvider.entries()).map(
+      async ([providerType, items]) => {
+        const provider = this.getProvider(providerType);
+        if (!provider) {
+          return [];
+        }
+        return provider.getAttachments(items);
+      },
+    );
+
+    const attachmentResults = await Promise.all(attachmentPromises);
+    const results = attachmentResults.flat();
+
+    // Print attachments to the console with a rich image preview
+    if (import.meta.env.DEV) {
+      for (const attachment of results) {
+        // If it's an image, print a rich preview
+        if (
+          /^data:image\/(png|jpeg|jpg|gif|svg\+xml);base64,/.test(
+            attachment.url,
+          )
+        ) {
+          Logger.debug(
+            "%c ",
+            `font-size:1px;padding:140px 180px;background:url('${attachment.url}') no-repeat;background-size:contain;`,
+          );
+        }
+      }
+    }
+
+    return results;
   }
 }

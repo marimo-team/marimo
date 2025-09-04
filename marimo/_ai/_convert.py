@@ -404,7 +404,12 @@ def _extract_text(url: str) -> str:
     if url.startswith("data:"):
         # extract base64 encoding from url
         data = url.split(",")[1]
-        return base64.b64decode(data).decode("utf-8")
+        raw = base64.b64decode(data)
+        try:
+            return raw.decode("utf-8")
+        except UnicodeDecodeError:
+            # fallback: try latin1
+            return raw.decode("latin1")
     else:
         return url
 
