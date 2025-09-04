@@ -139,7 +139,6 @@ export const Chatbot: React.FC<Props> = (props) => {
         fileInputRef.current.value = "";
       }
       Logger.debug("Finished streaming message:", message);
-      // TODO: Log token usage and finish reason
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
