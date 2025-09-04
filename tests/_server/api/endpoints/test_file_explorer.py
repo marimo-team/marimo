@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
@@ -113,3 +114,51 @@ def test_open_file(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert "success" in response.json()
+
+
+def test_search_files_basic(client: TestClient, temp_dir: Path) -> None:
+    """Test basic file search functionality."""
+    response = client.post(
+        "/api/files/search",
+        headers=HEADERS,
+        json={"query": "test", "path": temp_dir},
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/json"
+    data = response.json()
+    assert "files" in data
+    assert "query" in data
+    assert "total_found" in data
+    assert data["query"] == "test"
+    assert isinstance(data["files"], list)
+    assert isinstance(data["total_found"], int)
+
+
+def test_search_files_with_matches(client: TestClient, temp_dir: Path) -> None:
+    """Test search returns expected matches."""
+    # Create test structure
+    search_dir = temp_dir
+
+    # Create test files
+    Path(search_dir, "hello.txt").write_text("content")
+    Path(search_dir, "world.txt").write_text("content")
+    Path(search_dir, "hello_world.py").write_text("print('hello')")
+
+    # Create subdirectory with files
+    sub_dir = Path(search_dir, "subdir")
+    sub_dir.mkdir()
+    Path(sub_dir, "hello.md").write_text("# Hello")
+
+    response = client.post(
+        "/api/files/search",
+        headers=HEADERS,
+        json={"query": "hello", "path": search_dir, "depth": 2},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+
+    # Should find hello.txt, hello_world.py, and hello.md
+    assert data["total_found"] >= 2
+    file_names = [f["name"] for f in data["files"]]
+    assert "hello.txt" in file_names
+    assert "hello_world.py" in file_names

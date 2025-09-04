@@ -54,6 +54,8 @@ from marimo._server.models.files import (
     FileListResponse,
     FileMoveRequest,
     FileMoveResponse,
+    FileSearchRequest,
+    FileSearchResponse,
     FileUpdateRequest,
     FileUpdateResponse,
 )
@@ -263,6 +265,19 @@ class PyodideBridge:
         root = body.path or self.file_system.get_root()
         files = self.file_system.list_files(root)
         response = FileListResponse(files=files, root=root)
+        return self._dump(response)
+
+    def search_files(
+        self,
+        request: str,
+    ) -> str:
+        body = parse_raw(json.loads(request), FileSearchRequest)
+        files = self.file_system.search(
+            body.query, body.path, body.depth, body.limit
+        )
+        response = FileSearchResponse(
+            files=files, query=body.query, total_found=len(files)
+        )
         return self._dump(response)
 
     def file_details(

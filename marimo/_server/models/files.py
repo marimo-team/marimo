@@ -44,6 +44,18 @@ class FileTreeRequest:
 
 
 @dataclass
+class FileSearchRequest:
+    # The search query string
+    query: str
+    # The root directory path to search from (optional, defaults to root)
+    path: Optional[str] = None
+    # Maximum depth to search (default: 3)
+    depth: int = 3
+    # Maximum number of results to return (default: 100)
+    limit: int = 100
+
+
+@dataclass
 class FileCreateRequest:
     # The path where to create the file or directory
     path: str
@@ -115,3 +127,10 @@ class FileMoveResponse(BaseResponse):
     # Additional information, e.g., error message
     message: Optional[str] = None
     info: Optional[FileInfo] = None
+
+
+@dataclass
+class FileSearchResponse:
+    files: list[FileInfo]
+    query: str
+    total_found: int

@@ -38,6 +38,7 @@ export function createErrorToastingRequests(
     openFile: "Failed to open file",
     getUsageStats: "", // No toast
     sendListFiles: "Failed to list files",
+    sendSearchFiles: "Failed to search files",
     sendPdb: "Failed to start debug session",
     sendCreateFileOrFolder: "Failed to create file or folder",
     sendDeleteFileOrFolder: "Failed to delete file or folder",

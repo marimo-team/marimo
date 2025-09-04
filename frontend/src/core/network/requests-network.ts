@@ -235,6 +235,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    sendSearchFiles: async (request) => {
+      await waitForConnectionOpen();
+      return getClient()
+        .POST("/api/files/search", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
     sendCreateFileOrFolder: async (request) => {
       await waitForConnectionOpen();
       return getClient()
