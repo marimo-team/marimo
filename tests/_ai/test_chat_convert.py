@@ -28,7 +28,7 @@ from marimo._ai._types import (
     ToolInvocationResult,
 )
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
-from marimo._server.ai.tools import Tool
+from marimo._server.ai.tools.types import Tool
 
 
 @pytest.fixture
