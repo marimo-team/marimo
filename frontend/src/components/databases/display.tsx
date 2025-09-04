@@ -52,6 +52,8 @@ export function dbDisplayName(name: string) {
       return "MongoDB";
     case "iceberg":
       return "Apache Iceberg";
+    case "pyoso_db_conn":
+      return "OSO Warehouse";
     default:
       return name;
   }
