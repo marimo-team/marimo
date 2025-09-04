@@ -174,7 +174,10 @@ export function renderPreviewError({
 
 export function renderStats(
   stats: Partial<
-    Record<ColumnHeaderStatsKey, string | number | boolean | null | undefined>
+    Record<
+      ColumnHeaderStatsKey,
+      string | number | boolean | null | undefined | unknown
+    >
   >,
   dataType: DataType,
 ) {

@@ -84,7 +84,7 @@ class DataTable(msgspec.Struct):
 
 class Schema(msgspec.Struct):
     name: str
-    tables: list[DataTable] = msgspec.field(default_factory=list)
+    tables: list[DataTable]
 
 
 class Database(msgspec.Struct):
@@ -100,7 +100,7 @@ class Database(msgspec.Struct):
 
     name: str
     dialect: str
-    schemas: list[Schema] = msgspec.field(default_factory=list)
+    schemas: list[Schema]
     engine: Optional[VariableName] = None
 
 
@@ -184,6 +184,6 @@ class DataSourceConnection(msgspec.Struct):
     dialect: str
     name: str
     display_name: str
-    databases: list[Database] = msgspec.field(default_factory=list)
+    databases: list[Database]
     default_database: Optional[str] = None
     default_schema: Optional[str] = None

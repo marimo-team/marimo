@@ -2631,7 +2631,7 @@ export interface components {
       op: "alert";
       title: string;
       /** @default null */
-      variant: "danger" | null;
+      variant?: "danger" | null;
     };
     /**
      * AnthropicConfig
@@ -2647,13 +2647,13 @@ export interface components {
     /** Banner */
     Banner: {
       /** @default null */
-      action: "restart" | null;
+      action?: "restart" | null;
       description: string;
       /** @enum {unknown} */
       op: "banner";
       title: string;
       /** @default null */
-      variant: "danger" | null;
+      variant?: "danger" | null;
     };
     /** BaseResponse */
     BaseResponse: {
@@ -2706,11 +2706,11 @@ export interface components {
      */
     CellConfig: {
       /** @default null */
-      column: number | null;
+      column?: number | null;
       /** @default false */
-      disabled: boolean;
+      disabled?: boolean;
       /** @default false */
-      hide_code: boolean;
+      hide_code?: boolean;
     };
     /**
      * CellOp
@@ -2735,22 +2735,22 @@ export interface components {
     CellOp: {
       cell_id: string;
       /** @default null */
-      console:
+      console?:
         | components["schemas"]["CellOutput"][]
         | null
         | components["schemas"]["CellOutput"];
       /** @enum {unknown} */
       op: "cell-op";
       /** @default null */
-      output: null | components["schemas"]["CellOutput"];
+      output?: null | components["schemas"]["CellOutput"];
       /** @default null */
-      run_id: string | null;
+      run_id?: string | null;
       /** @default null */
-      serialization: string | null;
+      serialization?: string | null;
       /** @default null */
-      stale_inputs: boolean | null;
+      stale_inputs?: boolean | null;
       /** @default null */
-      status: ("disabled-transitively" | "idle" | "queued" | "running") | null;
+      status?: ("disabled-transitively" | "idle" | "queued" | "running") | null;
       timestamp?: number;
     };
     /** CellOutput */
@@ -2833,33 +2833,33 @@ export interface components {
      */
     ColumnStats: {
       /** @default null */
-      false: number | null;
+      false?: number | null;
       /** @default null */
-      max: unknown | null;
+      max?: unknown | null;
       /** @default null */
-      mean: unknown | null;
+      mean?: unknown | null;
       /** @default null */
-      median: unknown | null;
+      median?: unknown | null;
       /** @default null */
-      min: unknown | null;
+      min?: unknown | null;
       /** @default null */
-      nulls: number | null;
+      nulls?: number | null;
       /** @default null */
-      p25: unknown | null;
+      p25?: unknown | null;
       /** @default null */
-      p5: unknown | null;
+      p5?: unknown | null;
       /** @default null */
-      p75: unknown | null;
+      p75?: unknown | null;
       /** @default null */
-      p95: unknown | null;
+      p95?: unknown | null;
       /** @default null */
-      std: unknown | null;
+      std?: unknown | null;
       /** @default null */
-      total: number | null;
+      total?: number | null;
       /** @default null */
-      true: number | null;
+      true?: number | null;
       /** @default null */
-      unique: number | null;
+      unique?: number | null;
     };
     /**
      * CompletedRun
@@ -2933,21 +2933,21 @@ export interface components {
      */
     DataColumnPreview: {
       /** @default null */
-      chart_code: string | null;
+      chart_code?: string | null;
       /** @default null */
-      chart_spec: string | null;
+      chart_spec?: string | null;
       /** @default  */
-      column_name: string;
+      column_name?: string;
       /** @default null */
-      error: string | null;
+      error?: string | null;
       /** @default null */
-      missing_packages: string[] | null;
+      missing_packages?: string[] | null;
       /** @enum {unknown} */
       op: "data-column-preview";
       /** @default null */
-      stats: null | components["schemas"]["ColumnStats"];
+      stats?: null | components["schemas"]["ColumnStats"];
       /** @default  */
-      table_name: string;
+      table_name?: string;
     };
     /**
      * DataSourceConnection
@@ -2963,12 +2963,11 @@ export interface components {
      *         default_schema (Optional[str]): The default schema in the data source connection.
      */
     DataSourceConnection: {
-      /** @default [] */
       databases: components["schemas"]["Database"][];
       /** @default null */
-      default_database: string | null;
+      default_database?: string | null;
       /** @default null */
-      default_schema: string | null;
+      default_schema?: string | null;
       dialect: string;
       display_name: string;
       name: string;
@@ -3000,14 +2999,14 @@ export interface components {
     DataTable: {
       columns: components["schemas"]["DataTableColumn"][];
       /** @default null */
-      engine: string | null;
+      engine?: string | null;
       /** @default null */
-      indexes: string[] | null;
+      indexes?: string[] | null;
       name: string;
       num_columns: number | null;
       num_rows: number | null;
       /** @default null */
-      primary_keys: string[] | null;
+      primary_keys?: string[] | null;
       source: string;
       /** @enum {unknown} */
       source_type: "catalog" | "connection" | "duckdb" | "local";
@@ -3015,7 +3014,7 @@ export interface components {
        * @default table
        * @enum {unknown}
        */
-      type: "table" | "view";
+      type?: "table" | "view";
       variable_name: string | null;
     };
     /**
@@ -3056,9 +3055,8 @@ export interface components {
     Database: {
       dialect: string;
       /** @default null */
-      engine: string | null;
+      engine?: string | null;
       name: string;
-      /** @default [] */
       schemas: components["schemas"]["Schema"][];
     };
     /**
@@ -3067,7 +3065,7 @@ export interface components {
      */
     Datasets: {
       /** @default null */
-      clear_channel: ("catalog" | "connection" | "duckdb" | "local") | null;
+      clear_channel?: ("catalog" | "connection" | "duckdb" | "local") | null;
       /** @enum {unknown} */
       op: "datasets";
       tables: components["schemas"]["DataTable"][];
@@ -3151,26 +3149,26 @@ export interface components {
       cellIds: string[];
       codes: string[];
       /** @default null */
-      request: null | components["schemas"]["HTTPRequest"];
+      request?: null | components["schemas"]["HTTPRequest"];
       timestamp?: number;
     };
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
       code: string;
       /** @default null */
-      request: null | components["schemas"]["HTTPRequest"];
+      request?: null | components["schemas"]["HTTPRequest"];
     };
     /** ExecuteStaleRequest */
     ExecuteStaleRequest: {
       /** @default null */
-      request: null | components["schemas"]["HTTPRequest"];
+      request?: null | components["schemas"]["HTTPRequest"];
     };
     /** ExecutionRequest */
     ExecutionRequest: {
       cellId: string;
       code: string;
       /** @default null */
-      request: null | components["schemas"]["HTTPRequest"];
+      request?: null | components["schemas"]["HTTPRequest"];
       timestamp?: number;
     };
     ExportAsHTMLRequest: {
@@ -3191,7 +3189,7 @@ export interface components {
     /** FileCreateRequest */
     FileCreateRequest: {
       /** @default null */
-      contents: string | null;
+      contents?: string | null;
       name: string;
       path: string;
       /** @enum {unknown} */
@@ -3200,9 +3198,9 @@ export interface components {
     /** FileCreateResponse */
     FileCreateResponse: {
       /** @default null */
-      info: null | components["schemas"]["FileInfo"];
+      info?: null | components["schemas"]["FileInfo"];
       /** @default null */
-      message: string | null;
+      message?: string | null;
       success: boolean;
     };
     /** FileDeleteRequest */
@@ -3212,7 +3210,7 @@ export interface components {
     /** FileDeleteResponse */
     FileDeleteResponse: {
       /** @default null */
-      message: string | null;
+      message?: string | null;
       success: boolean;
     };
     /** FileDetailsRequest */
@@ -3222,27 +3220,27 @@ export interface components {
     /** FileDetailsResponse */
     FileDetailsResponse: {
       /** @default null */
-      contents: string | null;
+      contents?: string | null;
       file: components["schemas"]["FileInfo"];
       /** @default null */
-      mimeType: string | null;
+      mimeType?: string | null;
     };
     /** FileInfo */
     FileInfo: {
       /** @default [] */
-      children: components["schemas"]["FileInfo"][];
+      children?: components["schemas"]["FileInfo"][];
       id: string;
       isDirectory: boolean;
       isMarimoFile: boolean;
       /** @default null */
-      lastModified: number | null;
+      lastModified?: number | null;
       name: string;
       path: string;
     };
     /** FileListRequest */
     FileListRequest: {
       /** @default null */
-      path: string | null;
+      path?: string | null;
     };
     /** FileListResponse */
     FileListResponse: {
@@ -3257,9 +3255,9 @@ export interface components {
     /** FileMoveResponse */
     FileMoveResponse: {
       /** @default null */
-      info: null | components["schemas"]["FileInfo"];
+      info?: null | components["schemas"]["FileInfo"];
       /** @default null */
-      message: string | null;
+      message?: string | null;
       success: boolean;
     };
     /** FileOpenRequest */
@@ -3274,9 +3272,9 @@ export interface components {
     /** FileUpdateResponse */
     FileUpdateResponse: {
       /** @default null */
-      info: null | components["schemas"]["FileInfo"];
+      info?: null | components["schemas"]["FileInfo"];
       /** @default null */
-      message: string | null;
+      message?: string | null;
       success: boolean;
     };
     /** FocusCell */
@@ -3381,9 +3379,9 @@ export interface components {
       /** @enum {unknown} */
       code: "error" | "ok";
       /** @default null */
-      message: string | null;
+      message?: string | null;
       /** @default null */
-      title: string | null;
+      title?: string | null;
     };
     /** ImportStarError */
     ImportStarError: {
@@ -3409,7 +3407,7 @@ export interface components {
     /** InstantiateRequest */
     InstantiateRequest: {
       /** @default true */
-      autoRun: boolean;
+      autoRun?: boolean;
       objectIds: string[];
       values: unknown[];
     };
@@ -3429,7 +3427,7 @@ export interface components {
     /** InvokeAiToolResponse */
     InvokeAiToolResponse: {
       /** @default null */
-      error: string | null;
+      error?: string | null;
       result: unknown;
       success: boolean;
       toolName: string;
@@ -3437,13 +3435,13 @@ export interface components {
     /** KernelCapabilities */
     KernelCapabilities: {
       /** @default false */
-      basedpyright: boolean;
+      basedpyright?: boolean;
       /** @default false */
-      pylsp: boolean;
+      pylsp?: boolean;
       /** @default false */
-      terminal: boolean;
+      terminal?: boolean;
       /** @default false */
-      ty: boolean;
+      ty?: boolean;
     };
     /**
      * KernelReady
@@ -3648,7 +3646,7 @@ export interface components {
     MarimoInternalError: {
       error_id: string;
       /** @default  */
-      msg: string;
+      msg?: string;
       /** @enum {unknown} */
       type: "internal";
     };
@@ -3753,7 +3751,7 @@ export interface components {
     PdbRequest: {
       cellId: string;
       /** @default null */
-      request: null | components["schemas"]["HTTPRequest"];
+      request?: null | components["schemas"]["HTTPRequest"];
     };
     /**
      * PreviewDataSourceConnectionRequest
@@ -3766,7 +3764,7 @@ export interface components {
     PreviewDatasetColumnRequest: {
       columnName: string;
       /** @default null */
-      fullyQualifiedTableName: string | null;
+      fullyQualifiedTableName?: string | null;
       source: string;
       /** @enum {unknown} */
       sourceType: "catalog" | "connection" | "duckdb" | "local";
@@ -3879,7 +3877,7 @@ export interface components {
       cellIds: string[];
       codes: string[];
       /** @default null */
-      request: null | components["schemas"]["HTTPRequest"];
+      request?: null | components["schemas"]["HTTPRequest"];
     };
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
@@ -3953,12 +3951,12 @@ export interface components {
      */
     SQLTableListPreview: {
       /** @default null */
-      error: string | null;
+      error?: string | null;
       /** @enum {unknown} */
       op: "sql-table-list-preview";
       request_id: string;
       /** @default [] */
-      tables: components["schemas"]["DataTable"][];
+      tables?: components["schemas"]["DataTable"][];
     };
     /**
      * SQLTablePreview
@@ -3966,7 +3964,7 @@ export interface components {
      */
     SQLTablePreview: {
       /** @default null */
-      error: string | null;
+      error?: string | null;
       /** @enum {unknown} */
       op: "sql-table-preview";
       request_id: string;
@@ -3999,10 +3997,10 @@ export interface components {
       configs: components["schemas"]["CellConfig"][];
       filename: string;
       /** @default null */
-      layout: Record<string, any> | null;
+      layout?: Record<string, any> | null;
       names: string[];
       /** @default true */
-      persist: boolean;
+      persist?: boolean;
     };
     /** SaveUserConfigurationRequest */
     SaveUserConfigurationRequest: {
@@ -4011,7 +4009,6 @@ export interface components {
     /** Schema */
     Schema: {
       name: string;
-      /** @default [] */
       tables: components["schemas"]["DataTable"][];
     };
     SchemaColumn: {
@@ -4046,7 +4043,7 @@ export interface components {
      */
     SendUIElementMessage: {
       /** @default null */
-      buffers: string[] | null;
+      buffers?: string[] | null;
       message: Record<string, any>;
       model_id: string | null;
       /** @enum {unknown} */
@@ -4077,7 +4074,7 @@ export interface components {
     /** SetModelMessageRequest */
     SetModelMessageRequest: {
       /** @default null */
-      buffers: string[] | null;
+      buffers?: string[] | null;
       message: components["schemas"]["ModelMessage"];
       modelId: string;
     };
@@ -4085,7 +4082,7 @@ export interface components {
     SetUIElementValueRequest: {
       objectIds: string[];
       /** @default null */
-      request: null | components["schemas"]["HTTPRequest"];
+      request?: null | components["schemas"]["HTTPRequest"];
       token?: string;
       values: unknown[];
     };
@@ -4157,7 +4154,7 @@ export interface components {
     /** SuccessResponse */
     SuccessResponse: {
       /** @default true */
-      success: boolean;
+      success?: boolean;
     };
     /**
      * TyLanguageServerConfig
@@ -4172,7 +4169,7 @@ export interface components {
     /** UnknownError */
     UnknownError: {
       /** @default null */
-      error_type: string | null;
+      error_type?: string | null;
       msg: string;
       /** @enum {unknown} */
       type: "unknown";
@@ -4243,12 +4240,12 @@ export interface components {
     WorkspaceFilesResponse: {
       files: {
         /** @default [] */
-        children: components["schemas"]["FileInfo"][];
+        children?: components["schemas"]["FileInfo"][];
         id: string;
         isDirectory: boolean;
         isMarimoFile: boolean;
         /** @default null */
-        lastModified: number | null;
+        lastModified?: number | null;
         name: string;
         path: string;
       }[];
@@ -4263,24 +4260,24 @@ export interface components {
      */
     _AppConfig: {
       /** @default null */
-      app_title: string | null;
+      app_title?: string | null;
       auto_download?: ("html" | "ipynb" | "markdown")[];
       /** @default null */
-      css_file: string | null;
+      css_file?: string | null;
       /** @default null */
-      html_head_file: string | null;
+      html_head_file?: string | null;
       /** @default null */
-      layout_file: string | null;
+      layout_file?: string | null;
       /**
        * @default auto
        * @enum {unknown}
        */
-      sql_output: "auto" | "lazy-polars" | "native" | "pandas" | "polars";
+      sql_output?: "auto" | "lazy-polars" | "native" | "pandas" | "polars";
       /**
        * @default compact
        * @enum {unknown}
        */
-      width: "columns" | "compact" | "full" | "medium" | "normal";
+      width?: "columns" | "compact" | "full" | "medium" | "normal";
     };
   };
   responses: never;

@@ -734,7 +734,6 @@ components:
         \ The default schema in the data source connection."
       properties:
         databases:
-          default: []
           items:
             $ref: '#/components/schemas/Database'
           type: array
@@ -761,6 +760,7 @@ components:
       - dialect
       - name
       - display_name
+      - databases
       title: DataSourceConnection
       type: object
     DataSourceConnections:
@@ -896,13 +896,13 @@ components:
         name:
           type: string
         schemas:
-          default: []
           items:
             $ref: '#/components/schemas/Schema'
           type: array
       required:
       - name
       - dialect
+      - schemas
       title: Database
       type: object
     Datasets:
@@ -2716,12 +2716,12 @@ components:
         name:
           type: string
         tables:
-          default: []
           items:
             $ref: '#/components/schemas/DataTable'
           type: array
       required:
       - name
+      - tables
       title: Schema
       type: object
     SchemaColumn:
