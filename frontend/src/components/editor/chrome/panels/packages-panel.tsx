@@ -411,7 +411,7 @@ const RemoveButton: React.FC<{
 };
 
 const DependencyTree: React.FC<{
-  tree?: DependencyTreeNode;
+  tree: DependencyTreeNode | null;
   error?: Error | null;
   onSuccess: () => void;
 }> = ({ tree, error, onSuccess }) => {

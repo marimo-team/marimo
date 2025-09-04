@@ -2547,8 +2547,22 @@ export interface paths {
 export type webhooks = Record<string, any>;
 export interface components {
   schemas: {
+    /**
+     * AddPackageRequest
+     * @description This can be a remove package or a local package.
+     *
+     *     Supported formats:
+     *
+     *     httpx
+     *     httpx==0.27.0
+     *     httpx>=0.27.0
+     *     git+https://github.com/encode/httpx
+     *     https://files.pythonhosted.org/packages/5c/2d/3da5bdf4408b8b2800061c339f240c1802f2e82d55e50bd39c5a881f47f0/httpx-0.27.0.tar.gz
+     *     /example/foo-0.1.0-py3-none-any.whl
+     */
     AddPackageRequest: {
       package: string;
+      /** @default false */
       upgrade?: boolean | null;
     };
     AiCompletionContext: {
@@ -3092,16 +3106,18 @@ export interface components {
     DeleteSecretRequest: {
       key: string;
     };
+    /** DependencyTreeNode */
     DependencyTreeNode: {
       dependencies: components["schemas"]["DependencyTreeNode"][];
       name: string;
       tags: {
         [key: string]: string;
       }[];
-      version?: string | null;
+      version: string | null;
     };
+    /** DependencyTreeResponse */
     DependencyTreeResponse: {
-      tree?: components["schemas"]["DependencyTreeNode"];
+      tree: null | components["schemas"]["DependencyTreeNode"];
     };
     /**
      * DiagnosticsConfig
@@ -3568,6 +3584,7 @@ export interface components {
       data: Record<string, any>;
       type: string;
     };
+    /** ListPackagesResponse */
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
     };
@@ -3755,7 +3772,9 @@ export interface components {
       /** @enum {unknown} */
       manager: "pip" | "pixi" | "poetry" | "rye" | "uv";
     };
+    /** PackageOperationResponse */
     PackageOperationResponse: {
+      /** @default null */
       error?: string | null;
       success: boolean;
     };
@@ -3865,6 +3884,7 @@ export interface components {
       /** @enum {unknown} */
       op: "reload";
     };
+    /** RemovePackageRequest */
     RemovePackageRequest: {
       package: string;
     };
