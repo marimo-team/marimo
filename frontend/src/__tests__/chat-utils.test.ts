@@ -26,14 +26,18 @@ describe("addMessageToChat", () => {
           {
             id: "msg-1",
             role: "user",
-            content: "Hello",
-            timestamp: 1000,
+            parts: [{ type: "text", text: "Hello" }],
+            metadata: {
+              timestamp: 1000,
+            },
           },
           {
             id: "msg-2",
             role: "assistant",
-            content: "Hi there!",
-            timestamp: 2000,
+            parts: [{ type: "text", text: "Hi there!" }],
+            metadata: {
+              timestamp: 2000,
+            },
           },
         ],
         createdAt: 1000,
@@ -46,8 +50,10 @@ describe("addMessageToChat", () => {
           {
             id: "msg-3",
             role: "user",
-            content: "How are you?",
-            timestamp: 3000,
+            parts: [{ type: "text", text: "How are you?" }],
+            metadata: {
+              timestamp: 3000,
+            },
           },
         ],
         createdAt: 3000,
@@ -63,7 +69,7 @@ describe("addMessageToChat", () => {
       chatId: CHAT_1,
       messageId: "msg-4",
       role: "user",
-      content: "New message",
+      parts: [{ type: "text", text: "New message" }],
     });
 
     expect(result.chats).toHaveLength(2);
@@ -72,7 +78,7 @@ describe("addMessageToChat", () => {
     expect(updatedChat?.messages[2]).toEqual({
       id: "msg-4",
       role: "user",
-      content: "New message",
+      parts: [{ type: "text", text: "New message" }],
       timestamp: expect.any(Number),
     });
     expect(updatedChat?.updatedAt).toBeGreaterThan(
@@ -86,7 +92,7 @@ describe("addMessageToChat", () => {
       chatId: CHAT_1,
       messageId: "msg-1",
       role: "user",
-      content: "Updated content",
+      parts: [{ type: "text", text: "Updated content" }],
     });
 
     expect(result.chats).toHaveLength(2);
@@ -95,7 +101,7 @@ describe("addMessageToChat", () => {
     expect(updatedChat?.messages[0]).toEqual({
       id: "msg-1",
       role: "user",
-      content: "Updated content",
+      parts: [{ type: "text", text: "Updated content" }],
       timestamp: 1000,
     });
     expect(updatedChat?.updatedAt).toBeGreaterThan(
@@ -110,7 +116,6 @@ describe("addMessageToChat", () => {
       chatId: CHAT_1,
       messageId: "msg-5",
       role: "assistant",
-      content: "Message with parts",
       parts,
     });
 
@@ -145,7 +150,6 @@ describe("addMessageToChat", () => {
       chatId: CHAT_1,
       messageId: "msg-1",
       role: "user",
-      content: "Updated content",
       parts: updatedParts,
     });
 
@@ -159,7 +163,7 @@ describe("addMessageToChat", () => {
       chatId: null,
       messageId: "msg-4",
       role: "user",
-      content: "New message",
+      parts: [{ type: "text", text: "New message" }],
     });
 
     expect(result).toEqual(mockChatState);
@@ -171,7 +175,7 @@ describe("addMessageToChat", () => {
       chatId: "non-existent-chat" as ChatId,
       messageId: "msg-4",
       role: "user",
-      content: "New message",
+      parts: [{ type: "text", text: "New message" }],
     });
 
     expect(result).toEqual(mockChatState);
@@ -183,7 +187,7 @@ describe("addMessageToChat", () => {
       chatId: CHAT_1,
       messageId: "msg-4",
       role: "user",
-      content: "New message",
+      parts: [{ type: "text", text: "New message" }],
     });
 
     const unchangedChat = result.chats.get(CHAT_2);
@@ -196,7 +200,7 @@ describe("addMessageToChat", () => {
       chatId: CHAT_1,
       messageId: "msg-4",
       role: "user",
-      content: "New message",
+      parts: [{ type: "text", text: "New message" }],
     });
 
     const updatedChat = result.chats.get(CHAT_1);
@@ -225,12 +229,14 @@ describe("addMessageToChat", () => {
       chatId: chatId,
       messageId: "msg-1",
       role: "user",
-      content: "First message",
+      parts: [{ type: "text", text: "First message" }],
     });
 
     const updatedChat = result.chats.get(chatId);
     expect(updatedChat?.messages).toHaveLength(1);
-    expect(updatedChat?.messages[0].content).toBe("First message");
+    expect(updatedChat?.messages[0].parts).toEqual([
+      { type: "text", text: "First message" },
+    ]);
   });
 
   it("should handle different message roles", () => {
@@ -239,7 +245,7 @@ describe("addMessageToChat", () => {
       chatId: CHAT_1,
       messageId: "msg-4",
       role: "assistant",
-      content: "Assistant response",
+      parts: [{ type: "text", text: "Assistant response" }],
     });
 
     const updatedChat = result.chats.get(CHAT_1);

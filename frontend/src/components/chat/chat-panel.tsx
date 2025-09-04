@@ -525,16 +525,27 @@ const ChatPanelBody = () => {
           const textParts = message.parts.filter((p) => p.type === "text");
           input += textParts.map((p) => p.text).join("\n");
         }
-        const completionBody = getAICompletionBody({
-          input,
-        });
-
-        // TODO: Add attachments
+        const completionBody = getAICompletionBody({ input });
 
         return {
           body: {
             ...options,
             ...completionBody,
+            messages: options.messages.map((m) => ({
+              ...m,
+              attachments: m.parts.flatMap((p) =>
+                p.type === "file"
+                  ? {
+                      contentType: p.mediaType,
+                      name: p.filename,
+                      url: p.url,
+                    }
+                  : [],
+              ),
+              content: m.parts
+                ?.map((p) => ("text" in p ? p.text : ""))
+                .join("\n"),
+            })),
           },
         };
       },

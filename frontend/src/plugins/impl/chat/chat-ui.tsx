@@ -4,6 +4,7 @@ import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { DefaultChatTransport } from "ai";
 import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
@@ -50,7 +51,7 @@ import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { ErrorBanner } from "../common/error-banner";
 import type { PluginFunctions } from "./ChatPlugin";
-import type { ChatConfig, ChatMessage, ChatRole } from "./types";
+import type { ChatConfig, ChatMessage } from "./types";
 
 interface Props extends PluginFunctions {
   prompts: string[];
@@ -76,7 +77,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     const messages: UIMessage[] = chatMessages.messages.map((message, idx) => ({
       id: idx.toString(),
       role: message.role,
-      parts: message.parts,
+      parts: [{ type: "text", text: message.content }],
     }));
     return messages;
   }, []);
@@ -90,37 +91,47 @@ export const Chatbot: React.FC<Props> = (props) => {
     error,
     regenerate,
   } = useChat({
-    // streamProtocol: "text",
-    fetch: async (_url: string, request: Request) => {
-      const body = JSON.parse(request?.body as unknown as string) as {
-        messages: UIMessage[];
-      };
-      try {
-        const response = await props.send_prompt({
-          messages: body.messages.map((m) => ({
-            role: m.role as ChatRole,
-            parts: m.parts,
-          })),
-          config: {
-            max_tokens: config.max_tokens,
-            temperature: config.temperature,
-            top_p: config.top_p,
-            top_k: config.top_k,
-            frequency_penalty: config.frequency_penalty,
-            presence_penalty: config.presence_penalty,
-          },
-        });
-        return new Response(response);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        // HACK: strip the error message to clean up the response
-        const strippedError = error.message
-          .split("failed with exception ")
-          .pop();
-        return new Response(strippedError, { status: 400 });
-      }
-    },
-    initialMessages: initialMessages,
+    transport: new DefaultChatTransport({
+      fetch: async (
+        request: RequestInfo | URL,
+        init: RequestInit | undefined,
+      ) => {
+        if (init === undefined) {
+          return fetch(request);
+        }
+
+        const body = JSON.parse(init.body as unknown as string) as {
+          messages: UIMessage[];
+        };
+        try {
+          const response = await props.send_prompt({
+            messages: body.messages.map((m) => ({
+              role: m.role,
+              content: m.parts
+                ?.map((p) => ("text" in p ? p.text : ""))
+                .join("\n"),
+            })),
+            config: {
+              max_tokens: config.max_tokens,
+              temperature: config.temperature,
+              top_p: config.top_p,
+              top_k: config.top_k,
+              frequency_penalty: config.frequency_penalty,
+              presence_penalty: config.presence_penalty,
+            },
+          });
+          return new Response(response);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } catch (error: any) {
+          // HACK: strip the error message to clean up the response
+          const strippedError = error.message
+            .split("failed with exception ")
+            .pop();
+          return new Response(strippedError, { status: 400 });
+        }
+      },
+    }),
+    messages: initialMessages,
     onFinish: (message) => {
       setFiles(undefined);
 

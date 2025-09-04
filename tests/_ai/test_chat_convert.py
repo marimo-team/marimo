@@ -479,63 +479,110 @@ def test_convert_to_google_tools(sample_tools):
 def test_convert_to_ai_sdk_messages():
     # Test text type
     text = "hello world"
-    result = convert_to_ai_sdk_messages(text, "text")
-    assert result == f"0:{json.dumps(text)}\n"
+    result = convert_to_ai_sdk_messages(text, "text", text_id="test_text_id")
+    expected = f"data: {json.dumps({'type': 'text-delta', 'id': 'test_text_id', 'delta': text})}\n\n"
+    assert result == expected
 
     # Test reasoning type
     reasoning = "step by step"
-    result = convert_to_ai_sdk_messages(reasoning, "reasoning")
-    assert result == f"g:{json.dumps(reasoning)}\n"
+    result = convert_to_ai_sdk_messages(
+        reasoning, "reasoning", text_id="test_reasoning_id"
+    )
+    expected = f"data: {json.dumps({'type': 'reasoning-delta', 'id': 'test_reasoning_id', 'delta': reasoning})}\n\n"
+    assert result == expected
 
     # Test reasoning_signature type
     reasoning_signature = {"signature": "encrypted_signature_string"}
     result = convert_to_ai_sdk_messages(
         reasoning_signature, "reasoning_signature"
     )
-    assert result == f"j:{json.dumps(reasoning_signature)}\n"
+    expected = f"data: {json.dumps({'type': 'data-reasoning-signature', 'data': reasoning_signature})}\n\n"
+    assert result == expected
 
     # Test tool_call_start type
     tool_call_start = {"toolCallId": "123", "toolName": "test_tool"}
     result = convert_to_ai_sdk_messages(tool_call_start, "tool_call_start")
-    assert result == f"b:{json.dumps(tool_call_start)}\n"
+    expected = f"data: {json.dumps({'type': 'tool-input-start', 'toolCallId': '123', 'toolName': 'test_tool'})}\n\n"
+    assert result == expected
 
     # Test tool_call_delta type
-    tool_call_delta = {"toolCallId": "123", "argsTextDelta": "partial args"}
+    tool_call_delta = {"toolCallId": "123", "inputTextDelta": "partial args"}
     result = convert_to_ai_sdk_messages(tool_call_delta, "tool_call_delta")
-    assert result == f"c:{json.dumps(tool_call_delta)}\n"
+    expected = f"data: {json.dumps({'type': 'tool-input-delta', 'toolCallId': '123', 'inputTextDelta': 'partial args'})}\n\n"
+    assert result == expected
 
     # Test tool_call_end type
     tool_call_end = {
         "toolCallId": "123",
         "toolName": "test_tool",
-        "args": {"param": "value"},
+        "input": {"param": "value"},
     }
     result = convert_to_ai_sdk_messages(tool_call_end, "tool_call_end")
-    assert result == f"9:{json.dumps(tool_call_end)}\n"
-
-    # Test tool_result type
-    tool_result = {"toolCallId": "123", "result": "success"}
-    result = convert_to_ai_sdk_messages(tool_result, "tool_result")
-    assert result == f"a:{json.dumps(tool_result)}\n"
-
-    # Test finish_reason type with "tool_calls"
-    result = convert_to_ai_sdk_messages("tool_calls", "finish_reason")
-    expected = 'd:{"finishReason": "tool_calls", "usage": {"promptTokens": 0, "completionTokens": 0}}\n'
+    expected_data = {
+        "type": "tool-input-available",
+        "toolCallId": "123",
+        "toolName": "test_tool",
+        "input": {"param": "value"},
+    }
+    expected = f"data: {json.dumps(expected_data)}\n\n"
     assert result == expected
 
-    # Test finish_reason type with "stop"
+    # Test tool_result type
+    tool_result = {"toolCallId": "123", "output": "success"}
+    result = convert_to_ai_sdk_messages(tool_result, "tool_result")
+    expected = f"data: {json.dumps({'type': 'tool-output-available', 'toolCallId': '123', 'output': 'success'})}\n\n"
+    assert result == expected
+
+    # Test finish_reason type
+    result = convert_to_ai_sdk_messages("tool_calls", "finish_reason")
+    expected = f"data: {json.dumps({'type': 'finish'})}\n\n"
+    assert result == expected
+
+    # Test finish_reason type with "stop" - same as above
     result = convert_to_ai_sdk_messages("stop", "finish_reason")
-    expected = 'd:{"finishReason": "stop", "usage": {"promptTokens": 0, "completionTokens": 0}}\n'
+    expected = f"data: {json.dumps({'type': 'finish'})}\n\n"
     assert result == expected
 
     # Test error type
     error_message = "Model not found"
     result = convert_to_ai_sdk_messages(error_message, "error")
-    assert result == f"3:{json.dumps(error_message)}\n"
+    expected = f"data: {json.dumps({'type': 'error', 'errorText': error_message})}\n\n"
+    assert result == expected
 
-    # Test unknown type defaults to text (using type ignore for testing)
-    result = convert_to_ai_sdk_messages("fallback", "unknown")  # type: ignore
-    assert result == f"0:{json.dumps('fallback')}\n"
+    # Test text_start type
+    result = convert_to_ai_sdk_messages(
+        "", "text_start", text_id="test_text_start_id"
+    )
+    expected = f"data: {json.dumps({'type': 'text-start', 'id': 'test_text_start_id'})}\n\n"
+    assert result == expected
+
+    # Test text_end type
+    result = convert_to_ai_sdk_messages(
+        "", "text_end", text_id="test_text_end_id"
+    )
+    expected = f"data: {json.dumps({'type': 'text-end', 'id': 'test_text_end_id'})}\n\n"
+    assert result == expected
+
+    # Test reasoning_start type
+    result = convert_to_ai_sdk_messages(
+        "", "reasoning_start", text_id="test_reasoning_start_id"
+    )
+    expected = f"data: {json.dumps({'type': 'reasoning-start', 'id': 'test_reasoning_start_id'})}\n\n"
+    assert result == expected
+
+    # Test reasoning_end type
+    result = convert_to_ai_sdk_messages(
+        "", "reasoning_end", text_id="test_reasoning_end_id"
+    )
+    expected = f"data: {json.dumps({'type': 'reasoning-end', 'id': 'test_reasoning_end_id'})}\n\n"
+    assert result == expected
+
+    # Test unknown type defaults to text-delta (using type ignore for testing)
+    result = convert_to_ai_sdk_messages(
+        "fallback", "unknown", text_id="test_fallback_id"
+    )  # type: ignore
+    expected = f"data: {json.dumps({'type': 'text-delta', 'id': 'test_fallback_id', 'delta': 'fallback'})}\n\n"
+    assert result == expected
 
 
 # Tests for helper functions that convert parts to provider-specific formats
