@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Generic, Literal, Optional, TypeVar
 
 from marimo._config.config import CopilotMode
 
@@ -36,7 +36,10 @@ class ToolResult:
     error: Optional[str] = None
 
 
-class BackendTool(ABC):
+T = TypeVar("T")
+
+
+class BackendTool(ABC, Generic[T]):
     """Base class for all backend tools."""
 
     @property
@@ -45,11 +48,11 @@ class BackendTool(ABC):
         """The tool definition."""
 
     @abstractmethod
-    def handler(self, arguments: FunctionArgs) -> Any:
+    def handler(self, arguments: T) -> dict[str, Any]:
         """The handler function for the tool."""
 
     @abstractmethod
-    def validator(self, arguments: FunctionArgs) -> Optional[tuple[bool, str]]:
+    def validator(self, arguments: T) -> Optional[tuple[bool, str]]:
         """The validator function for the tool parameters.
         Strongly recommended to return a tuple of (is_valid, error_message).
 

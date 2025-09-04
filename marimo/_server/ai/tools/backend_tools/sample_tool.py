@@ -31,15 +31,21 @@ Backend tools are useful for:
 
 # from __future__ import annotations
 
-# from typing import Any, Optional
+# from typing import Any, Optional, TypedDict
 
 # from marimo import _loggers
-# from marimo._server.ai.tools.types import BackendTool, FunctionArgs, Tool
+# from marimo._server.ai.tools.types import BackendTool, Tool
 
 # LOGGER = _loggers.marimo_logger()
 
 
-# class SampleTool(BackendTool):
+# class SampleToolArgs(TypedDict):
+#     message: str
+#     count: int
+#     uppercase: bool
+
+
+# class SampleTool(BackendTool[SampleToolArgs]):
 #     """A sample backend tool that processes text messages."""
 
 #     @property
@@ -73,7 +79,7 @@ Backend tools are useful for:
 #             mode=["ask", "chat"],  # Available in both ask and chat modes
 #         )
 
-#     def handler(self, arguments: FunctionArgs) -> dict[str, Any]:
+#     def handler(self, arguments: SampleToolArgs) -> dict[str, Any]:
 #         """
 #         Handle the sample tool execution.
 
@@ -110,7 +116,9 @@ Backend tools are useful for:
 #                 "error": f"Tool execution failed: {str(e)}",
 #             }
 
-#     def validator(self, arguments: FunctionArgs) -> Optional[tuple[bool, str]]:
+#     def validator(
+#         self, arguments: SampleToolArgs
+#     ) -> Optional[tuple[bool, str]]:
 #         """
 #         Validate parameters for the sample tool.
 
@@ -163,7 +171,14 @@ Backend tools are useful for:
 
 
 # # Advanced tool example
-# class FileInfoTool(BackendTool):
+
+
+# class FileInfoToolArgs(TypedDict):
+#     pattern: str
+#     include_hidden: bool
+
+
+# class FileInfoTool(BackendTool[FileInfoToolArgs]):
 #     """A backend tool that gets information about files in the current working directory."""
 
 #     @property
@@ -191,7 +206,7 @@ Backend tools are useful for:
 #             mode=["ask", "chat"],
 #         )
 
-#     def handler(self, arguments: FunctionArgs) -> dict[str, Any]:
+#     def handler(self, arguments: FileInfoToolArgs) -> dict[str, Any]:
 #         """Get file information from the server's file system."""
 #         import glob
 #         import os
@@ -240,6 +255,8 @@ Backend tools are useful for:
 #         except Exception as e:
 #             return {"success": False, "error": str(e)}
 
-#     def validator(self, arguments: FunctionArgs) -> Optional[tuple[bool, str]]:
+#     def validator(
+#         self, arguments: FileInfoToolArgs
+#     ) -> Optional[tuple[bool, str]]:
 #         del arguments
 #         return None

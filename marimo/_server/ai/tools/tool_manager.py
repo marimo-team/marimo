@@ -46,7 +46,7 @@ class ToolManager:
         # for tool in backend_tools:
         #     self.register_backend_tool(tool)
 
-    def register_backend_tool(self, tool: BackendTool) -> None:
+    def register_backend_tool(self, tool: BackendTool[Any]) -> None:
         """Register a backend tool with its handler function and optional validator."""
         tool_definition = tool.tool
         if tool_definition.source != "backend":
