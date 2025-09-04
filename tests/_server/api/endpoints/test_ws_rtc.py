@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import contextmanager
-from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, Optional
 
 import pytest
 
 from marimo._config.manager import UserConfigManager
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.ops import KernelCapabilities, KernelReady
 from marimo._server.api.endpoints.ws import DOC_MANAGER
 from marimo._utils.parse_dataclass import parse_raw

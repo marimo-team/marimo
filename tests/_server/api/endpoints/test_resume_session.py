@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import time
 from contextlib import contextmanager
-from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, Optional
 
 import pytest
 
 from marimo._config.manager import UserConfigManager
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.ops import CellOp, KernelCapabilities, KernelReady
 from marimo._server.sessions import Session
 from marimo._types.ids import SessionId
