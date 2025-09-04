@@ -39,6 +39,7 @@ export class GenericWatcher {
   private rebuilder: WasmRebuilder;
   private requiresRebuild: boolean;
   private builtWheel: BuiltWheel | null;
+  private buildPromise: Promise<BuiltWheel> | null = null;
 
   constructor(rebuilder: WasmRebuilder) {
     this.rebuilder = rebuilder;
@@ -71,10 +72,19 @@ export class GenericWatcher {
   }
 
   async latestBuild(): Promise<BuiltWheel> {
-    if (this.requiresRebuild) {
+    // We store buildPromise to avoid multiple simultaneous builds
+    if (this.requiresRebuild && !this.buildPromise) {
       console.log(`Rebuilding ${this.rebuilder.pathToWatch}`);
-      this.builtWheel = await this.rebuilder.rebuild();
-      this.requiresRebuild = false;
+      this.buildPromise = (async () => {
+        const wheel = await this.rebuilder.rebuild();
+        this.builtWheel = wheel;
+        this.requiresRebuild = false;
+        this.buildPromise = null;
+        return wheel;
+      })();
+    }
+    if (this.buildPromise) {
+      return await this.buildPromise;
     }
     return this.builtWheel!;
   }
