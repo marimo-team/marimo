@@ -113,12 +113,9 @@ else:
     NonNestedLiteral = Any
 
 
-class ColumnStats(msgspec.Struct, dict=True):
+class ColumnStats(msgspec.Struct):
     """
     Represents stats for a column in a data table.
-
-    The `dict=True` adds a `__dict__` field to the class which is accessed and
-    mutated in marimo/_plugins/ui/_impl/tables/narwhals_table.py
     """
 
     total: Optional[int] = None

@@ -7,6 +7,8 @@ import io
 from functools import cached_property
 from typing import Any, Optional, Union, cast
 
+import msgspec
+
 import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
@@ -314,9 +316,12 @@ class NarwhalsTableManager(
                 category=UserWarning,
             )
 
-            for key, value in stats.__dict__.items():
+            # Normalize values to Python builtins
+            for field in msgspec.structs.fields(stats):
+                value = getattr(stats, field.name)
                 if value is not None:
-                    stats.__dict__[key] = unwrap_py_scalar(value)
+                    setattr(stats, field.name, unwrap_py_scalar(value))
+
         return stats
 
     def _get_stats_internal(self, column: str) -> ColumnStats:
