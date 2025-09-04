@@ -12,6 +12,7 @@ from typing import (
     Optional,
     TypeVar,
     Union,
+    cast,
     get_args,
     get_origin,
     get_type_hints,
@@ -222,11 +223,17 @@ def parse_raw(
     # a tag, but that would require updating the front end.
     if dataclasses.is_dataclass(cls):
         if isinstance(message, dict):
-            return DataclassParser(allow_unknown_keys).build_dataclass(
-                message, cls
+            return cast(
+                "T",
+                DataclassParser(allow_unknown_keys).build_dataclass(
+                    message, cls
+                ),
             )
         parsed = json.loads(message)
-        return DataclassParser(allow_unknown_keys).build_dataclass(parsed, cls)
+        return cast(
+            "T",
+            DataclassParser(allow_unknown_keys).build_dataclass(parsed, cls),
+        )
 
     # If it is a dict, it is already parsed and we can just build the dataclass.
     if isinstance(message, dict):
