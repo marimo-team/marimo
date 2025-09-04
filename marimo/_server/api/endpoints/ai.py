@@ -1,14 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.responses import (
-    JSONResponse,
     PlainTextResponse,
+    Response,
     StreamingResponse,
 )
 
@@ -16,6 +15,7 @@ from marimo import _loggers
 from marimo._ai._convert import convert_to_ai_sdk_messages
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
+from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -303,7 +303,7 @@ async def ai_inline_completion(
 async def invoke_tool(
     *,
     request: Request,
-) -> JSONResponse:
+) -> Response:
     """
     requestBody:
         description: The request body for tool invocation
@@ -339,7 +339,10 @@ async def invoke_tool(
             error=result.error,
         )
 
-        return JSONResponse(content=asdict(response))
+        return Response(
+            content=encode_json_bytes(response),
+            media_type="application/json",
+        )
     except Exception as e:
         LOGGER.error("Error invoking AI tool %s: %s", body.tool_name, str(e))
         # Return error response instead of letting it crash
@@ -349,4 +352,7 @@ async def invoke_tool(
             result=None,
             error=f"Tool invocation failed: {str(e)}",
         )
-        return JSONResponse(content=asdict(error_response))
+        return Response(
+            content=encode_json_bytes(error_response),
+            media_type="application/json",
+        )
