@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import dataclasses
 import json
 import re
 import signal
+import typing
 from pathlib import Path
 from typing import Any, Callable, TypeVar
+
+import msgspec
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
@@ -209,11 +211,21 @@ class PyodideBridge:
         self.file_system = OSFileSystem()
 
     def put_control_request(self, request: str) -> None:
-        @dataclasses.dataclass
-        class Container:
-            body: requests.ControlRequest
+        # Hack: msgspec only supports discriminated unions. This is a hack to just
+        # iterate through possible ControlRequest variants and decode until one works.
+        parsed = None
+        for ControlRequestType in typing.get_args(requests.ControlRequest):
+            try:
+                parsed = parse_raw(request, cls=ControlRequestType)
+                break  # success
+            except msgspec.DecodeError:
+                continue
 
-        parsed = parse_raw({"body": json.loads(request)}, Container).body
+        if parsed is None:
+            raise msgspec.DecodeError(
+                f"Could not decode ControlRequest as any of {typing.get_args(requests.ControlRequest)}"
+            )
+
         self.session.put_control_request(parsed)
 
     def put_input(self, text: str) -> None:
