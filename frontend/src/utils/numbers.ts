@@ -1,8 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-export function prettyNumber(
-  value: number | string | undefined | null | boolean | unknown | unknown[],
-): string {
+export function prettyNumber(value: unknown): string {
   if (value === undefined || value === null) {
     return "";
   }
