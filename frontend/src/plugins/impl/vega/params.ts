@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { TopLevelSpec } from "vega-lite";
-import type { LayerSpec, UnitSpec } from "vega-lite/build/src/spec";
 import { Marks } from "./marks";
 import {
   type Field,
+  type LayerSpec,
   Mark,
   type SelectionParameter,
   type SingleDefUnitChannel,
+  type UnitSpec,
   type VegaLiteUnitSpec,
 } from "./types";
 

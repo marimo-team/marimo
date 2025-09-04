@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { TopLevelSpec } from "vega-lite/build/src/spec";
+import type { TopLevelSpec } from "vega-lite";
 import { describe, expect, it } from "vitest";
 import {
   augmentSpecWithData,

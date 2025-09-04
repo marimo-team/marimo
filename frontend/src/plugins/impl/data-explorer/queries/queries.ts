@@ -11,8 +11,7 @@ import type { SpecQuery } from "compassql/build/src/query/spec";
 import { getTopResultTreeItem, isResultTree } from "compassql/build/src/result";
 import type { Schema } from "compassql/build/src/schema";
 import { contains } from "vega-lite";
-import { NONPOSITION_SCALE_CHANNELS } from "vega-lite/build/src/channel";
-import type { NamedData } from "vega-lite/build/src/data";
+import type { NamedData } from "vega-lite/types_unstable/data.js";
 import { type EncodingChannel, fromFieldQuery } from "../encoding";
 import { toSpecQuery } from "../spec";
 import type { ChartSpec } from "../state/types";
@@ -21,13 +20,14 @@ import {
   addQuantitativeField,
   addTemporalField,
 } from "./field-suggestion";
-import type {
-  PlotFieldInfo,
-  QueryCreator,
-  Result,
-  ResultingCharts,
-  ResultPlot,
-  TopLevelFacetedUnitSpec,
+import {
+  NONPOSITION_SCALE_CHANNELS,
+  type PlotFieldInfo,
+  type QueryCreator,
+  type Result,
+  type ResultingCharts,
+  type ResultPlot,
+  type TopLevelFacetedUnitSpec,
 } from "./types";
 import { hasWildcards, isQueryEmpty } from "./utils";
 
