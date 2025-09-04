@@ -80,6 +80,7 @@ def engine_to_data_source_connection(
             dialect=engine.dialect,
             name=variable_name,
             display_name=variable_name,
+            databases=[],
         )
 
     try:

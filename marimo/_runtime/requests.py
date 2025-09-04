@@ -94,7 +94,7 @@ class HTTPRequest(msgspec.Struct, rename="camel"):
         return msgspec.to_builtins(self)
 
     def __repr__(self) -> str:
-        return f"HTTPRequest(path={self.url['path']}, params={len(self.query_params)})"
+        return f"HTTPRequest(path={self.url.path}, params={len(self.query_params)})"
 
     @staticmethod
     def from_request(request: HTTPConnection) -> HTTPRequest:

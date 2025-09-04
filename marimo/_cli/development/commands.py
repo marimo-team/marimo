@@ -14,7 +14,7 @@ import msgspec.json
 
 from marimo._cli.print import orange
 from marimo._data.models import DataType
-from marimo._messaging.cell_output import Error as MarimoError
+from marimo._messaging.errors import Error as MarimoError
 from marimo._messaging.ops import MessageOperation
 from marimo._server.session.serialize import (
     serialize_notebook,

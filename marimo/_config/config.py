@@ -14,7 +14,6 @@ else:
     from typing import NotRequired
 
 from typing import (
-    TYPE_CHECKING,
     Any,
     Literal,
     Optional,
