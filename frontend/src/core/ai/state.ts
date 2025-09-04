@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { Message as AIMessage } from "@ai-sdk/react";
+import type { UIMessage } from "@ai-sdk/react";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { adaptForLocalStorage } from "@/utils/storage";
@@ -8,7 +8,7 @@ import type { TypedString } from "@/utils/typed";
 import type { CellId } from "../cells/ids";
 import type { ChatAttachment } from "./types";
 
-const KEY = "marimo:ai:chatState:v4";
+const KEY = "marimo:ai:chatState:v5";
 
 export type ChatId = TypedString<"ChatId">;
 
@@ -28,14 +28,14 @@ export interface Message {
   role: "user" | "assistant" | "data" | "system";
   content: string;
   timestamp: number;
-  parts?: AIMessage["parts"];
+  parts?: UIMessage["parts"];
   attachments?: ChatAttachment[];
 }
 
 export interface Chat {
   id: ChatId;
   title: string;
-  messages: Message[];
+  messages: UIMessage[];
   createdAt: number;
   updatedAt: number;
 }
@@ -43,6 +43,12 @@ export interface Chat {
 export interface ChatState {
   chats: Map<ChatId, Chat>;
   activeChatId: ChatId | null;
+}
+
+function removeEmptyChats(chatState: Map<ChatId, Chat>): Map<ChatId, Chat> {
+  return new Map(
+    [...chatState.entries()].filter(([_, chat]) => chat.messages.length > 0),
+  );
 }
 
 export const chatStateAtom = atomWithStorage<ChatState>(
@@ -53,7 +59,7 @@ export const chatStateAtom = atomWithStorage<ChatState>(
   },
   adaptForLocalStorage({
     toSerializable: (value: ChatState) => ({
-      chats: [...value.chats.entries()],
+      chats: [...removeEmptyChats(value.chats).entries()],
       activeChatId: value.activeChatId,
     }),
     fromSerializable: (value) => ({

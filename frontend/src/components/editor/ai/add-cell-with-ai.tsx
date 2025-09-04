@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { useCompletion } from "@ai-sdk/react";
 import {
   autocompletion,
   type Completion,
@@ -16,7 +17,6 @@ import ReactCodeMirror, {
   minimalSetup,
   type ReactCodeMirrorRef,
 } from "@uiw/react-codemirror";
-import { useCompletion } from "ai/react";
 import { useAtom, useAtomValue, useStore } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import {

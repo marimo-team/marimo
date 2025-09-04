@@ -1216,3 +1216,22 @@ def test_cli_edit_with_convert(
 
     p.terminate()
     p.wait(timeout=5)
+
+
+def test_cli_edit_with_timeout() -> None:
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "--no-token",
+            "--headless",
+            "--timeout",
+            "0.01",  # very short timeout
+        ],
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+
+    stdout, _ = p.communicate(timeout=5)
+    assert "Timeout due to inactivity" in stdout

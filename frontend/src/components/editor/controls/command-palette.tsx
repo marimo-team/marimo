@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { atom, useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import {
   CommandDialog,
   CommandEmpty,
@@ -28,10 +28,9 @@ import {
 import { useCellActionButtons } from "../actions/useCellActionButton";
 import { useConfigActions } from "../actions/useConfigActions";
 import { useNotebookActions } from "../actions/useNotebookActions";
+import { commandPaletteAtom } from "./state";
 
-export const commandPaletteAtom = atom(false);
-
-export const CommandPalette = () => {
+const CommandPalette = () => {
   const [open, setOpen] = useAtom(commandPaletteAtom);
   const registeredActions = useRegisteredActions();
   const lastFocusedCell = useAtomValue(lastFocusedCellAtom);
@@ -208,3 +207,5 @@ export const CommandPalette = () => {
     </CommandDialog>
   );
 };
+
+export default CommandPalette;

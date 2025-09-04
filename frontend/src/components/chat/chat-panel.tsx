@@ -1,10 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { UIMessage } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import type { Message } from "ai/react";
-import { useAtom, useAtomValue } from "jotai";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithToolCalls,
+  type ToolUIPart,
+} from "ai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   BotMessageSquareIcon,
   ClockIcon,
@@ -15,15 +20,7 @@ import {
   SettingsIcon,
   SquareIcon,
 } from "lucide-react";
-import {
-  type Dispatch,
-  memo,
-  type SetStateAction,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,17 +37,15 @@ import {
   SelectLabel,
   SelectTrigger,
 } from "@/components/ui/select";
-import { addMessageToChat } from "@/core/ai/chat-utils";
+import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { useModelChange } from "@/core/ai/config";
 import { AiModelId, type ProviderId } from "@/core/ai/ids/ids";
 import {
   activeChatAtom,
   type Chat,
   type ChatId,
-  type ChatState,
   chatStateAtom,
 } from "@/core/ai/state";
-import type { ChatAttachment } from "@/core/ai/types";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
@@ -59,9 +54,7 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
-import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
-import { generateUUID } from "@/utils/uuid";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
@@ -72,6 +65,11 @@ import { Input } from "../ui/input";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 import { AttachmentRenderer, FileAttachmentPill } from "./chat-components";
+import {
+  convertToFileUIPart,
+  generateChatTitle,
+  isLastMessageReasoning,
+} from "./chat-utils";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
 import { ToolCallAccordion } from "./tool-call-accordion";
@@ -89,16 +87,20 @@ interface ChatHeaderProps {
   onNewChat: () => void;
   activeChatId: ChatId | undefined;
   setActiveChat: (id: ChatId | null) => void;
-  chats: Chat[];
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   onNewChat,
   activeChatId,
   setActiveChat,
-  chats,
 }) => {
   const { handleClick } = useOpenSettingsToTab();
+  const chatState = useAtomValue(chatStateAtom);
+  const chats = useMemo(() => {
+    return [...chatState.chats.values()].sort(
+      (a, b) => b.updatedAt - a.updatedAt,
+    );
+  }, [chatState.chats]);
 
   return (
     <div className="flex border-b px-2 py-1 justify-between shrink-0 items-center">
@@ -164,31 +166,32 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 };
 
 interface ChatMessageProps {
-  message: Message;
+  message: UIMessage;
   index: number;
   onEdit: (index: number, newValue: string) => void;
-  setChatState: Dispatch<SetStateAction<ChatState>>;
-  chatState: ChatState;
   isStreamingReasoning: boolean;
   isLast: boolean;
 }
 
+function isToolPart(part: UIMessage["parts"][number]): part is ToolUIPart {
+  return part.type.startsWith("tool-");
+}
+
 const ChatMessage: React.FC<ChatMessageProps> = memo(
-  ({ message, index, onEdit, isStreamingReasoning, isLast }) => (
-    <div
-      className={cn(
-        "flex group relative",
-        message.role === "user" ? "justify-end" : "justify-start",
-      )}
-    >
-      {message.role === "user" ? (
+  ({ message, index, onEdit, isStreamingReasoning, isLast }) => {
+    const renderUserMessage = (message: UIMessage) => {
+      const textParts = message.parts?.filter((p) => p.type === "text");
+      const content = textParts?.map((p) => p.text).join("\n");
+      const fileParts = message.parts?.filter((p) => p.type === "file");
+
+      return (
         <div className="w-[95%] bg-background border p-1 rounded-sm">
-          {message.experimental_attachments?.map((attachment, idx) => (
-            <AttachmentRenderer attachment={attachment} key={idx} />
+          {fileParts?.map((filePart, idx) => (
+            <AttachmentRenderer attachment={filePart} key={idx} />
           ))}
           <PromptInput
             key={message.id}
-            value={message.content}
+            value={content}
             placeholder="Type your message..."
             onChange={() => {
               // noop
@@ -204,12 +207,31 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
             }}
           />
         </div>
-      ) : (
+      );
+    };
+
+    const renderOtherMessage = (message: UIMessage) => {
+      const textParts = message.parts.filter((p) => p.type === "text");
+      const content = textParts.map((p) => p.text).join("\n");
+
+      return (
         <div className="w-[95%] break-words">
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <CopyClipboardIcon className="h-3 w-3" value={message.content} />
+            <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
           </div>
-          {message.parts?.map((part, i) => {
+          {message.parts.map((part, i) => {
+            if (isToolPart(part)) {
+              return (
+                <ToolCallAccordion
+                  key={i}
+                  index={i}
+                  toolName={part.type}
+                  result={part.output}
+                  state={part.state}
+                />
+              );
+            }
+
             switch (part.type) {
               case "text":
                 return <MarkdownRenderer key={i} content={part.text} />;
@@ -217,42 +239,62 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
               case "reasoning":
                 return (
                   <ReasoningAccordion
-                    reasoning={part.reasoning}
+                    reasoning={part.text}
                     key={i}
                     index={i}
                     isStreaming={
                       isLast &&
                       isStreamingReasoning &&
                       // If there are multiple reasoning parts, only show the last one
-                      i === (message.parts?.length || 0) - 1
+                      i === (message.parts.length || 0) - 1
                     }
                   />
                 );
 
-              case "tool-invocation":
+              case "dynamic-tool":
                 return (
                   <ToolCallAccordion
                     key={i}
                     index={i}
-                    toolName={part.toolInvocation.toolName}
-                    result={
-                      part.toolInvocation.state === "result"
-                        ? part.toolInvocation.result
-                        : null
-                    }
-                    state={part.toolInvocation.state}
+                    toolName={part.type}
+                    result={part.output}
+                    state={part.state}
                   />
                 );
 
               /* handle other part types … */
               default:
-                return null;
+                Logger.error("Unhandled part type:", part.type);
+                try {
+                  return (
+                    <MarkdownRenderer
+                      key={i}
+                      content={JSON.stringify(part, null, 2)}
+                    />
+                  );
+                } catch (error) {
+                  Logger.error("Error rendering part:", part.type, error);
+                  return null;
+                }
             }
           })}
         </div>
-      )}
-    </div>
-  ),
+      );
+    };
+
+    return (
+      <div
+        className={cn(
+          "flex group relative",
+          message.role === "user" ? "justify-end" : "justify-start",
+        )}
+      >
+        {message.role === "user"
+          ? renderUserMessage(message)
+          : renderOtherMessage(message)}
+      </div>
+    );
+  },
 );
 ChatMessage.displayName = "ChatMessage";
 
@@ -416,7 +458,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     });
 
     return (
-      <div className="border-t relative shrink-0 min-h-[80px] flex flex-col">
+      <div className="relative shrink-0 min-h-[80px] flex flex-col">
         <div className={cn("px-2 py-3 flex-1", inputClassName)}>
           <PromptInput
             inputRef={inputRef}
@@ -442,7 +484,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
 
 ChatInput.displayName = "ChatInput";
 
-export const ChatPanel = () => {
+const ChatPanel = () => {
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const { handleClick } = useOpenSettingsToTab();
 
@@ -465,8 +507,9 @@ export const ChatPanel = () => {
 };
 
 const ChatPanelBody = () => {
-  const [chatState, setChatState] = useAtom(chatStateAtom);
+  const setChatState = useSetAtom(chatStateAtom);
   const [activeChat, setActiveChat] = useAtom(activeChatAtom);
+  const [input, setInput] = useState("");
   const [newThreadInput, setNewThreadInput] = useState("");
   const [files, setFiles] = useState<File[]>();
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
@@ -477,56 +520,62 @@ const ChatPanelBody = () => {
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();
 
+  const activeChatId = activeChat?.id;
+
   const {
     messages,
-    input,
-    setInput,
-    setMessages,
-    append,
-    handleSubmit,
+    sendMessage,
     error,
     status,
-    reload,
+    regenerate,
     stop,
+    addToolResult,
+    id: chatId,
   } = useChat({
-    id: activeChat?.id,
-    maxSteps: 10,
-    initialMessages: activeChat?.messages || [],
-    keepLastMessageOnError: true,
-    // Throttle the messages and data updates to 100ms
-    // experimental_throttle: 100,
-    api: runtimeManager.getAiURL("chat").toString(),
-    headers: runtimeManager.headers(),
-    experimental_prepareRequestBody: (options) => {
-      const completionBody = getAICompletionBody({
-        input: options.messages.map((m) => m.content).join("\n"),
-      });
+    id: activeChatId,
+    // Automatically submit when all tool results are available
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    messages: activeChat?.messages || [], // initial messages
+    transport: new DefaultChatTransport({
+      api: runtimeManager.getAiURL("chat").toString(),
+      headers: runtimeManager.headers(),
+      prepareSendMessagesRequest: (options) => {
+        let input = "";
+        for (const message of options.messages) {
+          const textParts = message.parts.filter((p) => p.type === "text");
+          input += textParts.map((p) => p.text).join("\n");
+        }
+        const completionBody = getAICompletionBody({ input });
 
-      // Backend accepts attachments, so we convert the key
-      const newOptions = {
-        ...options,
-        messages: options.messages.map((m) => ({
-          ...m,
-          attachments: m.experimental_attachments,
-          experimental_attachments: undefined,
-        })),
-      };
-
-      return {
-        ...newOptions,
-        ...completionBody,
-      };
-    },
-    onFinish: (message) => {
+        return {
+          body: {
+            ...options,
+            ...completionBody,
+            messages: options.messages.map((m) => ({
+              ...m,
+              attachments: m.parts.flatMap((p) =>
+                p.type === "file"
+                  ? {
+                      contentType: p.mediaType,
+                      name: p.filename,
+                      url: p.url,
+                    }
+                  : [],
+              ),
+              content: m.parts
+                ?.map((p) => ("text" in p ? p.text : ""))
+                .join("\n"),
+            })),
+          },
+        };
+      },
+    }),
+    onFinish: ({ messages }) => {
       setChatState((prev) => {
-        return addMessageToChat({
+        return replaceMessagesInChat({
           chatState: prev,
           chatId: prev.activeChatId,
-          messageId: message.id,
-          role: "assistant",
-          content: message.content,
-          parts: message.parts,
-          attachments: message.experimental_attachments,
+          messages: messages,
         });
       });
     },
@@ -534,21 +583,24 @@ const ChatPanelBody = () => {
       try {
         const response = await invokeAiTool({
           toolName: toolCall.toolName,
-          arguments: toolCall.args as Record<string, never>,
+          arguments: toolCall.input as Record<string, never>,
         });
-
-        // This response triggers the onFinish callback
-        return response.result || response.error;
+        addToolResult({
+          tool: toolCall.toolName,
+          toolCallId: toolCall.toolCallId,
+          output: response.result || response.error,
+        });
       } catch (error) {
         Logger.error("Tool call failed:", error);
-        return `Error: ${error instanceof Error ? error.message : String(error)}`;
+        addToolResult({
+          tool: toolCall.toolName,
+          toolCallId: toolCall.toolCallId,
+          output: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        });
       }
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
-    },
-    onResponse: (response) => {
-      Logger.debug("Received HTTP response from server:", response);
     },
   });
 
@@ -584,58 +636,6 @@ const ChatPanelBody = () => {
 
   const isLoading = status === "submitted" || status === "streaming";
 
-  // Sync user messages from useChat to storage when they become available
-  // Only when we are done loading, for performance.
-  useEffect(() => {
-    if (!chatState.activeChatId || messages.length === 0 || isLoading) {
-      return;
-    }
-
-    // Only sync if the last message is from a user
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role !== "user") {
-      return;
-    }
-
-    const currentChat = chatState.chats.get(chatState.activeChatId);
-    if (!currentChat) {
-      return;
-    }
-
-    const storedMessageIds = new Set(currentChat.messages.map((m) => m.id));
-
-    // Find user messages from useChat that aren't in storage yet
-    const missingUserMessages = messages.filter(
-      (m) => m.role === "user" && !storedMessageIds.has(m.id),
-    );
-
-    if (missingUserMessages.length > 0) {
-      setChatState((prev) => {
-        let result = prev;
-
-        for (const userMessage of missingUserMessages) {
-          result = addMessageToChat({
-            chatState: result,
-            chatId: prev.activeChatId,
-            messageId: userMessage.id,
-            role: "user",
-            content: userMessage.content,
-            parts: userMessage.parts,
-            attachments: userMessage.experimental_attachments,
-          });
-        }
-
-        return result;
-      });
-    }
-  }, [
-    messages,
-    chatState.activeChatId,
-    chatState.chats,
-    setChatState,
-    isLoading,
-  ]);
-
   // Check if we're currently streaming reasoning in the latest message
   const isStreamingReasoning =
     isLoading && messages.length > 0 && isLastMessageReasoning(messages);
@@ -650,22 +650,19 @@ const ChatPanelBody = () => {
     };
 
     requestAnimationFrame(scrollToBottom);
-  }, [chatState.activeChatId]);
+  }, [activeChatId]);
 
   const createNewThread = async (
     initialMessage: string,
     initialAttachments?: File[],
   ) => {
-    const CURRENT_TIME = Date.now();
+    const now = Date.now();
     const newChat: Chat = {
-      id: generateUUID() as ChatId,
-      title:
-        initialMessage.length > 50
-          ? `${initialMessage.slice(0, 50)}...`
-          : initialMessage,
-      messages: [], // Don't pre-populate - let useChat handle it and sync back
-      createdAt: CURRENT_TIME,
-      updatedAt: CURRENT_TIME,
+      id: chatId as ChatId,
+      title: generateChatTitle(initialMessage),
+      messages: [],
+      createdAt: now,
+      updatedAt: now,
     };
 
     // Create new chat and set as active
@@ -680,17 +677,21 @@ const ChatPanelBody = () => {
       return newState;
     });
 
-    const attachments =
+    const fileParts =
       initialAttachments && initialAttachments.length > 0
-        ? await convertToChatAttachments(initialAttachments)
+        ? await convertToFileUIPart(initialAttachments)
         : undefined;
 
     // Trigger AI conversation with append
-    append({
-      id: generateUUID(),
+    sendMessage({
       role: "user",
-      content: initialMessage,
-      experimental_attachments: attachments,
+      parts: [
+        {
+          type: "text" as const,
+          text: initialMessage,
+        },
+        ...(fileParts ?? []),
+      ],
     });
     setFiles(undefined);
     setInput("");
@@ -705,34 +706,13 @@ const ChatPanelBody = () => {
 
   const handleMessageEdit = useEvent((index: number, newValue: string) => {
     const editedMessage = messages[index];
-    const attachments = editedMessage.experimental_attachments;
+    const fileParts = editedMessage.parts?.filter((p) => p.type === "file");
 
-    // Truncate both useChat and storage
-    setMessages((messages) => messages.slice(0, index));
-    const activeChatId = chatState.activeChatId;
-    if (activeChatId) {
-      setChatState((prev) => {
-        const nextChats = new Map(prev.chats);
-        const activeChat = chatState.chats.get(activeChatId);
-        if (activeChat) {
-          nextChats.set(activeChat.id, {
-            ...activeChat,
-            messages: activeChat.messages.slice(0, index),
-            updatedAt: Date.now(),
-          });
-        }
-
-        return {
-          ...prev,
-          chats: nextChats,
-        };
-      });
-    }
-
-    append({
+    const messageId = editedMessage.id;
+    sendMessage({
+      messageId: messageId, // replace the message
       role: "user",
-      content: newValue,
-      experimental_attachments: attachments,
+      parts: [{ type: "text", text: newValue }, ...fileParts],
     });
   });
 
@@ -744,19 +724,20 @@ const ChatPanelBody = () => {
       if (newMessageInputRef.current?.view) {
         storePrompt(newMessageInputRef.current.view);
       }
-      const attachments = files
-        ? await convertToChatAttachments(files)
-        : undefined;
+      const fileParts = files ? await convertToFileUIPart(files) : undefined;
 
-      handleSubmit(e, {
-        experimental_attachments: attachments,
+      e?.preventDefault();
+      sendMessage({
+        text: newValue,
+        files: fileParts,
       });
+      setInput("");
       setFiles(undefined);
     },
   );
 
   const handleReload = () => {
-    reload();
+    regenerate();
   };
 
   const handleNewThreadSubmit = useEvent(() => {
@@ -770,12 +751,6 @@ const ChatPanelBody = () => {
   });
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
-
-  const sortedChats = useMemo(() => {
-    return [...chatState.chats.values()].sort(
-      (a, b) => b.updatedAt - a.updatedAt,
-    );
-  }, [chatState.chats]);
 
   const isNewThread = messages.length === 0;
   const chatInput = isNewThread ? (
@@ -831,7 +806,6 @@ const ChatPanelBody = () => {
           onNewChat={handleNewChat}
           activeChatId={activeChat?.id}
           setActiveChat={setActiveChat}
-          chats={sortedChats}
         />
       </TooltipProvider>
 
@@ -852,8 +826,6 @@ const ChatPanelBody = () => {
             message={message}
             index={idx}
             onEdit={handleMessageEdit}
-            setChatState={setChatState}
-            chatState={chatState}
             isStreamingReasoning={isStreamingReasoning}
             isLast={idx === messages.length - 1}
           />
@@ -896,42 +868,4 @@ const ChatPanelBody = () => {
   );
 };
 
-function isLastMessageReasoning(messages: Message[]): boolean {
-  if (messages.length === 0) {
-    return false;
-  }
-
-  const lastMessage = messages.at(-1);
-  if (!lastMessage) {
-    return false;
-  }
-
-  if (lastMessage.role !== "assistant" || !lastMessage.parts) {
-    return false;
-  }
-
-  const parts = lastMessage.parts;
-  if (parts.length === 0) {
-    return false;
-  }
-
-  // Check if the last part is reasoning
-  const lastPart = parts[parts.length - 1];
-  return lastPart.type === "reasoning";
-}
-
-async function convertToChatAttachments(
-  files: File[],
-): Promise<ChatAttachment[]> {
-  const attachments = await Promise.all(
-    files.map(async (file) => {
-      return {
-        name: file.name,
-        url: await blobToString(file, "dataUrl"),
-        contentType: file.type,
-      };
-    }),
-  );
-
-  return attachments;
-}
+export default ChatPanel;

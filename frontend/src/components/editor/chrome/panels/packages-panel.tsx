@@ -65,7 +65,7 @@ const PackageActionButton: React.FC<{
   );
 };
 
-export const PackagesPanel: React.FC = () => {
+const PackagesPanel: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
   const { getDependencyTree, getPackageList } = useRequestClient();
@@ -161,6 +161,8 @@ export const PackagesPanel: React.FC = () => {
     </div>
   );
 };
+
+export default PackagesPanel;
 
 const InstallPackageForm: React.FC<{
   packageManager: string;

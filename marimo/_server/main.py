@@ -21,6 +21,7 @@ from marimo._server.api.middleware import (
     OpenTelemetryMiddleware,
     ProxyMiddleware,
     SkewProtectionMiddleware,
+    TimeoutMiddleware,
 )
 from marimo._server.api.router import build_routes
 from marimo._server.api.status import (
@@ -55,6 +56,7 @@ def create_starlette_app(
     allow_origins: Optional[tuple[str, ...]] = None,
     lsp_servers: Optional[list[LspServer]] = None,
     skew_protection: bool = True,
+    timeout: Optional[float] = None,
 ) -> Starlette:
     final_middlewares: list[Middleware] = []
 
@@ -105,7 +107,7 @@ def create_starlette_app(
 
     final_middlewares.extend(MIDDLEWARE_REGISTRY.get_all())
 
-    return Starlette(
+    app = Starlette(
         routes=build_routes(base_url=base_url),
         middleware=final_middlewares,
         lifespan=lifespan,
@@ -116,6 +118,13 @@ def create_starlette_app(
             ModuleNotFoundError: handle_error,
         },
     )
+    if timeout is not None:
+        app.add_middleware(
+            TimeoutMiddleware,
+            app_state=app.state,
+            timeout_duration_minutes=timeout,
+        )
+    return app
 
 
 def _create_mpl_proxy_middleware(base_url: str) -> Middleware:

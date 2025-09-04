@@ -14,7 +14,7 @@ interface Props {
   logs: CellLog[];
 }
 
-export const LogsPanel: React.FC = () => {
+const LogsPanel: React.FC = () => {
   const logs = useCellLogs();
   const { clearLogs } = useCellActions();
 
@@ -45,6 +45,8 @@ export const LogsPanel: React.FC = () => {
     </>
   );
 };
+
+export default LogsPanel;
 
 export const LogViewer: React.FC<Props> = ({ logs, className }) => {
   const hover = "opacity-70 group-hover:bg-(--gray-3) group-hover:opacity-100";

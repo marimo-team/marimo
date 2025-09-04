@@ -13,7 +13,7 @@ import {
   useActiveOutline,
 } from "./outline/useActiveOutline";
 
-export const OutlinePanel: React.FC = () => {
+const OutlinePanel: React.FC = () => {
   const { items } = useAtomValue(notebookOutline);
   const headerElements = useMemo(() => findOutlineElements(items), [items]);
   const { activeHeaderId, activeOccurrences } =
@@ -37,3 +37,5 @@ export const OutlinePanel: React.FC = () => {
     />
   );
 };
+
+export default OutlinePanel;
