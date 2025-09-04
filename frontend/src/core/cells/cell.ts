@@ -47,7 +47,7 @@ export function transitionCell(
     case "idle":
       if (cell.runStartTimestamp) {
         nextCell.runElapsedTimeMs = Time.fromSeconds(
-          (message.timestamp ?? 0 - cell.runStartTimestamp) as Seconds,
+          ((message.timestamp ?? 0) - cell.runStartTimestamp) as Seconds,
         ).toMilliseconds();
         nextCell.runStartTimestamp = null;
         nextCell.staleInputs = false;
