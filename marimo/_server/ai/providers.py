@@ -138,7 +138,11 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         content_text, content_type = content
         if content_type in [
             "text",
+            "text_start",
+            "text_end",
             "reasoning",
+            "reasoning_start",
+            "reasoning_end",
             "reasoning_signature",
             "tool_call_start",
             "tool_call_delta",
@@ -231,6 +235,12 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         # Finish reason collected from the last chunk
         finish_reason: Optional[FinishReason] = None
 
+        # Text block tracking for start/delta/end pattern
+        current_text_id: Optional[str] = None
+        current_reasoning_id: Optional[str] = None
+        has_text_started = False
+        has_reasoning_started = False
+
         async for chunk in response:
             # Always check for finish reason first, before checking content
             # Some chunks (like RawMessageDeltaEvent) contain finish reasons but no extractable content
@@ -244,6 +254,46 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
             content_data, content_type = content
 
             if options.text_only and content_type != "text":
+                continue
+
+            # Handle text content with start/delta/end pattern
+            if (
+                content_type == "text"
+                and isinstance(content_data, str)
+                and options.format_stream
+            ):
+                if not has_text_started:
+                    # Emit text-start event
+                    current_text_id = f"text_{uuid.uuid4().hex}"
+                    yield convert_to_ai_sdk_messages(
+                        "", "text_start", current_text_id
+                    )
+                    has_text_started = True
+
+                # Emit text-delta event with the actual content
+                yield convert_to_ai_sdk_messages(
+                    content_data, "text", current_text_id
+                )
+                continue
+
+            # Handle reasoning content with start/delta/end pattern
+            elif (
+                content_type == "reasoning"
+                and isinstance(content_data, str)
+                and options.format_stream
+            ):
+                if not has_reasoning_started:
+                    # Emit reasoning-start event
+                    current_reasoning_id = f"reasoning_{uuid.uuid4().hex}"
+                    yield convert_to_ai_sdk_messages(
+                        "", "reasoning_start", current_reasoning_id
+                    )
+                    has_reasoning_started = True
+
+                # Emit reasoning-delta event with the actual content
+                yield convert_to_ai_sdk_messages(
+                    content_data, "reasoning", current_reasoning_id
+                )
                 continue
 
             # Tool handling
@@ -274,7 +324,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
                 # based on https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#tool-call-delta-part
                 content_data = {
                     "toolCallId": tool_call_id,
-                    "argsTextDelta": content_data,
+                    "inputTextDelta": content_data,
                 }
 
             content_str = self._content_to_string(content_data)
@@ -291,12 +341,26 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
             yield buffer
             buffer = ""
 
+        # Emit text-end event if we started a text block
+        if has_text_started and current_text_id and options.format_stream:
+            yield convert_to_ai_sdk_messages("", "text_end", current_text_id)
+
+        # Emit reasoning-end event if we started a reasoning block
+        if (
+            has_reasoning_started
+            and current_reasoning_id
+            and options.format_stream
+        ):
+            yield convert_to_ai_sdk_messages(
+                "", "reasoning_end", current_reasoning_id
+            )
+
         # Handle tool call end after the stream is complete
         if tool_call_id and tool_call_name and not options.text_only:
             content_data = {
                 "toolCallId": tool_call_id,
                 "toolName": tool_call_name,
-                "args": self.validate_tool_call_args(tool_call_args)
+                "input": self.validate_tool_call_args(tool_call_args)
                 or {},  # empty object if tool doesnt have args
             }
             content_type = "tool_call_end"

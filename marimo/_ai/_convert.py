@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import base64
 import json
+import uuid
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Any, Literal, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 from marimo._ai._types import (
     ChatMessage,
+    ChatPart,
     ReasoningPart,
     TextPart,
     ToolInvocationPart,
@@ -31,7 +33,7 @@ if TYPE_CHECKING:
 # Message conversions
 def get_openai_messages_from_parts(
     role: Literal["system", "user", "assistant"],
-    parts: list[Union[TextPart, ReasoningPart, ToolInvocationPart]],
+    parts: list[ChatPart],
 ) -> list[dict[str, Any]]:
     messages: list[dict[str, Any]] = []
     for part in parts:
@@ -45,12 +47,12 @@ def get_openai_messages_from_parts(
                 "content": None,
                 "tool_calls": [
                     {
-                        "id": part.tool_invocation.tool_call_id,
+                        "id": part.tool_call_id,
                         "type": "function",
                         "function": {
-                            "name": part.tool_invocation.tool_name,
-                            "arguments": str(part.tool_invocation.args)
-                            if part.tool_invocation.args
+                            "name": part.tool_name,
+                            "arguments": str(part.input)
+                            if part.input
                             else "{}",
                         },
                     }
@@ -59,9 +61,9 @@ def get_openai_messages_from_parts(
             messages.append(assistant_message)
             tool_result_message = {
                 "role": "tool",
-                "tool_call_id": part.tool_invocation.tool_call_id,
-                "name": part.tool_invocation.tool_name,
-                "content": str(part.tool_invocation.result),
+                "tool_call_id": part.tool_call_id,
+                "name": part.tool_name,
+                "content": str(part.output),
             }
             messages.append(tool_result_message)
     return messages
@@ -118,7 +120,7 @@ def convert_to_openai_messages(
 
 def get_anthropic_messages_from_parts(
     role: Literal["system", "user", "assistant"],
-    parts: list[Union[TextPart, ReasoningPart, ToolInvocationPart]],
+    parts: list[ChatPart],
 ) -> list[dict[Any, Any]]:
     messages: list[dict[Any, Any]] = []
     content_parts: list[dict[str, Any]] = []
@@ -144,9 +146,9 @@ def get_anthropic_messages_from_parts(
             content_parts.append(
                 {
                     "type": "tool_use",
-                    "id": part.tool_invocation.tool_call_id,
-                    "name": part.tool_invocation.tool_name,
-                    "input": part.tool_invocation.args,
+                    "id": part.tool_call_id,
+                    "name": part.tool_name,
+                    "input": part.input,
                 }
             )
 
@@ -167,8 +169,8 @@ def get_anthropic_messages_from_parts(
                 "content": [
                     {
                         "type": "tool_result",
-                        "tool_use_id": part.tool_invocation.tool_call_id,
-                        "content": str(part.tool_invocation.result),
+                        "tool_use_id": part.tool_call_id,
+                        "content": str(part.output),
                     }
                 ],
             }
@@ -274,7 +276,7 @@ def convert_to_groq_messages(
 
 def get_google_messages_from_parts(
     role: Literal["system", "user", "assistant"],
-    parts: list[Union[TextPart, ReasoningPart, ToolInvocationPart]],
+    parts: list[ChatPart],
 ) -> list[ContentDict]:
     messages: list[ContentDict] = []
 
@@ -301,8 +303,8 @@ def get_google_messages_from_parts(
                 "parts": [
                     {
                         "function_call": {
-                            "name": part.tool_invocation.tool_name,
-                            "args": part.tool_invocation.args or {},
+                            "name": part.tool_name,
+                            "args": part.input or {},
                         }
                     }
                 ],
@@ -315,10 +317,8 @@ def get_google_messages_from_parts(
                 "parts": [
                     {
                         "function_response": {
-                            "name": part.tool_invocation.tool_name,
-                            "response": {
-                                "result": str(part.tool_invocation.result)
-                            },
+                            "name": part.tool_name,
+                            "response": {"result": str(part.output)},
                         }
                     }
                 ],
@@ -420,7 +420,11 @@ def convert_to_ai_sdk_messages(
     content_text: Union[str, dict[str, Any]],
     content_type: Literal[
         "text",
+        "text_start",
+        "text_end",
         "reasoning",
+        "reasoning_start",
+        "reasoning_end",
         "reasoning_signature",
         "tool_call_start",
         "tool_call_delta",
@@ -429,59 +433,77 @@ def convert_to_ai_sdk_messages(
         "finish_reason",
         "error",
     ],
+    text_id: Optional[str] = None,
 ) -> str:
     """
-    Format text events for the AI SDK stream protocol.
-    This follows the data-stream v1 protocol
-    See: https://v4.ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
+    Format events for the AI SDK v5 stream protocol using Server-Sent Events.
+    This follows the data-stream v1 protocol with SSE format.
+    See: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
     """
-    TEXT_PREFIX = "0:"
-    REASON_PREFIX = "g:"
-    REASON_SIGNATURE_PREFIX = "j:"
-    TOOL_CALL_START_PREFIX = "b:"
-    TOOL_CALL_DELTA_PREFIX = "c:"
-    TOOL_CALL_PREFIX = "9:"
-    TOOL_RESULT_PREFIX = "a:"
-    FINISH_REASON_PREFIX = "d:"
-    ERROR_PREFIX = "3:"
 
-    # Text events
+    # Text events - use start/delta/end pattern with unique IDs
     if content_type == "text" and isinstance(content_text, str):
-        return f"{TEXT_PREFIX}{json.dumps(content_text)}\n"
+        if text_id is None:
+            text_id = f"text_{uuid.uuid4().hex}"
+        return f"data: {json.dumps({'type': 'text-delta', 'id': text_id, 'delta': content_text})}\n\n"
+
+    elif content_type == "text_start":
+        if text_id is None:
+            text_id = f"text_{uuid.uuid4().hex}"
+        return f"data: {json.dumps({'type': 'text-start', 'id': text_id})}\n\n"
+
+    elif content_type == "text_end" and text_id is not None:
+        return f"data: {json.dumps({'type': 'text-end', 'id': text_id})}\n\n"
+
+    # Reasoning events - use start/delta/end pattern with unique IDs
     elif content_type == "reasoning" and isinstance(content_text, str):
-        return f"{REASON_PREFIX}{json.dumps(content_text)}\n"
+        if text_id is None:
+            text_id = f"reasoning_{uuid.uuid4().hex}"
+        return f"data: {json.dumps({'type': 'reasoning-delta', 'id': text_id, 'delta': content_text})}\n\n"
+
+    elif content_type == "reasoning_start":
+        if text_id is None:
+            text_id = f"reasoning_{uuid.uuid4().hex}"
+        return f"data: {json.dumps({'type': 'reasoning-start', 'id': text_id})}\n\n"
+
+    elif content_type == "reasoning_end" and text_id is not None:
+        return (
+            f"data: {json.dumps({'type': 'reasoning-end', 'id': text_id})}\n\n"
+        )
 
     # Tool use events
     elif content_type == "tool_call_start" and isinstance(content_text, dict):
-        return f"{TOOL_CALL_START_PREFIX}{json.dumps(content_text)}\n"
+        return f"data: {json.dumps({'type': 'tool-input-start', **content_text})}\n\n"
+
     elif content_type == "tool_call_delta" and isinstance(content_text, dict):
-        return f"{TOOL_CALL_DELTA_PREFIX}{json.dumps(content_text)}\n"
+        return f"data: {json.dumps({'type': 'tool-input-delta', **content_text})}\n\n"
+
     elif content_type == "tool_call_end" and isinstance(content_text, dict):
-        return f"{TOOL_CALL_PREFIX}{json.dumps(content_text)}\n"
+        return f"data: {json.dumps({'type': 'tool-input-available', **content_text})}\n\n"
+
     elif content_type == "tool_result" and isinstance(content_text, dict):
-        return f"{TOOL_RESULT_PREFIX}{json.dumps(content_text)}\n"
+        return f"data: {json.dumps({'type': 'tool-output-available', **content_text})}\n\n"
 
-    # Other events
-    elif content_type == "finish_reason" and content_text in [
-        "tool_calls",
-        "stop",
-    ]:
-        # Emit the finishReason as a JSON object with usage (default 0s)
-        # TODO: Add usage (promptTokens, completionTokens)
-        return f'{FINISH_REASON_PREFIX}{{"finishReason": "{content_text}", "usage": {{"promptTokens": 0, "completionTokens": 0}}}}\n'
-
-    elif content_type == "reasoning_signature" and isinstance(
-        content_text, dict
-    ):
-        return f"{REASON_SIGNATURE_PREFIX}{json.dumps(content_text)}\n"
+    # Finish events
+    elif content_type == "finish_reason":
+        return f"data: {json.dumps({'type': 'finish'})}\n\n"
 
     # Error events
     elif content_type == "error" and isinstance(content_text, str):
-        return f"{ERROR_PREFIX}{json.dumps(content_text)}\n"
+        return f"data: {json.dumps({'type': 'error', 'errorText': content_text})}\n\n"
+
+    # Reasoning signature (for Anthropic thinking models)
+    elif content_type == "reasoning_signature" and isinstance(
+        content_text, dict
+    ):
+        # This might be handled differently in the new protocol
+        return f"data: {json.dumps({'type': 'data-reasoning-signature', 'data': content_text})}\n\n"
 
     else:
-        # Default to text for unknown types
-        return f"{TEXT_PREFIX}{json.dumps(content_text)}\n"
+        # Default to text delta for unknown types
+        if text_id is None:
+            text_id = f"text_{uuid.uuid4().hex}"
+        return f"data: {json.dumps({'type': 'text-delta', 'id': text_id, 'delta': str(content_text)})}\n\n"
 
 
 # Tool conversions

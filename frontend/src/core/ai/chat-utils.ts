@@ -1,29 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { Message as AIMessage } from "@ai-sdk/react";
+import type { UIMessage } from "@ai-sdk/react";
 import { Logger } from "@/utils/Logger";
 import type { ChatId, ChatState } from "./state";
-import type { ChatAttachment } from "./types";
 
-interface AddMessageToChatParams {
+interface ReplaceMessagesInChatParams {
+  /**
+   * The state of the chats
+   */
   chatState: ChatState;
+  /**
+   * The chat to replace the messages in
+   */
   chatId: ChatId | null;
-  messageId: string;
-  role: "user" | "assistant";
-  content: string;
-  parts?: AIMessage["parts"];
-  attachments?: ChatAttachment[];
+  /**
+   * The messages to replace in the chat
+   */
+  messages: UIMessage[];
 }
 
-export const addMessageToChat = ({
+export const replaceMessagesInChat = ({
   chatState,
   chatId,
-  messageId,
-  role,
-  content,
-  parts,
-  attachments,
-}: AddMessageToChatParams): ChatState => {
+  messages,
+}: ReplaceMessagesInChatParams): ChatState => {
   if (!chatId) {
     Logger.warn("No active chat");
     return chatState;
@@ -34,46 +34,15 @@ export const addMessageToChat = ({
     return chatState;
   }
 
-  const messageIndex = chat.messages.findIndex(
-    (message) => message.id === messageId,
-  );
-
   // Create copy of chats to modify
   const newChats = new Map(chatState.chats);
   const timestamp = Date.now();
 
-  if (messageIndex === -1) {
-    // Handle new message
-    newChats.set(chatId, {
-      ...chat,
-      messages: [
-        ...chat.messages,
-        {
-          id: messageId,
-          role,
-          content,
-          timestamp: timestamp,
-          parts,
-          attachments,
-        },
-      ],
-      updatedAt: timestamp,
-    });
-  } else {
-    // Handle update message
-    const newMessages = [...chat.messages];
-    newMessages[messageIndex] = {
-      ...newMessages[messageIndex],
-      content,
-      parts,
-      attachments,
-    };
-    newChats.set(chat.id, {
-      ...chat,
-      messages: newMessages,
-      updatedAt: timestamp,
-    });
-  }
+  newChats.set(chat.id, {
+    ...chat,
+    messages: messages,
+    updatedAt: timestamp,
+  });
 
   return {
     ...chatState,
