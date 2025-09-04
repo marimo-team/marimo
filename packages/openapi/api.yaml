@@ -988,6 +988,7 @@ components:
           type: string
       required:
       - key
+      title: DeleteSecretRequest
       type: object
     DependencyTreeNode:
       properties:
@@ -1926,26 +1927,11 @@ components:
       properties:
         keys:
           items:
-            properties:
-              keys:
-                items:
-                  type: string
-                type: array
-              name:
-                type: string
-              provider:
-                enum:
-                - dotenv
-                - env
-            required:
-            - provider
-            - name
-            - keys
-            title: SecretKeysWithProvider
-            type: object
+            $ref: '#/components/schemas/SecretKeysWithProvider'
           type: array
       required:
       - keys
+      title: ListSecretKeysResponse
       type: object
     MIME:
       description: "Protocol for instantiating objects using marimo's media viewer.\n\

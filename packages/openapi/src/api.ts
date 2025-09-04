@@ -3103,6 +3103,7 @@ export interface components {
     DeleteCellRequest: {
       cellId: string;
     };
+    /** DeleteSecretRequest */
     DeleteSecretRequest: {
       key: string;
     };
@@ -3592,13 +3593,9 @@ export interface components {
     ListSecretKeysRequest: {
       requestId: string;
     };
+    /** ListSecretKeysResponse */
     ListSecretKeysResponse: {
-      keys: {
-        keys: string[];
-        name: string;
-        /** @enum {unknown} */
-        provider: "dotenv" | "env";
-      }[];
+      keys: components["schemas"]["SecretKeysWithProvider"][];
     };
     /**
      * MIME
