@@ -39,6 +39,8 @@ export type SQLTablePreview = OperationMessageData<"sql-table-preview">;
 export type SQLTableListPreview =
   OperationMessageData<"sql-table-list-preview">;
 export type SecretKeysResult = OperationMessageData<"secret-keys-result">;
+export type StartupCommand = OperationMessageData<"startup-command">;
+export type StartupLogs = OperationMessageData<"startup-logs">;
 export type MessageOperation = schemas["KnownUnions"]["operation"];
 
 export type OperationMessageType = MessageOperation["op"];

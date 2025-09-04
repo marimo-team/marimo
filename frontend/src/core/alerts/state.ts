@@ -18,6 +18,11 @@ export interface InstallingPackageAlert {
   packages: PackageInstallationStatus;
 }
 
+export interface StartupLogsAlert {
+  content: string;
+  status: "append" | "start" | "done";
+}
+
 export function isMissingPackageAlert(
   alert: MissingPackageAlert | InstallingPackageAlert,
 ): alert is MissingPackageAlert {
@@ -39,10 +44,11 @@ interface AlertState {
     | Identified<MissingPackageAlert>
     | Identified<InstallingPackageAlert>
     | null;
+  startupLogsAlert: StartupLogsAlert | null;
 }
 
 const { valueAtom: alertAtom, useActions } = createReducerAndAtoms(
-  () => ({ packageAlert: null }) as AlertState,
+  () => ({ packageAlert: null, startupLogsAlert: null }) as AlertState,
   {
     addPackageAlert: (
       state,
@@ -58,6 +64,25 @@ const { valueAtom: alertAtom, useActions } = createReducerAndAtoms(
       return state.packageAlert !== null && state.packageAlert.id === id
         ? { ...state, packageAlert: null }
         : state;
+    },
+
+    addStartupLog: (
+      state,
+      logData: { content: string; status: "append" | "start" | "done" },
+    ) => {
+      const prevContent = state.startupLogsAlert?.content || "";
+      return {
+        ...state,
+        startupLogsAlert: {
+          ...state.startupLogsAlert,
+          content: prevContent + logData.content,
+          status: logData.status,
+        },
+      };
+    },
+
+    clearStartupLogsAlert: (state) => {
+      return { ...state, startupLogsAlert: null };
     },
   },
 );
