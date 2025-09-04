@@ -2983,19 +2983,25 @@ components:
       required:
       - title
       - sections
+      title: Snippet
       type: object
     SnippetSection:
       properties:
         code:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         html:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         id:
           type: string
       required:
       - id
+      title: SnippetSection
       type: object
     Snippets:
       properties:
@@ -3005,6 +3011,7 @@ components:
           type: array
       required:
       - snippets
+      title: Snippets
       type: object
     SnippetsConfig:
       description: "Configuration for snippets.\n\n    **Keys.**\n\n    - `custom_path`:\

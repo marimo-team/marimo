@@ -4144,15 +4144,20 @@ export interface components {
     ShutdownSessionRequest: {
       sessionId: string;
     };
+    /** Snippet */
     Snippet: {
       sections: components["schemas"]["SnippetSection"][];
       title: string;
     };
+    /** SnippetSection */
     SnippetSection: {
+      /** @default null */
       code?: string | null;
+      /** @default null */
       html?: string | null;
       id: string;
     };
+    /** Snippets */
     Snippets: {
       snippets: components["schemas"]["Snippet"][];
     };
