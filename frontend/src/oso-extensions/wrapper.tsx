@@ -4,7 +4,6 @@ import { useCellActions } from "@/core/cells/cells";
 import { PyodideBridge } from "@/core/wasm/bridge";
 import type { FragmentStore } from "./fragment-store";
 
-
 const COMMAND_PREFIX = "oso_commands:";
 
 interface WrapperProps {
@@ -69,29 +68,15 @@ export const OSOWrapper: React.FC<PropsWithChildren<WrapperProps>> = ({ children
 
       // Inject environment variables into Pyodide
       if (Object.keys(envVars).length > 0) {
-        const envCode = Object.entries(envVars)
-          .map(
-        ([key, value]) =>
-          `os.environ['${key}'] = '${value.replace(/'/g, "\\'")}'`
-          )
-          .join("\n");
-        await bridge.sendRun({
-          cellIds: ["____"],
-          codes: [
-        `exec("""import os\n${envCode}\n""")\n`,
-          ],
+        await bridge.sendFunctionRequest({
+          args: {
+            env: envVars
+          },
+          functionCallId: "__oso_initialize_env",
+          functionName: "__oso_initialize_env",
+          namespace: "marimo.oso"
         });
       }
-
-      // This will automatically set the database connection. Leaving this here
-      // for history in git but this feels a bit too magical as it might not be
-      // intended behavior by marimo
-      // await bridge.sendRun({
-      //   cellIds: ["____"],
-      //   codes: [
-      //     "import pyoso as _oso\n_oso_client = _oso.Client()\npyoso = _oso_client.dbapi_connection()\n",
-      //   ]
-      // });
     }
     setTimeout(setupBridge, 0);
     return () => {
