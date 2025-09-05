@@ -157,6 +157,14 @@ export async function startServer(config: BuildConfig) {
       .send(lockfileJson);
   });
 
+  app.all(/^\/notebook\/api\/.*$/, (req, res) => {
+    const originalUrl = req.url;
+    req.url = req.url.replace('/notebook', '');
+    console.log(`Rewriting API request from ${originalUrl} to ${req.url}`);
+    req.headers.host = `${config.targetHostname}:${config.targetPort}`;
+    proxy.web(req, res, { target: targetService });
+  });
+
   app.all("/{*path}", (req, res) => {
     console.log(`Proxying request to: ${targetService}${req.url}`);
     req.headers.host = `${config.targetHostname}:${config.targetPort}`;
