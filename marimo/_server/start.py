@@ -90,6 +90,7 @@ def start(
     redirect_console_to_browser: bool,
     skew_protection: bool,
     remote_url: Optional[str] = None,
+    mcp: bool = False,
     asset_url: Optional[str] = None,
     timeout: Optional[float] = None,
 ) -> None:
@@ -163,21 +164,26 @@ def start(
 
     log_level = "info" if development_mode else "error"
 
+    lifespans_list = [
+        lifespans.lsp,
+        lifespans.mcp,
+        lifespans.etc,
+        lifespans.signal_handler,
+        lifespans.logging,
+        lifespans.open_browser,
+        *LIFESPAN_REGISTRY.get_all(),
+    ]
+
+    if mcp and mode == SessionMode.EDIT:
+        from marimo._mcp.server.lifespan import mcp_server_lifespan
+
+        lifespans_list.append(mcp_server_lifespan)
+
     (external_port, external_host) = _resolve_proxy(port, host, proxy)
     app = create_starlette_app(
         base_url=base_url,
         host=external_host,
-        lifespan=Lifespans(
-            [
-                lifespans.lsp,
-                lifespans.mcp,
-                lifespans.etc,
-                lifespans.signal_handler,
-                lifespans.logging,
-                lifespans.open_browser,
-                *LIFESPAN_REGISTRY.get_all(),
-            ]
-        ),
+        lifespan=Lifespans(lifespans_list),
         allow_origins=allow_origins,
         enable_auth=not AuthToken.is_empty(session_manager.auth_token),
         lsp_servers=list(lsp_composite_server.servers.values())
@@ -197,6 +203,8 @@ def start(
     app.state.asset_url = asset_url
     app.state.config_manager = config_reader
     app.state.remote_url = remote_url
+    app.state.mcp_server_enabled = mcp
+    app.state.skew_protection = skew_protection
 
     # Resource initialization
     # Increase the limit on open file descriptors to prevent resource

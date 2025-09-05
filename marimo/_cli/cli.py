@@ -446,6 +446,15 @@ https://github.com/marimo-team/marimo/issues/5219.""",
     help="When opening a .py file, enable fallback conversion from pypercent, script, or text.",
 )
 @click.option(
+    "--mcp",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    hidden=True,
+    help="Enable MCP server endpoint at /mcp/server for LLM integration.",
+)
+@click.option(
     "--asset-url",
     default=None,
     type=str,
@@ -483,6 +492,7 @@ def edit(
     skew_protection: bool,
     remote_url: Optional[str],
     convert: bool,
+    mcp: bool,
     asset_url: Optional[str],
     timeout: Optional[float],
     name: Optional[str],
@@ -612,6 +622,7 @@ def edit(
         redirect_console_to_browser=True,
         ttl_seconds=None,
         remote_url=remote_url,
+        mcp=mcp,
         asset_url=asset_url,
         timeout=timeout,
     )
