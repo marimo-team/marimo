@@ -4,7 +4,6 @@ from __future__ import annotations
 import pathlib
 import sys
 import textwrap
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
@@ -17,6 +16,8 @@ from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     CycleError,
     Error,
+    MarimoExceptionRaisedError,
+    MarimoInternalError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
     MultipleDefinitionError,
@@ -3055,7 +3056,7 @@ class TestErrorHandling:
         errors = _parse_error_output(error_cell_op[0])
 
         assert len(errors) == 1
-        assert errors[0].type == "exception"
+        assert isinstance(errors[0], MarimoExceptionRaisedError)
         assert errors[0].msg == "some secret error"
         assert errors[0].exception_type == "ValueError"
 
@@ -3070,7 +3071,7 @@ class TestErrorHandling:
         errors = _parse_error_output(error_cell_op[0])
 
         assert len(errors) == 1
-        assert errors[0].type == "internal"
+        assert isinstance(errors[0], MarimoInternalError)
         assert errors[0].msg.startswith("An internal error occurred: ")
 
     async def test_error_handling_in_run_mode_stop(
@@ -3089,7 +3090,7 @@ class TestErrorHandling:
         for op in error_cell_op:
             errors = _parse_error_output(op)
             assert len(errors) == 1
-            assert errors[0].type == "internal"
+            assert isinstance(errors[0], MarimoInternalError)
             assert errors[0].msg.startswith("An internal error occurred: ")
 
 
@@ -3124,11 +3125,7 @@ def _parse_error_output(cell_op: CellOp) -> list[Error]:
     assert error_output.mimetype == "application/vnd.marimo+error"
     data = error_output.data
 
-    @dataclass
-    class Container:
-        errors: list[Error]
-
-    return parse_raw({"errors": data}, Container).errors
+    return [parse_raw(err, cls=Error) for err in data]
 
 
 def _filter_to_error_ops(cell_ops: list[CellOp]) -> list[CellOp]:
