@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Completion } from "@codemirror/autocomplete";
+import type { FileUIPart } from "ai";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
-import type { ChatAttachment } from "@/core/ai/types";
 import { notebookAtom } from "@/core/cells/cells";
 import { CellId as CellIdClass } from "@/core/cells/ids";
 import {
@@ -28,15 +28,17 @@ interface MockContextItem extends AIContextItem {
 }
 
 // Mock attachment data for testing
-const mockAttachment1: ChatAttachment = {
-  name: "test-image-1.png",
-  contentType: "image/png",
+const mockAttachment1: FileUIPart = {
+  type: "file",
+  filename: "test-image-1.png",
+  mediaType: "image/png",
   url: "data:image/png;base64,mockdata1",
 };
 
-const mockAttachment2: ChatAttachment = {
-  name: "test-image-2.jpg",
-  contentType: "image/jpeg",
+const mockAttachment2: FileUIPart = {
+  type: "file",
+  filename: "test-image-2.jpg",
+  mediaType: "image/jpeg",
   url: "data:image/jpeg;base64,mockdata2",
 };
 
@@ -101,7 +103,7 @@ class AttachmentContextProvider extends AIContextProvider<MockContextItem> {
 
   constructor(
     private items: MockContextItem[] = [],
-    private attachments: ChatAttachment[] = [],
+    private attachments: FileUIPart[] = [],
   ) {
     super();
   }
@@ -120,7 +122,7 @@ class AttachmentContextProvider extends AIContextProvider<MockContextItem> {
 
   override async getAttachments(
     items: MockContextItem[],
-  ): Promise<ChatAttachment[]> {
+  ): Promise<FileUIPart[]> {
     // Return attachments for items that need them
     const itemsNeedingAttachments = items.filter(
       (item) => item.data.needsAttachment,

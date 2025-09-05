@@ -5,8 +5,8 @@ import type {
   CompletionContext,
   CompletionSource,
 } from "@codemirror/autocomplete";
+import type { FileUIPart } from "ai";
 import { getAIContextRegistry } from "@/core/ai/context/context";
-import type { ChatAttachment } from "@/core/ai/types";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
@@ -18,7 +18,7 @@ interface Opts {
 
 interface AICompletionBodyWithAttachments {
   body: Omit<AiCompletionRequest, "language" | "prompt" | "code">;
-  attachments: ChatAttachment[];
+  attachments: FileUIPart[];
 }
 
 /**
@@ -52,7 +52,7 @@ export async function getAICompletionBodyWithAttachments({
   input,
 }: Opts): Promise<AICompletionBodyWithAttachments> {
   let contextString = "";
-  let attachments: ChatAttachment[] = [];
+  let attachments: FileUIPart[] = [];
 
   // Skip if no '@' in the input
   if (input.includes("@")) {

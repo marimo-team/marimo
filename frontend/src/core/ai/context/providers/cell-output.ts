@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Completion } from "@codemirror/autocomplete";
+import type { FileUIPart } from "ai";
 import { toPng } from "html-to-image";
-import type { ChatAttachment } from "@/core/ai/types";
 import { notebookAtom } from "@/core/cells/cells";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";
@@ -32,7 +32,9 @@ function isMediaMimetype(
   mimetype: OutputMessage["mimetype"] | undefined,
   htmlString: string,
 ): boolean {
-  if (!mimetype) return false;
+  if (!mimetype) {
+    return false;
+  }
 
   const mediaPrefixes = ["image/", "video/", "audio/", "application/pdf"];
   if (mediaPrefixes.some((prefix) => mimetype.startsWith(prefix))) {
@@ -72,7 +74,7 @@ function parseHtmlContent(htmlString: string): string {
     const textContent = tempDiv.textContent || tempDiv.innerText || "";
 
     // Clean up extra whitespace
-    return textContent.replace(/\s+/g, " ").trim();
+    return textContent.replaceAll(/\s+/, " ").trim();
   } catch (error) {
     Logger.error("Error parsing HTML content:", error);
     // If parsing fails, return the original string
@@ -113,15 +115,14 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
 
       let processedContent: string | undefined;
       let imageUrl: string | undefined;
-      let shouldDownloadImage: boolean = false;
+      let shouldDownloadImage = false;
 
       // Process text content
       if (outputType === "text" && typeof output.data === "string") {
-        if (mimetype === "text/html") {
-          processedContent = parseHtmlContent(output.data);
-        } else {
-          processedContent = output.data;
-        }
+        processedContent =
+          mimetype === "text/html"
+            ? parseHtmlContent(output.data)
+            : output.data;
       }
 
       // Process media content - for now, we'll just note that it's media
@@ -303,7 +304,7 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
   /** Get attachments for cell output items that have shouldDownloadImage=true */
   override async getAttachments(
     items: CellOutputContextItem[],
-  ): Promise<ChatAttachment[]> {
+  ): Promise<FileUIPart[]> {
     // Filter items that need image downloading
     const itemsNeedingDownload = items.filter(
       (item) =>
@@ -334,8 +335,9 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
     try {
       return await Promise.all(
         downloadRequests.map(async (item) => ({
-          name: `${item.cellName}-output-screenshot`,
-          contentType: "image/png",
+          type: "file",
+          filename: `${item.cellName}-output-screenshot`,
+          mediaType: "image/png",
           url: await toPng(item.element),
         })),
       );

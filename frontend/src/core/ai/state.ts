@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { UIMessage } from "@ai-sdk/react";
+import type { FileUIPart } from "ai";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { adaptForLocalStorage } from "@/utils/storage";
 import type { TypedString } from "@/utils/typed";
 import type { CellId } from "../cells/ids";
-import type { ChatAttachment } from "./types";
 
 const KEY = "marimo:ai:chatState:v5";
 
@@ -29,7 +29,7 @@ export interface Message {
   content: string;
   timestamp: number;
   parts?: UIMessage["parts"];
-  attachments?: ChatAttachment[];
+  attachments?: FileUIPart[];
 }
 
 export interface Chat {

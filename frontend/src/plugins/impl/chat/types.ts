@@ -1,10 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { UIMessage } from "ai";
+
 export type ChatRole = "system" | "user" | "assistant";
 
 export interface ChatMessage {
   role: ChatRole;
+  // TODO: Deprecate content and make parts required
   content: string;
+  parts?: UIMessage["parts"];
 }
 
 export interface SendMessageRequest {

@@ -4,7 +4,7 @@ import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, type FileUIPart } from "ai";
 import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
@@ -41,7 +41,6 @@ import {
 } from "@/components/ui/popover";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import type { ChatAttachment } from "@/core/ai/types";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -155,12 +154,12 @@ export const Chatbot: React.FC<Props> = (props) => {
     }
   };
 
-  const renderAttachment = (attachment: ChatAttachment) => {
-    if (attachment.contentType?.startsWith("image")) {
+  const renderAttachment = (attachment: FileUIPart) => {
+    if (attachment.mediaType?.startsWith("image")) {
       return (
         <img
           src={attachment.url}
-          alt={attachment.name || "Attachment"}
+          alt={attachment.filename || "Attachment"}
           className="object-contain rounded-sm"
           width={100}
           height={100}
@@ -175,7 +174,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         rel="noopener noreferrer"
         className="text-background hover:underline"
       >
-        {attachment.name || "Attachment"}
+        {attachment.filename || "Attachment"}
       </a>
     );
   };
