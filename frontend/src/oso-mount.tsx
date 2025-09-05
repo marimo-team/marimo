@@ -291,10 +291,10 @@ function initStore(fragmentStore: FragmentStore, options: unknown) {
     Logger.error("Invalid marimo mount options", parsedOptions.error);
     throw new Error("Invalid marimo mount options");
   }
-  let rawMode = fragmentStore.getString("mode", "read");
+  let rawMode = fragmentStore.getString("mode", "edit");
   if (["edit", "read"].indexOf(rawMode) === -1) {
-    Logger.warn(`Invalid mode in fragment store: ${rawMode}, defaulting to read`);
-    rawMode = "read";
+    Logger.warn(`Invalid mode in fragment store: ${rawMode}, defaulting to edit`);
+    rawMode = "edit";
   }
   const mode = rawMode as AppMode;
   preloadPage(mode);
