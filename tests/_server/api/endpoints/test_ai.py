@@ -139,7 +139,7 @@ class TestOpenAiEndpoints:
             # Assert the prompt it was called with
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][1]["content"]
+            ][1]["content"][0]["text"]
             assert prompt == ("Help me create a dataframe")
             # Assert the model it was called with
             model = oaiclient.chat.completions.create.call_args.kwargs["model"]
@@ -184,7 +184,7 @@ class TestOpenAiEndpoints:
             # Assert the prompt it was called with
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][1]["content"]
+            ][1]["content"][0]["text"]
             assert prompt == "Help me create a dataframe"
 
     @staticmethod
@@ -305,7 +305,7 @@ class TestOpenAiEndpoints:
             # Assert the prompt it was called with
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][1]["content"]
+            ][1]["content"][0]["text"]
             assert (
                 prompt
                 == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
@@ -313,7 +313,7 @@ class TestOpenAiEndpoints:
             # Assert the system prompt for FIM models
             system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][0]["content"]
+            ][0]["content"][0]["text"]
             assert (
                 system_prompt
                 == f"You are a python code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
@@ -385,7 +385,7 @@ class TestOpenAiEndpoints:
             # Assert the system prompt for FIM models
             system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][0]["content"]
+            ][0]["content"][0]["text"]
             assert (
                 system_prompt
                 == f"You are a sql code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
@@ -781,7 +781,7 @@ def test_chat_without_code(client: TestClient) -> None:
             # Assert the prompt it was called with
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][1]["content"]
+            ][1]["content"][0]["text"]
             assert prompt == "Hello"
 
 
@@ -827,7 +827,7 @@ def test_chat_with_code(client: TestClient) -> None:
             # Assert the prompt it was called with
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][1]["content"]
+            ][1]["content"][0]["text"]
             assert prompt == "Help me create a dataframe"
 
 
