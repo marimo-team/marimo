@@ -782,8 +782,8 @@ def test_not_required_types() -> None:
     data: dict[str, Any] = {
         "required": "value",
         "optional": "optional_value",
-        "optionalDict": {"key": "value"},
-        "optionalList": ["item"],
+        "optional_dict": {"key": "value"},
+        "optional_list": ["item"],
     }
     parsed = parse_raw(data, WithNotRequired)
     assert parsed["required"] == "value"
@@ -806,13 +806,12 @@ def test_not_required_types() -> None:
     # Test with empty values for container types
     data = {
         "required": "value",
-        "optional": None,
-        "optionalDict": {},
-        "optionalList": [],
+        "optional_dict": {},
+        "optional_list": [],
     }
     parsed = parse_raw(data, WithNotRequired)
     assert parsed["required"] == "value"
-    assert parsed["optional"] is None
+    assert "optional" not in parsed
     assert parsed["optional_dict"] == {}
     assert parsed["optional_list"] == []
 
