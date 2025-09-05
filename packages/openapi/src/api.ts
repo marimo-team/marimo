@@ -4261,10 +4261,6 @@ export interface components {
       objectIds: string[];
       values: unknown[];
     };
-    /**
-     * UrlParts
-     * @description Mapping of parsed URL components.
-     */
     UrlParts: {
       hostname: string | null;
       netloc: string;

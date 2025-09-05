@@ -3169,20 +3169,17 @@ components:
       title: UpdateComponentValuesRequest
       type: object
     UrlParts:
-      description: Mapping of parsed URL components.
       properties:
         hostname:
-          anyOf:
-          - type: string
-          - type: 'null'
+          nullable: true
+          type: string
         netloc:
           type: string
         path:
           type: string
         port:
-          anyOf:
-          - type: integer
-          - type: 'null'
+          nullable: true
+          type: integer
         query:
           type: string
         scheme:
@@ -3194,7 +3191,6 @@ components:
       - netloc
       - query
       - hostname
-      title: UrlParts
       type: object
     VariableContext:
       properties:

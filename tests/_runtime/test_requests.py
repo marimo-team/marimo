@@ -6,7 +6,7 @@ from typing import Any, Optional
 from starlette.datastructures import URL, Headers, QueryParams
 from starlette.requests import HTTPConnection
 
-from marimo._runtime.requests import HTTPRequest, UrlParts
+from marimo._runtime.requests import HTTPRequest
 
 
 class MockHTTPConnection(HTTPConnection):
@@ -47,23 +47,10 @@ class MockHTTPConnection(HTTPConnection):
         return Headers(headers=self.scope["headers"])
 
 
-def mock_url_parts(path: str) -> UrlParts:
-    hostname = "localhost"
-    return UrlParts(
-        scheme="http",
-        netloc=f"{hostname}:80",
-        hostname=hostname,
-        path=path,
-        port=80,
-        query="",
-    )
-
-
 def test_http_request_like_basic_mapping():
-    url = mock_url_parts("/test")
     request = HTTPRequest(
-        url=url,
-        base_url=mock_url_parts("/"),
+        url={"path": "/test"},
+        base_url={"path": "/"},
         headers={"Content-Type": "application/json"},
         query_params=defaultdict(list),
         path_params={},
@@ -72,7 +59,7 @@ def test_http_request_like_basic_mapping():
         meta={},
     )
 
-    assert request["url"] == url
+    assert request["url"] == {"path": "/test"}
     assert set(request) == {
         "url",
         "base_url",
@@ -97,14 +84,14 @@ def test_from_request():
 
     request_like = HTTPRequest.from_request(mock_request)
 
-    assert request_like["url"] == UrlParts(
-        path="/test",
-        port=8000,
-        scheme="http",
-        netloc="localhost:8000",
-        query="param1=value1&param2=value2",
-        hostname="localhost",
-    )
+    assert request_like["url"] == {
+        "path": "/test",
+        "port": 8000,
+        "scheme": "http",
+        "netloc": "localhost:8000",
+        "query": "param1=value1&param2=value2",
+        "hostname": "localhost",
+    }
 
     assert request_like["headers"] == {
         "content-type": "application/json",
