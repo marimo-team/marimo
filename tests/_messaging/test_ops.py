@@ -9,6 +9,7 @@ from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
+from tests._messaging.mocks import MockStream
 
 
 def test_value_ui_element() -> None:
@@ -40,8 +41,7 @@ def test_variable_value_broken_str() -> None:
 def test_broadcast_serialization() -> None:
     cell_id = CellId_t("test_cell_id")
 
-    stream = MagicMock()
-    stream.write = MagicMock()
+    stream = MockStream()
     status = MagicMock(TopLevelStatus)
     status.hint = HINT_UNPARSABLE
 
@@ -49,8 +49,8 @@ def test_broadcast_serialization() -> None:
         cell_id=cell_id, serialization=status, stream=stream
     )
 
-    stream.write.assert_called_once()
-    cell_op = stream.write.call_args.kwargs["data"]
-    assert cell_op["serialization"] == str(HINT_UNPARSABLE)
+    assert len(stream.messages) == 1
+    assert stream.operations[0]["serialization"] == str(HINT_UNPARSABLE)
+    cell_op = stream.operations[0]
 
     assert isinstance(parse_raw(cell_op, CellOp), CellOp)
