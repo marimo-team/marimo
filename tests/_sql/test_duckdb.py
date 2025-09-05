@@ -150,7 +150,9 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
         include_table_details=False,
         include_tables=False,
     )
-    assert initial_databases == [Database(name="memory", dialect="duckdb")]
+    assert initial_databases == [
+        Database(name="memory", dialect="duckdb", schemas=[])
+    ]
     assert engine.get_default_database() == "memory"
     assert engine.get_default_schema() == "main"
 
