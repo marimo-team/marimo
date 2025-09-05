@@ -1,4 +1,11 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/**
+ * OSO WASM Controller
+ *
+ * This is modified from marimo's DefaultWasmController and copyright of those
+ * copied parts are owned by the Marimo Team. We use this controller to load the
+ * wasm environment. If you want to add more things to the default environment,
+ * or change the bootstrapping process for marimo, this is the file to edit. 
+ */
 import { loadPyodide, type PyodideInterface } from "pyodide";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { OperationMessage } from "@/core/kernel/messages";
@@ -138,6 +145,8 @@ export class DefaultWasmController implements WasmController {
         user_config=js.user_config.to_py(),
       )
 
+      # We use this intercepting bridge to wrap the original pyodide 
+      # bridge so we can introduce some of our own functions
       intercepting_bridge = InterceptingPyodideBridge.from_parent(bridge)
 
       def init(auto_instantiate=True):

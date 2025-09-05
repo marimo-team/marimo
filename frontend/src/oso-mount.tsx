@@ -46,8 +46,8 @@ import { initializePlugins } from "./plugins/plugins";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { reportVitals } from "./utils/vitals";
 import { OSOWrapper } from "./oso-extensions/wrapper";
-import { OSONotebook, LazyOSONotebookPage } from "./oso-extensions/OSONotebook";
-import { FragmentStore } from "./oso-extensions/fragment-store";
+import { OSONotebook, LazyOSONotebookEditPage, preloadPage } from "./oso-extensions/OSONotebook";
+import { FragmentStore, FragmentStoreProvider } from "./oso-extensions/fragment-store";
 
 
 let hasMounted = false;
@@ -75,7 +75,7 @@ export function mount(options: unknown, el: Element): Error | undefined {
   const root = createRoot(el);
 
   const fragmentStore = FragmentStore.load();
-  if (fragmentStore.getString("debug") === "true") {
+  if (fragmentStore.getBoolean("debug")) {
     window.__fragmentStore = fragmentStore;
   }
 
@@ -99,9 +99,11 @@ export function mount(options: unknown, el: Element): Error | undefined {
     root.render(
       <Provider store={store}>
         <ThemeProvider>
-          <OSOWrapper fragmentStore={fragmentStore}>
-            <OSONotebook />
-          </OSOWrapper>
+          <FragmentStoreProvider>
+            <OSOWrapper>
+              <OSONotebook />
+            </OSOWrapper>
+          </FragmentStoreProvider>
         </ThemeProvider>
       </Provider>,
     );
@@ -289,8 +291,13 @@ function initStore(fragmentStore: FragmentStore, options: unknown) {
     Logger.error("Invalid marimo mount options", parsedOptions.error);
     throw new Error("Invalid marimo mount options");
   }
-  const mode = "edit";
-  LazyOSONotebookPage.preload();
+  let rawMode = fragmentStore.getString("mode", "read");
+  if (["edit", "read"].indexOf(rawMode) === -1) {
+    Logger.warn(`Invalid mode in fragment store: ${rawMode}, defaulting to read`);
+    rawMode = "read";
+  }
+  const mode = rawMode as AppMode;
+  preloadPage(mode);
 
   // Initialize file stores if provided
   notebookFileStore.overrideStores([
@@ -332,7 +339,7 @@ function initStore(fragmentStore: FragmentStore, options: unknown) {
   store.set(showCodeInRunModeAtom, parsedOptions.data.view.showAppCode);
 
   // Check for view-as parameter to start in present mode
-  const initialViewMode = "edit";
+  const initialViewMode = mode;
   store.set(viewStateAtom, { mode: initialViewMode, cellAnchor: null });
   store.set(serverTokenAtom, parsedOptions.data.serverToken);
 

@@ -9,7 +9,7 @@ interface Props {
   appConfig: AppConfig;
 }
 
-const OSONotebookPage = (props: Props) => {
+const OSONotebookEditPage = (props: Props) => {
   return (
     <>
       <EditApp {...props} />
@@ -18,4 +18,4 @@ const OSONotebookPage = (props: Props) => {
   );
 };
 
-export default OSONotebookPage;
+export default OSONotebookEditPage;

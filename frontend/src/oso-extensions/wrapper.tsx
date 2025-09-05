@@ -2,21 +2,18 @@
 import { useCallback, useEffect, type PropsWithChildren } from "react";
 import { useCellActions } from "@/core/cells/cells";
 import { PyodideBridge } from "@/core/wasm/bridge";
-import type { FragmentStore } from "./fragment-store";
+import { useFragmentStore } from "./fragment-store";
 
 const COMMAND_PREFIX = "oso_commands:";
-
-interface WrapperProps {
-  fragmentStore: FragmentStore
-}
 
 /**
  * OSO's wrapper component
  */
-export const OSOWrapper: React.FC<PropsWithChildren<WrapperProps>> = ({ children, fragmentStore }) => {
+export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
   console.log("Setting up oso wrapper");
   //const config = { column: 0, hide_code: false, disabled: false };
 
+  const fragmentStore = useFragmentStore();
   const actions = useCellActions();
   const createCellAtEnd = (code: string) => {
     actions.createNewCell({
@@ -64,7 +61,7 @@ export const OSOWrapper: React.FC<PropsWithChildren<WrapperProps>> = ({ children
       window.addEventListener("message", windowMessageCallback);
 
       // Parse the fragment identifier for the `env` parameter and JSON parse it
-      const envVars = fragmentStore.getJSON<Record<string, string>>("env") || {};
+      const envVars = fragmentStore.getJSON<Record<string, string>>("env", {});
 
       // Inject environment variables into Pyodide
       if (Object.keys(envVars).length > 0) {
@@ -79,7 +76,7 @@ export const OSOWrapper: React.FC<PropsWithChildren<WrapperProps>> = ({ children
       }
 
       // Enable debug logging in pyodide. This could get crazy
-      if (fragmentStore.getString("debug") === "true") {
+      if (fragmentStore.getBoolean("debug")) {
         await bridge.sendFunctionRequest({
           args: {},
           functionCallId: "__oso_enable_debug_logging",
