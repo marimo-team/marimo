@@ -4,6 +4,7 @@ from typing import Any, cast
 from marimo._messaging.types import KernelMessage
 from marimo._runtime.requests import DeleteCellRequest
 from marimo._runtime.runtime import Kernel
+from tests._messaging.mocks import MockStream
 from tests.conftest import ExecReqProvider
 
 
@@ -136,16 +137,16 @@ async def test_thread_print(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert not k.errors
     time.sleep(0.01)  # noqa: ASYNC251
     # The main thread should not have any output, but the new thread should
-    stream = k.globals["stream"]
-    for m in stream.messages:
-        assert ("console" not in m[1]) or not m[1]["console"]
+    stream = MockStream(k.globals["stream"])
+    for m in stream.operations:
+        assert ("console" not in m) or not m["console"]
 
-    thread_stream = k.globals["thread_stream"]
-    assert len(thread_stream.messages) == 2
-    assert "hello" in thread_stream.messages[0][1]["console"]["data"]
-    assert thread_stream.messages[0][1]["console"]["channel"] == "stdout"
-    assert "world" in thread_stream.messages[1][1]["console"]["data"]
-    assert thread_stream.messages[1][1]["console"]["channel"] == "stdout"
+    thread_stream = MockStream(k.globals["thread_stream"])
+    assert len(thread_stream.operations) == 2
+    assert "hello" in thread_stream.operations[0]["console"]["data"]
+    assert thread_stream.operations[0]["console"]["channel"] == "stdout"
+    assert "world" in thread_stream.operations[1]["console"]["data"]
+    assert thread_stream.operations[1]["console"]["channel"] == "stdout"
 
 
 async def test_thread_should_exit_on_rerun(

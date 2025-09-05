@@ -66,21 +66,15 @@ class _MockStream(ThreadSafeStream):
     pipe: None = None
     redirect_console: bool = False
 
-    messages: list[tuple[str, dict[Any, Any]]] = dataclasses.field(
-        default_factory=list
-    )
+    messages: list[tuple[str, bytes]] = dataclasses.field(default_factory=list)
 
-    def write(self, op: str, data: dict[Any, Any]) -> None:
+    def write(self, op: str, data: bytes) -> None:
         self.messages.append((op, data))
 
     @property
     def operations(self) -> list[MessageOperation]:
-        @dataclasses.dataclass
-        class Container:
-            operation: MessageOperation
-
         return [
-            parse_raw({"operation": op_data}, Container).operation
+            parse_raw(op_data, cls=MessageOperation)
             for _op_name, op_data in self.messages
         ]
 

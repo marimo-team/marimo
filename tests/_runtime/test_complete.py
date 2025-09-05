@@ -5,7 +5,7 @@ import threading
 from collections.abc import Mapping
 from inspect import signature
 from types import ModuleType
-from typing import Any, cast
+from typing import Any
 from unittest import mock
 
 import jedi
@@ -359,10 +359,16 @@ def test_maybe_get_key_options_pandas_dataframe(
 
 class CaptureStream(Stream):
     def __init__(self):
-        self.messages: list[tuple[str, dict[Any, Any]]] = []
+        self.messages: list[tuple[str, bytes]] = []
 
-    def write(self, op: str, data: dict[Any, Any]) -> None:
+    def write(self, op: str, data: bytes) -> None:
         self.messages.append((op, data))
+
+    @property
+    def operations(self) -> list[dict[str, Any]]:
+        import json
+
+        return [json.loads(op_data) for _op_name, op_data in self.messages]
 
 
 # TODO add test cases for all other completion modalities
@@ -470,16 +476,13 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
         stream=local_stream,
     )
 
-    import json
-
-    messages = local_stream.messages
-    message_name, content = messages[0]
-    content = json.loads(cast(bytes, content).decode("utf-8"))
+    message_name = local_stream.messages[0]
+    content = local_stream.operations[0]
     prefix_length = content["prefix_length"]
     options = content["options"]
     options_values = [option["name"] for option in options]
 
-    assert len(messages) == 1
+    assert len(local_stream.messages) == 1
     assert message_name == CompletionResult.name
     # TODO if `expects_completions=False`, something else than `_maybe_get_key_options()`
     # could be returning values
@@ -490,7 +493,7 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
     assert all(option["type"] == "property" for option in options)
     assert all(option["completion_info"] == "key" for option in options)
 
-    expected_keys: list[str]
+    expected_keys: list[str] = []
     if object_name == "static_key":
         # from source code in variable `other_cells_code`
         expected_keys = ["static_key"]

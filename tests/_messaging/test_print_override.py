@@ -5,21 +5,13 @@ import threading
 from unittest.mock import MagicMock, patch
 
 from marimo._messaging.print_override import print_override
-from marimo._messaging.types import Stream
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
     ExecutionContext,
     RuntimeContext,
 )
 from marimo._runtime.threads import THREADS
-
-
-class MockStream(Stream):
-    def __init__(self) -> None:
-        self.messages: list[tuple[str, dict]] = []
-
-    def write(self, op: str, data: dict) -> None:
-        self.messages.append((op, data))
+from tests._messaging.mocks import MockStream
 
 
 class TestPrintOverride:
@@ -82,16 +74,16 @@ class TestPrintOverride:
                     # Message should be sent to the stream
                     assert len(stream.messages) == 1
                     assert stream.messages[0][0] == "cell-op"  # op
-                    assert stream.messages[0][1]["cell_id"] == "cell1"
+                    assert stream.operations[0]["cell_id"] == "cell1"
                     assert (
-                        stream.messages[0][1]["console"]["channel"] == "stdout"
+                        stream.operations[0]["console"]["channel"] == "stdout"
                     )
                     assert (
-                        stream.messages[0][1]["console"]["mimetype"]
+                        stream.operations[0]["console"]["mimetype"]
                         == "text/plain"
                     )
                     assert (
-                        stream.messages[0][1]["console"]["data"]
+                        stream.operations[0]["console"]["data"]
                         == "Hello, world!\n"
                     )
         finally:
@@ -152,9 +144,9 @@ class TestPrintOverride:
                     mock_print.assert_not_called()
 
                     # Message should be sent to the stream with custom sep and end
-                    assert len(stream.messages) == 1
+                    assert len(stream.operations) == 1
                     assert (
-                        stream.messages[0][1]["console"]["data"]
+                        stream.operations[0]["console"]["data"]
                         == "Hello-world!"
                     )
         finally:
@@ -189,9 +181,9 @@ class TestPrintOverride:
                     mock_print.assert_not_called()
 
                     # Message should be sent to the stream with all args converted to strings
-                    assert len(stream.messages) == 1
+                    assert len(stream.operations) == 1
                     assert (
-                        stream.messages[0][1]["console"]["data"]
+                        stream.operations[0]["console"]["data"]
                         == "Hello 123 True None\n"
                     )
         finally:

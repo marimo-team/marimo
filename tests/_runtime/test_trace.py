@@ -4,13 +4,12 @@ import re
 import subprocess
 import sys
 import textwrap
-from typing import Any, cast
 
-from marimo._messaging.types import KernelMessage
 from marimo._runtime.requests import (
     ExecutionRequest,
 )
 from marimo._runtime.runtime import Kernel
+from tests._messaging.mocks import MockStderr, MockStream
 
 
 class TestScriptTrace:
@@ -163,8 +162,9 @@ class TestAppTrace:
         )
 
         # Naively strip tags to check trace
+        stderr_messages = MockStderr(k.stderr)
         tag_re = re.compile(r"(<!--.*?-->|<[^>]*>)")
-        result = k.stderr.messages[-1]
+        result = stderr_messages.messages[-1]
         result = tag_re.sub("", result)
 
         assert "ZeroDivisionError: division by zero" in result
@@ -263,31 +263,26 @@ class TestAppTrace:
 
         # Runtime error expected- since not a kernel error check stderr
 
-        def msg_as_dict(msg: KernelMessage) -> dict[str, Any]:
-            import json
-
-            return json.loads(msg[1].decode("utf-8"))
-
-        stream_messages = cast(list[KernelMessage], k.stream.messages)
-        stderr_messages = cast(list[KernelMessage], k.stderr.messages)
+        stream_messages = MockStream(k.stream)
+        stderr_messages = MockStderr(k.stderr)
 
         assert "C" not in k.globals
         if k.execution_type == "strict":
             assert (
                 "name `R` is referenced before definition."
-                in msg_as_dict(stream_messages[-4])["output"]["data"][0]["msg"]
+                in stream_messages.operations[-4]["output"]["data"][0]["msg"]
             )
             assert (
                 "This cell wasn't run"
-                in msg_as_dict(stream_messages[-1])["output"]["data"][0]["msg"]
+                in stream_messages.operations[-1]["output"]["data"][0]["msg"]
             )
         else:
             assert (
                 "Name `C` is not defined."
-                in msg_as_dict(stream_messages[-2])["output"]["data"][0]["msg"]
+                in stream_messages.operations[-2]["output"]["data"][0]["msg"]
             )
-            assert "NameError" in stderr_messages[0]
-            assert "NameError" in stderr_messages[-1]
+            assert "NameError" in stderr_messages.messages[0]
+            assert "NameError" in stderr_messages.messages[-1]
 
 
 class TestEmbedTrace:
