@@ -407,7 +407,7 @@ def test_auto_export_ipynb_with_new_cell(
         "/api/kernel/run",
         headers=HEADERS,
         json={
-            "cell_ids": ["new_cell"],
+            "cellIds": ["new_cell"],
             "codes": ["3.14"],
         },
     )
@@ -420,7 +420,7 @@ def test_auto_export_ipynb_with_new_cell(
         "/api/kernel/save",
         headers=HEADERS,
         json={
-            "cell_ids": ["new_cell"],
+            "cellIds": ["new_cell"],
             "filename": temp_marimo_file,
             "codes": ["3.14"],
             "names": ["_"],

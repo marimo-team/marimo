@@ -23,7 +23,7 @@ def test_code_autocomplete(client: TestClient) -> None:
         json={
             "id": "completion-123",
             "document": "print('Hello, World!')",
-            "cell_id": "cell-123",
+            "cellId": "cell-123",
         },
     )
     assert response.status_code == 200, response.text
@@ -37,7 +37,7 @@ def test_delete_cell(client: TestClient) -> None:
         "/api/kernel/delete",
         headers=HEADERS,
         json={
-            "cell_id": "cell-123",
+            "cellId": "cell-123",
         },
     )
     assert response.status_code == 200, response.text
@@ -54,7 +54,7 @@ def test_format_cell(client: TestClient) -> None:
             "codes": {
                 "cell-123": "def foo():\n  return 1",
             },
-            "line_length": 80,
+            "lineLength": 80,
         },
     )
     assert response.status_code == 200, response.text

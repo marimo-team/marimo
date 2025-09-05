@@ -24,7 +24,7 @@ def create_response(
     partial_response: dict[str, Any],
 ) -> dict[str, Any]:
     response: dict[str, Any] = {
-        "cellIds": ["Hbol"],
+        "cell_ids": ["Hbol"],
         "codes": ["import marimo as mo"],
         "names": ["__"],
         "layout": None,
@@ -57,6 +57,7 @@ def assert_kernel_ready_response(
     raw_data: dict[str, Any], response: dict[str, Any]
 ) -> None:
     data = parse_raw(raw_data["data"], KernelReady)
+    print(response)
     expected = parse_raw(response, KernelReady)
     assert data.cell_ids == expected.cell_ids
     assert data.codes == expected.codes
@@ -79,6 +80,7 @@ def get_session(
 def test_refresh_session(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_json()
+        print(data)
         assert_kernel_ready_response(data, create_response({}))
 
     # Check the session still exists after closing the websocket
@@ -207,7 +209,7 @@ def test_save_session(client: TestClient) -> None:
                 {
                     # The cell IDs that were saved should be the ones that are
                     # resumed
-                    "cellIds": ["2", "1"],
+                    "cell_ids": ["2", "1"],
                     "names": ["cell_0", "cell_1"],
                     "codes": [
                         "slider = mo.ui.slider(0, 100)",
@@ -318,15 +320,16 @@ def test_resume_session_with_watch(client: TestClient) -> None:
         data = websocket.receive_json()
         assert data == {
             "op": "update-cell-ids",
-            "data": {"cellIds": ["MJUe", "Hbol"], "op": "update-cell-ids"},
+            "data": {"cell_ids": ["MJUe", "Hbol"], "op": "update-cell-ids"},
         }
         data = websocket.receive_json()
         assert data == {
             "op": "update-cell-codes",
             "data": {
-                "cellIds": ["MJUe"],
+                "cell_ids": ["MJUe"],
                 "code_is_stale": False,
                 "codes": ["x=10; x"],
+                "op": "update-cell-codes",
             },
         }
 
@@ -356,7 +359,7 @@ def test_resume_session_with_watch(client: TestClient) -> None:
         assert messages[0]["op"] == "banner"
         assert messages[1] == {
             "op": "update-cell-ids",
-            "data": {"cellIds": ["MJUe", "Hbol"]},
+            "data": {"cell_ids": ["MJUe", "Hbol"], "op": "update-cell-ids"},
         }
 
     session = get_session(client, "456")

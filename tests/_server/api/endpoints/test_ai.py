@@ -90,7 +90,7 @@ class TestOpenAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                     "code": "",
                 },
             )
@@ -130,7 +130,7 @@ class TestOpenAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                     "code": "",
                 },
             )
@@ -176,7 +176,7 @@ class TestOpenAiEndpoints:
                 json={
                     "prompt": "Help me create a dataframe",
                     "code": "<rewrite_this>import pandas as pd</rewrite_this>",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                 },
             )
             assert response.status_code == 200, response.text
@@ -218,7 +218,7 @@ class TestOpenAiEndpoints:
                 json={
                     "prompt": "Help me create a dataframe",
                     "code": "<rewrite_this>import pandas as pd</rewrite_this>",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                 },
             )
             assert response.status_code == 200, response.text
@@ -258,7 +258,7 @@ class TestOpenAiEndpoints:
                 json={
                     "prompt": "Help me create a dataframe",
                     "code": "<rewrite_this>import pandas as pd</rewrite_this>",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                 },
             )
             assert response.status_code == 200, response.text
@@ -417,7 +417,7 @@ class TestAnthropicAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                     "code": "",
                 },
             )
@@ -454,7 +454,7 @@ class TestAnthropicAiEndpoints:
                 json={
                     "prompt": "Help me create a dataframe",
                     "code": "<rewrite_this>import pandas as pd</rewrite_this>",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                 },
             )
             assert response.status_code == 200, response.text
@@ -557,7 +557,7 @@ class TestGoogleAiEndpoints:
                 json={
                     "prompt": "Help me create a dataframe",
                     "code": "<rewrite_this>import pandas as pd</rewrite_this>",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                 },
             )
             assert response.status_code == 200, response.text
@@ -595,7 +595,7 @@ class TestGoogleAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                     "code": "",
                 },
             )
@@ -771,7 +771,7 @@ def test_chat_without_code(client: TestClient) -> None:
                     "messages": [{"role": "user", "content": "Hello"}],
                     "model": "gpt-4-turbo",
                     "variables": [],
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                     "context": {},
                     "id": "123",
                 },
@@ -817,7 +817,7 @@ def test_chat_with_code(client: TestClient) -> None:
                     ],
                     "model": "gpt-4-turbo",
                     "variables": [],
-                    "include_other_code": "import pandas as pd",
+                    "includeOtherCode": "import pandas as pd",
                     "context": {},
                     "id": "123",
                 },
@@ -1043,7 +1043,7 @@ class TestInvokeToolEndpoint:
             "/api/ai/invoke_tool",
             headers=HEADERS,
             json={
-                "tool_name": "test_tool",
+                "toolName": "test_tool",
                 "arguments": {"param1": "value1", "param2": 42},
             },
         )
@@ -1053,7 +1053,7 @@ class TestInvokeToolEndpoint:
 
         # Verify response structure
         assert response_data["success"] is True
-        assert response_data["tool_name"] == "test_tool"
+        assert response_data["toolName"] == "test_tool"
         assert response_data["result"] == {
             "message": "Tool executed successfully",
             "data": [1, 2, 3],
@@ -1089,7 +1089,7 @@ class TestInvokeToolEndpoint:
             "/api/ai/invoke_tool",
             headers=HEADERS,
             json={
-                "tool_name": "failing_tool",
+                "toolName": "failing_tool",
                 "arguments": {"invalid_param": "bad_value"},
             },
         )
@@ -1099,7 +1099,7 @@ class TestInvokeToolEndpoint:
 
         # Verify response structure for error case
         assert response_data["success"] is False
-        assert response_data["tool_name"] == "failing_tool"
+        assert response_data["toolName"] == "failing_tool"
         assert response_data["result"] is None
         assert (
             response_data["error"]
@@ -1134,7 +1134,7 @@ class TestInvokeToolEndpoint:
         response = client.post(
             "/api/ai/invoke_tool",
             headers=HEADERS,
-            json={"tool_name": "nonexistent_tool", "arguments": {}},
+            json={"toolName": "nonexistent_tool", "arguments": {}},
         )
 
         assert response.status_code == 200, response.text
@@ -1142,7 +1142,7 @@ class TestInvokeToolEndpoint:
 
         # Verify response structure for not found case
         assert response_data["success"] is False
-        assert response_data["tool_name"] == "nonexistent_tool"
+        assert response_data["toolName"] == "nonexistent_tool"
         assert response_data["result"] is None
         assert "not found" in response_data["error"]
 
@@ -1175,7 +1175,7 @@ class TestInvokeToolEndpoint:
             "/api/ai/invoke_tool",
             headers=HEADERS,
             json={
-                "tool_name": "test_tool",
+                "toolName": "test_tool",
                 "arguments": {"optional_param": "value"},
             },
         )
@@ -1185,7 +1185,7 @@ class TestInvokeToolEndpoint:
 
         # Verify response structure for validation error
         assert response_data["success"] is False
-        assert response_data["tool_name"] == "test_tool"
+        assert response_data["toolName"] == "test_tool"
         assert response_data["result"] is None
         assert "Invalid arguments" in response_data["error"]
         assert "required_param" in response_data["error"]
@@ -1237,7 +1237,7 @@ class TestInvokeToolEndpoint:
         response = client.post(
             "/api/ai/invoke_tool",
             headers=HEADERS,
-            json={"tool_name": "complex_tool", "arguments": complex_args},
+            json={"toolName": "complex_tool", "arguments": complex_args},
         )
 
         assert response.status_code == 200, response.text
@@ -1245,7 +1245,7 @@ class TestInvokeToolEndpoint:
 
         # Verify response structure
         assert response_data["success"] is True
-        assert response_data["tool_name"] == "complex_tool"
+        assert response_data["toolName"] == "complex_tool"
         assert "processed_data" in response_data["result"]
         assert "summary" in response_data["result"]
         assert "metadata" in response_data["result"]
@@ -1260,7 +1260,7 @@ class TestInvokeToolEndpoint:
             headers={
                 "Authorization": "Bearer fake-token"
             },  # No session header
-            json={"tool_name": "test_tool", "arguments": {}},
+            json={"toolName": "test_tool", "arguments": {}},
         )
 
         # Should fail without proper session
@@ -1295,13 +1295,13 @@ class TestInvokeToolEndpoint:
             "/api/ai/invoke_tool",
             headers=HEADERS,
             json={
-                "tool_name": "test_tool",
+                "toolName": "test_tool",
                 "arguments": {},  # Empty arguments
             },
         )
 
         assert response.status_code == 200, response.text
         data = response.json()
-        assert data["tool_name"] == "test_tool"
+        assert data["toolName"] == "test_tool"
         assert data["result"]["message"] == "Tool executed with empty args"
         assert data["error"] is None
