@@ -7,7 +7,6 @@ from typing import Any, Optional
 import msgspec
 
 from marimo._ast.cell import CellConfig
-from marimo._config.config import MarimoConfig
 from marimo._runtime.requests import (
     ExecuteMultipleRequest,
     HTTPRequest,
@@ -145,8 +144,8 @@ class SaveAppConfigurationRequest(msgspec.Struct, rename="camel"):
 
 
 class SaveUserConfigurationRequest(msgspec.Struct, rename="camel"):
-    # user configuration
-    config: MarimoConfig
+    # deep partial user configuration
+    config: dict[str, Any]
 
 
 class StdinRequest(msgspec.Struct, rename="camel"):

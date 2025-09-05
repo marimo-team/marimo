@@ -4058,7 +4058,7 @@ export interface components {
     };
     /** SaveUserConfigurationRequest */
     SaveUserConfigurationRequest: {
-      config: components["schemas"]["MarimoConfig"];
+      config: Record<string, any>;
     };
     /** Schema */
     Schema: {

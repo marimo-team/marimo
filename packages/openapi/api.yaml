@@ -2764,7 +2764,7 @@ components:
     SaveUserConfigurationRequest:
       properties:
         config:
-          $ref: '#/components/schemas/MarimoConfig'
+          type: object
       required:
       - config
       title: SaveUserConfigurationRequest
