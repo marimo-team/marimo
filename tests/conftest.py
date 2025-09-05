@@ -25,6 +25,7 @@ from marimo._messaging.streams import (
     ThreadSafeStdout,
     ThreadSafeStream,
 )
+from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import patches
 from marimo._runtime.context import teardown_context
@@ -66,7 +67,7 @@ class _MockStream(ThreadSafeStream):
     pipe: None = None
     redirect_console: bool = False
 
-    messages: list[tuple[str, bytes]] = dataclasses.field(default_factory=list)
+    messages: list[KernelMessage] = dataclasses.field(default_factory=list)
 
     def write(self, op: str, data: bytes) -> None:
         self.messages.append((op, data))

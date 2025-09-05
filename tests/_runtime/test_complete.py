@@ -14,7 +14,7 @@ import pytest
 import marimo
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import CompletionResult
-from marimo._messaging.types import Stream
+from marimo._messaging.types import KernelMessage, Stream
 from marimo._runtime.complete import (
     _build_docstring_cached,
     _maybe_get_key_options,
@@ -359,7 +359,7 @@ def test_maybe_get_key_options_pandas_dataframe(
 
 class CaptureStream(Stream):
     def __init__(self):
-        self.messages: list[tuple[str, bytes]] = []
+        self.messages: list[KernelMessage] = []
 
     def write(self, op: str, data: bytes) -> None:
         self.messages.append((op, data))
