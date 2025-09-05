@@ -92,7 +92,7 @@ def register_notebooks_tools(mcp: FastMCP, app: Starlette) -> None:
                 "Failed to retrieve active notebooks",
                 code="NOTEBOOK_FETCH_ERROR",
                 is_retryable=True,
-                suggested_fix="Tell the user to check if marimo server is running and accessible. Suggest restarting the server if they havent already tried that.",
+                suggested_fix="Tell the user to check if marimo server is running and accessible. Suggest restarting the server if they haven't already tried that.",
             ) from e
 
 
