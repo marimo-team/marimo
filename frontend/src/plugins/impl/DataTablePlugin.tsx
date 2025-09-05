@@ -282,7 +282,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       .input(
         z.object({
           sort: z
-            .object({ by: z.array(z.string()), descending: z.array(z.boolean()) })
+            .object({
+              by: z.array(z.string()),
+              descending: z.array(z.boolean()),
+            })
             .optional(),
           query: z.string().optional(),
           filters: z.array(ConditionSchema).optional(),
@@ -481,8 +484,8 @@ export const LoadingDataTableComponent = memo(
         sort:
           sorting.length > 0
             ? {
-                by: sorting.map(column => column.id),
-                descending: sorting.map(column => column.desc),
+                by: sorting.map((column) => column.id),
+                descending: sorting.map((column) => column.desc),
               }
             : undefined,
         query: searchQuery,
@@ -537,8 +540,8 @@ export const LoadingDataTableComponent = memo(
           sort:
             sorting.length > 0
               ? {
-                  by: sorting.map(column => column.id),
-                  descending: sorting.map(column => column.desc),
+                  by: sorting.map((column) => column.id),
+                  descending: sorting.map((column) => column.desc),
                 }
               : undefined,
           query: searchQuery,

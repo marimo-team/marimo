@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
-import type { Column, Table, SortingState } from "@tanstack/react-table";
+import type { Column, SortingState, Table } from "@tanstack/react-table";
 import {
   AlignJustifyIcon,
   ArrowDownWideNarrowIcon,
@@ -160,7 +160,10 @@ export function renderCopyColumn<TData, TValue>(column: Column<TData, TValue>) {
 const AscIcon = ArrowUpNarrowWideIcon;
 const DescIcon = ArrowDownWideNarrowIcon;
 
-export function renderSorts<TData, TValue>(column: Column<TData, TValue>, table?: Table<TData>) {
+export function renderSorts<TData, TValue>(
+  column: Column<TData, TValue>,
+  table?: Table<TData>,
+) {
   if (!column.getCanSort()) {
     return null;
   }
@@ -172,7 +175,9 @@ export function renderSorts<TData, TValue>(column: Column<TData, TValue>, table?
   if (tableFromColumn) {
     const sortingState: SortingState = tableFromColumn.getState().sorting;
     const currentSort = sortingState.find((s) => s.id === column.id);
-    const sortIndex = currentSort ? sortingState.indexOf(currentSort) + 1 : null;
+    const sortIndex = currentSort
+      ? sortingState.indexOf(currentSort) + 1
+      : null;
 
     return (
       <>

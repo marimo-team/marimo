@@ -104,7 +104,9 @@ class TestDefaultTable(unittest.TestCase):
         assert limited_manager.data == []
 
     def test_sort(self) -> None:
-        sorted_data = self.manager.sort_values(by=["name"], descending=[True]).data
+        sorted_data = self.manager.sort_values(
+            by=["name"], descending=[True]
+        ).data
         expected_data = [
             {"name": "Eve", "age": 22, "birth_year": date(2002, 1, 30)},
             {"name": "Dave", "age": 28, "birth_year": date(1996, 3, 5)},
@@ -172,7 +174,9 @@ class TestDefaultTable(unittest.TestCase):
         expected_data = [{"value": 3}, {"value": 2}, {"value": 1}]
         assert sorted_data == expected_data
         # reverse sort
-        sorted_data = manager.sort_values(by=["value"], descending=[False]).data
+        sorted_data = manager.sort_values(
+            by=["value"], descending=[False]
+        ).data
         expected_data = [{"value": 1}, {"value": 2}, {"value": 3}]
         assert sorted_data == expected_data
 
@@ -187,7 +191,9 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert sorted_data == expected_data
         # reverse sort
-        sorted_data = manager.sort_values(by=["value"], descending=[False]).data
+        sorted_data = manager.sort_values(
+            by=["value"], descending=[False]
+        ).data
         expected_data = [
             {"value": 1},
             {"value": 2},
@@ -205,7 +211,9 @@ class TestDefaultTable(unittest.TestCase):
         ]
         manager = DefaultTableManager(data)
 
-        sorted_data = manager.sort_values(by=["category", "name"], descending=[False, False]).data
+        sorted_data = manager.sort_values(
+            by=["category", "name"], descending=[False, False]
+        ).data
         expected_data = [
             {"category": 1, "name": "Alice"},
             {"category": 1, "name": "Charlie"},
@@ -222,7 +230,9 @@ class TestDefaultTable(unittest.TestCase):
         ]
         manager = DefaultTableManager(data)
 
-        sorted_data = manager.sort_values(by=["priority", "score"], descending=[False, True]).data
+        sorted_data = manager.sort_values(
+            by=["priority", "score"], descending=[False, True]
+        ).data
         expected_data = [
             {"priority": 1, "score": 90},
             {"priority": 1, "score": 85},
@@ -239,7 +249,9 @@ class TestDefaultTable(unittest.TestCase):
         ]
         manager = DefaultTableManager(data)
 
-        sorted_data = manager.sort_values(by=["group", "value"], descending=[False, False]).data
+        sorted_data = manager.sort_values(
+            by=["group", "value"], descending=[False, False]
+        ).data
         expected_data = [
             {"group": 1, "value": 10},
             {"group": 1, "value": None},
@@ -257,7 +269,9 @@ class TestDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
 
         # Should fall back to string comparison for mixed types
-        sorted_data = manager.sort_values(by=["id", "value"], descending=[False, False]).data
+        sorted_data = manager.sort_values(
+            by=["id", "value"], descending=[False, False]
+        ).data
         expected_data = [
             {"id": 1, "value": 42},
             {"id": 1, "value": "string"},
@@ -552,7 +566,9 @@ class TestColumnarDefaultTable(unittest.TestCase):
         assert limited_manager.data["name"] == []
 
     def test_sort(self) -> None:
-        sorted_data = self.manager.sort_values(by=["name"], descending=[True]).data
+        sorted_data = self.manager.sort_values(
+            by=["name"], descending=[True]
+        ).data
         expected_data = {
             "name": ["Eve", "Dave", "Charlie", "Bob", "Alice"],
             "age": [22, 28, 35, 25, 30],
@@ -607,7 +623,9 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         manager = DefaultTableManager(data)
 
-        sorted_data = manager.sort_values(by=["category", "name"], descending=[False, False]).data
+        sorted_data = manager.sort_values(
+            by=["category", "name"], descending=[False, False]
+        ).data
         expected_data = {
             "category": [1, 1, 2],
             "name": ["Bob", "Charlie", "Alice"],
@@ -622,7 +640,9 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         manager = DefaultTableManager(data)
 
-        sorted_data = manager.sort_values(by=["group", "value"], descending=[False, False]).data
+        sorted_data = manager.sort_values(
+            by=["group", "value"], descending=[False, False]
+        ).data
         expected_data = {
             "group": [1, 1, 2],
             "value": [10, None, 5],
@@ -930,7 +950,9 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         assert limited_manager.data == []
 
     def test_sort(self) -> None:
-        sorted_manager = self.manager.sort_values(by=["value"], descending=[True])
+        sorted_manager = self.manager.sort_values(
+            by=["value"], descending=[True]
+        )
         expected_data = [{"key": "b", "value": 2}, {"key": "a", "value": 1}]
         assert sorted_manager.data == expected_data
 
