@@ -16,6 +16,8 @@ export interface MissingPackageAlert {
 export interface InstallingPackageAlert {
   kind: "installing";
   packages: PackageInstallationStatus;
+  logs?: { [key: string]: string } | null;
+  log_status?: "append" | "start" | "done" | null;
 }
 
 export interface StartupLogsAlert {
@@ -45,24 +47,54 @@ interface AlertState {
     | Identified<InstallingPackageAlert>
     | null;
   startupLogsAlert: StartupLogsAlert | null;
+  packageLogs: { [packageName: string]: string };
 }
 
 const { valueAtom: alertAtom, useActions } = createReducerAndAtoms(
-  () => ({ packageAlert: null, startupLogsAlert: null }) as AlertState,
+  () =>
+    ({
+      packageAlert: null,
+      startupLogsAlert: null,
+      packageLogs: {},
+    }) as AlertState,
   {
     addPackageAlert: (
       state,
       alert: MissingPackageAlert | InstallingPackageAlert,
     ) => {
+      const newPackageLogs = { ...state.packageLogs };
+
+      // Handle streaming logs for installing package alerts
+      if (isInstallingPackageAlert(alert) && alert.logs && alert.log_status) {
+        for (const [packageName, newContent] of Object.entries(alert.logs)) {
+          if (alert.log_status === "start") {
+            // Start new log for this package
+            newPackageLogs[packageName] = newContent;
+          } else if (alert.log_status === "append") {
+            // Append to existing log
+            const prevContent = newPackageLogs[packageName] || "";
+            newPackageLogs[packageName] = prevContent + newContent;
+          } else if (alert.log_status === "done") {
+            // Append final content and mark as done
+            const prevContent = newPackageLogs[packageName] || "";
+            newPackageLogs[packageName] = prevContent + newContent;
+          }
+        }
+      }
+
+      const existingAlert = state.packageAlert;
+      const alertId = existingAlert?.id || generateUUID();
+
       return {
         ...state,
-        packageAlert: { id: generateUUID(), ...alert },
+        packageAlert: { id: alertId, ...alert },
+        packageLogs: newPackageLogs,
       };
     },
 
     clearPackageAlert: (state, id: string) => {
       return state.packageAlert !== null && state.packageAlert.id === id
-        ? { ...state, packageAlert: null }
+        ? { ...state, packageAlert: null, packageLogs: {} }
         : state;
     },
 

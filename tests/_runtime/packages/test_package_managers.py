@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from typing import Optional
+from unittest.mock import MagicMock, patch
+
 import pytest
 
+from marimo._runtime.packages.package_manager import LogCallback
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.pypi_package_manager import (
     PY_EXE,
@@ -262,7 +266,12 @@ async def test_uv_pip_install() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(self, command: list[str]) -> bool:
+        def run(
+            self,
+            command: list[str],
+            log_callback: Optional[LogCallback] = None,
+        ) -> bool:
+            del log_callback
             runs_calls.append(command)
             return True
 
@@ -271,3 +280,225 @@ async def test_uv_pip_install() -> None:
     assert runs_calls == [
         ["uv", "pip", "install", "--compile", "foo", "-p", PY_EXE],
     ]
+
+
+def test_log_callback_type() -> None:
+    """Test that LogCallback type works correctly."""
+    captured_logs = []
+
+    def test_callback(log_line: str) -> None:
+        captured_logs.append(log_line)
+
+    # Test type annotation works
+    callback: LogCallback = test_callback
+    callback("test log\n")
+
+    assert len(captured_logs) == 1
+    assert captured_logs[0] == "test log\n"
+
+
+def test_package_manager_run_without_callback() -> None:
+    """Test PackageManager.run without log callback (backward compatibility)."""
+    pm = PipPackageManager()
+
+    with (
+        patch("subprocess.run") as mock_run,
+        patch.object(pm, "is_manager_installed", return_value=True),
+    ):
+        mock_run.return_value.returncode = 0
+        result = pm.run(["echo", "test"])
+
+        assert result is True
+        mock_run.assert_called_once_with(["echo", "test"])
+
+
+def test_package_manager_run_with_callback() -> None:
+    """Test PackageManager.run with log callback streams output."""
+    pm = PipPackageManager()
+    captured_logs = []
+
+    def log_callback(log_line: str) -> None:
+        captured_logs.append(log_line)
+
+    mock_stdout_lines = [
+        "Installing package...\n",
+        "Successfully installed!\n",
+    ]
+
+    with (
+        patch("subprocess.Popen") as mock_popen,
+        patch("builtins.print") as mock_print,
+        patch.object(pm, "is_manager_installed", return_value=True),
+    ):
+        # Mock the subprocess.Popen to return our test output
+        mock_proc = MagicMock()
+        mock_proc.stdout.readline.side_effect = mock_stdout_lines + [
+            ""
+        ]  # End with empty string
+        mock_proc.wait.return_value = 0
+        mock_popen.return_value = mock_proc
+
+        result = pm.run(["echo", "test"], log_callback=log_callback)
+
+        assert result is True
+        assert captured_logs == mock_stdout_lines
+
+        # Verify print was called for terminal output
+        assert mock_print.call_count == len(mock_stdout_lines)
+        mock_print.assert_any_call("Installing package...")
+        mock_print.assert_any_call("Successfully installed!")
+
+
+def test_package_manager_run_with_callback_failure() -> None:
+    """Test PackageManager.run with log callback handles failure."""
+    pm = PipPackageManager()
+    captured_logs = []
+
+    def log_callback(log_line: str) -> None:
+        captured_logs.append(log_line)
+
+    with (
+        patch("subprocess.Popen") as mock_popen,
+        patch.object(pm, "is_manager_installed", return_value=True),
+    ):
+        mock_proc = MagicMock()
+        mock_proc.stdout.readline.side_effect = [
+            "Error occurred\n",
+            "",
+        ]  # End with empty string
+        mock_proc.wait.return_value = 1  # Non-zero return code
+        mock_popen.return_value = mock_proc
+
+        result = pm.run(["failing_command"], log_callback=log_callback)
+
+        assert result is False
+        assert captured_logs == ["Error occurred\n"]
+
+
+async def test_pip_install_with_log_callback() -> None:
+    """Test PipPackageManager._install with log callback."""
+    captured_logs = []
+
+    def log_callback(log_line: str) -> None:
+        captured_logs.append(log_line)
+
+    class MockPipPackageManager(PipPackageManager):
+        def run(
+            self,
+            command: list[str],
+            log_callback: Optional[LogCallback] = None,
+        ) -> bool:
+            del command
+            if log_callback:
+                log_callback("Installing numpy...\n")
+                log_callback("Successfully installed numpy\n")
+            return True
+
+    pm = MockPipPackageManager()
+    result = await pm._install(
+        "numpy", upgrade=False, log_callback=log_callback
+    )
+
+    assert result is True
+    assert captured_logs == [
+        "Installing numpy...\n",
+        "Successfully installed numpy\n",
+    ]
+
+
+async def test_uv_install_with_log_callback() -> None:
+    """Test UvPackageManager._install with log callback."""
+    captured_logs = []
+
+    def log_callback(log_line: str) -> None:
+        captured_logs.append(log_line)
+
+    class MockUvPackageManager(UvPackageManager):
+        def run(
+            self,
+            command: list[str],
+            log_callback: Optional[LogCallback] = None,
+        ) -> bool:
+            del command
+            if log_callback:
+                log_callback("Resolving dependencies...\n")
+                log_callback("Installing packages...\n")
+            return True
+
+    pm = MockUvPackageManager()
+    result = await pm._install(
+        "pandas", upgrade=False, log_callback=log_callback
+    )
+
+    assert result is True
+    assert captured_logs == [
+        "Resolving dependencies...\n",
+        "Installing packages...\n",
+    ]
+
+
+async def test_micropip_install_with_log_callback() -> None:
+    """Test MicropipPackageManager._install with log callback."""
+    captured_logs = []
+
+    def log_callback(log_line: str) -> None:
+        captured_logs.append(log_line)
+
+    pm = MicropipPackageManager()
+
+    with (
+        patch("marimo._utils.platform.is_pyodide", return_value=True),
+        patch("micropip.install") as mock_install,
+    ):
+        mock_install.return_value = None  # Successful install
+
+        result = await pm._install(
+            "requests", upgrade=False, log_callback=log_callback
+        )
+
+        assert result is True
+        assert len(captured_logs) == 2
+        assert "Installing requests with micropip" in captured_logs[0]
+        assert "Successfully installed requests" in captured_logs[1]
+
+
+async def test_package_manager_install_method_with_callback() -> None:
+    """Test PackageManager.install method passes log_callback to _install."""
+    captured_logs = []
+
+    def log_callback(log_line: str) -> None:
+        captured_logs.append(log_line)
+
+    class MockPackageManager(PipPackageManager):
+        async def _install(
+            self,
+            package: str,
+            *,
+            upgrade: bool,
+            log_callback: Optional[LogCallback] = None,
+        ) -> bool:
+            del upgrade
+            if log_callback:
+                log_callback(f"Installing {package}...\n")
+            return True
+
+    pm = MockPackageManager()
+    result = await pm.install(
+        "test-package", version="1.0.0", log_callback=log_callback
+    )
+
+    assert result is True
+    assert captured_logs == ["Installing test-package==1.0.0...\n"]
+
+
+def test_package_manager_run_manager_not_installed() -> None:
+    """Test PackageManager.run when manager is not installed."""
+    pm = PipPackageManager()
+
+    with patch.object(pm, "is_manager_installed", return_value=False):
+        result = pm.run(["test", "command"])
+        assert result is False
+
+        # Should also return False with log callback
+        result = pm.run(["test", "command"], log_callback=lambda _: None)
+        assert result is False

@@ -16,6 +16,7 @@ from marimo._runtime.packages.module_name_to_pypi_name import (
 )
 from marimo._runtime.packages.package_manager import (
     CanonicalizingPackageManager,
+    LogCallback,
     PackageDescription,
 )
 from marimo._runtime.packages.utils import split_packages
@@ -55,13 +56,19 @@ class PipPackageManager(PypiPackageManager):
     name = "pip"
     docs_url = "https://pip.pypa.io/"
 
-    async def _install(self, package: str, *, upgrade: bool) -> bool:
+    async def _install(
+        self,
+        package: str,
+        *,
+        upgrade: bool,
+        log_callback: Optional[LogCallback] = None,
+    ) -> bool:
         LOGGER.info(f"Installing {package} with pip")
         cmd = ["pip", "--python", PY_EXE, "install"]
         if upgrade:
             cmd.append("--upgrade")
         cmd.extend(split_packages(package))
-        return self.run(cmd)
+        return self.run(cmd, log_callback=log_callback)
 
     async def uninstall(self, package: str) -> bool:
         LOGGER.info(f"Uninstalling {package} with pip")
@@ -91,7 +98,13 @@ class MicropipPackageManager(PypiPackageManager):
     def is_manager_installed(self) -> bool:
         return is_pyodide()
 
-    async def _install(self, package: str, *, upgrade: bool) -> bool:
+    async def _install(
+        self,
+        package: str,
+        *,
+        upgrade: bool,
+        log_callback: Optional[LogCallback] = None,
+    ) -> bool:
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -104,9 +117,15 @@ class MicropipPackageManager(PypiPackageManager):
                 pass
 
         try:
+            if log_callback:
+                log_callback(f"Installing {package} with micropip...\n")
             await micropip.install(split_packages(package))
+            if log_callback:
+                log_callback(f"Successfully installed {package}\n")
             return True
-        except ValueError:
+        except ValueError as e:
+            if log_callback:
+                log_callback(f"Failed to install {package}: {e}\n")
             return False
 
     async def uninstall(self, package: str) -> bool:
@@ -145,7 +164,13 @@ class UvPackageManager(PypiPackageManager):
     def is_manager_installed(self) -> bool:
         return self._uv_bin != "uv" or super().is_manager_installed()
 
-    async def _install(self, package: str, *, upgrade: bool) -> bool:
+    async def _install(
+        self,
+        package: str,
+        *,
+        upgrade: bool,
+        log_callback: Optional[LogCallback] = None,
+    ) -> bool:
         install_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Installing in {package} with 'uv add'")
@@ -165,7 +190,9 @@ class UvPackageManager(PypiPackageManager):
 
         return self.run(
             # trade installation time for faster start time
-            install_cmd + ["--compile", *split_packages(package), "-p", PY_EXE]
+            install_cmd
+            + ["--compile", *split_packages(package), "-p", PY_EXE],
+            log_callback=log_callback,
         )
 
     def update_notebook_script_metadata(
@@ -440,12 +467,21 @@ class RyePackageManager(PypiPackageManager):
     name = "rye"
     docs_url = "https://rye.astral.sh/"
 
-    async def _install(self, package: str, *, upgrade: bool) -> bool:
+    async def _install(
+        self,
+        package: str,
+        *,
+        upgrade: bool,
+        log_callback: Optional[LogCallback] = None,
+    ) -> bool:
         if upgrade:
             return self.run(
-                ["rye", "sync", "--update", *split_packages(package)]
+                ["rye", "sync", "--update", *split_packages(package)],
+                log_callback=log_callback,
             )
-        return self.run(["rye", "add", *split_packages(package)])
+        return self.run(
+            ["rye", "add", *split_packages(package)], log_callback=log_callback
+        )
 
     async def uninstall(self, package: str) -> bool:
         return self.run(["rye", "remove", *split_packages(package)])
@@ -459,7 +495,13 @@ class PoetryPackageManager(PypiPackageManager):
     name = "poetry"
     docs_url = "https://python-poetry.org/docs/"
 
-    async def _install(self, package: str, *, upgrade: bool) -> bool:
+    async def _install(
+        self,
+        package: str,
+        *,
+        upgrade: bool,
+        log_callback: Optional[LogCallback] = None,
+    ) -> bool:
         if upgrade:
             return self.run(
                 [
@@ -467,11 +509,13 @@ class PoetryPackageManager(PypiPackageManager):
                     "update",
                     "--no-interaction",
                     *split_packages(package),
-                ]
+                ],
+                log_callback=log_callback,
             )
 
         return self.run(
-            ["poetry", "add", "--no-interaction", *split_packages(package)]
+            ["poetry", "add", "--no-interaction", *split_packages(package)],
+            log_callback=log_callback,
         )
 
     async def uninstall(self, package: str) -> bool:
