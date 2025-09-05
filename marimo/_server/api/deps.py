@@ -115,7 +115,7 @@ class AppStateBase:
     @property
     def mcp_handler(self) -> Optional[ASGIApp]:
         return getattr(self.state, "mcp_handler", None)
-      
+
     @property
     def asset_url(self) -> Optional[str]:
         return getattr(self.state, "asset_url", None)
