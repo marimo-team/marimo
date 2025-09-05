@@ -649,7 +649,7 @@ const ChatPanelBody = () => {
         return;
       }
 
-      setFiles([...files]);
+      setFiles((prev) => [...(prev ?? []), ...files]);
     },
   );
 

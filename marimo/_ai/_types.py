@@ -123,8 +123,10 @@ class ToolInvocationPart:
 
 @dataclass
 class FilePart:
+    """Represents a FileUIPart from the AI SDK."""
+
     type: Literal["file"]
-    media_type: Optional[str]
+    media_type: str
     filename: Optional[str]
     url: str
 
@@ -147,9 +149,11 @@ class ChatMessage(msgspec.Struct):
     content: Any
 
     # Optional attachments to the message.
+    # TODO: Deprecate in favour of parts
     attachments: Optional[list[ChatAttachment]] = None
 
-    # Optional parts from AI SDK. (see types above)
+    # Parts from AI SDK. (see types above)
+    # TODO: Make this required
     parts: Optional[list[ChatPart]] = None
 
 

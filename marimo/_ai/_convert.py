@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from marimo._ai._types import (
     ChatMessage,
     ChatPart,
+    FilePart,
     ReasoningPart,
     TextPart,
     ToolInvocationPart,
@@ -75,43 +76,29 @@ def convert_to_openai_messages(
     openai_messages: list[dict[Any, Any]] = []
 
     for message in messages:
-        # Handle message without attachments
-        if not message.attachments:
-            if not message.parts or len(message.parts) == 0:
-                openai_messages.append(
-                    {"role": message.role, "content": message.content}
-                )
-            else:
-                parts_messages = get_openai_messages_from_parts(
-                    message.role, message.parts
-                )
-                openai_messages.extend(parts_messages)
-            continue
-
         parts: list[dict[Any, Any]] = []
         if not message.parts or len(message.parts) == 0:
             parts.append({"type": "text", "text": message.content})
         else:
-            parts_dict = [asdict(part) for part in message.parts]
-            parts.extend(parts_dict)
-
-        # Handle attachments
-        for attachment in message.attachments:
-            content_type = attachment.content_type or "text/plain"
-
-            if content_type.startswith("image"):
-                parts.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": attachment.url},
-                    }
-                )
-            elif content_type.startswith("text"):
-                parts.append(
-                    {"type": "text", "text": _extract_text(attachment.url)}
-                )
-            else:
-                raise ValueError(f"Unsupported content type {content_type}")
+            for part in message.parts:
+                if isinstance(part, FilePart):
+                    if part.media_type.startswith("image"):
+                        parts.append(
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": part.url},
+                            }
+                        )
+                    elif part.media_type.startswith("text"):
+                        parts.append(
+                            {"type": "text", "text": _extract_text(part.url)}
+                        )
+                    else:
+                        raise ValueError(
+                            f"Unsupported content type {part.media_type}"
+                        )
+                else:
+                    parts.append(asdict(part))
 
         openai_messages.append({"role": message.role, "content": parts})
 
