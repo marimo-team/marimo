@@ -97,14 +97,14 @@ def test_from_request():
 
     request_like = HTTPRequest.from_request(mock_request)
 
-    assert request_like["url"] == {
-        "path": "/test",
-        "port": 8000,
-        "scheme": "http",
-        "netloc": "localhost:8000",
-        "query": "param1=value1&param2=value2",
-        "hostname": "localhost",
-    }
+    assert request_like["url"] == UrlParts(
+        path="/test",
+        port=8000,
+        scheme="http",
+        netloc="localhost:8000",
+        query="param1=value1&param2=value2",
+        hostname="localhost",
+    )
 
     assert request_like["headers"] == {
         "content-type": "application/json",
