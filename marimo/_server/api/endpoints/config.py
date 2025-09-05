@@ -1,13 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 from starlette.authentication import requires
 from starlette.background import BackgroundTask
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
+from marimo._config.config import PartialMarimoConfig
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._runtime.requests import SetUserConfigRequest
 from marimo._server.api.deps import AppState
@@ -53,7 +54,11 @@ async def save_user_config(
     body = await parse_request(
         request, cls=SaveUserConfigurationRequest, allow_unknown_keys=True
     )
-    config = app_state.config_manager.save_config(body.config)
+    # TODO: we may want to validate deep-partial here, but validating with PartialMarimoConfig it too strict
+    # so we just cast to PartialMarimoConfig
+    config = app_state.config_manager.save_config(
+        cast(PartialMarimoConfig, body.config)
+    )
 
     background_task: Optional[BackgroundTask] = None
     # Update the server's view of the config
