@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict
+from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
     Optional,
-    TypedDict,
     TypeVar,
     Union,
 )
@@ -36,31 +37,19 @@ Primitive = Union[str, bool, int, float]
 SerializedCLIArgs = dict[str, ListOrValue[Primitive]]
 
 
-class UrlParts(TypedDict):
-    """Mapping of parsed URL components."""
-
-    path: str
-    port: Union[int, None]
-    scheme: str
-    netloc: str
-    query: str
-    hostname: Union[str, None]
-
-
-class HTTPRequest(msgspec.Struct, rename="camel"):
+@dataclass
+class HTTPRequest(Mapping[str, Any]):
     """
     A class that mimics the Request object from Starlette or FastAPI.
 
     It is a subset and pickle-able version of the Request object.
     """
 
-    url: UrlParts  # Serialized URL
-    base_url: UrlParts  # Serialized URL
+    url: dict[str, Any]  # Serialized URL
+    base_url: dict[str, Any]  # Serialized URL
     headers: dict[str, str]  # Raw headers
     query_params: dict[str, list[str]]  # Raw query params
-    path_params: dict[
-        str, Union[str, int, float]
-    ]  # https://www.starlette.io/routing/#path-parameters
+    path_params: dict[str, Any]
     cookies: dict[str, str]
     meta: dict[str, Any]
     user: Any
@@ -72,31 +61,42 @@ class HTTPRequest(msgspec.Struct, rename="camel"):
     # auth: Any
 
     def __getitem__(self, key: str) -> Any:
-        return getattr(self, key)
+        return self.__dict__[key]
 
     def __iter__(self) -> Iterator[str]:
-        return iter(field.name for field in msgspec.structs.fields(self))
+        return iter(self.__dict__)
 
     def __len__(self) -> int:
-        return len(msgspec.structs.fields(self))
+        return len(self.__dict__)
 
     def _display_(self) -> Any:
-        return msgspec.to_builtins(self)
+        try:
+            import dataclasses
+
+            return dataclasses.asdict(self)
+        except TypeError:
+            return self.__dict__
 
     def __repr__(self) -> str:
         return f"HTTPRequest(path={self.url['path']}, params={len(self.query_params)})"
 
     @staticmethod
     def from_request(request: HTTPConnection) -> HTTPRequest:
-        def to_url_parts(url: URL) -> UrlParts:
-            return UrlParts(
-                path=url.path,
-                port=url.port,
-                scheme=url.scheme,
-                netloc=url.netloc,
-                query=url.query,
-                hostname=url.hostname,
-            )
+        def _url_to_dict(url: URL) -> dict[str, Any]:
+            return {
+                "path": url.path,
+                "port": url.port,
+                "scheme": url.scheme,
+                "netloc": url.netloc,
+                "query": url.query,
+                "hostname": url.hostname,
+            }
+
+        # Convert URL to dict
+        url_dict = _url_to_dict(request.url)
+
+        # Convert base_url to dict
+        base_url_dict = _url_to_dict(request.base_url)
 
         # Convert query params to dict[str, list[str]]
         query_params: dict[str, list[str]] = defaultdict(list)
@@ -110,8 +110,8 @@ class HTTPRequest(msgspec.Struct, rename="camel"):
                 headers[k] = v
 
         return HTTPRequest(
-            url=to_url_parts(request.url),
-            base_url=to_url_parts(request.base_url),
+            url=url_dict,
+            base_url=base_url_dict,
             headers=headers,
             query_params=query_params,
             path_params=request.path_params,

@@ -196,9 +196,9 @@ class TestExecutionRoutes_EditMode:
                 "codes": [
                     "import marimo as mo\n"
                     "import json\n"
-                    "request = mo.app_meta().request.__dict__\n"
-                    # "request['user'] = bool(request['user'])\n"  # user is not serializable
-                    "print(json.dumps(list(request.keys())))"
+                    "request = dict(mo.app_meta().request)\n"
+                    "request['user'] = bool(request['user'])\n"  # user is not serializable
+                    "print(json.dumps(request))"
                 ],
             },
         )
@@ -211,7 +211,7 @@ class TestExecutionRoutes_EditMode:
 
         # Check keys
         app_meta_response = get_printed_object(client, "test-1")
-        assert app_meta_response == {
+        assert set(app_meta_response.keys()) == {
             "base_url",
             "cookies",
             "headers",
@@ -386,6 +386,7 @@ class TestExecutionRoutes_RunMode:
             "cookies",
             "headers",
             "user",
+            "meta",
             "path_params",
             "query_params",
             "url",

@@ -3188,26 +3188,26 @@ export interface components {
       cellIds: string[];
       codes: string[];
       /** @default null */
-      request?: null | components["schemas"]["HTTPRequest"];
+      request?: components["schemas"]["HTTPRequest"] | null;
       timestamp?: number;
     };
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
       code: string;
       /** @default null */
-      request?: null | components["schemas"]["HTTPRequest"];
+      request?: components["schemas"]["HTTPRequest"] | null;
     };
     /** ExecuteStaleRequest */
     ExecuteStaleRequest: {
       /** @default null */
-      request?: null | components["schemas"]["HTTPRequest"];
+      request?: components["schemas"]["HTTPRequest"] | null;
     };
     /** ExecutionRequest */
     ExecutionRequest: {
       cellId: string;
       code: string;
       /** @default null */
-      request?: null | components["schemas"]["HTTPRequest"];
+      request?: components["schemas"]["HTTPRequest"] | null;
       timestamp?: number;
     };
     /** ExportAsHTMLRequest */
@@ -3393,28 +3393,28 @@ export interface components {
     GoogleAiConfig: {
       api_key?: string;
     };
-    /**
-     * HTTPRequest
-     * @description A class that mimics the Request object from Starlette or FastAPI.
-     *
-     *     It is a subset and pickle-able version of the Request object.
-     */
     HTTPRequest: {
-      baseUrl: components["schemas"]["UrlParts"];
+      baseUrl: {
+        [key: string]: unknown;
+      };
       cookies: {
         [key: string]: string;
       };
       headers: {
         [key: string]: string;
       };
-      meta: Record<string, any>;
+      meta: {
+        [key: string]: unknown;
+      };
       pathParams: {
-        [key: string]: string | number;
+        [key: string]: unknown;
       };
       queryParams: {
         [key: string]: string[];
       };
-      url: components["schemas"]["UrlParts"];
+      url: {
+        [key: string]: unknown;
+      };
       user: unknown;
     };
     /**
@@ -3802,7 +3802,7 @@ export interface components {
     PdbRequest: {
       cellId: string;
       /** @default null */
-      request?: null | components["schemas"]["HTTPRequest"];
+      request?: components["schemas"]["HTTPRequest"] | null;
     };
     /**
      * PreviewDataSourceConnectionRequest
@@ -3930,7 +3930,7 @@ export interface components {
       cellIds: string[];
       codes: string[];
       /** @default null */
-      request?: null | components["schemas"]["HTTPRequest"];
+      request?: components["schemas"]["HTTPRequest"] | null;
     };
     /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
@@ -4138,7 +4138,7 @@ export interface components {
     SetUIElementValueRequest: {
       objectIds: string[];
       /** @default null */
-      request?: null | components["schemas"]["HTTPRequest"];
+      request?: components["schemas"]["HTTPRequest"] | null;
       token?: string;
       values: unknown[];
     };
@@ -4260,14 +4260,6 @@ export interface components {
     UpdateComponentValuesRequest: {
       objectIds: string[];
       values: unknown[];
-    };
-    UrlParts: {
-      hostname: string | null;
-      netloc: string;
-      path: string;
-      port: number | null;
-      query: string;
-      scheme: string;
     };
     /** VariableContext */
     VariableContext: {

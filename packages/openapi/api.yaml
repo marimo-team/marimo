@@ -1118,8 +1118,8 @@ components:
           type: array
         request:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
           default: null
         timestamp:
           type: number
@@ -1134,8 +1134,8 @@ components:
           type: string
         request:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
           default: null
       required:
       - code
@@ -1145,8 +1145,8 @@ components:
       properties:
         request:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
           default: null
       required: []
       title: ExecuteStaleRequest
@@ -1159,8 +1159,8 @@ components:
           type: string
         request:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
           default: null
         timestamp:
           type: number
@@ -1520,13 +1520,10 @@ components:
       title: GoogleAiConfig
       type: object
     HTTPRequest:
-      description: 'A class that mimics the Request object from Starlette or FastAPI.
-
-
-        It is a subset and pickle-able version of the Request object.'
       properties:
         baseUrl:
-          $ref: '#/components/schemas/UrlParts'
+          additionalProperties: {}
+          type: object
         cookies:
           additionalProperties:
             type: string
@@ -1536,13 +1533,10 @@ components:
             type: string
           type: object
         meta:
+          additionalProperties: {}
           type: object
         pathParams:
-          additionalProperties:
-            anyOf:
-            - type: string
-            - type: integer
-            - type: number
+          additionalProperties: {}
           type: object
         queryParams:
           additionalProperties:
@@ -1551,7 +1545,8 @@ components:
             type: array
           type: object
         url:
-          $ref: '#/components/schemas/UrlParts'
+          additionalProperties: {}
+          type: object
         user: {}
       required:
       - url
@@ -1562,7 +1557,6 @@ components:
       - cookies
       - meta
       - user
-      title: HTTPRequest
       type: object
     HumanReadableStatus:
       description: Human-readable status.
@@ -2296,8 +2290,8 @@ components:
           type: string
         request:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
           default: null
       required:
       - cellId
@@ -2546,8 +2540,8 @@ components:
           type: array
         request:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
           default: null
       required:
       - cellIds
@@ -2930,8 +2924,8 @@ components:
           type: array
         request:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
           default: null
         token:
           type: string
@@ -3167,30 +3161,6 @@ components:
       - objectIds
       - values
       title: UpdateComponentValuesRequest
-      type: object
-    UrlParts:
-      properties:
-        hostname:
-          nullable: true
-          type: string
-        netloc:
-          type: string
-        path:
-          type: string
-        port:
-          nullable: true
-          type: integer
-        query:
-          type: string
-        scheme:
-          type: string
-      required:
-      - path
-      - port
-      - scheme
-      - netloc
-      - query
-      - hostname
       type: object
     VariableContext:
       properties:

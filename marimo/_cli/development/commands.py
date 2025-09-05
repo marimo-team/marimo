@@ -209,7 +209,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.InvokeAiToolResponse,
         requests.CodeCompletionRequest,
         requests.DeleteCellRequest,
-        requests.UrlParts,
         requests.HTTPRequest,
         requests.ExecuteMultipleRequest,
         requests.ExecuteScratchpadRequest,
