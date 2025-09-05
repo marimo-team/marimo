@@ -70,6 +70,7 @@ from marimo._server.session.serialize import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
+from marimo._server.types import ProcessLike
 from marimo._server.utils import print_, print_tabbed
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._utils.disposable import Disposable
@@ -175,7 +176,7 @@ class KernelManager:
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
     ) -> None:
-        self.kernel_task: Optional[threading.Thread | mp.Process] = None
+        self.kernel_task: Optional[ProcessLike | threading.Thread] = None
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
@@ -300,10 +301,14 @@ class KernelManager:
         return self.kernel_task is not None and self.kernel_task.is_alive()
 
     def interrupt_kernel(self) -> None:
-        if (
-            isinstance(self.kernel_task, mp.Process)
-            and self.kernel_task.pid is not None
-        ):
+        if self.kernel_task is None:
+            return
+
+        if isinstance(self.kernel_task, threading.Thread):
+            # no interruptions in run mode
+            return
+
+        if self.kernel_task.pid is not None:
             q = self.queue_manager.win32_interrupt_queue
             if sys.platform == "win32" and q is not None:
                 LOGGER.debug("Queueing interrupt request for kernel.")
@@ -315,7 +320,14 @@ class KernelManager:
     def close_kernel(self) -> None:
         assert self.kernel_task is not None, "kernel not started"
 
-        if isinstance(self.kernel_task, mp.Process):
+        if isinstance(self.kernel_task, threading.Thread):
+            # in run mode
+            if self.kernel_task.is_alive():
+                # We don't join the kernel thread because we don't want to server
+                # to block on it finishing
+                self.queue_manager.control_queue.put(requests.StopRequest())
+        else:
+            # otherwise we have something that is `ProcessLike`
             if self.profile_path is not None and self.kernel_task.is_alive():
                 self.queue_manager.control_queue.put(requests.StopRequest())
                 # Hack: Wait for kernel to exit and write out profile;
@@ -334,10 +346,6 @@ class KernelManager:
                 self.kernel_task.terminate()
             if self._read_conn is not None:
                 self._read_conn.close()
-        elif self.kernel_task.is_alive():
-            # We don't join the kernel thread because we don't want to server
-            # to block on it finishing
-            self.queue_manager.control_queue.put(requests.StopRequest())
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
