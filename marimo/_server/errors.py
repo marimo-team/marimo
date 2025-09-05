@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import msgspec
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
@@ -72,6 +73,8 @@ async def handle_error(request: Request, response: Any) -> Any:
             return JSONResponse({"detail": str(response)}, status_code=500)
         except Exception as e:
             LOGGER.warning(f"Failed to send missing package alert: {e}")
+    if isinstance(response, msgspec.ValidationError):
+        return JSONResponse({"detail": str(response)}, status_code=400)
     if isinstance(response, NotImplementedError):
         return JSONResponse({"detail": "Not supported"}, status_code=501)
     if isinstance(response, TypeError):

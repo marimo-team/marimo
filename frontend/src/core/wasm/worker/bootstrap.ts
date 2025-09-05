@@ -6,6 +6,7 @@ import type { JsonString } from "@/utils/json/base64";
 import { invariant } from "../../../utils/invariant";
 import { Logger } from "../../../utils/Logger";
 import { WasmFileSystem } from "./fs";
+import { getMarimoWheel } from "./getMarimoWheel";
 import { t } from "./tracer";
 import type { SerializedBridge, WasmController } from "./types";
 
@@ -57,7 +58,8 @@ export class DefaultWasmController implements WasmController {
         // Perf: These get loaded while pyodide is being bootstrapped
         packages: [
           "micropip",
-          "marimo-base",
+          "msgspec",
+          getMarimoWheel(opts.version),
           "Markdown",
           "pymdown-extensions",
           "narwhals",

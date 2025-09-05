@@ -13,6 +13,12 @@ describe("sqlCode", () => {
     source: "local",
     source_type: "local",
     type: "table",
+    engine: null,
+    indexes: null,
+    num_columns: null,
+    num_rows: null,
+    variable_name: null,
+    primary_keys: null,
   };
   const mockColumn = {
     name: "email" as const,

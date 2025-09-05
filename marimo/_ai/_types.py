@@ -4,7 +4,9 @@ from __future__ import annotations
 import abc
 import mimetypes
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict, Union
+
+import msgspec
 
 
 class ChatAttachmentDict(TypedDict):
@@ -127,11 +129,13 @@ class FilePart:
     url: str
 
 
-ChatPart = Union[TextPart, ReasoningPart, ToolInvocationPart, FilePart]
+if TYPE_CHECKING:
+    ChatPart = Union[TextPart, ReasoningPart, ToolInvocationPart, FilePart]
+else:
+    ChatPart = dict[str, Any]
 
 
-@dataclass
-class ChatMessage:
+class ChatMessage(msgspec.Struct):
     """
     A message in a chat.
     """
@@ -140,7 +144,7 @@ class ChatMessage:
     role: Literal["user", "assistant", "system"]
 
     # The content of the message.
-    content: object
+    content: Any
 
     # Optional attachments to the message.
     attachments: Optional[list[ChatAttachment]] = None

@@ -492,7 +492,6 @@ class StoreConfig(TypedDict, total=False):
 CacheConfig = Union[list[StoreConfig], StoreConfig]
 
 
-@dataclass
 class ExperimentalConfig(TypedDict, total=False):
     """
     Configuration for experimental features.
@@ -515,7 +514,7 @@ class ExperimentalConfig(TypedDict, total=False):
 
 # Prefer to accept any dict since feature flags can change frequently
 # But maintain type safety for known flags
-ExperimentalConfigType = Union[dict[str, Any], ExperimentalConfig]
+ExperimentalConfigType = dict[str, Any]
 
 
 @mddoc

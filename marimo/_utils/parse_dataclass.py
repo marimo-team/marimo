@@ -12,10 +12,14 @@ from typing import (
     Optional,
     TypeVar,
     Union,
+    cast,
     get_args,
     get_origin,
     get_type_hints,
 )
+
+import msgspec
+import msgspec.json
 
 # Import NotRequired from typing_extensions for Python < 3.11
 if sys.version_info < (3, 11):
@@ -191,7 +195,7 @@ class DataclassParser:
 
 
 def parse_raw(
-    message: Union[bytes, dict[Any, Any]],
+    message: Union[bytes, str, dict[Any, Any]],
     cls: type[T],
     allow_unknown_keys: bool = False,
 ) -> T:
@@ -213,11 +217,28 @@ def parse_raw(
 
         Transforms all fields in the parsed JSON from camel case to snake case.
     """
-    # If it is a dict, it is already parsed and we can just build the
-    # dataclass.
-    if isinstance(message, dict):
-        return DataclassParser(allow_unknown_keys).build_dataclass(
-            message, cls
+    # Previous behavior (before using msgspec). Our DataClassParser handles
+    # non-discrimated unions, unlike msgspec, so we use dataclasses for non-discrimated
+    # union types. We could move off if we changed the over-the-wire types to have
+    # a tag, but that would require updating the front end.
+    if dataclasses.is_dataclass(cls):
+        if isinstance(message, dict):
+            return cast(
+                "T",
+                DataclassParser(allow_unknown_keys).build_dataclass(
+                    message, cls
+                ),
+            )
+        parsed = json.loads(message)
+        return cast(
+            "T",
+            DataclassParser(allow_unknown_keys).build_dataclass(parsed, cls),
         )
-    parsed = json.loads(message)
-    return DataclassParser(allow_unknown_keys).build_dataclass(parsed, cls)
+
+    # If it is a dict, it is already parsed and we can just build the dataclass.
+    if isinstance(message, dict):
+        return msgspec.convert(message, type=cls)
+
+    return msgspec.json.decode(
+        message, strict=not allow_unknown_keys, type=cls
+    )

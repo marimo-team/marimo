@@ -96,7 +96,7 @@ def test_move_file_or_directory(client: TestClient) -> None:
         headers=HEADERS,
         json={
             "path": test_file_path,
-            "new_path": os.path.join(test_dir, "renamed.txt"),
+            "newPath": os.path.join(test_dir, "renamed.txt"),
         },
     )
     assert response.status_code == 200, response.text

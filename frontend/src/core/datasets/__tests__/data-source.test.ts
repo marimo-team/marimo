@@ -258,6 +258,9 @@ describe("add table list", () => {
       {
         name: "table1",
         columns: [],
+        num_columns: 0,
+        num_rows: 0,
+        variable_name: null,
         source: "",
         source_type: "local",
         type: "table",
@@ -286,6 +289,9 @@ describe("add table list", () => {
       {
         name: "table2",
         columns: [],
+        num_columns: 0,
+        num_rows: 0,
+        variable_name: null,
         source: "",
         source_type: "local",
         type: "table",
@@ -303,6 +309,9 @@ describe("add table list", () => {
       {
         name: "table1",
         columns: [],
+        num_columns: 0,
+        num_rows: 0,
+        variable_name: null,
         source: "",
         source_type: "local",
         type: "table",
@@ -323,6 +332,9 @@ describe("add table list", () => {
       {
         name: "table2",
         columns: [],
+        num_columns: 0,
+        num_rows: 0,
+        variable_name: null,
         source: "",
         source_type: "local",
         type: "table",
@@ -387,6 +399,9 @@ describe("add table", () => {
       source: "",
       source_type: "local",
       type: "table",
+      num_columns: 0,
+      num_rows: 0,
+      variable_name: null,
     };
     const newState = addTable(table, {
       engine: "conn1" as ConnectionName,
@@ -410,6 +425,9 @@ describe("add table", () => {
     const table: DataTable = {
       name: "table1",
       columns: [],
+      num_columns: 0,
+      num_rows: 0,
+      variable_name: null,
       source: "",
       source_type: "local",
       type: "table",
@@ -428,6 +446,9 @@ describe("add table", () => {
       source: "new_source",
       source_type: "local",
       type: "table",
+      num_columns: 0,
+      num_rows: 0,
+      variable_name: null,
     };
 
     const updatedState = addTable(updatedTable, sqlTableContext);
@@ -444,6 +465,9 @@ describe("add table", () => {
     const table: DataTable = {
       name: "table2",
       columns: [],
+      num_columns: 0,
+      num_rows: 0,
+      variable_name: null,
       source: "",
       source_type: "local",
       type: "table",

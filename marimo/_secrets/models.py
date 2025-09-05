@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Literal
+
+import msgspec
 
 SecretProviderType = Literal["env", "dotenv"]
 
 
-@dataclass
-class SecretKeysWithProvider:
+class SecretKeysWithProvider(msgspec.Struct):
     provider: SecretProviderType
     name: str
     keys: list[str]

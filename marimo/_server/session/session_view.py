@@ -106,15 +106,8 @@ class SessionView:
 
     def add_raw_operation(self, raw_operation: Any) -> None:
         self._touch()
-
-        # parse_raw only accepts a dataclass, so we wrap MessageOperation in a
-        # dataclass.
-        @dataclass
-        class _Container:
-            operation: MessageOperation
-
-        operation = parse_raw({"operation": raw_operation}, _Container)
-        self.add_operation(operation.operation)
+        # Type ignore because MessageOperation is a Union, not a class
+        self.add_operation(parse_raw(raw_operation, cls=MessageOperation))  # type: ignore[arg-type]
 
     def add_control_request(self, request: ControlRequest) -> None:
         self._touch()

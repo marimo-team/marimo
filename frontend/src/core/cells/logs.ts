@@ -56,7 +56,7 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
       CellLogLogger.log({
         level: "stderr",
         cellId: cell.cell_id as CellId,
-        timestamp: cell.timestamp,
+        timestamp: cell.timestamp ?? 0,
         message: JSON.stringify(error),
       });
     });

@@ -7,6 +7,7 @@ from unittest.mock import patch
 from marimo._ast.cell import RuntimeStateType
 from marimo._data.models import DataTable, DataTableColumn
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.ops import (
     CellOp,
     Datasets,
@@ -19,7 +20,6 @@ from marimo._messaging.ops import (
     Variables,
     VariableValue,
     VariableValues,
-    serialize,
 )
 from marimo._runtime.requests import (
     CreationRequest,
@@ -117,8 +117,8 @@ def test_session_view_variable_values() -> None:
     # Create VariableValues operation
     variable_values_op = VariableValues(
         variables=[
-            VariableValue(name="var1", value=1),
-            VariableValue(name="var2", value="hello"),
+            VariableValue.create(name="var1", value=1),
+            VariableValue.create(name="var2", value="hello"),
         ]
     )
     session_view.add_operation(variable_values_op)
@@ -255,7 +255,7 @@ def test_last_run_code() -> None:
 
 
 def test_serialize_parse_variable_value() -> None:
-    original = VariableValue(name="var1", value=1)
+    original = VariableValue.create(name="var1", value=1)
     serialized = serialize(original)
     assert serialized == {"datatype": "int", "name": "var1", "value": "1"}
     parsed = parse_raw(serialized, VariableValue)
@@ -283,8 +283,8 @@ def test_add_variables() -> None:
         serialize(
             VariableValues(
                 variables=[
-                    VariableValue(name="var1", value=1),
-                    VariableValue(name="var2", value="hello"),
+                    VariableValue.create(name="var1", value=1),
+                    VariableValue.create(name="var2", value="hello"),
                 ]
             )
         )
@@ -483,18 +483,21 @@ def test_add_data_source_connections() -> None:
                         dialect="duckdb",
                         name="db1",
                         display_name="duckdb (db1)",
+                        databases=[],
                     ),
                     DataSourceConnection(
                         source="sqlalchemy",
                         dialect="postgresql",
                         name="pg1",
                         display_name="postgresql (pg1)",
+                        databases=[],
                     ),
                     DataSourceConnection(
                         source="duckdb",
                         dialect="default",
                         name=INTERNAL_DUCKDB_ENGINE,
                         display_name="duckdb internal",
+                        databases=[],
                     ),
                 ]
             )
@@ -517,12 +520,14 @@ def test_add_data_source_connections() -> None:
                         dialect="duckdb",
                         name="db1",
                         display_name="duckdb (db1_updated)",
+                        databases=[],
                     ),
                     DataSourceConnection(
                         source="sqlalchemy",
                         dialect="mysql",
                         name="mysql1",
                         display_name="mysql (mysql1)",
+                        databases=[],
                     ),
                 ]
             )

@@ -119,7 +119,7 @@ class ThreadSafeStream(Stream):
         # stdin messages are pulled from this queue
         self.input_queue = input_queue
 
-    def write(self, op: str, data: dict[Any, Any]) -> None:
+    def write(self, op: str, data: bytes) -> None:
         with self.stream_lock:
             try:
                 self.pipe.send((op, data))

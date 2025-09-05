@@ -17,7 +17,8 @@ def read_toml(file_path: Union[str, Path]) -> dict[str, Any]:
         import tomlkit
 
         with open(file_path, "rb") as file:
-            return tomlkit.load(file)
+            # Use unwrap() to convert tomlkit types to Python built-ins
+            return tomlkit.load(file).unwrap()
     else:
         import tomllib
 
@@ -32,7 +33,8 @@ def read_toml_string(s: str) -> dict[str, Any]:
     if DependencyManager.tomlkit.has():
         import tomlkit
 
-        return tomlkit.loads(s)
+        # Use unwrap() to convert tomlkit types to Python built-ins
+        return tomlkit.loads(s).unwrap()
     else:
         import tomllib
 

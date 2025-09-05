@@ -664,6 +664,9 @@ describe("tablesCompletionSource", () => {
                   source: "duckdb",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "id",
@@ -690,6 +693,9 @@ describe("tablesCompletionSource", () => {
                   source: "duckdb",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "order_id",
@@ -763,6 +769,9 @@ describe("tablesCompletionSource", () => {
                   source: "postgres",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "col1",
@@ -788,6 +797,9 @@ describe("tablesCompletionSource", () => {
                   source: "postgres",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "col2",
@@ -856,6 +868,9 @@ describe("tablesCompletionSource", () => {
                   source: "postgres",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "col1",
@@ -875,6 +890,9 @@ describe("tablesCompletionSource", () => {
                   source: "postgres",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "col2",
@@ -900,6 +918,9 @@ describe("tablesCompletionSource", () => {
                   source: "postgres",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "col2",
@@ -925,6 +946,9 @@ describe("tablesCompletionSource", () => {
                   source: "postgres",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "col2",
@@ -1002,6 +1026,9 @@ describe("tablesCompletionSource", () => {
                   source: "postgres",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "id",
@@ -1070,6 +1097,9 @@ describe("tablesCompletionSource", () => {
                   source: "postgres",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [],
                 },
               ],
@@ -1109,6 +1139,9 @@ describe("tablesCompletionSource", () => {
                   source: "postgres",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "id",
@@ -1134,6 +1167,9 @@ describe("tablesCompletionSource", () => {
                   source: "postgres",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "order_id",
@@ -1279,6 +1315,9 @@ describe("tablesCompletionSource", () => {
                         source: "postgres",
                         source_type: "local",
                         type: "table",
+                        num_columns: 0,
+                        num_rows: 0,
+                        variable_name: null,
                         columns: [
                           {
                             name: "id",
@@ -1469,6 +1508,9 @@ describe("tablesCompletionSource", () => {
                   source: "duckdb",
                   source_type: "local",
                   type: "table",
+                  num_columns: 0,
+                  num_rows: 0,
+                  variable_name: null,
                   columns: [
                     {
                       name: "col1",
@@ -1613,6 +1655,9 @@ const mockConnection: DataSourceConnection = {
               source: "duckdb",
               source_type: "local",
               type: "table",
+              num_columns: 0,
+              num_rows: 0,
+              variable_name: null,
               columns: [
                 {
                   name: "col1",

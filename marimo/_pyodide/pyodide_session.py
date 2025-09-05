@@ -3,16 +3,19 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import dataclasses
 import json
 import re
 import signal
+import typing
 from pathlib import Path
 from typing import Any, Callable, TypeVar
+
+import msgspec
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig, merge_default_config
+from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.restartable_task import RestartableTask
 from marimo._pyodide.streams import (
@@ -67,7 +70,6 @@ from marimo._server.models.models import (
 from marimo._server.session.session_view import SessionView
 from marimo._snippets.snippets import read_snippets
 from marimo._types.ids import CellId_t
-from marimo._utils.case import deep_to_camel_case
 from marimo._utils.formatter import DefaultFormatter
 from marimo._utils.inline_script_metadata import PyProjectReader
 from marimo._utils.parse_dataclass import parse_raw
@@ -209,11 +211,21 @@ class PyodideBridge:
         self.file_system = OSFileSystem()
 
     def put_control_request(self, request: str) -> None:
-        @dataclasses.dataclass
-        class Container:
-            body: requests.ControlRequest
+        # Hack: msgspec only supports discriminated unions. This is a hack to just
+        # iterate through possible ControlRequest variants and decode until one works.
+        parsed = None
+        for ControlRequestType in typing.get_args(requests.ControlRequest):
+            try:
+                parsed = parse_raw(request, cls=ControlRequestType)
+                break  # success
+            except msgspec.DecodeError:
+                continue
 
-        parsed = parse_raw({"body": json.loads(request)}, Container).body
+        if parsed is None:
+            raise msgspec.DecodeError(
+                f"Could not decode ControlRequest as any of {typing.get_args(requests.ControlRequest)}"
+            )
+
         self.session.put_control_request(parsed)
 
     def put_input(self, text: str) -> None:
@@ -350,10 +362,10 @@ class PyodideBridge:
         return json.dumps(md)
 
     def _parse(self, request: str, cls: type[T]) -> T:
-        return parse_raw(json.loads(request), cls)
+        return parse_raw(request, cls)
 
     def _dump(self, response: Any) -> str:
-        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+        return encode_json_str(response)
 
 
 def _launch_pyodide_kernel(

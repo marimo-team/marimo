@@ -31,7 +31,7 @@ class TestExecutionRoutes_EditMode:
             "/api/kernel/set_ui_element_value",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
             },
         )
@@ -46,9 +46,9 @@ class TestExecutionRoutes_EditMode:
             "/api/kernel/instantiate",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
-                "auto_run": True,
+                "autoRun": True,
             },
         )
         assert response.status_code == 200, response.text
@@ -62,9 +62,9 @@ class TestExecutionRoutes_EditMode:
             "/api/kernel/instantiate",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
-                "auto_run": False,
+                "autoRun": False,
             },
         )
         assert response.status_code == 200, response.text
@@ -78,9 +78,9 @@ class TestExecutionRoutes_EditMode:
             "/api/kernel/function_call",
             headers=HEADERS,
             json={
-                "function_call_id": "call-123",
+                "functionCallId": "call-123",
                 "namespace": "namespace1",
-                "function_name": "function1",
+                "functionName": "function1",
                 "args": {"arg1": "value1"},
             },
         )
@@ -95,10 +95,10 @@ class TestExecutionRoutes_EditMode:
             "/api/kernel/set_model_value",
             headers=HEADERS,
             json={
-                "model_id": "model-1",
+                "modelId": "model-1",
                 "message": {
                     "state": {"key": "value"},
-                    "buffer_paths": [["a"], ["b"]],
+                    "bufferPaths": [["a"], ["b"]],
                 },
                 "buffers": ["buffer1", "buffer2"],
             },
@@ -139,7 +139,7 @@ class TestExecutionRoutes_EditMode:
             "/api/kernel/run",
             headers=HEADERS,
             json={
-                "cell_ids": ["cell-1", "cell-2"],
+                "cellIds": ["cell-1", "cell-2"],
                 "codes": ["print('Hello, cell-1')", "print('Hello, cell-2')"],
             },
         )
@@ -192,7 +192,7 @@ class TestExecutionRoutes_EditMode:
             "/api/kernel/run",
             headers=HEADERS,
             json={
-                "cell_ids": ["test-1"],
+                "cellIds": ["test-1"],
                 "codes": [
                     "import marimo as mo\n"
                     "import json\n"
@@ -238,7 +238,7 @@ class TestExecutionRoutes_RunMode:
             "/api/kernel/set_ui_element_value",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
             },
         )
@@ -253,9 +253,9 @@ class TestExecutionRoutes_RunMode:
             "/api/kernel/instantiate",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
-                "auto_run": True,
+                "autoRun": True,
             },
         )
         assert response.status_code == 200, response.text
@@ -269,9 +269,9 @@ class TestExecutionRoutes_RunMode:
             "/api/kernel/instantiate",
             headers=HEADERS,
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
-                "auto_run": False,
+                "autoRun": False,
             },
         )
         assert response.status_code == 200, response.text
@@ -285,9 +285,9 @@ class TestExecutionRoutes_RunMode:
             "/api/kernel/function_call",
             headers=HEADERS,
             json={
-                "function_call_id": "call-123",
+                "functionCallId": "call-123",
                 "namespace": "namespace1",
-                "function_name": "function1",
+                "functionName": "function1",
                 "args": {"arg1": "value1"},
             },
         )
@@ -302,10 +302,10 @@ class TestExecutionRoutes_RunMode:
             "/api/kernel/set_model_value",
             headers=HEADERS,
             json={
-                "model_id": "model-1",
+                "modelId": "model-1",
                 "message": {
                     "state": {"key": "value"},
-                    "buffer_paths": [["a"], ["b"]],
+                    "bufferPaths": [["a"], ["b"]],
                 },
                 "buffers": ["buffer1", "buffer2"],
             },
@@ -333,7 +333,7 @@ class TestExecutionRoutes_RunMode:
             "/api/kernel/run",
             headers=HEADERS,
             json={
-                "cell_ids": ["cell-1", "cell-2"],
+                "cellIds": ["cell-1", "cell-2"],
                 "codes": ["print('Hello, cell-1')", "print('Hello, cell-2')"],
             },
         )
@@ -357,12 +357,12 @@ class TestExecutionRoutes_RunMode:
 
     @staticmethod
     @with_session(SESSION_ID)
-    def with_read_session(client: TestClient) -> None:
+    def test_app_meta_request(client: TestClient) -> None:
         response = client.post(
             "/api/kernel/run",
             headers=HEADERS,
             json={
-                "cell_ids": ["test-1"],
+                "cellIds": ["test-1"],
                 "codes": [
                     "import marimo as mo\n"
                     "import json\n"
@@ -386,6 +386,7 @@ class TestExecutionRoutes_RunMode:
             "cookies",
             "headers",
             "user",
+            "meta",
             "path_params",
             "query_params",
             "url",
@@ -416,5 +417,10 @@ def get_printed_object(
         if console:
             break
     assert console
+    if console.mimetype in (
+        "application/vnd.marimo+error",
+        "application/vnd.marimo+traceback",
+    ):
+        pytest.fail(f"Console is an error: {console.data}")
     assert isinstance(console.data, str)
     return json.loads(console.data)
