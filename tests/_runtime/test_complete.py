@@ -5,7 +5,7 @@ import threading
 from collections.abc import Mapping
 from inspect import signature
 from types import ModuleType
-from typing import Any
+from typing import Any, cast
 from unittest import mock
 
 import jedi
@@ -470,8 +470,11 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
         stream=local_stream,
     )
 
+    import json
+
     messages = local_stream.messages
     message_name, content = messages[0]
+    content = json.loads(cast(bytes, content).decode("utf-8"))
     prefix_length = content["prefix_length"]
     options = content["options"]
     options_values = [option["name"] for option in options]

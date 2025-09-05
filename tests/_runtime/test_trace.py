@@ -4,7 +4,9 @@ import re
 import subprocess
 import sys
 import textwrap
+from typing import Any, cast
 
+from marimo._messaging.types import KernelMessage
 from marimo._runtime.requests import (
     ExecutionRequest,
 )
@@ -258,24 +260,34 @@ class TestAppTrace:
                 ),
             ]
         )
+
         # Runtime error expected- since not a kernel error check stderr
+
+        def msg_as_dict(msg: KernelMessage) -> dict[str, Any]:
+            import json
+
+            return json.loads(msg[1].decode("utf-8"))
+
+        stream_messages = cast(list[KernelMessage], k.stream.messages)
+        stderr_messages = cast(list[KernelMessage], k.stderr.messages)
+
         assert "C" not in k.globals
         if k.execution_type == "strict":
             assert (
                 "name `R` is referenced before definition."
-                in k.stream.messages[-4][1]["output"]["data"][0]["msg"]
+                in msg_as_dict(stream_messages[-4])["output"]["data"][0]["msg"]
             )
             assert (
                 "This cell wasn't run"
-                in k.stream.messages[-1][1]["output"]["data"][0]["msg"]
+                in msg_as_dict(stream_messages[-1])["output"]["data"][0]["msg"]
             )
         else:
             assert (
                 "Name `C` is not defined."
-                in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
+                in msg_as_dict(stream_messages[-2])["output"]["data"][0]["msg"]
             )
-            assert "NameError" in k.stderr.messages[0]
-            assert "NameError" in k.stderr.messages[-1]
+            assert "NameError" in stderr_messages[0]
+            assert "NameError" in stderr_messages[-1]
 
 
 class TestEmbedTrace:

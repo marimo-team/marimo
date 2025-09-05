@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
     Any,
@@ -20,6 +20,7 @@ from typing import (
 import pytest
 
 from marimo._config.config import ExperimentalConfigType
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._runtime.requests import SetCellConfigRequest
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
