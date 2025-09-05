@@ -22,8 +22,6 @@ from marimo._server.api.endpoints.files import router as files_router
 from marimo._server.api.endpoints.health import router as health_router
 from marimo._server.api.endpoints.home import router as home_router
 from marimo._server.api.endpoints.login import router as login_router
-
-# from marimo._server.api.endpoints.mcp import router as mcp_router
 from marimo._server.api.endpoints.packages import router as packages_router
 from marimo._server.api.endpoints.secrets import router as secrets_router
 from marimo._server.api.endpoints.terminal import router as terminal_router
