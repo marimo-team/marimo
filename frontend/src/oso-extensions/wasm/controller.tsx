@@ -180,6 +180,7 @@ export class DefaultWasmController implements WasmController {
 
     // We minimally need pyoso 0.6.4 for wasm support
     foundPackages.add("pyoso>=0.6.4")
+    foundPackages.add("openai==1.106.1")
 
     if (code.includes("mo.sql")) {
       // We need pandas and duckdb for mo.sql
