@@ -19,6 +19,7 @@ from marimo._server.ai.providers import (
     OpenAIProvider,
     without_wrapping_backticks,
 )
+from marimo._server.ai.tools.types import ToolResult
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
@@ -1018,7 +1019,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test successful tool invocation."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()
@@ -1067,7 +1067,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test tool invocation with error."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()
@@ -1113,7 +1112,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test tool invocation when tool doesn't exist."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()
@@ -1153,7 +1151,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test tool invocation with validation error."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()
@@ -1197,7 +1194,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test tool invocation with complex argument types."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()
@@ -1273,7 +1269,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test tool invocation with empty arguments."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()

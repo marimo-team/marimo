@@ -14,7 +14,7 @@ from marimo._ai._types import (
     TextPart,
     ToolInvocationPart,
 )
-from marimo._server.ai.tools import Tool
+from marimo._server.ai.tools.types import Tool
 
 if TYPE_CHECKING:
     from anthropic.types.message_param import (  # type: ignore[import-not-found]

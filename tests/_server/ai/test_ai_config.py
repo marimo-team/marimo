@@ -24,7 +24,7 @@ from marimo._server.ai.config import (
     get_edit_model,
     get_max_tokens,
 )
-from marimo._server.ai.tools import Tool
+from marimo._server.ai.tools.types import Tool
 from marimo._server.api.status import HTTPStatus
 
 
