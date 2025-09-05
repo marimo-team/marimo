@@ -20,7 +20,7 @@ import {
 
 // Mock context item for testing
 interface MockContextItem extends AIContextItem {
-  type: "mock";
+  type: "mock" | "attachment";
   data: {
     value: string;
     needsAttachment?: boolean;
@@ -731,7 +731,7 @@ describe("AIContextRegistry", () => {
       const itemWithAttachment: MockContextItem = {
         uri: "attachment://item1" as ContextLocatorId,
         name: "item1",
-        type: "mock",
+        type: "attachment",
         description: "Item with attachment",
         data: { needsAttachment: true, value: "test1" },
       };
@@ -739,7 +739,7 @@ describe("AIContextRegistry", () => {
       const itemWithoutAttachment: MockContextItem = {
         uri: "attachment://item2" as ContextLocatorId,
         name: "item2",
-        type: "mock",
+        type: "attachment",
         description: "Item without attachment",
         data: { needsAttachment: false, value: "test2" },
       };
@@ -820,7 +820,7 @@ describe("AIContextRegistry", () => {
         const multiItem1: MockContextItem = {
           uri: "attachment://multi1" as ContextLocatorId,
           name: "multi1",
-          type: "mock",
+          type: "attachment",
           description: "Multi item 1",
           data: { needsAttachment: true, value: "multi1" },
         };
@@ -828,7 +828,7 @@ describe("AIContextRegistry", () => {
         const multiItem2: MockContextItem = {
           uri: "attachment://multi2" as ContextLocatorId,
           name: "multi2",
-          type: "mock",
+          type: "attachment",
           description: "Multi item 2",
           data: { needsAttachment: true, value: "multi2" },
         };
@@ -860,7 +860,7 @@ describe("AIContextRegistry", () => {
           {
             uri: "attachment://error-item" as ContextLocatorId,
             name: "error-item",
-            type: "mock",
+            type: "attachment",
             description: "Item that causes error",
             data: { needsAttachment: true, value: "error" },
           },

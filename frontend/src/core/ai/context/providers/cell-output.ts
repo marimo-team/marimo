@@ -275,12 +275,12 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
   formatContext(item: CellOutputContextItem): string {
     const { data } = item;
 
-    const contextData: any = {
+    const contextData = {
       name: data.cellName,
       cellId: data.cellId,
       outputType: data.outputType,
       mimetype: data.output.mimetype,
-    };
+    } as const;
 
     let details = `Cell Code:\n${data.cellCode}\n\n`;
 

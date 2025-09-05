@@ -225,7 +225,12 @@ export class AIContextRegistry<T extends AIContextItem> {
         if (!provider) {
           return [];
         }
-        return provider.getAttachments(items);
+        try {
+          return await provider.getAttachments(items);
+        } catch (error) {
+          Logger.error("Error getting attachments from provider", error);
+          return [];
+        }
       },
     );
 

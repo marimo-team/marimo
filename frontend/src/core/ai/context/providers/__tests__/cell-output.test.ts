@@ -1,11 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { NotebookState } from "@/core/cells/cells";
-import type { CellId } from "@/core/cells/ids";
-import type { OutputMessage } from "@/core/kernel/messages";
-import type { JotaiStore } from "@/core/state/jotai";
-import { CellOutputContextProvider } from "../cell-output";
+import { Mocks } from "@/__mocks__/common";
 
 // Mock the external dependencies
 vi.mock("html-to-image", () => ({
@@ -13,23 +9,14 @@ vi.mock("html-to-image", () => ({
 }));
 
 vi.mock("@/utils/Logger", () => ({
-  Logger: {
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
+  Logger: Mocks.quietLogger(),
 }));
 
-vi.mock("@/core/cells/names", () => ({
-  displayCellName: vi.fn(
-    (name: string, index: number) => name || `cell-${index + 1}`,
-  ),
-}));
-
-vi.mock("@/core/cells/outputs", () => ({
-  isOutputEmpty: vi.fn(
-    (output) => !output || output.data === null || output.data === undefined,
-  ),
-}));
+import type { NotebookState } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import type { OutputMessage } from "@/core/kernel/messages";
+import type { JotaiStore } from "@/core/state/jotai";
+import { CellOutputContextProvider } from "../cell-output";
 
 // Test helper to create mock store
 function createMockStore(notebook: NotebookState): JotaiStore {
@@ -145,7 +132,7 @@ describe("CellOutputContextProvider", () => {
       expect(item1?.data.cellName).toBe("My Cell");
       expect(item1?.data.cellCode).toBe("print('hello world')");
 
-      expect(item2?.data.cellName).toBe("cell-2");
+      expect(item2?.data.cellName).toBe("cell-1");
       expect(item2?.data.cellCode).toBe(
         "import matplotlib.pyplot as plt\nplt.plot([1,2,3])",
       );
@@ -178,7 +165,7 @@ describe("CellOutputContextProvider", () => {
       const context = provider.formatContext(mediaItem);
 
       expect(context).toContain("cell-output");
-      expect(context).toContain("cell-2");
+      expect(context).toContain("cell-1");
       expect(context).toContain("Cell Code:");
       expect(context).toContain("import matplotlib.pyplot as plt");
       expect(context).toContain("Media Output: Contains image/png content");
@@ -337,7 +324,7 @@ describe("Cell output utility functions", () => {
 
       global.document = {
         createElement: vi.fn().mockReturnValue(mockDiv),
-      } as any;
+      } as unknown as Document;
 
       const mockNotebook = {
         cellIds: { inOrderIds: [] },
@@ -359,7 +346,9 @@ describe("Cell output utility functions", () => {
         innerText: "Hello world!",
       };
 
-      (global.document.createElement as any).mockReturnValue(mockDiv);
+      (
+        global.document.createElement as ReturnType<typeof vi.fn>
+      ).mockReturnValue(mockDiv);
 
       mockStore = createMockStore({
         cellIds: { inOrderIds: ["test" as CellId] },
