@@ -122,6 +122,12 @@ class file_browser(
             files. Defaults to True.
         restrict_navigation (bool, optional): If True, prevent the user from
             navigating any level above the given path. Defaults to False.
+        ignore_empty_dirs (bool, optional): If True, hide directories that contain
+            no files (recursively). Directories are scanned up to 100 levels deep
+            to prevent stack overflow from deeply nested structures. Directory
+            symlinks are skipped during traversal to prevent infinite loops. 
+            Filetype filtering is applied recursively and is case-insensitive. 
+            This may impact performance for large directory trees. Defaults to False.
         limit (int, optional): Maximum number of files to display.
             If None (default), automatically chooses 50 for cloud storage (S3, GCS, Azure)
             or 10000 for local filesystems. Set explicitly to override defaults.
@@ -133,18 +139,19 @@ class file_browser(
     _name: Final[str] = "marimo-file-browser"
 
     def __init__(
-        self,
-        initial_path: Union[str, Path] = "",
-        filetypes: Optional[Sequence[str]] = None,
-        selection_mode: Literal["file", "directory"] = "file",
-        multiple: bool = True,
-        restrict_navigation: bool = False,
-        *,
-        limit: Optional[int] = None,
-        label: str = "",
-        on_change: Optional[
-            Callable[[Sequence[FileBrowserFileInfo]], None]
-        ] = None,
+            self,
+            initial_path: Union[str, Path] = "",
+            filetypes: Optional[Sequence[str]] = None,
+            selection_mode: Literal["file", "directory"] = "file",
+            multiple: bool = True,
+            restrict_navigation: bool = False,
+            *,
+            limit: Optional[int] = None,
+            label: str = "",
+            on_change: Optional[
+                Callable[[Sequence[FileBrowserFileInfo]], None]
+            ] = None,
+            ignore_empty_dirs: bool = False,
     ) -> None:
         validate_one_of(selection_mode, ["file", "directory"])
 
@@ -162,8 +169,20 @@ class file_browser(
             )
 
         self._selection_mode = selection_mode
-        self._filetypes: set[str] = set(filetypes) if filetypes else set()
+        # Normalize filetypes: ensure lowercase and dot prefix for case-insensitive matching
+        if filetypes:
+            normalized_filetypes = set()
+            for ft in filetypes:
+                ft_lower = ft.lower()
+                # Ensure dot prefix
+                if not ft_lower.startswith('.'):
+                    ft_lower = f'.{ft_lower}'
+                normalized_filetypes.add(ft_lower)
+            self._filetypes = normalized_filetypes
+        else:
+            self._filetypes = set()
         self._restrict_navigation = restrict_navigation
+        self._ignore_empty_dirs = ignore_empty_dirs
         self._initial_path: Path = initial_path
 
         self._path_cls: type[Path]
@@ -215,8 +234,51 @@ class file_browser(
         path = self._path_cls(path_str, **kwargs)
         return path
 
+    def _has_files_recursive(self, directory: Path, max_depth: int = 100) -> bool:
+        """Check if directory contains any files (recursively).
+        
+        Returns True if the directory contains at least one file (not directory),
+        either directly or in any subdirectory. Returns False if the directory
+        contains only empty subdirectories or is empty.
+        
+        Safety features:
+        - Directory symlinks are skipped to prevent infinite loops
+        - Recursion is limited to max_depth to prevent stack overflow
+        - Permission errors are handled gracefully (assumes directory has files)
+        - Filetype filtering is applied case-insensitively if configured
+        
+        Args:
+            directory: The directory path to check
+            max_depth: Maximum recursion depth to prevent stack overflow from deeply 
+                      nested directories. When limit is reached, assumes directory has files for safety.
+            
+        Returns:
+            bool: True if directory has files, False if empty or contains only empty dirs
+        """
+        if max_depth <= 0:
+            # Reached maximum depth, assume directory might have files to be safe
+            return True
+            
+        try:
+            for item in directory.iterdir():
+                if item.is_file():
+                    # Apply filetype filter if specified (case-insensitive)
+                    if self._filetypes and item.suffix.lower() not in self._filetypes:
+                        continue
+                    return True
+                elif item.is_dir() and not item.is_symlink():
+                    # Skip directory symlinks to avoid infinite loops
+                    # Recursively check subdirectories with decremented depth
+                    if self._has_files_recursive(item, max_depth - 1):
+                        return True
+            return False
+        except (PermissionError, OSError):
+            # If we can't access the directory, assume it's not empty
+            # to avoid hiding potentially accessible subdirectories
+            return True
+
     def _list_directory(
-        self, args: ListDirectoryArgs
+            self, args: ListDirectoryArgs
     ) -> ListDirectoryResponse:
         # When navigation is restricted, the navigated-to path cannot be
         # be a parent of the initial path
@@ -248,9 +310,14 @@ class file_browser(
             if self._selection_mode == "directory" and not is_directory:
                 continue
 
-            # Skip non-matching file types
+            # Skip non-matching file types (case-insensitive)
             if self._filetypes and not is_directory:
-                if extension not in self._filetypes:
+                if extension.lower() not in self._filetypes:
+                    continue
+
+            # Skip empty directories if ignore_empty_dirs is enabled
+            if self._ignore_empty_dirs and is_directory:
+                if not self._has_files_recursive(file):
                     continue
 
             file_info = TypedFileBrowserFileInfo(
@@ -280,7 +347,7 @@ class file_browser(
         )
 
     def _convert_value(
-        self, value: list[TypedFileBrowserFileInfo]
+            self, value: list[TypedFileBrowserFileInfo]
     ) -> Sequence[FileBrowserFileInfo]:
         return tuple(
             FileBrowserFileInfo(
