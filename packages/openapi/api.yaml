@@ -1058,6 +1058,37 @@ components:
       required:
       - path
       type: object
+    FileSearchRequest:
+      properties:
+        depth:
+          type: integer
+        limit:
+          type: integer
+        path:
+          nullable: true
+          type: string
+        query:
+          type: string
+      required:
+      - query
+      - depth
+      - limit
+      type: object
+    FileSearchResponse:
+      properties:
+        files:
+          items:
+            $ref: '#/components/schemas/FileInfo'
+          type: array
+        query:
+          type: string
+        totalFound:
+          type: integer
+      required:
+      - files
+      - query
+      - totalFound
+      type: object
     FileUpdateRequest:
       properties:
         contents:
@@ -2835,7 +2866,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.15.0
+  version: 0.15.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -3159,6 +3190,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseResponse'
           description: Open a file in the system editor
+  /api/files/search:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileSearchRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileSearchResponse'
+          description: Search for files and directories matching a query
   /api/files/update:
     post:
       requestBody:
