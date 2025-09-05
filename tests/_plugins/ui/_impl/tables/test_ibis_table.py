@@ -222,7 +222,7 @@ class TestIbisTableManagerFactory(unittest.TestCase):
     def test_sort_values(self) -> None:
         import ibis
 
-        sorted_manager = self.manager.sort_values("A", descending=True)
+        sorted_manager = self.manager.sort_values(["A"], descending=[True])
         expected_df = self.data.order_by(ibis.desc("A"))
         assert sorted_manager.data.to_pandas().equals(expected_df.to_pandas())
 
@@ -318,7 +318,7 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         manager = self.factory.create()(table)
 
         # Descending true
-        sorted_manager = manager.sort_values("A", descending=True)
+        sorted_manager = manager.sort_values(["A"], descending=[True])
         sorted_data = sorted_manager.data.to_pandas()["A"].tolist()
         assert sorted_data[0:3] == [
             3.0,
@@ -328,7 +328,7 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert np.isnan(sorted_data[3])
 
         # Descending false
-        sorted_manager = manager.sort_values("A", descending=False)
+        sorted_manager = manager.sort_values(["A"], descending=[False])
         sorted_data = sorted_manager.data.to_pandas()["A"].tolist()
         assert sorted_data[0:3] == [
             1.0,

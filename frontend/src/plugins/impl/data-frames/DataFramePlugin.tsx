@@ -56,8 +56,8 @@ type PluginFunctions = {
   }>;
   search: <T>(req: {
     sort?: {
-      by: string;
-      descending: boolean;
+      by: string[];
+      descending: boolean[];
     };
     query?: string;
     filters?: ConditionType[];
@@ -110,7 +110,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
       .input(
         z.object({
           sort: z
-            .object({ by: z.string(), descending: z.boolean() })
+            .object({ by: z.array(z.string()), descending: z.array(z.boolean()) })
             .optional(),
           query: z.string().optional(),
           filters: z.array(ConditionSchema).optional(),

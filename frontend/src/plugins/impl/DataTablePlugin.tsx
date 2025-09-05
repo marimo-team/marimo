@@ -196,8 +196,8 @@ type DataTableFunctions = {
   ) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
     sort?: {
-      by: string;
-      descending: boolean;
+      by: string[];
+      descending: boolean[];
     };
     query?: string;
     filters?: ConditionType[];
@@ -282,7 +282,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       .input(
         z.object({
           sort: z
-            .object({ by: z.string(), descending: z.boolean() })
+            .object({ by: z.array(z.string()), descending: z.array(z.boolean()) })
             .optional(),
           query: z.string().optional(),
           filters: z.array(ConditionSchema).optional(),
@@ -476,17 +476,13 @@ export const LoadingDataTableComponent = memo(
         !props.lazy &&
         !pageSizeChanged;
 
-      if (sorting.length > 1) {
-        Logger.warn("Multiple sort columns are not supported");
-      }
-
       // If we have sort/search/filter, use the search function
       const searchResultsPromise = search<T>({
         sort:
           sorting.length > 0
             ? {
-                by: sorting[0].id,
-                descending: sorting[0].desc,
+                by: sorting.map(column => column.id),
+                descending: sorting.map(column => column.desc),
               }
             : undefined,
         query: searchQuery,
@@ -541,8 +537,8 @@ export const LoadingDataTableComponent = memo(
           sort:
             sorting.length > 0
               ? {
-                  by: sorting[0].id,
-                  descending: sorting[0].desc,
+                  by: sorting.map(column => column.id),
+                  descending: sorting.map(column => column.desc),
                 }
               : undefined,
           query: searchQuery,

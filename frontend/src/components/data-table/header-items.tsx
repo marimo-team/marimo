@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
-import type { Column } from "@tanstack/react-table";
+import type { Column, Table, SortingState } from "@tanstack/react-table";
 import {
   AlignJustifyIcon,
   ArrowDownWideNarrowIcon,
@@ -14,6 +14,7 @@ import {
   ListFilterPlusIcon,
   PinOffIcon,
   WrapTextIcon,
+  XIcon,
 } from "lucide-react";
 import {
   DropdownMenuItem,
@@ -159,25 +160,87 @@ export function renderCopyColumn<TData, TValue>(column: Column<TData, TValue>) {
 const AscIcon = ArrowUpNarrowWideIcon;
 const DescIcon = ArrowDownWideNarrowIcon;
 
-export function renderSorts<TData, TValue>(column: Column<TData, TValue>) {
+export function renderSorts<TData, TValue>(column: Column<TData, TValue>, table?: Table<TData>) {
   if (!column.getCanSort()) {
     return null;
   }
 
+  // Try to get table from column (TanStack Table should provide this)
+  const tableFromColumn = (column as any).table || table;
+
+  // If table is available (either passed or from column), use full multi-column sort functionality
+  if (tableFromColumn) {
+    const sortingState: SortingState = tableFromColumn.getState().sorting;
+    const currentSort = sortingState.find((s) => s.id === column.id);
+    const sortIndex = currentSort ? sortingState.indexOf(currentSort) + 1 : null;
+
+    return (
+      <>
+        <DropdownMenuItem onClick={() => column.toggleSorting(false, true)}>
+          <AscIcon className="mo-dropdown-icon" />
+          Sort Ascending
+          {sortIndex && currentSort && !currentSort.desc && (
+            <span className="ml-auto text-xs bg-blue-100 text-blue-800 px-1 rounded">
+              {sortIndex}
+            </span>
+          )}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => column.toggleSorting(true, true)}>
+          <DescIcon className="mo-dropdown-icon" />
+          Sort Descending
+          {sortIndex && currentSort && currentSort.desc && (
+            <span className="ml-auto text-xs bg-blue-100 text-blue-800 px-1 rounded">
+              {sortIndex}
+            </span>
+          )}
+        </DropdownMenuItem>
+        {currentSort && (
+          <DropdownMenuItem onClick={() => column.clearSorting()}>
+            <XIcon className="mo-dropdown-icon" />
+            Remove Sort
+            <span className="ml-auto text-xs bg-red-100 text-red-800 px-1 rounded">
+              {sortIndex}
+            </span>
+          </DropdownMenuItem>
+        )}
+        {sortingState.length > 0 && (
+          <DropdownMenuItem onClick={() => tableFromColumn.resetSorting()}>
+            <FilterX className="mo-dropdown-icon" />
+            Clear All Sorts
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+      </>
+    );
+  }
+
+  // Fallback to simple sorting if table not provided
+  const isSorted = column.getIsSorted();
+
   return (
     <>
-      <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
+      <DropdownMenuItem onClick={() => column.toggleSorting(false, true)}>
         <AscIcon className="mo-dropdown-icon" />
-        Asc
+        Sort Ascending
+        {isSorted === "asc" && (
+          <span className="ml-auto text-xs bg-blue-100 text-blue-800 px-1 rounded">
+            ✓
+          </span>
+        )}
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
+      <DropdownMenuItem onClick={() => column.toggleSorting(true, true)}>
         <DescIcon className="mo-dropdown-icon" />
-        Desc
+        Sort Descending
+        {isSorted === "desc" && (
+          <span className="ml-auto text-xs bg-blue-100 text-blue-800 px-1 rounded">
+            ✓
+          </span>
+        )}
       </DropdownMenuItem>
-      {column.getIsSorted() && (
+      {isSorted && (
         <DropdownMenuItem onClick={() => column.clearSorting()}>
-          <ChevronsUpDown className="mo-dropdown-icon" />
-          Clear sort
+          <XIcon className="mo-dropdown-icon" />
+          Remove Sort
         </DropdownMenuItem>
       )}
       <DropdownMenuSeparator />

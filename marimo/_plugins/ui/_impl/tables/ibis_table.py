@@ -331,12 +331,18 @@ class IbisTableManagerFactory(TableManagerFactory):
                 return []
 
             def sort_values(
-                self, by: ColumnName, descending: bool
+                self, by: list[ColumnName], descending: list[bool]
             ) -> IbisTableManager:
-                sorted_data = self.data.order_by(
-                    ibis.desc(by) if descending else ibis.asc(by)
-                )
-                return IbisTableManager(sorted_data)
+                if not by:
+                    return self
+
+                # Create order_by expressions with the appropriate direction
+                order_by_exprs = [
+                    ibis.desc(col) if desc else ibis.asc(col)
+                    for col, desc in zip(by, descending)
+                ]
+
+                return IbisTableManager(self.data.order_by(order_by_exprs))
 
             @functools.lru_cache(maxsize=5)  # noqa: B019
             def calculate_top_k_rows(
