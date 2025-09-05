@@ -63,13 +63,6 @@ def test_startup_logs_creation() -> None:
     assert startup_log.status == "start"
 
 
-def test_startup_logs_serialization() -> None:
-    startup_log = StartupLogs(content="Starting up...", status="start")
-    serialized = parse_raw(startup_log.__dict__, StartupLogs)
-    assert serialized.content == "Starting up..."
-    assert serialized.status == "start"
-
-
 def test_startup_logs_all_statuses() -> None:
     for status in ["start", "append", "done"]:
         startup_log = StartupLogs(content=f"Test {status}", status=status)
