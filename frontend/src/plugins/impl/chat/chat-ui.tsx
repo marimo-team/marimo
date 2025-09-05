@@ -76,7 +76,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     const messages: UIMessage[] = chatMessages.messages.map((message, idx) => ({
       id: idx.toString(),
       role: message.role,
-      parts: [{ type: "text", text: message.content }],
+      parts: message.parts ?? [],
     }));
     return messages;
   }, []);
@@ -103,13 +103,15 @@ export const Chatbot: React.FC<Props> = (props) => {
           messages: UIMessage[];
         };
         try {
+          const messages = body.messages.map((m) => ({
+            role: m.role,
+            content: m.parts
+              ?.map((p) => ("text" in p ? p.text : ""))
+              .join("\n"),
+            parts: m.parts,
+          }));
           const response = await props.send_prompt({
-            messages: body.messages.map((m) => ({
-              role: m.role,
-              content: m.parts
-                ?.map((p) => ("text" in p ? p.text : ""))
-                .join("\n"),
-            })),
+            messages: messages,
             config: {
               max_tokens: config.max_tokens,
               temperature: config.temperature,
@@ -119,6 +121,15 @@ export const Chatbot: React.FC<Props> = (props) => {
               presence_penalty: config.presence_penalty,
             },
           });
+          // Update local state with AI response
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              parts: [{ type: "text", text: response }],
+            },
+          ]);
           return new Response(response);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
@@ -290,17 +301,11 @@ export const Chatbot: React.FC<Props> = (props) => {
               <div
                 className={`max-w-[80%] p-3 rounded-lg ${
                   message.role === "user"
-                    ? "bg-(--sky-11) text-(--slate-1)"
+                    ? "bg-(--sky-11) text-(--slate-1) whitespace-pre-wrap"
                     : "bg-(--slate-4) text-(--slate-12)"
                 }`}
               >
-                <p
-                  className={cn(
-                    message.role === "user" && "whitespace-pre-wrap",
-                  )}
-                >
-                  {renderMessage(message)}
-                </p>
+                {renderMessage(message)}
               </div>
               <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
                 <button
@@ -352,11 +357,12 @@ export const Chatbot: React.FC<Props> = (props) => {
       </div>
       <form
         onSubmit={async (evt) => {
+          evt.preventDefault();
+
           const fileParts = files
             ? await convertToFileUIPart(files)
             : undefined;
 
-          evt.preventDefault();
           sendMessage({
             role: "user",
             parts: [{ type: "text", text: input }, ...(fileParts ?? [])],
@@ -401,7 +407,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         {files && files.length === 1 && (
           <span
             title={files[0].name}
-            className="text-sm text-(--slate-11) truncate shrink-0 w-24"
+            className="text-sm text-(--slate-11) truncate shrink-0 w-fit max-w-24"
           >
             {files[0].name}
           </span>

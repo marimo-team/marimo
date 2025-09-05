@@ -80,7 +80,10 @@ const DEFAULT_MODE = "manual";
 
 // We need to modify the backend to support attachments for other providers
 // And other types
-const PROVIDERS_THAT_SUPPORT_ATTACHMENTS = new Set<ProviderId>(["openai"]);
+const PROVIDERS_THAT_SUPPORT_ATTACHMENTS = new Set<ProviderId>([
+  "openai",
+  "google",
+]);
 const SUPPORTED_ATTACHMENT_TYPES = ["image/*", "text/*"];
 const MAX_ATTACHMENT_SIZE = 1024 * 1024 * 50; // 50MB
 

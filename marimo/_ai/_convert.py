@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         MessageParam,
     )
     from google.genai.types import (  # type: ignore[import-not-found]
+        BlobDict,
         ContentDict,
         ContentUnionDict,
         PartDict,
@@ -283,6 +284,20 @@ def get_google_messages_from_parts(
                 "parts": [{"text": part.reasoning, "thought": True}],
             }
             messages.append(reasoning_message)
+        elif isinstance(part, FilePart):
+            media_type = part.media_type
+            if not media_type.startswith(("image", "text")):
+                raise ValueError(f"Unsupported content type {media_type}")
+            inline_data: BlobDict = {
+                "mime_type": media_type,
+                "data": base64.b64decode(_extract_data(part.url)),
+            }
+            messages.append(
+                {
+                    "role": "user" if role == "user" else "model",
+                    "parts": [{"inline_data": inline_data}],
+                }
+            )
         elif isinstance(part, ToolInvocationPart):
             # Create function call message for Google
             function_call_message: ContentDict = {
@@ -321,23 +336,6 @@ def convert_to_google_messages(
     google_messages: list[ContentUnionDict] = []
 
     for message in messages:
-        # Handle message without attachments
-        if not message.attachments:
-            if not message.parts or len(message.parts) == 0:
-                google_messages.append(
-                    {
-                        "role": "user" if message.role == "user" else "model",
-                        "parts": [{"text": str(message.content)}],
-                    }
-                )
-            else:
-                parts_messages = get_google_messages_from_parts(
-                    message.role, message.parts
-                )
-                google_messages.extend(parts_messages)
-            continue
-
-        # Handle attachments
         parts: list[PartDict] = []
         if not message.parts or len(message.parts) == 0:
             parts.append({"text": str(message.content)})
@@ -348,34 +346,6 @@ def convert_to_google_messages(
             ):
                 if "parts" in parts_message:
                     parts.extend(parts_message["parts"] or [])
-
-        for attachment in message.attachments:
-            content_type = attachment.content_type or "text/plain"
-
-            if content_type.startswith("image"):
-                parts.append(
-                    {
-                        "inline_data": {
-                            "mime_type": content_type,
-                            "data": base64.b64decode(
-                                _extract_data(attachment.url)
-                            ),
-                        },
-                    }
-                )
-            elif content_type.startswith("text"):
-                parts.append(
-                    {
-                        "inline_data": {
-                            "mime_type": content_type,
-                            "data": base64.b64decode(
-                                _extract_data(attachment.url)
-                            ),
-                        },
-                    }
-                )
-            else:
-                raise ValueError(f"Unsupported content type {content_type}")
 
         google_messages.append(
             {

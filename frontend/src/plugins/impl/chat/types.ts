@@ -6,9 +6,8 @@ export type ChatRole = "system" | "user" | "assistant";
 
 export interface ChatMessage {
   role: ChatRole;
-  // TODO: Deprecate content and make parts required
-  content: string;
-  parts?: UIMessage["parts"];
+  content: string; // TODO: Deprecate content
+  parts: UIMessage["parts"];
 }
 
 export interface SendMessageRequest {

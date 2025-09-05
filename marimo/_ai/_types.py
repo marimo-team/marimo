@@ -20,6 +20,13 @@ class TextPartDict(TypedDict):
     text: str
 
 
+class FilePartDict(TypedDict):
+    type: Literal["file"]
+    media_type: str
+    filename: Optional[str]
+    url: str
+
+
 class ReasoningPartDict(TypedDict):
     type: Literal["reasoning"]
     reasoning: str
@@ -40,7 +47,9 @@ class ToolInvocationPartDict(TypedDict):
     output: Optional[Any]
 
 
-ChatPartDict = Union[TextPartDict, ReasoningPartDict, ToolInvocationPartDict]
+ChatPartDict = Union[
+    TextPartDict, ReasoningPartDict, ToolInvocationPartDict, FilePartDict
+]
 
 
 class ChatMessageDict(TypedDict):

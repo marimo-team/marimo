@@ -58,9 +58,10 @@ def sample_messages() -> list[ChatMessage]:
     ]
 
 
-def test_convert_to_openai_messages():
-    # Use the new format instead of attachments
-    messages = [
+# This is the new format instead of attachments
+@pytest.fixture
+def sample_messages_with_parts() -> list[ChatMessage]:
+    return [
         ChatMessage(
             role="user",
             content="Hello, I have a question.",
@@ -86,7 +87,12 @@ def test_convert_to_openai_messages():
             ],
         ),
     ]
-    result = convert_to_openai_messages(messages)
+
+
+def test_convert_to_openai_messages(
+    sample_messages_with_parts: list[ChatMessage],
+):
+    result = convert_to_openai_messages(sample_messages_with_parts)
     assert result == [
         {
             "role": "user",
@@ -207,33 +213,32 @@ def test_convert_to_anthropic_messages(sample_messages: list[ChatMessage]):
     )
 
 
-def test_convert_to_google_messages(sample_messages: list[ChatMessage]):
-    result = convert_to_google_messages(sample_messages)
-
-    assert len(result) == 2
-
-    # Check user message
-    assert result[0]["role"] == "user"
-    assert result[0]["parts"] == [
-        {"text": "Hello, I have a question."},
+def test_convert_to_google_messages(
+    sample_messages_with_parts: list[ChatMessage],
+):
+    result = convert_to_google_messages(sample_messages_with_parts)
+    assert result == [
+        # User message
         {
-            "inline_data": {
-                "data": b"m\xa1\x95\xb1\xb1\xbc",
-                "mime_type": "image/png",
-            }
+            "role": "user",
+            "parts": [
+                {"text": "Hello, I have a question."},
+                {
+                    "inline_data": {
+                        "mime_type": "image/png",
+                        "data": b"m\xa1\x95\xb1\xb1\xbc",
+                    }
+                },
+                {"text": "A\n1\n2\n3\n"},
+            ],
         },
+        # Assistant message
         {
-            "inline_data": {
-                "data": b"A\n1\n2\n3\n",
-                "mime_type": "text/plain",
-            }
+            "role": "model",
+            "parts": [
+                {"text": "Sure, I'd be happy to help. What's your question?"}
+            ],
         },
-    ]
-
-    # Check assistant message
-    assert result[1]["role"] == "model"
-    assert result[1]["parts"] == [
-        {"text": "Sure, I'd be happy to help. What's your question?"}
     ]
 
 
@@ -304,25 +309,30 @@ def test_from_chat_message_dict():
     message_dict = {
         "role": "user",
         "content": "Hello, this is a test message.",
-        "attachments": [
+        "parts": [
             {
-                "name": "test.png",
-                "content_type": "image/png",
+                "type": "file",
+                "media_type": "image/png",
+                "filename": "test.png",
                 "url": "http://example.com/test.png",
             }
         ],
     }
 
     result = from_chat_message_dict(message_dict)
-
-    assert isinstance(result, ChatMessage)
-    assert result.role == "user"
-    assert result.content == "Hello, this is a test message."
-    assert len(result.attachments) == 1
-    assert isinstance(result.attachments[0], ChatAttachment)
-    assert result.attachments[0].name == "test.png"
-    assert result.attachments[0].content_type == "image/png"
-    assert result.attachments[0].url == "http://example.com/test.png"
+    assert result == ChatMessage(
+        role="user",
+        content="Hello, this is a test message.",
+        attachments=None,
+        parts=[
+            FilePart(
+                type="file",
+                media_type="image/png",
+                filename="test.png",
+                url="http://example.com/test.png",
+            )
+        ],
+    )
 
     # Test case 2: ChatMessage without attachments
     message_dict_no_attachments = {
@@ -363,32 +373,7 @@ def test_from_chat_message_dict():
         result_with_parts.parts[1].reasoning == "This is my reasoning process"
     )
 
-    # Test case 4: ChatMessage with both attachments and parts
-    message_dict_full = {
-        "role": "user",
-        "content": "Complex message with everything.",
-        "attachments": [
-            {
-                "name": "doc.pdf",
-                "content_type": "application/pdf",
-                "url": "http://example.com/doc.pdf",
-            }
-        ],
-        "parts": [{"type": "text", "text": "Additional text content"}],
-    }
-
-    result_full = from_chat_message_dict(message_dict_full)
-
-    assert isinstance(result_full, ChatMessage)
-    assert result_full.role == "user"
-    assert result_full.content == "Complex message with everything."
-    assert len(result_full.attachments) == 1
-    assert result_full.attachments[0].name == "doc.pdf"
-    assert len(result_full.parts) == 1
-    assert result_full.parts[0].type == "text"
-    assert result_full.parts[0].text == "Additional text content"
-
-    # Test case 5: ChatMessage with tool invocation part (result state only)
+    # Test case 4: ChatMessage with tool invocation part (result state only)
     message_dict_tool_result = {
         "role": "assistant",
         "content": "Here's the tool result.",
@@ -419,7 +404,7 @@ def test_from_chat_message_dict():
     assert result_tool_result.parts[0].tool_name == "weather_tool"
     assert result_tool_result.parts[0].input == {"location": "New York"}
 
-    # Test case 6: Existing ChatMessage input (should return as-is)
+    # Test case 5: Existing ChatMessage input (should return as-is)
     existing_message = ChatMessage(
         role="user",
         content="I'm already a ChatMessage object",
