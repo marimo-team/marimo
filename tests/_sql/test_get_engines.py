@@ -51,7 +51,9 @@ def test_engine_to_data_source_connection() -> None:
     assert connection.display_name == "duckdb (my_duckdb)"
     assert connection.default_database == "memory"
     assert connection.default_schema == "main"
-    assert connection.databases == [Database(name="memory", dialect="duckdb")]
+    assert connection.databases == [
+        Database(name="memory", dialect="duckdb", schemas=[])
+    ]
 
     # Test with ClickhouseEmbedded engine
     clickhouse_engine = ClickhouseEmbedded(None)

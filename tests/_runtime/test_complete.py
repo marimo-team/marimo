@@ -195,6 +195,10 @@ def test_parameter_descriptions(obj: Any, runtime_inference: bool):
         )
     if path.endswith("dummy_func"):
         pytest.skip("Not picking up parameters for dummy_func")
+    if path.endswith("ChatMessage"):
+        pytest.skip(
+            "ChatMessage is a msgspec struct which does not support Jedi dict completions"
+        )
     call = f"{path}("
     code = f"import {import_name};{call}"
     jedi.settings.auto_import_modules = ["marimo"] if runtime_inference else []
@@ -211,7 +215,7 @@ def test_parameter_descriptions(obj: Any, runtime_inference: bool):
         if param.kind in {param.VAR_KEYWORD, param.VAR_POSITIONAL}:
             continue
         assert param_name in param_completions, (
-            f"Jedi did not suggest {param_name} in {call}"
+            f"Jedi did not suggest {param_name} in {call}. It suggested {param_completions.keys()}"
         )
         jedi_param = param_completions[param_name]
         docstring = jedi_param.docstring()

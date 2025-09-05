@@ -5,9 +5,7 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, cast
-
-import msgspec.json
+from typing import TYPE_CHECKING, Callable, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._cli.print import echo
@@ -15,9 +13,9 @@ from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
-from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error, is_unexpected_error
-from marimo._messaging.ops import MessageOperation
+from marimo._messaging.ops import CellOp, MessageOperation
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
@@ -248,33 +246,25 @@ async def run_app_until_completion(
             self,
         ) -> Callable[[KernelMessage], None]:
             def listener(message: KernelMessage) -> None:
+                op, data = message
                 # Print errors to stderr
-                if message[0] == "cell-op":
-                    op_data = msgspec.json.decode(message[1], type=dict)
-                    output = op_data.get("output")
-                    console_output = op_data.get("console")
-                    if (
-                        output
-                        and output["channel"] == CellChannel.MARIMO_ERROR
-                    ):
-                        errors = cast(list[Any], output["data"])
-
-                        @dataclass
-                        class Container:
-                            error: Error
-
+                if op == "cell-op":
+                    op_data = parse_raw(data, CellOp)
+                    output = op_data.output
+                    console_output = op_data.console
+                    if output and output.channel == CellChannel.MARIMO_ERROR:
+                        errors = cast(list[Error], output.data)
                         for err in errors:
-                            parsed = parse_raw({"error": err}, Container)
                             # Not all errors are fatal
-                            if is_unexpected_error(parsed.error):
+                            if is_unexpected_error(err):
                                 echo(
-                                    f"{parsed.error.__class__.__name__}: {parsed.error.describe()}",
+                                    f"{err.__class__.__name__}: {err.describe()}",
                                     file=sys.stderr,
                                 )
                                 self.did_error = True
 
                     if console_output:
-                        console_as_list: list[dict[str, Any]] = (
+                        console_as_list: list[CellOutput] = (
                             console_output
                             if isinstance(console_output, list)
                             else [console_output]
@@ -283,11 +273,9 @@ async def run_app_until_completion(
                             for line in console_as_list:
                                 # We print to stderr to not interfere with the
                                 # piped output
-                                mimetype = line.get("mimetype")
+                                mimetype = line.mimetype
                                 if mimetype == "text/plain":
-                                    echo(
-                                        line["data"], file=sys.stderr, nl=False
-                                    )
+                                    echo(line.data, file=sys.stderr, nl=False)
                         except Exception:
                             LOGGER.warning("Error printing console output")
                             pass
