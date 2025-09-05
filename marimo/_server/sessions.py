@@ -70,7 +70,6 @@ from marimo._server.session.serialize import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
-from marimo._server.types import QueueType
 from marimo._server.utils import print_, print_tabbed
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._utils.disposable import Disposable
@@ -93,23 +92,28 @@ class QueueManager:
 
         # Control messages for the kernel (run, set UI element, set config, etc
         # ) are sent through the control queue
-        self.control_queue: QueueType[requests.ControlRequest] = (
-            context.Queue() if context is not None else queue.Queue()
-        )
+        self.control_queue: Union[
+            mp.Queue[requests.ControlRequest],
+            queue.Queue[requests.ControlRequest],
+        ] = context.Queue() if context is not None else queue.Queue()
 
         # Set UI element queues are stored in both the control queue and
         # this queue, so that the backend can merge/batch set-ui-element
         # requests.
-        self.set_ui_element_queue: QueueType[
-            requests.SetUIElementValueRequest
+        self.set_ui_element_queue: Union[
+            mp.Queue[requests.SetUIElementValueRequest],
+            queue.Queue[requests.SetUIElementValueRequest],
         ] = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
-        self.completion_queue: QueueType[requests.CodeCompletionRequest] = (
-            context.Queue() if context is not None else queue.Queue()
-        )
+        self.completion_queue: Union[
+            mp.Queue[requests.CodeCompletionRequest],
+            queue.Queue[requests.CodeCompletionRequest],
+        ] = context.Queue() if context is not None else queue.Queue()
 
-        self.win32_interrupt_queue: QueueType[bool] | None
+        self.win32_interrupt_queue: (
+            Union[mp.Queue[bool], queue.Queue[bool]] | None
+        )
         if sys.platform == "win32":
             self.win32_interrupt_queue = (
                 context.Queue() if context is not None else queue.Queue()
@@ -119,7 +123,7 @@ class QueueManager:
 
         # Input messages for the user's Python code are sent through the
         # input queue
-        self.input_queue: QueueType[str] = (
+        self.input_queue: Union[mp.Queue[str], queue.Queue[str]] = (
             context.Queue(maxsize=1)
             if context is not None
             else queue.Queue(maxsize=1)
