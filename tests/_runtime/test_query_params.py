@@ -125,11 +125,11 @@ class TestQueryParams(unittest.TestCase):
         assert self.mock_stream.write.call_count == 2
         assert self.mock_stream.write.call_args_list[0][1] == {
             "op": "query-params-append",
-            'data': b'{"op":"query-params-append","key":"key1","value":"value5"}'
+            "data": b'{"op":"query-params-append","key":"key1","value":"value5"}',
         }
         assert self.mock_stream.write.call_args_list[1][1] == {
             "op": "query-params-append",
-            'data': b'{"op":"query-params-append","key":"key4","value":"value6"}'
+            "data": b'{"op":"query-params-append","key":"key4","value":"value6"}',
         }
 
     def test_delete(self) -> None:
@@ -189,7 +189,7 @@ class TestQueryParams(unittest.TestCase):
         assert self.mock_stream.write.call_count == 1
         assert self.mock_stream.write.call_args_list[0][1] == {
             "op": "query-params-clear",
-            'data': b'{"op":"query-params-clear"}'
+            "data": b'{"op":"query-params-clear"}',
         }
 
 
