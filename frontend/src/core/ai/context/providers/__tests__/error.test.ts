@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { notebookAtom } from "@/core/cells/cells";
 import { type CellId, CellId as CellIdClass } from "@/core/cells/ids";
+import { Boosts } from "../common";
 import { ErrorContextProvider } from "../error";
 
 describe("ErrorContextProvider", () => {
@@ -121,7 +122,7 @@ describe("ErrorContextProvider", () => {
         label: "@Errors",
         displayLabel: "Errors",
         detail: "2 errors",
-        boost: 2, // Boosts.ERROR
+        boost: Boosts.ERROR,
         type: "error",
         apply: "@Errors",
         section: "Errors",
@@ -181,7 +182,7 @@ describe("ErrorContextProvider", () => {
       expect(completion).toMatchObject({
         label: "Error",
         displayLabel: "Error",
-        boost: 2, // Boosts.ERROR
+        boost: Boosts.ERROR,
       });
     });
   });

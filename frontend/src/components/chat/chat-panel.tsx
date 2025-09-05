@@ -6,6 +6,7 @@ import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import {
   DefaultChatTransport,
+  type FileUIPart,
   lastAssistantMessageIsCompleteWithToolCalls,
   type ToolUIPart,
 } from "ai";
@@ -46,11 +47,13 @@ import {
   type ChatId,
   chatStateAtom,
 } from "@/core/ai/state";
+import type { ChatAttachment } from "@/core/ai/types";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
+import type { ChatMessage } from "@/plugins/impl/chat/types";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
@@ -58,7 +61,7 @@ import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
-import { getAICompletionBody } from "../editor/ai/completion-utils";
+import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Input } from "../ui/input";
@@ -458,7 +461,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     });
 
     return (
-      <div className="relative shrink-0 min-h-[80px] flex flex-col">
+      <div className="relative shrink-0 min-h-[80px] flex flex-col border-t">
         <div className={cn("px-2 py-3 flex-1", inputClassName)}>
           <PromptInput
             inputRef={inputRef}
@@ -539,32 +542,54 @@ const ChatPanelBody = () => {
     transport: new DefaultChatTransport({
       api: runtimeManager.getAiURL("chat").toString(),
       headers: runtimeManager.headers(),
-      prepareSendMessagesRequest: (options) => {
-        let input = "";
-        for (const message of options.messages) {
-          const textParts = message.parts.filter((p) => p.type === "text");
-          input += textParts.map((p) => p.text).join("\n");
+      prepareSendMessagesRequest: async (options) => {
+        // Map from parts to a single string
+        function toContent(parts: UIMessage["parts"]): string {
+          return parts
+            .map((part) => (part.type === "text" ? part.text : ""))
+            .join("\n");
         }
-        const completionBody = getAICompletionBody({ input });
+
+        // Map from ai/sdk files to our attachment type
+        function toAttachment(p: FileUIPart): ChatAttachment {
+          return {
+            contentType: p.mediaType,
+            name: p.filename,
+            url: p.url,
+          };
+        }
+
+        const input = toContent(options.messages.flatMap((m) => m.parts));
+        const completionBody = await getAICompletionBodyWithAttachments({
+          input,
+        });
+
+        // Map from UIMessage to our ChatMessage type
+        // If it's the last message, add the attachments from the completion body
+        function mapMessage(
+          m: UIMessage,
+          isLastMessage: boolean,
+        ): ChatMessage & { attachments: ChatAttachment[] } {
+          const attachments = m.parts.flatMap((p) =>
+            p.type === "file" ? toAttachment(p) : [],
+          );
+          if (isLastMessage) {
+            attachments.push(...completionBody.attachments);
+          }
+          return {
+            role: m.role,
+            content: toContent(m.parts),
+            attachments: attachments,
+          };
+        }
 
         return {
           body: {
             ...options,
-            ...completionBody,
-            messages: options.messages.map((m) => ({
+            ...completionBody.body,
+            messages: options.messages.map((m, idx) => ({
               ...m,
-              attachments: m.parts.flatMap((p) =>
-                p.type === "file"
-                  ? {
-                      contentType: p.mediaType,
-                      name: p.filename,
-                      url: p.url,
-                    }
-                  : [],
-              ),
-              content: m.parts
-                ?.map((p) => ("text" in p ? p.text : ""))
-                .join("\n"),
+              ...mapMessage(m, idx === options.messages.length - 1),
             })),
           },
         };

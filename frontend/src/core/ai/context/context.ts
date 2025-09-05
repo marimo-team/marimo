@@ -3,6 +3,7 @@
 import { allTablesAtom } from "@/core/datasets/data-source-connections";
 import type { JotaiStore } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
+import { CellOutputContextProvider } from "./providers/cell-output";
 import { ErrorContextProvider } from "./providers/error";
 import { TableContextProvider } from "./providers/tables";
 import { VariableContextProvider } from "./providers/variable";
@@ -14,5 +15,6 @@ export function getAIContextRegistry(store: JotaiStore) {
   return new AIContextRegistry()
     .register(new TableContextProvider(tablesMap))
     .register(new VariableContextProvider(variables, tablesMap))
-    .register(new ErrorContextProvider(store));
+    .register(new ErrorContextProvider(store))
+    .register(new CellOutputContextProvider(store));
 }
