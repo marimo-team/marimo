@@ -483,7 +483,7 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
     options_values = [option["name"] for option in options]
 
     assert len(local_stream.messages) == 1
-    assert message_name == CompletionResult.name
+    assert message_name[0] == CompletionResult.name
     # TODO if `expects_completions=False`, something else than `_maybe_get_key_options()`
     # could be returning values
     if expects_key_completion is False:
