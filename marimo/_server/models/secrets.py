@@ -1,18 +1,16 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
+import msgspec
 
 from marimo._secrets.models import SecretKeysWithProvider, SecretProviderType
 
 
-@dataclass
-class ListSecretKeysResponse:
+class ListSecretKeysResponse(msgspec.Struct, rename="camel"):
     keys: list[SecretKeysWithProvider]
 
 
-@dataclass
-class CreateSecretRequest:
+class CreateSecretRequest(msgspec.Struct, rename="camel"):
     key: str
     value: str
     provider: SecretProviderType
@@ -26,8 +24,7 @@ class CreateSecretRequest:
             raise ValueError("Key cannot contain spaces or whitespace")
 
 
-@dataclass
-class DeleteSecretRequest:
+class DeleteSecretRequest(msgspec.Struct, rename="camel"):
     key: str
 
     def __post_init__(self) -> None:

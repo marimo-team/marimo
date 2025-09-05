@@ -109,11 +109,16 @@ class AppStateBase:
 
     @property
     def mcp_server_enabled(self) -> bool:
-        return getattr(self.state, "mcp_server_enabled", False)
+        mcp_server_enabled: bool = self.state.mcp_server_enabled
+        return mcp_server_enabled
 
     @property
     def mcp_handler(self) -> Optional[ASGIApp]:
         return getattr(self.state, "mcp_handler", None)
+      
+    @property
+    def asset_url(self) -> Optional[str]:
+        return getattr(self.state, "asset_url", None)
 
 
 class AppState(AppStateBase):

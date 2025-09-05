@@ -452,7 +452,22 @@ https://github.com/marimo-team/marimo/issues/5219.""",
     show_default=True,
     type=bool,
     hidden=True,
-    help="Enable MCP server endpoint at /mcp for LLM integration.",
+    help="Enable MCP server endpoint at /mcp/server for LLM integration.",
+)
+@click.option(
+    "--asset-url",
+    default=None,
+    type=str,
+    hidden=True,
+    help="Custom asset URL for loading static resources. Can include {version} placeholder.",
+)
+@click.option(
+    "--timeout",
+    required=False,
+    default=None,
+    show_default=False,
+    type=float,
+    help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
 )
 @click.argument(
     "name",
@@ -478,6 +493,8 @@ def edit(
     remote_url: Optional[str],
     convert: bool,
     mcp: bool,
+    asset_url: Optional[str],
+    timeout: Optional[float],
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
@@ -606,6 +623,8 @@ def edit(
         ttl_seconds=None,
         remote_url=remote_url,
         mcp=mcp,
+        asset_url=asset_url,
+        timeout=timeout,
     )
 
 
@@ -704,6 +723,14 @@ new_help_msg = "\n".join(
     type=bool,
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
+@click.option(
+    "--timeout",
+    required=False,
+    default=None,
+    show_default=False,
+    type=float,
+    help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
+)
 @click.argument("prompt", required=False)
 def new(
     port: Optional[int],
@@ -715,6 +742,7 @@ def new(
     base_url: str,
     sandbox: Optional[bool],
     skew_protection: bool,
+    timeout: Optional[float],
     prompt: Optional[str],
 ) -> None:
     if sandbox:
@@ -793,6 +821,7 @@ def new(
         base_url=base_url,
         redirect_console_to_browser=True,
         ttl_seconds=None,
+        timeout=timeout,
     )
 
 
@@ -914,6 +943,13 @@ Example:
     type=bool,
     help=sandbox_message,
 )
+@click.option(
+    "--asset-url",
+    default=None,
+    type=str,
+    hidden=True,
+    help="Custom asset URL for loading static resources. Can include {version} placeholder.",
+)
 @click.argument(
     "name",
     required=True,
@@ -935,6 +971,7 @@ def run(
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
     sandbox: Optional[bool],
+    asset_url: Optional[str],
     name: str,
     args: tuple[str, ...],
 ) -> None:
@@ -991,6 +1028,7 @@ def run(
         argv=list(args),
         auth_token=_resolve_token(token, token_password),
         redirect_console_to_browser=redirect_console_to_browser,
+        asset_url=asset_url,
     )
 
 

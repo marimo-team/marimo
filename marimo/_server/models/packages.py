@@ -1,14 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional
+
+import msgspec
 
 from marimo._runtime.packages.package_manager import PackageDescription
 
 
-@dataclass
-class AddPackageRequest:
+class AddPackageRequest(msgspec.Struct, rename="camel"):
     """
     This can be a remove package or a local package.
 
@@ -26,18 +26,15 @@ class AddPackageRequest:
     upgrade: Optional[bool] = False
 
 
-@dataclass
-class RemovePackageRequest:
+class RemovePackageRequest(msgspec.Struct, rename="camel"):
     package: str
 
 
-@dataclass
-class ListPackagesResponse:
+class ListPackagesResponse(msgspec.Struct, rename="camel"):
     packages: list[PackageDescription]
 
 
-@dataclass
-class DependencyTreeNode:
+class DependencyTreeNode(msgspec.Struct, rename="camel"):
     name: str
     version: Optional[str]
     # List of {"kind": "extra"|"group", "value": str}
@@ -45,13 +42,11 @@ class DependencyTreeNode:
     dependencies: list[DependencyTreeNode]
 
 
-@dataclass
-class DependencyTreeResponse:
+class DependencyTreeResponse(msgspec.Struct, rename="camel"):
     tree: Optional[DependencyTreeNode]
 
 
-@dataclass
-class PackageOperationResponse:
+class PackageOperationResponse(msgspec.Struct, rename="camel"):
     success: bool
     error: Optional[str] = None
 

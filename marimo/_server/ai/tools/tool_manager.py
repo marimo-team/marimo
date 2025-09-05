@@ -1,12 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from marimo import _loggers
 from marimo._config.config import CopilotMode
 from marimo._config.manager import get_default_config_manager
+from marimo._server.ai.tools.types import (
+    BackendTool,
+    FunctionArgs,
+    Tool,
+    ToolResult,
+    ToolSource,
+    ValidationFunction,
+)
 
 if TYPE_CHECKING:
     from mcp.types import (  # type: ignore[import-not-found]
@@ -15,35 +22,6 @@ if TYPE_CHECKING:
     )
 
 LOGGER = _loggers.marimo_logger()
-
-# Type aliases for tool system
-FunctionArgs = dict[str, Any]
-ValidationFunction = Callable[[FunctionArgs], tuple[bool, str]]
-
-ToolSource = Literal["mcp", "backend", "frontend"]
-
-
-@dataclass
-class Tool:
-    """Tool definition compatible with ai-sdk-ui format."""
-
-    name: str
-    description: str
-    parameters: dict[str, Any]
-    source: ToolSource
-    mode: list[CopilotMode]  # tools can be available in multiple modes
-
-    def __str__(self) -> str:
-        return f"Tool(name={self.name}, description={self.description})"
-
-
-@dataclass
-class ToolResult:
-    """Represents the result of a tool invocation."""
-
-    tool_name: str
-    result: Any
-    error: Optional[str] = None
 
 
 class ToolManager:
@@ -63,27 +41,23 @@ class ToolManager:
             "mcp_docs", False
         )
 
-        # Don't register tools in __init__ to avoid circular imports
-        # Tools will be registered when get_tool_manager() is first called
-        LOGGER.info(
-            "ToolManager created (tools will be registered on first access)"
-        )
+        # Add backend tools here
+        # backend_tools = [SampleTool()]
+        # for tool in backend_tools:
+        #     self.register_backend_tool(tool)
 
-    def register_backend_tool(
-        self,
-        tool: Tool,
-        handler: Callable[[FunctionArgs], Any],
-        validator: Optional[ValidationFunction] = None,
-    ) -> None:
+    def register_backend_tool(self, tool: BackendTool[Any]) -> None:
         """Register a backend tool with its handler function and optional validator."""
-        if tool.source != "backend":
+        tool_definition = tool.tool
+        if tool_definition.source != "backend":
             raise ValueError("Tool source must be 'backend'")
 
-        self._tools[tool.name] = tool
-        self._backend_handlers[tool.name] = handler
-        if validator:
-            self._validation_functions[tool.name] = validator
-        LOGGER.debug(f"Registered backend tool: {tool.name}")
+        name = tool_definition.name
+        self._tools[name] = tool_definition
+        self._backend_handlers[name] = tool.handler
+        self._validation_functions[name] = tool.validator
+
+        LOGGER.debug(f"Registered backend tool: {name}")
 
     def register_frontend_tool(self, tool: Tool) -> None:
         """Register a frontend tool (definition only - no handler or validator needed)."""
@@ -138,30 +112,29 @@ class ToolManager:
     def validate_backend_tool_arguments(
         self, tool_name: str, arguments: FunctionArgs
     ) -> tuple[bool, str]:
-        """Validate tool arguments using tool-specific validation function or fallback to basic validation."""
+        """Validate tool arguments using tool-specific or basic validation."""
         tool = self.get_tool(tool_name)
         if not tool:
             return False, f"Tool '{tool_name}' not found"
 
-        # Use tool-specific validation function if available
-        if tool_name in self._validation_functions:
+        validator = self._validation_functions.get(tool_name)
+        if validator:
             try:
-                validator = self._validation_functions[tool_name]
-                is_valid, error_message = validator(arguments)
-                if not is_valid:
-                    LOGGER.warning(
-                        f"Tool-specific validation failed for '{tool_name}': {error_message}"
-                    )
-                return is_valid, error_message
+                result = validator(arguments)
+                if result is not None:
+                    is_valid, error_message = result
+                    if not is_valid:
+                        LOGGER.warning(
+                            f"Tool-specific validation failed for '{tool_name}': {error_message}"
+                        )
+                    return is_valid, error_message
             except Exception as e:
                 error_msg = f"Error in tool-specific validation for '{tool_name}': {str(e)}"
                 LOGGER.error(error_msg)
                 return False, error_msg
 
-        # Fallback to basic validation against parameters schema
+        # If no validation, use basic validation against parameters schema
         required_params = tool.parameters.get("required", [])
-
-        # Check required parameters
         for param in required_params:
             if param not in arguments:
                 error_msg = f"Missing required parameter '{param}'"
@@ -344,15 +317,8 @@ class ToolManager:
         # Return the CallToolResult directly - let invoke_tool handle error checking
         return call_result
 
-    def _register_builtin_tools(self) -> None:
-        """Register built-in backend tools."""
-        # Register all backend tools from the backend_tools package
-        from marimo._server.ai.backend_tools import register_all_backend_tools
 
-        register_all_backend_tools()
-
-
-# Global tool manager instance using lazy initialization to avoid circular imports
+# Global tool manager instance
 _TOOL_MANAGER: Optional[ToolManager] = None
 
 
@@ -361,8 +327,6 @@ def get_tool_manager() -> ToolManager:
     global _TOOL_MANAGER
     if _TOOL_MANAGER is None:
         _TOOL_MANAGER = ToolManager()
-        # Register tools after the manager is created to avoid circular imports
-        _TOOL_MANAGER._register_builtin_tools()
         LOGGER.info(
             f"ToolManager initialized with {len(_TOOL_MANAGER._tools)} backend/frontend tools"
         )

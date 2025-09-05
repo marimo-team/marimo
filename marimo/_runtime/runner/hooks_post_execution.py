@@ -109,7 +109,7 @@ def _broadcast_variables(
 
     del run_result
     values = [
-        VariableValue(
+        VariableValue.create(
             name=variable,
             value=(
                 runner.glbls[variable] if variable in runner.glbls else None

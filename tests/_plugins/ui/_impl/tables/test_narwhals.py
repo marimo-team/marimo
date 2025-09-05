@@ -414,6 +414,71 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         for column in complex_data.get_column_names():
             assert complex_data.get_stats(column) is not None
 
+    def test_get_stats_unwraps_scalars_properly(self) -> None:
+        """Test that get_stats properly unwraps narwhals scalars to Python primitives.
+
+        This test ensures that the values returned in ColumnStats are proper Python
+        primitives, not wrapped narwhals scalar objects. The unwrapping happens via
+        unwrap_py_scalar in narwhals_table.py get_stats method.
+        """
+        import polars as pl
+
+        data = pl.DataFrame(
+            {
+                "int_col": [1, 2, 3, 4, 5],
+                "float_col": [1.5, 2.5, 3.5, 4.5, 5.5],
+                "bool_col": [True, False, True, True, False],
+            }
+        )
+        manager = NarwhalsTableManager.from_dataframe(data)
+
+        int_stats = manager.get_stats("int_col")
+        assert int_stats == ColumnStats(
+            total=5,
+            nulls=0,
+            unique=5,
+            min=1,
+            max=5,
+            mean=3.0,
+            median=3.0,
+            std=1.5811388300841898,
+            p5=1.0,
+            p25=2.0,
+            p75=4.0,
+            p95=5.0,
+        )
+        assert isinstance(int_stats.min, int)
+        assert isinstance(int_stats.max, int)
+        assert isinstance(int_stats.mean, float)
+
+        float_stats = manager.get_stats("float_col")
+        assert float_stats == ColumnStats(
+            total=5,
+            nulls=0,
+            min=1.5,
+            max=5.5,
+            mean=3.5,
+            median=3.5,
+            std=1.5811388300841898,
+            p5=1.5,
+            p25=2.5,
+            p75=4.5,
+            p95=5.5,
+        )
+        assert isinstance(float_stats.min, float)
+        assert isinstance(float_stats.max, float)
+        assert isinstance(float_stats.mean, float)
+
+        bool_stats = manager.get_stats("bool_col")
+        assert bool_stats == ColumnStats(
+            total=5,
+            nulls=0,
+            true=3,
+            false=2,
+        )
+        assert isinstance(bool_stats.true, int)
+        assert isinstance(bool_stats.false, int)
+
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values("A", descending=True).data
         expected_df = self.data.sort("A", descending=True)

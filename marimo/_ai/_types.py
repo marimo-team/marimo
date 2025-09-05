@@ -4,7 +4,9 @@ from __future__ import annotations
 import abc
 import mimetypes
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict, Union
+
+import msgspec
 
 
 class ChatAttachmentDict(TypedDict):
@@ -30,27 +32,22 @@ class ReasoningDetailsDict(TypedDict):
     signature: Optional[str]
 
 
-class ToolInvocationResultDict(TypedDict):
-    state: Literal["result"]
-    result: Any
-    tool_call_id: str
-    tool_name: str
-    step: int
-    args: dict[str, Any]
-
-
 class ToolInvocationPartDict(TypedDict):
-    type: Literal["tool-invocation"]
-    tool_invocation: ToolInvocationResultDict
+    type: str
+    tool_call_id: str
+    state: str
+    input: dict[str, Any]
+    output: Optional[Any]
+
+
+ChatPartDict = Union[TextPartDict, ReasoningPartDict, ToolInvocationPartDict]
 
 
 class ChatMessageDict(TypedDict):
     role: Literal["user", "assistant", "system"]
     content: str
     attachments: Optional[list[ChatAttachmentDict]]
-    parts: Optional[
-        list[Union[TextPartDict, ReasoningPartDict, ToolInvocationPartDict]]
-    ]
+    parts: Optional[list[ChatPartDict]]
 
 
 class ChatModelConfigDict(TypedDict, total=False):
@@ -110,27 +107,35 @@ class ReasoningDetails:
 
 
 @dataclass
-class ToolInvocationResult:
-    """Represents a tool invocation result part from the AI SDK."""
-
-    state: Literal["result"]
-    result: Any
-    tool_call_id: str
-    tool_name: str
-    step: int
-    args: dict[str, Any]
-
-
-@dataclass
 class ToolInvocationPart:
     """Represents a tool invocation part from the AI SDK."""
 
-    type: Literal["tool-invocation"]
-    tool_invocation: ToolInvocationResult
+    type: str  # Starts with "tool-"
+    tool_call_id: str
+    state: Union[str, Literal["output-available"]]
+    input: dict[str, Any]
+    output: Optional[Any]
+
+    @property
+    def tool_name(self) -> str:
+        return self.type.split("-", 1)[1]
 
 
 @dataclass
-class ChatMessage:
+class FilePart:
+    type: Literal["file"]
+    media_type: Optional[str]
+    filename: Optional[str]
+    url: str
+
+
+if TYPE_CHECKING:
+    ChatPart = Union[TextPart, ReasoningPart, ToolInvocationPart, FilePart]
+else:
+    ChatPart = dict[str, Any]
+
+
+class ChatMessage(msgspec.Struct):
     """
     A message in a chat.
     """
@@ -139,15 +144,13 @@ class ChatMessage:
     role: Literal["user", "assistant", "system"]
 
     # The content of the message.
-    content: object
+    content: Any
 
     # Optional attachments to the message.
     attachments: Optional[list[ChatAttachment]] = None
 
     # Optional parts from AI SDK. (see types above)
-    parts: Optional[
-        list[Union[TextPart, ReasoningPart, ToolInvocationPart]]
-    ] = None
+    parts: Optional[list[ChatPart]] = None
 
 
 @dataclass

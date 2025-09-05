@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -11,6 +10,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from marimo._config.config import ExperimentalConfig
 from marimo._config.manager import UserConfigManager
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.ops import KernelCapabilities, KernelReady
 from marimo._server.codes import WebSocketCodes
 from marimo._server.model import SessionMode
@@ -105,7 +105,7 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
     # Connect by the same session id
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_json()
-        assert data == {"op": "reconnected", "data": {}}
+        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = websocket.receive_json()
         assert data["op"] == "alert"
 
@@ -120,13 +120,13 @@ def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
     # Connect by the same session id
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_json()
-        assert data == {"op": "reconnected", "data": {}}
+        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = websocket.receive_json()
         assert data["op"] == "alert"
     # New session with new ID (simulates refresh)
     with client.websocket_connect("/ws?session_id=456") as websocket:
         data = websocket.receive_json()
-        assert data == {"op": "reconnected", "data": {}}
+        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({"resumed": True}))
 
@@ -220,7 +220,7 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         watcher = list(session_manager.watcher_manager._watchers.values())[0]
         await watcher.callback(Path(filename))
         data = websocket.receive_json()
-        assert data == {"op": "reload", "data": {}}
+        assert data == {"op": "reload", "data": {"op": "reload"}}
         session_manager.mode = SessionMode.EDIT
         session_manager.watch = False
     client.post("/api/kernel/shutdown", headers=HEADERS)
@@ -312,7 +312,7 @@ async def test_connects_to_existing_session_with_same_file(
             client.post(
                 "/api/kernel/instantiate",
                 headers=headers("123"),
-                json={"object_ids": [], "values": [], "auto_run": True},
+                json={"objectIds": [], "values": [], "auto_run": True},
             )
 
             messages1 = flush_messages(websocket1, at_least=14)

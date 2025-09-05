@@ -7,7 +7,7 @@ import { useCellIds } from "@/core/cells/cells";
 import { useVariables } from "@/core/variables/state";
 import { PanelEmptyState } from "./empty-state";
 
-export const VariablePanel: React.FC = () => {
+const VariablePanel: React.FC = () => {
   const variables = useVariables();
   const cellIds = useCellIds();
 
@@ -29,3 +29,5 @@ export const VariablePanel: React.FC = () => {
     />
   );
 };
+
+export default VariablePanel;

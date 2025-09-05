@@ -1,10 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { lazy } from "react";
 import type { AppConfig, UserConfig } from "@/core/config/config-schema";
 import { KnownQueryParams } from "@/core/constants";
 import { EditApp } from "@/core/edit-app";
 import { AppChrome } from "../editor/chrome/wrapper/app-chrome";
-import { CommandPalette } from "../editor/controls/command-palette";
+
+const LazyCommandPalette = lazy(
+  () => import("../editor/controls/command-palette"),
+);
 
 interface Props {
   userConfig: UserConfig;
@@ -21,7 +25,7 @@ const EditPage = (props: Props) => {
     return (
       <>
         <EditApp hideControls={true} {...props} />
-        <CommandPalette />
+        <LazyCommandPalette />
       </>
     );
   }
@@ -29,7 +33,7 @@ const EditPage = (props: Props) => {
   return (
     <AppChrome>
       <EditApp {...props} />
-      <CommandPalette />
+      <LazyCommandPalette />
     </AppChrome>
   );
 };

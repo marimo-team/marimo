@@ -15,15 +15,7 @@ from marimo._messaging.console_output_worker import (
     _write_console_output,
     buffered_writer,
 )
-from marimo._messaging.types import Stream
-
-
-class MockStream(Stream):
-    def __init__(self) -> None:
-        self.messages: list[tuple[str, dict]] = []
-
-    def write(self, op: str, data: dict) -> None:
-        self.messages.append((op, data))
+from tests._messaging.mocks import MockStream
 
 
 class TestConsoleOutputWorker:
@@ -137,12 +129,12 @@ class TestConsoleOutputWorker:
             "text/plain",
         )
 
-        assert len(stream.messages) == 1
+        assert len(stream.operations) == 1
         assert stream.messages[0][0] == "cell-op"  # op
-        assert stream.messages[0][1]["cell_id"] == "cell1"
-        assert stream.messages[0][1]["console"]["channel"] == "stdout"
-        assert stream.messages[0][1]["console"]["mimetype"] == "text/plain"
-        assert stream.messages[0][1]["console"]["data"] == "Hello"
+        assert stream.operations[0]["cell_id"] == "cell1"
+        assert stream.operations[0]["console"]["channel"] == "stdout"
+        assert stream.operations[0]["console"]["mimetype"] == "text/plain"
+        assert stream.operations[0]["console"]["data"] == "Hello"
 
     def test_buffered_writer_basic(self) -> None:
         # Test basic functionality of buffered writer
@@ -176,12 +168,12 @@ class TestConsoleOutputWorker:
 
             for _ in range(10):
                 time.sleep(0.1)
-                if len(stream.messages) == 1:
+                if len(stream.operations) == 1:
                     break
 
             # Check that the message was written to the stream
-            assert len(stream.messages) == 1
-            assert stream.messages[0][1]["console"]["data"] == "Hello"
+            assert len(stream.operations) == 1
+            assert stream.operations[0]["console"]["data"] == "Hello"
 
         finally:
             # Signal the writer to terminate
@@ -245,12 +237,14 @@ class TestConsoleOutputWorker:
             assert len(stream.messages) == 2  # Merged stdout messages + stderr
 
             # First message should be the merged stdout messages
-            assert stream.messages[0][1]["console"]["channel"] == "stdout"
-            assert stream.messages[0][1]["console"]["data"] == "Hello World"
+            first_message = stream.operations[0]
+            assert first_message["console"]["channel"] == "stdout"
+            assert first_message["console"]["data"] == "Hello World"
 
             # Second message should be the stderr message
-            assert stream.messages[1][1]["console"]["channel"] == "stderr"
-            assert stream.messages[1][1]["console"]["data"] == "Error"
+            second_message = stream.operations[1]
+            assert second_message["console"]["channel"] == "stderr"
+            assert second_message["console"]["data"] == "Error"
 
         finally:
             # Signal the writer to terminate

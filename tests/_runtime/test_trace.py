@@ -9,6 +9,7 @@ from marimo._runtime.requests import (
     ExecutionRequest,
 )
 from marimo._runtime.runtime import Kernel
+from tests._messaging.mocks import MockStderr, MockStream
 
 
 class TestScriptTrace:
@@ -161,8 +162,9 @@ class TestAppTrace:
         )
 
         # Naively strip tags to check trace
+        stderr_messages = MockStderr(k.stderr)
         tag_re = re.compile(r"(<!--.*?-->|<[^>]*>)")
-        result = k.stderr.messages[-1]
+        result = stderr_messages.messages[-1]
         result = tag_re.sub("", result)
 
         assert "ZeroDivisionError: division by zero" in result
@@ -258,24 +260,29 @@ class TestAppTrace:
                 ),
             ]
         )
+
         # Runtime error expected- since not a kernel error check stderr
+
+        stream_messages = MockStream(k.stream)
+        stderr_messages = MockStderr(k.stderr)
+
         assert "C" not in k.globals
         if k.execution_type == "strict":
             assert (
                 "name `R` is referenced before definition."
-                in k.stream.messages[-4][1]["output"]["data"][0]["msg"]
+                in stream_messages.operations[-4]["output"]["data"][0]["msg"]
             )
             assert (
                 "This cell wasn't run"
-                in k.stream.messages[-1][1]["output"]["data"][0]["msg"]
+                in stream_messages.operations[-1]["output"]["data"][0]["msg"]
             )
         else:
             assert (
                 "Name `C` is not defined."
-                in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
+                in stream_messages.operations[-2]["output"]["data"][0]["msg"]
             )
-            assert "NameError" in k.stderr.messages[0]
-            assert "NameError" in k.stderr.messages[-1]
+            assert "NameError" in stderr_messages.messages[0]
+            assert "NameError" in stderr_messages.messages[-1]
 
 
 class TestEmbedTrace:

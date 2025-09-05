@@ -15,8 +15,10 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
     Error as MarimoError,
     MarimoExceptionRaisedError,
+    UnknownError,
 )
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.ops import CellOp
 from marimo._schemas.notebook import (
     NotebookCell,
@@ -59,9 +61,16 @@ def _normalize_error(error: Union[MarimoError, dict[str, Any]]) -> ErrorOutput:
             traceback=error.get("traceback", []),
         )
     else:
+        if isinstance(error, UnknownError) and error.error_type:
+            # UnknownError with custom error_type field
+            ename = error.error_type
+        else:
+            # For msgspec structs with tagged unions, the type is in the serialized form
+            ename = asdict(error).get("type", "UnknownError")
+
         return ErrorOutput(
             type="error",
-            ename=error.type,
+            ename=ename,
             evalue=error.describe(),
             traceback=getattr(error, "traceback", []),
         )
@@ -177,7 +186,6 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
                     CellOutput.errors(
                         [
                             MarimoExceptionRaisedError(
-                                type="exception",
                                 exception_type=output["ename"],
                                 msg=output["evalue"],
                                 raising_cell=None,

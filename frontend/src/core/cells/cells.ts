@@ -1372,7 +1372,7 @@ const {
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
   return (
-    state.cellData[cellId].config.hide_code &&
+    Boolean(state.cellData[cellId].config.hide_code) &&
     !state.untouchedNewCells.has(cellId)
   );
 }

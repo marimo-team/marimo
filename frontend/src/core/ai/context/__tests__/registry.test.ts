@@ -2,8 +2,9 @@
 
 import type { Completion } from "@codemirror/autocomplete";
 import { createStore } from "jotai";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
+import type { ChatAttachment } from "@/core/ai/types";
 import { notebookAtom } from "@/core/cells/cells";
 import { CellId as CellIdClass } from "@/core/cells/ids";
 import {
@@ -19,9 +20,25 @@ import {
 
 // Mock context item for testing
 interface MockContextItem extends AIContextItem {
-  type: "mock";
-  data: { value: string };
+  type: "mock" | "attachment";
+  data: {
+    value: string;
+    needsAttachment?: boolean;
+  };
 }
+
+// Mock attachment data for testing
+const mockAttachment1: ChatAttachment = {
+  name: "test-image-1.png",
+  contentType: "image/png",
+  url: "data:image/png;base64,mockdata1",
+};
+
+const mockAttachment2: ChatAttachment = {
+  name: "test-image-2.jpg",
+  contentType: "image/jpeg",
+  url: "data:image/jpeg;base64,mockdata2",
+};
 
 // Concrete implementation of AIContextProvider for testing
 class MockContextProvider extends AIContextProvider<MockContextItem> {
@@ -73,6 +90,44 @@ class MockContextProvider extends AIContextProvider<MockContextItem> {
   // Method to clear items for testing
   clearItems(): void {
     this.items = [];
+  }
+}
+
+// Test provider that supports attachments
+class AttachmentContextProvider extends AIContextProvider<MockContextItem> {
+  readonly title = "Attachment Items";
+  readonly mentionPrefix = "@";
+  readonly contextType = "attachment";
+
+  constructor(
+    private items: MockContextItem[] = [],
+    private attachments: ChatAttachment[] = [],
+  ) {
+    super();
+  }
+
+  getItems(): MockContextItem[] {
+    return this.items;
+  }
+
+  formatContext(item: MockContextItem): string {
+    return `Attachment: ${item.name} (${item.data.value})`;
+  }
+
+  formatCompletion(item: MockContextItem): Completion {
+    return this.createBasicCompletion(item);
+  }
+
+  override async getAttachments(
+    items: MockContextItem[],
+  ): Promise<ChatAttachment[]> {
+    // Return attachments for items that need them
+    const itemsNeedingAttachments = items.filter(
+      (item) => item.data.needsAttachment,
+    );
+    return itemsNeedingAttachments
+      .map((_, index) => this.attachments[index % this.attachments.length])
+      .filter(Boolean);
   }
 }
 
@@ -665,6 +720,223 @@ describe("AIContextRegistry", () => {
       expect(formattedContext).toContain("Mock:");
       expect(formattedContext).toContain("Cell 1");
       expect(formattedContext).toContain("Item 1");
+    });
+  });
+
+  describe("attachment functionality", () => {
+    let attachmentProvider: AttachmentContextProvider;
+    let attachmentRegistry: AIContextRegistry<MockContextItem>;
+
+    beforeEach(() => {
+      const itemWithAttachment: MockContextItem = {
+        uri: "attachment://item1" as ContextLocatorId,
+        name: "item1",
+        type: "attachment",
+        description: "Item with attachment",
+        data: { needsAttachment: true, value: "test1" },
+      };
+
+      const itemWithoutAttachment: MockContextItem = {
+        uri: "attachment://item2" as ContextLocatorId,
+        name: "item2",
+        type: "attachment",
+        description: "Item without attachment",
+        data: { needsAttachment: false, value: "test2" },
+      };
+
+      attachmentProvider = new AttachmentContextProvider(
+        [itemWithAttachment, itemWithoutAttachment],
+        [mockAttachment1, mockAttachment2],
+      );
+
+      attachmentRegistry = new AIContextRegistry<MockContextItem>().register(
+        attachmentProvider,
+      );
+    });
+
+    describe("getAttachmentsForContext", () => {
+      it("should return empty array for empty context IDs", async () => {
+        const attachments = await attachmentRegistry.getAttachmentsForContext(
+          [],
+        );
+        expect(attachments).toEqual([]);
+      });
+
+      it("should return empty array for non-existent context IDs", async () => {
+        const nonExistentIds = ["attachment://nonexistent" as ContextLocatorId];
+        const attachments =
+          await attachmentRegistry.getAttachmentsForContext(nonExistentIds);
+        expect(attachments).toEqual([]);
+      });
+
+      it("should get attachments from provider that supports them", async () => {
+        const contextIds = ["attachment://item1" as ContextLocatorId];
+        const attachments =
+          await attachmentRegistry.getAttachmentsForContext(contextIds);
+
+        expect(attachments).toHaveLength(1);
+        expect(attachments[0]).toEqual(mockAttachment1);
+      });
+
+      it("should not get attachments for items that don't need them", async () => {
+        const contextIds = ["attachment://item2" as ContextLocatorId];
+        const attachments =
+          await attachmentRegistry.getAttachmentsForContext(contextIds);
+
+        expect(attachments).toHaveLength(0);
+      });
+
+      it("should not get attachments from providers with default implementation", async () => {
+        const simpleRegistry =
+          new AIContextRegistry<MockContextItem>().register(mockProvider);
+
+        const contextIds = ["mock://item1" as ContextLocatorId];
+        const attachments =
+          await simpleRegistry.getAttachmentsForContext(contextIds);
+
+        expect(attachments).toHaveLength(0);
+      });
+
+      it("should handle multiple context IDs from different providers", async () => {
+        const mixedRegistry = new AIContextRegistry<MockContextItem>()
+          .register(attachmentProvider)
+          .register(mockProvider);
+
+        const contextIds = [
+          "attachment://item1" as ContextLocatorId, // should have attachment
+          "attachment://item2" as ContextLocatorId, // should not have attachment
+          "mock://item1" as ContextLocatorId, // provider doesn't support attachments
+        ];
+
+        const attachments =
+          await mixedRegistry.getAttachmentsForContext(contextIds);
+
+        // Only attachment://item1 should contribute an attachment
+        expect(attachments).toHaveLength(1);
+        expect(attachments[0]).toEqual(mockAttachment1);
+      });
+
+      it("should handle multiple items needing attachments", async () => {
+        const multiItem1: MockContextItem = {
+          uri: "attachment://multi1" as ContextLocatorId,
+          name: "multi1",
+          type: "attachment",
+          description: "Multi item 1",
+          data: { needsAttachment: true, value: "multi1" },
+        };
+
+        const multiItem2: MockContextItem = {
+          uri: "attachment://multi2" as ContextLocatorId,
+          name: "multi2",
+          type: "attachment",
+          description: "Multi item 2",
+          data: { needsAttachment: true, value: "multi2" },
+        };
+
+        const multiProvider = new AttachmentContextProvider(
+          [multiItem1, multiItem2],
+          [mockAttachment1, mockAttachment2],
+        );
+
+        const multiRegistry = new AIContextRegistry<MockContextItem>().register(
+          multiProvider,
+        );
+
+        const contextIds = [
+          "attachment://multi1" as ContextLocatorId,
+          "attachment://multi2" as ContextLocatorId,
+        ];
+
+        const attachments =
+          await multiRegistry.getAttachmentsForContext(contextIds);
+
+        expect(attachments).toHaveLength(2);
+        expect(attachments).toContainEqual(mockAttachment1);
+        expect(attachments).toContainEqual(mockAttachment2);
+      });
+
+      it("should handle provider errors gracefully", async () => {
+        const errorProvider = new AttachmentContextProvider([
+          {
+            uri: "attachment://error-item" as ContextLocatorId,
+            name: "error-item",
+            type: "attachment",
+            description: "Item that causes error",
+            data: { needsAttachment: true, value: "error" },
+          },
+        ]);
+
+        // Override getAttachments to throw an error
+        errorProvider.getAttachments = vi
+          .fn()
+          .mockRejectedValue(new Error("Attachment error"));
+
+        const errorRegistry = new AIContextRegistry<MockContextItem>()
+          .register(errorProvider)
+          .register(mockProvider);
+
+        const contextIds = [
+          "attachment://error-item" as ContextLocatorId,
+          "mock://item1" as ContextLocatorId,
+        ];
+
+        // Should not throw and should handle the error gracefully
+        const attachments =
+          await errorRegistry.getAttachmentsForContext(contextIds);
+        expect(attachments).toEqual([]);
+      });
+    });
+
+    describe("provider batching for attachments", () => {
+      it("should batch multiple items to the same provider", async () => {
+        const getAttachmentsSpy = vi.spyOn(
+          attachmentProvider,
+          "getAttachments",
+        );
+
+        const contextIds = [
+          "attachment://item1" as ContextLocatorId,
+          "attachment://item2" as ContextLocatorId,
+        ];
+
+        await attachmentRegistry.getAttachmentsForContext(contextIds);
+
+        // Should call getAttachments once with both items
+        expect(getAttachmentsSpy).toHaveBeenCalledTimes(1);
+        expect(getAttachmentsSpy).toHaveBeenCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({ uri: "attachment://item1" }),
+            expect.objectContaining({ uri: "attachment://item2" }),
+          ]),
+        );
+      });
+
+      it("should call different providers separately", async () => {
+        const mixedRegistry = new AIContextRegistry<MockContextItem>()
+          .register(attachmentProvider)
+          .register(mockProvider);
+
+        const attachmentSpy = vi.spyOn(attachmentProvider, "getAttachments");
+        const mockSpy = vi.spyOn(mockProvider, "getAttachments");
+
+        const contextIds = [
+          "attachment://item1" as ContextLocatorId,
+          "mock://item1" as ContextLocatorId,
+        ];
+
+        await mixedRegistry.getAttachmentsForContext(contextIds);
+
+        // Should call each provider once
+        expect(attachmentSpy).toHaveBeenCalledTimes(1);
+        expect(mockSpy).toHaveBeenCalledTimes(1);
+
+        expect(attachmentSpy).toHaveBeenCalledWith([
+          expect.objectContaining({ uri: "attachment://item1" }),
+        ]);
+        expect(mockSpy).toHaveBeenCalledWith([
+          expect.objectContaining({ uri: "mock://item1" }),
+        ]);
+      });
     });
   });
 });

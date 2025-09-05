@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import dataclasses
 import json
 import os
 import pathlib
@@ -8,6 +7,7 @@ import subprocess
 
 import pytest
 
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.models.packages import DependencyTreeNode
 from marimo._utils.uv_tree import parse_uv_tree
 from tests.mocks import snapshotter
@@ -18,7 +18,7 @@ snapshot_test = snapshotter(__file__)
 
 
 def serialize(tree: DependencyTreeNode) -> str:
-    return json.dumps(dataclasses.asdict(tree), indent=2)
+    return json.dumps(asdict(tree), indent=2)
 
 
 def uv(cmd: list[str], cwd: str | None = None) -> str:

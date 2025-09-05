@@ -4,8 +4,7 @@ from __future__ import annotations
 import pathlib
 import sys
 import textwrap
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
 import pytest
@@ -17,6 +16,8 @@ from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     CycleError,
     Error,
+    MarimoExceptionRaisedError,
+    MarimoInternalError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
     MultipleDefinitionError,
@@ -42,6 +43,7 @@ from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.model import SessionMode
 from marimo._utils import parse_dataclass
 from marimo._utils.parse_dataclass import parse_raw
+from tests._messaging.mocks import MockStderr, MockStream
 from tests.conftest import ExecReqProvider, MockedKernel
 
 if TYPE_CHECKING:
@@ -1501,22 +1503,24 @@ except NameError:
         )
         # Runtime error expected- since not a kernel error check stderr
         assert "C" not in k.globals
+        stream = MockStream(k.stream)
+        stderr = MockStderr(k.stderr)
         if k.execution_type == "strict":
             assert (
                 "name `R` is referenced before definition."
-                in k.stream.messages[-4][1]["output"]["data"][0]["msg"]
+                in stream.operations[-4]["output"]["data"][0]["msg"]
             )
             assert (
                 "This cell wasn't run"
-                in k.stream.messages[-1][1]["output"]["data"][0]["msg"]
+                in stream.operations[-1]["output"]["data"][0]["msg"]
             )
         else:
             assert (
                 "Name `C` is not defined. It was expected to be defined in"
-                in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
+                in stream.operations[-2]["output"]["data"][0]["msg"]
             )
-            assert "NameError" in k.stderr.messages[0]
-            assert "NameError" in k.stderr.messages[-1]
+            assert "NameError" in stderr.messages[0]
+            assert "NameError" in stderr.messages[-1]
 
     @staticmethod
     async def test_run_scratch(mocked_kernel: MockedKernel) -> None:
@@ -1524,17 +1528,15 @@ except NameError:
         await k.run_scratchpad("x = 1; x")
         # Has no errors
         assert not k.errors
-        messages = mocked_kernel.stream.messages
-        (m1, m2, m3, m4) = messages
-        assert all(m[0] == "cell-op" for m in messages)
-        assert all(m[1]["cell_id"] == SCRATCH_CELL_ID for m in messages)
-        assert m1[1]["status"] == "queued"
-        assert m2[1]["status"] == "running"
-        assert m3[1]["status"] is None
-        assert (
-            m3[1]["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
-        )
-        assert m4[1]["status"] == "idle"
+        stream = MockStream(mocked_kernel.stream)
+        (m1, m2, m3, m4) = stream.operations
+        assert all(m["op"] == "cell-op" for m in stream.operations)
+        assert all(m["cell_id"] == SCRATCH_CELL_ID for m in stream.operations)
+        assert m1["status"] == "queued"
+        assert m2["status"] == "running"
+        assert m3["status"] is None
+        assert m3["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
+        assert m4["status"] == "idle"
         # Does not pollute globals
         assert "x" not in k.globals
 
@@ -1556,10 +1558,11 @@ except NameError:
         await k.run_scratchpad("y = z * 2; y")
         # Has no errors
         assert not k.errors
-        messages = mocked_kernel.stream.messages
+        stream = MockStream(mocked_kernel.stream)
+        messages = stream.operations
         output_message = messages[-2]
         assert (
-            output_message[1]["output"]["data"]
+            output_message["output"]["data"]
             == "<pre style='font-size: 12px'>20</pre>"
         )
         assert "z" in k.globals
@@ -1584,10 +1587,11 @@ except NameError:
         await k.run_scratchpad("z = 20; z")
         # Has no errors
         assert not k.errors
-        messages = mocked_kernel.stream.messages
+        stream = MockStream(mocked_kernel.stream)
+        messages = stream.operations
         output_message = messages[-2]
         assert (
-            output_message[1]["output"]["data"]
+            output_message["output"]["data"]
             == "<pre style='font-size: 12px'>20</pre>"
         )
         assert "z" in k.globals
@@ -1621,10 +1625,11 @@ except NameError:
         k = mocked_kernel.k
         await k.run([exec_req.get("print(2)")])
 
+        stream = MockStream(mocked_kernel.stream)
         cell_ops = [
             parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
+            for op_data in stream.operations
+            if op_data["op"] == "cell-op"
         ]
 
         assert len(cell_ops) == 4  # queued -> running -> output -> idle
@@ -3002,7 +3007,7 @@ class TestStateTransitions:
         from an imported module wouldn't update the frontend's dependency info.
         """
         k = mocked_kernel.k
-        stream = mocked_kernel.stream
+        stream = MockStream(mocked_kernel.stream)
 
         # Cell 1: Define multiple variables
         await k.run([exec_req.get("a = 1\nb = 2")])
@@ -3012,13 +3017,15 @@ class TestStateTransitions:
         er_2 = exec_req.get("print(a)\nprint(b)")
         await k.run([er_2])
         variables_msg_count = sum(
-            1 for m in stream.messages if m[0] == "variables"
+            1 for m in stream.operations if m["op"] == "variables"
         )
         assert variables_msg_count == 1
 
         # Check that both a and b show cell 2 in their used_by
-        variables_msg = next(m for m in stream.messages if m[0] == "variables")
-        variables = variables_msg[1]["variables"]
+        variables_msg = next(
+            m for m in stream.operations if m["op"] == "variables"
+        )
+        variables = variables_msg["variables"]
         var_a = next(v for v in variables if v["name"] == "a")
         var_b = next(v for v in variables if v["name"] == "b")
         assert er_2.cell_id in var_a["used_by"]
@@ -3030,13 +3037,15 @@ class TestStateTransitions:
 
         # Should broadcast Variables because usage changed
         variables_msg_count = sum(
-            1 for m in stream.messages if m[0] == "variables"
+            1 for m in stream.operations if m["op"] == "variables"
         )
         assert variables_msg_count == 1
 
         # Check that only a shows cell 2 in used_by now
-        variables_msg = next(m for m in stream.messages if m[0] == "variables")
-        variables = variables_msg[1]["variables"]
+        variables_msg = next(
+            m for m in stream.operations if m["op"] == "variables"
+        )
+        variables = variables_msg["variables"]
         var_a = next(v for v in variables if v["name"] == "a")
         var_b = next(v for v in variables if v["name"] == "b")
         assert er_2.cell_id in var_a["used_by"]
@@ -3055,7 +3064,7 @@ class TestErrorHandling:
         errors = _parse_error_output(error_cell_op[0])
 
         assert len(errors) == 1
-        assert errors[0].type == "exception"
+        assert isinstance(errors[0], MarimoExceptionRaisedError)
         assert errors[0].msg == "some secret error"
         assert errors[0].exception_type == "ValueError"
 
@@ -3070,7 +3079,7 @@ class TestErrorHandling:
         errors = _parse_error_output(error_cell_op[0])
 
         assert len(errors) == 1
-        assert errors[0].type == "internal"
+        assert isinstance(errors[0], MarimoInternalError)
         assert errors[0].msg.startswith("An internal error occurred: ")
 
     async def test_error_handling_in_run_mode_stop(
@@ -3089,7 +3098,7 @@ class TestErrorHandling:
         for op in error_cell_op:
             errors = _parse_error_output(op)
             assert len(errors) == 1
-            assert errors[0].type == "internal"
+            assert isinstance(errors[0], MarimoInternalError)
             assert errors[0].msg.startswith("An internal error occurred: ")
 
 
@@ -3123,12 +3132,7 @@ def _parse_error_output(cell_op: CellOp) -> list[Error]:
     assert error_output.channel == CellChannel.MARIMO_ERROR
     assert error_output.mimetype == "application/vnd.marimo+error"
     data = error_output.data
-
-    @dataclass
-    class Container:
-        errors: list[Error]
-
-    return parse_raw({"errors": data}, Container).errors
+    return cast(list[Error], data)
 
 
 def _filter_to_error_ops(cell_ops: list[CellOp]) -> list[CellOp]:

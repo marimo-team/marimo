@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
     Any,
@@ -20,6 +20,7 @@ from typing import (
 import pytest
 
 from marimo._config.config import ExperimentalConfigType
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._runtime.requests import SetCellConfigRequest
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
@@ -781,8 +782,8 @@ def test_not_required_types() -> None:
     data: dict[str, Any] = {
         "required": "value",
         "optional": "optional_value",
-        "optionalDict": {"key": "value"},
-        "optionalList": ["item"],
+        "optional_dict": {"key": "value"},
+        "optional_list": ["item"],
     }
     parsed = parse_raw(data, WithNotRequired)
     assert parsed["required"] == "value"
@@ -805,13 +806,12 @@ def test_not_required_types() -> None:
     # Test with empty values for container types
     data = {
         "required": "value",
-        "optional": None,
-        "optionalDict": {},
-        "optionalList": [],
+        "optional_dict": {},
+        "optional_list": [],
     }
     parsed = parse_raw(data, WithNotRequired)
     assert parsed["required"] == "value"
-    assert parsed["optional"] is None
+    assert "optional" not in parsed
     assert parsed["optional_dict"] == {}
     assert parsed["optional_list"] == []
 

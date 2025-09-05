@@ -1,122 +1,100 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal, Optional, Union
+from typing import Optional, Union
+
+import msgspec
 
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._types.ids import CellId_t
 
 
-@dataclass
-class SetupRootError:
+class SetupRootError(msgspec.Struct, tag="setup-refs"):
     edges_with_vars: tuple[EdgeWithVar, ...]
-    type: Literal["setup-refs"] = "setup-refs"
 
     def describe(self) -> str:
         return "The setup cell cannot have references"
 
 
-@dataclass
-class CycleError:
+class CycleError(msgspec.Struct, tag="cycle"):
     edges_with_vars: tuple[EdgeWithVar, ...]
-    type: Literal["cycle"] = "cycle"
 
     def describe(self) -> str:
         return "This cell is in a cycle"
 
 
-@dataclass
-class MultipleDefinitionError:
+class MultipleDefinitionError(msgspec.Struct, tag="multiple-defs"):
     name: str
     cells: tuple[CellId_t, ...]
-    type: Literal["multiple-defs"] = "multiple-defs"
 
     def describe(self) -> str:
         return f"The variable '{self.name}' was defined by another cell"
 
 
-@dataclass
-class ImportStarError:
+class ImportStarError(msgspec.Struct, tag="import-star"):
     msg: str
-    type: Literal["import-star"] = "import-star"
 
     def describe(self) -> str:
         return self.msg
 
 
-@dataclass
-class MarimoInterruptionError:
-    type: Literal["interruption"] = "interruption"
-
+class MarimoInterruptionError(msgspec.Struct, tag="interruption"):
     def describe(self) -> str:
         return "This cell was interrupted and needs to be re-run"
 
 
-@dataclass
-class MarimoAncestorPreventedError:
+class MarimoAncestorPreventedError(msgspec.Struct, tag="ancestor-prevented"):
     msg: str
     raising_cell: CellId_t
     blamed_cell: Optional[CellId_t]
-    type: Literal["ancestor-prevented"] = "ancestor-prevented"
 
     def describe(self) -> str:
         return self.msg
 
 
-@dataclass
-class MarimoAncestorStoppedError:
+class MarimoAncestorStoppedError(msgspec.Struct, tag="ancestor-stopped"):
     msg: str
     raising_cell: CellId_t
-    type: Literal["ancestor-stopped"] = "ancestor-stopped"
 
     def describe(self) -> str:
         return self.msg
 
 
-@dataclass
-class MarimoExceptionRaisedError:
+class MarimoExceptionRaisedError(msgspec.Struct, tag="exception"):
     msg: str
     exception_type: str
     # None for if raising_cell is the current cell
     raising_cell: Optional[CellId_t]
-    type: Literal["exception"] = "exception"
 
     def describe(self) -> str:
         return self.msg
 
 
-@dataclass
-class MarimoSyntaxError:
+class MarimoSyntaxError(msgspec.Struct, tag="syntax"):
     msg: str
-    type: Literal["syntax"] = "syntax"
 
     def describe(self) -> str:
         return self.msg
 
 
-@dataclass
-class UnknownError:
+class UnknownError(msgspec.Struct, tag="unknown"):
     msg: str
-    type: Literal["unknown"] = "unknown"
+    error_type: Optional[str] = None
 
     def describe(self) -> str:
         return self.msg
 
 
-@dataclass
-class MarimoStrictExecutionError:
+class MarimoStrictExecutionError(msgspec.Struct, tag="strict-exception"):
     msg: str
     ref: str
     blamed_cell: Optional[CellId_t]
-    type: Literal["strict-exception"] = "strict-exception"
 
     def describe(self) -> str:
         return self.msg
 
 
-@dataclass
-class MarimoInternalError:
+class MarimoInternalError(msgspec.Struct, tag="internal"):
     """
     An internal error that should be hidden from the user.
     The error is logged to the console and then a new error is broadcasted
@@ -126,7 +104,6 @@ class MarimoInternalError:
     """
 
     error_id: str
-    type: Literal["internal"] = "internal"
     msg: str = ""
 
     def __post_init__(self) -> None:
@@ -141,22 +118,28 @@ def is_unexpected_error(error: Error) -> bool:
     These errors are unexpected, in that they are not intentional.
     mo.stop and interrupt are intentional.
     """
-    return error.type not in [
-        "ancestor-prevented",
-        "ancestor-stopped",
-        "interruption",
-    ]
+    return not isinstance(
+        error,
+        (
+            MarimoAncestorPreventedError,
+            MarimoAncestorStoppedError,
+            MarimoInterruptionError,
+        ),
+    )
 
 
 def is_sensitive_error(error: Error) -> bool:
     """
     These errors are sensitive, in that they are intentional.
     """
-    return error.type not in [
-        "ancestor-prevented",
-        "ancestor-stopped",
-        "internal",
-    ]
+    return not isinstance(
+        error,
+        (
+            MarimoAncestorPreventedError,
+            MarimoAncestorStoppedError,
+            MarimoInternalError,
+        ),
+    )
 
 
 Error = Union[

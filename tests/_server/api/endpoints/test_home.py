@@ -72,7 +72,7 @@ def test_shutdown_session(client: TestClient) -> None:
     response = client.post(
         "/api/home/shutdown_session",
         headers=HEADERS,
-        json={"session_id": SESSION_ID},
+        json={"sessionId": SESSION_ID},
     )
     assert response.status_code == 200
     assert response.json() == {"files": []}
@@ -84,7 +84,7 @@ def test_open_tutorial(client: TestClient) -> None:
     response = client.post(
         "/api/home/tutorial/open",
         headers=HEADERS,
-        json={"tutorial_id": "intro"},
+        json={"tutorialId": "intro"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -97,7 +97,7 @@ def test_cant_open_non_tutorial(client: TestClient) -> None:
     response = client.post(
         "/api/home/tutorial/open",
         headers=HEADERS,
-        json={"tutorial_id": "non-tutorial"},
+        json={"tutorialId": "non-tutorial"},
     )
     assert response.status_code == 400
     assert response.json() == {"detail": "Tutorial not found"}

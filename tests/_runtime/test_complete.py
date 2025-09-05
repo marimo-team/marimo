@@ -14,7 +14,7 @@ import pytest
 import marimo
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import CompletionResult
-from marimo._messaging.types import Stream
+from marimo._messaging.types import KernelMessage, Stream
 from marimo._runtime.complete import (
     _build_docstring_cached,
     _maybe_get_key_options,
@@ -195,6 +195,10 @@ def test_parameter_descriptions(obj: Any, runtime_inference: bool):
         )
     if path.endswith("dummy_func"):
         pytest.skip("Not picking up parameters for dummy_func")
+    if path.endswith("ChatMessage"):
+        pytest.skip(
+            "ChatMessage is a msgspec struct which does not support Jedi dict completions"
+        )
     call = f"{path}("
     code = f"import {import_name};{call}"
     jedi.settings.auto_import_modules = ["marimo"] if runtime_inference else []
@@ -211,7 +215,7 @@ def test_parameter_descriptions(obj: Any, runtime_inference: bool):
         if param.kind in {param.VAR_KEYWORD, param.VAR_POSITIONAL}:
             continue
         assert param_name in param_completions, (
-            f"Jedi did not suggest {param_name} in {call}"
+            f"Jedi did not suggest {param_name} in {call}. It suggested {param_completions.keys()}"
         )
         jedi_param = param_completions[param_name]
         docstring = jedi_param.docstring()
@@ -359,10 +363,16 @@ def test_maybe_get_key_options_pandas_dataframe(
 
 class CaptureStream(Stream):
     def __init__(self):
-        self.messages: list[tuple[str, dict[Any, Any]]] = []
+        self.messages: list[KernelMessage] = []
 
-    def write(self, op: str, data: dict[Any, Any]) -> None:
+    def write(self, op: str, data: bytes) -> None:
         self.messages.append((op, data))
+
+    @property
+    def operations(self) -> list[dict[str, Any]]:
+        import json
+
+        return [json.loads(op_data) for _op_name, op_data in self.messages]
 
 
 # TODO add test cases for all other completion modalities
@@ -470,14 +480,14 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
         stream=local_stream,
     )
 
-    messages = local_stream.messages
-    message_name, content = messages[0]
+    message_name = local_stream.messages[0]
+    content = local_stream.operations[0]
     prefix_length = content["prefix_length"]
     options = content["options"]
     options_values = [option["name"] for option in options]
 
-    assert len(messages) == 1
-    assert message_name == CompletionResult.name
+    assert len(local_stream.messages) == 1
+    assert message_name[0] == CompletionResult.name
     # TODO if `expects_completions=False`, something else than `_maybe_get_key_options()`
     # could be returning values
     if expects_key_completion is False:
@@ -487,7 +497,7 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
     assert all(option["type"] == "property" for option in options)
     assert all(option["completion_info"] == "key" for option in options)
 
-    expected_keys: list[str]
+    expected_keys: list[str] = []
     if object_name == "static_key":
         # from source code in variable `other_cells_code`
         expected_keys = ["static_key"]

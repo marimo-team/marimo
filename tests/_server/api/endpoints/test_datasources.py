@@ -21,10 +21,10 @@ def test_preview_column(client: TestClient) -> None:
         "/api/datasources/preview_column",
         headers=HEADERS,
         json={
-            "source_type": "connection",
+            "sourceType": "connection",
             "source": "test_source",
-            "table_name": "test_table",
-            "column_name": "test_column",
+            "tableName": "test_table",
+            "columnName": "test_column",
         },
     )
     assert response.status_code == 200, response.text
@@ -38,11 +38,11 @@ def test_preview_sql_table(client: TestClient) -> None:
         "/api/datasources/preview_sql_table",
         headers=HEADERS,
         json={
-            "request_id": "test_request_id",
+            "requestId": "test_request_id",
             "engine": "test_engine",
             "database": "test_db",
             "schema": "test_schema",
-            "table_name": "test_table",
+            "tableName": "test_table",
         },
     )
     assert response.status_code == 200, response.text
@@ -56,7 +56,7 @@ def test_preview_sql_table_list(client: TestClient) -> None:
         "/api/datasources/preview_sql_table_list",
         headers=HEADERS,
         json={
-            "request_id": "test_request_id",
+            "requestId": "test_request_id",
             "engine": "test_engine",
             "database": "test_db",
             "schema": "test_schema",
@@ -87,10 +87,10 @@ def test_fails_in_read_mode(client: TestClient) -> None:
         "/api/datasources/preview_column",
         headers=HEADERS,
         json={
-            "source_type": "connection",
+            "sourceType": "connection",
             "source": "test_source",
-            "table_name": "test_table",
-            "column_name": "test_column",
+            "tableName": "test_table",
+            "columnName": "test_column",
         },
     )
     assert response.status_code == 401
@@ -99,11 +99,11 @@ def test_fails_in_read_mode(client: TestClient) -> None:
         "/api/datasources/preview_sql_table",
         headers=HEADERS,
         json={
-            "request_id": "test_request_id",
+            "requestId": "test_request_id",
             "engine": "test_engine",
             "database": "test_db",
             "schema": "test_schema",
-            "table_name": "test_table",
+            "tableName": "test_table",
         },
     )
     assert response.status_code == 401
@@ -112,7 +112,7 @@ def test_fails_in_read_mode(client: TestClient) -> None:
         "/api/datasources/preview_sql_table_list",
         headers=HEADERS,
         json={
-            "request_id": "test_request_id",
+            "requestId": "test_request_id",
             "engine": "test_engine",
             "database": "test_db",
             "schema": "test_schema",

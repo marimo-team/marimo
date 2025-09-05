@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import abc
 import subprocess
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
+
+import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -17,8 +18,7 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
-@dataclass
-class PackageDescription:
+class PackageDescription(msgspec.Struct, rename="camel"):
     name: str
     version: str
 

@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Generator
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
+
+import msgspec
 
 from marimo import _loggers
 from marimo._ast.load import load_app
@@ -14,21 +15,18 @@ from marimo._utils.paths import marimo_package_path
 LOGGER = _loggers.marimo_logger()
 
 
-@dataclass
-class SnippetSection:
+class SnippetSection(msgspec.Struct, rename="camel"):
     id: str
     html: Optional[str] = None
     code: Optional[str] = None
 
 
-@dataclass
-class Snippet:
+class Snippet(msgspec.Struct, rename="camel"):
     title: str
     sections: list[SnippetSection]
 
 
-@dataclass
-class Snippets:
+class Snippets(msgspec.Struct, rename="camel"):
     snippets: list[Snippet]
 
 

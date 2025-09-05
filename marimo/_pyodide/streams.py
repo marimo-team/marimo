@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellOutput
@@ -38,7 +38,7 @@ class PyodideStream(Stream):
         self.cell_id = cell_id
         self.input_queue = input_queue
 
-    def write(self, op: str, data: dict[Any, Any]) -> None:
+    def write(self, op: str, data: bytes) -> None:
         self.pipe((op, data))
 
 

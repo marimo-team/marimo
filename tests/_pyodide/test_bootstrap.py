@@ -1,12 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any, Callable
 
 import pytest
 
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._pyodide.bootstrap import create_session, save_file
 from marimo._pyodide.pyodide_session import PyodideSession
 from marimo._server.model import SessionMode
@@ -169,7 +169,7 @@ def test_save_file(
 
     # Save the file
     save_file(
-        request=json.dumps(request.__dict__),
+        request=encode_json_str(request),
         filename=str(mock_app_file),
     )
 

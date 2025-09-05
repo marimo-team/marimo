@@ -743,6 +743,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "umap": "umap-learn",
         "unidecode": "Unidecode",
         "universe": "ansible-universe",
+        "upath": "universal-pathlib",
         "usb": "pyusb",
         "useless": "useless.pipes",
         "userpass": "auth-userpass",

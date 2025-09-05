@@ -3,14 +3,14 @@ from __future__ import annotations
 
 import abc
 import io
-from typing import Any, Optional
+from typing import Optional
 
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._types.ids import CellId_t
 
 # The message from the kernel is a tuple of message type
 # and a json representation of the message
-KernelMessage = tuple[str, Any]
+KernelMessage = tuple[str, bytes]
 
 
 class Stream(abc.ABC):
@@ -23,7 +23,7 @@ class Stream(abc.ABC):
     cell_id: Optional[CellId_t] = None
 
     @abc.abstractmethod
-    def write(self, op: str, data: dict[Any, Any]) -> None:
+    def write(self, op: str, data: bytes) -> None:
         pass
 
     def stop(self) -> None:
@@ -32,7 +32,7 @@ class Stream(abc.ABC):
 
 
 class NoopStream(Stream):
-    def write(self, op: str, data: dict[Any, Any]) -> None:
+    def write(self, op: str, data: bytes) -> None:
         pass
 
 

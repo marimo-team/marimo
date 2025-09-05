@@ -91,6 +91,8 @@ def start(
     skew_protection: bool,
     remote_url: Optional[str] = None,
     mcp: bool = False,
+    asset_url: Optional[str] = None,
+    timeout: Optional[float] = None,
 ) -> None:
     """
     Start the server.
@@ -188,6 +190,7 @@ def start(
         if lsp_composite_server is not None
         else None,
         skew_protection=skew_protection,
+        timeout=timeout,
     )
 
     app.state.port = external_port
@@ -197,6 +200,7 @@ def start(
     app.state.watch = watch
     app.state.session_manager = session_manager
     app.state.base_url = base_url
+    app.state.asset_url = asset_url
     app.state.config_manager = config_reader
     app.state.remote_url = remote_url
     app.state.mcp_server_enabled = mcp

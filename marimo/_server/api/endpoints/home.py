@@ -178,10 +178,12 @@ async def tutorial(
                     schema:
                         $ref: "#/components/schemas/MarimoFile"
     """
+    import msgspec
+
     # Create a new tutorial file and return the filepath
     try:
         body = await parse_request(request, cls=OpenTutorialRequest)
-    except ValueError:
+    except msgspec.ValidationError:
         return JSONResponse({"detail": "Tutorial not found"}, status_code=400)
     temp_dir = tempfile.TemporaryDirectory()
     path = create_temp_tutorial_file(body.tutorial_id, temp_dir)

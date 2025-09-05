@@ -892,7 +892,7 @@ def test_with_too_many_rows_column_charts_disabled() -> None:
 
 
 @pytest.mark.skipif(is_windows(), reason=r"windows returns \r instead")
-def test__get_column_summaries_after_search() -> None:
+def test_get_column_summaries_after_search() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data)
 
@@ -910,7 +910,7 @@ def test__get_column_summaries_after_search() -> None:
     assert summaries.is_disabled is False
     summaries_data = from_data_uri(summaries.data)[1].decode("utf-8")
     # Result is csv or json
-    assert summaries_data in ["a\n2\n12\n", '[{"a": 2}, {"a": 12}]']
+    assert summaries_data in ["a\n2\n12\n", '[{"a":2},{"a":12}]']
     # We don't have column summaries for non-dataframe data
     assert summaries.stats["a"].min is None
     assert summaries.stats["a"].max is None
@@ -919,7 +919,7 @@ def test__get_column_summaries_after_search() -> None:
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(), reason="Pandas not installed"
 )
-def test__get_column_summaries_after_search_df() -> None:
+def test_get_column_summaries_after_search_df() -> None:
     import pandas as pd
 
     table = ui.table(pd.DataFrame({"a": list(range(20))}))

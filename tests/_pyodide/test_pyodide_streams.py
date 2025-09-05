@@ -1,4 +1,5 @@
 import asyncio
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -73,8 +74,9 @@ class TestPyodideStdout:
         data = "test output"
         pyodide_stdout.write(data)
         assert pyodide_pipe.call_count == 1
-        op, msg = pyodide_pipe.call_args[0][0]
+        op, msg_bytes = pyodide_pipe.call_args[0][0]
         assert op == "cell-op"
+        msg = json.loads(msg_bytes)
         assert msg["cell_id"] == pyodide_stdout.stream.cell_id
         assert msg["console"]["mimetype"] == "text/plain"
         assert msg["console"]["data"] == data
@@ -103,8 +105,9 @@ class TestPyodideStderr:
         data = "test error"
         pyodide_stderr.write(data)
         assert pyodide_pipe.call_count == 1
-        op, msg = pyodide_pipe.call_args[0][0]
+        op, msg_bytes = pyodide_pipe.call_args[0][0]
         assert op == "cell-op"
+        msg = json.loads(msg_bytes)
         assert msg["cell_id"] == pyodide_stderr.stream.cell_id
         assert msg["console"]["mimetype"] == "text/plain"
         assert msg["console"]["data"] == data
@@ -137,8 +140,9 @@ class TestPyodideStdin:
         assert result == "test input\n"
         # Verify prompt was sent
         assert pyodide_pipe.call_count == 1
-        op, msg = pyodide_pipe.call_args[0][0]
+        op, msg_bytes = pyodide_pipe.call_args[0][0]
         assert op == "cell-op"
+        msg = json.loads(msg_bytes)
         assert msg["cell_id"] == pyodide_stdin.stream.cell_id
         assert msg["console"]["mimetype"] == "text/plain"
         assert msg["console"]["data"] == ""
@@ -156,8 +160,9 @@ class TestPyodideStdin:
         assert result == "test input\n"
         # Verify prompt was sent
         assert pyodide_pipe.call_count == 1
-        op, msg = pyodide_pipe.call_args[0][0]
+        op, msg_bytes = pyodide_pipe.call_args[0][0]
         assert op == "cell-op"
+        msg = json.loads(msg_bytes)
         assert msg["cell_id"] == pyodide_stdin.stream.cell_id
         assert msg["console"]["mimetype"] == "text/plain"
         assert msg["console"]["data"] == "Enter: "
@@ -179,8 +184,9 @@ class TestPyodideStdin:
         assert result == ["line1", "line2", "line3", ""]
         # Verify prompt was sent
         assert pyodide_pipe.call_count == 1
-        op, msg = pyodide_pipe.call_args[0][0]
+        op, msg_bytes = pyodide_pipe.call_args[0][0]
         assert op == "cell-op"
+        msg = json.loads(msg_bytes)
         assert msg["cell_id"] == pyodide_stdin.stream.cell_id
         assert msg["console"]["mimetype"] == "text/plain"
         assert msg["console"]["data"] == ""

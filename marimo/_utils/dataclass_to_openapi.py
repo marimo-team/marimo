@@ -28,6 +28,9 @@ else:
 
 from typing import Sequence  # noqa: UP035
 
+import msgspec
+import msgspec.json
+
 
 class PythonTypeToOpenAPI:
     def __init__(self, name_overrides: dict[Any, str], camel_case: bool):
@@ -48,6 +51,9 @@ class PythonTypeToOpenAPI:
         Returns:
             Dict[str, Any]: The OpenAPI schema.
         """
+        if type(py_type) is type(msgspec.Struct):
+            return msgspec.json.schema(py_type)["$defs"][py_type.__name__]  # type: ignore[no-any-return]
+
         origin = get_origin(py_type)
         optional_name_overrides = self.optional_name_overrides
 
