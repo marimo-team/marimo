@@ -74,7 +74,7 @@ function parseHtmlContent(htmlString: string): string {
     const textContent = tempDiv.textContent || tempDiv.innerText || "";
 
     // Clean up extra whitespace
-    return textContent.replaceAll(/\s+/, " ").trim();
+    return textContent.replaceAll(/\s+/g, " ").trim();
   } catch (error) {
     Logger.error("Error parsing HTML content:", error);
     // If parsing fails, return the original string
