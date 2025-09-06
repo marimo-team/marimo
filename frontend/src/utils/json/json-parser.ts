@@ -12,7 +12,9 @@ export function jsonParseWithSpecialChar<T = unknown>(
   // This regex handling is expensive and often not needed.
   // We try to parse with JSON.parse first, and if that fails, we use the regex.
   try {
-    return JSON.parse(value) as T;
+    const parsed = JSON.parse(value) as T;
+    // Convert string-encoded large integers to BigInt for proper display
+    return convertLargeIntegersToBigInt(parsed);
   } catch {
     // Do nothing
   }
@@ -34,7 +36,7 @@ export function jsonParseWithSpecialChar<T = unknown>(
       /(?<=\s|^|\[|,|:)(NaN|-Infinity|Infinity)(?=(?:[^"'\\]*(\\.|'([^'\\]*\\.)*[^'\\]*'|"([^"\\]*\\.)*[^"\\]*"))*[^"']*$)/g,
       `"${CHAR}$1${CHAR}"`,
     );
-    return JSON.parse(value, (key, v) => {
+    const parsed = JSON.parse(value, (key, v) => {
       if (typeof v !== "string") {
         return v;
       }
@@ -49,9 +51,68 @@ export function jsonParseWithSpecialChar<T = unknown>(
       }
       return v;
     }) as T;
+    // Convert string-encoded large integers to BigInt for proper display
+    return convertLargeIntegersToBigInt(parsed);
   } catch {
     return {} as T;
   }
+}
+
+/**
+ * Recursively converts string-encoded large integers to BigInt for proper display.
+ * This handles integers that are outside JavaScript's safe integer range
+ * and were serialized as strings by the backend to prevent precision loss.
+ */
+function convertLargeIntegersToBigInt<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(convertLargeIntegersToBigInt) as T;
+  }
+
+  if (typeof obj === "object") {
+    const result = {} as T;
+    for (const [key, value] of Object.entries(obj)) {
+      (result as Record<string, unknown>)[key] = convertLargeIntegersToBigInt(value);
+    }
+    return result;
+  }
+
+  if (typeof obj === "string" && // Check if the string represents a large integer
+    isLargeIntegerString(obj)) {
+      try {
+        return BigInt(obj) as T;
+      } catch {
+        // If BigInt conversion fails, return the original string
+        return obj;
+      }
+    }
+
+  return obj;
+}
+
+/**
+ * Checks if a string represents a large integer that should be converted to BigInt.
+ * Only converts integers that are outside JavaScript's safe integer range.
+ */
+function isLargeIntegerString(str: string): boolean {
+  // Must be a string representing an integer (no decimals, no scientific notation)
+  if (!/^-?\d+$/.test(str)) {
+    return false;
+  }
+
+  // Parse as number to check if it's outside safe integer range
+  const num = Number(str);
+  
+  // If it's NaN or not finite, don't convert
+  if (!Number.isFinite(num)) {
+    return false;
+  }
+
+  // Only convert if it's outside the safe integer range
+  return Math.abs(num) > Number.MAX_SAFE_INTEGER;
 }
 
 export function jsonToTSV(json: Array<Record<string, unknown>>) {
