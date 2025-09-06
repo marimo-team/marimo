@@ -105,7 +105,7 @@ importers:
         version: 6.0.4-alpha9(lodash@4.17.21)(marked@15.0.12)(react-dom@19.1.1(react@19.1.1))(react-responsive-carousel@3.2.23)(react@19.1.1)
       '@hookform/resolvers':
         specifier: ^3.10.0
-        version: 3.10.0(react-hook-form@7.62.0(react@19.1.1))
+        version: 3.10.0(react-hook-form@7.54.2(react@19.1.1))
       '@img-comparison-slider/react':
         specifier: ^8.0.2
         version: 8.0.2
@@ -398,8 +398,8 @@ importers:
         specifier: ^1.5.2
         version: 1.5.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       react-hook-form:
-        specifier: 7.62.0
-        version: 7.62.0(react@19.1.1)
+        specifier: 7.54.2
+        version: 7.54.2(react@19.1.1)
       react-markdown:
         specifier: ^9.1.0
         version: 9.1.0(@types/react@19.1.12)(react@19.1.1)
@@ -8045,8 +8045,8 @@ packages:
       react: '>= 16.3.0'
       react-dom: '>= 16.3.0'
 
-  react-hook-form@7.62.0:
-    resolution: {integrity: sha512-7KWFejc98xqG/F4bAxpL41NB3o1nnvQO1RWZT3TqRZYL8RryQETGfEdVnJN2fy1crCiBLLjkRBVK05j24FxJGA==}
+  react-hook-form@7.54.2:
+    resolution: {integrity: sha512-eHpAUgUjWbZocoQYUHposymRb4ZP6d0uwUnooL2uOybA9/3tPUvoAKqEWK1WaSiTxxOfTpffNZP7QwlnM3/gEg==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
@@ -10904,9 +10904,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@hookform/resolvers@3.10.0(react-hook-form@7.62.0(react@19.1.1))':
+  '@hookform/resolvers@3.10.0(react-hook-form@7.54.2(react@19.1.1))':
     dependencies:
-      react-hook-form: 7.62.0(react@19.1.1)
+      react-hook-form: 7.54.2(react@19.1.1)
 
   '@humanwhocodes/config-array@0.13.0':
     dependencies:
@@ -18856,7 +18856,7 @@ snapshots:
       react-resizable: 3.0.5(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       resize-observer-polyfill: 1.5.1
 
-  react-hook-form@7.62.0(react@19.1.1):
+  react-hook-form@7.54.2(react@19.1.1):
     dependencies:
       react: 19.1.1
 
