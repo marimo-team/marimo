@@ -116,7 +116,7 @@ def convert_to_openai_messages(
     return cast("list[ChatCompletionMessageParam]", openai_messages)
 
 
-AnthropicMessage = Union[
+AnthropicParts = Union[
     "ServerToolUseBlockParam",
     "WebSearchToolResultBlockParam",
     "TextBlockParam",
@@ -130,10 +130,10 @@ AnthropicMessage = Union[
 ]
 
 
-def get_anthropic_messages_from_parts(
+def get_anthropic_parts_from_chat_parts(
     parts: list[ChatPart],
-) -> list[AnthropicMessage]:
-    messages: list[AnthropicMessage] = []
+) -> list[AnthropicParts]:
+    anthropic_parts: list[AnthropicParts] = []
 
     for part in parts:
         if isinstance(part, TextPart):
@@ -141,7 +141,7 @@ def get_anthropic_messages_from_parts(
                 "type": "text",
                 "text": part.text,
             }
-            messages.append(text_block)
+            anthropic_parts.append(text_block)
         elif isinstance(part, ReasoningPart):
             # Handle reasoning parts with proper Anthropic thinking type
             signature = ""
@@ -153,7 +153,7 @@ def get_anthropic_messages_from_parts(
                 "thinking": part.reasoning,
                 "signature": signature,
             }
-            messages.append(thinking_message)
+            anthropic_parts.append(thinking_message)
         elif isinstance(part, FilePart):
             media_type = part.media_type
             if media_type.strip() in [
@@ -170,13 +170,13 @@ def get_anthropic_messages_from_parts(
                         "data": _extract_data(part.url),
                     },
                 }
-                messages.append(image_message)
+                anthropic_parts.append(image_message)
             elif media_type.startswith("text"):
                 text_block_file: TextBlockParam = {
                     "type": "text",
                     "text": _extract_text(part.url),
                 }
-                messages.append(text_block_file)
+                anthropic_parts.append(text_block_file)
             else:
                 raise ValueError(f"Unsupported content type {media_type}")
         elif isinstance(part, ToolInvocationPart):
@@ -187,7 +187,7 @@ def get_anthropic_messages_from_parts(
                 "name": part.tool_name,
                 "input": part.input,
             }
-            messages.append(tool_use_message)
+            anthropic_parts.append(tool_use_message)
 
             # Create separate tool result message
             tool_result_message: ToolResultBlockParam = {
@@ -200,9 +200,9 @@ def get_anthropic_messages_from_parts(
                     }
                 ],
             }
-            messages.append(tool_result_message)
+            anthropic_parts.append(tool_result_message)
 
-    return messages
+    return anthropic_parts
 
 
 def convert_to_anthropic_messages(
@@ -211,7 +211,7 @@ def convert_to_anthropic_messages(
     anthropic_messages: list[MessageParam] = []
 
     for message in messages:
-        parts: list[AnthropicMessage] = []
+        parts: list[AnthropicParts] = []
         if not message.parts:
             # Convert content to string
             text_block: TextBlockParam = {
@@ -220,7 +220,7 @@ def convert_to_anthropic_messages(
             }
             parts.append(text_block)
         else:
-            parts.extend(get_anthropic_messages_from_parts(message.parts))
+            parts.extend(get_anthropic_parts_from_chat_parts(message.parts))
 
         anthropic_role = (
             "assistant" if message.role == "system" else message.role

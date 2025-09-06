@@ -15,7 +15,7 @@ from marimo._ai._convert import (
     convert_to_groq_messages,
     convert_to_openai_messages,
     convert_to_openai_tools,
-    get_anthropic_messages_from_parts,
+    get_anthropic_parts_from_chat_parts,
     get_google_messages_from_parts,
     get_openai_messages_from_parts,
 )
@@ -632,21 +632,21 @@ def test_get_openai_messages_from_parts_empty():
     assert result == []
 
 
-def test_get_anthropic_messages_from_parts_text_only():
+def test_get_anthropic_parts_from_chat_parts_text_only():
     """Test converting TextPart to Anthropic format."""
     parts = [
         TextPart(type="text", text="Hello"),
         TextPart(type="text", text="World"),
     ]
 
-    result = get_anthropic_messages_from_parts(parts)
+    result = get_anthropic_parts_from_chat_parts(parts)
     assert result == [
         {"type": "text", "text": "Hello"},
         {"type": "text", "text": "World"},
     ]
 
 
-def test_get_anthropic_messages_from_parts_with_reasoning():
+def test_get_anthropic_parts_from_chat_parts_with_reasoning():
     """Test converting ReasoningPart to Anthropic thinking format."""
     reasoning_details = [
         ReasoningDetails(
@@ -663,7 +663,7 @@ def test_get_anthropic_messages_from_parts_with_reasoning():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts(parts)
+    result = get_anthropic_parts_from_chat_parts(parts)
     assert result == [
         {"type": "text", "text": "Let me think about this"},
         {
@@ -674,7 +674,7 @@ def test_get_anthropic_messages_from_parts_with_reasoning():
     ]
 
 
-def test_get_anthropic_messages_from_parts_reasoning_no_signature():
+def test_get_anthropic_parts_from_chat_parts_reasoning_no_signature():
     """Test converting ReasoningPart without signature to Anthropic format."""
     reasoning_details = [
         ReasoningDetails(type="text", text="Step 1", signature=None)
@@ -688,7 +688,7 @@ def test_get_anthropic_messages_from_parts_reasoning_no_signature():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts(parts)
+    result = get_anthropic_parts_from_chat_parts(parts)
     assert result == [
         {
             "type": "thinking",
@@ -698,7 +698,7 @@ def test_get_anthropic_messages_from_parts_reasoning_no_signature():
     ]
 
 
-def test_get_anthropic_messages_from_parts_reasoning_empty_details():
+def test_get_anthropic_parts_from_empty_reasoning_details_chat_part():
     """Test converting ReasoningPart with empty details list."""
     parts = [
         ReasoningPart(
@@ -708,7 +708,7 @@ def test_get_anthropic_messages_from_parts_reasoning_empty_details():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts(parts)
+    result = get_anthropic_parts_from_chat_parts(parts)
     assert result == [
         {
             "type": "thinking",
@@ -718,7 +718,7 @@ def test_get_anthropic_messages_from_parts_reasoning_empty_details():
     ]
 
 
-def test_get_anthropic_messages_from_parts_with_tool_invocation():
+def test_get_anthropic_parts_from_chat_parts_with_tool_invocation():
     """Test converting ToolInvocationPart to Anthropic format."""
     parts = [
         TextPart(type="text", text="I'll search for you"),
@@ -731,7 +731,7 @@ def test_get_anthropic_messages_from_parts_with_tool_invocation():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts(parts)
+    result = get_anthropic_parts_from_chat_parts(parts)
     assert result == [
         # Text message
         {"type": "text", "text": "I'll search for you"},
@@ -756,11 +756,11 @@ def test_get_anthropic_messages_from_parts_with_tool_invocation():
     ]
 
 
-def test_get_anthropic_messages_from_parts_single_text():
+def test_get_anthropic_parts_from_chat_parts_single_text():
     """Test converting single text part."""
     parts = [TextPart(type="text", text="Single message")]
 
-    result = get_anthropic_messages_from_parts(parts)
+    result = get_anthropic_parts_from_chat_parts(parts)
     assert result == [{"type": "text", "text": "Single message"}]
 
 
