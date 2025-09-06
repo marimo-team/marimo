@@ -4,6 +4,7 @@ import path from "node:path";
 import express from "express";
 import httpProxy from "http-proxy-3";
 import * as dotenv from "dotenv";
+import WebSocket from "ws";
 
 import { buildPyodideLockFile, type BuiltWheelWithUrls, createMarimoWatcher, createUVProjectWatcher, type GenericWatcher } from "./build-wasm";
 import type { Server } from "node:http";
@@ -65,6 +66,28 @@ export async function startServer(config: BuildConfig) {
   const REPO_DIR = config.marimoRepoDir || path.resolve(path.join(__dirname, "../../../"));
   let lockfileJson = "";
   let lockFileUpdateTimestamp = 0;
+
+  const sessionRegistry = new Set<string>();
+  
+  const createSession = (sessionId: string): Promise<boolean> => 
+    new Promise(resolve => {
+      if (sessionRegistry.has(sessionId)) {
+        return resolve(true);
+      }
+      
+      const ws = new WebSocket(`ws://${config.targetHostname}:${config.targetPort}/ws?session_id=${sessionId}&file=__new__${sessionId}`);
+      const timeout = setTimeout(() => resolve(false), 5000);
+      
+      const cleanup = (success: boolean) => {
+        clearTimeout(timeout);
+        ws.close();
+        resolve(success);
+      };
+      
+      ws.onopen = () => sessionRegistry.add(sessionId);
+      ws.onmessage = () => cleanup(true);
+      ws.onerror = () => cleanup(false);
+    });
 
   const marimoWatcher = createMarimoWatcher(REPO_DIR);
 
@@ -157,7 +180,18 @@ export async function startServer(config: BuildConfig) {
       .send(lockfileJson);
   });
 
-  app.all(/^\/notebook\/api\/.*$/, (req, res) => {
+  app.all(/^\/notebook\/api\/.*$/, async (req, res) => {
+    const sessionId = req.headers['marimo-session-id'] as string;
+    
+    // NOTE(jabolo): The marimo instance is not aware of the sessions which the client creates,
+    // because our setup skips the notebook creation step. This session is required for API calls,
+    // like AI completions, to work. This creates a session on the fly if it doesn't exist.
+    if (sessionId) {
+      await createSession(sessionId)
+      .then(() => console.log(`Created session ${sessionId}`))
+      .catch(console.error);
+    }
+    
     const originalUrl = req.url;
     req.url = req.url.replace('/notebook', '');
     console.log(`Rewriting API request from ${originalUrl} to ${req.url}`);
