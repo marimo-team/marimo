@@ -11,12 +11,12 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@github/copilot-language-server": "^1.338.0"
+    "@github/copilot-language-server": "^1.366.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.0.0-beta.6",
+    "@biomejs/biome": "2.2.2",
     "@types/minimist": "^1.2.5",
-    "@types/node": "^24.0.10",
+    "@types/node": "^24.3.0",
     "@types/ws": "^8.18.1",
     "@vitest/expect": "^1.6.1",
     "jsonrpc-ws-proxy": "^0.0.5",
@@ -24,8 +24,8 @@
     "tsup": "^8.5.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
-    "vscode-ws-jsonrpc": "^3.4.0",
+    "vscode-ws-jsonrpc": "^3.5.0",
     "ws": "^8.18.3"
   },
-  "packageManager": "pnpm@10.12.4"
+  "packageManager": "pnpm@10.15.1"
 }
