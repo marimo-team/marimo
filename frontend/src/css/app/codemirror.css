@@ -67,7 +67,7 @@
 /* -- Panels -- */
 
 .cm .cm-panels {
-  background: transparent;
+  background-color: var(--cm-background);
   color: var(--sky-11);
   font-weight: 700;
 
