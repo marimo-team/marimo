@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { BoxIcon, XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useEvent } from "react-use-event-hook";
@@ -24,7 +25,7 @@ export const StartupLogsAlert: React.FC = () => {
 
     if (isDone) {
       // Dismiss after 5 seconds
-      timeout = window.setTimeout(() => handleClear(), 5_000);
+      timeout = window.setTimeout(() => handleClear(), 5000);
     }
 
     return () => {

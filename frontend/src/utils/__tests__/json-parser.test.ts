@@ -55,6 +55,85 @@ it("can fail to jsonParseWithSpecialChar", () => {
   expect(jsonParseWithSpecialChar("[nan]")).toMatchInlineSnapshot("{}");
 });
 
+it("can convert large integer strings to BigInt", () => {
+  // Large positive integer
+  const largeInt = "599087340098420735";
+  const result = jsonParseWithSpecialChar(`{"value": "${largeInt}"}`);
+  expect(result).toEqual({ value: BigInt(largeInt) });
+
+  // Large negative integer
+  const largeNegInt = "-599087340098420735";
+  const resultNeg = jsonParseWithSpecialChar(`{"value": "${largeNegInt}"}`);
+  expect(resultNeg).toEqual({ value: BigInt(largeNegInt) });
+
+  // Array of large integers
+  const arrayResult = jsonParseWithSpecialChar(
+    `[{"big_list": ["${largeInt}", "${largeNegInt}"]}]`,
+  );
+  expect(arrayResult).toEqual([
+    { big_list: [BigInt(largeInt), BigInt(largeNegInt)] },
+  ]);
+
+  // Mixed data with regular integers (should not be converted)
+  const mixedResult = jsonParseWithSpecialChar(
+    `{"regular": "42", "large": "${largeInt}", "float": "3.14"}`,
+  );
+  expect(mixedResult).toEqual({
+    regular: "42", // Small integer string should remain string
+    large: BigInt(largeInt), // Large integer string should become BigInt
+    float: "3.14", // Float string should remain string
+  });
+
+  // Nested objects
+  const nestedResult = jsonParseWithSpecialChar(
+    `{"data": {"values": ["${largeInt}", "999742000000000000"]}}`,
+  );
+  expect(nestedResult).toEqual({
+    data: { values: [BigInt(largeInt), BigInt("999742000000000000")] },
+  });
+});
+
+it("should not convert non-large integer strings", () => {
+  // Small integers should remain as strings if they're already strings
+  const smallIntResult = jsonParseWithSpecialChar('{"value": "42"}');
+  expect(smallIntResult).toEqual({ value: "42" });
+
+  // Non-integer strings should remain unchanged
+  const textResult = jsonParseWithSpecialChar('{"value": "hello world"}');
+  expect(textResult).toEqual({ value: "hello world" });
+
+  // Float strings should remain unchanged
+  const floatResult = jsonParseWithSpecialChar('{"value": "3.14159"}');
+  expect(floatResult).toEqual({ value: "3.14159" });
+
+  // Scientific notation should remain unchanged
+  const sciResult = jsonParseWithSpecialChar('{"value": "1e10"}');
+  expect(sciResult).toEqual({ value: "1e10" });
+
+  // Empty string should remain unchanged
+  const emptyResult = jsonParseWithSpecialChar('{"value": ""}');
+  expect(emptyResult).toEqual({ value: "" });
+});
+
+it("should handle edge cases for BigInt conversion", () => {
+  // At the boundary of safe integers
+  const maxSafeResult = jsonParseWithSpecialChar(
+    `{"value": "${Number.MAX_SAFE_INTEGER}"}`,
+  );
+  expect(maxSafeResult).toEqual({ value: `${Number.MAX_SAFE_INTEGER}` }); // Should remain string
+
+  const overMaxSafeResult = jsonParseWithSpecialChar(
+    `{"value": "${Number.MAX_SAFE_INTEGER + 1}"}`,
+  );
+  expect(overMaxSafeResult).toEqual({
+    value: BigInt(Number.MAX_SAFE_INTEGER + 1),
+  }); // Should become BigInt
+
+  // Invalid BigInt strings should remain as strings
+  const invalidResult = jsonParseWithSpecialChar('{"value": "not-a-number"}');
+  expect(invalidResult).toEqual({ value: "not-a-number" });
+});
+
 it("can convert json to tsv", () => {
   expect(jsonToTSV([])).toEqual("");
 

@@ -74,12 +74,17 @@ setupThemeListener();
 
 function getVsCodeTheme(): "light" | "dark" | undefined {
   const kind = document.body.dataset.vscodeThemeKind;
-  if (kind === "vscode-dark") {
+  switch (kind) {
+  case "vscode-dark":
     return "dark";
-  } else if (kind === "vscode-high-contrast") {
+  
+  case "vscode-high-contrast":
     return "dark";
-  } else if (kind === "vscode-light") {
+  
+  case "vscode-light":
     return "light";
+  
+  // No default
   }
   return undefined;
 }
