@@ -462,7 +462,7 @@ class TestAnthropicAiEndpoints:
             # Assert the prompt it was called with
             prompt: str = anthropic_client.messages.create.call_args.kwargs[
                 "messages"
-            ][0]["content"]
+            ][0]["content"][0]["text"]
             assert prompt == "Help me create a dataframe"
             # Assert the model it was called with
             model = anthropic_client.messages.create.call_args.kwargs["model"]
@@ -503,7 +503,7 @@ class TestAnthropicAiEndpoints:
             # Assert the prompt it was called with
             prompt: str = anthropic_client.messages.create.call_args.kwargs[
                 "messages"
-            ][0]["content"]
+            ][0]["content"][0]["text"]
             assert (
                 prompt
                 == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
