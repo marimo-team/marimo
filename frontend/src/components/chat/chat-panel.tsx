@@ -269,6 +269,11 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
 
               /* handle other part types … */
               default:
+                if (part.type.startsWith("data-")) {
+                  Logger.log("Found data part", part);
+                  return null;
+                }
+
                 Logger.error("Unhandled part type:", part.type);
                 try {
                   return (
