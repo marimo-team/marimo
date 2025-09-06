@@ -32,6 +32,13 @@ HAS_SQL_DEPS = (
 snapshot = snapshotter(__file__)
 
 
+@pytest.fixture
+def mock_light_theme():
+    """Mock the theme to always return 'light' for consistent test results."""
+    with patch("marimo._data.charts.get_current_theme", return_value="light"):
+        yield
+
+
 # Run cleanup after all tests are done
 @pytest.fixture(scope="module", autouse=True)
 def cleanup() -> Generator[None, None, None]:
@@ -83,6 +90,7 @@ def test_get_column_preview_for_dataframe() -> None:
     not HAS_DF_DEPS, reason="optional dependencies not installed"
 )
 @pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
+@pytest.mark.usefixtures("mock_light_theme")
 @pytest.mark.parametrize(
     ("column_name", "snapshot_prefix"),
     [
@@ -211,6 +219,7 @@ def test_get_column_preview_for_duckdb() -> None:
     not HAS_SQL_DEPS, reason="optional dependencies not installed"
 )
 @pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
+@pytest.mark.usefixtures("mock_light_theme")
 def test_get_column_preview_for_duckdb_categorical() -> None:
     import duckdb
 

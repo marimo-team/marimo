@@ -144,7 +144,9 @@ describe("CellOutputContextProvider", () => {
       const items = provider.getItems();
       const textItem = items.find((item) => item.data.cellId === "cell1");
 
-      if (!textItem) throw new Error("Text item not found");
+      if (!textItem) {
+        throw new Error("Text item not found");
+      }
 
       const context = provider.formatContext(textItem);
 
@@ -160,7 +162,9 @@ describe("CellOutputContextProvider", () => {
       const items = provider.getItems();
       const mediaItem = items.find((item) => item.data.cellId === "cell2");
 
-      if (!mediaItem) throw new Error("Media item not found");
+      if (!mediaItem) {
+        throw new Error("Media item not found");
+      }
 
       const context = provider.formatContext(mediaItem);
 
