@@ -22,6 +22,10 @@
     "pyodide": "0.27.7",
     "smol-toml": "^1.4.2",
     "typescript": "^5.9.2",
+    "ws": "^8.18.3",
     "yargs": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
   }
 }

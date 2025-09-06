@@ -732,9 +732,16 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
+      ws:
+        specifier: ^8.18.3
+        version: 8.18.3
       yargs:
         specifier: ^18.0.0
         version: 18.0.0
+    devDependencies:
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
 
 packages:
 
