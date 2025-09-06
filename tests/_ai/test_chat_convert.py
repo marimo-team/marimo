@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+from copy import deepcopy
 
 import pytest
 
@@ -19,7 +20,6 @@ from marimo._ai._convert import (
     get_openai_messages_from_parts,
 )
 from marimo._ai._types import (
-    ChatAttachment,
     ChatMessage,
     FilePart,
     ReasoningDetails,
@@ -33,34 +33,6 @@ from marimo._server.ai.tools.types import Tool
 
 @pytest.fixture
 def sample_messages() -> list[ChatMessage]:
-    return [
-        ChatMessage(
-            role="user",
-            content="Hello, I have a question.",
-            attachments=[
-                ChatAttachment(
-                    name="image.png",
-                    content_type="image/png",
-                    url=f"data:image/png;base64,{base64.b64encode(b'hello')}",
-                ),
-                ChatAttachment(
-                    name="text.txt",
-                    content_type="text/plain",
-                    url="data:text/csv;base64,QQoxCjIKMwo=",
-                ),
-            ],
-        ),
-        ChatMessage(
-            role="assistant",
-            content="Sure, I'd be happy to help. What's your question?",
-            attachments=[],
-        ),
-    ]
-
-
-# This is the new format instead of attachments
-@pytest.fixture
-def sample_messages_with_parts() -> list[ChatMessage]:
     return [
         ChatMessage(
             role="user",
@@ -90,9 +62,9 @@ def sample_messages_with_parts() -> list[ChatMessage]:
 
 
 def test_convert_to_openai_messages(
-    sample_messages_with_parts: list[ChatMessage],
+    sample_messages: list[ChatMessage],
 ):
-    result = convert_to_openai_messages(sample_messages_with_parts)
+    result = convert_to_openai_messages(sample_messages)
     assert result == [
         {
             "role": "user",
@@ -117,7 +89,7 @@ def test_convert_to_openai_messages(
     ]
 
 
-def test_convert_to_openai_messages_with_parts_and_attachments():
+def test_convert_to_openai_messages_with_parts():
     sample_messages = [
         ChatMessage(
             role="user",
@@ -180,43 +152,49 @@ def test_convert_to_openai_messages_with_parts_and_attachments():
     ]
 
 
-def test_convert_to_anthropic_messages(sample_messages: list[ChatMessage]):
+def test_convert_to_anthropic_messages(
+    sample_messages: list[ChatMessage],
+):
     result = convert_to_anthropic_messages(sample_messages)
-
-    assert len(result) == 2
-
-    # Check user message
-    assert result[0]["role"] == "user"
-    assert len(result[0]["content"]) == 3
-    assert result[0]["content"][0] == {
-        "type": "text",
-        "text": "Hello, I have a question.",
-    }
-    assert result[0]["content"][1] == {
-        "type": "image",
-        "source": {
-            "data": "b'aGVsbG8='",
-            "media_type": "image/png",
-            "type": "base64",
+    assert result == [
+        # User message
+        {
+            "role": "user",
+            "content": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Hello, I have a question."},
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": "b'aGVsbG8='",
+                            },
+                        },
+                        {"type": "text", "text": "A\n1\n2\n3\n"},
+                    ],
+                }
+            ],
         },
-    }
-    assert result[0]["content"][2] == {
-        "type": "text",
-        "text": "A\n1\n2\n3\n",
-    }
-
-    # Check assistant message
-    assert result[1]["role"] == "assistant"
-    assert (
-        result[1]["content"]
-        == "Sure, I'd be happy to help. What's your question?"
-    )
+        # Assistant message
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "role": "assistant",
+                    "content": "Sure, I'd be happy to help. What's your question?",
+                }
+            ],
+        },
+    ]
 
 
 def test_convert_to_google_messages(
-    sample_messages_with_parts: list[ChatMessage],
+    sample_messages: list[ChatMessage],
 ):
-    result = convert_to_google_messages(sample_messages_with_parts)
+    result = convert_to_google_messages(sample_messages)
     assert result == [
         # User message
         {
@@ -242,21 +220,28 @@ def test_convert_to_google_messages(
     ]
 
 
-def test_convert_to_groq_messages(sample_messages: list[ChatMessage]):
-    result = convert_to_groq_messages(sample_messages)
-
-    assert len(result) == 2
-
-    # Check user message with text attachment
-    assert result[0]["role"] == "user"
-    assert result[0]["content"] == "Hello, I have a question.\nA\n1\n2\n3\n"
-
-    # Check assistant message
-    assert result[1]["role"] == "assistant"
-    assert (
-        result[1]["content"]
-        == "Sure, I'd be happy to help. What's your question?"
+def test_convert_to_groq_messages(
+    sample_messages: list[ChatMessage],
+):
+    new_messages = deepcopy(sample_messages)
+    # replace image file part with text file part
+    new_messages[0].parts[1] = FilePart(
+        filename="text.txt",
+        type="file",
+        media_type="text/plain",
+        url="data:text/plain;base64,R29vZGJ5ZQ==",
     )
+    result = convert_to_groq_messages(new_messages)
+
+    assert result == [
+        # User message
+        {"role": "user", "content": "Hello, I have a question.\nGoodbye"},
+        # Assistant message
+        {
+            "role": "assistant",
+            "content": "Sure, I'd be happy to help. What's your question?",
+        },
+    ]
 
 
 def test_empty_messages():
@@ -287,7 +272,10 @@ def test_message_without_attachments():
 
     anthropic_result = convert_to_anthropic_messages(messages)
     assert anthropic_result == [
-        {"role": "user", "content": "Just a simple message"}
+        {
+            "role": "user",
+            "content": [{"role": "user", "content": "Just a simple message"}],
+        }
     ]
 
     google_result = convert_to_google_messages(messages)
