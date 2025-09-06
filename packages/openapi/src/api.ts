@@ -3573,6 +3573,7 @@ export interface components {
         | components["schemas"]["Banner"]
         | components["schemas"]["MissingPackageAlert"]
         | components["schemas"]["InstallingPackageAlert"]
+        | components["schemas"]["StartupLogs"]
         | components["schemas"]["Variables"]
         | components["schemas"]["VariableValues"]
         | components["schemas"]["QueryParamsSet"]
@@ -4197,6 +4198,14 @@ export interface components {
     SnippetsConfig: {
       custom_paths?: string[];
       include_default_snippets?: boolean;
+    };
+    /** StartupLogs */
+    StartupLogs: {
+      content: string;
+      /** @enum {unknown} */
+      op: "startup-logs";
+      /** @enum {unknown} */
+      status: "append" | "done" | "start";
     };
     /** StdinRequest */
     StdinRequest: {

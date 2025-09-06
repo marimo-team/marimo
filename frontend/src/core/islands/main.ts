@@ -120,6 +120,7 @@ export async function initialize() {
       case "datasets":
       case "data-source-connections":
       case "secret-keys-result":
+      case "startup-logs":
         // Unsupported
         return;
       case "kernel-ready":

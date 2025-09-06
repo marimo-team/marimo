@@ -14,6 +14,7 @@ from marimo._messaging.ops import (
     Interrupted,
     MessageOperation,
     SendUIElementMessage,
+    StartupLogs,
     UpdateCellCodes,
     UpdateCellIdsRequest,
     Variables,
@@ -95,6 +96,9 @@ class SessionView:
             WidgetModelId, list[SendUIElementMessage]
         ] = {}
 
+        # Startup logs for startup command - only one at a time
+        self.startup_logs: Optional[StartupLogs] = None
+
         # Auto-saving
         self.auto_export_state = AutoExportState()
 
@@ -141,10 +145,9 @@ class SessionView:
                     return
 
     def add_operation(self, operation: MessageOperation) -> None:
+        """Add an operation to the session view."""
         self._touch()
         self.auto_export_state.mark_all_stale()
-
-        """Add an operation to the session view."""
 
         if isinstance(operation, CellOp):
             previous = self.cell_operations.get(operation.cell_id)
@@ -253,6 +256,13 @@ class SessionView:
             # TODO: cleanup/merge previous 'update' messages
             self.model_messages[operation.model_id] = messages
 
+        elif isinstance(operation, StartupLogs):
+            prev = self.startup_logs.content if self.startup_logs else ""
+            self.startup_logs = StartupLogs(
+                content=prev + operation.content,
+                status=operation.status,
+            )
+
     def get_cell_outputs(
         self, ids: list[CellId_t]
     ) -> dict[CellId_t, CellOutput]:
@@ -314,6 +324,9 @@ class SessionView:
         if self.model_messages:
             for messages in self.model_messages.values():
                 all_ops.extend(messages)
+        # Only include startup logs if they are in progress (not done)
+        if self.startup_logs and self.startup_logs.status != "done":
+            all_ops.append(self.startup_logs)
         return all_ops
 
     def is_empty(self) -> bool:

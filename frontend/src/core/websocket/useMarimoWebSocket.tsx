@@ -79,7 +79,7 @@ export function useMarimoWebSocket(opts: {
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
-  const { addPackageAlert } = useAlertActions();
+  const { addPackageAlert, addStartupLog } = useAlertActions();
   const setKioskMode = useSetAtom(kioskModeAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
@@ -202,6 +202,12 @@ export function useMarimoWebSocket(opts: {
         addPackageAlert({
           ...msg.data,
           kind: "installing",
+        });
+        return;
+      case "startup-logs":
+        addStartupLog({
+          content: msg.data.content,
+          status: msg.data.status,
         });
         return;
       case "query-params-append":
