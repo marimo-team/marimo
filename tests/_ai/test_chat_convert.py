@@ -161,21 +161,16 @@ def test_convert_to_anthropic_messages(
         {
             "role": "user",
             "content": [
+                {"type": "text", "text": "Hello, I have a question."},
                 {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "Hello, I have a question."},
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/png",
-                                "data": "b'aGVsbG8='",
-                            },
-                        },
-                        {"type": "text", "text": "A\n1\n2\n3\n"},
-                    ],
-                }
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/png",
+                        "data": "b'aGVsbG8='",
+                    },
+                },
+                {"type": "text", "text": "A\n1\n2\n3\n"},
             ],
         },
         # Assistant message
@@ -183,8 +178,8 @@ def test_convert_to_anthropic_messages(
             "role": "assistant",
             "content": [
                 {
-                    "role": "assistant",
-                    "content": "Sure, I'd be happy to help. What's your question?",
+                    "type": "text",
+                    "text": "Sure, I'd be happy to help. What's your question?",
                 }
             ],
         },
@@ -274,7 +269,7 @@ def test_message_without_attachments():
     assert anthropic_result == [
         {
             "role": "user",
-            "content": [{"role": "user", "content": "Just a simple message"}],
+            "content": [{"type": "text", "text": "Just a simple message"}],
         }
     ]
 
@@ -644,11 +639,8 @@ def test_get_anthropic_messages_from_parts_text_only():
         TextPart(type="text", text="World"),
     ]
 
-    result = get_anthropic_messages_from_parts("user", parts)
-
-    assert len(result) == 1
-    assert result[0]["role"] == "user"
-    assert result[0]["content"] == [
+    result = get_anthropic_messages_from_parts(parts)
+    assert result == [
         {"type": "text", "text": "Hello"},
         {"type": "text", "text": "World"},
     ]
@@ -671,11 +663,8 @@ def test_get_anthropic_messages_from_parts_with_reasoning():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts("assistant", parts)
-
-    assert len(result) == 1
-    assert result[0]["role"] == "assistant"
-    assert result[0]["content"] == [
+    result = get_anthropic_messages_from_parts(parts)
+    assert result == [
         {"type": "text", "text": "Let me think about this"},
         {
             "type": "thinking",
@@ -699,16 +688,13 @@ def test_get_anthropic_messages_from_parts_reasoning_no_signature():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts("assistant", parts)
-
-    assert len(result) == 1
-    assert result[0]["role"] == "assistant"
-    assert result[0]["content"] == [
+    result = get_anthropic_messages_from_parts(parts)
+    assert result == [
         {
             "type": "thinking",
             "thinking": "Basic reasoning",
             "signature": "",  # Should be empty string when no signature
-        },
+        }
     ]
 
 
@@ -722,16 +708,13 @@ def test_get_anthropic_messages_from_parts_reasoning_empty_details():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts("assistant", parts)
-
-    assert len(result) == 1
-    assert result[0]["role"] == "assistant"
-    assert result[0]["content"] == [
+    result = get_anthropic_messages_from_parts(parts)
+    assert result == [
         {
             "type": "thinking",
             "thinking": "Some reasoning",
             "signature": "",  # Should be empty when no details
-        },
+        }
     ]
 
 
@@ -748,47 +731,37 @@ def test_get_anthropic_messages_from_parts_with_tool_invocation():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts("assistant", parts)
-
-    assert (
-        len(result) == 2
-    )  # One message with tool use, one tool result message
-
-    # Check first message with tool use
-    assert result[0]["role"] == "assistant"
-    expected_content = [
+    result = get_anthropic_messages_from_parts(parts)
+    assert result == [
+        # Text message
         {"type": "text", "text": "I'll search for you"},
+        # Tool use message
         {
             "type": "tool_use",
             "id": "call_123",
             "name": "search_tool",
             "input": {"query": "Python tutorials"},
         },
-    ]
-    assert result[0]["content"] == expected_content
-
-    # Check tool result message
-    assert result[1]["role"] == "user"
-    assert result[1]["content"] == [
+        # Tool result message
         {
-            "type": "tool_result",
             "tool_use_id": "call_123",
-            "content": str({"results": ["tutorial1", "tutorial2"]}),
-        }
+            "type": "tool_result",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "{'results': ['tutorial1', 'tutorial2']}",
+                }
+            ],
+        },
     ]
 
 
 def test_get_anthropic_messages_from_parts_single_text():
-    """Test converting single TextPart uses string format instead of array."""
+    """Test converting single text part."""
     parts = [TextPart(type="text", text="Single message")]
 
-    result = get_anthropic_messages_from_parts("user", parts)
-
-    assert len(result) == 1
-    assert result[0]["role"] == "user"
-    assert (
-        result[0]["content"] == "Single message"
-    )  # Should be string, not array
+    result = get_anthropic_messages_from_parts(parts)
+    assert result == [{"type": "text", "text": "Single message"}]
 
 
 def test_get_google_messages_from_parts_text_only():
