@@ -61,7 +61,11 @@
         "!/.*storybook.*/",
         "!/.*typescript.*/",
         "!/.*openapi-fetch.*/",
-        "!/.*react-aria.*/"
+        "!/.*react-aria.*/",
+        // react-hook-form is pinned to 7.54.2
+        "!/.*react-hook-form.*/",
+        // pyodide needs to be manually updated
+        "!/.*pyodide.*/"
       ],
       "schedule": ["on the 1st day of the month"]
     },
