@@ -276,8 +276,14 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         if query:
             result = result.search(query)
 
-        if sort and sort.by in result.get_column_names():
-            result = result.sort_values(sort.by, sort.descending)
+        if sort:
+            # Convert tuples to lists to match the sort_values method signature
+            by_list = list(sort.by)
+            descending_list = list(sort.descending)
+            # Check that all columns exist
+            existing_columns = set(result.get_column_names())
+            if all(col in existing_columns for col in by_list):
+                result = result.sort_values(by_list, descending_list)
 
         return result
 

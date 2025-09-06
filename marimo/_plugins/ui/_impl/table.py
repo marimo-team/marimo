@@ -113,6 +113,12 @@ MaxColumnsType = Union[int, None, MaxColumnsNotProvided]
 
 
 @dataclass(frozen=True)
+class SortArgs:
+    by: tuple[ColumnName, ...]
+    descending: tuple[bool, ...]
+
+
+@dataclass(frozen=True)
 class SearchTableArgs:
     page_size: int
     page_number: int
@@ -133,12 +139,6 @@ class SearchTableResponse:
     data: str
     total_rows: Union[int, Literal["too_many"]]
     cell_styles: Optional[CellStyles] = None
-
-
-@dataclass(frozen=True)
-class SortArgs:
-    by: ColumnName
-    descending: bool
 
 
 @dataclass
@@ -1100,8 +1100,14 @@ class table(
         if query:
             result = result.search(query)
 
-        if sort and sort.by in result.get_column_names():
-            result = result.sort_values(sort.by, sort.descending)
+        if sort:
+            # Convert tuples to lists to match the sort_values method signature
+            by_list = list(sort.by)
+            descending_list = list(sort.descending)
+            # Check that all columns exist
+            existing_columns = set(result.get_column_names())
+            if all(col in existing_columns for col in by_list):
+                result = result.sort_values(by_list, descending_list)
 
         return result
 

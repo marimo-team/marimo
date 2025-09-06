@@ -129,7 +129,7 @@ def test_normalize_data(executing_kernel: Kernel) -> None:
 def test_sort_1d_list_of_strings(dtm: DefaultTableManager) -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     dtm.data = _normalize_data(data)
-    sorted_data = dtm.sort_values(by="value", descending=False).data
+    sorted_data = dtm.sort_values(by=["value"], descending=[False]).data
     expected_data = [
         {"value": "apple"},
         {"value": "banana"},
@@ -143,7 +143,7 @@ def test_sort_1d_list_of_strings(dtm: DefaultTableManager) -> None:
 def test_sort_1d_list_of_integers(dtm: DefaultTableManager) -> None:
     data = [42, 17, 23, 99, 8]
     dtm.data = _normalize_data(data)
-    sorted_data = dtm.sort_values(by="value", descending=False).data
+    sorted_data = dtm.sort_values(by=["value"], descending=[False]).data
     expected_data = [
         {"value": 8},
         {"value": 17},
@@ -163,10 +163,10 @@ def test_sort_list_of_dicts(dtm: DefaultTableManager) -> None:
         {"name": "Eve", "age": 22, "birth_year": date(2002, 1, 30)},
     ]
     dtm.data = _normalize_data(data)
-    sorted_data = dtm.sort_values(by="age", descending=True).data
+    sorted_data = dtm.sort_values(by=["age"], descending=[True]).data
 
     with pytest.raises(KeyError):
-        _res = dtm.sort_values(by="missing_column", descending=True).data
+        _res = dtm.sort_values(by=["missing_column"], descending=[True]).data
 
     expected_data = [
         {"name": "Charlie", "age": 35, "birth_year": date(1989, 12, 1)},
@@ -191,10 +191,10 @@ def test_sort_dict_of_lists(dtm: DefaultTableManager) -> None:
         "net_worth": [1000, 2000, 1500, 1800, 1700],
     }
     dtm.data = _normalize_data(data)
-    sorted_data = dtm.sort_values(by="net_worth", descending=False).data
+    sorted_data = dtm.sort_values(by=["net_worth"], descending=[False]).data
 
     with pytest.raises(KeyError):
-        _res = dtm.sort_values(by="missing_column", descending=True).data
+        _res = dtm.sort_values(by=["missing_column"], descending=[True]).data
 
     expected_data = {
         "company": [
@@ -219,10 +219,10 @@ def test_sort_dict_of_tuples(dtm: DefaultTableManager) -> None:
         "key5": (7, 9, 11),
     }
     dtm.data = _normalize_data(data)
-    sorted_data = dtm.sort_values(by="key1", descending=True).data
+    sorted_data = dtm.sort_values(by=["key1"], descending=[True]).data
 
     with pytest.raises(KeyError):
-        _res = dtm.sort_values(by="missing_column", descending=True).data
+        _res = dtm.sort_values(by=["missing_column"], descending=[True]).data
 
     expected_data = [
         {"key1": 42, "key2": 99, "key3": 34, "key4": 1, "key5": 7},
@@ -293,7 +293,7 @@ def test_value_with_sorting_then_selection() -> None:
 
     table._search(
         SearchTableArgs(
-            sort=SortArgs("value", descending=True),
+            sort=SortArgs(("value",), descending=(True,)),
             page_size=10,
             page_number=0,
         )
@@ -305,8 +305,8 @@ def test_value_with_sorting_then_selection() -> None:
     table._search(
         SearchTableArgs(
             sort=SortArgs(
-                "value",
-                descending=False,
+                ("value",),
+                descending=(False,),
             ),
             page_size=10,
             page_number=0,
@@ -330,7 +330,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
     table = ui.table(df)
     table._search(
         SearchTableArgs(
-            sort=SortArgs("a", descending=True),
+            sort=SortArgs(("a",), descending=(True,)),
             page_size=10,
             page_number=0,
         )
@@ -341,7 +341,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
 
     table._search(
         SearchTableArgs(
-            sort=SortArgs("a", descending=False),
+            sort=SortArgs(("a",), descending=(False,)),
             page_size=10,
             page_number=0,
         )
@@ -516,7 +516,7 @@ def test_value_with_selection_then_sorting_dict_of_lists() -> None:
 
     table._search(
         SearchTableArgs(
-            sort=SortArgs("net_worth", descending=True),
+            sort=SortArgs(("net_worth",), descending=(True,)),
             page_size=10,
             page_number=0,
         )
@@ -559,7 +559,7 @@ def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
 
     table._search(
         SearchTableArgs(
-            sort=SortArgs("net_worth", descending=True),
+            sort=SortArgs(("net_worth",), descending=(True,)),
             page_size=10,
             page_number=0,
         )
@@ -590,7 +590,7 @@ def test_search_sort_nonexistent_columns() -> None:
     # no error raised
     table._search(
         SearchTableArgs(
-            sort=SortArgs("missing_column", descending=False),
+            sort=SortArgs(("missing_column",), descending=(False,)),
             page_size=10,
             page_number=0,
         )
@@ -1717,7 +1717,7 @@ def test_cell_search_df_styles_sorted():
             page_size=2,
             page_number=0,
             query="",
-            sort=SortArgs(by="column_0", descending=True),
+            sort=SortArgs(by=("column_0",), descending=(True,)),
         )
     )
     # Sorted rows have reverse order of row_ids
@@ -1988,7 +1988,7 @@ def test_max_columns_not_provided_with_sort():
     search_args = SearchTableArgs(
         page_size=10,
         page_number=0,
-        sort=SortArgs(by="col0", descending=True),
+        sort=SortArgs(by=("col0",), descending=(True,)),
         max_columns=MAX_COLUMNS_NOT_PROVIDED,
     )
     response = table._search(search_args)
@@ -1999,7 +1999,7 @@ def test_max_columns_not_provided_with_sort():
     search_args = SearchTableArgs(
         page_size=10,
         page_number=0,
-        sort=SortArgs(by="col0", descending=True),
+        sort=SortArgs(by=("col0",), descending=(True,)),
         max_columns=20,
     )
     response = table._search(search_args)
@@ -2010,7 +2010,7 @@ def test_max_columns_not_provided_with_sort():
     search_args = SearchTableArgs(
         page_size=10,
         page_number=0,
-        sort=SortArgs(by="col0", descending=True),
+        sort=SortArgs(by=("col0",), descending=(True,)),
         max_columns=None,
     )
     response = table._search(search_args)
