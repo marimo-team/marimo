@@ -6,7 +6,6 @@ import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import {
   DefaultChatTransport,
-  type FileUIPart,
   lastAssistantMessageIsCompleteWithToolCalls,
   type ToolUIPart,
 } from "ai";
@@ -47,7 +46,6 @@ import {
   type ChatId,
   chatStateAtom,
 } from "@/core/ai/state";
-import type { ChatAttachment } from "@/core/ai/types";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
@@ -82,7 +80,11 @@ const DEFAULT_MODE = "manual";
 
 // We need to modify the backend to support attachments for other providers
 // And other types
-const PROVIDERS_THAT_SUPPORT_ATTACHMENTS = new Set<ProviderId>(["openai"]);
+const PROVIDERS_THAT_SUPPORT_ATTACHMENTS = new Set<ProviderId>([
+  "openai",
+  "google",
+  "anthropic",
+]);
 const SUPPORTED_ATTACHMENT_TYPES = ["image/*", "text/*"];
 const MAX_ATTACHMENT_SIZE = 1024 * 1024 * 50; // 50MB
 
@@ -180,7 +182,7 @@ function isToolPart(part: UIMessage["parts"][number]): part is ToolUIPart {
   return part.type.startsWith("tool-");
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = memo(
+const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
   ({ message, index, onEdit, isStreamingReasoning, isLast }) => {
     const renderUserMessage = (message: UIMessage) => {
       const textParts = message.parts?.filter((p) => p.type === "text");
@@ -267,6 +269,11 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
 
               /* handle other part types … */
               default:
+                if (part.type.startsWith("data-")) {
+                  Logger.log("Found data part", part);
+                  return null;
+                }
+
                 Logger.error("Unhandled part type:", part.type);
                 try {
                   return (
@@ -299,7 +306,7 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
     );
   },
 );
-ChatMessage.displayName = "ChatMessage";
+ChatMessageDisplay.displayName = "ChatMessage";
 
 interface ChatInputFooterProps {
   isEmpty: boolean;
@@ -550,15 +557,6 @@ const ChatPanelBody = () => {
             .join("\n");
         }
 
-        // Map from ai/sdk files to our attachment type
-        function toAttachment(p: FileUIPart): ChatAttachment {
-          return {
-            contentType: p.mediaType,
-            name: p.filename,
-            url: p.url,
-          };
-        }
-
         const input = toContent(options.messages.flatMap((m) => m.parts));
         const completionBody = await getAICompletionBodyWithAttachments({
           input,
@@ -566,20 +564,15 @@ const ChatPanelBody = () => {
 
         // Map from UIMessage to our ChatMessage type
         // If it's the last message, add the attachments from the completion body
-        function mapMessage(
-          m: UIMessage,
-          isLastMessage: boolean,
-        ): ChatMessage & { attachments: ChatAttachment[] } {
-          const attachments = m.parts.flatMap((p) =>
-            p.type === "file" ? toAttachment(p) : [],
-          );
+        function mapMessage(m: UIMessage, isLastMessage: boolean): ChatMessage {
+          const parts = m.parts;
           if (isLastMessage) {
-            attachments.push(...completionBody.attachments);
+            parts.push(...completionBody.attachments);
           }
           return {
             role: m.role,
             content: toContent(m.parts),
-            attachments: attachments,
+            parts: parts,
           };
         }
 
@@ -649,7 +642,7 @@ const ChatPanelBody = () => {
         return;
       }
 
-      setFiles([...files]);
+      setFiles((prev) => [...(prev ?? []), ...files]);
     },
   );
 
@@ -846,7 +839,7 @@ const ChatPanelBody = () => {
         )}
 
         {messages.map((message, idx) => (
-          <ChatMessage
+          <ChatMessageDisplay
             key={message.id}
             message={message}
             index={idx}

@@ -4,10 +4,11 @@ from __future__ import annotations
 from typing import Optional, cast
 
 from marimo._ai._types import (
-    ChatAttachment,
     ChatMessage,
     ChatMessageDict,
     ChatPart,
+    FilePart,
+    FilePartDict,
     ReasoningDetails,
     ReasoningPart,
     ReasoningPartDict,
@@ -22,20 +23,6 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
     if isinstance(d, ChatMessage):
         return d
 
-    attachments_dict = d.get("attachments", None)
-    attachments: Optional[list[ChatAttachment]] = None
-    if attachments_dict is not None:
-        attachments = [
-            ChatAttachment(
-                name=attachment["name"] or "attachment",
-                content_type=attachment["content_type"],
-                url=attachment["url"],
-            )
-            for attachment in attachments_dict
-        ]
-    else:
-        attachments = None
-
     # Handle parts
     parts_dict = d.get("parts", None)
     parts: Optional[list[ChatPart]] = None
@@ -45,6 +32,16 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
             if part_dict["type"] == "text":
                 part_dict = cast(TextPartDict, part_dict)
                 parts.append(TextPart(type="text", text=part_dict["text"]))
+            elif part_dict["type"] == "file":
+                part_dict = cast(FilePartDict, part_dict)
+                parts.append(
+                    FilePart(
+                        type="file",
+                        media_type=part_dict["media_type"],
+                        filename=part_dict["filename"],
+                        url=part_dict["url"],
+                    )
+                )
             elif part_dict["type"] == "reasoning":
                 part_dict = cast(ReasoningPartDict, part_dict)
                 # Handle ReasoningDetails if present
@@ -96,9 +93,4 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
                     )
                 )
 
-    return ChatMessage(
-        role=d["role"],
-        content=d["content"],
-        attachments=attachments,
-        parts=parts,
-    )
+    return ChatMessage(role=d["role"], content=d["content"], parts=parts)

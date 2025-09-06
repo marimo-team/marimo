@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+from copy import deepcopy
 
 import pytest
 
@@ -14,13 +15,13 @@ from marimo._ai._convert import (
     convert_to_groq_messages,
     convert_to_openai_messages,
     convert_to_openai_tools,
-    get_anthropic_messages_from_parts,
+    get_anthropic_parts_from_chat_parts,
     get_google_messages_from_parts,
     get_openai_messages_from_parts,
 )
 from marimo._ai._types import (
-    ChatAttachment,
     ChatMessage,
+    FilePart,
     ReasoningDetails,
     ReasoningPart,
     TextPart,
@@ -36,34 +37,35 @@ def sample_messages() -> list[ChatMessage]:
         ChatMessage(
             role="user",
             content="Hello, I have a question.",
-            attachments=[
-                ChatAttachment(
-                    name="image.png",
-                    content_type="image/png",
+            parts=[
+                TextPart(type="text", text="Hello, I have a question."),
+                FilePart(
+                    type="file",
+                    media_type="image/png",
+                    filename="image.png",
                     url=f"data:image/png;base64,{base64.b64encode(b'hello')}",
                 ),
-                ChatAttachment(
-                    name="text.txt",
-                    content_type="text/plain",
-                    url="data:text/csv;base64,QQoxCjIKMwo=",
-                ),
+                TextPart(type="text", text="A\n1\n2\n3\n"),
             ],
         ),
         ChatMessage(
             role="assistant",
             content="Sure, I'd be happy to help. What's your question?",
-            attachments=[],
+            parts=[
+                TextPart(
+                    type="text",
+                    text="Sure, I'd be happy to help. What's your question?",
+                ),
+            ],
         ),
     ]
 
 
-def test_convert_to_openai_messages(sample_messages: list[ChatMessage]):
+def test_convert_to_openai_messages(
+    sample_messages: list[ChatMessage],
+):
     result = convert_to_openai_messages(sample_messages)
-
-    assert len(result) == 2
-
     assert result == [
-        # User message
         {
             "role": "user",
             "content": [
@@ -75,26 +77,23 @@ def test_convert_to_openai_messages(sample_messages: list[ChatMessage]):
                 {"type": "text", "text": "A\n1\n2\n3\n"},
             ],
         },
-        # Assistant message
         {
             "role": "assistant",
-            "content": "Sure, I'd be happy to help. What's your question?",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Sure, I'd be happy to help. What's your question?",
+                }
+            ],
         },
     ]
 
 
-def test_convert_to_openai_messages_with_parts_and_attachments():
+def test_convert_to_openai_messages_with_parts():
     sample_messages = [
         ChatMessage(
             role="user",
             content="Message with parts and attachments",
-            attachments=[
-                ChatAttachment(
-                    name="image.png",
-                    content_type="image/png",
-                    url=f"data:image/png;base64,{base64.b64encode(b'hello')}",
-                ),
-            ],
             parts=[
                 TextPart(
                     type="text", text="Message with parts and attachments"
@@ -114,6 +113,12 @@ def test_convert_to_openai_messages_with_parts_and_attachments():
                     state="output-available",
                     input={"expression": "2 + 2"},
                     output={"answer": 4},
+                ),
+                FilePart(
+                    type="file",
+                    media_type="image/png",
+                    filename="image.png",
+                    url=f"data:image/png;base64,{base64.b64encode(b'hello')}",
                 ),
             ],
         ),
@@ -147,84 +152,91 @@ def test_convert_to_openai_messages_with_parts_and_attachments():
     ]
 
 
-def test_convert_to_anthropic_messages(sample_messages: list[ChatMessage]):
+def test_convert_to_anthropic_messages(
+    sample_messages: list[ChatMessage],
+):
     result = convert_to_anthropic_messages(sample_messages)
-
-    assert len(result) == 2
-
-    # Check user message
-    assert result[0]["role"] == "user"
-    assert len(result[0]["content"]) == 3
-    assert result[0]["content"][0] == {
-        "type": "text",
-        "text": "Hello, I have a question.",
-    }
-    assert result[0]["content"][1] == {
-        "type": "image",
-        "source": {
-            "data": "b'aGVsbG8='",
-            "media_type": "image/png",
-            "type": "base64",
+    assert result == [
+        # User message
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Hello, I have a question."},
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/png",
+                        "data": "b'aGVsbG8='",
+                    },
+                },
+                {"type": "text", "text": "A\n1\n2\n3\n"},
+            ],
         },
-    }
-    assert result[0]["content"][2] == {
-        "type": "text",
-        "text": "A\n1\n2\n3\n",
-    }
+        # Assistant message
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Sure, I'd be happy to help. What's your question?",
+                }
+            ],
+        },
+    ]
 
-    # Check assistant message
-    assert result[1]["role"] == "assistant"
-    assert (
-        result[1]["content"]
-        == "Sure, I'd be happy to help. What's your question?"
-    )
 
-
-def test_convert_to_google_messages(sample_messages: list[ChatMessage]):
+def test_convert_to_google_messages(
+    sample_messages: list[ChatMessage],
+):
     result = convert_to_google_messages(sample_messages)
-
-    assert len(result) == 2
-
-    # Check user message
-    assert result[0]["role"] == "user"
-    assert result[0]["parts"] == [
-        {"text": "Hello, I have a question."},
+    assert result == [
+        # User message
         {
-            "inline_data": {
-                "data": b"m\xa1\x95\xb1\xb1\xbc",
-                "mime_type": "image/png",
-            }
+            "role": "user",
+            "parts": [
+                {"text": "Hello, I have a question."},
+                {
+                    "inline_data": {
+                        "mime_type": "image/png",
+                        "data": b"m\xa1\x95\xb1\xb1\xbc",
+                    }
+                },
+                {"text": "A\n1\n2\n3\n"},
+            ],
         },
+        # Assistant message
         {
-            "inline_data": {
-                "data": b"A\n1\n2\n3\n",
-                "mime_type": "text/plain",
-            }
+            "role": "model",
+            "parts": [
+                {"text": "Sure, I'd be happy to help. What's your question?"}
+            ],
         },
     ]
 
-    # Check assistant message
-    assert result[1]["role"] == "model"
-    assert result[1]["parts"] == [
-        {"text": "Sure, I'd be happy to help. What's your question?"}
-    ]
 
-
-def test_convert_to_groq_messages(sample_messages: list[ChatMessage]):
-    result = convert_to_groq_messages(sample_messages)
-
-    assert len(result) == 2
-
-    # Check user message with text attachment
-    assert result[0]["role"] == "user"
-    assert result[0]["content"] == "Hello, I have a question.\nA\n1\n2\n3\n"
-
-    # Check assistant message
-    assert result[1]["role"] == "assistant"
-    assert (
-        result[1]["content"]
-        == "Sure, I'd be happy to help. What's your question?"
+def test_convert_to_groq_messages(
+    sample_messages: list[ChatMessage],
+):
+    new_messages = deepcopy(sample_messages)
+    # replace image file part with text file part
+    new_messages[0].parts[1] = FilePart(
+        filename="text.txt",
+        type="file",
+        media_type="text/plain",
+        url="data:text/plain;base64,R29vZGJ5ZQ==",
     )
+    result = convert_to_groq_messages(new_messages)
+
+    assert result == [
+        # User message
+        {"role": "user", "content": "Hello, I have a question.\nGoodbye"},
+        # Assistant message
+        {
+            "role": "assistant",
+            "content": "Sure, I'd be happy to help. What's your question?",
+        },
+    ]
 
 
 def test_empty_messages():
@@ -238,29 +250,41 @@ def test_empty_messages():
 def test_message_without_attachments():
     messages = [
         ChatMessage(
-            role="user", content="Just a simple message", attachments=[]
+            role="user",
+            content="Just a simple message",
+            attachments=[],
+            parts=[TextPart(type="text", text="Just a simple message")],
         )
     ]
 
     openai_result = convert_to_openai_messages(messages)
-    assert len(openai_result) == 1
-    assert openai_result[0]["role"] == "user"
-    assert openai_result[0]["content"] == "Just a simple message"
+    assert openai_result == [
+        {
+            "role": "user",
+            "content": [{"type": "text", "text": "Just a simple message"}],
+        }
+    ]
 
     anthropic_result = convert_to_anthropic_messages(messages)
-    assert len(anthropic_result) == 1
-    assert anthropic_result[0]["role"] == "user"
-    assert anthropic_result[0]["content"] == "Just a simple message"
+    assert anthropic_result == [
+        {
+            "role": "user",
+            "content": [{"type": "text", "text": "Just a simple message"}],
+        }
+    ]
 
     google_result = convert_to_google_messages(messages)
-    assert len(google_result) == 1
-    assert google_result[0]["role"] == "user"
-    assert google_result[0]["parts"] == [{"text": "Just a simple message"}]
+    assert google_result == [
+        {
+            "role": "user",
+            "parts": [{"text": "Just a simple message"}],
+        }
+    ]
 
     groq_result = convert_to_groq_messages(messages)
-    assert len(groq_result) == 1
-    assert groq_result[0]["role"] == "user"
-    assert groq_result[0]["content"] == "Just a simple message"
+    assert groq_result == [
+        {"role": "user", "content": "Just a simple message"}
+    ]
 
 
 def test_from_chat_message_dict():
@@ -268,25 +292,30 @@ def test_from_chat_message_dict():
     message_dict = {
         "role": "user",
         "content": "Hello, this is a test message.",
-        "attachments": [
+        "parts": [
             {
-                "name": "test.png",
-                "content_type": "image/png",
+                "type": "file",
+                "media_type": "image/png",
+                "filename": "test.png",
                 "url": "http://example.com/test.png",
             }
         ],
     }
 
     result = from_chat_message_dict(message_dict)
-
-    assert isinstance(result, ChatMessage)
-    assert result.role == "user"
-    assert result.content == "Hello, this is a test message."
-    assert len(result.attachments) == 1
-    assert isinstance(result.attachments[0], ChatAttachment)
-    assert result.attachments[0].name == "test.png"
-    assert result.attachments[0].content_type == "image/png"
-    assert result.attachments[0].url == "http://example.com/test.png"
+    assert result == ChatMessage(
+        role="user",
+        content="Hello, this is a test message.",
+        attachments=None,
+        parts=[
+            FilePart(
+                type="file",
+                media_type="image/png",
+                filename="test.png",
+                url="http://example.com/test.png",
+            )
+        ],
+    )
 
     # Test case 2: ChatMessage without attachments
     message_dict_no_attachments = {
@@ -327,32 +356,7 @@ def test_from_chat_message_dict():
         result_with_parts.parts[1].reasoning == "This is my reasoning process"
     )
 
-    # Test case 4: ChatMessage with both attachments and parts
-    message_dict_full = {
-        "role": "user",
-        "content": "Complex message with everything.",
-        "attachments": [
-            {
-                "name": "doc.pdf",
-                "content_type": "application/pdf",
-                "url": "http://example.com/doc.pdf",
-            }
-        ],
-        "parts": [{"type": "text", "text": "Additional text content"}],
-    }
-
-    result_full = from_chat_message_dict(message_dict_full)
-
-    assert isinstance(result_full, ChatMessage)
-    assert result_full.role == "user"
-    assert result_full.content == "Complex message with everything."
-    assert len(result_full.attachments) == 1
-    assert result_full.attachments[0].name == "doc.pdf"
-    assert len(result_full.parts) == 1
-    assert result_full.parts[0].type == "text"
-    assert result_full.parts[0].text == "Additional text content"
-
-    # Test case 5: ChatMessage with tool invocation part (result state only)
+    # Test case 4: ChatMessage with tool invocation part (result state only)
     message_dict_tool_result = {
         "role": "assistant",
         "content": "Here's the tool result.",
@@ -383,7 +387,7 @@ def test_from_chat_message_dict():
     assert result_tool_result.parts[0].tool_name == "weather_tool"
     assert result_tool_result.parts[0].input == {"location": "New York"}
 
-    # Test case 6: Existing ChatMessage input (should return as-is)
+    # Test case 5: Existing ChatMessage input (should return as-is)
     existing_message = ChatMessage(
         role="user",
         content="I'm already a ChatMessage object",
@@ -628,24 +632,21 @@ def test_get_openai_messages_from_parts_empty():
     assert result == []
 
 
-def test_get_anthropic_messages_from_parts_text_only():
+def test_get_anthropic_parts_from_chat_parts_text_only():
     """Test converting TextPart to Anthropic format."""
     parts = [
         TextPart(type="text", text="Hello"),
         TextPart(type="text", text="World"),
     ]
 
-    result = get_anthropic_messages_from_parts("user", parts)
-
-    assert len(result) == 1
-    assert result[0]["role"] == "user"
-    assert result[0]["content"] == [
+    result = get_anthropic_parts_from_chat_parts(parts)
+    assert result == [
         {"type": "text", "text": "Hello"},
         {"type": "text", "text": "World"},
     ]
 
 
-def test_get_anthropic_messages_from_parts_with_reasoning():
+def test_get_anthropic_parts_from_chat_parts_with_reasoning():
     """Test converting ReasoningPart to Anthropic thinking format."""
     reasoning_details = [
         ReasoningDetails(
@@ -662,11 +663,8 @@ def test_get_anthropic_messages_from_parts_with_reasoning():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts("assistant", parts)
-
-    assert len(result) == 1
-    assert result[0]["role"] == "assistant"
-    assert result[0]["content"] == [
+    result = get_anthropic_parts_from_chat_parts(parts)
+    assert result == [
         {"type": "text", "text": "Let me think about this"},
         {
             "type": "thinking",
@@ -676,7 +674,7 @@ def test_get_anthropic_messages_from_parts_with_reasoning():
     ]
 
 
-def test_get_anthropic_messages_from_parts_reasoning_no_signature():
+def test_get_anthropic_parts_from_chat_parts_reasoning_no_signature():
     """Test converting ReasoningPart without signature to Anthropic format."""
     reasoning_details = [
         ReasoningDetails(type="text", text="Step 1", signature=None)
@@ -690,20 +688,17 @@ def test_get_anthropic_messages_from_parts_reasoning_no_signature():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts("assistant", parts)
-
-    assert len(result) == 1
-    assert result[0]["role"] == "assistant"
-    assert result[0]["content"] == [
+    result = get_anthropic_parts_from_chat_parts(parts)
+    assert result == [
         {
             "type": "thinking",
             "thinking": "Basic reasoning",
             "signature": "",  # Should be empty string when no signature
-        },
+        }
     ]
 
 
-def test_get_anthropic_messages_from_parts_reasoning_empty_details():
+def test_get_anthropic_parts_from_empty_reasoning_details_chat_part():
     """Test converting ReasoningPart with empty details list."""
     parts = [
         ReasoningPart(
@@ -713,20 +708,17 @@ def test_get_anthropic_messages_from_parts_reasoning_empty_details():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts("assistant", parts)
-
-    assert len(result) == 1
-    assert result[0]["role"] == "assistant"
-    assert result[0]["content"] == [
+    result = get_anthropic_parts_from_chat_parts(parts)
+    assert result == [
         {
             "type": "thinking",
             "thinking": "Some reasoning",
             "signature": "",  # Should be empty when no details
-        },
+        }
     ]
 
 
-def test_get_anthropic_messages_from_parts_with_tool_invocation():
+def test_get_anthropic_parts_from_chat_parts_with_tool_invocation():
     """Test converting ToolInvocationPart to Anthropic format."""
     parts = [
         TextPart(type="text", text="I'll search for you"),
@@ -739,47 +731,37 @@ def test_get_anthropic_messages_from_parts_with_tool_invocation():
         ),
     ]
 
-    result = get_anthropic_messages_from_parts("assistant", parts)
-
-    assert (
-        len(result) == 2
-    )  # One message with tool use, one tool result message
-
-    # Check first message with tool use
-    assert result[0]["role"] == "assistant"
-    expected_content = [
+    result = get_anthropic_parts_from_chat_parts(parts)
+    assert result == [
+        # Text message
         {"type": "text", "text": "I'll search for you"},
+        # Tool use message
         {
             "type": "tool_use",
             "id": "call_123",
             "name": "search_tool",
             "input": {"query": "Python tutorials"},
         },
-    ]
-    assert result[0]["content"] == expected_content
-
-    # Check tool result message
-    assert result[1]["role"] == "user"
-    assert result[1]["content"] == [
+        # Tool result message
         {
-            "type": "tool_result",
             "tool_use_id": "call_123",
-            "content": str({"results": ["tutorial1", "tutorial2"]}),
-        }
+            "type": "tool_result",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "{'results': ['tutorial1', 'tutorial2']}",
+                }
+            ],
+        },
     ]
 
 
-def test_get_anthropic_messages_from_parts_single_text():
-    """Test converting single TextPart uses string format instead of array."""
+def test_get_anthropic_parts_from_chat_parts_single_text():
+    """Test converting single text part."""
     parts = [TextPart(type="text", text="Single message")]
 
-    result = get_anthropic_messages_from_parts("user", parts)
-
-    assert len(result) == 1
-    assert result[0]["role"] == "user"
-    assert (
-        result[0]["content"] == "Single message"
-    )  # Should be string, not array
+    result = get_anthropic_parts_from_chat_parts(parts)
+    assert result == [{"type": "text", "text": "Single message"}]
 
 
 def test_get_google_messages_from_parts_text_only():
