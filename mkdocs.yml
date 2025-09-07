@@ -48,6 +48,7 @@ markdown_extensions:
       smart_enable: all
   - pymdownx.caret
   - pymdownx.details
+  - pymdownx.blocks.details
   - pymdownx.emoji: null
   - pymdownx.highlight:
       anchor_linenums: true

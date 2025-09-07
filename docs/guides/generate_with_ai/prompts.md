@@ -2,15 +2,23 @@ marimo offers many tools for [AI assisted coding](/guides/editor_features/ai_com
 
 You can add these prompts to your [custom rules](/guides/editor_features/ai_completion/?h=#custom-rules) but be mindful that doing so will make every call to the LLM more expensive because you're feeding it more tokens. That's why we generally recommend to start your conversations with these snippets if you don't plan on using them very often.
 
-## Claude.md
+## CLAUDE.md
 
 You can run [claude code](https://www.anthropic.com/claude-code) in the terminal and ask it to edit a marimo notebook on your behalf. Make sure that you run your notebook with the [watch flag](/api/watch) turned on, like `marimo edit --watch notebook.py`, to see updates appear live whenever claude makes a change.
 
 To help claude code, you might want to take the snippet below as starting context for your `CLAUDE.md` file. This snippet should be seen as a starting point and we recommend adding extra context yourself. Things like "prefer polars over pandas" to indicate your preferred libraries and tools.
 
+```console
+curl https://docs.marimo.io/_static/CLAUDE.md > CLAUDE.md
 ```
---8<-- "_static/CLAUDE.md"
+
+/// details | Example CLAUDE.md file
+
+```markdown
+--8<-- "docs/_static/CLAUDE.md"
 ```
+
+///
 
 ## Anywidget
 
