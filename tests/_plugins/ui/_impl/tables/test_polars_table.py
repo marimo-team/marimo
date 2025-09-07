@@ -457,7 +457,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             assert complex_data.get_stats(column) is not None
 
     def test_sort_values(self) -> None:
-        sorted_df = self.manager.sort_values("A", descending=True).data
+        sorted_df = self.manager.sort_values(by=[("A", True)]).data
         expected_df = self.data.sort("A", descending=True)
         assert assert_frame_equal(sorted_df, expected_df)
 
@@ -830,7 +830,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
         df = pl.DataFrame({"A": [3, 1, None, 2]})
         manager = self.factory.create()(df)
-        sorted_manager = manager.sort_values("A", descending=True)
+        sorted_manager = manager.sort_values(by=[("A", True)])
         assert sorted_manager.data["A"].to_list()[:-1] == [
             3.0,
             2.0,
@@ -840,7 +840,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert last is None or isnan(last)
 
         # ascending
-        sorted_manager = manager.sort_values("A", descending=False)
+        sorted_manager = manager.sort_values(by=[("A", False)])
         assert sorted_manager.data["A"].to_list()[:-1] == [
             1.0,
             2.0,

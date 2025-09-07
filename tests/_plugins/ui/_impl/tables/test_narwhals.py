@@ -415,7 +415,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             assert complex_data.get_stats(column) is not None
 
     def test_sort_values(self) -> None:
-        sorted_df = self.manager.sort_values("A", descending=True).data
+        sorted_df = self.manager.sort_values(by=[("A", True)]).data
         expected_df = self.data.sort("A", descending=True)
         assert_frame_equal(sorted_df, expected_df)
 
@@ -1169,14 +1169,14 @@ def test_search_with_regex(df: Any) -> None:
 def test_sort_values_with_nulls(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
     sorted_manager: NarwhalsTableManager[Any] = manager.sort_values(
-        "A", descending=True
+        by=[("A", True)]
     )
     assert sorted_manager.as_frame()["A"].head(3).to_list() == [3, 2, 1]
     last = unwrap_py_scalar(sorted_manager.as_frame()["A"].tail(1).item())
     assert last is None or isnan(last)
 
     # ascending
-    sorted_manager = manager.sort_values("A", descending=False)
+    sorted_manager = manager.sort_values(by=[("A", False)])
     assert sorted_manager.as_frame()["A"].head(3).to_list() == [1, 2, 3]
     last = unwrap_py_scalar(sorted_manager.as_frame()["A"].tail(1).item())
     assert last is None or isnan(last)

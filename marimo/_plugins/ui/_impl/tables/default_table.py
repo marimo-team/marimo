@@ -362,7 +362,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return self._as_table_manager().get_sample_values(column)
 
     def sort_values(
-        self, by: list[ColumnName], descending: list[bool]
+        self, by: list[tuple[ColumnName, bool]]
     ) -> DefaultTableManager:
         if not by:
             return self
@@ -372,43 +372,22 @@ class DefaultTableManager(TableManager[JsonTableData]):
             data_dict = cast(dict[str, list[Any]], self.data)
             indices = list(range(len(next(iter(data_dict.values())))))
 
-            # Sort by each column in reverse order (stable sort)
+            # Sort by each column in reverse order for stable multi-column sorting
             sorted_indices = indices
-            for col, desc in reversed(list(zip(by, descending))):
+            for col, desc in reversed(by):
+                values = data_dict[col]
                 try:
-
-                    def sort_func(
-                        i: int, col_name: str = col, descending: bool = desc
-                    ) -> tuple[bool, Any]:
-                        values = data_dict[col_name]
-                        is_none = (
-                            values[i] is not None
-                            if descending
-                            else values[i] is None
-                        )
-                        return (is_none, values[i])
-
+                    # Try sorting with original values
                     sorted_indices = sorted(
                         sorted_indices,
-                        key=sort_func,
+                        key=lambda i: (values[i] is None, values[i]),
                         reverse=desc,
                     )
                 except TypeError:
-                    # Handle when values are not comparable
-                    def sort_func_str(
-                        i: int, col_name: str = col, descending: bool = desc
-                    ) -> tuple[bool, str]:
-                        values = data_dict[col_name]
-                        is_none = (
-                            values[i] is not None
-                            if descending
-                            else values[i] is None
-                        )
-                        return (is_none, str(values[i]))
-
+                    # Fallback to string comparison for non-comparable types
                     sorted_indices = sorted(
                         sorted_indices,
-                        key=sort_func_str,
+                        key=lambda i: (values[i] is None, str(values[i])),
                         reverse=desc,
                     )
 
@@ -417,47 +396,30 @@ class DefaultTableManager(TableManager[JsonTableData]):
                 cast(
                     JsonTableData,
                     {
-                        col: [values[i] for i in sorted_indices]
-                        for col, values in data_dict.items()
+                        col: [col_values[i] for i in sorted_indices]
+                        for col, col_values in data_dict.items()
                     },
                 )
             )
 
-        # For row-major data, sort by each column in reverse order (stable sort)
-        normalized = self._normalize_data(self.data)
-        data = normalized
+        # For row-major data, sort by each column in reverse order for stable sorting
+        data = self._normalize_data(self.data)
 
-        for col, desc in reversed(list(zip(by, descending))):
+        for col, desc in reversed(by):
             try:
-
-                def sort_func_col(
-                    x: dict[str, Any],
-                    col_name: str = col,
-                    descending: bool = desc,
-                ) -> tuple[bool, Any]:
-                    is_none = (
-                        x[col_name] is not None
-                        if descending
-                        else x[col_name] is None
-                    )
-                    return (is_none, x[col_name])
-
-                data = sorted(data, key=sort_func_col, reverse=desc)
+                # Try sorting with original values
+                data = sorted(
+                    data,
+                    key=lambda x: (x[col] is None, x[col]),
+                    reverse=desc,
+                )
             except TypeError:
-                # Handle when values are not comparable
-                def sort_func_col_str(
-                    x: dict[str, Any],
-                    col_name: str = col,
-                    descending: bool = desc,
-                ) -> tuple[bool, str]:
-                    is_none = (
-                        x[col_name] is not None
-                        if descending
-                        else x[col_name] is None
-                    )
-                    return (is_none, str(x[col_name]))
-
-                data = sorted(data, key=sort_func_col_str, reverse=desc)
+                # Fallback to string comparison for non-comparable types
+                data = sorted(
+                    data,
+                    key=lambda x: (x[col] is None, str(x[col])),
+                    reverse=desc,
+                )
 
         return DefaultTableManager(data)
 

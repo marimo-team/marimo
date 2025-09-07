@@ -80,7 +80,7 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def sort_values(
-        self, by: list[ColumnName], descending: list[bool]
+        self, by: list[tuple[ColumnName, bool]]
     ) -> TableManager[Any]:
         pass
 

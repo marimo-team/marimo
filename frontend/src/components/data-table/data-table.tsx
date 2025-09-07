@@ -204,31 +204,11 @@ const DataTableInternal = <TData,>({
     // sorting
     ...(setSorting
       ? {
-          onSortingChange: (updaterOrValue) => {
-            // Custom sorting logic - stack behavior
-            const newSorting =
-              typeof updaterOrValue === "function"
-                ? updaterOrValue(sorting || [])
-                : updaterOrValue;
-
-            // Implement stack behavior: if column already exists, remove it and add to front
-            const customSorting = newSorting.reduce(
-              (acc: typeof newSorting, sort) => {
-                // Remove any existing sorts for this column
-                const filtered = acc.filter((s) => s.id !== sort.id);
-                // Add the new sort to the front (most recent)
-                return [sort, ...filtered];
-              },
-              [],
-            );
-
-            setSorting(customSorting);
-          },
+          onSortingChange: setSorting,
         }
       : {}),
     manualSorting: manualSorting,
     enableMultiSort: true,
-    isMultiSortEvent: () => true, // Always enable multi-sort (no shift key required)
     getSortedRowModel: getSortedRowModel(),
     // filtering
     manualFiltering: true,

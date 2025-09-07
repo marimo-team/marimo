@@ -2835,7 +2835,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.15.0
+  version: 0.15.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

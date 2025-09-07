@@ -331,7 +331,7 @@ class IbisTableManagerFactory(TableManagerFactory):
                 return []
 
             def sort_values(
-                self, by: list[ColumnName], descending: list[bool]
+                self, by: list[tuple[ColumnName, bool]]
             ) -> IbisTableManager:
                 if not by:
                     return self
@@ -339,7 +339,7 @@ class IbisTableManagerFactory(TableManagerFactory):
                 # Create order_by expressions with the appropriate direction
                 order_by_exprs = [
                     ibis.desc(col) if desc else ibis.asc(col)
-                    for col, desc in zip(by, descending)
+                    for col, desc in by
                 ]
 
                 return IbisTableManager(self.data.order_by(order_by_exprs))

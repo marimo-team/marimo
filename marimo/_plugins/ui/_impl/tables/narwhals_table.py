@@ -613,15 +613,17 @@ class NarwhalsTableManager(
             return []
 
     def sort_values(
-        self, by: list[ColumnName], descending: list[bool]
+        self, by: list[tuple[ColumnName, bool]]
     ) -> TableManager[Any]:
         if not by:
             return self
 
-        # Both LazyFrame and DataFrame in Narwhals/Polars can directly
-        # handle lists of columns and descending flags
+        # Extract columns and descending flags for Narwhals/Polars
+        columns = [col for col, _ in by]
+        descending = [desc for _, desc in by]
+
         return self.with_new_data(
-            self.data.sort(by, descending=descending, nulls_last=True)
+            self.data.sort(columns, descending=descending, nulls_last=True)
         )
 
     def __repr__(self) -> str:

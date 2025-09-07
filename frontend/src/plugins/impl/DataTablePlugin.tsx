@@ -196,9 +196,9 @@ type DataTableFunctions = {
   ) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
     sort?: {
-      by: string[];
-      descending: boolean[];
-    };
+      by: string;
+      descending: boolean;
+    }[];
     query?: string;
     filters?: ConditionType[];
     page_number: number;
@@ -282,10 +282,12 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       .input(
         z.object({
           sort: z
-            .object({
-              by: z.array(z.string()),
-              descending: z.array(z.boolean()),
-            })
+            .array(
+              z.object({
+                by: z.string(),
+                descending: z.boolean(),
+              })
+            )
             .optional(),
           query: z.string().optional(),
           filters: z.array(ConditionSchema).optional(),
@@ -483,10 +485,10 @@ export const LoadingDataTableComponent = memo(
       const searchResultsPromise = search<T>({
         sort:
           sorting.length > 0
-            ? {
-                by: sorting.map((column) => column.id),
-                descending: sorting.map((column) => column.desc),
-              }
+            ? sorting.map((column) => ({
+                by: column.id,
+                descending: column.desc,
+              }))
             : undefined,
         query: searchQuery,
         page_number: paginationState.pageIndex,
@@ -539,10 +541,10 @@ export const LoadingDataTableComponent = memo(
           page_size: 1,
           sort:
             sorting.length > 0
-              ? {
-                  by: sorting.map((column) => column.id),
-                  descending: sorting.map((column) => column.desc),
-                }
+              ? sorting.map((column) => ({
+                  by: column.id,
+                  descending: column.desc,
+                }))
               : undefined,
           query: searchQuery,
           filters: filters.flatMap((filter) => {

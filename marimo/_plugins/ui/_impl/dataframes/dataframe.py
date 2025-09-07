@@ -269,7 +269,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
     def _apply_filters_query_sort(
         self,
         query: Optional[str],
-        sort: Optional[SortArgs],
+        sort: Optional[list[SortArgs]],
     ) -> TableManager[Any]:
         result = self._get_cached_table_manager(self._value, self._limit)
 
@@ -277,13 +277,14 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             result = result.search(query)
 
         if sort:
-            # Convert tuples to lists to match the sort_values method signature
-            by_list = list(sort.by)
-            descending_list = list(sort.descending)
+            # Convert list of SortArgs to list of tuples
+            sort_tuples = [
+                (sort_arg.by, sort_arg.descending) for sort_arg in sort
+            ]
             # Check that all columns exist
             existing_columns = set(result.get_column_names())
-            if all(col in existing_columns for col in by_list):
-                result = result.sort_values(by_list, descending_list)
+            if all(col in existing_columns for col, _ in sort_tuples):
+                result = result.sort_values(sort_tuples)
 
         return result
 

@@ -181,7 +181,7 @@ export function renderSorts<TData, TValue>(
 
     return (
       <>
-        <DropdownMenuItem onClick={() => column.toggleSorting(false, true)}>
+        <DropdownMenuItem onClick={() => column.toggleSorting(false, sortingState.length === 0 ? false : true)}>
           <AscIcon className="mo-dropdown-icon" />
           Sort Ascending
           {sortIndex && currentSort && !currentSort.desc && (
@@ -190,7 +190,7 @@ export function renderSorts<TData, TValue>(
             </span>
           )}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => column.toggleSorting(true, true)}>
+        <DropdownMenuItem onClick={() => column.toggleSorting(true, sortingState.length === 0 ? false : true)}>
           <DescIcon className="mo-dropdown-icon" />
           Sort Descending
           {sortIndex && currentSort && currentSort.desc && (

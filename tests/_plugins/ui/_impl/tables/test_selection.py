@@ -68,7 +68,7 @@ def test_selection_with_index_column_and_sort(backend: Any):
     manager = NarwhalsTableManager(data)
 
     # Sort and select
-    sorted_data = manager.sort_values(by=["age"], descending=[True])
+    sorted_data = manager.sort_values(by=[("age", True)])
     selected = sorted_data.select_rows([0, 2])
     result = selected.data.to_dict(as_series=False)
     assert result[INDEX_COLUMN_NAME] == [2, 0]  # Original indices preserved
