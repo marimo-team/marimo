@@ -48,6 +48,7 @@ markdown_extensions:
       smart_enable: all
   - pymdownx.caret
   - pymdownx.details
+  - pymdownx.blocks.details
   - pymdownx.emoji: null
   - pymdownx.highlight:
       anchor_linenums: true
@@ -58,6 +59,7 @@ markdown_extensions:
   - pymdownx.magiclink
   - pymdownx.mark
   - pymdownx.smartsymbols
+  - pymdownx.snippets
   - pymdownx.superfences:
       custom_fences:
         - class: mermaid

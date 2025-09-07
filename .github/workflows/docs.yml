@@ -41,6 +41,9 @@ jobs:
         env:
           OUTPUT_FILE: .vercel/output/static/llms.txt
 
+      - name: 📚 CLAUDE.md
+        run: cp docs/_static/CLAUDE.md .vercel/output/static/CLAUDE.md
+
       - name: 🚀 Deploy to Vercel
         if: github.ref == 'refs/heads/main'
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
