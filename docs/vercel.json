@@ -639,7 +639,7 @@
       "source": "/CLAUDE.md",
       "destination": "/_static/CLAUDE.md",
       "permanent": true
-    }
+    },
     {
       "source": "/:path*.html",
       "destination": "/:path*/",
