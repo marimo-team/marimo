@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { StandardType } from "vega-lite/build/src/type";
+import type { StandardType } from "vega-lite/types_unstable/type.js";
 import type { DataType } from "@/core/kernel/messages";
 import type { Mark } from "@/plugins/impl/vega/types";
 import { logNever } from "@/utils/assertNever";
