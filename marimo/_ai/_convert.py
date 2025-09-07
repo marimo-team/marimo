@@ -4,7 +4,6 @@ from __future__ import annotations
 import base64
 import json
 import uuid
-from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 from marimo._ai._types import (
@@ -15,6 +14,7 @@ from marimo._ai._types import (
     TextPart,
     ToolInvocationPart,
 )
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.ai.tools.types import Tool
 
 if TYPE_CHECKING:
