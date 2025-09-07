@@ -9,7 +9,7 @@ You can run [claude code](https://www.anthropic.com/claude-code) in the terminal
 To help claude code, you might want to take the snippet below as starting context for your `CLAUDE.md` file. This snippet should be seen as a starting point and we recommend adding extra context yourself. Things like "prefer polars over pandas" to indicate your preferred libraries and tools.
 
 ```console
-curl https://docs.marimo.io/_static/CLAUDE.md > CLAUDE.md
+curl https://docs.marimo.io/CLAUDE.md > CLAUDE.md
 ```
 
 /// details | Example CLAUDE.md file
