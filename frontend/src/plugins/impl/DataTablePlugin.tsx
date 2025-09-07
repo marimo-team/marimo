@@ -286,7 +286,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
               z.object({
                 by: z.string(),
                 descending: z.boolean(),
-              })
+              }),
             )
             .optional(),
           query: z.string().optional(),

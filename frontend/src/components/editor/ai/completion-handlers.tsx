@@ -26,8 +26,8 @@ export const createAiCompletionOnKeydown = (opts: {
 
     // Mod+Enter should accept the completion, if there is one
     if (metaKey && e.key === "Enter" && !isLoading && completion) {
-        handleAcceptCompletion();
-      }
+      handleAcceptCompletion();
+    }
 
     // Mod+Shift+Delete should decline the completion
     const deleteKey = e.key === "Delete" || e.key === "Backspace";

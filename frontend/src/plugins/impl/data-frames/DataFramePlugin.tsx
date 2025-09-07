@@ -114,7 +114,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
               z.object({
                 by: z.string(),
                 descending: z.boolean(),
-              })
+              }),
             )
             .optional(),
           query: z.string().optional(),
