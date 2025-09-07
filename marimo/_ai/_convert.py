@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import dataclasses
 import json
 import uuid
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
@@ -14,7 +15,6 @@ from marimo._ai._types import (
     TextPart,
     ToolInvocationPart,
 )
-from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.ai.tools.types import Tool
 
 if TYPE_CHECKING:
@@ -109,7 +109,10 @@ def convert_to_openai_messages(
                             f"Unsupported content type {part.media_type}"
                         )
                 else:
-                    parts.append(asdict(part))
+                    if dataclasses.is_dataclass(part):
+                        parts.append(dataclasses.asdict(part))
+                    else:
+                        parts.append(cast(dict[str, Any], part))
 
         openai_messages.append({"role": message.role, "content": parts})
 
