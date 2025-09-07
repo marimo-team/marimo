@@ -9,20 +9,20 @@
     "dev": "pnpm run --filter @marimo-team/frontend dev"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.0.6",
+    "@biomejs/biome": "2.2.2",
     "@testing-library/jest-dom": "^6.8.0",
-    "turbo": "^2.5.4",
+    "turbo": "^2.5.6",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=20",
-    "pnpm": ">=9"
+    "pnpm": ">=9.15.9"
   },
   "pnpm": {
     "patchedDependencies": {
       "react-plotly.js": "patches/react-plotly.js.patch"
     }
   },
-  "packageManager": "pnpm@10.12.4"
+  "packageManager": "pnpm@10.15.1"
 }

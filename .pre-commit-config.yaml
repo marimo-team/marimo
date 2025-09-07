@@ -43,8 +43,7 @@ repos:
     rev: v2.2.2
     hooks:
       - id: biome-check
-        args: [--config-path, biome.jsonc, --diagnostic-level, warn]
-        additional_dependencies: ['@biomejs/biome@2.0.0-beta.6']
+        args: [--diagnostic-level, warn]
         exclude: |
           (?x)^(
             docs/_static/.*|
