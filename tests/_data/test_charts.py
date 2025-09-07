@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 from datetime import datetime
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -38,6 +39,13 @@ HAS_DEPS = (
 )
 
 
+@pytest.fixture
+def mock_light_theme():
+    """Mock the theme to always return 'light' for consistent test results."""
+    with patch("marimo._data.charts.get_current_theme", return_value="light"):
+        yield
+
+
 def test_get_chart_builder():
     for t, should_limit_to_10_items in TYPES:
         assert isinstance(
@@ -63,6 +71,7 @@ def validate_and_return_codes(simple: bool) -> list[str]:
     return outputs
 
 
+@pytest.mark.usefixtures("mock_light_theme")
 def test_charts_altair_code():
     outputs = validate_and_return_codes(simple=True)
     snapshot("charts.txt", "\n\n".join(outputs))
@@ -97,6 +106,7 @@ def test_charts_altair_code_with_comment():
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.usefixtures("mock_light_theme")
 def test_charts_altair_json():
     outputs: list[str] = []
     import altair as alt
@@ -116,6 +126,7 @@ def test_charts_altair_json():
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.usefixtures("mock_light_theme")
 def test_charts_altair_json_bad_data():
     import altair as alt
     import pandas as pd

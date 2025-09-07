@@ -2,8 +2,8 @@
 
 import type { Completion } from "@codemirror/autocomplete";
 import type { Resource } from "@marimo-team/codemirror-mcp";
+import type { FileUIPart } from "ai";
 import { Memoize } from "typescript-memoize";
-import type { ChatAttachment } from "@/core/ai/types";
 import { Logger } from "@/utils/Logger";
 import { MultiMap } from "@/utils/multi-map";
 import type { TypedString } from "@/utils/typed";
@@ -46,7 +46,7 @@ export abstract class AIContextProvider<
   abstract formatCompletion(item: T): Completion;
 
   /** Get attachments for context items (optional, async) */
-  async getAttachments(_items: T[]): Promise<ChatAttachment[]> {
+  async getAttachments(_items: T[]): Promise<FileUIPart[]> {
     // Default implementation returns no attachments
     return [];
   }
@@ -194,7 +194,7 @@ export class AIContextRegistry<T extends AIContextItem> {
    */
   async getAttachmentsForContext(
     contextIds: ContextLocatorId[],
-  ): Promise<ChatAttachment[]> {
+  ): Promise<FileUIPart[]> {
     const allItems = new Map<ContextLocatorId, T>(
       this.getAllItems().map((item) => [item.uri as ContextLocatorId, item]),
     );
@@ -219,7 +219,7 @@ export class AIContextRegistry<T extends AIContextItem> {
     }
 
     // Collect attachments from all providers
-    const attachmentPromises = Array.from(itemsByProvider.entries()).map(
+    const attachmentPromises = [...itemsByProvider.entries()].map(
       async ([providerType, items]) => {
         const provider = this.getProvider(providerType);
         if (!provider) {

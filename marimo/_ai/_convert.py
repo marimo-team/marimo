@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from marimo._ai._types import (
     ChatMessage,
     ChatPart,
+    FilePart,
     ReasoningPart,
     TextPart,
     ToolInvocationPart,
@@ -17,10 +18,21 @@ from marimo._ai._types import (
 from marimo._server.ai.tools.types import Tool
 
 if TYPE_CHECKING:
-    from anthropic.types.message_param import (  # type: ignore[import-not-found]
+    from anthropic.types import (  # type: ignore[import-not-found]
+        ContentBlock,
+        DocumentBlockParam,
+        ImageBlockParam,
         MessageParam,
+        RedactedThinkingBlockParam,
+        ServerToolUseBlockParam,
+        TextBlockParam,
+        ThinkingBlockParam,
+        ToolResultBlockParam,
+        ToolUseBlockParam,
+        WebSearchToolResultBlockParam,
     )
     from google.genai.types import (  # type: ignore[import-not-found]
+        BlobDict,
         ContentDict,
         ContentUnionDict,
         PartDict,
@@ -75,171 +87,146 @@ def convert_to_openai_messages(
     openai_messages: list[dict[Any, Any]] = []
 
     for message in messages:
-        # Handle message without attachments
-        if not message.attachments:
-            if not message.parts or len(message.parts) == 0:
-                openai_messages.append(
-                    {"role": message.role, "content": message.content}
-                )
-            else:
-                parts_messages = get_openai_messages_from_parts(
-                    message.role, message.parts
-                )
-                openai_messages.extend(parts_messages)
-            continue
-
         parts: list[dict[Any, Any]] = []
         if not message.parts or len(message.parts) == 0:
             parts.append({"type": "text", "text": message.content})
         else:
-            parts_dict = [asdict(part) for part in message.parts]
-            parts.extend(parts_dict)
-
-        # Handle attachments
-        for attachment in message.attachments:
-            content_type = attachment.content_type or "text/plain"
-
-            if content_type.startswith("image"):
-                parts.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": attachment.url},
-                    }
-                )
-            elif content_type.startswith("text"):
-                parts.append(
-                    {"type": "text", "text": _extract_text(attachment.url)}
-                )
-            else:
-                raise ValueError(f"Unsupported content type {content_type}")
+            for part in message.parts:
+                if isinstance(part, FilePart):
+                    if part.media_type.startswith("image"):
+                        parts.append(
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": part.url},
+                            }
+                        )
+                    elif part.media_type.startswith("text"):
+                        parts.append(
+                            {"type": "text", "text": _extract_text(part.url)}
+                        )
+                    else:
+                        raise ValueError(
+                            f"Unsupported content type {part.media_type}"
+                        )
+                else:
+                    parts.append(asdict(part))
 
         openai_messages.append({"role": message.role, "content": parts})
 
     return cast("list[ChatCompletionMessageParam]", openai_messages)
 
 
-def get_anthropic_messages_from_parts(
-    role: Literal["system", "user", "assistant"],
+AnthropicParts = Union[
+    "ServerToolUseBlockParam",
+    "WebSearchToolResultBlockParam",
+    "TextBlockParam",
+    "ImageBlockParam",
+    "ToolUseBlockParam",
+    "ToolResultBlockParam",
+    "DocumentBlockParam",
+    "ThinkingBlockParam",
+    "RedactedThinkingBlockParam",
+    "ContentBlock",
+]
+
+
+def get_anthropic_parts_from_chat_parts(
     parts: list[ChatPart],
-) -> list[dict[Any, Any]]:
-    messages: list[dict[Any, Any]] = []
-    content_parts: list[dict[str, Any]] = []
+) -> list[AnthropicParts]:
+    anthropic_parts: list[AnthropicParts] = []
 
     for part in parts:
         if isinstance(part, TextPart):
-            content_parts.append({"type": "text", "text": part.text})
+            text_block: TextBlockParam = {
+                "type": "text",
+                "text": part.text,
+            }
+            anthropic_parts.append(text_block)
         elif isinstance(part, ReasoningPart):
             # Handle reasoning parts with proper Anthropic thinking type
             signature = ""
             if part.details and len(part.details) > 0:
                 signature = part.details[0].signature or ""
 
-            content_parts.append(
-                {
-                    "type": "thinking",
-                    "thinking": part.reasoning,
-                    "signature": signature,  # This should be the encrypted signature from Claude's response
+            thinking_message: ThinkingBlockParam = {
+                "type": "thinking",
+                "thinking": part.reasoning,
+                "signature": signature,
+            }
+            anthropic_parts.append(thinking_message)
+        elif isinstance(part, FilePart):
+            media_type = part.media_type
+            if media_type.strip() in [
+                "image/jpeg",
+                "image/png",
+                "image/gif",
+                "image/webp",
+            ]:
+                image_message: ImageBlockParam = {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,  # type: ignore
+                        "data": _extract_data(part.url),
+                    },
                 }
-            )
+                anthropic_parts.append(image_message)
+            elif media_type.startswith("text"):
+                text_block_file: TextBlockParam = {
+                    "type": "text",
+                    "text": _extract_text(part.url),
+                }
+                anthropic_parts.append(text_block_file)
+            else:
+                raise ValueError(f"Unsupported content type {media_type}")
         elif isinstance(part, ToolInvocationPart):
             # Add tool use to current message content
-            content_parts.append(
-                {
-                    "type": "tool_use",
-                    "id": part.tool_call_id,
-                    "name": part.tool_name,
-                    "input": part.input,
-                }
-            )
-
-            # Create the message with current content (including tool use)
-            if content_parts:
-                message_content = (
-                    content_parts[0]["text"]
-                    if len(content_parts) == 1
-                    and content_parts[0]["type"] == "text"
-                    else content_parts
-                )
-                messages.append({"role": role, "content": message_content})
-                content_parts = []  # Reset for next message
+            tool_use_message: ToolUseBlockParam = {
+                "type": "tool_use",
+                "id": part.tool_call_id,
+                "name": part.tool_name,
+                "input": part.input,
+            }
+            anthropic_parts.append(tool_use_message)
 
             # Create separate tool result message
-            tool_result_message = {
-                "role": "user",
+            tool_result_message: ToolResultBlockParam = {
+                "tool_use_id": part.tool_call_id,
+                "type": "tool_result",
                 "content": [
                     {
-                        "type": "tool_result",
-                        "tool_use_id": part.tool_call_id,
-                        "content": str(part.output),
+                        "type": "text",
+                        "text": str(part.output),
                     }
                 ],
             }
-            messages.append(tool_result_message)
+            anthropic_parts.append(tool_result_message)
 
-    # Add remaining content parts as a single message if any
-    if content_parts:
-        # If only one text part, use string format; otherwise use array format
-        if len(content_parts) == 1 and content_parts[0]["type"] == "text":
-            message_content = content_parts[0]["text"]
-        else:
-            message_content = content_parts
-
-        messages.append({"role": role, "content": message_content})
-
-    return messages
+    return anthropic_parts
 
 
 def convert_to_anthropic_messages(
     messages: list[ChatMessage],
 ) -> list[MessageParam]:
-    anthropic_messages: list[dict[Any, Any]] = []
+    anthropic_messages: list[MessageParam] = []
 
     for message in messages:
-        if not message.attachments:
-            if not message.parts or len(message.parts) == 0:
-                anthropic_messages.append(
-                    {"role": message.role, "content": message.content}
-                )
-            else:
-                parts_messages = get_anthropic_messages_from_parts(
-                    message.role, message.parts
-                )
-                anthropic_messages.extend(parts_messages)
-            continue
-
-        # Handle attachments
-        parts: list[dict[Any, Any]] = []
-        if not message.parts or len(message.parts) == 0:
-            parts.append({"type": "text", "text": message.content})
+        parts: list[AnthropicParts] = []
+        if not message.parts:
+            # Convert content to string
+            text_block: TextBlockParam = {
+                "type": "text",
+                "text": str(message.content),
+            }
+            parts.append(text_block)
         else:
-            parts.extend(
-                get_anthropic_messages_from_parts(message.role, message.parts)
-            )
-        for attachment in message.attachments:
-            content_type = attachment.content_type or "text/plain"
-            if content_type.startswith("image"):
-                parts.append(
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": content_type,
-                            "data": _extract_data(attachment.url),
-                        },
-                    }
-                )
+            parts.extend(get_anthropic_parts_from_chat_parts(message.parts))
 
-            elif content_type.startswith("text"):
-                parts.append(
-                    {"type": "text", "text": _extract_text(attachment.url)}
-                )
-
-            else:
-                raise ValueError(f"Unsupported content type {content_type}")
-
-        anthropic_messages.append({"role": message.role, "content": parts})
-
-    return cast("list[MessageParam]", anthropic_messages)
+        anthropic_role = (
+            "assistant" if message.role == "system" else message.role
+        )
+        anthropic_messages.append({"role": anthropic_role, "content": parts})
+    return anthropic_messages
 
 
 def convert_to_groq_messages(
@@ -248,15 +235,21 @@ def convert_to_groq_messages(
     groq_messages: list[dict[Any, Any]] = []
 
     for message in messages:
-        # Currently only supports text content (Llava is deprecated now)
-        # See here - https://console.groq.com/docs/deprecations
-        if message.attachments:
+        if message.parts:
+            # Currently only supports text content (Llava is deprecated now)
+            # See here - https://console.groq.com/docs/deprecations
+            file_parts = [
+                part for part in message.parts if isinstance(part, FilePart)
+            ]
             # Convert attachments to text if possible
             text_content = str(message.content)  # Explicitly convert to string
-            for attachment in message.attachments:
-                content_type = attachment.content_type or "text/plain"
-                if content_type.startswith("text"):
-                    text_content += "\n" + _extract_text(attachment.url)
+            for file in file_parts:
+                if file.media_type.startswith("text"):
+                    text_content += "\n" + _extract_text(file.url)
+                else:
+                    raise ValueError(
+                        f"Unsupported content type {file.media_type}. Only text content is supported."
+                    )
 
             groq_messages.append(
                 {"role": message.role, "content": text_content}
@@ -296,6 +289,20 @@ def get_google_messages_from_parts(
                 "parts": [{"text": part.reasoning, "thought": True}],
             }
             messages.append(reasoning_message)
+        elif isinstance(part, FilePart):
+            media_type = part.media_type
+            if not media_type.startswith(("image", "text")):
+                raise ValueError(f"Unsupported content type {media_type}")
+            inline_data: BlobDict = {
+                "mime_type": media_type,
+                "data": base64.b64decode(_extract_data(part.url)),
+            }
+            messages.append(
+                {
+                    "role": "user" if role == "user" else "model",
+                    "parts": [{"inline_data": inline_data}],
+                }
+            )
         elif isinstance(part, ToolInvocationPart):
             # Create function call message for Google
             function_call_message: ContentDict = {
@@ -334,23 +341,6 @@ def convert_to_google_messages(
     google_messages: list[ContentUnionDict] = []
 
     for message in messages:
-        # Handle message without attachments
-        if not message.attachments:
-            if not message.parts or len(message.parts) == 0:
-                google_messages.append(
-                    {
-                        "role": "user" if message.role == "user" else "model",
-                        "parts": [{"text": str(message.content)}],
-                    }
-                )
-            else:
-                parts_messages = get_google_messages_from_parts(
-                    message.role, message.parts
-                )
-                google_messages.extend(parts_messages)
-            continue
-
-        # Handle attachments
         parts: list[PartDict] = []
         if not message.parts or len(message.parts) == 0:
             parts.append({"text": str(message.content)})
@@ -361,34 +351,6 @@ def convert_to_google_messages(
             ):
                 if "parts" in parts_message:
                     parts.extend(parts_message["parts"] or [])
-
-        for attachment in message.attachments:
-            content_type = attachment.content_type or "text/plain"
-
-            if content_type.startswith("image"):
-                parts.append(
-                    {
-                        "inline_data": {
-                            "mime_type": content_type,
-                            "data": base64.b64decode(
-                                _extract_data(attachment.url)
-                            ),
-                        },
-                    }
-                )
-            elif content_type.startswith("text"):
-                parts.append(
-                    {
-                        "inline_data": {
-                            "mime_type": content_type,
-                            "data": base64.b64decode(
-                                _extract_data(attachment.url)
-                            ),
-                        },
-                    }
-                )
-            else:
-                raise ValueError(f"Unsupported content type {content_type}")
 
         google_messages.append(
             {

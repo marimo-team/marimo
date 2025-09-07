@@ -4,7 +4,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
-from marimo._messaging.ops import CellOp, VariableValue
+from marimo._messaging.ops import CellOp, StartupLogs, VariableValue
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider
 from marimo._types.ids import CellId_t
@@ -54,3 +54,17 @@ def test_broadcast_serialization() -> None:
     cell_op = stream.operations[0]
 
     assert isinstance(parse_raw(cell_op, CellOp), CellOp)
+
+
+def test_startup_logs_creation() -> None:
+    startup_log = StartupLogs(content="Starting up...", status="start")
+    assert startup_log.name == "startup-logs"
+    assert startup_log.content == "Starting up..."
+    assert startup_log.status == "start"
+
+
+def test_startup_logs_all_statuses() -> None:
+    for status in ["start", "append", "done"]:
+        startup_log = StartupLogs(content=f"Test {status}", status=status)
+        assert startup_log.status == status
+        assert startup_log.content == f"Test {status}"

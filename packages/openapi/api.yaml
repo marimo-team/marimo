@@ -1842,6 +1842,7 @@ components:
           - $ref: '#/components/schemas/Banner'
           - $ref: '#/components/schemas/MissingPackageAlert'
           - $ref: '#/components/schemas/InstallingPackageAlert'
+          - $ref: '#/components/schemas/StartupLogs'
           - $ref: '#/components/schemas/Variables'
           - $ref: '#/components/schemas/VariableValues'
           - $ref: '#/components/schemas/QueryParamsSet'
@@ -1884,6 +1885,7 @@ components:
               send-ui-element-message: '#/components/schemas/SendUIElementMessage'
               sql-table-list-preview: '#/components/schemas/SQLTableListPreview'
               sql-table-preview: '#/components/schemas/SQLTablePreview'
+              startup-logs: '#/components/schemas/StartupLogs'
               update-cell-codes: '#/components/schemas/UpdateCellCodes'
               update-cell-ids: '#/components/schemas/UpdateCellIdsRequest'
               variable-values: '#/components/schemas/VariableValues'
@@ -3041,6 +3043,24 @@ components:
           type: boolean
       required: []
       title: SnippetsConfig
+      type: object
+    StartupLogs:
+      properties:
+        content:
+          type: string
+        op:
+          enum:
+          - startup-logs
+        status:
+          enum:
+          - append
+          - done
+          - start
+      required:
+      - op
+      - content
+      - status
+      title: StartupLogs
       type: object
     StdinRequest:
       properties:

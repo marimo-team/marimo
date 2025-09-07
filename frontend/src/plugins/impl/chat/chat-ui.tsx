@@ -4,7 +4,7 @@ import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, type FileUIPart } from "ai";
 import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
@@ -41,7 +41,6 @@ import {
 } from "@/components/ui/popover";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import type { ChatAttachment } from "@/core/ai/types";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -77,7 +76,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     const messages: UIMessage[] = chatMessages.messages.map((message, idx) => ({
       id: idx.toString(),
       role: message.role,
-      parts: [{ type: "text", text: message.content }],
+      parts: message.parts ?? [],
     }));
     return messages;
   }, []);
@@ -104,13 +103,15 @@ export const Chatbot: React.FC<Props> = (props) => {
           messages: UIMessage[];
         };
         try {
+          const messages = body.messages.map((m) => ({
+            role: m.role,
+            content: m.parts
+              ?.map((p) => ("text" in p ? p.text : ""))
+              .join("\n"),
+            parts: m.parts,
+          }));
           const response = await props.send_prompt({
-            messages: body.messages.map((m) => ({
-              role: m.role,
-              content: m.parts
-                ?.map((p) => ("text" in p ? p.text : ""))
-                .join("\n"),
-            })),
+            messages: messages,
             config: {
               max_tokens: config.max_tokens,
               temperature: config.temperature,
@@ -120,6 +121,15 @@ export const Chatbot: React.FC<Props> = (props) => {
               presence_penalty: config.presence_penalty,
             },
           });
+          // Update local state with AI response
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              parts: [{ type: "text", text: response }],
+            },
+          ]);
           return new Response(response);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
@@ -155,12 +165,12 @@ export const Chatbot: React.FC<Props> = (props) => {
     }
   };
 
-  const renderAttachment = (attachment: ChatAttachment) => {
-    if (attachment.contentType?.startsWith("image")) {
+  const renderAttachment = (attachment: FileUIPart) => {
+    if (attachment.mediaType?.startsWith("image")) {
       return (
         <img
           src={attachment.url}
-          alt={attachment.name || "Attachment"}
+          alt={attachment.filename || "Attachment"}
           className="object-contain rounded-sm"
           width={100}
           height={100}
@@ -175,7 +185,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         rel="noopener noreferrer"
         className="text-background hover:underline"
       >
-        {attachment.name || "Attachment"}
+        {attachment.filename || "Attachment"}
       </a>
     );
   };
@@ -291,17 +301,11 @@ export const Chatbot: React.FC<Props> = (props) => {
               <div
                 className={`max-w-[80%] p-3 rounded-lg ${
                   message.role === "user"
-                    ? "bg-(--sky-11) text-(--slate-1)"
+                    ? "bg-(--sky-11) text-(--slate-1) whitespace-pre-wrap"
                     : "bg-(--slate-4) text-(--slate-12)"
                 }`}
               >
-                <p
-                  className={cn(
-                    message.role === "user" && "whitespace-pre-wrap",
-                  )}
-                >
-                  {renderMessage(message)}
-                </p>
+                {renderMessage(message)}
               </div>
               <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
                 <button
@@ -353,11 +357,12 @@ export const Chatbot: React.FC<Props> = (props) => {
       </div>
       <form
         onSubmit={async (evt) => {
+          evt.preventDefault();
+
           const fileParts = files
             ? await convertToFileUIPart(files)
             : undefined;
 
-          evt.preventDefault();
           sendMessage({
             role: "user",
             parts: [{ type: "text", text: input }, ...(fileParts ?? [])],
@@ -402,7 +407,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         {files && files.length === 1 && (
           <span
             title={files[0].name}
-            className="text-sm text-(--slate-11) truncate shrink-0 w-24"
+            className="text-sm text-(--slate-11) truncate shrink-0 w-fit max-w-24"
           >
             {files[0].name}
           </span>

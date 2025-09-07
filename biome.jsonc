@@ -40,14 +40,12 @@
       },
       "correctness": {
         "noInnerDeclarations": "error",
-        "noUnusedImports": "error",
+        "noNestedComponentDefinitions": "off",
         "noUnusedFunctionParameters": "warn",
+        "noUnusedImports": "error",
         "useExhaustiveDependencies": "off",
-        "useHookAtTopLevel": "info"
-      },
-      "nursery": {
-        "useUniqueElementIds": "warn",
-        "noNestedComponentDefinitions": "off"
+        "useHookAtTopLevel": "info",
+        "useUniqueElementIds": "warn"
       },
       "security": {
         "noDangerouslySetInnerHtml": "off"
@@ -95,6 +93,8 @@
       },
       "suspicious": {
         "noArrayIndexKey": "off",
+        "noUnknownAtRules": "off",
+        "useIterableCallbackReturn": "warn",
         "noAssignInExpressions": "info",
         "noConsole": "off",
         "noDoubleEquals": "error",

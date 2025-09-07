@@ -13,6 +13,7 @@ import {
   SquareMIcon,
 } from "lucide-react";
 import { useEffect } from "react";
+import { StartupLogsAlert } from "@/components/editor/alerts/startup-logs-alert";
 import { Cell } from "@/components/editor/Cell";
 import { PackageAlert } from "@/components/editor/package-alert";
 import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
@@ -120,6 +121,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
       innerClassName="pr-4" // For the floating actions
     >
       <PackageAlert />
+      <StartupLogsAlert />
       <StdinBlockingAlert />
       <ConnectingAlert />
       <NotebookBanner width={appConfig.width} />

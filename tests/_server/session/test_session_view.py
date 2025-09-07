@@ -14,6 +14,7 @@ from marimo._messaging.ops import (
     DataSourceConnection,
     DataSourceConnections,
     SendUIElementMessage,
+    StartupLogs,
     UpdateCellCodes,
     UpdateCellIdsRequest,
     VariableDeclaration,
@@ -980,3 +981,71 @@ def test_is_empty() -> None:
         )
     )
     assert not session_view.is_empty()
+
+
+def test_session_view_startup_logs() -> None:
+    session_view = SessionView()
+
+    # Test adding a startup log with "start" status
+    start_log = StartupLogs(content="Starting process...", status="start")
+    session_view.add_operation(start_log)
+
+    assert session_view.startup_logs is not None
+    assert session_view.startup_logs.content == "Starting process..."
+    assert session_view.startup_logs.status == "start"
+
+    # Test appending to startup log
+    append_log = StartupLogs(content=" more content", status="append")
+    session_view.add_operation(append_log)
+
+    assert session_view.startup_logs is not None
+    assert (
+        session_view.startup_logs.content == "Starting process... more content"
+    )
+    assert session_view.startup_logs.status == "append"
+
+    # Test marking startup log as done
+    done_log = StartupLogs(content=" done!", status="done")
+    session_view.add_operation(done_log)
+
+    assert session_view.startup_logs is not None
+    assert (
+        session_view.startup_logs.content
+        == "Starting process... more content done!"
+    )
+    assert session_view.startup_logs.status == "done"
+
+
+def test_session_view_startup_logs_operations_exclude_done() -> None:
+    session_view = SessionView()
+
+    # Add startup log in progress
+    start_log = StartupLogs(content="Starting...", status="start")
+    session_view.add_operation(start_log)
+
+    # Should include in operations while in progress
+    operations = session_view.operations
+    startup_ops = [op for op in operations if isinstance(op, StartupLogs)]
+    assert len(startup_ops) == 1
+    assert startup_ops[0].status == "start"
+
+    # Mark as done
+    done_log = StartupLogs(content=" complete", status="done")
+    session_view.add_operation(done_log)
+
+    # Should not include done startup logs in operations
+    operations = session_view.operations
+    startup_ops = [op for op in operations if isinstance(op, StartupLogs)]
+    assert len(startup_ops) == 0
+
+
+def test_session_view_startup_logs_standalone_done() -> None:
+    session_view = SessionView()
+
+    # Add a standalone "done" log without prior start/append
+    done_log = StartupLogs(content="Process complete", status="done")
+    session_view.add_operation(done_log)
+
+    assert session_view.startup_logs is not None
+    assert session_view.startup_logs.content == "Process complete"
+    assert session_view.startup_logs.status == "done"

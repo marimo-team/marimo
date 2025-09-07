@@ -3,13 +3,17 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
+import threading
 from typing import Optional
 
 import uvicorn
 
 import marimo._server.api.lifespans as lifespans
+from marimo._cli.print import echo
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._messaging.ops import StartupLogs
 from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
@@ -30,6 +34,77 @@ from marimo._utils.paths import marimo_package_path
 
 DEFAULT_PORT = 2718
 PROXY_REGEX = re.compile(r"^(.*):(\d+)$")
+
+
+def _execute_startup_command(
+    command: str, session_manager: SessionManager
+) -> None:
+    """Execute a server startup command in a background thread and stream logs."""
+
+    def run_command() -> None:
+        buffer = StartupLogs(content="", status="start")
+
+        try:
+
+            def write_to_all_sessions(
+                content: StartupLogs, buffer: StartupLogs
+            ) -> None:
+                for session in session_manager.sessions.values():
+                    # Clear buffer if it has content
+                    if buffer.content != "":
+                        session.write_operation(buffer, from_consumer_id=None)
+                        buffer = StartupLogs(content="", status="start")
+                    session.write_operation(content, from_consumer_id=None)
+                else:
+                    buffer.content += content.content
+                    buffer.status = content.status
+
+            # Broadcast start message to all sessions
+            write_to_all_sessions(
+                StartupLogs(content="", status="start"), buffer
+            )
+
+            # Execute the command
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # Stream stderr to stdout
+                text=True,
+                universal_newlines=True,
+            )
+
+            # Stream output line by line
+            if process.stdout:
+                for line in process.stdout:
+                    write_to_all_sessions(
+                        StartupLogs(content=line, status="append"), buffer
+                    )
+                    echo(line, nl=False)
+
+            # Wait for process to complete
+            return_code = process.wait()
+
+            # Broadcast completion message
+            final_message = (
+                f"\nProcess completed with exit code: {return_code}\n"
+            )
+            write_to_all_sessions(
+                StartupLogs(content=final_message, status="done"), buffer
+            )
+            echo(final_message)
+
+        except Exception as e:
+            # Broadcast error message
+            error_message = f"\nError executing startup command: {str(e)}\n"
+            write_to_all_sessions(
+                StartupLogs(content=error_message, status="done"), buffer
+            )
+            echo(error_message)
+
+    # Run the command in a background thread
+    thread = threading.Thread(target=run_command)
+    thread.start()
 
 
 def _resolve_proxy(
@@ -91,6 +166,7 @@ def start(
     skew_protection: bool,
     remote_url: Optional[str] = None,
     mcp: bool = False,
+    server_startup_command: Optional[str] = None,
     asset_url: Optional[str] = None,
     timeout: Optional[float] = None,
 ) -> None:
@@ -249,4 +325,9 @@ def start(
     app.state.server = server
 
     initialize_asyncio()
+
+    # Execute server startup command if provided
+    if server_startup_command:
+        _execute_startup_command(server_startup_command, session_manager)
+
     server.run()

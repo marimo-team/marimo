@@ -450,6 +450,12 @@ class Reconnected(Op, tag="reconnected"):
     name: ClassVar[str] = "reconnected"
 
 
+class StartupLogs(Op, tag="startup-logs"):
+    name: ClassVar[str] = "startup-logs"
+    content: str
+    status: Literal["append", "start", "done"]
+
+
 class Banner(Op, tag="banner"):
     name: ClassVar[str] = "banner"
     title: str
@@ -674,6 +680,7 @@ MessageOperation = Union[
     Banner,
     MissingPackageAlert,
     InstallingPackageAlert,
+    StartupLogs,
     # Variables
     Variables,
     VariableValues,

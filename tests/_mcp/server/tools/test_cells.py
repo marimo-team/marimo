@@ -12,6 +12,7 @@ from marimo._mcp.server.tools.cells import (
     CellErrors,
     CellRuntimeMetadata,
     CellVariables,
+    CellVariableValue,
     SupportedCellType,
     _determine_cell_type,
     _get_cell_errors,
@@ -241,7 +242,14 @@ def test_get_cell_variables_with_variables():
 
     result = _get_cell_variables(session, cell_data)
 
-    expected: CellVariables = {"x": var_x, "y": var_y}
+    expected: CellVariables = {
+        "x": CellVariableValue(
+            name="x", value=var_x.value, datatype=var_x.datatype
+        ),
+        "y": CellVariableValue(
+            name="y", value=var_y.value, datatype=var_y.datatype
+        ),
+    }
     assert result == expected
     assert (
         "z" not in result
@@ -262,5 +270,9 @@ def test_get_cell_variables_missing_variables():
     result = _get_cell_variables(session, cell_data)
 
     # Should only include variables that exist in session
-    expected: CellVariables = {"x": var_x}
+    expected: CellVariables = {
+        "x": CellVariableValue(
+            name="x", value=var_x.value, datatype=var_x.datatype
+        )
+    }
     assert result == expected

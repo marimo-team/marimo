@@ -8,7 +8,7 @@ export const darkTheme = [
   createTheme({
     variant: "dark",
     settings: {
-      background: "#282c34",
+      background: "var(--cm-background)",
       foreground: "#abb2bf",
       caret: "#528bff",
       selection: "#3E4451",

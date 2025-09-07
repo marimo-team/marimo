@@ -67,7 +67,7 @@
 /* -- Panels -- */
 
 .cm .cm-panels {
-  background: transparent;
+  background-color: var(--cm-background);
   color: var(--sky-11);
   font-weight: 700;
 
@@ -75,6 +75,10 @@
   margin-right: 30px;
 
   @apply text-xs;
+
+  &.cm-panels-bottom {
+    border-top: 1px solid var(--border);
+  }
 }
 
 /* -- Linting -- */

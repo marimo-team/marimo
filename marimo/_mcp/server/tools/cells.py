@@ -11,7 +11,6 @@ from marimo._mcp.server.exceptions import ToolExecutionError
 from marimo._mcp.server.responses import (
     SuccessResult,
 )
-from marimo._messaging.ops import VariableValue
 from marimo._server.api.deps import AppStateBase
 from marimo._types.ids import CellId_t, SessionId
 
@@ -69,7 +68,14 @@ class CellRuntimeMetadata:
     execution_time: Optional[float]
 
 
-CellVariables = dict[str, VariableValue]
+@dataclass(kw_only=True)
+class CellVariableValue:
+    name: str
+    value: Optional[str] = None
+    datatype: Optional[str] = None
+
+
+CellVariables = dict[str, CellVariableValue]
 
 
 @dataclass(kw_only=True)
@@ -407,6 +413,11 @@ def _get_cell_variables(
     for var_name in cell_defs:
         if var_name in all_variables:
             var_value = all_variables[var_name]
-            cell_variables[var_name] = var_value
+            # Convert VariableValue to pydantic parsable dataclass
+            cell_variables[var_name] = CellVariableValue(
+                name=var_name,
+                value=var_value.value,
+                datatype=var_value.datatype,
+            )
 
     return cell_variables
