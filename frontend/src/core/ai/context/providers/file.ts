@@ -7,7 +7,6 @@ import {
   type CompletionSource,
   closeCompletion,
 } from "@codemirror/autocomplete";
-import { debounce } from "lodash-es";
 import { toast } from "@/components/ui/use-toast";
 import { contextCallbacks } from "@/core/codemirror/ai/state";
 import type { EditRequests, FileInfo, RunRequests } from "@/core/network/types";
@@ -38,8 +37,6 @@ const DEFAULT_FILE_SEARCH_CONFIG: FileSearchConfig = {
   defaultResultsLimit: 5,
   includeDirectories: false,
 };
-
-const FILE_SEARCH_DELAY = 500;
 
 export class FileContextProvider extends AIContextProvider<FileContextItem> {
   readonly title = "Files";
@@ -105,26 +102,23 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
     };
   }
 
-  private searchFiles = debounce(
-    async (
-      query: string,
-      options: Partial<FileSearchConfig> = {},
-    ): Promise<FileInfo[]> => {
-      const { maxDepth, maxResults, includeDirectories } = {
-        ...this.config,
-        ...options,
-      };
-      const response = await this.apiRequests.sendSearchFiles({
-        query,
-        file: true,
-        directory: includeDirectories,
-        depth: maxDepth,
-        limit: maxResults,
-      });
-      return response.files;
-    },
-    FILE_SEARCH_DELAY,
-  );
+  private searchFiles = async (
+    query: string,
+    options: Partial<FileSearchConfig> = {},
+  ): Promise<FileInfo[]> => {
+    const { maxDepth, maxResults, includeDirectories } = {
+      ...this.config,
+      ...options,
+    };
+    const response = await this.apiRequests.sendSearchFiles({
+      query,
+      file: true,
+      directory: includeDirectories,
+      depth: maxDepth,
+      limit: maxResults,
+    });
+    return response.files;
+  };
 
   private async getDefaultCompletions(match: {
     from: number;
@@ -277,11 +271,11 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
   }
 
   formatContext(item: FileContextItem): string {
-    const { data } = item;
+    const { data, name } = item;
     return contextToXml({
       type: this.contextType,
       data: {
-        name: item.name,
+        name: name,
         path: data.path,
         isDirectory: data.isDirectory,
       },

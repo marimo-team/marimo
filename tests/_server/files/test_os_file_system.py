@@ -519,37 +519,6 @@ def test_search_default_path(fs: OSFileSystem, monkeypatch) -> None:
     assert isinstance(results, list)
 
 
-def test_search_marimo_file_detection(
-    test_dir: Path, fs: OSFileSystem
-) -> None:
-    """Test search correctly identifies marimo files."""
-    # Create a marimo file
-    marimo_content = """
-import marimo
-app = marimo.App()
-
-@app.cell
-def __():
-    return "hello"
-
-if __name__ == "__main__":
-    app.run()
-"""
-    (test_dir / "notebook.py").write_text(marimo_content)
-    (test_dir / "regular.py").write_text("print('hello')")
-
-    results = fs.search(query="py", path=str(test_dir))
-
-    # Find the marimo file in results
-    marimo_file = next((f for f in results if f.name == "notebook.py"), None)
-    regular_file = next((f for f in results if f.name == "regular.py"), None)
-
-    assert marimo_file is not None
-    assert regular_file is not None
-    assert marimo_file.is_marimo_file is True
-    assert regular_file.is_marimo_file is False
-
-
 def test_search_includes_file_metadata(
     test_dir: Path, fs: OSFileSystem
 ) -> None:

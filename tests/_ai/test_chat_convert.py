@@ -131,7 +131,7 @@ def test_convert_to_openai_messages_with_parts():
                 {"type": "text", "text": "Message with parts and attachments"},
                 {
                     "type": "reasoning",
-                    "reasoning": "Deep thinking process",
+                    "text": "Deep thinking process",
                     "details": [
                         {"type": "text", "text": "Analysis", "signature": None}
                     ],
