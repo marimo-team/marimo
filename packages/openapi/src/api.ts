@@ -902,6 +902,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/files/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["FileSearchRequest"];
+        };
+      };
+      responses: {
+        /** @description Search for files and directories matching a query */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["FileSearchResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/files/update": {
     parameters: {
       query?: never;
@@ -3307,6 +3346,26 @@ export interface components {
     /** FileOpenRequest */
     FileOpenRequest: {
       path: string;
+    };
+    /** FileSearchRequest */
+    FileSearchRequest: {
+      /** @default 3 */
+      depth?: number;
+      /** @default null */
+      directory?: boolean | null;
+      /** @default null */
+      file?: boolean | null;
+      /** @default 100 */
+      limit?: number;
+      /** @default null */
+      path?: string | null;
+      query: string;
+    };
+    /** FileSearchResponse */
+    FileSearchResponse: {
+      files: components["schemas"]["FileInfo"][];
+      query: string;
+      totalFound: number;
     };
     /** FileUpdateRequest */
     FileUpdateRequest: {

@@ -57,6 +57,8 @@ from marimo._server.models.files import (
     FileListResponse,
     FileMoveRequest,
     FileMoveResponse,
+    FileSearchRequest,
+    FileSearchResponse,
     FileUpdateRequest,
     FileUpdateResponse,
 )
@@ -260,7 +262,7 @@ class PyodideBridge:
         self.session.app_manager.save_app_config(parsed.config)
 
     def save_user_config(self, request: str) -> None:
-        parsed = self._parse(request, requests.SetUserConfigRequest)
+        parsed = self._parse(request, SetUserConfigRequest)
         config = merge_default_config(parsed.config)
         self.session.put_control_request(SetUserConfigRequest(config=config))
 
@@ -271,17 +273,35 @@ class PyodideBridge:
         self,
         request: str,
     ) -> str:
-        body = parse_raw(json.loads(request), FileListRequest)
+        body = self._parse(request, FileListRequest)
         root = body.path or self.file_system.get_root()
         files = self.file_system.list_files(root)
         response = FileListResponse(files=files, root=root)
+        return self._dump(response)
+
+    def search_files(
+        self,
+        request: str,
+    ) -> str:
+        body = self._parse(request, FileSearchRequest)
+        files = self.file_system.search(
+            query=body.query,
+            path=body.path,
+            depth=body.depth,
+            directory=body.directory,
+            file=body.file,
+            limit=body.limit,
+        )
+        response = FileSearchResponse(
+            files=files, query=body.query, total_found=len(files)
+        )
         return self._dump(response)
 
     def file_details(
         self,
         request: str,
     ) -> str:
-        body = parse_raw(json.loads(request), FileDetailsRequest)
+        body = self._parse(request, FileDetailsRequest)
         response = self.file_system.get_details(body.path)
         return self._dump(response)
 
@@ -289,7 +309,7 @@ class PyodideBridge:
         self,
         request: str,
     ) -> str:
-        body = parse_raw(json.loads(request), FileCreateRequest)
+        body = self._parse(request, FileCreateRequest)
         try:
             # If we need to eliminate the overhead associated with
             # base64-encoding/decoding the file contents, we could try pushing
@@ -311,7 +331,7 @@ class PyodideBridge:
         self,
         request: str,
     ) -> str:
-        body = parse_raw(json.loads(request), FileDeleteRequest)
+        body = self._parse(request, FileDeleteRequest)
         success = self.file_system.delete_file_or_directory(body.path)
         response = FileDeleteResponse(success=success)
         return self._dump(response)
@@ -320,7 +340,7 @@ class PyodideBridge:
         self,
         request: str,
     ) -> str:
-        body = parse_raw(json.loads(request), FileMoveRequest)
+        body = self._parse(request, FileMoveRequest)
         try:
             info = self.file_system.move_file_or_directory(
                 body.path, body.new_path
@@ -334,7 +354,7 @@ class PyodideBridge:
         self,
         request: str,
     ) -> str:
-        body = parse_raw(json.loads(request), FileUpdateRequest)
+        body = self._parse(request, FileUpdateRequest)
         try:
             Path(body.path).write_text(body.contents, encoding="utf-8")
             response = FileUpdateResponse(success=True)
@@ -343,7 +363,7 @@ class PyodideBridge:
         return self._dump(response)
 
     def export_html(self, request: str) -> str:
-        parsed = parse_raw(json.loads(request), ExportAsHTMLRequest)
+        parsed = self._parse(request, ExportAsHTMLRequest)
         html, _filename = Exporter().export_as_html(
             app=self.session.app_manager.app,
             filename=self.session.app_manager.filename,

@@ -2,6 +2,7 @@
 
 import type { UIMessage } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
+import { startCompletion } from "@codemirror/autocomplete";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import {
@@ -11,6 +12,7 @@ import {
 } from "ai";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
+  AtSignIcon,
   BotMessageSquareIcon,
   ClockIcon,
   Loader2,
@@ -77,6 +79,8 @@ import { ToolCallAccordion } from "./tool-call-accordion";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";
+
+const CONTEXT_TRIGGER = "@";
 
 // We need to modify the backend to support attachments for other providers
 // And other types
@@ -313,8 +317,9 @@ interface ChatInputFooterProps {
   onSendClick: () => void;
   isLoading: boolean;
   onStop: () => void;
-  handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onAddFiles: (files: File[]) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onAddContext: () => void;
 }
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
@@ -324,7 +329,8 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
     isLoading,
     onStop,
     fileInputRef,
-    handleFileChange,
+    onAddFiles,
+    onAddContext,
   }) => {
     const ai = useAtomValue(aiAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
@@ -351,82 +357,97 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
 
     return (
-      <div className="px-3 py-2 border-t border-border/20 flex flex-row items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FeatureFlagged feature="mcp_docs">
-            <Select value={currentMode} onValueChange={saveModeChange}>
-              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
-                {currentMode}
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>AI Mode</SelectLabel>
-                  {modeOptions.map((option) => (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      className="text-xs"
-                    >
-                      <div className="flex flex-col">
-                        {option.label}
-                        <div className="text-muted-foreground text-xs pt-1 block">
-                          {option.subtitle}
+      <TooltipProvider>
+        <div className="px-3 py-2 border-t border-border/20 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FeatureFlagged feature="mcp_docs">
+              <Select value={currentMode} onValueChange={saveModeChange}>
+                <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
+                  {currentMode}
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>AI Mode</SelectLabel>
+                    {modeOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="text-xs"
+                      >
+                        <div className="flex flex-col">
+                          {option.label}
+                          <div className="text-muted-foreground text-xs pt-1 block">
+                            {option.subtitle}
+                          </div>
                         </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FeatureFlagged>
-          <AIModelDropdown
-            value={currentModel}
-            placeholder="Model"
-            onSelect={(model) => saveModelChange(model, "chat")}
-            triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
-            iconSize="small"
-            showAddCustomModelDocs={true}
-            forRole="chat"
-          />
-        </div>
-        <div className="flex flex-row">
-          {isAttachmentSupported && (
-            <>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </FeatureFlagged>
+            <AIModelDropdown
+              value={currentModel}
+              placeholder="Model"
+              onSelect={(model) => saveModelChange(model, "chat")}
+              triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
+              iconSize="small"
+              showAddCustomModelDocs={true}
+              forRole="chat"
+            />
+          </div>
+          <div className="flex flex-row">
+            <Tooltip content="Add context">
+              <Button variant="text" size="icon" onClick={onAddContext}>
+                <AtSignIcon className="h-3.5 w-3.5" />
+              </Button>
+            </Tooltip>
+            {isAttachmentSupported && (
+              <>
+                <Tooltip content="Attach a file">
+                  <Button
+                    variant="text"
+                    size="icon"
+                    className="cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Attach a file"
+                  >
+                    <PaperclipIcon className="h-3.5 w-3.5" />
+                  </Button>
+                </Tooltip>
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple={true}
+                  hidden={true}
+                  onChange={(event) => {
+                    if (event.target.files) {
+                      onAddFiles([...event.target.files]);
+                    }
+                  }}
+                  accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
+                />
+              </>
+            )}
+
+            <Tooltip content="Submit">
               <Button
                 variant="text"
-                size="icon"
-                className="cursor-pointer"
-                onClick={() => fileInputRef.current?.click()}
-                title="Attach a file"
+                size="sm"
+                className="h-6 w-6 p-0 hover:bg-muted/30 cursor-pointer"
+                onClick={isLoading ? onStop : onSendClick}
+                disabled={isLoading ? false : isEmpty}
               >
-                <PaperclipIcon className="h-3.5 w-3.5" />
+                {isLoading ? (
+                  <SquareIcon className="h-3 w-3 fill-current" />
+                ) : (
+                  <SendIcon className="h-3 w-3" />
+                )}
               </Button>
-              <Input
-                ref={fileInputRef}
-                type="file"
-                multiple={true}
-                hidden={true}
-                onChange={handleFileChange}
-                accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
-              />
-            </>
-          )}
-
-          <Button
-            variant="text"
-            size="sm"
-            className="h-6 w-6 p-0 hover:bg-muted/30 cursor-pointer"
-            onClick={isLoading ? onStop : onSendClick}
-            disabled={isLoading ? false : isEmpty}
-          >
-            {isLoading ? (
-              <SquareIcon className="h-3 w-3 fill-current" />
-            ) : (
-              <SendIcon className="h-3 w-3" />
-            )}
-          </Button>
+            </Tooltip>
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
     );
   },
 );
@@ -444,7 +465,7 @@ interface ChatInputProps {
   onStop: () => void;
   onClose: () => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
-  handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onAddFiles: (files: File[]) => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = memo(
@@ -458,7 +479,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     isLoading,
     onStop,
     fileInputRef,
-    handleFileChange,
+    onAddFiles,
     onClose,
   }) => {
     const handleSendClick = useEvent(() => {
@@ -476,16 +497,39 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onChange={setInput}
             onSubmit={onSubmit}
             onClose={onClose}
+            onAddFiles={onAddFiles}
             placeholder={placeholder || "Type your message..."}
           />
         </div>
         <ChatInputFooter
           isEmpty={!input.trim()}
+          onAddContext={() => {
+            if (!inputRef.current?.view) {
+              return;
+            }
+            const pos = inputRef.current.view.state.selection.main.from;
+            // Insert @ at the cursor position
+            inputRef.current.view.dispatch({
+              changes: {
+                from: pos,
+                to: pos,
+                insert: CONTEXT_TRIGGER,
+              },
+              selection: {
+                anchor: pos + 1,
+                head: pos + 1,
+              },
+            });
+            // Focus the view
+            inputRef.current.view.focus();
+            // Start completion
+            startCompletion(inputRef.current.view);
+          }}
           onSendClick={handleSendClick}
           isLoading={isLoading}
           onStop={onStop}
           fileInputRef={fileInputRef}
-          handleFileChange={handleFileChange}
+          onAddFiles={onAddFiles}
         />
       </div>
     );
@@ -622,29 +666,26 @@ const ChatPanelBody = () => {
     },
   });
 
-  const handleFileChange = useEvent(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = event.target.files;
-      if (!files) {
-        return;
-      }
+  const onAddFiles = useEvent((files: File[]) => {
+    if (files.length === 0) {
+      return;
+    }
 
-      let fileSize = 0;
-      for (const file of files) {
-        fileSize += file.size;
-      }
+    let fileSize = 0;
+    for (const file of files) {
+      fileSize += file.size;
+    }
 
-      if (fileSize > MAX_ATTACHMENT_SIZE) {
-        toast({
-          title: "File size exceeds 50MB limit",
-          description: "Please remove some files and try again.",
-        });
-        return;
-      }
+    if (fileSize > MAX_ATTACHMENT_SIZE) {
+      toast({
+        title: "File size exceeds 50MB limit",
+        description: "Please remove some files and try again.",
+      });
+      return;
+    }
 
-      setFiles((prev) => [...(prev ?? []), ...files]);
-    },
-  );
+    setFiles((prev) => [...(prev ?? []), ...files]);
+  });
 
   const removeFile = useEvent((file: File) => {
     if (files) {
@@ -783,7 +824,7 @@ const ChatPanelBody = () => {
       isLoading={isLoading}
       onStop={stop}
       fileInputRef={fileInputRef}
-      handleFileChange={handleFileChange}
+      onAddFiles={onAddFiles}
       onClose={handleOnCloseThread}
     />
   ) : (
@@ -796,7 +837,7 @@ const ChatPanelBody = () => {
       onStop={stop}
       onClose={() => newMessageInputRef.current?.editor?.blur()}
       fileInputRef={fileInputRef}
-      handleFileChange={handleFileChange}
+      onAddFiles={onAddFiles}
     />
   );
 
@@ -845,6 +886,7 @@ const ChatPanelBody = () => {
             index={idx}
             onEdit={handleMessageEdit}
             isStreamingReasoning={isStreamingReasoning}
+            onAddFiles={onAddFiles}
             isLast={idx === messages.length - 1}
           />
         ))}

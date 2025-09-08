@@ -172,21 +172,17 @@ const CopyButton: React.FC<ButtonProps> = ({ onClick, ...props }) => {
 };
 
 const COMPONENTS: Components = {
-  code: ({ children, className, key }) => {
+  code: ({ children, className }) => {
     const language = className?.replace("language-", "");
     if (language && typeof children === "string") {
       return (
-        <div key={key}>
+        <div>
           <div className="text-xs text-muted-foreground pl-1">{language}</div>
           <CodeBlock code={children.trim()} language={language} />
         </div>
       );
     }
-    return (
-      <code key={key} className={className}>
-        {children}
-      </code>
-    );
+    return <code className={className}>{children}</code>;
   },
 };
 

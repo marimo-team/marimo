@@ -21,6 +21,8 @@ from marimo._server.models.files import (
     FileMoveRequest,
     FileMoveResponse,
     FileOpenRequest,
+    FileSearchRequest,
+    FileSearchResponse,
     FileUpdateRequest,
     FileUpdateResponse,
 )
@@ -249,3 +251,37 @@ async def open_file(
     except Exception as e:
         LOGGER.error(f"Error opening file: {e}")
         return ErrorResponse(success=False, message=str(e))
+
+
+@router.post("/search")
+@requires("edit")
+async def search_files(
+    *,
+    request: Request,
+) -> FileSearchResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/FileSearchRequest"
+    responses:
+        200:
+            description: Search for files and directories matching a query
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/FileSearchResponse"
+    """
+    body = await parse_request(request, cls=FileSearchRequest)
+    files = file_system.search(
+        query=body.query,
+        path=body.path,
+        directory=body.directory,
+        file=body.file,
+        depth=body.depth,
+        limit=body.limit,
+    )
+    return FileSearchResponse(
+        files=files, query=body.query, total_found=len(files)
+    )

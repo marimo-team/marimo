@@ -73,3 +73,16 @@ export function arrayToggle<T>(arr: T[], item: T): T[] {
   result.splice(index, 1);
   return result;
 }
+
+export function uniqueBy<T>(arr: T[], key: (item: T) => string): T[] {
+  const result = [];
+  const seen = new Set();
+  for (const item of arr) {
+    const k = key(item);
+    if (!seen.has(k)) {
+      seen.add(k);
+      result.push(item);
+    }
+  }
+  return result;
+}

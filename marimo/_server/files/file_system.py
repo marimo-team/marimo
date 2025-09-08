@@ -62,3 +62,26 @@ class FileSystem(ABC):
     def update_file(self, path: str, contents: str) -> FileInfo:
         """Update the contents of a file."""
         pass
+
+    @abstractmethod
+    def search(
+        self,
+        query: str,
+        *,
+        path: Optional[str] = None,
+        directory: Optional[bool] = None,
+        file: Optional[bool] = None,
+        depth: int = 3,
+        limit: int = 100,
+    ) -> list[FileInfo]:
+        """Search for files and directories matching a query.
+
+        Args:
+            query: Search query string (matches file/directory names)
+            path: Root path to search from (defaults to root)
+            directory: Filter to only directories (optional)
+            file: Filter to only files (optional)
+            depth: Maximum depth to search (default: 3)
+            limit: Maximum number of results to return (default: 100)
+        """
+        pass

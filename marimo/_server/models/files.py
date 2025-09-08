@@ -50,6 +50,21 @@ class FileCreateRequest(msgspec.Struct, rename="camel"):
     contents: Optional[str] = None
 
 
+class FileSearchRequest(msgspec.Struct, rename="camel"):
+    # The search query string
+    query: str
+    # The root directory path to search from (optional, defaults to root)
+    path: Optional[str] = None
+    # Filter to only directories (optional)
+    directory: Optional[bool] = None
+    # Filter to only files (optional)
+    file: Optional[bool] = None
+    # Maximum depth to search (default: 3)
+    depth: int = 3
+    # Maximum number of results to return (default: 100)
+    limit: int = 100
+
+
 class FileDeleteRequest(msgspec.Struct, rename="camel"):
     # The path of the file or directory to delete
     path: str
@@ -101,3 +116,9 @@ class FileMoveResponse(BaseResponse):
     # Additional information, e.g., error message
     message: Optional[str] = None
     info: Optional[FileInfo] = None
+
+
+class FileSearchResponse(msgspec.Struct, rename="camel"):
+    files: list[FileInfo]
+    query: str
+    total_found: int
