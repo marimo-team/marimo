@@ -2,11 +2,22 @@
 from __future__ import annotations
 
 import abc
+import dataclasses
 import mimetypes
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Optional,
+    TypedDict,
+    Union,
+    cast,
+)
 
 import msgspec
+
+from marimo._utils.parse_dataclass import parse_raw
 
 
 class ChatAttachmentDict(TypedDict):
@@ -123,7 +134,7 @@ class ToolInvocationPart:
     tool_call_id: str
     state: Union[str, Literal["output-available"]]
     input: dict[str, Any]
-    output: Optional[Any]
+    output: Optional[Any] = None
 
     @property
     def tool_name(self) -> str:
@@ -136,14 +147,16 @@ class FilePart:
 
     type: Literal["file"]
     media_type: str
-    filename: Optional[str]
     url: str
+    filename: Optional[str] = None
 
 
 if TYPE_CHECKING:
     ChatPart = Union[TextPart, ReasoningPart, ToolInvocationPart, FilePart]
 else:
     ChatPart = dict[str, Any]
+
+PART_TYPES = [TextPart, ReasoningPart, ToolInvocationPart, FilePart]
 
 
 class ChatMessage(msgspec.Struct):
@@ -164,6 +177,25 @@ class ChatMessage(msgspec.Struct):
     # Parts from AI SDK. (see types above)
     # TODO: Make this required
     parts: Optional[list[ChatPart]] = None
+
+    def __post_init__(self) -> None:
+        # Hack: msgspec only supports discriminated unions. This is a hack to just
+        # iterate through possible part variants and decode until one works.
+        if self.parts:
+            self.parts = [self._convert_part(part) for part in self.parts]
+
+    def _convert_part(self, part: Any) -> ChatPart:
+        for PartType in PART_TYPES:
+            try:
+                if dataclasses.is_dataclass(part):
+                    return cast(ChatPart, part)
+                return parse_raw(part, cls=PartType, allow_unknown_keys=True)
+            except Exception:
+                continue
+
+        raise msgspec.DecodeError(
+            f"Could not decode part as any of {PART_TYPES}"
+        )
 
 
 @dataclass
