@@ -31,7 +31,7 @@ repos:
         pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.11
+    rev: v0.12.12
     hooks:
       # Run the linter
       - id: ruff
@@ -40,7 +40,7 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/biomejs/pre-commit
-    rev: v2.2.2
+    rev: v2.2.3
     hooks:
       - id: biome-check
         args: [--diagnostic-level, warn]
