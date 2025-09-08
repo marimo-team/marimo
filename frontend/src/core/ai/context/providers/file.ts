@@ -99,7 +99,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
           options: completions,
         };
       } catch (error) {
-        console.error("Failed to search files:", error);
+        Logger.error("Failed to search files:", error);
         return null;
       }
     };
@@ -162,7 +162,9 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
               options: completions,
             };
           }
-        } catch {}
+        } catch (error) {
+          Logger.error("Failed to get default file completions:", error);
+        }
       }
 
       // If no searches return results, return empty
@@ -183,7 +185,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
   }
 
   formatCompletion(item: FileContextItem): Completion {
-    const { data } = item;
+    const { data, name } = item;
     const icon = data.isDirectory ? "📁" : "📄";
 
     return {
@@ -192,7 +194,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
       section: "File",
       boost: data.isDirectory ? Boosts.MEDIUM : Boosts.LOW,
       detail: data.path,
-      displayLabel: `${icon} ${item.name}`,
+      displayLabel: `${icon} ${name}`,
       apply: async (view, completion, from, to) => {
         // First try to add the file as an attachment, if the callback is provided
         // otherwise add it to the prompt
@@ -203,7 +205,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
         }
 
         const fileDetails = await this.apiRequests
-          .sendFileDetails({ path: item.data.path })
+          .sendFileDetails({ path: data.path })
           .catch((error) => {
             toast({
               title: "Failed to get file details",
@@ -246,7 +248,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
           }
         }
 
-        const file = new File([blob], item.name, { type: mimeType });
+        const file = new File([blob], name, { type: mimeType });
         addAttachment(file);
 
         // Close completion and delete the entire mention text (from # to cursor)
@@ -262,7 +264,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
 
         const title = document.createElement("div");
         title.classList.add("font-bold");
-        title.textContent = item.name;
+        title.textContent = name;
         element.append(title);
 
         const path = document.createElement("div");
