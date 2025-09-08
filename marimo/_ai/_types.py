@@ -190,7 +190,7 @@ class ChatMessage(msgspec.Struct):
                 if dataclasses.is_dataclass(part):
                     return cast(ChatPart, part)
                 return parse_raw(part, cls=PartType, allow_unknown_keys=True)
-            except (msgspec.DecodeError, msgspec.ValidationError):
+            except Exception:
                 continue
 
         raise msgspec.DecodeError(
