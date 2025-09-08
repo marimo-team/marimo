@@ -134,7 +134,7 @@ class ToolInvocationPart:
     tool_call_id: str
     state: Union[str, Literal["output-available"]]
     input: dict[str, Any]
-    output: Optional[Any]
+    output: Optional[Any] = None
 
     @property
     def tool_name(self) -> str:
@@ -147,8 +147,8 @@ class FilePart:
 
     type: Literal["file"]
     media_type: str
-    filename: Optional[str]
     url: str
+    filename: Optional[str] = None
 
 
 if TYPE_CHECKING:
@@ -189,8 +189,8 @@ class ChatMessage(msgspec.Struct):
             try:
                 if dataclasses.is_dataclass(part):
                     return cast(ChatPart, part)
-                return parse_raw(cast(Any, part), cls=PartType)
-            except msgspec.DecodeError:
+                return parse_raw(part, cls=PartType, allow_unknown_keys=True)
+            except (msgspec.DecodeError, msgspec.ValidationError):
                 continue
 
         raise msgspec.DecodeError(

@@ -68,6 +68,23 @@ class FakeChoices:
     choices: list[Choice]
 
 
+def _create_messages(prompt: str) -> list[dict[str, Any]]:
+    return [
+        {
+            "role": "user",
+            "content": prompt,
+            "parts": [
+                {"type": "text", "text": prompt},
+                {
+                    "type": "file",
+                    "mediaType": "text/csv",
+                    "url": "data:text/csv;base64,R29vZGJ5ZQ==",
+                },
+            ],
+        },
+    ]
+
+
 @pytest.mark.skipif(
     not HAS_OPEN_AI_DEPS, reason="optional dependencies not installed"
 )
@@ -769,7 +786,7 @@ def test_chat_without_code(client: TestClient) -> None:
                 "/api/ai/chat",
                 headers=HEADERS,
                 json={
-                    "messages": [{"role": "user", "content": "Hello"}],
+                    "messages": _create_messages("Hello"),
                     "model": "gpt-4-turbo",
                     "variables": [],
                     "includeOtherCode": "",
@@ -810,12 +827,7 @@ def test_chat_with_code(client: TestClient) -> None:
                 "/api/ai/chat",
                 headers=HEADERS,
                 json={
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": "Help me create a dataframe",
-                        }
-                    ],
+                    "messages": _create_messages("Help me create a dataframe"),
                     "model": "gpt-4-turbo",
                     "variables": [],
                     "includeOtherCode": "import pandas as pd",
