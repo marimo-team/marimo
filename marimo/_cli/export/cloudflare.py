@@ -32,17 +32,6 @@ export default {
       });
     }
 
-    const apiPrefix = "/notebook/api/";
-    if (url.pathname.startsWith(apiPrefix)) {
-      const remainder = url.pathname.slice(apiPrefix.length);
-      const target = new URL(
-        `https://www.opensource.observer/api/v1/marimo/${remainder}`
-      );
-
-      target.search = url.search;
-      return Response.redirect(target.toString(), 302);
-    }
-
     return env.ASSETS.fetch(request);
   },
 };""".strip()
