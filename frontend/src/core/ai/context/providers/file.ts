@@ -171,7 +171,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
         options: [],
       };
     } catch (error) {
-      console.error("Failed to get default file completions:", error);
+      Logger.error("Failed to get default file completions:", error);
       return null;
     }
   }

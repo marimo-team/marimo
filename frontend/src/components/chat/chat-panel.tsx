@@ -886,7 +886,6 @@ const ChatPanelBody = () => {
             index={idx}
             onEdit={handleMessageEdit}
             isStreamingReasoning={isStreamingReasoning}
-            onAddFiles={onAddFiles}
             isLast={idx === messages.length - 1}
           />
         ))}
