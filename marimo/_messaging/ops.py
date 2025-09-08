@@ -444,6 +444,9 @@ PackageStatusType = dict[
 class InstallingPackageAlert(Op, tag="installing-package-alert"):
     name: ClassVar[str] = "installing-package-alert"
     packages: PackageStatusType
+    # Optional fields for streaming logs per package
+    logs: Optional[dict[str, str]] = None  # package name -> log content
+    log_status: Optional[Literal["append", "start", "done"]] = None
 
 
 class Reconnected(Op, tag="reconnected"):

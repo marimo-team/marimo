@@ -4,7 +4,12 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
-from marimo._messaging.ops import CellOp, StartupLogs, VariableValue
+from marimo._messaging.ops import (
+    CellOp,
+    InstallingPackageAlert,
+    StartupLogs,
+    VariableValue,
+)
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider
 from marimo._types.ids import CellId_t
@@ -68,3 +73,29 @@ def test_startup_logs_all_statuses() -> None:
         startup_log = StartupLogs(content=f"Test {status}", status=status)
         assert startup_log.status == status
         assert startup_log.content == f"Test {status}"
+
+
+def test_installing_package_alert_basic() -> None:
+    """Test basic InstallingPackageAlert without streaming logs."""
+    alert = InstallingPackageAlert(
+        packages={"numpy": "queued", "pandas": "installing"}
+    )
+    assert alert.name == "installing-package-alert"
+    assert alert.packages == {"numpy": "queued", "pandas": "installing"}
+    assert alert.logs is None
+    assert alert.log_status is None
+
+
+def test_installing_package_alert_with_logs() -> None:
+    """Test InstallingPackageAlert with streaming logs."""
+    packages = {"numpy": "installing"}
+    logs = {"numpy": "Installing numpy...\n"}
+
+    alert = InstallingPackageAlert(
+        packages=packages, logs=logs, log_status="start"
+    )
+
+    assert alert.name == "installing-package-alert"
+    assert alert.packages == packages
+    assert alert.logs == logs
+    assert alert.log_status == "start"

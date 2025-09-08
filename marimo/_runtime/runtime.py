@@ -110,7 +110,10 @@ from marimo._runtime.packages.import_error_extractors import (
     try_extract_packages_from_import_error_message,
 )
 from marimo._runtime.packages.module_registry import ModuleRegistry
-from marimo._runtime.packages.package_manager import PackageManager
+from marimo._runtime.packages.package_manager import (
+    LogCallback,
+    PackageManager,
+)
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import (
     PackageRequirement,
@@ -2548,6 +2551,16 @@ class PackagesCallbacks:
         }
         InstallingPackageAlert(packages=package_statuses).broadcast()
 
+        def create_log_callback(pkg: str) -> LogCallback:
+            def log_callback(log_line: str) -> None:
+                InstallingPackageAlert(
+                    packages=package_statuses,
+                    logs={pkg: log_line},
+                    log_status="append",
+                ).broadcast()
+
+            return log_callback
+
         for pkg in missing_packages:
             if self.package_manager.attempted_to_install(package=pkg):
                 # Already attempted an installation; it must have failed.
@@ -2555,15 +2568,35 @@ class PackagesCallbacks:
                 continue
             package_statuses[pkg] = "installing"
             InstallingPackageAlert(packages=package_statuses).broadcast()
+
+            # Send initial "start" log
+            InstallingPackageAlert(
+                packages=package_statuses,
+                logs={pkg: f"Installing {pkg}...\n"},
+                log_status="start",
+            ).broadcast()
+
             version = request.versions.get(pkg)
-            if await self.package_manager.install(pkg, version=version):
+            if await self.package_manager.install(
+                pkg, version=version, log_callback=create_log_callback(pkg)
+            ):
                 package_statuses[pkg] = "installed"
-                InstallingPackageAlert(packages=package_statuses).broadcast()
+                # Send final "done" log
+                InstallingPackageAlert(
+                    packages=package_statuses,
+                    logs={pkg: f"Successfully installed {pkg}\n"},
+                    log_status="done",
+                ).broadcast()
             else:
                 package_statuses[pkg] = "failed"
                 mod = self.package_manager.package_to_module(pkg)
                 self._kernel.module_registry.excluded_modules.add(mod)
-                InstallingPackageAlert(packages=package_statuses).broadcast()
+                # Send final "done" log with error
+                InstallingPackageAlert(
+                    packages=package_statuses,
+                    logs={pkg: f"Failed to install {pkg}\n"},
+                    log_status="done",
+                ).broadcast()
 
         installed_modules = [
             self.package_manager.package_to_module(pkg)

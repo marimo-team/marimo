@@ -1606,6 +1606,21 @@ components:
       type: object
     InstallingPackageAlert:
       properties:
+        log_status:
+          anyOf:
+          - enum:
+            - append
+            - done
+            - start
+          - type: 'null'
+          default: null
+        logs:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          default: null
         op:
           enum:
           - installing-package-alert

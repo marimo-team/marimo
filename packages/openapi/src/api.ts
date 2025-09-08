@@ -3444,6 +3444,12 @@ export interface components {
     };
     /** InstallingPackageAlert */
     InstallingPackageAlert: {
+      /** @default null */
+      log_status?: ("append" | "done" | "start") | null;
+      /** @default null */
+      logs?: {
+        [key: string]: string;
+      } | null;
       /** @enum {unknown} */
       op: "installing-package-alert";
       packages: {

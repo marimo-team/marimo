@@ -97,15 +97,17 @@ def _check_shutdown(
 def _try_fetch(
     port: int, host: str = "localhost", token: Optional[str] = None
 ) -> Optional[bytes]:
+    err: Exception | None = None
     for _ in range(20):
         try:
             url = f"http://{host}:{port}"
             if token is not None:
                 url = f"{url}?access_token={token}"
             return urllib.request.urlopen(url).read()
-        except Exception:
+        except Exception as e:
+            err = e
             time.sleep(0.6)
-    print("Failed to fetch contents")
+    print(f"Failed to fetch contents: {err}")
     return None
 
 
