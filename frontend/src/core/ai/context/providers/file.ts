@@ -105,16 +105,26 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
     };
   }
 
-  private searchFiles = debounce(async (query: string): Promise<FileInfo[]> => {
-    const response = await this.apiRequests.sendSearchFiles({
-      query,
-      file: true,
-      directory: this.config.includeDirectories,
-      depth: this.config.maxDepth,
-      limit: this.config.maxResults,
-    });
-    return response.files;
-  }, FILE_SEARCH_DELAY);
+  private searchFiles = debounce(
+    async (
+      query: string,
+      options: Partial<FileSearchConfig> = {},
+    ): Promise<FileInfo[]> => {
+      const { maxDepth, maxResults, includeDirectories } = {
+        ...this.config,
+        ...options,
+      };
+      const response = await this.apiRequests.sendSearchFiles({
+        query,
+        file: true,
+        directory: includeDirectories,
+        depth: maxDepth,
+        limit: maxResults,
+      });
+      return response.files;
+    },
+    FILE_SEARCH_DELAY,
+  );
 
   private async getDefaultCompletions(match: {
     from: number;
@@ -127,7 +137,10 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
       // Try the first search that returns results
       for (const search of searches) {
         try {
-          const files = await this.searchFiles(search);
+          const files = await this.searchFiles(search, {
+            maxDepth: 1,
+            maxResults: 5,
+          });
 
           if (files && files.length > 0) {
             const completions = files.map((file) => {
@@ -173,14 +186,12 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
     const { data } = item;
     const icon = data.isDirectory ? "📁" : "📄";
 
-    const basicCompletion = this.createBasicCompletion(item, {
+    return {
+      ...this.createBasicCompletion(item),
+      type: "file",
+      section: "File",
       boost: data.isDirectory ? Boosts.MEDIUM : Boosts.LOW,
       detail: data.path,
-      section: "File",
-    });
-
-    return {
-      ...basicCompletion,
       displayLabel: `${icon} ${item.name}`,
       apply: async (view, completion, from, to) => {
         // First try to add the file as an attachment, if the callback is provided
@@ -238,18 +249,11 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
         const file = new File([blob], item.name, { type: mimeType });
         addAttachment(file);
 
-        // Close completion and delete the # before the cursor if there is one
-        const position = view.state.selection.main.from;
-        if (position > 0) {
-          const charBefore = view.state.doc
-            .slice(position - 1, position)
-            .toString();
-          if (charBefore === this.mentionPrefix) {
-            view.dispatch({
-              changes: { from: position - 1, to: position, insert: "" },
-            });
-          }
-        }
+        // Close completion and delete the entire mention text (from # to cursor)
+        view.dispatch({
+          changes: { from, to, insert: "" },
+        });
+
         closeCompletion(view);
       },
       info: () => {
