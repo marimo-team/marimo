@@ -199,7 +199,7 @@ export const PackageAlert: React.FC = () => {
     const { status, title, titleIcon, description } =
       getInstallationStatusElements(packageAlert.packages);
     if (status === "installed") {
-      // setTimeout(() => clearPackageAlert(packageAlert.id), 10_000);
+      setTimeout(() => clearPackageAlert(packageAlert.id), 10_000);
     }
 
     return (

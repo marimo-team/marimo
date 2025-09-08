@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import sys
 from typing import Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -33,7 +34,12 @@ def test_update_script_metadata() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(self, command: list[str]) -> bool:
+        def run(
+            self,
+            command: list[str],
+            log_callback: Optional[LogCallback] = None,
+        ) -> bool:
+            del log_callback
             runs_calls.append(command)
             return True
 
@@ -59,7 +65,12 @@ def test_update_script_metadata_with_version_map() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(self, command: list[str]) -> bool:
+        def run(
+            self,
+            command: list[str],
+            log_callback: Optional[LogCallback] = None,
+        ) -> bool:
+            del log_callback
             runs_calls.append(command)
             return True
 
@@ -87,7 +98,12 @@ def test_update_script_metadata_with_mapping() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(self, command: list[str]) -> bool:
+        def run(
+            self,
+            command: list[str],
+            log_callback: Optional[LogCallback] = None,
+        ) -> bool:
+            del log_callback
             runs_calls.append(command)
             return True
 
@@ -135,7 +151,12 @@ def test_update_script_metadata_marimo_packages() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(self, command: list[str]) -> bool:
+        def run(
+            self,
+            command: list[str],
+            log_callback: Optional[LogCallback] = None,
+        ) -> bool:
+            del log_callback
             runs_calls.append(command)
             return True
 
@@ -306,7 +327,7 @@ def test_package_manager_run_without_callback() -> None:
         patch.object(pm, "is_manager_installed", return_value=True),
     ):
         mock_run.return_value.returncode = 0
-        result = pm.run(["echo", "test"])
+        result = pm.run(["echo", "test"], log_callback=None)
 
         assert result is True
         mock_run.assert_called_once_with(["echo", "test"])
@@ -321,32 +342,35 @@ def test_package_manager_run_with_callback() -> None:
         captured_logs.append(log_line)
 
     mock_stdout_lines = [
-        "Installing package...\n",
-        "Successfully installed!\n",
+        b"Installing package...\n",
+        b"Successfully installed!\n",
     ]
 
     with (
         patch("subprocess.Popen") as mock_popen,
-        patch("builtins.print") as mock_print,
+        patch("sys.stdout.buffer.write") as mock_buffer_write,
         patch.object(pm, "is_manager_installed", return_value=True),
     ):
         # Mock the subprocess.Popen to return our test output
         mock_proc = MagicMock()
         mock_proc.stdout.readline.side_effect = mock_stdout_lines + [
-            ""
-        ]  # End with empty string
+            b""
+        ]  # End with empty bytes
         mock_proc.wait.return_value = 0
         mock_popen.return_value = mock_proc
 
         result = pm.run(["echo", "test"], log_callback=log_callback)
 
         assert result is True
-        assert captured_logs == mock_stdout_lines
+        assert captured_logs == [
+            "Installing package...\n",
+            "Successfully installed!\n",
+        ]
 
-        # Verify print was called for terminal output
-        assert mock_print.call_count == len(mock_stdout_lines)
-        mock_print.assert_any_call("Installing package...")
-        mock_print.assert_any_call("Successfully installed!")
+        # Verify buffer write was called for terminal output
+        assert mock_buffer_write.call_count == len(mock_stdout_lines)
+        mock_buffer_write.assert_any_call(b"Installing package...\n")
+        mock_buffer_write.assert_any_call(b"Successfully installed!\n")
 
 
 def test_package_manager_run_with_callback_failure() -> None:
@@ -363,9 +387,9 @@ def test_package_manager_run_with_callback_failure() -> None:
     ):
         mock_proc = MagicMock()
         mock_proc.stdout.readline.side_effect = [
-            "Error occurred\n",
-            "",
-        ]  # End with empty string
+            b"Error occurred\n",
+            b"",
+        ]  # End with empty bytes
         mock_proc.wait.return_value = 1  # Non-zero return code
         mock_popen.return_value = mock_proc
 
@@ -446,12 +470,17 @@ async def test_micropip_install_with_log_callback() -> None:
 
     pm = MicropipPackageManager()
 
+    mock_micropip = MagicMock()
+    mock_micropip.install = AsyncMock(return_value=None)
+
     with (
         patch("marimo._utils.platform.is_pyodide", return_value=True),
-        patch("micropip.install") as mock_install,
+        patch(
+            "marimo._runtime.packages.pypi_package_manager.is_pyodide",
+            return_value=True,
+        ),
+        patch.dict(sys.modules, {"micropip": mock_micropip}),
     ):
-        mock_install.return_value = None  # Successful install
-
         result = await pm._install(
             "requests", upgrade=False, log_callback=log_callback
         )
@@ -496,7 +525,7 @@ def test_package_manager_run_manager_not_installed() -> None:
     pm = PipPackageManager()
 
     with patch.object(pm, "is_manager_installed", return_value=False):
-        result = pm.run(["test", "command"])
+        result = pm.run(["test", "command"], log_callback=None)
         assert result is False
 
         # Should also return False with log callback

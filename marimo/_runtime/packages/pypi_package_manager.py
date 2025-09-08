@@ -336,19 +336,20 @@ class UvPackageManager(PypiPackageManager):
         packages_to_remove: list[str],
         upgrade: bool,
     ) -> bool:
+        success = True
         if packages_to_add:
             cmd = [self._uv_bin, "--quiet", "add", "--script", filepath]
             if upgrade:
                 cmd.append("--upgrade")
             cmd.extend(packages_to_add)
-            return self.run(cmd, log_callback=None)
+            success &= self.run(cmd, log_callback=None)
         if packages_to_remove:
-            return self.run(
+            success &= self.run(
                 [self._uv_bin, "--quiet", "remove", "--script", filepath]
                 + packages_to_remove,
                 log_callback=None,
             )
-        return True
+        return success
 
     def _get_version_map(self) -> dict[str, str]:
         packages = self.list_packages()
