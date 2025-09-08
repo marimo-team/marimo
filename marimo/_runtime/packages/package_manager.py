@@ -108,15 +108,15 @@ class PackageManager(abc.ABC):
         return False
 
     def run(
-        self, command: list[str], log_callback: Optional[LogCallback] = None
+        self, command: list[str], log_callback: Optional[LogCallback]
     ) -> bool:
         if not self.is_manager_installed():
             return False
 
         if log_callback is None:
             # Original behavior - just run the command without capturing output
-            proc = subprocess.run(command)  # noqa: ASYNC101
-            return proc.returncode == 0
+            completed_process = subprocess.run(command)  # noqa: ASYNC101
+            return completed_process.returncode == 0
 
         # Stream output to both the callback and the terminal
         proc = subprocess.Popen(
@@ -148,7 +148,7 @@ class PackageManager(abc.ABC):
         import_namespaces_to_add: Optional[list[str]] = None,
         import_namespaces_to_remove: Optional[list[str]] = None,
         upgrade: bool,
-    ) -> None:
+    ) -> bool:
         del (
             filepath,
             packages_to_add,
@@ -167,7 +167,7 @@ class PackageManager(abc.ABC):
 
         This follows PEP 723 https://peps.python.org/pep-0723/
         """
-        return
+        return True
 
     @abc.abstractmethod
     def list_packages(self) -> list[PackageDescription]:

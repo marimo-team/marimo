@@ -80,7 +80,8 @@ class PipPackageManager(PypiPackageManager):
                 "uninstall",
                 "-y",
                 *split_packages(package),
-            ]
+            ],
+            log_callback=None,
         )
 
     def list_packages(self) -> list[PackageDescription]:
@@ -204,7 +205,7 @@ class UvPackageManager(PypiPackageManager):
         import_namespaces_to_add: Optional[list[str]] = None,
         import_namespaces_to_remove: Optional[list[str]] = None,
         upgrade: bool,
-    ) -> None:
+    ) -> bool:
         """Update the notebook's script metadata with the packages to add/remove.
 
         Args:
@@ -228,7 +229,7 @@ class UvPackageManager(PypiPackageManager):
         ]
 
         if not packages_to_add and not packages_to_remove:
-            return
+            return True
 
         LOGGER.info(f"Updating script metadata for {filepath}")
 
@@ -270,7 +271,7 @@ class UvPackageManager(PypiPackageManager):
         packages_to_add: list[str],
         packages_to_remove: list[str],
         upgrade: bool,
-    ) -> None:
+    ) -> bool:
         from marimo._convert.markdown.markdown import extract_frontmatter
         from marimo._utils import yaml
         from marimo._utils.inline_script_metadata import (
@@ -296,7 +297,7 @@ class UvPackageManager(PypiPackageManager):
             temp_file.write(header)
             temp_file.flush()
         # Have UV modify it
-        self._process_changes_for_script_metadata(
+        result = self._process_changes_for_script_metadata(
             temp_file.name,
             packages_to_add,
             packages_to_remove,
@@ -326,24 +327,28 @@ class UvPackageManager(PypiPackageManager):
         with open(filepath, "w", encoding="utf-8") as f:
             f.write("\n".join(document))
 
+        return result
+
     def _process_changes_for_script_metadata(
         self,
         filepath: str,
         packages_to_add: list[str],
         packages_to_remove: list[str],
         upgrade: bool,
-    ) -> None:
+    ) -> bool:
         if packages_to_add:
             cmd = [self._uv_bin, "--quiet", "add", "--script", filepath]
             if upgrade:
                 cmd.append("--upgrade")
             cmd.extend(packages_to_add)
-            self.run(cmd)
+            return self.run(cmd, log_callback=None)
         if packages_to_remove:
-            self.run(
+            return self.run(
                 [self._uv_bin, "--quiet", "remove", "--script", filepath]
-                + packages_to_remove
+                + packages_to_remove,
+                log_callback=None,
             )
+        return True
 
     def _get_version_map(self) -> dict[str, str]:
         packages = self.list_packages()
@@ -401,7 +406,8 @@ class UvPackageManager(PypiPackageManager):
             uninstall_cmd = [self._uv_bin, "pip", "uninstall"]
 
         return self.run(
-            uninstall_cmd + [*split_packages(package), "-p", PY_EXE]
+            uninstall_cmd + [*split_packages(package), "-p", PY_EXE],
+            log_callback=None,
         )
 
     def list_packages(self) -> list[PackageDescription]:
@@ -484,7 +490,9 @@ class RyePackageManager(PypiPackageManager):
         )
 
     async def uninstall(self, package: str) -> bool:
-        return self.run(["rye", "remove", *split_packages(package)])
+        return self.run(
+            ["rye", "remove", *split_packages(package)], log_callback=None
+        )
 
     def list_packages(self) -> list[PackageDescription]:
         cmd = ["rye", "list", "--format=json"]
@@ -520,7 +528,8 @@ class PoetryPackageManager(PypiPackageManager):
 
     async def uninstall(self, package: str) -> bool:
         return self.run(
-            ["poetry", "remove", "--no-interaction", *split_packages(package)]
+            ["poetry", "remove", "--no-interaction", *split_packages(package)],
+            log_callback=None,
         )
 
     def _list_packages_from_cmd(
