@@ -37,7 +37,7 @@ def validate_auth(
     state = AppState.from_app(conn.app)
     auth_token = str(state.session_manager.auth_token)
 
-    # Check if session in connection, then auth was disabled
+    # If session is not the connection, then auth was disabled.
     if "session" not in conn.scope:
         return True
 
