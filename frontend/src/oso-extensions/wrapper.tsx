@@ -5,6 +5,7 @@ import { PyodideBridge } from "@/core/wasm/bridge";
 import { useFragmentStore } from "./fragment-store";
 import { userConfigAtom } from "@/core/config/config";
 import { store } from "@/core/state/jotai";
+import { runtimeConfigAtom } from "@/core/runtime/config";
 
 const COMMAND_PREFIX = "oso_commands:";
 
@@ -95,6 +96,12 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
                 displayed_models: prev.ai?.models?.displayed_models || [],
               },
             },
+          }));
+
+          // Set the OSO API key as the auth token in the runtime config
+          store.set(runtimeConfigAtom, (prev) => ({
+            ...prev,
+            authToken: osoApiKey,
           }));
         }
       }
