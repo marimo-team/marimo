@@ -21,6 +21,7 @@ class LintContext:
         self._diagnostics: list[tuple[int, int, Diagnostic]] = []
         self._graph: DirectedGraph | None = None
         self._graph_lock = threading.Lock()
+        self._diagnostics_lock = threading.Lock()  # Protect diagnostics operations
         self._counter = 0  # Monotonic counter for stable sorting
         self._last_retrieved_counter = (
             -1
@@ -37,50 +38,53 @@ class LintContext:
         """Add a diagnostic to the priority queue."""
         priority = self._priority_map.get(diagnostic.severity, 999)
         # Use counter as tiebreaker to avoid comparing Diagnostic objects
-        heapq.heappush(
-            self._diagnostics, (priority, self._counter, diagnostic)
-        )
-        self._counter += 1
+        with self._diagnostics_lock:
+            heapq.heappush(
+                self._diagnostics, (priority, self._counter, diagnostic)
+            )
+            self._counter += 1
 
     def get_diagnostics(self) -> list[Diagnostic]:
         """Get all diagnostics sorted by priority (most severe first)."""
         # Sort by priority and return just the diagnostics
-        sorted_diagnostics = []
-        temp_heap = self._diagnostics.copy()
+        with self._diagnostics_lock:
+            sorted_diagnostics = []
+            temp_heap = self._diagnostics.copy()
 
-        while temp_heap:
-            _, _, diagnostic = heapq.heappop(temp_heap)
-            sorted_diagnostics.append(diagnostic)
+            while temp_heap:
+                _, _, diagnostic = heapq.heappop(temp_heap)
+                sorted_diagnostics.append(diagnostic)
 
-        return sorted_diagnostics
+            return sorted_diagnostics
 
     def get_new_diagnostics(self) -> list[Diagnostic]:
         """Get diagnostics added since last call, sorted by priority."""
-        # Find new diagnostics since last retrieval
-        new_items = [
-            (priority, counter, diagnostic)
-            for priority, counter, diagnostic in self._diagnostics
-            if counter > self._last_retrieved_counter
-        ]
+        with self._diagnostics_lock:
+            # Find new diagnostics since last retrieval
+            new_items = [
+                (priority, counter, diagnostic)
+                for priority, counter, diagnostic in self._diagnostics
+                if counter > self._last_retrieved_counter
+            ]
 
-        if not new_items:
-            return []
+            if not new_items:
+                return []
 
-        # Sort by priority (and counter for stability)
-        new_items.sort()
+            # Sort by priority (and counter for stability)
+            new_items.sort()
 
-        # Extract diagnostics and update counter
-        new_diagnostics = []
-        max_counter = self._last_retrieved_counter
+            # Extract diagnostics and update counter
+            new_diagnostics = []
+            max_counter = self._last_retrieved_counter
 
-        for _priority, counter, diagnostic in new_items:
-            new_diagnostics.append(diagnostic)
-            max_counter = max(max_counter, counter)
+            for _priority, counter, diagnostic in new_items:
+                new_diagnostics.append(diagnostic)
+                max_counter = max(max_counter, counter)
 
-        # Update the last retrieved counter
-        self._last_retrieved_counter = max_counter
+            # Update the last retrieved counter
+            self._last_retrieved_counter = max_counter
 
-        return new_diagnostics
+            return new_diagnostics
 
     def get_graph(self) -> DirectedGraph:
         """Get the dependency graph, constructing it once and caching."""
