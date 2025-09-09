@@ -1,7 +1,6 @@
 import marimo
 
-__generated_with = "0.13.10"
-
+__generated_with = "0.15.2"
 app = marimo.App()
 
 with app.setup:
@@ -11,7 +10,7 @@ with app.setup:
 @app.cell
 def _():
     x = 1
-    return (x,)
+    return
 
 
 if __name__ == "__main__":

@@ -1,23 +1,23 @@
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.15.2"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _(z):
     x = 1 + z  # This should trigger MR002 - cycle dependency
     return (x,)
 
 
 @app.cell
-def __():
+def _(x):
     y = x + 1
     return (y,)
 
 
 @app.cell
-def __():
+def _(y):
     z = y + 1
     return (z,)
 

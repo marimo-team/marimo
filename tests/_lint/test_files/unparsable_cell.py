@@ -1,12 +1,12 @@
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.0.0"
 app = marimo.App()
 
 @app.cell
 def _():
     x = 1
-    return (x,)
+    return
 
 # This should create an unparsable cell
 app._unparsable_cell("""
@@ -14,9 +14,9 @@ x = 1 +  # Syntax error
 """)
 
 @app.cell
-def __():
+def _():
     y = 2
-    return (y,)
+    return
 
 if __name__ == "__main__":
     app.run()
