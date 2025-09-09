@@ -2,7 +2,8 @@
 
 import { waitForConnectionOpen } from "@/core/network/connection";
 import type { AiCompletionRequest } from "@/core/network/types";
-import { getRuntimeManager } from "@/core/runtime/config";
+import { getRuntimeManager, runtimeConfigAtom } from "@/core/runtime/config";
+import { store } from "@/core/state/jotai";
 import type { LanguageAdapterType } from "../language/types";
 
 /**
@@ -30,6 +31,8 @@ ${opts.codeAfter}
 
   await waitForConnectionOpen();
 
+  const authToken = store.get(runtimeConfigAtom).authToken;
+  
   const response = await fetch(
     runtimeManager.getAiURL("completion").toString(),
     {
@@ -41,7 +44,8 @@ ${opts.codeAfter}
         selectedText: opts.selection,
         includeOtherCode: "",
         language: opts.language,
-      } satisfies AiCompletionRequest),
+        ...(authToken && { osoApiKey: authToken }),
+      } satisfies AiCompletionRequest & { osoApiKey?: string }),
     },
   );
 
