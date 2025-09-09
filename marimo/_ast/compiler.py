@@ -13,6 +13,7 @@ import textwrap
 import token as token_types
 from tokenize import tokenize
 from typing import TYPE_CHECKING, Any, Callable, Optional
+import warnings
 
 from marimo import _loggers
 from marimo._ast import parse
@@ -40,6 +41,15 @@ Cls: TypeAlias = type
 
 if TYPE_CHECKING:
     from types import FrameType
+
+
+def ast_compile(
+    *args: tuple[Any, ...], **kwargs: dict[str, Any]
+) -> ast.Module:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=SyntaxWarning)
+        # The SyntaxWarning is suppressed only inside this `with` block
+        return compile(*args, **kwargs)  # type: ignore[arg-type]
 
 
 def code_key(code: str) -> int:
@@ -159,7 +169,7 @@ def compile_cell(
     # See https://github.com/pyodide/pyodide/issues/3337,
     #     https://github.com/marimo-team/marimo/issues/1546
     code = code.replace("\u00a0", " ")
-    module = compile(
+    module = ast_compile(
         code,
         "<unknown>",
         mode="exec",
@@ -242,10 +252,10 @@ def compile_cell(
             )
 
     flags = ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
-    body = compile(
+    body = ast_compile(
         module, filename, mode="exec", dont_inherit=True, flags=flags
     )
-    last_expr = compile(
+    last_expr = ast_compile(
         expr, filename, mode="eval", dont_inherit=True, flags=flags
     )
 
@@ -340,7 +350,7 @@ def context_cell_factory(
         entry_line += 1 - lnum
 
     _, with_block = ContainedExtractWithBlock(entry_line).visit(
-        ast.parse(textwrap.dedent(source)).body  # type: ignore[arg-type]
+        parse.ast_parse(textwrap.dedent(source)).body  # type: ignore[arg-type]
     )
 
     start_node = with_block.body[0]
@@ -388,7 +398,7 @@ def toplevel_cell_factory(
     # We need to scrub through the initial decorator. Since we don't care about
     # indentation etc, easiest just to use AST.
 
-    tree = ast.parse(function_code, type_comments=True)
+    tree = parse.ast_parse(function_code, type_comments=True)
     try:
         decorator = tree.body[0].decorator_list.pop(0)  # type: ignore
         # NB. We don't unparse from the AST because it strips comments.
@@ -458,7 +468,7 @@ def cell_factory(
     function_code = textwrap.dedent("".join(code))
 
     extractor = parse.Extractor(contents=function_code)
-    func_ast = ast.parse(function_code).body[0]
+    func_ast = parse.ast_parse(function_code).body[0]
     cell_def = extractor.to_cell(func_ast, attribute="cell")
 
     # anonymous file is required for deterministic testing.

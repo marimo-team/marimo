@@ -8,12 +8,15 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Optional
+from glob import glob
 
 import click
 
 import marimo._cli.cli_validators as validators
 from marimo import _loggers
 from marimo._ast import codegen
+from marimo._ast.app_config import _AppConfig as AppConfig
+from marimo._ast.cell import CellConfig
 from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
 from marimo._cli.config.commands import config
@@ -23,7 +26,7 @@ from marimo._cli.envinfo import get_system_info
 from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
 from marimo._cli.parse_args import parse_args
-from marimo._cli.print import bold, green, red
+from marimo._cli.print import bold, green, red, yellow
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
@@ -59,7 +62,7 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
 
 def check_app_correctness(filename: str, noninteractive: bool = True) -> None:
     try:
-        status = get_notebook_status(filename)
+        status = get_notebook_status(filename).status
     except SyntaxError:
         import traceback
 
@@ -1218,6 +1221,125 @@ def shell_completion() -> None:
         + "' to enable completions",
         fg="green",
     )
+
+
+@main.command(help="""Lint and check marimo files.""")
+@click.option(
+    "--fix",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Whether to in place update files.",
+)
+@click.option(
+    "--strict",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    type=bool,
+    help="Whether warnings return a non-zero exit code.",
+)
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    type=bool,
+    help="Whether to print detailed messages.",
+)
+@click.argument("files", nargs=-1, type=click.UNPROCESSED)
+def lint(
+    fix: bool, strict: bool, verbose: bool, files: tuple[str, ...]
+) -> None:
+    seen = set()
+    errored = False
+    warnings = 0
+    if not files:
+        # If no files are provided, we lint the current directory
+        files = ("**/*.py", "**/*.md", "**/*.qmd")
+
+    if verbose:
+        echo = click.echo
+    else:
+
+        def echo(_: str) -> None:
+            pass
+
+    for pattern in files:
+        for file in glob(pattern, recursive=True):
+            if file in seen:
+                continue
+            seen.add(file)
+
+            # if not explicitly called on a __init__.py file, skip it
+            if file.endswith("__init__.py") and (
+                "__init__.py" not in pattern or len(files) > 1
+            ):
+                echo(yellow(f"Skipping __init__.py file: {file}"))
+                continue
+            is_markdown = file.endswith(".md") or file.endswith(".qmd")
+            if not (file.endswith(".py") or is_markdown):
+                echo(yellow(f"Skipping non-marimo file: {file}"))
+                continue
+
+            attempt = get_notebook_status(file)
+            if attempt.status == "error":
+                echo(red(f"Error in {file}: {attempt.status}"))
+                errored = True
+                continue
+
+            notebook = attempt.notebook
+            if notebook is None:
+                echo(red(f"Could not parse {file}"))
+                errored = True
+                continue
+
+            if notebook.violations:
+                echo("")
+                echo(f"Errors found in {bold(file)}:")
+                for violation in notebook.violations:
+                    echo(str(violation))
+                echo("")
+
+            if fix:
+                if is_markdown:
+                    from marimo._server.export import Exporter
+
+                    exporter = Exporter()
+                    generated_contents, _ = exporter.export_as_md(
+                        notebook, file
+                    )
+                else:
+                    generated_contents = codegen.generate_filecontents(
+                        codes=[cell.code for cell in notebook.cells],
+                        names=[cell.name for cell in notebook.cells],
+                        cell_configs=[
+                            CellConfig.from_dict(cell.options, warn=False)
+                            for cell in notebook.cells
+                        ],
+                        config=AppConfig.from_untrusted_dict(
+                            notebook.app.options, silent=True
+                        ),
+                        header_comments=notebook.header.value
+                        if notebook.header
+                        else None,
+                    )
+
+                original_contents = Path(file).read_text(encoding="utf-8")
+                with open(file, "w", encoding="utf-8") as f:
+                    f.write(generated_contents)
+                if original_contents != generated_contents:
+                    echo(f"Updated: {file}")
+                    warnings += 1
+                else:
+                    pass  # echo(f"No changes made to {file}")
+
+    if warnings > 0:
+        click.echo(f"Updated {warnings} file{'s' if warnings > 0 else ''}.")
+
+    if errored or (strict and warnings > 0):
+        sys.exit(1)
 
 
 main.command()(convert)

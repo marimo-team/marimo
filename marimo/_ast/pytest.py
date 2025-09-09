@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar, cast
 
 from marimo._ast.cell import Cell
+from marimo._ast.parse import ast_parse
 from marimo._runtime.context import ContextNotInitializedError, get_context
 
 if TYPE_CHECKING:
@@ -42,7 +43,7 @@ def build_stub_fn(
 ) -> Callable[..., Any]:
     # Avoid declaring the function in the global scope, since it may cause
     # issues with meta-analysis tools like cxfreeze (see #3828).
-    PYTEST_BASE = ast.parse(inspect.getsource(_pytest_scaffold))
+    PYTEST_BASE = ast_parse(inspect.getsource(_pytest_scaffold))
 
     # We modify the signature of the cell function such that pytest
     # does not attempt to use the arguments as fixtures.
@@ -99,7 +100,7 @@ def build_stub_fn(
 
 
 def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
-    func_ast = ast.parse(inspect.getsource(func))
+    func_ast = ast_parse(inspect.getsource(func))
     func_body = func_ast.body[0]
     assert isinstance(func_body, (ast.FunctionDef, ast.AsyncFunctionDef))
 
@@ -271,7 +272,7 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
     # Turn off test for the cell itself in this case.
     cell._test_allowed = False
 
-    tree = ast.parse(inspect.getsource(func))
+    tree = ast_parse(inspect.getsource(func))
     run = functools.cache(cell.run)
 
     # Must be a unique name, otherwise won't be injected properly.

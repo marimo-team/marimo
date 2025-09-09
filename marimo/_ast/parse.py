@@ -16,6 +16,7 @@ from typing import (
     Union,
     cast,
 )
+import warnings
 
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._schemas.serialization import (
@@ -43,6 +44,13 @@ Node: TypeAlias = Union[ast.stmt, ast.expr]
 
 V = TypeVar("V")
 U = TypeVar("U")
+
+
+def ast_parse(contents: str) -> ast.Module:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=SyntaxWarning)
+        # The SyntaxWarning is suppressed only inside this `with` block
+        return ast.parse(contents)
 
 
 def fixed_dedent(text: str) -> str:
@@ -356,13 +364,18 @@ class Parser:
 
     @staticmethod
     def from_file(filename: Union[str, Path]) -> Parser:
-        return Parser(contents=Path(filename).read_text(encoding="utf-8"))
+        return Parser(
+            contents=Path(filename).read_text(encoding="utf-8"),
+            filepath=str(filename),
+        )
 
-    def __init__(self, contents: str):
+    def __init__(self, contents: str, filepath: str = "<marimo>"):
         self.extractor = Extractor(contents=contents)
+        self.filepath = filepath
 
     def node_stack(self) -> PeekStack[Node]:
-        return PeekStack(iter(ast.parse(self.extractor.contents or "").body))
+        tree = ast.parse(self.extractor.contents or "", filename=self.filepath)
+        return PeekStack(iter(tree.body))
 
     def parse_header(self, body: PeekStack[Node]) -> ParseResult[Header]:
         # header? = (docstring | comments)*
@@ -845,8 +858,10 @@ def is_run_guard(node: Optional[Node]) -> bool:
     return bool(node and is_equal_ast(basis, node))
 
 
-def parse_notebook(contents: str) -> Optional[NotebookSerialization]:
-    parser = Parser(contents)
+def parse_notebook(
+    contents: str, filepath: str = "<marimo>"
+) -> Optional[NotebookSerialization]:
+    parser = Parser(contents, filepath=filepath)
     if not parser.extractor.contents:
         return None
 
