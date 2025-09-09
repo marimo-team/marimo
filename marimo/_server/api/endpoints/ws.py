@@ -26,6 +26,7 @@ from marimo._messaging.ops import (
 from marimo._messaging.types import KernelMessage, NoopStream
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.params import QueryParams
+from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
 from marimo._server.codes import WebSocketCodes
 from marimo._server.file_router import MarimoFileKey
@@ -67,6 +68,13 @@ async def websocket_endpoint(
         200:
             description: Websocket endpoint
     """
+    # Validate authentication before proceeding
+    if not validate_auth(websocket):
+        await websocket.close(
+            WebSocketCodes.UNAUTHORIZED, "MARIMO_UNAUTHORIZED"
+        )
+        return
+
     app_state = AppState(websocket)
     raw_session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
     if raw_session_id is None:
@@ -115,6 +123,13 @@ async def ws_sync(
     """
     Websocket endpoint for LoroDoc synchronization
     """
+    # Validate authentication before proceeding
+    if not validate_auth(websocket):
+        await websocket.close(
+            WebSocketCodes.UNAUTHORIZED, "MARIMO_UNAUTHORIZED"
+        )
+        return
+
     if not (LORO_ALLOWED and DependencyManager.loro.has()):
         if not LORO_ALLOWED:
             LOGGER.warning("RTC: Python version is not supported")
