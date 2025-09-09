@@ -46,11 +46,15 @@ V = TypeVar("V")
 U = TypeVar("U")
 
 
-def ast_parse(contents: str) -> ast.Module:
+def ast_parse(
+    contents: str, suppress_warnings: bool = True, **kwargs: Any
+) -> ast.Module:
+    if not suppress_warnings:
+        return cast(ast.Module, ast.parse(contents, **kwargs))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=SyntaxWarning)
         # The SyntaxWarning is suppressed only inside this `with` block
-        return ast.parse(contents)
+        return cast(ast.Module, ast.parse(contents, **kwargs))
 
 
 def fixed_dedent(text: str) -> str:
@@ -374,7 +378,11 @@ class Parser:
         self.filepath = filepath
 
     def node_stack(self) -> PeekStack[Node]:
-        tree = ast.parse(self.extractor.contents or "", filename=self.filepath)
+        tree = ast_parse(
+            self.extractor.contents or "",
+            filename=self.filepath,
+            suppress_warnings=False,
+        )
         return PeekStack(iter(tree.body))
 
     def parse_header(self, body: PeekStack[Node]) -> ParseResult[Header]:
@@ -854,7 +862,7 @@ def is_cell(node: Optional[Node]) -> bool:
 
 
 def is_run_guard(node: Optional[Node]) -> bool:
-    basis = ast.parse('if __name__ == "__main__": app.run()').body[0]
+    basis = ast_parse('if __name__ == "__main__": app.run()').body[0]
     return bool(node and is_equal_ast(basis, node))
 
 

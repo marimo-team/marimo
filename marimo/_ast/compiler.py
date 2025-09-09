@@ -13,7 +13,8 @@ import textwrap
 import token as token_types
 import warnings
 from tokenize import tokenize
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from types import CodeType, FrameType
+from typing import Any, Callable, Optional, cast
 
 from marimo import _loggers
 from marimo._ast import parse
@@ -39,17 +40,12 @@ else:
 LOGGER = _loggers.marimo_logger()
 Cls: TypeAlias = type
 
-if TYPE_CHECKING:
-    from types import FrameType
 
-
-def ast_compile(
-    *args: tuple[Any, ...], **kwargs: dict[str, Any]
-) -> ast.Module:
+def ast_compile(*args: Any, **kwargs: Any) -> CodeType:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=SyntaxWarning)
         # The SyntaxWarning is suppressed only inside this `with` block
-        return compile(*args, **kwargs)  # type: ignore[arg-type]
+        return cast(CodeType, compile(*args, **kwargs))  # type: ignore[call-overload]
 
 
 def code_key(code: str) -> int:
@@ -169,14 +165,19 @@ def compile_cell(
     # See https://github.com/pyodide/pyodide/issues/3337,
     #     https://github.com/marimo-team/marimo/issues/1546
     code = code.replace("\u00a0", " ")
-    module = ast_compile(
-        code,
-        "<unknown>",
-        mode="exec",
-        # don't inherit compiler flags, in particular future annotations
-        dont_inherit=True,
-        flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+    # Overloads on compile are strange, cast for proper typing.
+    module = cast(
+        ast.Module,
+        ast_compile(
+            code,
+            "<unknown>",
+            mode="exec",
+            # don't inherit compiler flags, in particular future annotations
+            dont_inherit=True,
+            flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+        ),
     )
+
     if not module.body:
         # either empty code or just comments
         return CellImpl(
@@ -209,7 +210,8 @@ def compile_cell(
     # Use final expression if it exists doesn't end in a
     # semicolon. Evaluates expression to "None" otherwise.
     if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
-        expr = ast.Expression(module.body.pop().value)
+        module.body.pop()
+        expr = ast.Expression(final_expr.value)
         expr.lineno = final_expr.lineno  # type: ignore[attr-defined]
     else:
         const = ast.Constant(value=None)

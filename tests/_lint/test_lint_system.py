@@ -91,7 +91,7 @@ class TestLintRules:
 
         ctx = LintContext(notebook)
         await rule.check(ctx)
-        errors = ctx.get_diagnostics()
+        errors = await ctx.get_diagnostics()
         assert len(errors) == 1
         assert errors[0].code == "MF001"
         assert errors[0].severity == Severity.FORMATTING
@@ -111,7 +111,7 @@ class TestLintRules:
 
         ctx = LintContext(notebook)
         await rule.check(ctx)
-        errors = ctx.get_diagnostics()
+        errors = await ctx.get_diagnostics()
         # The rule should run without errors (even if no multiple definitions found)
         assert isinstance(errors, list)
 
@@ -130,7 +130,7 @@ class TestLintRules:
 
         ctx = LintContext(notebook)
         await rule.check(ctx)
-        errors = ctx.get_diagnostics()
+        errors = await ctx.get_diagnostics()
         # The rule should run without errors
         assert isinstance(errors, list)
 
@@ -148,7 +148,7 @@ class TestLintRules:
 
         ctx = LintContext(notebook)
         await rule.check(ctx)
-        errors = ctx.get_diagnostics()
+        errors = await ctx.get_diagnostics()
         # The rule should run without errors
         assert isinstance(errors, list)
 
@@ -170,7 +170,7 @@ class TestLintRules:
 
         ctx = LintContext(notebook)
         await rule.check(ctx)
-        errors = ctx.get_diagnostics()
+        errors = await ctx.get_diagnostics()
         assert len(errors) == 1
         assert errors[0].code == "MB001"
         assert errors[0].severity == Severity.BREAKING

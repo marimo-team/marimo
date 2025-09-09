@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class GeneralFormattingRule(LintRule):
     """MF001: General formatting issues."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             code="MF001",
             name="general-formatting",
@@ -54,4 +54,4 @@ class GeneralFormattingRule(LintRule):
                 fixable=is_fixable,
             )
 
-            ctx.add_diagnostic(diagnostic)
+            await ctx.add_diagnostic(diagnostic)

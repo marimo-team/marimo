@@ -57,17 +57,7 @@ class FullFormatter(DiagnosticFormatter):
             Severity.BREAKING: "critical",
         }.get(diagnostic.severity, "info")
 
-        lines = (
-            diagnostic.line
-            if isinstance(diagnostic.line, list)
-            else [diagnostic.line]
-        )
-        columns = (
-            diagnostic.column
-            if isinstance(diagnostic.column, list)
-            else [diagnostic.column]
-        )
-        lines, columns = zip(*sorted(zip(lines, columns)))
+        lines, columns = diagnostic.sorted_lines
 
         location = filename
         if max(lines + (0,)) > 0:

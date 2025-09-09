@@ -1,13 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import heapq
 import threading
 from typing import TYPE_CHECKING
 
 from marimo._ast.load import load_notebook_ir
-from marimo._ast.parse import NotebookSerialization
 from marimo._lint.diagnostic import Diagnostic, Severity
+from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
@@ -21,7 +22,7 @@ class LintContext:
         self._diagnostics: list[tuple[int, int, Diagnostic]] = []
         self._graph: DirectedGraph | None = None
         self._graph_lock = threading.Lock()
-        self._diagnostics_lock = threading.Lock()  # Protect diagnostics operations
+        self._diagnostics_lock: asyncio.Lock | None = None  # Lazy-initialized
         self._counter = 0  # Monotonic counter for stable sorting
         self._last_retrieved_counter = (
             -1
@@ -34,20 +35,26 @@ class LintContext:
             Severity.FORMATTING: 2,
         }
 
-    def add_diagnostic(self, diagnostic: Diagnostic) -> None:
+    def _get_diagnostics_lock(self) -> asyncio.Lock:
+        """Get the diagnostics lock, creating it if needed."""
+        if self._diagnostics_lock is None:
+            self._diagnostics_lock = asyncio.Lock()
+        return self._diagnostics_lock
+
+    async def add_diagnostic(self, diagnostic: Diagnostic) -> None:
         """Add a diagnostic to the priority queue."""
         priority = self._priority_map.get(diagnostic.severity, 999)
         # Use counter as tiebreaker to avoid comparing Diagnostic objects
-        with self._diagnostics_lock:
+        async with self._get_diagnostics_lock():
             heapq.heappush(
                 self._diagnostics, (priority, self._counter, diagnostic)
             )
             self._counter += 1
 
-    def get_diagnostics(self) -> list[Diagnostic]:
+    async def get_diagnostics(self) -> list[Diagnostic]:
         """Get all diagnostics sorted by priority (most severe first)."""
         # Sort by priority and return just the diagnostics
-        with self._diagnostics_lock:
+        async with self._get_diagnostics_lock():
             sorted_diagnostics = []
             temp_heap = self._diagnostics.copy()
 
@@ -57,9 +64,9 @@ class LintContext:
 
             return sorted_diagnostics
 
-    def get_new_diagnostics(self) -> list[Diagnostic]:
+    async def get_new_diagnostics(self) -> list[Diagnostic]:
         """Get diagnostics added since last call, sorted by priority."""
-        with self._diagnostics_lock:
+        async with self._get_diagnostics_lock():
             # Find new diagnostics since last retrieval
             new_items = [
                 (priority, counter, diagnostic)

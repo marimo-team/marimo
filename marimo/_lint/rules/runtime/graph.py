@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from marimo._ast.parse import ast_parse
@@ -13,11 +14,20 @@ from marimo._lint.validate_graph import (
     check_for_multiple_definitions,
 )
 from marimo._lint.visitors import VariableLineVisitor
+from marimo._types.ids import CellId_t
 from marimo._utils.cell_matching import match_cell_ids_by_similarity
 
 if TYPE_CHECKING:
     from marimo._lint.context import LintContext
     from marimo._runtime.dataflow import DirectedGraph
+    from marimo._schemas.serialization import CellDef
+
+
+@dataclass
+class _ErrorInfo:
+    cell_id: CellId_t
+    line: int
+    column: int
 
 
 class GraphRule(LintRule):
@@ -44,17 +54,17 @@ class GraphRule(LintRule):
         description: str,
         severity: Severity,
         fixable: bool = False,
-    ):
+    ) -> None:
         super().__init__(code, name, description, severity, fixable)
 
     def _get_cell_from_id(
-        self, cell_id: str, ctx: LintContext
-    ) -> DirectedGraph | None:
+        self, cell_id: CellId_t, ctx: LintContext
+    ) -> CellDef | None:
         """Get the corresponding CellDef from notebook serialization for a given cell_id."""
         # For setup cells, use the special setup cell name
-        if cell_id == "setup":
+        if cell_id == CellId_t("setup"):
             for cell in ctx.notebook.cells:
-                if cell.name == "setup":
+                if cell.name == CellId_t("setup"):
                     return cell
             return None
 
@@ -65,12 +75,12 @@ class GraphRule(LintRule):
         graph_codes = {
             cid: cell.code
             for cid, cell in graph.cells.items()
-            if cid != "setup"
+            if cid != CellId_t("setup")
         }
         notebook_codes = {
-            str(i): cell.code
+            CellId_t(str(i)): cell.code
             for i, cell in enumerate(ctx.notebook.cells)
-            if cell.name != "setup"
+            if cell.name != CellId_t("setup")
         }
 
         # Match cell IDs using the existing cell matching system
@@ -83,7 +93,9 @@ class GraphRule(LintRule):
             notebook_position = cell_mapping[cell_id]
             # Get the cell at the matched position
             non_setup_cells = [
-                cell for cell in ctx.notebook.cells if cell.name != "setup"
+                cell
+                for cell in ctx.notebook.cells
+                if cell.name != CellId_t("setup")
             ]
             position = int(notebook_position)
             if 0 <= position < len(non_setup_cells):
@@ -92,7 +104,7 @@ class GraphRule(LintRule):
         return None
 
     def _get_variable_line_info(
-        self, cell_id: str, variable_name: str, ctx: LintContext
+        self, cell_id: CellId_t, variable_name: str, ctx: LintContext
     ) -> tuple[int, int]:
         """Get line and column info for a specific variable within a cell."""
         target_cell = self._get_cell_from_id(cell_id, ctx)
@@ -122,7 +134,9 @@ class GraphRule(LintRule):
         await self._validate_graph(graph, ctx)
 
     @abstractmethod
-    async def _validate_graph(self, graph, ctx: LintContext) -> None:
+    async def _validate_graph(
+        self, graph: DirectedGraph, ctx: LintContext
+    ) -> None:
         """Abstract method to validate the graph and add diagnostics to context.
 
         Args:
@@ -156,7 +170,7 @@ class MultipleDefinitionsRule(GraphRule):
             Cell 2: y = 2  # Use different variable name
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             code="MR001",
             name="multiple-definitions",
@@ -165,11 +179,13 @@ class MultipleDefinitionsRule(GraphRule):
             fixable=False,
         )
 
-    async def _validate_graph(self, graph, ctx: LintContext) -> None:
+    async def _validate_graph(
+        self, graph: DirectedGraph, ctx: LintContext
+    ) -> None:
         """Validate the graph for multiple definitions."""
         validation_errors = check_for_multiple_definitions(graph)
 
-        names = {}
+        names: dict[str, list[_ErrorInfo]] = {}
         for cell_id, error_list in validation_errors.items():
             for error in error_list:
                 # Get specific line info for the variable definition
@@ -177,20 +193,20 @@ class MultipleDefinitionsRule(GraphRule):
                     cell_id, error.name, ctx
                 )
                 names.setdefault(error.name, []).append(
-                    {"cell_id": cell_id, "line": line, "column": column}
+                    _ErrorInfo(cell_id=cell_id, line=line, column=column)
                 )
 
         for name in names:
-            lines = [info["line"] for info in names[name]]
-            columns = [info["column"] for info in names[name]]
-            cell_id = [info["cell_id"] for info in names[name]]
+            lines = [info.line for info in names[name]]
+            columns = [info.column for info in names[name]]
+            cell_ids = [info.cell_id for info in names[name]]
 
             diagnostic = Diagnostic(
                 code=self.code,
                 name=self.name,
                 message=f"Variable '{name}' is defined in multiple cells",
                 severity=self.severity,
-                cell_id=cell_id,
+                cell_id=cell_ids,
                 line=lines,
                 column=columns,
                 fixable=self.fixable,
@@ -200,7 +216,7 @@ class MultipleDefinitionsRule(GraphRule):
                 ),
             )
 
-            ctx.add_diagnostic(diagnostic)
+            await ctx.add_diagnostic(diagnostic)
 
 
 class CycleDependenciesRule(GraphRule):
@@ -227,7 +243,7 @@ class CycleDependenciesRule(GraphRule):
             Cell 2: b = a + 1  # Unidirectional dependency
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             code="MR002",
             name="cycle-dependencies",
@@ -236,7 +252,9 @@ class CycleDependenciesRule(GraphRule):
             fixable=False,
         )
 
-    async def _validate_graph(self, graph, ctx: LintContext) -> None:
+    async def _validate_graph(
+        self, graph: DirectedGraph, ctx: LintContext
+    ) -> None:
         """Validate the graph for circular dependencies."""
         validation_errors = check_for_cycles(graph)
 
@@ -271,7 +289,7 @@ class CycleDependenciesRule(GraphRule):
                     fixable=self.fixable,
                 )
 
-                ctx.add_diagnostic(diagnostic)
+                await ctx.add_diagnostic(diagnostic)
 
 
 class SetupCellDependenciesRule(GraphRule):
@@ -299,7 +317,7 @@ class SetupCellDependenciesRule(GraphRule):
             Cell 1: x = y + 1  # Other cells can use setup variables
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             code="MR003",
             name="setup-cell-dependencies",
@@ -308,7 +326,9 @@ class SetupCellDependenciesRule(GraphRule):
             fixable=False,
         )
 
-    async def _validate_graph(self, graph, ctx: LintContext) -> None:
+    async def _validate_graph(
+        self, graph: DirectedGraph, ctx: LintContext
+    ) -> None:
         """Validate the graph for setup cell dependency violations."""
         validation_errors = check_for_invalid_root(graph)
 
@@ -325,10 +345,10 @@ class SetupCellDependenciesRule(GraphRule):
                     name=self.name,
                     message="Setup cell cannot have dependencies",
                     severity=self.severity,
-                    cell_id=cell_id,
+                    cell_id=[cell_id],
                     line=line,
                     column=column,
                     fixable=self.fixable,
                 )
 
-                ctx.add_diagnostic(diagnostic)
+                await ctx.add_diagnostic(diagnostic)

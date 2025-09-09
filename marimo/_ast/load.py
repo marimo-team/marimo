@@ -100,7 +100,7 @@ def load_notebook_ir(
     return app
 
 
-def load_notebook(filename: Optional[str]) -> Optional[NotebookSerialization]:
+def load_notebook(filename: str) -> Optional[NotebookSerialization]:
     """Load and return notebook serialization from a marimo notebook file.
 
     Args:
@@ -120,7 +120,7 @@ def load_notebook(filename: Optional[str]) -> Optional[NotebookSerialization]:
 
     contents = _maybe_contents(filename)
     if not contents:
-        return True
+        return None
 
     if path.suffix in (".md", ".qmd"):
         from marimo._convert.markdown.markdown import (

@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._ast.parse import NotebookSerialization
 from marimo._lint.checker import EarlyStoppingConfig, LintChecker
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import LintRule
@@ -12,6 +11,7 @@ from marimo._lint.rules.runtime import (
     MultipleDefinitionsRule,
     SetupCellDependenciesRule,
 )
+from marimo._schemas.serialization import NotebookSerialization
 
 
 def lint_notebook(notebook: NotebookSerialization) -> list[Diagnostic]:

@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 from marimo._lint.rules.base import LintRule
 from marimo._lint.rules.breaking import BREAKING_RULE_CODES
 from marimo._lint.rules.formatting import FORMATTING_RULE_CODES

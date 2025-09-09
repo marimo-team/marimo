@@ -15,11 +15,11 @@ class LintRule(ABC):
 
     def __init__(
         self,
-        code: str,
-        name: str,
-        description: str,
-        severity: Severity,
-        fixable: bool,
+        code: str = "",
+        name: str = "",
+        description: str = "",
+        severity: Severity = Severity.BREAKING,
+        fixable: bool = False,
     ):
         self.code = code
         self.name = name

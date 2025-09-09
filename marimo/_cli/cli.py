@@ -32,7 +32,7 @@ from marimo._cli.run_docker import (
 )
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._lint import lint_notebook
+from marimo._lint import Severity, lint_notebook
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.start import start
@@ -1261,12 +1261,9 @@ def check(
         # If no files are provided, we lint the current directory
         files = ("**/*.py", "**/*.md", "**/*.qmd")
 
-    if verbose:
-        echo = click.echo
-    else:
-
-        def echo(_: str) -> None:
-            pass
+    def echo(_: str) -> None:
+        if verbose:
+            click.echo(_)
 
     for pattern in files:
         for file in glob(pattern, recursive=True):
@@ -1286,7 +1283,7 @@ def check(
                 continue
 
             attempt = get_notebook_status(file)
-            if attempt.status == "error":
+            if attempt.status == "invalid":
                 echo(red(f"Error in {file}: {attempt.status}"))
                 errored = True
                 continue
@@ -1313,7 +1310,8 @@ def check(
 
                 for error in errors:
                     errored = (
-                        error.severity in ("error", "critical") or errored
+                        error.severity in (Severity.BREAKING, Severity.RUNTIME)
+                        or errored
                     )
                     echo(error.format(file, code_lines))
                     echo("")
@@ -1324,7 +1322,7 @@ def check(
                 # fixed_notebook = fix_notebook(notebook, errors, file)
 
                 if is_markdown:
-                    from marimo._server.export import Exporter
+                    from marimo._server.export.exporter import Exporter
 
                     exporter = Exporter()
                     generated_contents, _ = exporter.export_as_md(

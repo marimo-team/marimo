@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Optional, cast
 
 from marimo._types.ids import CellId_t
 
@@ -58,3 +58,18 @@ class Diagnostic:
             return fmt.format(self, filename, code_lines)
         else:
             raise ValueError(f"Unsupported formatter: {formatter}")
+
+    @property
+    def sorted_lines(self) -> tuple[tuple[int], tuple[int]]:
+        """Get sorted line numbers as a list."""
+        lines: list[int] = (
+            self.line if isinstance(self.line, list) else [self.line]
+        )
+        columns: list[int] = (
+            self.column if isinstance(self.column, list) else [self.column]
+        )
+        # mypy seems unable to infer the type
+        return cast(
+            tuple[tuple[int], tuple[int]],
+            tuple(zip(*sorted(zip(lines, columns)))),
+        )

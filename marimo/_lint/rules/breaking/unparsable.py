@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class UnparsableRule(LintRule):
     """MB001: Cell contains unparsable code."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             code="MB001",
             name="unparsable-cells",
@@ -42,4 +42,4 @@ class UnparsableRule(LintRule):
                     fixable=False,
                 )
 
-                ctx.add_diagnostic(diagnostic)
+                await ctx.add_diagnostic(diagnostic)

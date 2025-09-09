@@ -4,10 +4,10 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Optional
 
-from marimo._ast.parse import NotebookSerialization
 from marimo._lint.context import LintContext
 from marimo._lint.diagnostic import Severity
 from marimo._lint.rules import RULE_CODES
+from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -68,21 +68,9 @@ class LintChecker:
         """Check notebook and yield diagnostics as they become available."""
         ctx = LintContext(notebook)
 
-        # Sort rules by priority (severity) - most severe rules run first
-        priority_map = {
-            "breaking": 0,
-            "runtime": 1,
-            "formatting": 2,
-        }
-
-        sorted_rules = sorted(
-            self.rules,
-            key=lambda rule: priority_map.get(rule.severity.value, 999),
-        )
-
         # Create tasks for all rules with their completion tracking
         pending_tasks = {
-            asyncio.create_task(rule.check(ctx)): rule for rule in sorted_rules
+            asyncio.create_task(rule.check(ctx)): rule for rule in self.rules
         }
 
         diagnostic_count = 0
@@ -99,7 +87,7 @@ class LintChecker:
                 del pending_tasks[task]
 
             # Get any new diagnostics and yield them in priority order
-            new_diagnostics = ctx.get_new_diagnostics()
+            new_diagnostics = await ctx.get_new_diagnostics()
             for diagnostic in new_diagnostics:
                 diagnostic_count += 1
                 yield diagnostic

@@ -2,7 +2,6 @@
 """Unit tests for streaming diagnostics and early stopping functionality."""
 
 import asyncio
-import unittest
 
 from marimo._ast.parse import parse_notebook
 from marimo._lint.checker import EarlyStoppingConfig, LintChecker
@@ -50,26 +49,26 @@ class SlowRule(LintRule):
                     column=1,
                     fixable=self.fixable,
                 )
-                ctx.add_diagnostic(diagnostic)
+                await ctx.add_diagnostic(diagnostic)
             self.completed = True
         except asyncio.CancelledError:
             self.cancelled = True
             raise
 
 
-class TestLintContextStreaming(unittest.TestCase):
+class TestLintContextStreaming:
     """Test LintContext streaming functionality."""
 
-    def setUp(self):
+    def setup_method(self):
         self.notebook = parse_notebook("import marimo\napp = marimo.App()")
         self.ctx = LintContext(self.notebook)
 
-    def test_get_new_diagnostics_empty(self):
+    async def test_get_new_diagnostics_empty(self):
         """Test get_new_diagnostics when no diagnostics added."""
-        new_diagnostics = self.ctx.get_new_diagnostics()
+        new_diagnostics = await self.ctx.get_new_diagnostics()
         assert len(new_diagnostics) == 0
 
-    def test_get_new_diagnostics_incremental(self):
+    async def test_get_new_diagnostics_incremental(self):
         """Test get_new_diagnostics returns only new diagnostics."""
         # Add first batch
         diag1 = Diagnostic(
@@ -79,11 +78,11 @@ class TestLintContextStreaming(unittest.TestCase):
             "MR001", "test2", "second", Severity.RUNTIME, None, 1, 1, False
         )
 
-        self.ctx.add_diagnostic(diag1)
-        self.ctx.add_diagnostic(diag2)
+        await self.ctx.add_diagnostic(diag1)
+        await self.ctx.add_diagnostic(diag2)
 
         # Get first batch
-        new_diagnostics = self.ctx.get_new_diagnostics()
+        new_diagnostics = await self.ctx.get_new_diagnostics()
         assert len(new_diagnostics) == 2
         assert (
             new_diagnostics[0].severity == Severity.RUNTIME
@@ -94,18 +93,18 @@ class TestLintContextStreaming(unittest.TestCase):
         diag3 = Diagnostic(
             "MB001", "test3", "third", Severity.BREAKING, None, 1, 1, False
         )
-        self.ctx.add_diagnostic(diag3)
+        await self.ctx.add_diagnostic(diag3)
 
         # Get only new diagnostics
-        new_diagnostics = self.ctx.get_new_diagnostics()
+        new_diagnostics = await self.ctx.get_new_diagnostics()
         assert len(new_diagnostics) == 1
         assert new_diagnostics[0].severity == Severity.BREAKING
 
         # Calling again should return empty
-        new_diagnostics = self.ctx.get_new_diagnostics()
+        new_diagnostics = await self.ctx.get_new_diagnostics()
         assert len(new_diagnostics) == 0
 
-    def test_get_all_diagnostics_still_works(self):
+    async def test_get_all_diagnostics_still_works(self):
         """Test that get_diagnostics still returns all diagnostics."""
         diag1 = Diagnostic(
             "MF001", "test1", "first", Severity.FORMATTING, None, 1, 1, False
@@ -114,18 +113,18 @@ class TestLintContextStreaming(unittest.TestCase):
             "MR001", "test2", "second", Severity.RUNTIME, None, 1, 1, False
         )
 
-        self.ctx.add_diagnostic(diag1)
-        self.ctx.add_diagnostic(diag2)
+        await self.ctx.add_diagnostic(diag1)
+        await self.ctx.add_diagnostic(diag2)
 
         # Get new diagnostics
-        self.ctx.get_new_diagnostics()
+        await self.ctx.get_new_diagnostics()
 
         # get_diagnostics should still return all
-        all_diagnostics = self.ctx.get_diagnostics()
+        all_diagnostics = await self.ctx.get_diagnostics()
         assert len(all_diagnostics) == 2
 
 
-class TestEarlyStoppingConfig(unittest.TestCase):
+class TestEarlyStoppingConfig:
     """Test EarlyStoppingConfig functionality."""
 
     def test_no_early_stopping(self):
@@ -407,7 +406,3 @@ def _():
 async def run_async_test(test_method):
     """Helper to run async test methods."""
     return await test_method()
-
-
-if __name__ == "__main__":
-    unittest.main()

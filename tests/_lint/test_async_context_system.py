@@ -2,7 +2,6 @@
 """Unit tests for the async context-based lint system."""
 
 import asyncio
-import unittest
 
 from marimo._ast.parse import parse_notebook
 from marimo._lint.checker import LintChecker
@@ -44,17 +43,17 @@ class MockRule(LintRule):
                 column=1,
                 fixable=self.fixable,
             )
-            ctx.add_diagnostic(diagnostic)
+            await ctx.add_diagnostic(diagnostic)
 
 
-class TestLintContext(unittest.TestCase):
+class TestLintContext:
     """Test the LintContext class."""
 
-    def setUp(self):
+    def setup_method(self):
         self.notebook = parse_notebook("import marimo\napp = marimo.App()")
         self.ctx = LintContext(self.notebook)
 
-    def test_add_diagnostic_priority_queue(self):
+    async def test_add_diagnostic_priority_queue(self):
         """Test that diagnostics are queued by priority."""
         # Add diagnostics in reverse priority order
         formatting_diag = Diagnostic(
@@ -75,19 +74,19 @@ class TestLintContext(unittest.TestCase):
         )
 
         # Add in non-priority order
-        self.ctx.add_diagnostic(formatting_diag)
-        self.ctx.add_diagnostic(runtime_diag)
-        self.ctx.add_diagnostic(breaking_diag)
+        await self.ctx.add_diagnostic(formatting_diag)
+        await self.ctx.add_diagnostic(runtime_diag)
+        await self.ctx.add_diagnostic(breaking_diag)
 
         # Get diagnostics - should be sorted by priority
-        diagnostics = self.ctx.get_diagnostics()
+        diagnostics = await self.ctx.get_diagnostics()
 
         assert len(diagnostics) == 3
         assert diagnostics[0].severity == Severity.BREAKING
         assert diagnostics[1].severity == Severity.RUNTIME
         assert diagnostics[2].severity == Severity.FORMATTING
 
-    def test_add_diagnostic_stable_order(self):
+    async def test_add_diagnostic_stable_order(self):
         """Test that diagnostics with same priority maintain insertion order."""
         # Add multiple diagnostics with same priority
         diag1 = Diagnostic(
@@ -100,11 +99,11 @@ class TestLintContext(unittest.TestCase):
             "MF003", "test3", "third", Severity.FORMATTING, None, 1, 1, False
         )
 
-        self.ctx.add_diagnostic(diag1)
-        self.ctx.add_diagnostic(diag2)
-        self.ctx.add_diagnostic(diag3)
+        await self.ctx.add_diagnostic(diag1)
+        await self.ctx.add_diagnostic(diag2)
+        await self.ctx.add_diagnostic(diag3)
 
-        diagnostics = self.ctx.get_diagnostics()
+        diagnostics = await self.ctx.get_diagnostics()
 
         assert len(diagnostics) == 3
         assert diagnostics[0].message == "first"
@@ -244,7 +243,7 @@ def __():
         rule = GeneralFormattingRule()
         await rule.check(ctx)
 
-        diagnostics = ctx.get_diagnostics()
+        diagnostics = await ctx.get_diagnostics()
         # This should succeed without error
         assert isinstance(diagnostics, list)
 
@@ -270,7 +269,7 @@ def _():
         rule = MultipleDefinitionsRule()
         await rule.check(ctx)
 
-        diagnostics = ctx.get_diagnostics()
+        diagnostics = await ctx.get_diagnostics()
         assert len(diagnostics) > 0
         assert diagnostics[0].severity == Severity.RUNTIME
         assert "multiple cells" in diagnostics[0].message
@@ -285,12 +284,12 @@ def _():
         await rule.check(ctx)
 
         # Should not find any unparsable cells in valid code
-        diagnostics = ctx.get_diagnostics()
+        diagnostics = await ctx.get_diagnostics()
         unparsable_diagnostics = [d for d in diagnostics if d.code == "MB001"]
         assert len(unparsable_diagnostics) == 0
 
 
-class TestIntegration(unittest.TestCase):
+class TestIntegration:
     """Integration tests for the complete system."""
 
     def test_end_to_end_linting(self):
@@ -344,8 +343,3 @@ def _():
 def run_async_test(coro):
     """Helper to run async test methods."""
     return asyncio.run(coro)
-
-
-if __name__ == "__main__":
-    # Run the tests
-    unittest.main()
