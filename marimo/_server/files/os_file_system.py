@@ -194,8 +194,8 @@ class OSFileSystem(FileSystem):
         query: str,
         *,
         path: Optional[str] = None,
-        directory: bool = True,
-        file: bool = True,
+        include_directories: bool = True,
+        include_files: bool = True,
         depth: int = 3,
         limit: int = 100,
     ) -> list[FileInfo]:
@@ -271,11 +271,11 @@ class OSFileSystem(FileSystem):
                             entry_stat = entry.stat()
 
                             # Apply directory/file filtering
-                            if directory and not is_directory:
-                                # Skip non-directories if directory=True
+                            if not include_directories and is_directory:
+                                # Skip directories if directory=False
                                 continue
-                            if file and is_directory:
-                                # Skip directories if file=True
+                            if not include_files and not is_directory:
+                                # Skip files if file=False
                                 continue
 
                             file_info = FileInfo(

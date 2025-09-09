@@ -410,7 +410,7 @@ def test_search_result_ordering(test_dir: Path, fs: OSFileSystem) -> None:
     assert test_txt_idx < my_test_idx
 
 
-def test_search_includes_directories(test_dir: Path, fs: OSFileSystem) -> None:
+def test_search_include_directories(test_dir: Path, fs: OSFileSystem) -> None:
     """Test search includes both files and directories."""
     # Create matching directory and file
     (test_dir / "testdir").mkdir()
@@ -459,14 +459,24 @@ def test_search_directory_and_file_filters(
     (test_subdir / "nested_file.txt").write_text("content")
 
     # Test searching for files only
-    results = fs.search(query="test", path=str(test_dir), file=True)
+    results = fs.search(
+        query="test",
+        path=str(test_dir),
+        include_files=True,
+        include_directories=False,
+    )
     file_results = [f for f in results if not f.is_directory]
     dir_results = [f for f in results if f.is_directory]
     assert len(file_results) > 0, "Should find files when file=True"
     assert len(dir_results) == 0, "Should not find directories when file=True"
 
     # Test searching for directories only
-    results = fs.search(query="test", path=str(test_dir), directory=True)
+    results = fs.search(
+        query="test",
+        path=str(test_dir),
+        include_directories=True,
+        include_files=False,
+    )
     file_results = [f for f in results if not f.is_directory]
     dir_results = [f for f in results if f.is_directory]
     assert len(dir_results) > 0, "Should find directories when directory=True"
@@ -482,7 +492,10 @@ def test_search_directory_and_file_filters(
     # Test with both file=False and directory=False should work like no filter
     results_no_filter = fs.search(query="test", path=str(test_dir))
     results_both_false = fs.search(
-        query="test", path=str(test_dir), file=False, directory=False
+        query="test",
+        path=str(test_dir),
+        include_files=False,
+        include_directories=False,
     )
     assert len(results_no_filter) == len(results_both_false), (
         "Both false should be same as no filter"

@@ -179,7 +179,12 @@ def test_search_files_with_directory_and_file_filters(
     response = client.post(
         "/api/files/search",
         headers=HEADERS,
-        json={"query": "test", "path": str(tmp_path), "file": True},
+        json={
+            "query": "test",
+            "path": str(tmp_path),
+            "includeFiles": True,
+            "includeDirectories": False,
+        },
     )
     assert response.status_code == 200, response.text
     data = response.json()
@@ -187,7 +192,7 @@ def test_search_files_with_directory_and_file_filters(
     # Should only find files
     for file_info in data["files"]:
         assert not file_info["isDirectory"], (
-            f"Found directory {file_info['name']} when file=True"
+            f"Found directory {file_info['name']} when includeFiles=True, includeDirectories=False"
         )
     assert data["totalFound"] >= 2  # Should find test files
 
@@ -195,7 +200,12 @@ def test_search_files_with_directory_and_file_filters(
     response = client.post(
         "/api/files/search",
         headers=HEADERS,
-        json={"query": "test", "path": str(tmp_path), "directory": True},
+        json={
+            "query": "test",
+            "path": str(tmp_path),
+            "includeFiles": False,
+            "includeDirectories": True,
+        },
     )
     assert response.status_code == 200, response.text
     data = response.json()
@@ -203,23 +213,24 @@ def test_search_files_with_directory_and_file_filters(
     # Should only find directories
     for file_info in data["files"]:
         assert file_info["isDirectory"], (
-            f"Found file {file_info['name']} when directory=True"
+            f"Found file {file_info['name']} when includeFiles=False, includeDirectories=True"
         )
     assert data["totalFound"] >= 1  # Should find test_dir
 
-    # Test with both file and directory filters as false (should work like no filter)
+    # Test with both file and directory filters as false
     response = client.post(
         "/api/files/search",
         headers=HEADERS,
         json={
             "query": "test",
             "path": str(tmp_path),
-            "file": False,
-            "directory": False,
+            "includeFiles": False,
+            "includeDirectories": False,
         },
     )
     assert response.status_code == 200, response.text
     data_both_false = response.json()
+    assert data_both_false["totalFound"] == 0
 
     # Compare with no filter
     response = client.post(
@@ -229,5 +240,4 @@ def test_search_files_with_directory_and_file_filters(
     )
     assert response.status_code == 200, response.text
     data_no_filter = response.json()
-
-    assert data_both_false["totalFound"] == data_no_filter["totalFound"]
+    assert data_no_filter["totalFound"] == 3
