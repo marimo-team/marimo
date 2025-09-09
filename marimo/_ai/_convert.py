@@ -141,7 +141,7 @@ def convert_to_openai_messages(
                 else:
                     raise ValueError(f"Unsupported content type {media_type}")
             elif isinstance(part, ToolInvocationPart):
-                # Create tool invocation and tool result message
+                # For ToolInvocationPart, we need to create separate messages for tool call and tool result
                 tool_calls: ChatCompletionMessageToolCallParam = {
                     "id": part.tool_call_id,
                     "type": "function",
@@ -152,11 +152,12 @@ def convert_to_openai_messages(
                 }
 
                 tool_invocation_message: ChatCompletionAssistantMessageParam = {
-                    "role": "assistant",  # can only be assistant
+                    "role": "assistant",
                     "tool_calls": [tool_calls],
                 }
                 openai_messages.append(tool_invocation_message)
 
+                # Create tool result message
                 tool_invocation_result: ChatCompletionToolMessageParam = {
                     "tool_call_id": part.tool_call_id,
                     "role": "tool",
@@ -164,7 +165,7 @@ def convert_to_openai_messages(
                 }
                 openai_messages.append(tool_invocation_result)
 
-                # reset parts
+                # Reset parts since we've added the messages
                 current_parts = []
             else:
                 current_parts.append(dataclasses.asdict(part))  # type: ignore
@@ -245,16 +246,21 @@ def convert_to_anthropic_messages(
                 }
                 current_parts.append(thinking_message)
             elif isinstance(part, ToolInvocationPart):
-                # Create tool use part
+                # For ToolInvocationPart, we need to create separate messages for tool use and tool result
                 tool_use_block: ToolUseBlockParam = {
                     "type": "tool_use",
                     "id": part.tool_call_id,
                     "name": part.tool_name,
                     "input": part.input,
                 }
-                current_parts.append(tool_use_block)
 
-                # Create tool result message
+                # Add the tool use to an assistant message
+                assistant_message_parts = current_parts + [tool_use_block]
+                anthropic_messages.append(
+                    {"role": "assistant", "content": assistant_message_parts}
+                )
+
+                # Then create the tool result as a user message
                 tool_result_message: ToolResultBlockParam = {
                     "tool_use_id": part.tool_call_id,
                     "type": "tool_result",
@@ -265,15 +271,11 @@ def convert_to_anthropic_messages(
                         }
                     ],
                 }
-
-                # Immediately add the messages for tool use and tool result
-                anthropic_messages.append(
-                    {"role": "assistant", "content": current_parts}
-                )
                 anthropic_messages.append(
                     {"role": "user", "content": [tool_result_message]}
                 )
-                # reset parts
+
+                # Reset parts since we've added the messages
                 current_parts = []
             elif isinstance(part, FilePart):
                 media_type = part.media_type.lstrip()
