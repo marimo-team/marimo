@@ -3,6 +3,8 @@ import { useCallback, useEffect, type PropsWithChildren } from "react";
 import { useCellActions } from "@/core/cells/cells";
 import { PyodideBridge } from "@/core/wasm/bridge";
 import { useFragmentStore } from "./fragment-store";
+import { userConfigAtom } from "@/core/config/config";
+import { store } from "@/core/state/jotai";
 
 const COMMAND_PREFIX = "oso_commands:";
 
@@ -73,6 +75,28 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
           functionName: "__oso_initialize_env",
           namespace: "marimo.oso"
         });
+
+        const osoApiKey = envVars["OSO_API_KEY"];
+        if (osoApiKey) {
+          store.set(userConfigAtom, (prev) => ({
+            ...prev,
+            ai: {
+              ...prev.ai,
+              open_ai_compatible: {
+                ...prev.ai?.open_ai_compatible,
+                api_key: osoApiKey,
+                base_url: envVars["OSO_AI_API_BASE_URL"] || "https://opensource.observer/api/v1",
+              },
+              models: {
+                ...prev.ai?.models,
+                chat_model: envVars["OSO_AI_MODEL"] || "oso/semantic",
+                edit_model: envVars["OSO_AI_MODEL"] || "oso/semantic",
+                custom_models: prev.ai?.models?.custom_models || [],
+                displayed_models: prev.ai?.models?.displayed_models || [],
+              },
+            },
+          }));
+        }
       }
 
       // Enable debug logging in pyodide. This could get crazy
