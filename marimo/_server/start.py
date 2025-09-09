@@ -256,12 +256,13 @@ def start(
         lifespans_list.append(mcp_server_lifespan)
 
     (external_port, external_host) = _resolve_proxy(port, host, proxy)
+    enable_auth = not AuthToken.is_empty(session_manager.auth_token)
     app = create_starlette_app(
         base_url=base_url,
         host=external_host,
         lifespan=Lifespans(lifespans_list),
         allow_origins=allow_origins,
-        enable_auth=not AuthToken.is_empty(session_manager.auth_token),
+        enable_auth=enable_auth,
         lsp_servers=list(lsp_composite_server.servers.values())
         if lsp_composite_server is not None
         else None,
@@ -281,6 +282,7 @@ def start(
     app.state.remote_url = remote_url
     app.state.mcp_server_enabled = mcp
     app.state.skew_protection = skew_protection
+    app.state.enable_auth = enable_auth
 
     # Resource initialization
     # Increase the limit on open file descriptors to prevent resource

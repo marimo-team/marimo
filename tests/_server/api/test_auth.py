@@ -57,6 +57,7 @@ def app() -> Starlette:
     app.state.host = "localhost"
     app.state.port = 1234
     app.state.base_url = ""
+    app.state.enable_auth = True
     return app
 
 

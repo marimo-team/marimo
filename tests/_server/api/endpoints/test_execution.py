@@ -118,7 +118,7 @@ class TestExecutionRoutes_EditMode:
     @staticmethod
     def test_restart_session(client: TestClient) -> None:
         with client.websocket_connect(
-            f"/ws?session_id={SESSION_ID}"
+            f"/ws?session_id={SESSION_ID}&access_token=fake-token"
         ) as websocket:
             data = websocket.receive_text()
             assert data
