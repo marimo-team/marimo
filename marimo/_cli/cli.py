@@ -32,6 +32,7 @@ from marimo._cli.run_docker import (
 )
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._lint import lint_notebook
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.start import start
@@ -1255,6 +1256,7 @@ def lint(
     seen = set()
     errored = False
     warnings = 0
+    diagnostics = 0
     if not files:
         # If no files are provided, we lint the current directory
         files = ("**/*.py", "**/*.md", "**/*.qmd")
@@ -1295,14 +1297,30 @@ def lint(
                 errored = True
                 continue
 
-            if notebook.violations:
-                echo("")
-                echo(f"Errors found in {bold(file)}:")
-                for violation in notebook.violations:
-                    echo(str(violation))
-                echo("")
+            errors = lint_notebook(notebook)
+
+            if errors:
+                # Get code lines for context display
+                # Read the original file to get the complete code for context
+                try:
+                    with open(file, "r", encoding="utf-8") as f:
+                        code_lines = f.read().split("\n")
+                except Exception:
+                    # Fallback: build from notebook cells
+                    code_lines = []
+                    for cell in notebook.cells:
+                        code_lines.extend(cell.code.split("\n"))
+
+                for error in errors:
+                    errored = error.severity in ("error", "critical") or errored
+                    echo(error.format(file, code_lines))
+                    echo("")
+                diagnostics += len(errors)
 
             if fix:
+                # TODO: Attempt to fix errors in place
+                # fixed_notebook = fix_notebook(notebook, errors, file)
+
                 if is_markdown:
                     from marimo._server.export import Exporter
 
@@ -1337,8 +1355,10 @@ def lint(
 
     if warnings > 0:
         click.echo(f"Updated {warnings} file{'s' if warnings > 0 else ''}.")
+    if diagnostics > 0:
+        click.echo(f"Found {diagnostics} issue{'s' if diagnostics > 1 else ''}.")
 
-    if errored or (strict and warnings > 0):
+    if errored or (strict and warnings > 0 or diagnostics > 0):
         sys.exit(1)
 
 

@@ -1,0 +1,78 @@
+# Copyright 2025 Marimo. All rights reserved.
+"""Snapshot tests for runtime lint errors."""
+
+import pytest
+from marimo._lint import lint_notebook
+from marimo._ast.parse import parse_notebook
+from tests.mocks import snapshotter
+
+snapshot = snapshotter(__file__)
+
+
+def test_multiple_definitions_snapshot():
+    """Test snapshot for multiple definitions error."""
+    file = "tests/_lint/test_files/multiple_definitions.py"
+    with open(file, "r") as f:
+        code = f.read()
+
+    notebook = parse_notebook(code)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format(file))
+
+    snapshot("multiple_definitions_errors.txt", "\n".join(error_output))
+
+
+def test_cycle_dependencies_snapshot():
+    """Test snapshot for cycle dependencies error."""
+    file = "tests/_lint/test_files/cycle_dependencies.py"
+    with open(file, "r") as f:
+        code = f.read()
+
+    notebook = parse_notebook(code)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format(file))
+
+    snapshot("cycle_dependencies_errors.txt", "\n".join(error_output))
+
+
+def test_setup_dependencies_snapshot():
+    """Test snapshot for setup dependencies error."""
+    file = "tests/_lint/test_files/setup_dependencies.py"
+    with open(file, "r") as f:
+        code = f.read()
+
+    notebook = parse_notebook(code)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format(file))
+
+    snapshot("setup_dependencies_errors.txt", "\n".join(error_output))
+
+
+def test_unparsable_cell_snapshot():
+    """Test snapshot for unparsable cell error."""
+    file = "tests/_lint/test_files/unparsable_cell.py"
+    with open(file, "r") as f:
+        code = f.read()
+
+    notebook = parse_notebook(code)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format(file))
+
+    snapshot("unparsable_cell_errors.txt", "\n".join(error_output))
+

@@ -12,7 +12,7 @@ from marimo._messaging.errors import (
     SetupRootError,
 )
 from marimo._runtime import dataflow
-from marimo._runtime.validate_graph import check_for_errors
+from marimo._lint.validate_graph import check_for_errors
 
 parse_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -76,10 +76,10 @@ def test_two_node_cycle() -> None:
     errors = check_for_errors(graph)
     assert set(errors.keys()) == set(["0", "1"])
     assert errors["0"] == (
-        CycleError(edges_with_vars=(("0", ["x"], "1"), ("1", ["y"], "0"))),
+        CycleError(edges_with_vars=(("0", ("x",), "1"), ("1", ("y",), "0"))),
     )
     assert errors["1"] == (
-        CycleError(edges_with_vars=(("0", ["x"], "1"), ("1", ["y"], "0"))),
+        CycleError(edges_with_vars=(("0", ("x",), "1"), ("1", ("y",), "0"))),
     )
 
 
@@ -95,9 +95,9 @@ def test_three_node_cycle() -> None:
         assert isinstance(t[0], CycleError)
         edges_with_vars = t[0].edges_with_vars
         assert len(edges_with_vars) == 3
-        assert ("0", ["x"], "2") in edges_with_vars
-        assert ("1", ["y"], "0") in edges_with_vars
-        assert ("2", ["z"], "1") in edges_with_vars
+        assert ("0", ("x",), "2") in edges_with_vars
+        assert ("1", ("y",), "0") in edges_with_vars
+        assert ("2", ("z",), "1") in edges_with_vars
 
 
 def test_cycle_and_multiple_def() -> None:
@@ -117,8 +117,8 @@ def test_cycle_and_multiple_def() -> None:
         )
         edges_with_vars = cycle_error.edges_with_vars
         assert len(edges_with_vars) == 2
-        assert ("0", ["x"], "1") in edges_with_vars
-        assert ("1", ["y"], "0") in edges_with_vars
+        assert ("0", ("x",), "1") in edges_with_vars
+        assert ("1", ("y",), "0") in edges_with_vars
 
         multiple_definition_error = cast(
             MultipleDefinitionError,
@@ -138,8 +138,8 @@ def test_del_ref_cycle() -> None:
     # Edge ordering in returned error is not deterministic, so we list both
     # possible cycles
     expected_cycle = [
-        CycleError(edges_with_vars=(("2", ["x"], "1"), ("1", ["y"], "2"))),
-        CycleError(edges_with_vars=(("1", ["y"], "2"), ("2", ["x"], "1"))),
+        CycleError(edges_with_vars=(("2", ("x",), "1"), ("1", ("y",), "2"))),
+        CycleError(edges_with_vars=(("1", ("y",), "2"), ("2", ("x",), "1"))),
     ]
 
     assert len(errors["1"]) == 1
@@ -160,4 +160,4 @@ def test_setup_has_refs() -> None:
         setup_error = cast(SetupRootError, t[0])
         edges_with_vars = setup_error.edges_with_vars
         assert len(edges_with_vars) == 1
-        assert ("0", ["y"], SETUP_CELL_NAME) in edges_with_vars
+        assert ("0", ("y",), SETUP_CELL_NAME) in edges_with_vars

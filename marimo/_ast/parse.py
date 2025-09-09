@@ -422,14 +422,14 @@ class Parser:
                 if node.names[0].asname:
                     violations.append(
                         Violation(
-                            "`marimo` is typically not imported with an alias. ",
+                            MARIMO_ALIAS_VIOLATION,
                             node.lineno,
                         )
                     )
                 return ParseResult(node, violations=violations)
             violations.append(
                 Violation(
-                    "Unexpected statement (expected marimo import)",
+                    UNEXPECTED_STATEMENT_MARIMO_IMPORT_VIOLATION,
                     lineno=node.lineno,
                 )
             )
@@ -446,7 +446,7 @@ class Parser:
             lineno = node.lineno if node else 0
             violations.append(
                 Violation(
-                    "Expected `__generated_with` assignment for marimo version number.",
+                    EXPECTED_GENERATED_WITH_VIOLATION,
                     lineno=lineno,
                 )
             )
@@ -474,7 +474,7 @@ class Parser:
                 )
             violations.append(
                 Violation(
-                    "Unexpected statement, expected App initialization.",
+                    UNEXPECTED_STATEMENT_APP_INIT_VIOLATION,
                     node.lineno,
                 )
             )
@@ -495,7 +495,7 @@ class Parser:
                 return ParseResult(violations=violations)
             violations.append(
                 Violation(
-                    "Unexpected statement, expected cell definitions.",
+                    UNEXPECTED_STATEMENT_CELL_DEF_VIOLATION,
                     node.lineno,
                 )
             )
@@ -521,7 +521,7 @@ class Parser:
             else:
                 violations.append(
                     Violation(
-                        "Unexpected statement, expected body cell definition.",
+                        UNEXPECTED_STATEMENT_BODY_CELL_VIOLATION,
                         node.lineno,
                     )
                 )
@@ -602,7 +602,7 @@ def _eval_kwargs(
         else:
             violations.append(
                 Violation(
-                    "Unexpected value for keyword argument",
+                    UNEXPECTED_KEYWORD_VALUE_VIOLATION,
                     lineno=kw.lineno,
                     col_offset=kw.col_offset,
                 )
@@ -877,7 +877,7 @@ def parse_notebook(
     if not (import_result := parser.parse_import(body)):
         violations.append(
             Violation(
-                "Only able to extract header.",
+                ONLY_HEADER_EXTRACTED_VIOLATION,
                 lineno=1,
             )
         )
@@ -887,7 +887,7 @@ def parse_notebook(
             # just a header is fine, anything else we would ignore and override
             violations.append(
                 Violation(
-                    _non_marimo_python_script_violation_description,
+                    NON_MARIMO_PYTHON_SCRIPT_VIOLATION,
                     lineno=header.end_lineno + 2 if header.value else 1,
                 )
             )
@@ -947,7 +947,7 @@ def parse_notebook(
 
     # Expected a run guard, but that's OK.
     if not is_run_guard(body.last):
-        violations.append(Violation("Expected run guard statement"))
+        violations.append(Violation(EXPECTED_RUN_GUARD_VIOLATION))
 
     return NotebookSerialization(
         header=header,
@@ -958,13 +958,31 @@ def parse_notebook(
     )
 
 
-_non_marimo_python_script_violation_description = (
-    "non-marimo Python content beyond header"
+# Violation message constants
+MARIMO_ALIAS_VIOLATION = "`marimo` is typically not imported with an alias. "
+UNEXPECTED_STATEMENT_MARIMO_IMPORT_VIOLATION = (
+    "Unexpected statement (expected marimo import)"
 )
+EXPECTED_GENERATED_WITH_VIOLATION = (
+    "Expected `__generated_with` assignment for marimo version number."
+)
+UNEXPECTED_STATEMENT_APP_INIT_VIOLATION = (
+    "Unexpected statement, expected App initialization."
+)
+UNEXPECTED_STATEMENT_CELL_DEF_VIOLATION = (
+    "Unexpected statement, expected cell definitions."
+)
+UNEXPECTED_STATEMENT_BODY_CELL_VIOLATION = (
+    "Unexpected statement, expected body cell definition."
+)
+UNEXPECTED_KEYWORD_VALUE_VIOLATION = "Unexpected value for keyword argument"
+ONLY_HEADER_EXTRACTED_VIOLATION = "Only able to extract header."
+NON_MARIMO_PYTHON_SCRIPT_VIOLATION = "non-marimo Python content beyond header"
+EXPECTED_RUN_GUARD_VIOLATION = "Expected run guard statement"
 
 
 def is_non_marimo_python_script(notebook: NotebookSerialization) -> bool:
     return any(
-        (v.description == _non_marimo_python_script_violation_description)
+        (v.description == NON_MARIMO_PYTHON_SCRIPT_VIOLATION)
         for v in notebook.violations
     )

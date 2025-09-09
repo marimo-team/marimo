@@ -165,7 +165,7 @@ from marimo._runtime.state import State
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
 )
-from marimo._runtime.validate_graph import check_for_errors
+from marimo._lint.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._secrets.load_dotenv import (
     load_dotenv_with_fallback,
