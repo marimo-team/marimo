@@ -1395,16 +1395,12 @@ components:
         depth:
           default: 3
           type: integer
-        directory:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          default: null
-        file:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          default: null
+        includeDirectories:
+          default: true
+          type: boolean
+        includeFiles:
+          default: true
+          type: boolean
         limit:
           default: 100
           type: integer

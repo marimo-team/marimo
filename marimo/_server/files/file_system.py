@@ -69,8 +69,8 @@ class FileSystem(ABC):
         query: str,
         *,
         path: Optional[str] = None,
-        directory: Optional[bool] = None,
-        file: Optional[bool] = None,
+        directory: bool = True,
+        file: bool = True,
         depth: int = 3,
         limit: int = 100,
     ) -> list[FileInfo]:
@@ -79,8 +79,8 @@ class FileSystem(ABC):
         Args:
             query: Search query string (matches file/directory names)
             path: Root path to search from (defaults to root)
-            directory: Filter to only directories (optional)
-            file: Filter to only files (optional)
+            directory: Include directories
+            file: Include files
             depth: Maximum depth to search (default: 3)
             limit: Maximum number of results to return (default: 100)
         """

@@ -3351,10 +3351,10 @@ export interface components {
     FileSearchRequest: {
       /** @default 3 */
       depth?: number;
-      /** @default null */
-      directory?: boolean | null;
-      /** @default null */
-      file?: boolean | null;
+      /** @default true */
+      includeDirectories?: boolean;
+      /** @default true */
+      includeFiles?: boolean;
       /** @default 100 */
       limit?: number;
       /** @default null */

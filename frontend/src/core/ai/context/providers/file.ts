@@ -112,8 +112,8 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
     };
     const response = await this.apiRequests.sendSearchFiles({
       query,
-      file: true,
-      directory: includeDirectories,
+      includeFiles: true,
+      includeDirectories: includeDirectories,
       depth: maxDepth,
       limit: maxResults,
     });

@@ -55,10 +55,10 @@ class FileSearchRequest(msgspec.Struct, rename="camel"):
     query: str
     # The root directory path to search from (optional, defaults to root)
     path: Optional[str] = None
-    # Filter to only directories (optional)
-    directory: Optional[bool] = None
-    # Filter to only files (optional)
-    file: Optional[bool] = None
+    # Include directories
+    include_directories: bool = True
+    # Include files
+    include_files: bool = True
     # Maximum depth to search (default: 3)
     depth: int = 3
     # Maximum number of results to return (default: 100)

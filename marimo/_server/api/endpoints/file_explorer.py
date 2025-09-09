@@ -277,8 +277,8 @@ async def search_files(
     files = file_system.search(
         query=body.query,
         path=body.path,
-        directory=body.directory,
-        file=body.file,
+        directory=body.include_directories,
+        file=body.include_files,
         depth=body.depth,
         limit=body.limit,
     )

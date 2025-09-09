@@ -288,8 +288,8 @@ class PyodideBridge:
             query=body.query,
             path=body.path,
             depth=body.depth,
-            directory=body.directory,
-            file=body.file,
+            directory=body.include_directories,
+            file=body.include_files,
             limit=body.limit,
         )
         response = FileSearchResponse(

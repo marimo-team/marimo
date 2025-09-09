@@ -194,8 +194,8 @@ class OSFileSystem(FileSystem):
         query: str,
         *,
         path: Optional[str] = None,
-        directory: Optional[bool] = None,
-        file: Optional[bool] = None,
+        directory: bool = True,
+        file: bool = True,
         depth: int = 3,
         limit: int = 100,
     ) -> list[FileInfo]:
@@ -271,14 +271,10 @@ class OSFileSystem(FileSystem):
                             entry_stat = entry.stat()
 
                             # Apply directory/file filtering
-                            if (
-                                directory is not None
-                                and directory
-                                and not is_directory
-                            ):
+                            if directory and not is_directory:
                                 # Skip non-directories if directory=True
                                 continue
-                            if file is not None and file and is_directory:
+                            if file and is_directory:
                                 # Skip directories if file=True
                                 continue
 
