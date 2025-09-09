@@ -57,9 +57,15 @@ class FullFormatter(DiagnosticFormatter):
             Severity.BREAKING: "critical",
         }.get(diagnostic.severity, "info")
 
-        lines = diagnostic.line if isinstance(diagnostic.line, list) else [diagnostic.line]
+        lines = (
+            diagnostic.line
+            if isinstance(diagnostic.line, list)
+            else [diagnostic.line]
+        )
         columns = (
-            diagnostic.column if isinstance(diagnostic.column, list) else [diagnostic.column]
+            diagnostic.column
+            if isinstance(diagnostic.column, list)
+            else [diagnostic.column]
         )
         lines, columns = zip(*sorted(zip(lines, columns)))
 
@@ -72,7 +78,7 @@ class FullFormatter(DiagnosticFormatter):
         # If code_lines is None, try to read from file
         if code_lines is None and diagnostic.line and os.path.exists(filename):
             try:
-                with open(filename, encoding='utf-8') as f:
+                with open(filename, encoding="utf-8") as f:
                     code_lines = f.read().splitlines()
             except (OSError, UnicodeDecodeError):
                 # If we can't read the file, just return header
@@ -107,7 +113,5 @@ class FullFormatter(DiagnosticFormatter):
             previous_line = end_line
 
         if diagnostic.fix:
-            context_lines.append(
-                cyan("info: ") + bold(diagnostic.fix)
-            )
+            context_lines.append(cyan("info: ") + bold(diagnostic.fix))
         return f"{header}\n" + "\n".join(context_lines)

@@ -12,8 +12,8 @@ class Severity(Enum):
     """Severity levels for diagnostic errors."""
 
     FORMATTING = "formatting"  # prefix: MF0000
-    RUNTIME = "runtime"       # prefix: MR0000
-    BREAKING = "breaking"     # prefix: MB0000
+    RUNTIME = "runtime"  # prefix: MR0000
+    BREAKING = "breaking"  # prefix: MB0000
 
 
 def line_num(line: int) -> str:
@@ -39,7 +39,7 @@ class Diagnostic:
         self,
         filename: str,
         code_lines: list[str] | None = None,
-        formatter: str = "full"
+        formatter: str = "full",
     ) -> str:
         """Format the diagnostic for display.
 

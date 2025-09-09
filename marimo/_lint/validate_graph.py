@@ -84,9 +84,11 @@ def check_for_invalid_root(
             )
             for ancestor in ancestors
             if (
-                deps := tuple(sorted(
-                    graph.cells[ancestor].defs & graph.cells[setup_id].refs
-                ))
+                deps := tuple(
+                    sorted(
+                        graph.cells[ancestor].defs & graph.cells[setup_id].refs
+                    )
+                )
             )
         )
         errors[setup_id].append(

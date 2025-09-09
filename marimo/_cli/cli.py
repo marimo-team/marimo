@@ -1312,7 +1312,9 @@ def check(
                         code_lines.extend(cell.code.split("\n"))
 
                 for error in errors:
-                    errored = error.severity in ("error", "critical") or errored
+                    errored = (
+                        error.severity in ("error", "critical") or errored
+                    )
                     echo(error.format(file, code_lines))
                     echo("")
                 diagnostics += len(errors)
@@ -1356,7 +1358,9 @@ def check(
     if warnings > 0:
         click.echo(f"Updated {warnings} file{'s' if warnings > 0 else ''}.")
     if diagnostics > 0:
-        click.echo(f"Found {diagnostics} issue{'s' if diagnostics > 1 else ''}.")
+        click.echo(
+            f"Found {diagnostics} issue{'s' if diagnostics > 1 else ''}."
+        )
 
     if errored or (strict and warnings > 0 or diagnostics > 0):
         sys.exit(1)

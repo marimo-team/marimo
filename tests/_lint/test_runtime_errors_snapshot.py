@@ -1,7 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
 """Snapshot tests for runtime lint errors."""
 
-
 from marimo._ast.parse import parse_notebook
 from marimo._lint import lint_notebook
 from tests.mocks import snapshotter

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from marimo._ast.parse import NotebookSerialization
-from marimo._lint.checker import LintChecker
+from marimo._lint.checker import LintChecker, EarlyStoppingConfig
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import LintRule
 from marimo._lint.rules.breaking import UnparsableRule
@@ -24,7 +24,7 @@ def lint_notebook(notebook: NotebookSerialization) -> list[Diagnostic]:
         List of diagnostics found in the notebook
     """
     checker = LintChecker.create_default()
-    return checker.check_notebook(notebook)
+    return checker.check_notebook_sync(notebook)
 
 
 __all__ = [
@@ -32,6 +32,7 @@ __all__ = [
     "LintRule",
     "Severity",
     "LintChecker",
+    "EarlyStoppingConfig",
     "GeneralFormattingRule",
     "MultipleDefinitionsRule",
     "CycleDependenciesRule",

@@ -1,7 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
 """Unit tests for the marimo lint system."""
 
-
 from marimo._ast.parse import parse_notebook
 from marimo._lint import lint_notebook
 from marimo._lint.checker import LintChecker

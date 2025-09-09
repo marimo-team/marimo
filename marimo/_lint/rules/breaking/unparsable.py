@@ -1,10 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._ast.parse import NotebookSerialization
+from typing import TYPE_CHECKING
+
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import LintRule
 from marimo._schemas.serialization import UnparsableCell
+
+if TYPE_CHECKING:
+    from marimo._lint.context import LintContext
 
 
 class UnparsableRule(LintRule):
@@ -19,27 +23,23 @@ class UnparsableRule(LintRule):
             fixable=False,
         )
 
-    def check(self, notebook: NotebookSerialization) -> list[Diagnostic]:
+    async def check(self, ctx: LintContext) -> None:
         """Check for unparsable cells."""
-        diagnostics = []
-
-        for cell in notebook.cells:
+        for cell in ctx.notebook.cells:
             if isinstance(cell, UnparsableCell):  # Unparsable cell
                 # Try to find the line number of the error
                 line_num = cell.lineno
                 col_num = cell.col_offset
 
-                diagnostics.append(
-                    Diagnostic(
-                        code=self.code,
-                        name=self.name,
-                        message="Notebook contains unparsable code",
-                        severity=self.severity,
-                        cell_id=None,
-                        line=line_num,
-                        column=col_num,
-                        fixable=False,
-                    )
+                diagnostic = Diagnostic(
+                    code=self.code,
+                    name=self.name,
+                    message="Notebook contains unparsable code",
+                    severity=self.severity,
+                    cell_id=None,
+                    line=line_num,
+                    column=col_num,
+                    fixable=False,
                 )
 
-        return diagnostics
+                ctx.add_diagnostic(diagnostic)

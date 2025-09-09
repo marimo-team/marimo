@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from marimo._ast.parse import NotebookSerialization
-from marimo._lint.diagnostic import Diagnostic, Severity
+from marimo._lint.diagnostic import Severity
+
+if TYPE_CHECKING:
+    from marimo._lint.context import LintContext
 
 
 class LintRule(ABC):
@@ -25,6 +28,6 @@ class LintRule(ABC):
         self.fixable = fixable
 
     @abstractmethod
-    def check(self, notebook: NotebookSerialization) -> list[Diagnostic]:
-        """Check notebook for violations of this rule."""
+    async def check(self, ctx: LintContext) -> None:
+        """Check notebook for violations of this rule using the provided context."""
         pass

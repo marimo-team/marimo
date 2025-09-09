@@ -4,7 +4,6 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from marimo._ast.load import load_notebook_ir
 from marimo._ast.parse import NotebookSerialization, ast_parse
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import LintRule
@@ -17,6 +16,7 @@ from marimo._lint.visitors import VariableLineVisitor
 from marimo._utils.cell_matching import match_cell_ids_by_similarity
 
 if TYPE_CHECKING:
+    from marimo._lint.context import LintContext
     from marimo._runtime.dataflow import DirectedGraph
 
 
@@ -47,29 +47,19 @@ class GraphRule(LintRule):
     ):
         super().__init__(code, name, description, severity, fixable)
 
-    def _get_graph(self, notebook: NotebookSerialization) -> DirectedGraph:
-        """Get the dependency graph from the notebook."""
-        app = load_notebook_ir(notebook)
-        graph = app._graph
-
-        # Initialize the app to register cells in the graph
-        # Add cells to graph
-        for cell_id, cell in app._cell_manager.valid_cells():
-            graph.register_cell(cell_id, cell._cell)
-        # app._maybe_initialize()
-        return app._graph
-
-    def _get_cell_from_id(self, cell_id: str, notebook: NotebookSerialization) -> DirectedGraph | None:
+    def _get_cell_from_id(
+        self, cell_id: str, ctx: LintContext
+    ) -> DirectedGraph | None:
         """Get the corresponding CellDef from notebook serialization for a given cell_id."""
         # For setup cells, use the special setup cell name
         if cell_id == "setup":
-            for cell in notebook.cells:
+            for cell in ctx.notebook.cells:
                 if cell.name == "setup":
                     return cell
             return None
 
         # Use cell matching to map graph cell IDs to notebook cells
-        graph = self._get_graph(notebook)
+        graph = ctx.get_graph()
 
         # Build code mappings for cell matching using position numbers
         graph_codes = {
@@ -79,7 +69,7 @@ class GraphRule(LintRule):
         }
         notebook_codes = {
             str(i): cell.code
-            for i, cell in enumerate(notebook.cells)
+            for i, cell in enumerate(ctx.notebook.cells)
             if cell.name != "setup"
         }
 
@@ -93,7 +83,7 @@ class GraphRule(LintRule):
             notebook_position = cell_mapping[cell_id]
             # Get the cell at the matched position
             non_setup_cells = [
-                cell for cell in notebook.cells if cell.name != "setup"
+                cell for cell in ctx.notebook.cells if cell.name != "setup"
             ]
             position = int(notebook_position)
             if 0 <= position < len(non_setup_cells):
@@ -102,10 +92,10 @@ class GraphRule(LintRule):
         return None
 
     def _get_variable_line_info(
-        self, cell_id: str, variable_name: str, notebook: NotebookSerialization
+        self, cell_id: str, variable_name: str, ctx: LintContext
     ) -> tuple[int, int]:
         """Get line and column info for a specific variable within a cell."""
-        target_cell = self._get_cell_from_id(cell_id, notebook)
+        target_cell = self._get_cell_from_id(cell_id, ctx)
 
         if target_cell:
             # Parse the cell code to find the variable definition
@@ -123,33 +113,21 @@ class GraphRule(LintRule):
         # Fallback to (0, 0) to indicate unknown line/column
         return 0, 0
 
-    def check(self, notebook: NotebookSerialization) -> list[Diagnostic]:
-        """Perform graph-based validation.
-
-        Args:
-            notebook: The notebook to check
-
-        Returns:
-            List of Diagnostic objects
-        """
-        # Get the graph using the base class method
-        graph = self._get_graph(notebook)
+    async def check(self, ctx: LintContext) -> None:
+        """Perform graph-based validation using the provided context."""
+        # Get the graph from context (cached)
+        graph = ctx.get_graph()
 
         # Call the specific validation method
-        return self._validate_graph(graph, notebook)
+        await self._validate_graph(graph, ctx)
 
     @abstractmethod
-    def _validate_graph(
-        self, graph, notebook: NotebookSerialization
-    ) -> list[Diagnostic]:
-        """Abstract method to validate the graph and return Diagnostic objects.
+    async def _validate_graph(self, graph, ctx: LintContext) -> None:
+        """Abstract method to validate the graph and add diagnostics to context.
 
         Args:
             graph: The dependency graph to validate
-            notebook: The notebook serialization for cell information
-
-        Returns:
-            List of Diagnostic objects
+            ctx: The lint context to add diagnostics to
         """
         pass
 
@@ -187,11 +165,8 @@ class MultipleDefinitionsRule(GraphRule):
             fixable=False,
         )
 
-    def _validate_graph(
-        self, graph, notebook: NotebookSerialization
-    ) -> list[Diagnostic]:
+    async def _validate_graph(self, graph, ctx: LintContext) -> None:
         """Validate the graph for multiple definitions."""
-        diagnostics = []
         validation_errors = check_for_multiple_definitions(graph)
 
         names = {}
@@ -199,7 +174,7 @@ class MultipleDefinitionsRule(GraphRule):
             for error in error_list:
                 # Get specific line info for the variable definition
                 line, column = self._get_variable_line_info(
-                    cell_id, error.name, notebook
+                    cell_id, error.name, ctx
                 )
                 names.setdefault(error.name, []).append(
                     {"cell_id": cell_id, "line": line, "column": column}
@@ -209,22 +184,23 @@ class MultipleDefinitionsRule(GraphRule):
             lines = [info["line"] for info in names[name]]
             columns = [info["column"] for info in names[name]]
             cell_id = [info["cell_id"] for info in names[name]]
-            diagnostics.append(
-                Diagnostic(
-                    code=self.code,
-                    name=self.name,
-                    message=f"Variable '{name}' is defined in multiple cells",
-                    severity=self.severity,
-                    cell_id=cell_id,
-                    line=lines,
-                    column=columns,
-                    fixable=self.fixable,
-                    fix=("Variables must be unique across cells. Alternatively, "
-                    f"they can be private with an underscore prefix (i.e. `_{name}`.)")
-                )
+
+            diagnostic = Diagnostic(
+                code=self.code,
+                name=self.name,
+                message=f"Variable '{name}' is defined in multiple cells",
+                severity=self.severity,
+                cell_id=cell_id,
+                line=lines,
+                column=columns,
+                fixable=self.fixable,
+                fix=(
+                    "Variables must be unique across cells. Alternatively, "
+                    f"they can be private with an underscore prefix (i.e. `_{name}`.)"
+                ),
             )
 
-        return diagnostics
+            ctx.add_diagnostic(diagnostic)
 
 
 class CycleDependenciesRule(GraphRule):
@@ -260,11 +236,8 @@ class CycleDependenciesRule(GraphRule):
             fixable=False,
         )
 
-    def _validate_graph(
-        self, graph, notebook: NotebookSerialization
-    ) -> list[Diagnostic]:
+    async def _validate_graph(self, graph, ctx: LintContext) -> None:
         """Validate the graph for circular dependencies."""
-        diagnostics = []
         validation_errors = check_for_cycles(graph)
 
         seen = set()
@@ -281,26 +254,24 @@ class CycleDependenciesRule(GraphRule):
                     # Get cell from notebook serialization
                     for v in variables:
                         line, column = self._get_variable_line_info(
-                            cell_id, v, notebook
+                            cell_id, v, ctx
                         )
                         cells.append(cell_id)
                         lines.append(line)
                         columns.append(column)
 
-                diagnostics.append(
-                    Diagnostic(
-                        code=self.code,
-                        name=self.name,
-                        message="Cell is part of a circular dependency",
-                        severity=self.severity,
-                        cell_id=cells,
-                        line=lines,
-                        column=columns,
-                        fixable=self.fixable,
-                    )
+                diagnostic = Diagnostic(
+                    code=self.code,
+                    name=self.name,
+                    message="Cell is part of a circular dependency",
+                    severity=self.severity,
+                    cell_id=cells,
+                    line=lines,
+                    column=columns,
+                    fixable=self.fixable,
                 )
 
-        return diagnostics
+                ctx.add_diagnostic(diagnostic)
 
 
 class SetupCellDependenciesRule(GraphRule):
@@ -337,32 +308,27 @@ class SetupCellDependenciesRule(GraphRule):
             fixable=False,
         )
 
-    def _validate_graph(
-        self, graph, notebook: NotebookSerialization
-    ) -> list[Diagnostic]:
+    async def _validate_graph(self, graph, ctx: LintContext) -> None:
         """Validate the graph for setup cell dependency violations."""
-        diagnostics = []
         validation_errors = check_for_invalid_root(graph)
 
         for cell_id, error_list in validation_errors.items():
             for _ in error_list:
                 # Get cell from notebook serialization
-                cell = self._get_cell_from_id(cell_id, notebook)
+                cell = self._get_cell_from_id(cell_id, ctx)
                 line, column = (
                     (cell.lineno, cell.col_offset + 1) if cell else (0, 0)
                 )
 
-                diagnostics.append(
-                    Diagnostic(
-                        code=self.code,
-                        name=self.name,
-                        message="Setup cell cannot have dependencies",
-                        severity=self.severity,
-                        cell_id=cell_id,
-                        line=line,
-                        column=column,
-                        fixable=self.fixable,
-                    )
+                diagnostic = Diagnostic(
+                    code=self.code,
+                    name=self.name,
+                    message="Setup cell cannot have dependencies",
+                    severity=self.severity,
+                    cell_id=cell_id,
+                    line=line,
+                    column=column,
+                    fixable=self.fixable,
                 )
 
-        return diagnostics
+                ctx.add_diagnostic(diagnostic)
