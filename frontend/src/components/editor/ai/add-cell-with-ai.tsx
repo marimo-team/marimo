@@ -46,7 +46,7 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/language
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
 import { aiAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
-import { useRuntimeManager } from "@/core/runtime/config";
+import { useRuntimeManager, runtimeConfigAtom } from "@/core/runtime/config";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
@@ -94,6 +94,7 @@ export const AddCellWithAI: React.FC<{
   const editModel = ai?.models?.edit_model || DEFAULT_AI_MODEL;
   const { saveModelChange } = useModelChange();
   const inputRef = useRef<ReactCodeMirrorRef>(null);
+  const runtimeConfig = useAtomValue(runtimeConfigAtom);
 
   const {
     completion,
@@ -113,6 +114,7 @@ export const AddCellWithAI: React.FC<{
       ...completionBody,
       language: language,
       code: "",
+      ...(runtimeConfig.authToken && { osoApiKey: runtimeConfig.authToken }),
     },
     onError: (error) => {
       toast({
