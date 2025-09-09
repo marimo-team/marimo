@@ -468,6 +468,7 @@ def create_asgi_app(
                 redirect_console_to_browser=False,
                 ttl_seconds=None,
             )
+            enable_auth = not AuthToken.is_empty(auth_token)
             app = create_starlette_app(
                 base_url="",
                 lifespan=Lifespans(
@@ -478,13 +479,14 @@ def create_asgi_app(
                         *LIFESPAN_REGISTRY.get_all(),
                     ]
                 ),
-                enable_auth=not AuthToken.is_empty(auth_token),
+                enable_auth=enable_auth,
                 allow_origins=("*",),
                 skew_protection=skew_protection,
             )
             app.state.session_manager = session_manager
             app.state.base_url = base_url
             app.state.config_manager = config_reader
+            app.state.enable_auth = enable_auth
             return app
 
         def build(self) -> ASGIApp:

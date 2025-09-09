@@ -68,14 +68,15 @@ async def websocket_endpoint(
         200:
             description: Websocket endpoint
     """
+    app_state = AppState(websocket)
+
     # Validate authentication before proceeding
-    if not validate_auth(websocket):
+    if app_state.enable_auth and not validate_auth(websocket):
         await websocket.close(
             WebSocketCodes.UNAUTHORIZED, "MARIMO_UNAUTHORIZED"
         )
         return
 
-    app_state = AppState(websocket)
     raw_session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
     if raw_session_id is None:
         await websocket.close(
@@ -123,8 +124,10 @@ async def ws_sync(
     """
     Websocket endpoint for LoroDoc synchronization
     """
+    app_state = AppState(websocket)
+
     # Validate authentication before proceeding
-    if not validate_auth(websocket):
+    if app_state.enable_auth and not validate_auth(websocket):
         await websocket.close(
             WebSocketCodes.UNAUTHORIZED, "MARIMO_UNAUTHORIZED"
         )
