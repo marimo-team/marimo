@@ -1,18 +1,18 @@
 # Copyright 2025 Marimo. All rights reserved.
-"""CLI tests for the marimo lint command."""
+"""CLI tests for the marimo check command."""
 
 import tempfile
 
 from click.testing import CliRunner
 
-from marimo._cli.cli import lint
+from marimo._cli.cli import check
 
 
 class TestLintCLI:
-    """Test the lint CLI command."""
+    """Test the check CLI command."""
 
-    def test_lint_command_basic(self):
-        """Test basic lint command functionality."""
+    def test_check_command_basic(self):
+        """Test basic check command functionality."""
         runner = CliRunner()
 
         # Create a temporary file with basic marimo code
@@ -22,27 +22,59 @@ class TestLintCLI:
             f.write("""
 import marimo
 
+__generated_with = "0.0.0"
 app = marimo.App()
 
 @app.cell
-def __():
+def _():
     x = 1
     return (x,)
+
+if __name__ == "__main__":
+    app.run()
 """)
             f.flush()
 
-            # Run lint command
-            result = runner.invoke(lint, [f.name])
+            # Run check command
+            result = runner.invoke(check, [f.name])
 
             # Should succeed and show some output
-            assert result.exit_code == 0
-            assert (
-                "Errors found" in result.output
-                or "No errors found" in result.output
-            )
+            assert result.exit_code == 0, result.output
+            assert not result.output.strip()
 
-    def test_lint_command_with_violations(self):
-        """Test lint command with parsing violations."""
+    def test_check_command_with_violations(self):
+        """Test check command with parsing violations."""
+        runner = CliRunner()
+
+        # Create a temporary file with violations
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False
+        ) as f:
+            f.write("""
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+# This should create a violation
+x = 1
+
+@app.cell
+def _():
+    y = 2
+    return (y,)
+""")
+            f.flush()
+
+            # Run check command
+            result = runner.invoke(check, [f.name])
+
+            # Should give and show errors
+            assert result.exit_code == 1, result.output
+            assert "warning[general-formatting]" in result.output
+
+    def test_check_command_with_fix(self):
+        """Test check command with fix option."""
         runner = CliRunner()
 
         # Create a temporary file with violations
@@ -58,44 +90,14 @@ app = marimo.App()
 x = 1
 
 @app.cell
-def __():
+def _():
     y = 2
     return (y,)
 """)
             f.flush()
 
-            # Run lint command
-            result = runner.invoke(lint, [f.name])
-
-            # Should succeed and show errors
-            assert result.exit_code == 0
-            assert "Errors found" in result.output
-
-    def test_lint_command_with_fix(self):
-        """Test lint command with fix option."""
-        runner = CliRunner()
-
-        # Create a temporary file with violations
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".py", delete=False
-        ) as f:
-            f.write("""
-import marimo
-
-app = marimo.App()
-
-# This should create a violation
-x = 1
-
-@app.cell
-def __():
-    y = 2
-    return (y,)
-""")
-            f.flush()
-
-            # Run lint command with fix
-            result = runner.invoke(lint, [f.name, "--fix"])
+            # Run check command with fix
+            result = runner.invoke(check, [f.name, "--fix"])
 
             # The fix might fail due to file permissions or other issues
             # Just check that the command runs
@@ -104,18 +106,18 @@ def __():
                 1,
             ]  # Either success or expected failure
 
-    def test_lint_command_nonexistent_file(self):
-        """Test lint command with nonexistent file."""
+    def test_check_command_nonexistent_file(self):
+        """Test check command with nonexistent file."""
         runner = CliRunner()
 
-        result = runner.invoke(lint, ["nonexistent.py"])
+        result = runner.invoke(check, ["nonexistent.py"])
 
         # The CLI might handle nonexistent files gracefully
         # Just check that it doesn't crash
         assert result.exit_code in [0, 1, 2]  # Various possible exit codes
 
-    def test_lint_command_syntax_error(self):
-        """Test lint command with syntax error."""
+    def test_check_command_syntax_error(self):
+        """Test check command with syntax error."""
         runner = CliRunner()
 
         # Create a temporary file with syntax error
@@ -128,31 +130,31 @@ import marimo
 app = marimo.App()
 
 @app.cell
-def __():
+def _():
     x = 1 +  # Syntax error
     return (x,)
 """)
             f.flush()
 
-            # Run lint command
-            result = runner.invoke(lint, [f.name])
+            # Run check command
+            result = runner.invoke(check, [f.name])
 
             # Should fail due to syntax error
-            assert result.exit_code != 0
+            assert result.exit_code != 0, result.output
 
-    def test_lint_command_help(self):
-        """Test lint command help."""
+    def test_check_command_help(self):
+        """Test check command help."""
         runner = CliRunner()
 
-        result = runner.invoke(lint, ["--help"])
+        result = runner.invoke(check, ["--help"])
 
         # Should succeed and show help
         assert result.exit_code == 0
-        assert "Lint and check marimo files" in result.output
+        assert "format" in result.output
         assert "--fix" in result.output
 
-    def test_lint_command_no_errors(self):
-        """Test lint command with valid notebook."""
+    def test_check_command_no_errors(self):
+        """Test check command with valid notebook."""
         runner = CliRunner()
 
         # Create a temporary file with valid marimo code
@@ -166,14 +168,17 @@ __generated_with = "0.1.0"
 app = marimo.App()
 
 @app.cell
-def __():
+def _():
     x = 1
     return (x,)
+
+if __name__ == "__main__":
+    app.run()
 """)
             f.flush()
 
-            # Run lint command
-            result = runner.invoke(lint, [f.name])
+            # Run check command
+            result = runner.invoke(check, [f.name])
 
             # Should succeed
-            assert result.exit_code == 0
+            assert result.exit_code == 0, result.output
