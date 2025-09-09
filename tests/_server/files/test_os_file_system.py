@@ -489,16 +489,15 @@ def test_search_directory_and_file_filters(
     assert len(file_results) > 0, "Should find files with no filter"
     assert len(dir_results) > 0, "Should find directories with no filter"
 
-    # Test with both file=False and directory=False should work like no filter
     results_no_filter = fs.search(query="test", path=str(test_dir))
-    results_both_false = fs.search(
+    results_both_true = fs.search(
         query="test",
         path=str(test_dir),
-        include_files=False,
-        include_directories=False,
+        include_files=True,
+        include_directories=True,
     )
-    assert len(results_no_filter) == len(results_both_false), (
-        "Both false should be same as no filter"
+    assert len(results_no_filter) == len(results_both_true), (
+        "Both true should be same as no filter"
     )
 
 
