@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 from marimo._ast.parse import NotebookSerialization
 from marimo._lint.rules import RULE_CODES
 
-
 if TYPE_CHECKING:
-    from marimo._lint.rules.base import LintError, LintRule
+    from marimo._lint.diagnostic import Diagnostic
+    from marimo._lint.rules.base import LintRule
 
 
 class LintChecker:
@@ -19,15 +19,15 @@ class LintChecker:
 
     def check_notebook(
         self, notebook: NotebookSerialization
-    ) -> list[LintError]:
+    ) -> list[Diagnostic]:
         """Check notebook for all lint rule violations."""
-        errors = []
+        diagnostics = []
 
         for rule in self.rules:
-            rule_errors = rule.check(notebook)
-            errors.extend(rule_errors)
+            rule_diagnostics = rule.check(notebook)
+            diagnostics.extend(rule_diagnostics)
 
-        return errors
+        return diagnostics
 
     @classmethod
     def create_default(cls) -> LintChecker:

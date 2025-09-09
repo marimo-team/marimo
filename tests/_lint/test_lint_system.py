@@ -4,9 +4,9 @@
 
 from marimo._ast.parse import parse_notebook
 from marimo._lint import lint_notebook
+from marimo._lint.checker import LintChecker
 from marimo._lint.rules.base import Severity
 from marimo._lint.rules.breaking import UnparsableRule
-from marimo._lint.checker import LintChecker
 from marimo._lint.rules.formatting import GeneralFormattingRule
 from marimo._lint.rules.runtime import (
     CycleDependenciesRule,

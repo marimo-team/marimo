@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING
 
 from marimo._ast.load import load_notebook_ir
 from marimo._ast.parse import NotebookSerialization, ast_parse
-from marimo._lint.rules.base import LintError, LintRule, Severity
+from marimo._lint.diagnostic import Diagnostic, Severity
+from marimo._lint.rules.base import LintRule
 from marimo._lint.validate_graph import (
     check_for_cycles,
     check_for_invalid_root,
@@ -122,14 +123,14 @@ class GraphRule(LintRule):
         # Fallback to (0, 0) to indicate unknown line/column
         return 0, 0
 
-    def check(self, notebook: NotebookSerialization) -> list[LintError]:
+    def check(self, notebook: NotebookSerialization) -> list[Diagnostic]:
         """Perform graph-based validation.
 
         Args:
             notebook: The notebook to check
 
         Returns:
-            List of LintError objects
+            List of Diagnostic objects
         """
         # Get the graph using the base class method
         graph = self._get_graph(notebook)
@@ -140,15 +141,15 @@ class GraphRule(LintRule):
     @abstractmethod
     def _validate_graph(
         self, graph, notebook: NotebookSerialization
-    ) -> list[LintError]:
-        """Abstract method to validate the graph and return LintError objects.
+    ) -> list[Diagnostic]:
+        """Abstract method to validate the graph and return Diagnostic objects.
 
         Args:
             graph: The dependency graph to validate
             notebook: The notebook serialization for cell information
 
         Returns:
-            List of LintError objects
+            List of Diagnostic objects
         """
         pass
 
@@ -188,9 +189,9 @@ class MultipleDefinitionsRule(GraphRule):
 
     def _validate_graph(
         self, graph, notebook: NotebookSerialization
-    ) -> list[LintError]:
+    ) -> list[Diagnostic]:
         """Validate the graph for multiple definitions."""
-        errors = []
+        diagnostics = []
         validation_errors = check_for_multiple_definitions(graph)
 
         names = {}
@@ -208,8 +209,8 @@ class MultipleDefinitionsRule(GraphRule):
             lines = [info["line"] for info in names[name]]
             columns = [info["column"] for info in names[name]]
             cell_id = [info["cell_id"] for info in names[name]]
-            errors.append(
-                LintError(
+            diagnostics.append(
+                Diagnostic(
                     code=self.code,
                     name=self.name,
                     message=f"Variable '{name}' is defined in multiple cells",
@@ -223,7 +224,7 @@ class MultipleDefinitionsRule(GraphRule):
                 )
             )
 
-        return errors
+        return diagnostics
 
 
 class CycleDependenciesRule(GraphRule):
@@ -261,9 +262,9 @@ class CycleDependenciesRule(GraphRule):
 
     def _validate_graph(
         self, graph, notebook: NotebookSerialization
-    ) -> list[LintError]:
+    ) -> list[Diagnostic]:
         """Validate the graph for circular dependencies."""
-        errors = []
+        diagnostics = []
         validation_errors = check_for_cycles(graph)
 
         seen = set()
@@ -286,8 +287,8 @@ class CycleDependenciesRule(GraphRule):
                         lines.append(line)
                         columns.append(column)
 
-                errors.append(
-                    LintError(
+                diagnostics.append(
+                    Diagnostic(
                         code=self.code,
                         name=self.name,
                         message="Cell is part of a circular dependency",
@@ -299,7 +300,7 @@ class CycleDependenciesRule(GraphRule):
                     )
                 )
 
-        return errors
+        return diagnostics
 
 
 class SetupCellDependenciesRule(GraphRule):
@@ -338,9 +339,9 @@ class SetupCellDependenciesRule(GraphRule):
 
     def _validate_graph(
         self, graph, notebook: NotebookSerialization
-    ) -> list[LintError]:
+    ) -> list[Diagnostic]:
         """Validate the graph for setup cell dependency violations."""
-        errors = []
+        diagnostics = []
         validation_errors = check_for_invalid_root(graph)
 
         for cell_id, error_list in validation_errors.items():
@@ -351,8 +352,8 @@ class SetupCellDependenciesRule(GraphRule):
                     (cell.lineno, cell.col_offset + 1) if cell else (0, 0)
                 )
 
-                errors.append(
-                    LintError(
+                diagnostics.append(
+                    Diagnostic(
                         code=self.code,
                         name=self.name,
                         message="Setup cell cannot have dependencies",
@@ -364,4 +365,4 @@ class SetupCellDependenciesRule(GraphRule):
                     )
                 )
 
-        return errors
+        return diagnostics

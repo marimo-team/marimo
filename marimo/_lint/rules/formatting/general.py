@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 from marimo._ast.parse import NotebookSerialization
-from marimo._lint.rules.base import LintError, LintRule, Severity
+from marimo._lint.diagnostic import Diagnostic, Severity
+from marimo._lint.rules.base import LintRule
 
 
 class GeneralFormattingRule(LintRule):
@@ -17,9 +18,9 @@ class GeneralFormattingRule(LintRule):
             fixable=True,
         )
 
-    def check(self, notebook: NotebookSerialization) -> list[LintError]:
+    def check(self, notebook: NotebookSerialization) -> list[Diagnostic]:
         """Check for general formatting issues by extracting violations from serialization."""
-        errors = []
+        diagnostics = []
 
         # Import the violation constants to check for specific types
         from marimo._ast.parse import (
@@ -39,9 +40,9 @@ class GeneralFormattingRule(LintRule):
                 UNEXPECTED_STATEMENT_APP_INIT_VIOLATION,
             ]
 
-            # Convert Violation to LintError
-            errors.append(
-                LintError(
+            # Convert Violation to Diagnostic
+            diagnostics.append(
+                Diagnostic(
                     code=self.code,
                     name=self.name,
                     message=violation.description,
@@ -54,4 +55,4 @@ class GeneralFormattingRule(LintRule):
                 )
             )
 
-        return errors
+        return diagnostics
