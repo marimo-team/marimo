@@ -1,4 +1,12 @@
 error[setup-cell-dependencies]: Setup cell cannot have dependencies
  --> tests/_lint/test_files/setup_dependencies.py:8:1
+   7 | 
+   8 | with app.setup:
+   9 |     y = x + 1  # This should trigger MR003 - setup cell dependencies
+     |     ^
 warning[general-formatting]: Unexpected statement, expected cell definitions.
  --> tests/_lint/test_files/setup_dependencies.py:6:1
+   5 | 
+   6 | x = 1
+   7 | 
+     |     ^

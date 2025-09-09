@@ -1,2 +1,16 @@
 error[cycle-dependencies]: Cell is part of a circular dependency
- --> tests/_lint/test_files/cycle_dependencies.py:14:1
+ --> tests/_lint/test_files/cycle_dependencies.py:8:1
+   7 | @app.cell
+   8 | def _(z):
+   9 |     x = 1 + z  # This should trigger MR002 - cycle dependency
+     |     ^
+   ...
+  13 | @app.cell
+  14 | def _(x):
+  15 |     y = x + 1
+     |     ^
+   ...
+  19 | @app.cell
+  20 | def _(y):
+  21 |     z = y + 1
+     |     ^
