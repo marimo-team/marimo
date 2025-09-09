@@ -120,8 +120,6 @@ class ReasoningPart:
     type: Literal["reasoning"]
     text: str
     details: Optional[list[ReasoningDetails]] = None
-    text: str
-    details: Optional[list[ReasoningDetails]] = None
 
 
 @dataclass
