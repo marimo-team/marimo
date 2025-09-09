@@ -115,8 +115,8 @@ class ReasoningPart:
     """Represents a reasoning content part."""
 
     type: Literal["reasoning"]
-    reasoning: str
-    details: list[ReasoningDetails]
+    text: str
+    details: Optional[list[ReasoningDetails]] = None
 
 
 @dataclass
@@ -194,7 +194,7 @@ class ChatMessage(msgspec.Struct):
                 continue
 
         raise msgspec.DecodeError(
-            f"Could not decode part as any of {PART_TYPES}"
+            f"Could not decode part as any of {PART_TYPES}, for part {part}"
         )
 
 

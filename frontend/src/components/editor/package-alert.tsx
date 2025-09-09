@@ -607,7 +607,9 @@ const StreamingLogsViewer: React.FC<StreamingLogsViewerProps> = ({
   const [isExpanded, setIsExpanded] = useState(true);
 
   const packageCount = Object.keys(packageLogs).length;
-  if (packageCount === 0) return null;
+  if (packageCount === 0) {
+    return null;
+  }
 
   return (
     <div className="mt-4 border-t border-border pt-4 w-full">

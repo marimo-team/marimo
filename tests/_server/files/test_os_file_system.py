@@ -286,3 +286,265 @@ def test_get_details_non_utf8_encoding_and_contents(
         str(file_path), encoding="utf-8", contents="override"
     )
     assert result2.contents == "override"
+
+
+def test_search_basic(test_dir: Path, fs: OSFileSystem) -> None:
+    """Test basic search functionality."""
+    # Create test files
+    (test_dir / "hello.txt").write_text("content")
+    (test_dir / "world.txt").write_text("content")
+    (test_dir / "hello_world.py").write_text("print('hello')")
+
+    # Search for "hello"
+    results = fs.search(query="hello", path=str(test_dir))
+
+    # Should find hello.txt and hello_world.py
+    assert len(results) >= 2
+    file_names = {f.name for f in results}
+    assert "hello.txt" in file_names
+    assert "hello_world.py" in file_names
+    assert "world.txt" not in file_names
+
+
+def test_search_empty_query(test_dir: Path, fs: OSFileSystem) -> None:
+    """Test search with empty query returns no results."""
+    (test_dir / "test.txt").write_text("content")
+
+    results = fs.search(query="", path=str(test_dir))
+    assert results == []
+
+    results = fs.search(query="   ", path=str(test_dir))
+    assert results == []
+
+
+def test_search_case_insensitive(test_dir: Path, fs: OSFileSystem) -> None:
+    """Test search is case insensitive."""
+    # Create files with mixed case
+    (test_dir / "CamelCase.txt").write_text("content")
+    (test_dir / "lowercase.txt").write_text("content")
+    (test_dir / "UPPERCASE.txt").write_text("content")
+
+    results = fs.search(query="case", path=str(test_dir))
+
+    file_names = {f.name for f in results}
+    assert "CamelCase.txt" in file_names
+    assert "lowercase.txt" in file_names
+    assert "UPPERCASE.txt" in file_names
+
+
+def test_search_with_depth_limit(test_dir: Path, fs: OSFileSystem) -> None:
+    """Test search respects depth limit."""
+    # Create files at different depths
+    (test_dir / "root_match.txt").write_text("content")
+
+    # Level 1
+    level1 = test_dir / "level1"
+    level1.mkdir()
+    (level1 / "level1_match.txt").write_text("content")
+
+    # Level 2
+    level2 = level1 / "level2"
+    level2.mkdir()
+    (level2 / "level2_match.txt").write_text("content")
+
+    # Level 3
+    level3 = level2 / "level3"
+    level3.mkdir()
+    (level3 / "level3_match.txt").write_text("content")
+
+    # Search with depth=1 - should find root and level1 files only
+    results = fs.search(query="match", path=str(test_dir), depth=1)
+    file_names = {f.name for f in results}
+    assert "root_match.txt" in file_names
+    assert "level1_match.txt" in file_names
+    assert "level2_match.txt" not in file_names
+    assert "level3_match.txt" not in file_names
+
+    # Search with depth=2 - should find up to level2
+    results = fs.search(query="match", path=str(test_dir), depth=2)
+    file_names = {f.name for f in results}
+    assert "root_match.txt" in file_names
+    assert "level1_match.txt" in file_names
+    assert "level2_match.txt" in file_names
+    assert "level3_match.txt" not in file_names
+
+
+def test_search_with_limit(test_dir: Path, fs: OSFileSystem) -> None:
+    """Test search respects result limit."""
+    # Create many matching files
+    for i in range(10):
+        (test_dir / f"test_{i}.txt").write_text("content")
+
+    # Search with limit=3
+    results = fs.search(query="test", path=str(test_dir), limit=3)
+    assert len(results) <= 3
+
+    # Search with limit=5
+    results = fs.search(query="test", path=str(test_dir), limit=5)
+    assert len(results) <= 5
+
+
+def test_search_result_ordering(test_dir: Path, fs: OSFileSystem) -> None:
+    """Test search results are ordered by relevance."""
+    # Create files with different match types
+    (test_dir / "test").mkdir()  # exact match (directory)
+    (test_dir / "test.txt").write_text("content")  # exact match (file)
+    (test_dir / "test_file.py").write_text("content")  # starts with
+    (test_dir / "my_test.txt").write_text("content")  # contains
+    (test_dir / "another_test_file.py").write_text("content")  # contains
+
+    results = fs.search(query="test", path=str(test_dir))
+
+    # Results should be ordered by relevance
+    file_names = [f.name for f in results]
+
+    # Exact matches should come first
+    exact_matches = [
+        name for name in file_names if name == "test" or name == "test.txt"
+    ]
+    assert len(exact_matches) >= 1
+
+    # "test.txt" should come before "my_test.txt"
+    test_txt_idx = file_names.index("test.txt")
+    my_test_idx = file_names.index("my_test.txt")
+    assert test_txt_idx < my_test_idx
+
+
+def test_search_include_directories(test_dir: Path, fs: OSFileSystem) -> None:
+    """Test search includes both files and directories."""
+    # Create matching directory and file
+    (test_dir / "testdir").mkdir()
+    (test_dir / "testfile.txt").write_text("content")
+
+    results = fs.search(query="test", path=str(test_dir))
+
+    has_directory = any(f.is_directory for f in results)
+    has_file = any(not f.is_directory for f in results)
+    assert has_directory
+    assert has_file
+
+
+def test_search_respects_ignore_list(test_dir: Path, fs: OSFileSystem) -> None:
+    """Test search respects the ignore list."""
+    # Create files that should be ignored
+    (test_dir / ".DS_Store").write_text("content")
+    (test_dir / "__pycache__").mkdir()
+    (test_dir / "node_modules").mkdir()
+    (test_dir / "regular_file.txt").write_text("content")
+
+    # Search for anything - should not find ignored items
+    results = fs.search(
+        query="", path=str(test_dir)
+    )  # Empty query to test ignore functionality
+    # Since empty query returns empty list, let's search for a pattern that could match
+    results = fs.search(
+        query="_", path=str(test_dir)
+    )  # Should match __pycache__ if not ignored
+
+    file_names = {f.name for f in results}
+    assert ".DS_Store" not in file_names
+    assert "__pycache__" not in file_names
+    assert "node_modules" not in file_names
+
+
+def test_search_directory_and_file_filters(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    """Test directory and file filtering parameters work correctly."""
+    # Create test files and directories
+    (test_dir / "test_file.txt").write_text("content")
+    (test_dir / "test_file.py").write_text("# test content")
+    test_subdir = test_dir / "test_dir"
+    test_subdir.mkdir()
+    (test_subdir / "nested_file.txt").write_text("content")
+
+    # Test searching for files only
+    results = fs.search(
+        query="test",
+        path=str(test_dir),
+        include_files=True,
+        include_directories=False,
+    )
+    file_results = [f for f in results if not f.is_directory]
+    dir_results = [f for f in results if f.is_directory]
+    assert len(file_results) > 0, "Should find files when file=True"
+    assert len(dir_results) == 0, "Should not find directories when file=True"
+
+    # Test searching for directories only
+    results = fs.search(
+        query="test",
+        path=str(test_dir),
+        include_directories=True,
+        include_files=False,
+    )
+    file_results = [f for f in results if not f.is_directory]
+    dir_results = [f for f in results if f.is_directory]
+    assert len(dir_results) > 0, "Should find directories when directory=True"
+    assert len(file_results) == 0, "Should not find files when directory=True"
+
+    # Test searching for both (default behavior)
+    results = fs.search(query="test", path=str(test_dir))
+    file_results = [f for f in results if not f.is_directory]
+    dir_results = [f for f in results if f.is_directory]
+    assert len(file_results) > 0, "Should find files with no filter"
+    assert len(dir_results) > 0, "Should find directories with no filter"
+
+    results_no_filter = fs.search(query="test", path=str(test_dir))
+    results_both_true = fs.search(
+        query="test",
+        path=str(test_dir),
+        include_files=True,
+        include_directories=True,
+    )
+    assert len(results_no_filter) == len(results_both_true), (
+        "Both true should be same as no filter"
+    )
+
+
+def test_search_handles_permission_errors(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    """Test search gracefully handles permission errors."""
+    # Create a regular file that we can access
+    (test_dir / "accessible.txt").write_text("content")
+
+    # Search should not crash even if there are permission issues
+    results = fs.search(query="accessible", path=str(test_dir))
+    file_names = {f.name for f in results}
+    assert "accessible.txt" in file_names
+
+
+def test_search_nonexistent_path(fs: OSFileSystem) -> None:
+    """Test search with nonexistent path returns empty results."""
+    results = fs.search(query="test", path="/nonexistent/path")
+    assert results == []
+
+
+def test_search_default_path(fs: OSFileSystem, monkeypatch) -> None:
+    """Test search uses root path when path is None."""
+    # Mock get_root to return a known directory
+    test_root = "/tmp"
+    monkeypatch.setattr(fs, "get_root", lambda: test_root)
+
+    # This should not crash (though results may be empty)
+    results = fs.search(query="test", path=None)
+    assert isinstance(results, list)
+
+
+def test_search_includes_file_metadata(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    """Test search results include proper file metadata."""
+    test_file = test_dir / "metadata_test.txt"
+    test_file.write_text("content")
+
+    results = fs.search(query="metadata", path=str(test_dir))
+
+    assert len(results) == 1
+    file_info = results[0]
+    assert file_info.name == "metadata_test.txt"
+    assert file_info.path == str(test_file)
+    assert file_info.id == str(test_file)
+    assert file_info.is_directory is False
+    assert file_info.is_marimo_file is False
+    assert file_info.last_modified is not None

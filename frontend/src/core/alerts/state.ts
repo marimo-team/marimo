@@ -67,17 +67,28 @@ const { valueAtom: alertAtom, useActions } = createReducerAndAtoms(
       // Handle streaming logs for installing package alerts
       if (isInstallingPackageAlert(alert) && alert.logs && alert.log_status) {
         for (const [packageName, newContent] of Object.entries(alert.logs)) {
-          if (alert.log_status === "start") {
-            // Start new log for this package
-            newPackageLogs[packageName] = newContent;
-          } else if (alert.log_status === "append") {
-            // Append to existing log
-            const prevContent = newPackageLogs[packageName] || "";
-            newPackageLogs[packageName] = prevContent + newContent;
-          } else if (alert.log_status === "done") {
-            // Append final content and mark as done
-            const prevContent = newPackageLogs[packageName] || "";
-            newPackageLogs[packageName] = prevContent + newContent;
+          switch (alert.log_status) {
+            case "start":
+              // Start new log for this package
+              newPackageLogs[packageName] = newContent;
+
+              break;
+
+            case "append": {
+              // Append to existing log
+              const prevContent = newPackageLogs[packageName] || "";
+              newPackageLogs[packageName] = prevContent + newContent;
+
+              break;
+            }
+            case "done": {
+              // Append final content and mark as done
+              const prevContent = newPackageLogs[packageName] || "";
+              newPackageLogs[packageName] = prevContent + newContent;
+
+              break;
+            }
+            // No default
           }
         }
       }

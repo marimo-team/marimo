@@ -26,8 +26,11 @@ export function deserializeJson<T>(jsonString: JsonString<T>): T {
   return JSON.parse(jsonString) as T;
 }
 
-export function base64ToDataURL<T>(base64: Base64String<T>, mimeType: string) {
-  return `data:${mimeType};base64,${base64}`;
+export function base64ToDataURL<T>(
+  base64: Base64String<T>,
+  mimeType: string,
+): DataURLString {
+  return `data:${mimeType};base64,${base64}` as DataURLString;
 }
 
 export function typedAtob<T>(base64: Base64String<T>): ByteString<T> {

@@ -70,7 +70,7 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
                 parts.append(
                     ReasoningPart(
                         type="reasoning",
-                        reasoning=part_dict["reasoning"],
+                        text=part_dict["reasoning"],
                         details=details,
                     )
                 )

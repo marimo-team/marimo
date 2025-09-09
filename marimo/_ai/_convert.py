@@ -153,7 +153,7 @@ def get_anthropic_parts_from_chat_parts(
 
             thinking_message: ThinkingBlockParam = {
                 "type": "thinking",
-                "thinking": part.reasoning,
+                "thinking": part.text,
                 "signature": signature,
             }
             anthropic_parts.append(thinking_message)
@@ -289,7 +289,7 @@ def get_google_messages_from_parts(
             # According to Google's thinking models documentation
             reasoning_message: ContentDict = {
                 "role": "user" if role == "user" else "model",
-                "parts": [{"text": part.reasoning, "thought": True}],
+                "parts": [{"text": part.text, "thought": True}],
             }
             messages.append(reasoning_message)
         elif isinstance(part, FilePart):

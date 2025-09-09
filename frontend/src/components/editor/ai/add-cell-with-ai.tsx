@@ -301,6 +301,7 @@ interface PromptInputProps {
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   additionalCompletions?: AdditionalCompletions;
   maxHeight?: string;
+  onAddFiles?: (files: File[]) => void;
 }
 
 /**
@@ -318,6 +319,7 @@ export const PromptInput = ({
   onSubmit,
   onKeyDown,
   onClose,
+  onAddFiles,
   additionalCompletions,
   maxHeight,
 }: PromptInputProps) => {
@@ -346,7 +348,11 @@ export const PromptInput = ({
     return [
       autocompletion({}),
       markdownLanguage,
-      resourceExtension(markdownLanguage.language, store),
+      resourceExtension({
+        language: markdownLanguage.language,
+        store,
+        onAddFiles,
+      }),
       markdownLanguage.language.data.of({
         autocomplete: additionalCompletionsSource,
       }),
@@ -411,7 +417,13 @@ export const PromptInput = ({
         },
       ]),
     ];
-  }, [store, additionalCompletionsSource, handleSubmit, handleEscape]);
+  }, [
+    store,
+    onAddFiles,
+    additionalCompletionsSource,
+    handleSubmit,
+    handleEscape,
+  ]);
 
   return (
     <ReactCodeMirror

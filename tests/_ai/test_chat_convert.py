@@ -100,7 +100,7 @@ def test_convert_to_openai_messages_with_parts():
                 ),
                 ReasoningPart(
                     type="reasoning",
-                    reasoning="Deep thinking process",
+                    text="Deep thinking process",
                     details=[
                         ReasoningDetails(
                             type="text", text="Analysis", signature=None
@@ -131,7 +131,7 @@ def test_convert_to_openai_messages_with_parts():
                 {"type": "text", "text": "Message with parts and attachments"},
                 {
                     "type": "reasoning",
-                    "reasoning": "Deep thinking process",
+                    "text": "Deep thinking process",
                     "details": [
                         {"type": "text", "text": "Analysis", "signature": None}
                     ],
@@ -352,9 +352,7 @@ def test_from_chat_message_dict():
     assert result_with_parts.parts[0].type == "text"
     assert result_with_parts.parts[0].text == "This is a text part"
     assert result_with_parts.parts[1].type == "reasoning"
-    assert (
-        result_with_parts.parts[1].reasoning == "This is my reasoning process"
-    )
+    assert result_with_parts.parts[1].text == "This is my reasoning process"
 
     # Test case 4: ChatMessage with tool invocation part (result state only)
     message_dict_tool_result = {
@@ -658,7 +656,7 @@ def test_get_anthropic_parts_from_chat_parts_with_reasoning():
         TextPart(type="text", text="Let me think about this"),
         ReasoningPart(
             type="reasoning",
-            reasoning="My thinking process here",
+            text="My thinking process here",
             details=reasoning_details,
         ),
     ]
@@ -683,7 +681,7 @@ def test_get_anthropic_parts_from_chat_parts_reasoning_no_signature():
     parts = [
         ReasoningPart(
             type="reasoning",
-            reasoning="Basic reasoning",
+            text="Basic reasoning",
             details=reasoning_details,
         ),
     ]
@@ -703,7 +701,7 @@ def test_get_anthropic_parts_from_empty_reasoning_details_chat_part():
     parts = [
         ReasoningPart(
             type="reasoning",
-            reasoning="Some reasoning",
+            text="Some reasoning",
             details=[],  # Empty details
         ),
     ]
@@ -794,7 +792,7 @@ def test_get_google_messages_from_parts_with_reasoning():
         TextPart(type="text", text="Regular text"),
         ReasoningPart(
             type="reasoning",
-            reasoning="Deep thinking process",
+            text="Deep thinking process",
             details=reasoning_details,
         ),
     ]

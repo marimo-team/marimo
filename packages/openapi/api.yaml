@@ -1390,6 +1390,47 @@ components:
       - path
       title: FileOpenRequest
       type: object
+    FileSearchRequest:
+      properties:
+        depth:
+          default: 3
+          type: integer
+        includeDirectories:
+          default: true
+          type: boolean
+        includeFiles:
+          default: true
+          type: boolean
+        limit:
+          default: 100
+          type: integer
+        path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        query:
+          type: string
+      required:
+      - query
+      title: FileSearchRequest
+      type: object
+    FileSearchResponse:
+      properties:
+        files:
+          items:
+            $ref: '#/components/schemas/FileInfo'
+          type: array
+        query:
+          type: string
+        totalFound:
+          type: integer
+      required:
+      - files
+      - query
+      - totalFound
+      title: FileSearchResponse
+      type: object
     FileUpdateRequest:
       properties:
         contents:
@@ -3673,6 +3714,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseResponse'
           description: Open a file in the system editor
+  /api/files/search:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileSearchRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileSearchResponse'
+          description: Search for files and directories matching a query
   /api/files/update:
     post:
       requestBody:
