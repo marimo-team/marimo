@@ -7,13 +7,13 @@ from marimo._schemas.serialization import UnparsableCell
 
 
 class UnparsableCellsRule(LintRule):
-    """MB001: Cell contains unparseable code."""
+    """MB001: Cell contains unparsable code."""
 
     def __init__(self):
         super().__init__(
             code="MB001",
             name="unparsable-cells",
-            description="Cell contains unparseable code",
+            description="Cell contains unparsable code",
             severity=Severity.BREAKING,
             fixable=False,
         )
@@ -32,7 +32,7 @@ class UnparsableCellsRule(LintRule):
                     LintError(
                         code=self.code,
                         name=self.name,
-                        message="Notebook contains unparseable code",
+                        message="Notebook contains unparsable code",
                         severity=self.severity,
                         cell_id=None,  # CellDef doesn't have cell_id
                         line=line_num,
