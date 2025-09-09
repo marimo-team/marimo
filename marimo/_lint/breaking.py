@@ -1,10 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import List
-
-from marimo._lint.base import LintError, LintRule, Severity
 from marimo._ast.parse import NotebookSerialization
+from marimo._lint.base import LintError, LintRule, Severity
 from marimo._schemas.serialization import UnparsableCell
 
 
@@ -20,7 +18,7 @@ class UnparsableCellsRule(LintRule):
             fixable=False,
         )
 
-    def check(self, notebook: NotebookSerialization) -> List[LintError]:
+    def check(self, notebook: NotebookSerialization) -> list[LintError]:
         """Check for unparsable cells."""
         errors = []
 
@@ -34,7 +32,7 @@ class UnparsableCellsRule(LintRule):
                     LintError(
                         code=self.code,
                         name=self.name,
-                        message=f"Notebook contains unparseable code",
+                        message="Notebook contains unparseable code",
                         severity=self.severity,
                         cell_id=None,  # CellDef doesn't have cell_id
                         line=line_num,

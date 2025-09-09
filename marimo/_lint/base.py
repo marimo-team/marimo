@@ -4,12 +4,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
 
-from marimo._types.ids import CellId_t
 from marimo._ast.parse import NotebookSerialization
-
-from marimo._cli.print import red, yellow, bold, cyan
+from marimo._cli.print import bold, cyan, red, yellow
+from marimo._types.ids import CellId_t
 
 
 class Severity(Enum):
@@ -120,6 +119,6 @@ class LintRule(ABC):
         self.fixable = fixable
 
     @abstractmethod
-    def check(self, notebook: NotebookSerialization) -> List[LintError]:
+    def check(self, notebook: NotebookSerialization) -> list[LintError]:
         """Check notebook for violations of this rule."""
         pass

@@ -6,9 +6,9 @@ import json
 import os
 import sys
 import tempfile
+from glob import glob
 from pathlib import Path
 from typing import Any, Optional
-from glob import glob
 
 import click
 
@@ -1303,7 +1303,7 @@ def lint(
                 # Get code lines for context display
                 # Read the original file to get the complete code for context
                 try:
-                    with open(file, "r", encoding="utf-8") as f:
+                    with open(file, encoding="utf-8") as f:
                         code_lines = f.read().split("\n")
                 except Exception:
                     # Fallback: build from notebook cells

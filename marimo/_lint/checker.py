@@ -1,21 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import List
-
-from marimo._lint.base import LintError, LintRule, Severity
 from marimo._ast.parse import NotebookSerialization
+from marimo._lint.base import LintError, LintRule
 
 
 class LintChecker:
     """Orchestrates lint rules and provides checking and fixing functionality."""
 
-    def __init__(self, rules: List[LintRule]):
+    def __init__(self, rules: list[LintRule]):
         self.rules = rules
 
     def check_notebook(
         self, notebook: NotebookSerialization
-    ) -> List[LintError]:
+    ) -> list[LintError]:
         """Check notebook for all lint rule violations."""
         errors = []
 
@@ -28,13 +26,13 @@ class LintChecker:
     @classmethod
     def create_default(cls) -> LintChecker:
         """Create a LintChecker with all default rules."""
+        from marimo._lint.breaking import UnparsableCellsRule
         from marimo._lint.formatting import GeneralFormattingRule
         from marimo._lint.runtime import (
-            MultipleDefinitionsRule,
             CycleDependenciesRule,
+            MultipleDefinitionsRule,
             SetupCellDependenciesRule,
         )
-        from marimo._lint.breaking import UnparsableCellsRule
 
         rules = [
             GeneralFormattingRule(),

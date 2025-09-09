@@ -1,20 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo._ast.parse import NotebookSerialization
 from marimo._lint.base import LintError, LintRule, Severity
+from marimo._lint.breaking import UnparsableCellsRule
 from marimo._lint.checker import LintChecker
 from marimo._lint.formatting import GeneralFormattingRule
 from marimo._lint.runtime import (
-    MultipleDefinitionsRule,
     CycleDependenciesRule,
+    MultipleDefinitionsRule,
     SetupCellDependenciesRule,
 )
-from marimo._lint.breaking import UnparsableCellsRule
-from marimo._ast.parse import NotebookSerialization
-from typing import List
 
 
-def lint_notebook(notebook: NotebookSerialization) -> List[LintError]:
+def lint_notebook(notebook: NotebookSerialization) -> list[LintError]:
     """Lint a notebook and return all errors found.
 
     Args:

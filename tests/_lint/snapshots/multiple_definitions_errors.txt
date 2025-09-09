@@ -1,0 +1,2 @@
+error[multiple-definitions]: Variable 'x' is defined in multiple cells
+ --> tests/_lint/test_files/multiple_definitions.py:15:1

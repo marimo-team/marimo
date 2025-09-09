@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import io
 import token as token_types
+import warnings
 from pathlib import Path
 from textwrap import dedent
 from tokenize import TokenInfo, tokenize
@@ -16,7 +17,6 @@ from typing import (
     Union,
     cast,
 )
-import warnings
 
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._schemas.serialization import (

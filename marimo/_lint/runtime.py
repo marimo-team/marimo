@@ -1,19 +1,22 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import List, Optional
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 
+from marimo._ast.load import load_notebook_ir
+from marimo._ast.parse import NotebookSerialization, ast_parse
 from marimo._lint.base import LintError, LintRule, Severity
 from marimo._lint.validate_graph import (
-    check_for_multiple_definitions,
     check_for_cycles,
     check_for_invalid_root,
+    check_for_multiple_definitions,
 )
 from marimo._lint.visitors import VariableLineVisitor
 from marimo._utils.cell_matching import match_cell_ids_by_similarity
-from marimo._ast.parse import NotebookSerialization, ast_parse
-from marimo._ast.load import load_notebook_ir
+
+if TYPE_CHECKING:
+    from marimo._runtime.dataflow import DataflowGraph
 
 
 class GraphRule(LintRule):
@@ -28,7 +31,7 @@ class GraphRule(LintRule):
     definitions and references. marimo uses this graph to determine execution order
     and enforce constraints that make notebooks reliable and shareable.
 
-    See also:
+    See Also:
         - https://docs.marimo.io/guides/understanding_errors/ (Understanding errors)
         - https://docs.marimo.io/guides/editor_features/understanding_dataflow/ (Dataflow)
     """
@@ -43,7 +46,7 @@ class GraphRule(LintRule):
     ):
         super().__init__(code, name, description, severity, fixable)
 
-    def _get_graph(self, notebook: NotebookSerialization):
+    def _get_graph(self, notebook: NotebookSerialization) -> DataflowGraph:
         """Get the dependency graph from the notebook."""
         app = load_notebook_ir(notebook)
         graph = app._graph
@@ -55,7 +58,7 @@ class GraphRule(LintRule):
         # app._maybe_initialize()
         return app._graph
 
-    def _get_cell_from_id(self, cell_id: str, notebook: NotebookSerialization):
+    def _get_cell_from_id(self, cell_id: str, notebook: NotebookSerialization) -> DataflowGraph | None:
         """Get the corresponding CellDef from notebook serialization for a given cell_id."""
         # For setup cells, use the special setup cell name
         if cell_id == "setup":
@@ -119,7 +122,7 @@ class GraphRule(LintRule):
         # Fallback to (0, 0) to indicate unknown line/column
         return 0, 0
 
-    def check(self, notebook: NotebookSerialization) -> List[LintError]:
+    def check(self, notebook: NotebookSerialization) -> list[LintError]:
         """Perform graph-based validation.
 
         Args:
@@ -137,7 +140,7 @@ class GraphRule(LintRule):
     @abstractmethod
     def _validate_graph(
         self, graph, notebook: NotebookSerialization
-    ) -> List[LintError]:
+    ) -> list[LintError]:
         """Abstract method to validate the graph and return LintError objects.
 
         Args:
@@ -160,7 +163,7 @@ class MultipleDefinitionsRule(GraphRule):
     When a variable is defined in multiple cells, marimo cannot determine which
     definition to use, leading to unpredictable behavior and hidden bugs.
 
-    See also:
+    See Also:
         - https://docs.marimo.io/guides/understanding_errors/multiple_definitions/
         - https://docs.marimo.io/guides/understanding_errors/ (Understanding errors)
 
@@ -185,7 +188,7 @@ class MultipleDefinitionsRule(GraphRule):
 
     def _validate_graph(
         self, graph, notebook: NotebookSerialization
-    ) -> List[LintError]:
+    ) -> list[LintError]:
         """Validate the graph for multiple definitions."""
         errors = []
         validation_errors = check_for_multiple_definitions(graph)
@@ -233,7 +236,7 @@ class CycleDependenciesRule(GraphRule):
     Cycles make notebooks non-reproducible and prevent marimo from determining
     the correct execution order, leading to undefined behavior.
 
-    See also:
+    See Also:
         - https://docs.marimo.io/guides/understanding_errors/cycles/
         - https://docs.marimo.io/guides/understanding_errors/ (Understanding errors)
 
@@ -258,7 +261,7 @@ class CycleDependenciesRule(GraphRule):
 
     def _validate_graph(
         self, graph, notebook: NotebookSerialization
-    ) -> List[LintError]:
+    ) -> list[LintError]:
         """Validate the graph for circular dependencies."""
         errors = []
         validation_errors = check_for_cycles(graph)
@@ -273,9 +276,9 @@ class CycleDependenciesRule(GraphRule):
                 cells = []
                 lines = []
                 columns = []
-                for cell_id, vars, _ in error.edges_with_vars:
+                for cell_id, variables, _ in error.edges_with_vars:
                     # Get cell from notebook serialization
-                    for v in vars:
+                    for v in variables:
                         line, column = self._get_variable_line_info(
                             cell_id, v, notebook
                         )
@@ -310,7 +313,7 @@ class SetupCellDependenciesRule(GraphRule):
     The setup cell is designed for imports, configuration, and other initialization
     code that should run before any other cells execute.
 
-    See also:
+    See Also:
         - https://docs.marimo.io/guides/understanding_errors/setup/
         - https://docs.marimo.io/guides/understanding_errors/ (Understanding errors)
 
@@ -335,13 +338,13 @@ class SetupCellDependenciesRule(GraphRule):
 
     def _validate_graph(
         self, graph, notebook: NotebookSerialization
-    ) -> List[LintError]:
+    ) -> list[LintError]:
         """Validate the graph for setup cell dependency violations."""
         errors = []
         validation_errors = check_for_invalid_root(graph)
 
         for cell_id, error_list in validation_errors.items():
-            for error in error_list:
+            for _ in error_list:
                 # Get cell from notebook serialization
                 cell = self._get_cell_from_id(cell_id, notebook)
                 line, column = (

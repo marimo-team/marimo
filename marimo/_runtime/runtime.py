@@ -42,6 +42,7 @@ from marimo._data.preview_column import (
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._entrypoints.registry import EntryPointRegistry
+from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
@@ -165,7 +166,6 @@ from marimo._runtime.state import State
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
 )
-from marimo._lint.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._secrets.load_dotenv import (
     load_dotenv_with_fallback,

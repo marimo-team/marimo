@@ -11,9 +11,9 @@ import re
 import sys
 import textwrap
 import token as token_types
+import warnings
 from tokenize import tokenize
 from typing import TYPE_CHECKING, Any, Callable, Optional
-import warnings
 
 from marimo import _loggers
 from marimo._ast import parse

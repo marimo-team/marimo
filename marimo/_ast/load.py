@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Optional, Union
-from dataclasses import dataclass
 
 from marimo import _loggers
 from marimo._ast.app import App, InternalApp
@@ -15,8 +15,6 @@ from marimo._ast.parse import (
     parse_notebook,
 )
 from marimo._schemas.serialization import NotebookSerialization, UnparsableCell
-from marimo._ast.parse import MarimoFileError, parse_notebook
-from marimo._schemas.serialization import UnparsableCell, NotebookSerialization
 
 LOGGER = _loggers.marimo_logger()
 

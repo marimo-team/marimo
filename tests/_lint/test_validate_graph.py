@@ -6,13 +6,13 @@ from typing import cast
 
 from marimo._ast import compiler
 from marimo._ast.names import SETUP_CELL_NAME
+from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.errors import (
     CycleError,
     MultipleDefinitionError,
     SetupRootError,
 )
 from marimo._runtime import dataflow
-from marimo._lint.validate_graph import check_for_errors
 
 parse_cell = partial(compiler.compile_cell, cell_id="0")
 

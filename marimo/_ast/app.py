@@ -23,8 +23,8 @@ from typing import (
 
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell_id import external_prefix
-from marimo._ast.variables import BUILTINS
 from marimo._ast.parse import ast_parse
+from marimo._ast.variables import BUILTINS
 from marimo._convert.converters import MarimoConvert
 from marimo._schemas.serialization import (
     AppInstantiation,

@@ -1,22 +1,22 @@
 # Copyright 2025 Marimo. All rights reserved.
 """Unit tests for the marimo lint system."""
 
-import pytest
+
+from marimo._ast.parse import parse_notebook
 from marimo._lint import lint_notebook
 from marimo._lint.base import Severity
+from marimo._lint.breaking import UnparsableCellsRule
 from marimo._lint.checker import LintChecker
 from marimo._lint.formatting import GeneralFormattingRule
 from marimo._lint.runtime import (
-    MultipleDefinitionsRule,
     CycleDependenciesRule,
+    MultipleDefinitionsRule,
     SetupCellDependenciesRule,
 )
-from marimo._lint.breaking import UnparsableCellsRule
-from marimo._ast.parse import parse_notebook
 from marimo._schemas.serialization import (
+    AppInstantiation,
     CellDef,
     NotebookSerializationV1,
-    AppInstantiation,
 )
 
 
