@@ -1224,7 +1224,7 @@ def shell_completion() -> None:
     )
 
 
-@main.command(help="""Lint and check marimo files.""")
+@main.command(help="""Check and format marimo files.""")
 @click.option(
     "--fix",
     is_flag=True,
@@ -1250,7 +1250,7 @@ def shell_completion() -> None:
     help="Whether to print detailed messages.",
 )
 @click.argument("files", nargs=-1, type=click.UNPROCESSED)
-def lint(
+def check(
     fix: bool, strict: bool, verbose: bool, files: tuple[str, ...]
 ) -> None:
     seen = set()

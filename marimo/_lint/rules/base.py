@@ -14,9 +14,9 @@ from marimo._types.ids import CellId_t
 class Severity(Enum):
     """Severity levels for lint errors."""
 
-    FORMATTING = "formatting"
-    RUNTIME = "runtime"
-    BREAKING = "breaking"
+    FORMATTING = "formatting" # prefix: MF0000
+    RUNTIME = "runtime"       # prefix: MR0000
+    BREAKING = "breaking"     # prefix: MB0000
 
 
 def line_num(line: int) -> str:
@@ -32,7 +32,7 @@ class LintError:
     name: str
     message: str
     severity: Severity
-    cell_id: list[CellId_t]
+    cell_id: None | list[CellId_t]
     line: int | list[int]
     column: int | list[int]
     fixable: bool

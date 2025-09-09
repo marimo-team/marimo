@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from marimo._ast.parse import NotebookSerialization
-from marimo._lint.base import LintError, LintRule, Severity
-from marimo._lint.breaking import UnparsableCellsRule
 from marimo._lint.checker import LintChecker
-from marimo._lint.formatting import GeneralFormattingRule
-from marimo._lint.runtime import (
+from marimo._lint.rules.base import LintError, LintRule, Severity
+from marimo._lint.rules.breaking import UnparsableRule
+from marimo._lint.rules.formatting import GeneralFormattingRule
+from marimo._lint.rules.runtime import (
     CycleDependenciesRule,
     MultipleDefinitionsRule,
     SetupCellDependenciesRule,
@@ -35,6 +35,6 @@ __all__ = [
     "MultipleDefinitionsRule",
     "CycleDependenciesRule",
     "SetupCellDependenciesRule",
-    "UnparsableCellsRule",
+    "UnparsableRule",
     "lint_notebook",
 ]

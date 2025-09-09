@@ -4,11 +4,11 @@
 
 from marimo._ast.parse import parse_notebook
 from marimo._lint import lint_notebook
-from marimo._lint.base import Severity
-from marimo._lint.breaking import UnparsableCellsRule
+from marimo._lint.rules.base import Severity
+from marimo._lint.rules.breaking import UnparsableRule
 from marimo._lint.checker import LintChecker
-from marimo._lint.formatting import GeneralFormattingRule
-from marimo._lint.runtime import (
+from marimo._lint.rules.formatting import GeneralFormattingRule
+from marimo._lint.rules.runtime import (
     CycleDependenciesRule,
     MultipleDefinitionsRule,
     SetupCellDependenciesRule,
@@ -146,7 +146,7 @@ class TestLintRules:
 
     def test_unparsable_cells_rule(self):
         """Test the unparsable cells rule."""
-        rule = UnparsableCellsRule()
+        rule = UnparsableRule()
 
         # Create a notebook with unparsable cell
         from marimo._schemas.serialization import UnparsableCell

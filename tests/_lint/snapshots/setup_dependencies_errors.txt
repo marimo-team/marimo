@@ -1,4 +1,4 @@
-warning[general-formatting]: Unexpected statement, expected cell definitions.
- --> tests/_lint/test_files/setup_dependencies.py:6:1
 error[setup-cell-dependencies]: Setup cell cannot have dependencies
  --> tests/_lint/test_files/setup_dependencies.py:8:1
+warning[general-formatting]: Unexpected statement, expected cell definitions.
+ --> tests/_lint/test_files/setup_dependencies.py:6:1

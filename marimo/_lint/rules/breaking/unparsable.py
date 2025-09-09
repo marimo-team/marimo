@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from marimo._ast.parse import NotebookSerialization
-from marimo._lint.base import LintError, LintRule, Severity
+from marimo._lint.rules.base import LintError, LintRule, Severity
 from marimo._schemas.serialization import UnparsableCell
 
 
-class UnparsableCellsRule(LintRule):
+class UnparsableRule(LintRule):
     """MB001: Cell contains unparsable code."""
 
     def __init__(self):
@@ -34,7 +34,7 @@ class UnparsableCellsRule(LintRule):
                         name=self.name,
                         message="Notebook contains unparsable code",
                         severity=self.severity,
-                        cell_id=None,  # CellDef doesn't have cell_id
+                        cell_id=None,
                         line=line_num,
                         column=col_num,
                         fixable=False,

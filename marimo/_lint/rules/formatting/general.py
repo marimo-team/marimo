@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from marimo._ast.parse import NotebookSerialization
-from marimo._lint.base import LintError, LintRule, Severity
+from marimo._lint.rules.base import LintError, LintRule, Severity
 
 
 class GeneralFormattingRule(LintRule):
@@ -12,7 +12,7 @@ class GeneralFormattingRule(LintRule):
         super().__init__(
             code="MF001",
             name="general-formatting",
-            description="General formatting issues (trailing whitespace, inconsistent spacing)",
+            description="General formatting issues with the notebook format.",
             severity=Severity.FORMATTING,
             fixable=True,
         )

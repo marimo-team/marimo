@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from marimo._ast.load import load_notebook_ir
 from marimo._ast.parse import NotebookSerialization, ast_parse
-from marimo._lint.base import LintError, LintRule, Severity
+from marimo._lint.rules.base import LintError, LintRule, Severity
 from marimo._lint.validate_graph import (
     check_for_cycles,
     check_for_invalid_root,
@@ -16,7 +16,7 @@ from marimo._lint.visitors import VariableLineVisitor
 from marimo._utils.cell_matching import match_cell_ids_by_similarity
 
 if TYPE_CHECKING:
-    from marimo._runtime.dataflow import DataflowGraph
+    from marimo._runtime.dataflow import DirectedGraph
 
 
 class GraphRule(LintRule):
@@ -46,7 +46,7 @@ class GraphRule(LintRule):
     ):
         super().__init__(code, name, description, severity, fixable)
 
-    def _get_graph(self, notebook: NotebookSerialization) -> DataflowGraph:
+    def _get_graph(self, notebook: NotebookSerialization) -> DirectedGraph:
         """Get the dependency graph from the notebook."""
         app = load_notebook_ir(notebook)
         graph = app._graph
@@ -58,7 +58,7 @@ class GraphRule(LintRule):
         # app._maybe_initialize()
         return app._graph
 
-    def _get_cell_from_id(self, cell_id: str, notebook: NotebookSerialization) -> DataflowGraph | None:
+    def _get_cell_from_id(self, cell_id: str, notebook: NotebookSerialization) -> DirectedGraph | None:
         """Get the corresponding CellDef from notebook serialization for a given cell_id."""
         # For setup cells, use the special setup cell name
         if cell_id == "setup":

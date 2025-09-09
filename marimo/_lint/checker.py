@@ -1,8 +1,14 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from marimo._ast.parse import NotebookSerialization
-from marimo._lint.base import LintError, LintRule
+from marimo._lint.rules import RULE_CODES
+
+
+if TYPE_CHECKING:
+    from marimo._lint.rules.base import LintError, LintRule
 
 
 class LintChecker:
@@ -26,20 +32,6 @@ class LintChecker:
     @classmethod
     def create_default(cls) -> LintChecker:
         """Create a LintChecker with all default rules."""
-        from marimo._lint.breaking import UnparsableCellsRule
-        from marimo._lint.formatting import GeneralFormattingRule
-        from marimo._lint.runtime import (
-            CycleDependenciesRule,
-            MultipleDefinitionsRule,
-            SetupCellDependenciesRule,
-        )
-
-        rules = [
-            GeneralFormattingRule(),
-            MultipleDefinitionsRule(),
-            CycleDependenciesRule(),
-            SetupCellDependenciesRule(),
-            UnparsableCellsRule(),
-        ]
-
+        # TODO: Filter rules based on user configuration if needed
+        rules = [rule() for rule in RULE_CODES.values()]
         return cls(rules)
