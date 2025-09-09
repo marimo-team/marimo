@@ -101,12 +101,12 @@ def convert_to_openai_messages(
 
     for message in messages:
         if not message.parts or len(message.parts) == 0:
-            text_part: ChatCompletionContentPartTextParam = {
+            content_part: ChatCompletionContentPartTextParam = {
                 "type": "text",
                 "text": message.content,
             }
             openai_messages.append(
-                {"role": message.role, "content": [text_part]}  # type: ignore
+                {"role": message.role, "content": [content_part]}  # type: ignore
             )
             continue
 
@@ -118,7 +118,13 @@ def convert_to_openai_messages(
             ]
         ] = []
         for part in message.parts:
-            if isinstance(part, FilePart):
+            if isinstance(part, TextPart):
+                text_part: ChatCompletionContentPartTextParam = {
+                    "type": "text",
+                    "text": part.text,
+                }
+                current_parts.append(text_part)
+            elif isinstance(part, FilePart):
                 media_type = part.media_type.lstrip()
                 if media_type.startswith("image"):
                     image_part: ChatCompletionContentPartImageParam = {
