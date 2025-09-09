@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from marimo._ast.parse import NotebookSerialization
-from marimo._lint.checker import LintChecker, EarlyStoppingConfig
+from marimo._lint.checker import EarlyStoppingConfig, LintChecker
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import LintRule
 from marimo._lint.rules.breaking import UnparsableRule

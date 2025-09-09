@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, AsyncIterator, Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo._ast.parse import NotebookSerialization
 from marimo._lint.context import LintContext
@@ -10,13 +10,15 @@ from marimo._lint.diagnostic import Severity
 from marimo._lint.rules import RULE_CODES
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from marimo._lint.diagnostic import Diagnostic
     from marimo._lint.rules.base import LintRule
 
 
 class EarlyStoppingConfig:
     """Configuration for early stopping behavior."""
-    
+
     def __init__(
         self,
         stop_on_breaking: bool = False,
@@ -28,21 +30,24 @@ class EarlyStoppingConfig:
         self.stop_on_runtime = stop_on_runtime
         self.max_diagnostics = max_diagnostics
         self.stop_on_first_of_severity = stop_on_first_of_severity
-    
+
     def should_stop(self, diagnostic: Diagnostic, total_count: int) -> bool:
         """Check if we should stop processing based on this diagnostic."""
         if self.max_diagnostics and total_count >= self.max_diagnostics:
             return True
-            
-        if self.stop_on_first_of_severity and diagnostic.severity == self.stop_on_first_of_severity:
+
+        if (
+            self.stop_on_first_of_severity
+            and diagnostic.severity == self.stop_on_first_of_severity
+        ):
             return True
-            
+
         if self.stop_on_breaking and diagnostic.severity == Severity.BREAKING:
             return True
-            
+
         if self.stop_on_runtime and diagnostic.severity == Severity.RUNTIME:
             return True
-            
+
         return False
 
 
@@ -50,9 +55,9 @@ class LintChecker:
     """Orchestrates lint rules and provides checking and fixing functionality."""
 
     def __init__(
-        self, 
-        rules: list[LintRule], 
-        early_stopping: Optional[EarlyStoppingConfig] = None
+        self,
+        rules: list[LintRule],
+        early_stopping: Optional[EarlyStoppingConfig] = None,
     ):
         self.rules = rules
         self.early_stopping = early_stopping or EarlyStoppingConfig()
@@ -69,7 +74,7 @@ class LintChecker:
             "runtime": 1,
             "formatting": 2,
         }
-        
+
         sorted_rules = sorted(
             self.rules,
             key=lambda rule: priority_map.get(rule.severity.value, 999),
@@ -77,38 +82,40 @@ class LintChecker:
 
         # Create tasks for all rules with their completion tracking
         pending_tasks = {
-            asyncio.create_task(rule.check(ctx)): rule 
-            for rule in sorted_rules
+            asyncio.create_task(rule.check(ctx)): rule for rule in sorted_rules
         }
-        
+
         diagnostic_count = 0
-        
+
         # Process rules as they complete
         while pending_tasks:
             # Wait for at least one task to complete
             done, pending = await asyncio.wait(
-                pending_tasks.keys(), 
-                return_when=asyncio.FIRST_COMPLETED
+                pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
             )
-            
+
             # Update pending tasks
             for task in done:
                 del pending_tasks[task]
-            
+
             # Get any new diagnostics and yield them in priority order
             new_diagnostics = ctx.get_new_diagnostics()
             for diagnostic in new_diagnostics:
                 diagnostic_count += 1
                 yield diagnostic
-                
+
                 # Check for early stopping
-                if self.early_stopping.should_stop(diagnostic, diagnostic_count):
+                if self.early_stopping.should_stop(
+                    diagnostic, diagnostic_count
+                ):
                     # Cancel remaining tasks
                     for task in pending_tasks.keys():
                         task.cancel()
-                    
+
                     # Wait for cancellations to complete
-                    await asyncio.gather(*pending_tasks.keys(), return_exceptions=True)
+                    await asyncio.gather(
+                        *pending_tasks.keys(), return_exceptions=True
+                    )
                     return
 
     async def check_notebook(
@@ -128,8 +135,7 @@ class LintChecker:
 
     @classmethod
     def create_default(
-        cls, 
-        early_stopping: Optional[EarlyStoppingConfig] = None
+        cls, early_stopping: Optional[EarlyStoppingConfig] = None
     ) -> LintChecker:
         """Create a LintChecker with all default rules."""
         # TODO: Filter rules based on user configuration if needed

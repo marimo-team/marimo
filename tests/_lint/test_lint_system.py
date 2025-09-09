@@ -4,6 +4,7 @@
 from marimo._ast.parse import parse_notebook
 from marimo._lint import lint_notebook
 from marimo._lint.checker import LintChecker
+from marimo._lint.context import LintContext
 from marimo._lint.rules.base import Severity
 from marimo._lint.rules.breaking import UnparsableRule
 from marimo._lint.rules.formatting import GeneralFormattingRule
@@ -67,7 +68,7 @@ def __():
 class TestLintRules:
     """Test individual lint rules."""
 
-    def test_general_formatting_rule(self):
+    async def test_general_formatting_rule(self):
         """Test the general formatting rule."""
         rule = GeneralFormattingRule()
 
@@ -88,12 +89,14 @@ class TestLintRules:
             ],
         )
 
-        errors = rule.check(notebook)
+        ctx = LintContext(notebook)
+        await rule.check(ctx)
+        errors = ctx.get_diagnostics()
         assert len(errors) == 1
         assert errors[0].code == "MF001"
         assert errors[0].severity == Severity.FORMATTING
 
-    def test_multiple_definitions_rule(self):
+    async def test_multiple_definitions_rule(self):
         """Test the multiple definitions rule."""
         rule = MultipleDefinitionsRule()
 
@@ -106,11 +109,13 @@ class TestLintRules:
             ],
         )
 
-        errors = rule.check(notebook)
+        ctx = LintContext(notebook)
+        await rule.check(ctx)
+        errors = ctx.get_diagnostics()
         # The rule should run without errors (even if no multiple definitions found)
         assert isinstance(errors, list)
 
-    def test_cycle_dependencies_rule(self):
+    async def test_cycle_dependencies_rule(self):
         """Test the cycle dependencies rule."""
         rule = CycleDependenciesRule()
 
@@ -123,11 +128,13 @@ class TestLintRules:
             ],
         )
 
-        errors = rule.check(notebook)
+        ctx = LintContext(notebook)
+        await rule.check(ctx)
+        errors = ctx.get_diagnostics()
         # The rule should run without errors
         assert isinstance(errors, list)
 
-    def test_setup_cell_dependencies_rule(self):
+    async def test_setup_cell_dependencies_rule(self):
         """Test the setup cell dependencies rule."""
         rule = SetupCellDependenciesRule()
 
@@ -139,11 +146,13 @@ class TestLintRules:
             ],
         )
 
-        errors = rule.check(notebook)
+        ctx = LintContext(notebook)
+        await rule.check(ctx)
+        errors = ctx.get_diagnostics()
         # The rule should run without errors
         assert isinstance(errors, list)
 
-    def test_unparsable_cells_rule(self):
+    async def test_unparsable_cells_rule(self):
         """Test the unparsable cells rule."""
         rule = UnparsableRule()
 
@@ -159,7 +168,9 @@ class TestLintRules:
             ],
         )
 
-        errors = rule.check(notebook)
+        ctx = LintContext(notebook)
+        await rule.check(ctx)
+        errors = ctx.get_diagnostics()
         assert len(errors) == 1
         assert errors[0].code == "MB001"
         assert errors[0].severity == Severity.BREAKING
@@ -182,5 +193,5 @@ class TestLintChecker:
             app=AppInstantiation(), cells=[], violations=[]
         )
 
-        errors = checker.check_notebook(notebook)
+        errors = checker.check_notebook_sync(notebook)
         assert isinstance(errors, list)

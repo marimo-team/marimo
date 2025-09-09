@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 import heapq
 import threading
 from typing import TYPE_CHECKING
@@ -23,7 +22,9 @@ class LintContext:
         self._graph: DirectedGraph | None = None
         self._graph_lock = threading.Lock()
         self._counter = 0  # Monotonic counter for stable sorting
-        self._last_retrieved_counter = -1  # Track what was last retrieved for streaming
+        self._last_retrieved_counter = (
+            -1
+        )  # Track what was last retrieved for streaming
 
         # Priority mapping: lower numbers = higher priority
         self._priority_map = {
@@ -52,33 +53,33 @@ class LintContext:
             sorted_diagnostics.append(diagnostic)
 
         return sorted_diagnostics
-    
+
     def get_new_diagnostics(self) -> list[Diagnostic]:
         """Get diagnostics added since last call, sorted by priority."""
         # Find new diagnostics since last retrieval
         new_items = [
-            (priority, counter, diagnostic) 
+            (priority, counter, diagnostic)
             for priority, counter, diagnostic in self._diagnostics
             if counter > self._last_retrieved_counter
         ]
-        
+
         if not new_items:
             return []
-        
+
         # Sort by priority (and counter for stability)
         new_items.sort()
-        
+
         # Extract diagnostics and update counter
         new_diagnostics = []
         max_counter = self._last_retrieved_counter
-        
-        for priority, counter, diagnostic in new_items:
+
+        for _priority, counter, diagnostic in new_items:
             new_diagnostics.append(diagnostic)
             max_counter = max(max_counter, counter)
-        
+
         # Update the last retrieved counter
         self._last_retrieved_counter = max_counter
-        
+
         return new_diagnostics
 
     def get_graph(self) -> DirectedGraph:

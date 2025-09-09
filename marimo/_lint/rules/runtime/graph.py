@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from marimo._ast.parse import NotebookSerialization, ast_parse
+from marimo._ast.parse import ast_parse
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import LintRule
 from marimo._lint.validate_graph import (
