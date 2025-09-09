@@ -17,7 +17,10 @@ from typing import (
 
 import msgspec
 
+from marimo import _loggers
 from marimo._utils.parse_dataclass import parse_raw
+
+LOGGER = _loggers.marimo_logger()
 
 
 class ChatAttachmentDict(TypedDict):
@@ -117,6 +120,8 @@ class ReasoningPart:
     type: Literal["reasoning"]
     text: str
     details: Optional[list[ReasoningDetails]] = None
+    text: str
+    details: Optional[list[ReasoningDetails]] = None
 
 
 @dataclass
@@ -151,12 +156,35 @@ class FilePart:
     filename: Optional[str] = None
 
 
+@dataclass
+class ReasoningData:
+    signature: str
+
+
+@dataclass
+class DataReasoningPart:
+    type: Literal["data-reasoning-signature"]
+    data: ReasoningData
+
+
 if TYPE_CHECKING:
-    ChatPart = Union[TextPart, ReasoningPart, ToolInvocationPart, FilePart]
+    ChatPart = Union[
+        TextPart,
+        ReasoningPart,
+        ToolInvocationPart,
+        FilePart,
+        DataReasoningPart,
+    ]
 else:
     ChatPart = dict[str, Any]
 
-PART_TYPES = [TextPart, ReasoningPart, ToolInvocationPart, FilePart]
+PART_TYPES = [
+    TextPart,
+    ReasoningPart,
+    ToolInvocationPart,
+    FilePart,
+    DataReasoningPart,
+]
 
 
 class ChatMessage(msgspec.Struct):
@@ -182,9 +210,13 @@ class ChatMessage(msgspec.Struct):
         # Hack: msgspec only supports discriminated unions. This is a hack to just
         # iterate through possible part variants and decode until one works.
         if self.parts:
-            self.parts = [self._convert_part(part) for part in self.parts]
+            parts = []
+            for part in self.parts:
+                if converted := self._convert_part(part):
+                    parts.append(converted)
+            self.parts = parts
 
-    def _convert_part(self, part: Any) -> ChatPart:
+    def _convert_part(self, part: Any) -> Optional[ChatPart]:
         for PartType in PART_TYPES:
             try:
                 if dataclasses.is_dataclass(part):
@@ -193,9 +225,8 @@ class ChatMessage(msgspec.Struct):
             except Exception:
                 continue
 
-        raise msgspec.DecodeError(
-            f"Could not decode part as any of {PART_TYPES}, for part {part}"
-        )
+        LOGGER.error(f"Could not decode part as {PartType}, for part {part}")
+        return None
 
 
 @dataclass

@@ -5,11 +5,13 @@ import base64
 import dataclasses
 import json
 import uuid
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
+from marimo import _loggers
 from marimo._ai._types import (
     ChatMessage,
     ChatPart,
+    DataReasoningPart,
     FilePart,
     ReasoningPart,
     TextPart,
@@ -38,8 +40,19 @@ if TYPE_CHECKING:
         PartDict,
     )
     from openai.types.chat import (  # type: ignore[import-not-found]
+        ChatCompletionAssistantMessageParam,
+        ChatCompletionContentPartImageParam,
+        ChatCompletionContentPartParam,
+        ChatCompletionContentPartTextParam,
         ChatCompletionMessageParam,
+        ChatCompletionMessageToolCallParam,
+        ChatCompletionToolMessageParam,
     )
+    from openai.types.chat.chat_completion_assistant_message_param import (
+        ContentArrayOfContentPart,
+    )
+
+LOGGER = _loggers.marimo_logger()
 
 
 # Message conversions
@@ -84,39 +97,78 @@ def get_openai_messages_from_parts(
 def convert_to_openai_messages(
     messages: list[ChatMessage],
 ) -> list[ChatCompletionMessageParam]:
-    openai_messages: list[dict[Any, Any]] = []
+    openai_messages: list[ChatCompletionMessageParam] = []
 
     for message in messages:
-        parts: list[dict[Any, Any]] = []
         if not message.parts or len(message.parts) == 0:
-            parts.append({"type": "text", "text": message.content})
-        else:
-            for part in message.parts:
-                if isinstance(part, FilePart):
-                    if part.media_type.startswith("image"):
-                        parts.append(
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": part.url},
-                            }
-                        )
-                    elif part.media_type.startswith("text"):
-                        parts.append(
-                            {"type": "text", "text": _extract_text(part.url)}
-                        )
-                    else:
-                        raise ValueError(
-                            f"Unsupported content type {part.media_type}"
-                        )
+            text_part: ChatCompletionContentPartTextParam = {
+                "type": "text",
+                "text": message.content,
+            }
+            openai_messages.append(
+                {"role": message.role, "content": [text_part]}  # type: ignore
+            )
+            continue
+
+        current_parts: list[
+            Union[
+                ChatCompletionContentPartTextParam,
+                ChatCompletionContentPartParam,
+                ContentArrayOfContentPart,
+            ]
+        ] = []
+        for part in message.parts:
+            if isinstance(part, FilePart):
+                media_type = part.media_type.lstrip()
+                if media_type.startswith("image"):
+                    image_part: ChatCompletionContentPartImageParam = {
+                        "type": "image_url",
+                        "image_url": {"url": part.url},
+                    }
+                    current_parts.append(image_part)
+                elif media_type.startswith("text"):
+                    file_text_part: ChatCompletionContentPartTextParam = {
+                        "type": "text",
+                        "text": _extract_text(part.url),
+                    }
+                    current_parts.append(file_text_part)
                 else:
-                    if dataclasses.is_dataclass(part):
-                        parts.append(dataclasses.asdict(part))
-                    else:
-                        parts.append(cast(dict[str, Any], part))
+                    raise ValueError(f"Unsupported content type {media_type}")
+            elif isinstance(part, ToolInvocationPart):
+                # Create tool invocation and tool result message
+                tool_calls: ChatCompletionMessageToolCallParam = {
+                    "id": part.tool_call_id,
+                    "type": "function",
+                    "function": {
+                        "name": part.tool_name,
+                        "arguments": str(part.input) if part.input else "{}",
+                    },
+                }
 
-        openai_messages.append({"role": message.role, "content": parts})
+                tool_invocation_message: ChatCompletionAssistantMessageParam = {
+                    "role": "assistant",  # can only be assistant
+                    "tool_calls": [tool_calls],
+                }
+                openai_messages.append(tool_invocation_message)
 
-    return cast("list[ChatCompletionMessageParam]", openai_messages)
+                tool_invocation_result: ChatCompletionToolMessageParam = {
+                    "tool_call_id": part.tool_call_id,
+                    "role": "tool",
+                    "content": str(part.output),
+                }
+                openai_messages.append(tool_invocation_result)
+
+                # reset parts
+                current_parts = []
+            else:
+                current_parts.append(dataclasses.asdict(part))  # type: ignore
+
+        if current_parts:
+            openai_messages.append(
+                {"role": message.role, "content": current_parts}  # type: ignore
+            )
+
+    return openai_messages
 
 
 AnthropicParts = Union[
@@ -133,102 +185,122 @@ AnthropicParts = Union[
 ]
 
 
-def get_anthropic_parts_from_chat_parts(
-    parts: list[ChatPart],
-) -> list[AnthropicParts]:
-    anthropic_parts: list[AnthropicParts] = []
-
-    for part in parts:
-        if isinstance(part, TextPart):
-            text_block: TextBlockParam = {
-                "type": "text",
-                "text": part.text,
-            }
-            anthropic_parts.append(text_block)
-        elif isinstance(part, ReasoningPart):
-            # Handle reasoning parts with proper Anthropic thinking type
-            signature = ""
-            if part.details and len(part.details) > 0:
-                signature = part.details[0].signature or ""
-
-            thinking_message: ThinkingBlockParam = {
-                "type": "thinking",
-                "thinking": part.text,
-                "signature": signature,
-            }
-            anthropic_parts.append(thinking_message)
-        elif isinstance(part, FilePart):
-            media_type = part.media_type
-            if media_type.strip() in [
-                "image/jpeg",
-                "image/png",
-                "image/gif",
-                "image/webp",
-            ]:
-                image_message: ImageBlockParam = {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": media_type,  # type: ignore
-                        "data": _extract_data(part.url),
-                    },
-                }
-                anthropic_parts.append(image_message)
-            elif media_type.startswith("text"):
-                text_block_file: TextBlockParam = {
-                    "type": "text",
-                    "text": _extract_text(part.url),
-                }
-                anthropic_parts.append(text_block_file)
-            else:
-                raise ValueError(f"Unsupported content type {media_type}")
-        elif isinstance(part, ToolInvocationPart):
-            # Add tool use to current message content
-            tool_use_message: ToolUseBlockParam = {
-                "type": "tool_use",
-                "id": part.tool_call_id,
-                "name": part.tool_name,
-                "input": part.input,
-            }
-            anthropic_parts.append(tool_use_message)
-
-            # Create separate tool result message
-            tool_result_message: ToolResultBlockParam = {
-                "tool_use_id": part.tool_call_id,
-                "type": "tool_result",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": str(part.output),
-                    }
-                ],
-            }
-            anthropic_parts.append(tool_result_message)
-
-    return anthropic_parts
-
-
 def convert_to_anthropic_messages(
     messages: list[ChatMessage],
 ) -> list[MessageParam]:
     anthropic_messages: list[MessageParam] = []
 
     for message in messages:
-        parts: list[AnthropicParts] = []
+        anthropic_role = (
+            "assistant" if message.role == "system" else message.role
+        )
+
         if not message.parts:
             # Convert content to string
             text_block: TextBlockParam = {
                 "type": "text",
                 "text": str(message.content),
             }
-            parts.append(text_block)
-        else:
-            parts.extend(get_anthropic_parts_from_chat_parts(message.parts))
+            anthropic_messages.append(
+                {"role": anthropic_role, "content": [text_block]}
+            )
+            continue
 
-        anthropic_role = (
-            "assistant" if message.role == "system" else message.role
-        )
-        anthropic_messages.append({"role": anthropic_role, "content": parts})
+        current_parts: list[AnthropicParts] = []
+        data_reasoning_parts = [
+            part
+            for part in message.parts
+            if isinstance(part, DataReasoningPart)
+        ]
+
+        for part in message.parts:
+            if isinstance(part, TextPart):
+                text_part: TextBlockParam = {
+                    "type": "text",
+                    "text": part.text,
+                }
+                current_parts.append(text_part)
+            elif isinstance(part, ReasoningPart):
+                signature = ""
+                if part.details and len(part.details) > 0:
+                    signature = part.details[0].signature or ""
+
+                # Use the first data reasoning part if there is no signature
+                # And remove it from the list
+                # We can optimize this
+                if not signature and data_reasoning_parts:
+                    signature = data_reasoning_parts[0].data.signature
+                    data_reasoning_parts.pop(0)
+
+                thinking_message: ThinkingBlockParam = {
+                    "type": "thinking",
+                    "thinking": part.text,
+                    "signature": signature,
+                }
+                current_parts.append(thinking_message)
+            elif isinstance(part, ToolInvocationPart):
+                # Create tool use part
+                tool_use_block: ToolUseBlockParam = {
+                    "type": "tool_use",
+                    "id": part.tool_call_id,
+                    "name": part.tool_name,
+                    "input": part.input,
+                }
+                current_parts.append(tool_use_block)
+
+                # Create tool result message
+                tool_result_message: ToolResultBlockParam = {
+                    "tool_use_id": part.tool_call_id,
+                    "type": "tool_result",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": str(part.output),
+                        }
+                    ],
+                }
+
+                # Immediately add the messages for tool use and tool result
+                anthropic_messages.append(
+                    {"role": "assistant", "content": current_parts}
+                )
+                anthropic_messages.append(
+                    {"role": "user", "content": [tool_result_message]}
+                )
+                # reset parts
+                current_parts = []
+            elif isinstance(part, FilePart):
+                media_type = part.media_type.lstrip()
+                # Only these types are supported by Anthropic
+                if media_type in [
+                    "image/jpeg",
+                    "image/png",
+                    "image/gif",
+                    "image/webp",
+                ]:
+                    file_block: ImageBlockParam = {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": media_type,  # type: ignore
+                            "data": _extract_data(part.url),
+                        },
+                    }
+                    current_parts.append(file_block)
+                elif media_type.startswith("text"):
+                    file_text_part: TextBlockParam = {
+                        "type": "text",
+                        "text": _extract_text(part.url),
+                    }
+                    current_parts.append(file_text_part)
+                else:
+                    raise ValueError(f"Unsupported content type {media_type}")
+
+        if current_parts:
+            anthropic_messages.append(
+                {"role": anthropic_role, "content": current_parts}
+            )
+
     return anthropic_messages
 
 

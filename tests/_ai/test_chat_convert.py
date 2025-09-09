@@ -15,13 +15,14 @@ from marimo._ai._convert import (
     convert_to_groq_messages,
     convert_to_openai_messages,
     convert_to_openai_tools,
-    get_anthropic_parts_from_chat_parts,
     get_google_messages_from_parts,
     get_openai_messages_from_parts,
 )
 from marimo._ai._types import (
     ChatMessage,
+    DataReasoningPart,
     FilePart,
+    ReasoningData,
     ReasoningDetails,
     ReasoningPart,
     TextPart,
@@ -126,64 +127,609 @@ def test_convert_to_openai_messages_with_parts():
     result = convert_to_openai_messages(sample_messages)
     assert result == [
         {
+            "role": "assistant",
+            "tool_calls": [
+                {
+                    "id": "call_123",
+                    "type": "function",
+                    "function": {
+                        "name": "calculator",
+                        "arguments": "{'expression': '2 + 2'}",
+                    },
+                }
+            ],
+        },
+        {
+            "tool_call_id": "call_123",
+            "role": "tool",
+            "content": "{'answer': 4}",
+        },
+        {
             "role": "user",
             "content": [
-                {"type": "text", "text": "Message with parts and attachments"},
-                {
-                    "type": "reasoning",
-                    "text": "Deep thinking process",
-                    "details": [
-                        {"type": "text", "text": "Analysis", "signature": None}
-                    ],
-                },
-                {
-                    "type": "tool-calculator",
-                    "tool_call_id": "call_123",
-                    "state": "output-available",
-                    "input": {"expression": "2 + 2"},
-                    "output": {"answer": 4},
-                },
                 {
                     "type": "image_url",
                     "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
-                },
-            ],
-        }
-    ]
-
-
-def test_convert_to_anthropic_messages(
-    sample_messages: list[ChatMessage],
-):
-    result = convert_to_anthropic_messages(sample_messages)
-    assert result == [
-        # User message
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "Hello, I have a question."},
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": "b'aGVsbG8='",
-                    },
-                },
-                {"type": "text", "text": "A\n1\n2\n3\n"},
-            ],
-        },
-        # Assistant message
-        {
-            "role": "assistant",
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Sure, I'd be happy to help. What's your question?",
                 }
             ],
         },
     ]
+
+
+class TestAnthropic:
+    def test_convert_to_anthropic_messages(
+        self,
+        sample_messages: list[ChatMessage],
+    ):
+        result = convert_to_anthropic_messages(sample_messages)
+        assert result == [
+            # User message
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Hello, I have a question."},
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": "b'aGVsbG8='",
+                        },
+                    },
+                    {"type": "text", "text": "A\n1\n2\n3\n"},
+                ],
+            },
+            # Assistant message
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Sure, I'd be happy to help. What's your question?",
+                    }
+                ],
+            },
+        ]
+
+    def test_convert_to_anthropic_messages_with_tool_invocation(self):
+        """Test converting ToolInvocationPart to Anthropic format."""
+        parts = [
+            TextPart(type="text", text="I'll search for you"),
+            ReasoningPart(
+                type="reasoning",
+                text="The user is asking me to search for Python tutorials",
+                details=[],
+            ),
+            DataReasoningPart(
+                type="data-reasoning-signature",
+                data=ReasoningData(signature="signature_1"),
+            ),
+            TextPart(type="text", text="Searching for Python tutorials"),
+            ToolInvocationPart(
+                type="tool-search_tool",
+                tool_call_id="call_123",
+                state="output-available",
+                input={"query": "Python tutorials"},
+                output={"results": ["tutorial1", "tutorial2"]},
+            ),
+            ToolInvocationPart(
+                type="tool-search_tool",
+                tool_call_id="call_456",
+                state="output-available",
+                input={"query": "JavaScript tutorials"},
+                output={"results": ["tutorial3", "tutorial4"]},
+            ),
+        ]
+        messages = [
+            ChatMessage(
+                role="user",
+                content="",
+                parts=[
+                    TextPart(type="text", text="Search for Python tutorials")
+                ],
+            ),
+            ChatMessage(role="assistant", content="", parts=parts),
+        ]
+
+        result = convert_to_anthropic_messages(messages)
+        assert result == [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Search for Python tutorials"}
+                ],
+            },
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "text", "text": "I'll search for you"},
+                    {
+                        "type": "thinking",
+                        "thinking": "The user is asking me to search for Python tutorials",
+                        "signature": "signature_1",
+                    },
+                    {"type": "text", "text": "Searching for Python tutorials"},
+                    {
+                        "type": "tool_use",
+                        "id": "call_123",
+                        "name": "search_tool",
+                        "input": {"query": "Python tutorials"},
+                    },
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "tool_use_id": "call_123",
+                        "type": "tool_result",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "{'results': ['tutorial1', 'tutorial2']}",
+                            }
+                        ],
+                    }
+                ],
+            },
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": "call_456",
+                        "name": "search_tool",
+                        "input": {"query": "JavaScript tutorials"},
+                    }
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "tool_use_id": "call_456",
+                        "type": "tool_result",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "{'results': ['tutorial3', 'tutorial4']}",
+                            }
+                        ],
+                    }
+                ],
+            },
+        ]
+
+    def test_convert_to_anthropic_messages_single_tool_invocation(self):
+        """Test converting a single tool invocation to proper Anthropic format."""
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Search for Python tutorials",
+                parts=[
+                    TextPart(type="text", text="Search for Python tutorials")
+                ],
+            ),
+            ChatMessage(
+                role="assistant",
+                content="",
+                parts=[
+                    TextPart(
+                        type="text", text="I'll search for Python tutorials"
+                    ),
+                    ToolInvocationPart(
+                        type="tool-search_tool",
+                        tool_call_id="call_123",
+                        state="output-available",
+                        input={"query": "Python tutorials"},
+                        output={"results": ["tutorial1", "tutorial2"]},
+                    ),
+                ],
+            ),
+        ]
+
+        result = convert_to_anthropic_messages(messages)
+
+        # Should create: user message, assistant message with tool_use, user message with tool_result
+        assert len(result) == 3
+
+        # User message
+        assert result[0] == {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Search for Python tutorials"}
+            ],
+        }
+
+        # Assistant message with tool_use (should be the last block)
+        assert result[1] == {
+            "role": "assistant",
+            "content": [
+                {"type": "text", "text": "I'll search for Python tutorials"},
+                {
+                    "type": "tool_use",
+                    "id": "call_123",
+                    "name": "search_tool",
+                    "input": {"query": "Python tutorials"},
+                },
+            ],
+        }
+
+        # User message with tool_result
+        assert result[2] == {
+            "role": "user",
+            "content": [
+                {
+                    "tool_use_id": "call_123",
+                    "type": "tool_result",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "{'results': ['tutorial1', 'tutorial2']}",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def test_convert_to_anthropic_messages_multiple_tool_invocations(self):
+        """Test converting multiple tool invocations to proper Anthropic format."""
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Search for both Python and JavaScript tutorials",
+                parts=[
+                    TextPart(
+                        type="text",
+                        text="Search for both Python and JavaScript tutorials",
+                    )
+                ],
+            ),
+            ChatMessage(
+                role="assistant",
+                content="",
+                parts=[
+                    TextPart(type="text", text="I'll search for both topics"),
+                    ToolInvocationPart(
+                        type="tool-search_tool",
+                        tool_call_id="call_123",
+                        state="output-available",
+                        input={"query": "Python tutorials"},
+                        output={"results": ["tutorial1", "tutorial2"]},
+                    ),
+                    ToolInvocationPart(
+                        type="tool-search_tool",
+                        tool_call_id="call_456",
+                        state="output-available",
+                        input={"query": "JavaScript tutorials"},
+                        output={"results": ["tutorial3", "tutorial4"]},
+                    ),
+                ],
+            ),
+        ]
+
+        result = convert_to_anthropic_messages(messages)
+
+        # Should create: user message, assistant message with first tool_use, user message with first tool_result,
+        # assistant message with second tool_use, user message with second tool_result
+        assert len(result) == 5
+
+        # User message
+        assert result[0] == {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Search for both Python and JavaScript tutorials",
+                }
+            ],
+        }
+
+        # First assistant message with first tool_use
+        assert result[1] == {
+            "role": "assistant",
+            "content": [
+                {"type": "text", "text": "I'll search for both topics"},
+                {
+                    "type": "tool_use",
+                    "id": "call_123",
+                    "name": "search_tool",
+                    "input": {"query": "Python tutorials"},
+                },
+            ],
+        }
+
+        # First user message with first tool_result
+        assert result[2] == {
+            "role": "user",
+            "content": [
+                {
+                    "tool_use_id": "call_123",
+                    "type": "tool_result",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "{'results': ['tutorial1', 'tutorial2']}",
+                        }
+                    ],
+                }
+            ],
+        }
+
+        # Second assistant message with second tool_use
+        assert result[3] == {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "call_456",
+                    "name": "search_tool",
+                    "input": {"query": "JavaScript tutorials"},
+                },
+            ],
+        }
+
+        # Second user message with second tool_result
+        assert result[4] == {
+            "role": "user",
+            "content": [
+                {
+                    "tool_use_id": "call_456",
+                    "type": "tool_result",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "{'results': ['tutorial3', 'tutorial4']}",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def test_convert_to_anthropic_messages_tool_with_thinking(self):
+        """Test converting tool invocation with thinking block to proper Anthropic format."""
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Search for Python tutorials",
+                parts=[
+                    TextPart(type="text", text="Search for Python tutorials")
+                ],
+            ),
+            ChatMessage(
+                role="assistant",
+                content="",
+                parts=[
+                    ReasoningPart(
+                        type="reasoning",
+                        text="The user wants me to search for Python tutorials. I should use the search tool.",
+                        details=[],
+                    ),
+                    TextPart(
+                        type="text", text="I'll search for Python tutorials"
+                    ),
+                    ToolInvocationPart(
+                        type="tool-search_tool",
+                        tool_call_id="call_123",
+                        state="output-available",
+                        input={"query": "Python tutorials"},
+                        output={"results": ["tutorial1", "tutorial2"]},
+                    ),
+                ],
+            ),
+        ]
+
+        result = convert_to_anthropic_messages(messages)
+
+        # Should create: user message, assistant message with thinking + text + tool_use, user message with tool_result
+        assert len(result) == 3
+
+        # User message
+        assert result[0] == {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Search for Python tutorials"}
+            ],
+        }
+
+        # Assistant message with thinking first, then text, then tool_use
+        assert result[1] == {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "thinking",
+                    "thinking": "The user wants me to search for Python tutorials. I should use the search tool.",
+                    "signature": "",
+                },
+                {"type": "text", "text": "I'll search for Python tutorials"},
+                {
+                    "type": "tool_use",
+                    "id": "call_123",
+                    "name": "search_tool",
+                    "input": {"query": "Python tutorials"},
+                },
+            ],
+        }
+
+        # User message with tool_result
+        assert result[2] == {
+            "role": "user",
+            "content": [
+                {
+                    "tool_use_id": "call_123",
+                    "type": "tool_result",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "{'results': ['tutorial1', 'tutorial2']}",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def test_convert_to_anthropic_messages_tool_with_content_after(self):
+        """Test that content after tool invocation is handled properly."""
+        messages = [
+            ChatMessage(
+                role="assistant",
+                content="",
+                parts=[
+                    TextPart(type="text", text="I'll search for you"),
+                    ToolInvocationPart(
+                        type="tool-search_tool",
+                        tool_call_id="call_123",
+                        state="output-available",
+                        input={"query": "Python tutorials"},
+                        output={"results": ["tutorial1", "tutorial2"]},
+                    ),
+                    TextPart(type="text", text="Here are the results I found"),
+                ],
+            ),
+        ]
+
+        result = convert_to_anthropic_messages(messages)
+
+        # Should create: assistant message with text + tool_use, user message with tool_result,
+        # assistant message with remaining text
+        assert len(result) == 3
+
+        # First assistant message with text and tool_use
+        assert result[0] == {
+            "role": "assistant",
+            "content": [
+                {"type": "text", "text": "I'll search for you"},
+                {
+                    "type": "tool_use",
+                    "id": "call_123",
+                    "name": "search_tool",
+                    "input": {"query": "Python tutorials"},
+                },
+            ],
+        }
+
+        # User message with tool_result
+        assert result[1] == {
+            "role": "user",
+            "content": [
+                {
+                    "tool_use_id": "call_123",
+                    "type": "tool_result",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "{'results': ['tutorial1', 'tutorial2']}",
+                        }
+                    ],
+                }
+            ],
+        }
+
+        # Second assistant message with remaining text
+        assert result[2] == {
+            "role": "assistant",
+            "content": [
+                {"type": "text", "text": "Here are the results I found"},
+            ],
+        }
+
+    def test_convert_to_anthropic_messages_no_tool_invocation(self):
+        """Test converting messages without tool invocations."""
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                parts=[TextPart(type="text", text="Hello")],
+            ),
+            ChatMessage(
+                role="assistant",
+                content="Hi there!",
+                parts=[TextPart(type="text", text="Hi there!")],
+            ),
+        ]
+
+        result = convert_to_anthropic_messages(messages)
+
+        # Should create: user message, assistant message
+        assert len(result) == 2
+
+        assert result[0] == {
+            "role": "user",
+            "content": [{"type": "text", "text": "Hello"}],
+        }
+
+        assert result[1] == {
+            "role": "assistant",
+            "content": [{"type": "text", "text": "Hi there!"}],
+        }
+
+    def test_convert_to_anthropic_messages_empty_parts(self):
+        """Test converting messages with empty parts."""
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                parts=None,
+            ),
+            ChatMessage(
+                role="assistant",
+                content="Hi there!",
+                parts=[],
+            ),
+        ]
+
+        result = convert_to_anthropic_messages(messages)
+
+        # Should create: user message, assistant message
+        assert len(result) == 2
+
+        assert result[0] == {
+            "role": "user",
+            "content": [{"type": "text", "text": "Hello"}],
+        }
+
+        assert result[1] == {
+            "role": "assistant",
+            "content": [{"type": "text", "text": "Hi there!"}],
+        }
+
+    def test_convert_to_anthropic_messages_file_part(self):
+        """Test converting messages with file parts."""
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                parts=[
+                    FilePart(
+                        type="file",
+                        media_type="text/plain",
+                        url="data:text/plain;base64,R29vZGJ5ZQ==",
+                    ),
+                    FilePart(
+                        type="file",
+                        media_type="image/png",
+                        url="data:image/png;base64,R29vZGJ5ZQ==",
+                    ),
+                ],
+            ),
+        ]
+        result = convert_to_anthropic_messages(messages)
+        assert result == [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Goodbye"},
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": "R29vZGJ5ZQ==",
+                        },
+                    },
+                ],
+            }
+        ]
 
 
 def test_convert_to_google_messages(
