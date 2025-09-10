@@ -130,6 +130,13 @@ jobs:
         shell: bash
         run: uv pip install marimo*whl
 
+      - name: Disable mcp_docs for tests
+        shell: bash
+        run: |
+          # Temporarily disable mcp_docs to avoid race condition in tests
+          sed -i.bak 's/mcp_docs = true/mcp_docs = false/g' pyproject.toml || \
+          sed -i'' 's/mcp_docs = true/mcp_docs = false/g' pyproject.toml
+
       - name: Test CLI
         shell: bash
         run: |
