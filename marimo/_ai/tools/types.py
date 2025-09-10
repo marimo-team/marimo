@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Optional, Protocol, TypeVar
 
 from pydantic import BaseModel, Field
 
-from marimo._ast.cell import RuntimeStateType
 from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
@@ -88,8 +87,17 @@ class CellErrors(BaseModel):
     error_details: Optional[list[ErrorDetail]]
 
 
+# Mirrors marimo._ast.cell.RuntimeStateType; use Enum here for Pydantic/py39
+# compatibility and to avoid Literal-based validation issues.
+class RuntimeStateValue(str, Enum):
+    idle = "idle"
+    queued = "queued"
+    running = "running"
+    disabled_transitively = "disabled-transitively"
+
+
 class CellRuntimeMetadata(BaseModel):
-    runtime_state: Optional[RuntimeStateType]
+    runtime_state: Optional[RuntimeStateValue]
     execution_time: Optional[float]
 
 
