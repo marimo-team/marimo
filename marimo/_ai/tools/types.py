@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Literal, Optional, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, Protocol, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -13,8 +13,18 @@ if TYPE_CHECKING:
 
 
 # helper classes
+
+
+# Use an Enum instead of Literal to avoid importing typing_extensions (banned)
+# and to retain compatibility with Python 3.9/Pydantic during validation.
+class StatusValue(str, Enum):
+    success = "success"
+    error = "error"
+    warning = "warning"
+
+
 class SuccessResult(BaseModel):
-    status: Literal["success", "error", "warning"] = "success"
+    status: StatusValue = StatusValue.success
     auth_required: bool = False
     next_steps: Optional[list[str]] = None
     action_url: Optional[str] = None
