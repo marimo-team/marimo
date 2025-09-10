@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import sys
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, Optional, Protocol, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -14,16 +15,15 @@ if TYPE_CHECKING:
 # helper classes
 
 
-# Use an Enum instead of Literal to avoid importing typing_extensions (banned)
-# and to retain compatibility with Python 3.9/Pydantic during validation.
-class StatusValue(str, Enum):
-    success = "success"
-    error = "error"
-    warning = "warning"
+# Import Literal from typing_extensions on <3.10 for Python 3.9 compatibility.
+if sys.version_info < (3, 10):  # pragma: no cover - version guard
+    from typing_extensions import Literal
+
+StatusValue = Literal["success", "error", "warning"]
 
 
 class SuccessResult(BaseModel):
-    status: StatusValue = StatusValue.success
+    status: StatusValue = "success"
     auth_required: bool = False
     next_steps: Optional[list[str]] = None
     action_url: Optional[str] = None
@@ -87,17 +87,11 @@ class CellErrors(BaseModel):
     error_details: Optional[list[ErrorDetail]]
 
 
-# Mirrors marimo._ast.cell.RuntimeStateType; use Enum here for Pydantic/py39
-# compatibility and to avoid Literal-based validation issues.
-class RuntimeStateValue(str, Enum):
-    idle = "idle"
-    queued = "queued"
-    running = "running"
-    disabled_transitively = "disabled-transitively"
-
-
 class CellRuntimeMetadata(BaseModel):
-    runtime_state: Optional[RuntimeStateValue]
+    # String form of the runtime state (see marimo._ast.cell.RuntimeStateType);
+    # keep as str for py39/Pydantic compatibility and to avoid Literal/Enum
+    # validation issues in models.
+    runtime_state: Optional[str]
     execution_time: Optional[float]
 
 
