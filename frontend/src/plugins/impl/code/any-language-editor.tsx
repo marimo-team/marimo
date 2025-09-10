@@ -11,7 +11,7 @@ import type { ResolvedTheme } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
 
-const LANGUAGE_MAP: Record<string, string> = {
+export const LANGUAGE_MAP: Record<string, string> = {
   python: "py",
   javascript: "js",
   typescript: "ts",
