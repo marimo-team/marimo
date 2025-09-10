@@ -91,7 +91,6 @@ x = 42"""
             if seen_completed and extra_collection_start is not None:
                 # FIXME: stdin/stdout are flushed every 10ms, so wait 100ms
                 # (after "completed-run") to ensure all related events.
-                # The frontend uses the same workaround.
                 if time.time() - extra_collection_start >= 0.1:
                     break
 
