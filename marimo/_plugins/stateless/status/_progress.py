@@ -5,6 +5,7 @@ import time
 from typing import (
     TYPE_CHECKING,
     Any,
+    Generic,
     Literal,
     Optional,
     TypeVar,
@@ -273,7 +274,7 @@ class spinner:
         return self.spinner._mime_()
 
 
-class progress_bar:
+class progress_bar(Generic[S]):
     """Iterate over a collection and show a progress bar.
 
     Examples:
