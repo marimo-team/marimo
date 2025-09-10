@@ -29,7 +29,7 @@ HAS_DEPS = DependencyManager.has("zmq")
 def test_kernel_launch_and_execute_cells():
     """Test launching a kernel and executing cells with stdout/stderr."""
 
-    from marimo._ipc.queue_manager import ZeroMqQueueManager
+    from marimo._ipc.queue_manager import QueueManager
     from marimo._ipc.types import LaunchKernelArgs
 
     execute_request = ExecuteMultipleRequest(
@@ -43,7 +43,7 @@ x = 42"""
         ],
     )
 
-    queue_manager, connection_info = ZeroMqQueueManager.create()
+    queue_manager, connection_info = QueueManager.create()
     kernel_args = LaunchKernelArgs(
         profile_path=None,
         configs={cid: CellConfig() for cid in execute_request.cell_ids},
@@ -233,10 +233,10 @@ x = 42"""
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_queue_manager_connection():
     """Test creating and connecting queue managers."""
-    from marimo._ipc.queue_manager import ZeroMqQueueManager
+    from marimo._ipc.queue_manager import QueueManager
 
-    host_manager, connection_info = ZeroMqQueueManager.create()
-    client_manager = ZeroMqQueueManager.connect(connection_info)
+    host_manager, connection_info = QueueManager.create()
+    client_manager = QueueManager.connect(connection_info)
 
     test_request = ExecuteMultipleRequest(
         cell_ids=[CellId_t("cell1")],

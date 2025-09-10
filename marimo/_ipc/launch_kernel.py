@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import sys
 
-from marimo._ipc.queue_manager import ZeroMqQueueManager
+from marimo._ipc.queue_manager import QueueManager
 from marimo._ipc.types import ConnectionInfo, LaunchKernelArgs
 from marimo._runtime import runtime
 
@@ -28,7 +28,7 @@ def main() -> None:
     info = ConnectionInfo.decode_json(sys.stdin.readline().strip())
     args = LaunchKernelArgs.decode_json(sys.stdin.readline().strip())
 
-    queue_manager = ZeroMqQueueManager.connect(info)
+    queue_manager = QueueManager.connect(info)
     runtime.launch_kernel(
         set_ui_element_queue=queue_manager.set_ui_element_queue,
         interrupt_queue=queue_manager.win32_interrupt_queue,

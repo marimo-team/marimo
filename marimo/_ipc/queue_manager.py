@@ -55,7 +55,7 @@ class Connection:
 
 
 @dataclasses.dataclass
-class ZeroMqQueueManager:
+class QueueManager:
     """Queue manager using ZeroMQ for inter-process communication."""
 
     conn: Connection
@@ -109,7 +109,7 @@ class ZeroMqQueueManager:
     @classmethod
     def create(
         cls,
-    ) -> tuple[ZeroMqQueueManager, ConnectionInfo]:
+    ) -> tuple[QueueManager, ConnectionInfo]:
         """Create host-side connections with all sockets and start receivers."""
         context = zmq.Context()
 
@@ -158,7 +158,7 @@ class ZeroMqQueueManager:
     def connect(
         cls,
         connection_info: ConnectionInfo,
-    ) -> ZeroMqQueueManager:
+    ) -> QueueManager:
         """Connect to host with all sockets and start receivers."""
         context = zmq.Context()
 
