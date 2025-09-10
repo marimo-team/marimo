@@ -208,11 +208,13 @@ export const AgentThoughtsBlock = (props: {
   const endAsSeconds = props.endTimestamp / 1000;
   const totalSeconds = Math.round(endAsSeconds - startAsSeconds) || "1";
   return (
-    <SimpleAccordion title={`Thought for ${totalSeconds}s`}>
-      <div className="flex flex-col gap-2 text-muted-foreground">
-        <ContentBlocks data={props.data.map((item) => item.content)} />
-      </div>
-    </SimpleAccordion>
+    <div className="text-xs text-muted-foreground">
+      <SimpleAccordion title={`Thought for ${totalSeconds}s`}>
+        <div className="flex flex-col gap-2 text-muted-foreground">
+          <ContentBlocks data={props.data.map((item) => item.content)} />
+        </div>
+      </SimpleAccordion>
+    </div>
   );
 };
 
@@ -412,10 +414,7 @@ export const SessionNotificationsBlock = <
   };
 
   return (
-    <div
-      className="flex flex-col gap-2 text-muted-foreground"
-      data-block-type={kind}
-    >
+    <div className="flex flex-col text-sm gap-2" data-block-type={kind}>
       {renderItems(props.data)}
     </div>
   );
