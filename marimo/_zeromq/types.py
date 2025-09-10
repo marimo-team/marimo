@@ -4,11 +4,11 @@ from __future__ import annotations
 import msgspec
 import msgspec.json
 
-from marimo._ast.cell import CellConfig  # noqa: TC002
-from marimo._config.config import MarimoConfig  # noqa: TC002
+from marimo._ast.cell import CellConfig
+from marimo._config.config import MarimoConfig
 from marimo._messaging.msgspec_encoder import encode_json_bytes
-from marimo._runtime.requests import AppMetadata  # noqa: TC002
-from marimo._types.ids import CellId_t  # noqa: TC002
+from marimo._runtime.requests import AppMetadata
+from marimo._types.ids import CellId_t
 
 
 class LaunchKernelArgs(msgspec.Struct):
