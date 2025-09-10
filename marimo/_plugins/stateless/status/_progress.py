@@ -19,7 +19,7 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._utils.debounce import debounce
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable
+    from collections.abc import Collection, Iterator
 
 S = TypeVar("S")
 T = TypeVar("T")
@@ -359,7 +359,7 @@ class progress_bar:
         if not disabled:
             output.append(self.progress)
 
-    def __iter__(self) -> Iterable[S | int]:
+    def __iter__(self) -> Iterator[S | int]:
         for item in self.collection:
             yield item  # type: ignore[misc]
             if not self.disabled:
