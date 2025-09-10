@@ -1,8 +1,8 @@
-# Debugging marimo notebooks
+# Debugging marimo Notebooks
 
-## in marimo
+## Debugging in marimo
 
-### Using pdb in marimo notebooks
+### Using pdb in marimo Notebooks
 
 marimo has direct support for pdb, the Python debugger. You can set breakpoints
 in your code using the built-in `breakpoint()` function. When the code
@@ -47,8 +47,12 @@ for i in range(1, triangle_count):
         breakpoint()
 ```
 
+!!! Tip
+    Click the little bug icon in the stack trace to add breakpoints.
+    ![PDB breakpoint in marimo](./images/pdb_breakpoint_in_marimo.png)
+    Clicking on the cell link will also take you to the cell where the error occurred.
 
-### Postmortem debugging
+### Postmortem Debugging
 
 If your code raises an exception, you can use postmortem debugging to inspect the state of the program at the point where the exception occurred.
 Click on the "Launch debugger" button as shown below:
@@ -56,13 +60,18 @@ Click on the "Launch debugger" button as shown below:
 ![Postmortem debugging in marimo](./images/postmortem_debugging_in_marimo.png)
 
 
-Other tools like code.interact() will also work in marimo notebooks.
+!!! Note
+    Other tools like `code.interact()` will also work in marimo notebooks.
 
 !!! Danger
     Remember to continue or quit the debugger to avoid hanging the notebook!
 
+## Tips for debugging marimo notebooks with AI
 
-## marimo as a script
+TODO: Write this section, pull from https://github.com/marimo-team/marimo/pull/6158
+
+
+## marimo as a Script
 Since marimo notebooks are standard Python files, you can run them as scripts
 from the command line. The following command will run your marimo notebook and
 drop you into the pdb debugger if an exception occurs, or if you hit a
@@ -74,14 +83,61 @@ python -m pdb your_script.py
 
 ## Debugpy
 
+### Debugpy script mode
+Likewise, using debugpy directly in marimo notebooks is supported.
+If you want to use VSCode's debugging features, the following `launch.json`
+will debug a marimo notebook in [script mode](link-to-script-mode).
 
-## Debugpy
-### When marimo launches an edit server
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "python",
+      "request": "launch",
+      "name": "marimo Debug: script mode",
+      "program": "${file}",
+      "debugOptions": [
+          "--ignore", "*/site-packages/marimo/*"
+      ]
+    },
+  ]
+}
+```
 
-Coming soon: LSP support for marimo notebooks
+### Debugpy edit mode
+Partial support for edit mode debugging is also available.
+This mode allows the marimo editor
 
-## Tips for debugging marimo notebooks with AI
+![Postmortem debugging in marimo](./images/debugpy_edit_mode_in_marimo.png)
 
-Debug With AI
+Note, this will disable marimo's internal debugging features.
 
-@Errors
+!!! Danger
+    This mode is blocking in VSCode, so you will need to interact with the
+    debugger in your editor to regain control of the marimo notebook.
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+        "type": "debugpy",
+        "request": "launch",
+        "name": "marimo Debug: edit mode",
+        "program": "${file}",
+        "console": "integratedTerminal",
+        "cwd": "${workspaceFolder}",
+        "env": {
+            "MARIMO_SCRIPT_EDIT": "1"
+        },
+        "justMyCode": false
+    }
+  ]
+}
+```
+
+## Coming soon
+
+LSP support for marimo notebooks is coming soon, and a native debug server
+integration should be available in the near future.
