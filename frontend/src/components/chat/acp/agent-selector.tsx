@@ -10,9 +10,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/utils/cn";
+import { AgentDocs } from "./agent-docs";
 import {
   activeSessionAtom,
   addSession,
@@ -90,7 +92,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = memo(
             <ChevronDownIcon className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <DropdownMenuContent align="start" className="w-fit">
           {AVAILABLE_AGENTS.map((agent) => (
             <AgentMenuItem
               key={agent.id}
@@ -98,6 +100,17 @@ export const AgentSelector: React.FC<AgentSelectorProps> = memo(
               onSelect={handleCreateSession}
             />
           ))}
+          <DropdownMenuSeparator />
+          <div className="px-2 py-2">
+            <div className="text-xs font-medium text-muted-foreground mb-3">
+              To start an external agent, run the following command in your
+              terminal:
+            </div>
+            <AgentDocs
+              agents={AVAILABLE_AGENTS.map((agent) => agent.id)}
+              showCopy={true}
+            />
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
     );

@@ -34,27 +34,27 @@ export const AgentThread = ({
     }
 
     if (isErrorGroup(group)) {
-      const firstError = group[0];
+      const lastError = group[group.length - 1];
       return (
         <ErrorBlock
-          key={firstError.id}
-          data={firstError.data}
+          key={lastError.id}
+          data={lastError.data}
           onRetry={onRetryLastAction}
           onDismiss={
-            onDismissError ? () => onDismissError(firstError.id) : undefined
+            onDismissError ? () => onDismissError(lastError.id) : undefined
           }
         />
       );
     }
     if (isConnectionChangeGroup(group)) {
-      const firstConnectionChange = group[0];
+      const lastConnectionChange = group[group.length - 1];
       return (
         <ConnectionChangeBlock
-          key={firstConnectionChange.id}
-          data={firstConnectionChange.data}
+          key={lastConnectionChange.id}
+          data={lastConnectionChange.data}
           isConnected={isConnected}
           onRetry={onRetryConnection}
-          timestamp={firstConnectionChange.timestamp}
+          timestamp={lastConnectionChange.timestamp}
         />
       );
     }

@@ -9,8 +9,8 @@ import {
   createSession,
   type ExternalAgentId,
   generateSessionId,
+  getAgentConnectionCommand,
   getAgentDisplayName,
-  getAgentWebSocketUrl,
   getAllAgentIds,
   getSessionsByAgent,
   removeSession,
@@ -420,23 +420,21 @@ describe("state utility functions", () => {
     });
   });
 
-  describe("getAgentWebSocketUrl", () => {
-    it("should return correct URL for claude", () => {
-      expect(getAgentWebSocketUrl("claude")).toBe(
-        "ws://localhost:8000/message",
-      );
+  describe("getAgentConnectionCommand", () => {
+    it("should return correct command for claude", () => {
+      expect(getAgentConnectionCommand("claude")).toMatchInlineSnapshot(`
+        "npx supergateway --stdio\\
+          "npx @zed-industries/claude-code-acp" \\
+           --outputTransport ws --port 3017 "
+      `);
     });
 
-    it("should return correct URL for gemini", () => {
-      expect(getAgentWebSocketUrl("gemini")).toBe(
-        "ws://localhost:8001/message",
-      );
-    });
-
-    it("should throw error for unknown agent", () => {
-      expect(() => {
-        getAgentWebSocketUrl("unknown" as ExternalAgentId);
-      }).toThrow("Unknown agent: unknown");
+    it("should return correct command for gemini", () => {
+      expect(getAgentConnectionCommand("gemini")).toMatchInlineSnapshot(`
+        "npx supergateway --stdio\\
+          "npx @google/gemini-cli --experimental-acp" \\
+           --outputTransport ws --port 3019 "
+      `);
     });
   });
 });

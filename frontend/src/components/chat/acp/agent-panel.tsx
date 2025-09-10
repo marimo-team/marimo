@@ -16,6 +16,7 @@ import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
+import { AgentDocs } from "./agent-docs";
 import { AgentSelector } from "./agent-selector";
 import ScrollToBottomButton from "./scroll-to-bottom-button";
 import { SessionTabs } from "./session-tabs";
@@ -122,13 +123,22 @@ const EmptyState = memo<EmptyStateProps>(
         onDisconnect={onDisconnect}
       />
       <SessionTabs />
-      <div className="flex-1 flex items-center justify-center">
-        <PanelEmptyState
-          title="No Agent Sessions"
-          description="Create a new session to start a conversation"
-          action={<AgentSelector className="border-y-1 rounded" />}
-          icon={<BotMessageSquareIcon />}
-        />
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="max-w-md w-full space-y-6">
+          <PanelEmptyState
+            title="No Agent Sessions"
+            description="Create a new session to start a conversation"
+            action={<AgentSelector className="border-y-1 rounded" />}
+            icon={<BotMessageSquareIcon />}
+          />
+          {connectionState.status === "disconnected" && (
+            <AgentDocs
+              className="border-t pt-6"
+              title="Connect to an agent"
+              description="Start agents by running these commands in your terminal:"
+            />
+          )}
+        </div>
       </div>
     </div>
   ),

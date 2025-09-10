@@ -176,12 +176,24 @@ export function getAgentDisplayName(agentId: ExternalAgentId): string {
 }
 
 export function getAgentWebSocketUrl(agentId: ExternalAgentId): string {
-  switch (agentId) {
-    case "claude":
-      return "ws://localhost:8000/message";
-    case "gemini":
-      return "ws://localhost:8001/message"; // Assuming different port for Gemini
-    default:
-      throw new Error(`Unknown agent: ${agentId}`);
-  }
+  return AGENT_CONFIG[agentId].webSocketUrl;
+}
+
+const AGENT_CONFIG = {
+  claude: {
+    port: 3017,
+    command: "npx @zed-industries/claude-code-acp",
+    webSocketUrl: "ws://localhost:3017/message",
+  },
+  gemini: {
+    port: 3019,
+    command: "npx @google/gemini-cli --experimental-acp",
+    webSocketUrl: "ws://localhost:3019/message",
+  },
+};
+
+export function getAgentConnectionCommand(agentId: ExternalAgentId): string {
+  const port = AGENT_CONFIG[agentId].port;
+  const command = AGENT_CONFIG[agentId].command;
+  return `npx supergateway --stdio\\\n  "${command}" \\\n   --outputTransport ws --port ${port} `;
 }
