@@ -314,7 +314,7 @@ class progress_bar(Generic[S]):
 
     def __init__(
         self,
-        collection: Optional[Collection[S | int]] = None,
+        collection: Optional[Collection[S]] = None,
         *,
         title: Optional[str] = None,
         subtitle: Optional[str] = None,
@@ -360,7 +360,7 @@ class progress_bar(Generic[S]):
         if not disabled:
             output.append(self.progress)
 
-    def __iter__(self) -> Iterator[S | int]:
+    def __iter__(self) -> Iterator[S]:
         for item in self.collection:
             yield item  # type: ignore[misc]
             if not self.disabled:
