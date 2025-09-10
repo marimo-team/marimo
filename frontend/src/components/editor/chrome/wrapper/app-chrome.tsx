@@ -25,6 +25,9 @@ import { handleDragging } from "./utils";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 const LazyChatPanel = React.lazy(() => import("@/components/chat/chat-panel"));
+const LazyAgentPanel = React.lazy(
+  () => import("@/components/chat/acp/agent-panel"),
+);
 const LazyDependencyGraphPanel = React.lazy(
   () => import("@/components/editor/chrome/panels/dependency-graph-panel"),
 );
@@ -161,6 +164,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "snippets" && <LazySnippetsPanel />}
             {selectedPanel === "scratchpad" && <LazyScratchpadPanel />}
             {selectedPanel === "chat" && <LazyChatPanel />}
+            {selectedPanel === "agents" && <LazyAgentPanel />}
             {selectedPanel === "logs" && <LazyLogsPanel />}
             {selectedPanel === "tracing" && <LazyTracingPanel />}
             {selectedPanel === "secrets" && <LazySecretsPanel />}

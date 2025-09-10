@@ -2,6 +2,7 @@
 
 import {
   ActivityIcon,
+  BotIcon,
   BotMessageSquareIcon,
   BoxIcon,
   DatabaseIcon,
@@ -32,6 +33,7 @@ export type PanelType =
   | "datasources"
   | "scratchpad"
   | "chat"
+  | "agents"
   | "secrets"
   | "logs";
 
@@ -85,6 +87,13 @@ export const PANELS: PanelDescriptor[] = [
     Icon: BotMessageSquareIcon,
     tooltip: "Chat with AI",
     position: "sidebar",
+  },
+  {
+    type: "agents",
+    Icon: BotIcon,
+    tooltip: "Agents",
+    position: "sidebar",
+    hidden: !import.meta.env.DEV,
   },
   {
     type: "documentation",
