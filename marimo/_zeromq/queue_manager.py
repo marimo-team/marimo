@@ -68,7 +68,7 @@ class ZeroMqQueueManager:
     input_queue: QueueType[str]
     stream_queue: QueueType[KernelMessage]
 
-    def __post_init__(self) -> None:  # noqa: D105
+    def __post_init__(self) -> None:
         self._stop_event = threading.Event()
         self._receiver_thread: threading.Thread | None = None
 
