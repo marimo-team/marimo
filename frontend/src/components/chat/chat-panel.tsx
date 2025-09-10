@@ -2,7 +2,6 @@
 
 import type { UIMessage } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
-import { startCompletion } from "@codemirror/autocomplete";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { DefaultChatTransport, type ToolUIPart } from "ai";
@@ -57,7 +56,11 @@ import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
-import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
+import {
+  addContextCompletion,
+  CONTEXT_TRIGGER,
+  getAICompletionBodyWithAttachments,
+} from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Input } from "../ui/input";
@@ -75,8 +78,6 @@ import { ToolCallAccordion } from "./tool-call-accordion";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";
-
-const CONTEXT_TRIGGER = "@";
 
 // We need to modify the backend to support attachments for other providers
 // And other types
@@ -337,7 +338,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
     const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
     const currentProvider = AiModelId.parse(currentModel).providerId;
 
-    const { saveModeChange, saveModelChange } = useModelChange();
+    const { saveModeChange } = useModelChange();
 
     const modeOptions = [
       {
@@ -387,9 +388,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
               </Select>
             </FeatureFlagged>
             <AIModelDropdown
-              value={currentModel}
               placeholder="Model"
-              onSelect={(model) => saveModelChange(model, "chat")}
               triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
               iconSize="small"
               showAddCustomModelDocs={true}
@@ -503,28 +502,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
         </div>
         <ChatInputFooter
           isEmpty={!input.trim()}
-          onAddContext={() => {
-            if (!inputRef.current?.view) {
-              return;
-            }
-            const pos = inputRef.current.view.state.selection.main.from;
-            // Insert @ at the cursor position
-            inputRef.current.view.dispatch({
-              changes: {
-                from: pos,
-                to: pos,
-                insert: CONTEXT_TRIGGER,
-              },
-              selection: {
-                anchor: pos + 1,
-                head: pos + 1,
-              },
-            });
-            // Focus the view
-            inputRef.current.view.focus();
-            // Start completion
-            startCompletion(inputRef.current.view);
-          }}
+          onAddContext={() => addContextCompletion(inputRef)}
           onSendClick={handleSendClick}
           isLoading={isLoading}
           onStop={onStop}
@@ -848,7 +826,7 @@ const ChatPanelBody = () => {
   const chatInput = isNewThread ? (
     <ChatInput
       key="new-thread-input"
-      placeholder="Ask anything, @ to include context about tables or dataframes"
+      placeholder={`Ask anything, ${CONTEXT_TRIGGER} to include context about tables or dataframes`}
       input={newThreadInput}
       inputRef={newThreadInputRef}
       inputClassName="px-1 py-0"

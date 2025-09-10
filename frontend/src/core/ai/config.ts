@@ -8,7 +8,7 @@ import type { AIModelKey, UserConfig } from "@/core/config/config-schema";
 import { useRequestClient } from "@/core/network/requests";
 
 // Extract only the supported roles from the Role type
-type SupportedRole = Extract<Role, "chat" | "autocomplete" | "edit">;
+export type SupportedRole = Extract<Role, "chat" | "autocomplete" | "edit">;
 
 const getModelKeyForRole = (forRole: SupportedRole): AIModelKey | null => {
   switch (forRole) {
