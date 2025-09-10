@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 """Queue proxy for ZeroMQ sockets."""
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ class PushQueue(QueueType[T]):
 
     def __init__(
         self,
-        socket: zmq.Socket,
+        socket: zmq.Socket[bytes],
         *,
         maxsize: int = 0,
     ) -> None:
@@ -58,13 +59,13 @@ class PushQueue(QueueType[T]):
 
 
 def start_queue_receiver_thread(
-    mapping: dict[zmq.Socket, QueueType],
+    mapping: dict[zmq.Socket[bytes], QueueType[typing.Any]],
     stop_event: threading.Event,
 ) -> threading.Thread:
     """Start a thread to receive messages from ZeroMQ sockets and populate queues."""
 
     def receive_loop(
-        mapping: dict[zmq.Socket, QueueType],
+        mapping: dict[zmq.Socket[bytes], QueueType[typing.Any]],
         stop_event: threading.Event,
     ) -> None:
         """Receive messages from sockets and put them in queues using polling."""

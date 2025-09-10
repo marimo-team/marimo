@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 """Adapter classes for marimo-lsp to interface with marimo's core APIs."""
 
 from __future__ import annotations
@@ -19,7 +20,9 @@ class PopenProcessLike(ProcessLike):
     Provides the `ProcessLike` protocol required by marimo's KernelManager.
     """
 
-    def __init__(self, inner: subprocess.Popen) -> None:
+    def __init__(
+        self, inner: subprocess.Popen[bytes] | subprocess.Popen[str]
+    ) -> None:
         """Initialize with a subprocess.Popen instance."""
         self.inner = inner
 

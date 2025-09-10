@@ -196,6 +196,8 @@ dependencies = [
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
     "mcp>=1.0.0; python_version >= '3.10'",
+    # zeromq
+    "pyzmq>=27.1.0",
 ]
 
 [tool.hatch.envs.typecheck.scripts]

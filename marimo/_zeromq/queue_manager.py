@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 """ZeroMQ-based QueueManager implementation."""
 
 from __future__ import annotations
@@ -29,15 +30,15 @@ ADDR = "tcp://127.0.0.1"
 class Connection:
     """Marimo socket connection info."""
 
-    context: zmq.Context
+    context: zmq.Context[zmq.Socket[bytes]]
 
-    control: zmq.Socket
-    ui_element: zmq.Socket
-    completion: zmq.Socket
-    win32_interrupt: zmq.Socket | None
+    control: zmq.Socket[bytes]
+    ui_element: zmq.Socket[bytes]
+    completion: zmq.Socket[bytes]
+    win32_interrupt: zmq.Socket[bytes] | None
 
-    input: zmq.Socket
-    stream: zmq.Socket
+    input: zmq.Socket[bytes]
+    stream: zmq.Socket[bytes]
 
     def close(self) -> None:
         """Close all sockets and connections."""
@@ -75,7 +76,7 @@ class ZeroMqQueueManager:
         """Start receiver thread."""
         assert self._receiver_thread is None, "Already started"
 
-        receivers: dict[zmq.Socket, QueueType] = {}
+        receivers: dict[zmq.Socket[bytes], QueueType[typing.Any]] = {}
 
         if self.conn.control.getsockopt(zmq.TYPE) == zmq.PULL:
             receivers[self.conn.control] = self.control_queue
