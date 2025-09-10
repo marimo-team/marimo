@@ -11,6 +11,12 @@ import type { ResolvedTheme } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
 
+export const LANGUAGE_MAP: Record<string, string> = {
+  python: "py",
+  javascript: "js",
+  typescript: "ts",
+};
+
 /**
  * A code editor that supports any language.
  *
@@ -24,6 +30,9 @@ const AnyLanguageCodeMirror: React.FC<
     showCopyButton?: boolean;
   }
 > = ({ language, showCopyButton, extensions = [], ...props }) => {
+  // Maybe normalize the language to the extension
+  language = LANGUAGE_MAP[language || ""] || language;
+
   const isNotSupported = language && !(language in langs);
   if (isNotSupported) {
     Logger.warn(`Language ${language} not found in CodeMirror.`);
