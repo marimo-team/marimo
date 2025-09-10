@@ -191,7 +191,6 @@ from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    import queue
     from collections.abc import Awaitable, Iterator, Sequence
     from types import ModuleType
 
@@ -2678,7 +2677,7 @@ def launch_kernel(
     set_ui_element_queue: QueueType[SetUIElementValueRequest],
     completion_queue: QueueType[CodeCompletionRequest],
     input_queue: QueueType[str],
-    stream_queue: queue.Queue[KernelMessage] | None,
+    stream_queue: QueueType[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
