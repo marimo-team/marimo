@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sized
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -9,6 +10,7 @@ from typing import (
     Literal,
     Optional,
     TypeVar,
+    overload,
 )
 
 import marimo._runtime.output._output as output
@@ -300,7 +302,7 @@ class progress_bar(Generic[S]):
         every 150ms.
 
     Args:
-        collection (Collection[Union[S, int]], optional): Optional collection to iterate over.
+        collection (Union[Collection[S], Iterator[S]], optional): Optional collection to iterate over.
         title (str, optional): Optional title.
         subtitle (str, optional): Optional subtitle.
         completion_title (str, optional): Optional title to show during completion.
@@ -312,9 +314,57 @@ class progress_bar(Generic[S]):
         disabled (bool, optional): If True, disable the progress bar.
     """
 
+    @overload
     def __init__(
         self,
-        collection: Optional[Collection[S]] = None,
+        collection: Collection[S] = ...,
+        *,
+        title: Optional[str] = ...,
+        subtitle: Optional[str] = ...,
+        completion_title: Optional[str] = ...,
+        completion_subtitle: Optional[str] = ...,
+        total: Optional[int] = ...,
+        show_rate: bool = ...,
+        show_eta: bool = ...,
+        remove_on_exit: bool = ...,
+        disabled: bool = ...,
+    ): ...
+
+    @overload
+    def __init__(
+        self,
+        collection: Iterator[S] = ...,
+        *,
+        title: Optional[str] = ...,
+        subtitle: Optional[str] = ...,
+        completion_title: Optional[str] = ...,
+        completion_subtitle: Optional[str] = ...,
+        total: int = ...,
+        show_rate: bool = ...,
+        show_eta: bool = ...,
+        remove_on_exit: bool = ...,
+        disabled: bool = ...,
+    ): ...
+
+    @overload
+    def __init__(
+        self,
+        collection: None = ...,
+        *,
+        title: Optional[str] = ...,
+        subtitle: Optional[str] = ...,
+        completion_title: Optional[str] = ...,
+        completion_subtitle: Optional[str] = ...,
+        total: int = ...,
+        show_rate: bool = ...,
+        show_eta: bool = ...,
+        remove_on_exit: bool = ...,
+        disabled: bool = ...,
+    ): ...
+
+    def __init__(
+        self,
+        collection: Optional[Collection[S] | Iterator[S]] = None,
         *,
         title: Optional[str] = None,
         subtitle: Optional[str] = None,
@@ -334,12 +384,12 @@ class progress_bar(Generic[S]):
         if collection is not None:
             self.collection = collection
 
-            try:
+            if isinstance(collection, Sized):
                 total = total or len(collection)
                 self.step = (
                     collection.step if isinstance(collection, range) else 1
                 )
-            except TypeError:  # if collection is a generator
+            else:  # if collection is a generator
                 raise TypeError(
                     "fail to determine length of collection, use `total`"
                     + "to specify"
