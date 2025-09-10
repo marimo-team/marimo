@@ -128,3 +128,7 @@ def test_progress_without_context():
         for _ in range(10):
             assert bar
             bar.update()
+
+    with pytest.raises(RuntimeError):
+        for _ in progress_bar(total=10):
+            pass
