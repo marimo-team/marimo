@@ -350,6 +350,9 @@ class progress_bar(Generic[S]):
                 "`total` is required when using as a context manager"
             )
 
+        else:
+            self.collection = None
+
         self.progress = ProgressBar(
             title=title,
             subtitle=subtitle,
@@ -361,6 +364,10 @@ class progress_bar(Generic[S]):
             output.append(self.progress)
 
     def __iter__(self) -> Iterator[S]:
+        if self.collection is None:
+            raise RuntimeError(
+                "progress_bar can only be iterated over if a collection is provided"
+            )
         for item in self.collection:
             yield item  # type: ignore[misc]
             if not self.disabled:
