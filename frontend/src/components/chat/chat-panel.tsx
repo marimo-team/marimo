@@ -5,11 +5,7 @@ import { useChat } from "@ai-sdk/react";
 import { startCompletion } from "@codemirror/autocomplete";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import {
-  DefaultChatTransport,
-  lastAssistantMessageIsCompleteWithToolCalls,
-  type ToolUIPart,
-} from "ai";
+import { DefaultChatTransport, type ToolUIPart } from "ai";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   AtSignIcon,
@@ -270,6 +266,10 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
                     state={part.state}
                   />
                 );
+
+              // These are cryptographic signatures, so we don't need to render them
+              case "data-reasoning-signature":
+                return null;
 
               /* handle other part types … */
               default:
@@ -587,8 +587,41 @@ const ChatPanelBody = () => {
     id: chatId,
   } = useChat({
     id: activeChatId,
-    // Automatically submit when all tool results are available
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    // Only automatically submit if we have tool calls but no text response yet
+    sendAutomaticallyWhen: ({ messages }) => {
+      if (messages.length === 0) {
+        return false;
+      }
+
+      const lastMessage = messages[messages.length - 1];
+      const parts = lastMessage.parts;
+
+      if (parts.length === 0) {
+        return false;
+      }
+
+      // Only auto-send if the last message is an assistant message
+      // Because assistant messages are the ones that can have tool calls
+      if (lastMessage.role !== "assistant") {
+        return false;
+      }
+
+      const toolParts = parts.filter((part) =>
+        part.type.startsWith("tool-"),
+      ) as ToolUIPart[];
+
+      const hasCompletedToolCalls = toolParts.some(
+        (part) => part.state === "output-available",
+      );
+
+      // Check if the last part has any text content
+      const lastPart = parts[parts.length - 1];
+      const hasTextContent =
+        lastPart.type === "text" && lastPart.text?.trim().length > 0;
+
+      // Only auto-send if we have completed tool calls and there is no reply yet
+      return hasCompletedToolCalls && !hasTextContent;
+    },
     messages: activeChat?.messages || [], // initial messages
     transport: new DefaultChatTransport({
       api: runtimeManager.getAiURL("chat").toString(),
