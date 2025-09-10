@@ -85,7 +85,9 @@ class CellRuntimeMetadata(BaseModel):
 
 class CellVariableValue(BaseModel):
     name: str
-    value: Optional[str] = None
+    # Cell variables can be arbitrary Python values (int, str, list, dict, ...),
+    # so we keep this as Any to reflect actual runtime.
+    value: Optional[Any] = None
     datatype: Optional[str] = None
 
 
