@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 import contextlib
 from collections.abc import AsyncIterator
 
