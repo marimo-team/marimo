@@ -1,16 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type {
-  Completion,
-  CompletionContext,
-  CompletionSource,
+import {
+  type Completion,
+  type CompletionContext,
+  type CompletionSource,
+  startCompletion,
 } from "@codemirror/autocomplete";
+import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import type { FileUIPart } from "ai";
 import { getAIContextRegistry } from "@/core/ai/context/context";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
+
+export const CONTEXT_TRIGGER = "@";
 
 interface Opts {
   input: string;
@@ -117,4 +121,27 @@ export function mentionsCompletionSource(
       options: [...data],
     };
   };
+}
+
+export function addContextCompletion(
+  inputRef: React.RefObject<ReactCodeMirrorRef | null>,
+) {
+  if (inputRef.current?.view) {
+    const pos = inputRef.current.view.state.selection.main.from;
+    // Insert @ at the cursor position
+    inputRef.current.view.dispatch({
+      changes: {
+        from: pos,
+        to: pos,
+        insert: CONTEXT_TRIGGER,
+      },
+      selection: {
+        anchor: pos + 1,
+        head: pos + 1,
+      },
+    });
+    inputRef.current.view.focus();
+    // Trigger completion
+    startCompletion(inputRef.current.view);
+  }
 }

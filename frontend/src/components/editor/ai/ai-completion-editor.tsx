@@ -2,7 +2,7 @@
 
 import { useCompletion } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
-import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
+import { AtSignIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 import React, { useEffect, useId, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import "./merge-editor.css";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useAtom } from "jotai";
+import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -30,7 +31,7 @@ import {
   CompletionActions,
   createAiCompletionOnKeydown,
 } from "./completion-handlers";
-import { getAICompletionBody } from "./completion-utils";
+import { addContextCompletion, getAICompletionBody } from "./completion-utils";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -164,7 +165,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
             <SparklesIcon className="text-(--blue-10) shrink-0" size={16} />
             <PromptInput
               inputRef={inputRef}
-              className="h-full my-0 py-1.5"
+              className="h-full my-0 py-2"
               onClose={() => {
                 declineChange();
                 setCompletion("");
@@ -209,6 +210,24 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 size="xs"
               />
             )}
+            <div className="flex flex-row items-center gap-0.5 -ml-1.5 -mr-2">
+              <Tooltip content="Add context">
+                <Button
+                  variant="text"
+                  size="icon"
+                  onClick={() => addContextCompletion(inputRef)}
+                >
+                  <AtSignIcon className="h-3 w-3" />
+                </Button>
+              </Tooltip>
+              <AIModelDropdown
+                triggerClassName="h-7"
+                iconSize="small"
+                displayIconOnly={true}
+                forRole="edit"
+              />
+            </div>
+
             <div className="h-full w-px bg-border mx-2" />
             <Tooltip content="Include code from other cells">
               <div className="flex flex-row items-start gap-1 overflow-hidden">
