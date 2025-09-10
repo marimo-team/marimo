@@ -9,7 +9,10 @@ import typing
 
 import zmq
 
+from marimo import _loggers
 from marimo._server.types import QueueType
+
+LOGGER = _loggers.marimo_logger()
 
 T = typing.TypeVar("T")
 
@@ -82,15 +85,16 @@ def start_queue_receiver_thread(
                         msg = socket.recv(flags=zmq.NOBLOCK)
                         obj = pickle.loads(msg)  # noqa: S301
                         mapping[socket].put(obj)
-
-            except zmq.Again:  # noqa: PERF203
-                # No message ready, continue polling
+            except zmq.Again:
                 continue
-            except zmq.ZMQError:
-                # Socket closed or other error
+            except zmq.ZMQError as e:
+                LOGGER.debug(f"ZeroMQ socket error in receiver thread: {e}")
                 break
-            except Exception:  # noqa: BLE001, S112
-                # Log error but continue
+            except Exception as e:
+                LOGGER.warning(
+                    f"Unexpected error in ZeroMQ receiver thread: {e}",
+                    exc_info=True,
+                )
                 continue
 
     thread = threading.Thread(
