@@ -1,10 +1,11 @@
 import pytest
+
+pytest.importorskip("mcp", reason="MCP requires Python 3.10+")
+
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 
 from marimo._mcp.server.tools.cells import register_cells_tools
-
-pytest.importorskip("mcp", reason="MCP requires Python 3.10+")
 
 
 def test_register_cells_tools_registers_callables(monkeypatch) -> None:
