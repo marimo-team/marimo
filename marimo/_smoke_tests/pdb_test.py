@@ -8,13 +8,6 @@ app = marimo.App()
 
 @app.cell
 def _():
-
-
-    return
-
-
-@app.cell
-def _():
     def percentile(xs, p):
         """
         Return the p-th percentile of xs.
@@ -24,12 +17,12 @@ def _():
         return xs[idx]
 
 
-    percentile([1, 2, 3], 100)
+    # percentile([1, 2, 3], 100)
     return
 
 
 @app.cell
-def _(pdb):
+def _():
     # Compute triangle numbers
     triangle = 0
     triangle_count = 20
@@ -38,29 +31,7 @@ def _(pdb):
         # Debug at the 10th iteration
         # as a sanity check. Should be 55.
         if i == 10:
-            # breakpoint()
-            pdb.Pdb().set_trace()
-    return
-
-
-@app.cell
-def _():
-    import marimo as mo
-    return
-
-
-@app.cell
-def _():
-    import pdb
-
-    pdb.set_trace()
-    return (pdb,)
-
-
-@app.cell
-def _():
-
-
+            print("Sanity check!")
     return
 
 

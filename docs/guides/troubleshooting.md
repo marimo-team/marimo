@@ -6,7 +6,8 @@ define and reference. When things don't work as expected, marimo provides
 interpretation of your notebook and debug issues.
 
 This guide covers common issues and unexpected behaviors you might encounter,
-along with ways to debug and resolve them. If your issue isn't covered here,
+along with ways to debug and resolve them. For interactive debugging techniques, 
+see our [debugging guide](debugging.md). If your issue isn't covered here,
 try checking our [FAQ](../faq.md).
 
 ## Why aren't my cells running?
