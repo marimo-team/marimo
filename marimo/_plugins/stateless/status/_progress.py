@@ -19,7 +19,7 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._utils.debounce import debounce
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable, Iterator
+    from collections.abc import Collection, Iterator
 
 S = TypeVar("S")
 T = TypeVar("T")
