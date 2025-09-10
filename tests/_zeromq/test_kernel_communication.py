@@ -9,6 +9,7 @@ import sys
 import time
 
 import pytest
+from dirty_equals import IsFloat, IsList, IsUUID
 
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
@@ -21,15 +22,12 @@ from marimo._runtime.requests import (
 )
 from marimo._types.ids import CellId_t
 
-HAS_DEPS = DependencyManager.has("zmq") and DependencyManager.has(
-    "dirty_equals"
-)
+HAS_DEPS = DependencyManager.has("zmq")
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_kernel_launch_and_execute_cells():
     """Test launching a kernel and executing cells with stdout/stderr."""
-    from dirty_equals import IsFloat, IsList, IsUUID
 
     from marimo._zeromq.queue_manager import ZeroMqQueueManager
     from marimo._zeromq.types import LaunchKernelArgs

@@ -218,6 +218,7 @@ extra-dependencies = [
     "pytest-codecov~=0.6.1",
     "pytest-rerunfailures~=15.1",
     "pytest-asyncio~=0.26.0",
+    "dirty-equals>=0.9.0",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -288,9 +289,8 @@ extra-dependencies = [
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
     "mcp>=1.0.0; python_version >= '3.10'",
-    # For zeromq
+    # zeromq
     "pyzmq>=27.1.0",
-    "dirty-equals>=0.9.0",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
