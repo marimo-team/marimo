@@ -1,13 +1,13 @@
 # Copyright 2025 Marimo. All rights reserved.
-"""Standalone kernel server entry point for ZeroMQ-based IPC."""
+"""Standalone kernel server entry point for IPC (using ZeroMQ)."""
 
 from __future__ import annotations
 
 import sys
 
+from marimo._ipc.queue_manager import ZeroMqQueueManager
+from marimo._ipc.types import ConnectionInfo, LaunchKernelArgs
 from marimo._runtime import runtime
-from marimo._zeromq.queue_manager import ZeroMqQueueManager
-from marimo._zeromq.types import ConnectionInfo, LaunchKernelArgs
 
 
 def main() -> None:
@@ -19,9 +19,9 @@ def main() -> None:
 
     Typically, this entry point is invoked via the command line with:
 
-        python -m marimo._zeromq.launch_kernel
+        python -m marimo._ipc.launch_kernel
 
-    IMPORTANT: The module path "marimo._zeromq.launch_kernel" is a public API
+    IMPORTANT: The module path "marimo._ipc.launch_kernel" is a public API
     used by external consumers (e.g., marimo-lsp). Changing this path is a
     BREAKING CHANGE and should be done with care and proper deprecation.
     """

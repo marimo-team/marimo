@@ -29,8 +29,8 @@ HAS_DEPS = DependencyManager.has("zmq")
 def test_kernel_launch_and_execute_cells():
     """Test launching a kernel and executing cells with stdout/stderr."""
 
-    from marimo._zeromq.queue_manager import ZeroMqQueueManager
-    from marimo._zeromq.types import LaunchKernelArgs
+    from marimo._ipc.queue_manager import ZeroMqQueueManager
+    from marimo._ipc.types import LaunchKernelArgs
 
     execute_request = ExecuteMultipleRequest(
         cell_ids=[CellId_t("cell1")],
@@ -54,11 +54,11 @@ x = 42"""
         ),
     )
 
-    # IMPORTANT: The module path "marimo._zeromq.launch_kernel" is a public API
+    # IMPORTANT: The module path "marimo._ipc.launch_kernel" is a public API
     # used by external consumers (e.g., marimo-lsp). Changing this path is a
     # BREAKING CHANGE and should be done with care and proper deprecation.
     process = subprocess.Popen(
-        [sys.executable, "-m", "marimo._zeromq.launch_kernel"],
+        [sys.executable, "-m", "marimo._ipc.launch_kernel"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -233,7 +233,7 @@ x = 42"""
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_queue_manager_connection():
     """Test creating and connecting queue managers."""
-    from marimo._zeromq.queue_manager import ZeroMqQueueManager
+    from marimo._ipc.queue_manager import ZeroMqQueueManager
 
     host_manager, connection_info = ZeroMqQueueManager.create()
     client_manager = ZeroMqQueueManager.connect(connection_info)

@@ -11,8 +11,8 @@ import typing
 
 import zmq
 
-from marimo._zeromq.queue_proxy import PushQueue, start_queue_receiver_thread
-from marimo._zeromq.types import ConnectionInfo
+from marimo._ipc.queue_proxy import PushQueue, start_queue_receiver_thread
+from marimo._ipc.types import ConnectionInfo
 
 if typing.TYPE_CHECKING:
     from marimo._messaging.types import KernelMessage
