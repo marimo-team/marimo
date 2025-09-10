@@ -209,6 +209,7 @@ tutorials = "mypy marimo/_tutorials"
 
 [tool.hatch.envs.test]
 extra-dependencies = [
+    "dirty-equals~=0.9.0",
     "hypothesis~=6.102.1",
     # For server testing
     "httpx~=0.27.0",
@@ -218,7 +219,6 @@ extra-dependencies = [
     "pytest-codecov~=0.6.1",
     "pytest-rerunfailures~=15.1",
     "pytest-asyncio~=0.26.0",
-    "dirty-equals>=0.9.0",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -240,6 +240,7 @@ test-narwhals = """
 [tool.hatch.envs.test-optional]
 template = "test"
 extra-dependencies = [
+    "dirty-equals~=0.9.0",
     "hypothesis~=6.102.1",
     "httpx~=0.27.0",
     "matplotlib~=3.9.2",
