@@ -54,6 +54,9 @@ x = 42"""
         ),
     )
 
+    # IMPORTANT: The module path "marimo._zeromq.launch_kernel" is a public API
+    # used by external consumers (e.g., marimo-lsp). Changing this path is a
+    # BREAKING CHANGE and should be done with care and proper deprecation.
     process = subprocess.Popen(
         [sys.executable, "-m", "marimo._zeromq.launch_kernel"],
         stdin=subprocess.PIPE,

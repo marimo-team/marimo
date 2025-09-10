@@ -20,6 +20,10 @@ def main() -> None:
     Typically, this entry point is invoked via the command line with:
 
         python -m marimo._zeromq.launch_kernel
+
+    IMPORTANT: The module path "marimo._zeromq.launch_kernel" is a public API
+    used by external consumers (e.g., marimo-lsp). Changing this path is a
+    BREAKING CHANGE and should be done with care and proper deprecation.
     """
     info = ConnectionInfo.decode_json(sys.stdin.readline().strip())
     args = LaunchKernelArgs.decode_json(sys.stdin.readline().strip())
