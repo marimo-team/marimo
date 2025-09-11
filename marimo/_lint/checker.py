@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Optional
 
-from marimo._lint.context import LintContext
+from marimo._lint.context import LintContext, RuleContext
 from marimo._lint.diagnostic import Severity
 from marimo._lint.rules import RULE_CODES
 from marimo._schemas.serialization import NotebookSerialization
@@ -70,7 +70,8 @@ class LintChecker:
 
         # Create tasks for all rules with their completion tracking
         pending_tasks = {
-            asyncio.create_task(rule.check(ctx)): rule for rule in self.rules
+            asyncio.create_task(rule.check(RuleContext(ctx, rule))): rule
+            for rule in self.rules
         }
 
         diagnostic_count = 0

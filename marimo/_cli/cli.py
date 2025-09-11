@@ -6,7 +6,6 @@ import json
 import os
 import sys
 import tempfile
-from glob import glob
 from pathlib import Path
 from typing import Any, Optional
 
@@ -15,8 +14,6 @@ import click
 import marimo._cli.cli_validators as validators
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.app_config import _AppConfig as AppConfig
-from marimo._ast.cell import CellConfig
 from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
 from marimo._cli.config.commands import config
@@ -32,7 +29,7 @@ from marimo._cli.run_docker import (
 )
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._lint import Severity, lint_notebook
+from marimo._lint import run_check
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.start import start
@@ -1242,7 +1239,8 @@ def shell_completion() -> None:
     help="Whether warnings return a non-zero exit code.",
 )
 @click.option(
-    "--verbose",
+    "-v/-q",
+    "--verbose/--quiet",
     is_flag=True,
     default=True,
     show_default=True,
@@ -1253,114 +1251,58 @@ def shell_completion() -> None:
 def check(
     fix: bool, strict: bool, verbose: bool, files: tuple[str, ...]
 ) -> None:
-    seen = set()
-    errored = False
-    warnings = 0
-    diagnostics = 0
     if not files:
         # If no files are provided, we lint the current directory
         files = ("**/*.py", "**/*.md", "**/*.qmd")
 
-    def echo(_: str) -> None:
-        if verbose:
-            click.echo(_)
+    diagnostics = run_check(files)
+    fixed = 0
+    issues = 0
 
-    for pattern in files:
-        for file in glob(pattern, recursive=True):
-            if file in seen:
+    for file_status in diagnostics.files:
+        if file_status.skipped:
+            if verbose:
+                click.echo(yellow(file_status.message))
+            continue
+
+        if file_status.failed:
+            if verbose:
+                click.echo(red(file_status.message))
+                for detail in file_status.details:
+                    click.echo(red(f"{detail}"))
+            issues += 1
+            continue
+
+        for diagnostic in file_status.diagnostics:
+            # Don't print fixable errors if they will be solved.
+            if fix and diagnostic.fixable:
                 continue
-            seen.add(file)
+            issues += 1
+            if verbose:
+                click.echo(diagnostic.format())
+                click.echo("")
 
-            # if not explicitly called on a __init__.py file, skip it
-            if file.endswith("__init__.py") and (
-                "__init__.py" not in pattern or len(files) > 1
+        if fix:
+            original_contents = Path(file_status.file).read_text(
+                encoding="utf-8"
+            )
+            updated_contents = file_status.fix()
+            if (
+                updated_contents is not None
+                and original_contents != updated_contents
             ):
-                echo(yellow(f"Skipping __init__.py file: {file}"))
-                continue
-            is_markdown = file.endswith(".md") or file.endswith(".qmd")
-            if not (file.endswith(".py") or is_markdown):
-                echo(yellow(f"Skipping non-marimo file: {file}"))
-                continue
+                with open(file_status.file, "w", encoding="utf-8") as f:
+                    f.write(updated_contents)
+                if verbose:
+                    click.echo(f"Updated: {file_status.file}")
+                fixed += 1
 
-            attempt = None
-            try:
-                attempt = get_notebook_status(file)
-                status = attempt.status
-            except MarimoFileError:
-                status = "invalid"
+    if fixed > 0:
+        click.echo(f"Updated {fixed} file{'s' if fixed > 0 else ''}.")
+    if issues > 0:
+        click.echo(f"Found {issues} issue{'s' if issues > 1 else ''}.")
 
-            if status == "invalid" or attempt is None:
-                echo(red(f"Error in {file}: {status}"))
-                if attempt is not None and attempt.notebook is not None:
-                    echo(red(f"{attempt.notebook.violations[-1].description}"))
-                errored = True
-                continue
-
-            notebook = attempt.notebook
-            if notebook is None:
-                echo(red(f"Could not parse {file}"))
-                errored = True
-                continue
-
-            errors = lint_notebook(notebook)
-
-            if errors:
-                with open(file, encoding="utf-8") as f:
-                    code_lines = f.read().split("\n")
-
-                for error in errors:
-                    errored = (
-                        error.severity in (Severity.BREAKING, Severity.RUNTIME)
-                        or errored
-                    )
-                    echo(error.format(file, code_lines))
-                    echo("")
-                diagnostics += len(errors)
-
-            if fix:
-                # TODO: Attempt to fix errors in place
-                # fixed_notebook = fix_notebook(notebook, errors, file)
-
-                if is_markdown:
-                    from marimo._server.export.exporter import Exporter
-
-                    exporter = Exporter()
-                    generated_contents, _ = exporter.export_as_md(
-                        notebook, file
-                    )
-                else:
-                    generated_contents = codegen.generate_filecontents(
-                        codes=[cell.code for cell in notebook.cells],
-                        names=[cell.name for cell in notebook.cells],
-                        cell_configs=[
-                            CellConfig.from_dict(cell.options, warn=False)
-                            for cell in notebook.cells
-                        ],
-                        config=AppConfig.from_untrusted_dict(
-                            notebook.app.options, silent=True
-                        ),
-                        header_comments=notebook.header.value
-                        if notebook.header
-                        else None,
-                    )
-
-                original_contents = Path(file).read_text(encoding="utf-8")
-                with open(file, "w", encoding="utf-8") as f:
-                    f.write(generated_contents)
-                if original_contents != generated_contents:
-                    echo(f"Updated: {file}")
-                    warnings += 1
-                else:
-                    pass  # echo(f"No changes made to {file}")
-
-    if warnings > 0:
-        click.echo(f"Updated {warnings} file{'s' if warnings > 0 else ''}.")
-    if diagnostics > 0:
-        click.echo(
-            f"Found {diagnostics} issue{'s' if diagnostics > 1 else ''}."
-        )
-
-    if errored or (strict and warnings > 0 or diagnostics > 0):
+    if diagnostics.errored or (strict and fixed > 0 or issues > 0):
         sys.exit(1)
 
 

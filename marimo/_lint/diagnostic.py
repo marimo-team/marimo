@@ -25,26 +25,26 @@ def line_num(line: int) -> str:
 class Diagnostic:
     """Represents a diagnostic found in a notebook."""
 
-    code: str
-    name: str
     message: str
-    severity: Severity
     cell_id: None | list[CellId_t]
     line: int | list[int]
     column: int | list[int]
-    fixable: bool
+    code: Optional[str] = None
+    name: Optional[str] = None
+    severity: Optional[Severity] = None
+    fixable: Optional[bool] = None
     fix: Optional[str] = None
+    filename: Optional[str] = None
 
     def format(
         self,
-        filename: str,
         code_lines: list[str] | None = None,
         formatter: str = "full",
     ) -> str:
         """Format the diagnostic for display.
 
         Args:
-            filename: The filename where the diagnostic occurred
+            filename: The filename where the diagnostic occurred (optional)
             code_lines: Optional source code lines for context
             formatter: The formatter to use ("full" is the only supported option)
 
@@ -55,7 +55,9 @@ class Diagnostic:
 
         if formatter == "full":
             fmt = FullFormatter()
-            return fmt.format(self, filename, code_lines)
+            # Use stored filename if available, then parameter, then "unknown"
+            actual_filename = self.filename or "unknown"
+            return fmt.format(self, actual_filename, code_lines)
         else:
             raise ValueError(f"Unsupported formatter: {formatter}")
 

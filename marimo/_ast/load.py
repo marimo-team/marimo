@@ -161,7 +161,7 @@ def get_notebook_status(filename: str) -> LoadResult:
 
         notebook = convert_from_md_to_marimo_ir(contents)
     elif path.suffix == ".py":
-        notebook = parse_notebook(contents)
+        notebook = parse_notebook(contents, filepath=filename)
     else:
         raise MarimoFileError("File must end with .py, .md, or .qmd.")
 

@@ -18,7 +18,7 @@ from marimo._types.ids import CellId_t
 from marimo._utils.cell_matching import match_cell_ids_by_similarity
 
 if TYPE_CHECKING:
-    from marimo._lint.context import LintContext
+    from marimo._lint.context import RuleContext
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._schemas.serialization import CellDef
 
@@ -47,18 +47,8 @@ class GraphRule(LintRule):
         - https://docs.marimo.io/guides/editor_features/understanding_dataflow/ (Dataflow)
     """
 
-    def __init__(
-        self,
-        code: str,
-        name: str,
-        description: str,
-        severity: Severity,
-        fixable: bool = False,
-    ) -> None:
-        super().__init__(code, name, description, severity, fixable)
-
     def _get_cell_from_id(
-        self, cell_id: CellId_t, ctx: LintContext
+        self, cell_id: CellId_t, ctx: RuleContext
     ) -> CellDef | None:
         """Get the corresponding CellDef from notebook serialization for a given cell_id."""
         # For setup cells, use the special setup cell name
@@ -104,7 +94,7 @@ class GraphRule(LintRule):
         return None
 
     def _get_variable_line_info(
-        self, cell_id: CellId_t, variable_name: str, ctx: LintContext
+        self, cell_id: CellId_t, variable_name: str, ctx: RuleContext
     ) -> tuple[int, int]:
         """Get line and column info for a specific variable within a cell."""
         target_cell = self._get_cell_from_id(cell_id, ctx)
@@ -125,7 +115,7 @@ class GraphRule(LintRule):
         # Fallback to (0, 0) to indicate unknown line/column
         return 0, 0
 
-    async def check(self, ctx: LintContext) -> None:
+    async def check(self, ctx: RuleContext) -> None:
         """Perform graph-based validation using the provided context."""
         # Get the graph from context (cached)
         graph = ctx.get_graph()
@@ -135,7 +125,7 @@ class GraphRule(LintRule):
 
     @abstractmethod
     async def _validate_graph(
-        self, graph: DirectedGraph, ctx: LintContext
+        self, graph: DirectedGraph, ctx: RuleContext
     ) -> None:
         """Abstract method to validate the graph and add diagnostics to context.
 
@@ -170,17 +160,14 @@ class MultipleDefinitionsRule(GraphRule):
             Cell 2: y = 2  # Use different variable name
     """
 
-    def __init__(self) -> None:
-        super().__init__(
-            code="MR001",
-            name="multiple-definitions",
-            description="Multiple cells define the same variable",
-            severity=Severity.RUNTIME,
-            fixable=False,
-        )
+    code = "MB002"
+    name = "multiple-definitions"
+    description = "Multiple cells define the same variable"
+    severity = Severity.BREAKING
+    fixable = False
 
     async def _validate_graph(
-        self, graph: DirectedGraph, ctx: LintContext
+        self, graph: DirectedGraph, ctx: RuleContext
     ) -> None:
         """Validate the graph for multiple definitions."""
         validation_errors = check_for_multiple_definitions(graph)
@@ -202,14 +189,10 @@ class MultipleDefinitionsRule(GraphRule):
             cell_ids = [info.cell_id for info in names[name]]
 
             diagnostic = Diagnostic(
-                code=self.code,
-                name=self.name,
                 message=f"Variable '{name}' is defined in multiple cells",
-                severity=self.severity,
                 cell_id=cell_ids,
                 line=lines,
                 column=columns,
-                fixable=self.fixable,
                 fix=(
                     "Variables must be unique across cells. Alternatively, "
                     f"they can be private with an underscore prefix (i.e. `_{name}`.)"
@@ -243,17 +226,14 @@ class CycleDependenciesRule(GraphRule):
             Cell 2: b = a + 1  # Unidirectional dependency
     """
 
-    def __init__(self) -> None:
-        super().__init__(
-            code="MR002",
-            name="cycle-dependencies",
-            description="Cells have circular dependencies",
-            severity=Severity.RUNTIME,
-            fixable=False,
-        )
+    code = "MB003"
+    name = "cycle-dependencies"
+    description = "Cells have circular dependencies"
+    severity = Severity.BREAKING
+    fixable = False
 
     async def _validate_graph(
-        self, graph: DirectedGraph, ctx: LintContext
+        self, graph: DirectedGraph, ctx: RuleContext
     ) -> None:
         """Validate the graph for circular dependencies."""
         validation_errors = check_for_cycles(graph)
@@ -279,14 +259,10 @@ class CycleDependenciesRule(GraphRule):
                         columns.append(column)
 
                 diagnostic = Diagnostic(
-                    code=self.code,
-                    name=self.name,
                     message="Cell is part of a circular dependency",
-                    severity=self.severity,
                     cell_id=cells,
                     line=lines,
                     column=columns,
-                    fixable=self.fixable,
                 )
 
                 await ctx.add_diagnostic(diagnostic)
@@ -317,17 +293,14 @@ class SetupCellDependenciesRule(GraphRule):
             Cell 1: x = y + 1  # Other cells can use setup variables
     """
 
-    def __init__(self) -> None:
-        super().__init__(
-            code="MR003",
-            name="setup-cell-dependencies",
-            description="Setup cell cannot have dependencies",
-            severity=Severity.RUNTIME,
-            fixable=False,
-        )
+    code = "MB004"
+    name = "setup-cell-dependencies"
+    description = "Setup cell cannot have dependencies"
+    severity = Severity.BREAKING
+    fixable = False
 
     async def _validate_graph(
-        self, graph: DirectedGraph, ctx: LintContext
+        self, graph: DirectedGraph, ctx: RuleContext
     ) -> None:
         """Validate the graph for setup cell dependency violations."""
         validation_errors = check_for_invalid_root(graph)
@@ -341,14 +314,10 @@ class SetupCellDependenciesRule(GraphRule):
                 )
 
                 diagnostic = Diagnostic(
-                    code=self.code,
-                    name=self.name,
                     message="Setup cell cannot have dependencies",
-                    severity=self.severity,
                     cell_id=[cell_id],
                     line=line,
                     column=column,
-                    fixable=self.fixable,
                 )
 
                 await ctx.add_diagnostic(diagnostic)

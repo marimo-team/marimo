@@ -913,6 +913,7 @@ def parse_notebook(
             cells=[],
             violations=violations,
             valid=False,
+            filename=filepath,
         )
     violations.extend(import_result.violations)
     # Extract import alias for the reference
@@ -947,6 +948,7 @@ def parse_notebook(
             app=app,
             violations=violations,
             cells=cells,
+            filename=filepath,
         )
 
     body_result = parser.parse_body(body)
@@ -963,6 +965,7 @@ def parse_notebook(
         app=app,
         cells=cells,
         violations=violations,
+        filename=filepath,
     )
 
 

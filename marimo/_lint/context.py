@@ -112,3 +112,38 @@ class LintContext:
                 self._graph.register_cell(cell_id, cell._cell)
 
             return self._graph
+
+
+class RuleContext:
+    """Context for a specific rule execution that wraps LintContext with filename info."""
+
+    def __init__(self, global_context: LintContext, rule):
+        self.global_context = global_context
+        self.rule = rule
+
+    async def add_diagnostic(self, diagnostic: Diagnostic) -> None:
+        """Add a diagnostic with context filled in from rule and notebook."""
+        # Backfill any None attributes from rule defaults
+        if diagnostic.code is None:
+            diagnostic.code = self.rule.code
+        if diagnostic.name is None:
+            diagnostic.name = self.rule.name
+        if diagnostic.severity is None:
+            diagnostic.severity = self.rule.severity
+        if diagnostic.fixable is None:
+            diagnostic.fixable = self.rule.fixable
+
+        # Set filename from notebook
+        if diagnostic._filename is None:
+            diagnostic._filename = self.global_context.notebook.filename
+
+        await self.global_context.add_diagnostic(diagnostic)
+
+    @property
+    def notebook(self) -> NotebookSerialization:
+        """Access to the notebook being linted."""
+        return self.global_context.notebook
+
+    def get_graph(self) -> DirectedGraph:
+        """Access to the dependency graph."""
+        return self.global_context.get_graph()

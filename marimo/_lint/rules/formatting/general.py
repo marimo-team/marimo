@@ -7,22 +7,19 @@ from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import LintRule
 
 if TYPE_CHECKING:
-    from marimo._lint.context import LintContext
+    from marimo._lint.context import RuleContext
 
 
 class GeneralFormattingRule(LintRule):
     """MF001: General formatting issues."""
 
-    def __init__(self) -> None:
-        super().__init__(
-            code="MF001",
-            name="general-formatting",
-            description="General formatting issues with the notebook format.",
-            severity=Severity.FORMATTING,
-            fixable=True,
-        )
+    code = "MF001"
+    name = "general-formatting"
+    description = "General formatting issues with the notebook format."
+    severity = Severity.FORMATTING
+    fixable = True
 
-    async def check(self, ctx: LintContext) -> None:
+    async def check(self, ctx: RuleContext) -> None:
         """Check for general formatting issues by extracting violations from serialization."""
         # Import the violation constants to check for specific types
         from marimo._ast.parse import (
@@ -44,10 +41,7 @@ class GeneralFormattingRule(LintRule):
 
             # Create diagnostic and add to context
             diagnostic = Diagnostic(
-                code=self.code,
-                name=self.name,
                 message=violation.description,
-                severity=self.severity,
                 cell_id=[],  # Violations don't have cell_id
                 line=violation.lineno,
                 column=violation.col_offset + 1,  # Convert 0-based to 1-based
