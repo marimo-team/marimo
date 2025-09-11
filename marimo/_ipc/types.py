@@ -31,13 +31,11 @@ class KernelArgs(msgspec.Struct):
     user_config: MarimoConfig
     log_level: int
     profile_path: str | None
-
     connection_info: ConnectionInfo
 
+    def encode_json(self) -> bytes:
+        return encode_json_bytes(self)
 
-def encode_kernel_args(args: KernelArgs) -> bytes:
-    return encode_json_bytes(args)
-
-
-def decode_kernel_args(buf: bytes) -> KernelArgs:
-    return msgspec.json.decode(buf, type=KernelArgs)
+    @classmethod
+    def decode_json(cls, buf: bytes) -> KernelArgs:
+        return msgspec.json.decode(buf, type=cls)

@@ -28,9 +28,7 @@ HAS_DEPS = DependencyManager.has("zmq")
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_kernel_launch_and_execute_cells():
     """Test launching a kernel and executing cells with stdout/stderr."""
-
-    from marimo._ipc.queue_manager import QueueManager
-    from marimo._ipc.types import KernelArgs, encode_kernel_args
+    from marimo._ipc import KernelArgs, QueueManager
 
     execute_request = ExecuteMultipleRequest(
         cell_ids=[CellId_t("cell1")],
@@ -66,7 +64,7 @@ x = 42"""
     )
 
     assert process.stdin is not None
-    process.stdin.write(encode_kernel_args(kernel_args))
+    process.stdin.write(kernel_args.encode_json())
     process.stdin.flush()
     process.stdin.close()
 
@@ -233,7 +231,7 @@ x = 42"""
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_queue_manager_connection():
     """Test creating and connecting queue managers."""
-    from marimo._ipc.queue_manager import QueueManager
+    from marimo._ipc import QueueManager
 
     host_manager, connection_info = QueueManager.create()
     client_manager = QueueManager.connect(connection_info)
