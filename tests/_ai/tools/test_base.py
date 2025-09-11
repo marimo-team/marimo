@@ -4,7 +4,7 @@ import inspect
 from dataclasses import dataclass
 from typing import Any
 
-from marimo._ai.tools.base import ToolBase, ToolContext
+from marimo._ai._tools.base import ToolBase, ToolContext
 
 
 @dataclass

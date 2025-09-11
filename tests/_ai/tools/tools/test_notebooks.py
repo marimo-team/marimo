@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 from unittest.mock import Mock, patch
 
-from marimo._ai.tools.base import ToolContext
-from marimo._ai.tools.tools.notebooks import GetActiveNotebooks
+from marimo._ai._tools.base import ToolContext
+from marimo._ai._tools.tools.notebooks import GetActiveNotebooks
 from marimo._server.model import ConnectionState
 
 
@@ -42,7 +42,7 @@ def test_get_active_sessions_internal_open_session():
     session_manager = MockSessionManager({"session1": session})
 
     with patch(
-        "marimo._ai.tools.tools.notebooks.pretty_path"
+        "marimo._ai._tools.tools.notebooks.pretty_path"
     ) as mock_pretty_path:
         mock_pretty_path.return_value = "notebook.py"
         result = tool._get_active_sessions_internal(session_manager)
@@ -64,7 +64,7 @@ def test_get_active_sessions_internal_orphaned_session():
     session_manager = MockSessionManager({"session2": session})
 
     with patch(
-        "marimo._ai.tools.tools.notebooks.pretty_path"
+        "marimo._ai._tools.tools.notebooks.pretty_path"
     ) as mock_pretty_path:
         mock_pretty_path.return_value = "test.py"
         result = tool._get_active_sessions_internal(session_manager)
@@ -110,7 +110,7 @@ def test_get_active_sessions_internal_multiple_sessions():
     session_manager = MockSessionManager(sessions)
 
     with patch(
-        "marimo._ai.tools.tools.notebooks.pretty_path"
+        "marimo._ai._tools.tools.notebooks.pretty_path"
     ) as mock_pretty_path:
         mock_pretty_path.side_effect = lambda x: os.path.basename(x)
         result = tool._get_active_sessions_internal(session_manager)

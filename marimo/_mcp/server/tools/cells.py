@@ -3,8 +3,8 @@
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 
-from marimo._ai.tools.base import ToolContext
-from marimo._ai.tools.tools.cells import (
+from marimo._ai._tools.base import ToolContext
+from marimo._ai._tools.tools.cells import (
     GetCellRuntimeData,
     GetLightweightCellMap,
 )

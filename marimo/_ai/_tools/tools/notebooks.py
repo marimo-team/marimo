@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from marimo._ai.tools.base import ToolBase
-from marimo._ai.tools.types import (
+from marimo._ai._tools.base import ToolBase
+from marimo._ai._tools.types import (
     EmptyArgs,
     SuccessResult,
 )
@@ -57,7 +57,8 @@ class GetActiveNotebooks(ToolBase[EmptyArgs, GetActiveNotebooksOutput]):
         A success result containing summary statistics and notebook details.
     """
 
-    def handle(self, _args: EmptyArgs) -> GetActiveNotebooksOutput:
+    def handle(self, args: EmptyArgs) -> GetActiveNotebooksOutput:
+        del args
         context = self.context
         session_manager = context.session_manager
         active_files = self._get_active_sessions_internal(session_manager)

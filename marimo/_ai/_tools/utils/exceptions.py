@@ -29,11 +29,11 @@ class ToolExecutionError(Exception):
         import json
 
         payload = asdict(self)
-        payload["meta"] = payload.get("meta") or {}
+        payload["meta"] = payload.get("meta", {})
         return json.dumps(payload, separators=(",", ":"))
 
     def to_dict(self) -> dict[str, Any]:
         """Return a dictionary representation for testing."""
         payload = asdict(self)
-        payload["meta"] = payload.get("meta") or {}
+        payload["meta"] = payload.get("meta", {})
         return payload

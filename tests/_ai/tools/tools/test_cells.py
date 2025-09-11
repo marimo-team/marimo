@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from unittest.mock import Mock
 
-from marimo._ai.tools.base import ToolContext
-from marimo._ai.tools.tools.cells import (
+from marimo._ai._tools.base import ToolContext
+from marimo._ai._tools.tools.cells import (
     CellErrors,
     CellRuntimeMetadata,
     CellVariables,

@@ -4,9 +4,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
 
-from marimo._ai.tools.base import ToolBase
-from marimo._ai.tools.types import SuccessResult
-from marimo._ai.tools.utils.exceptions import ToolExecutionError
+from marimo._ai._tools.base import ToolBase
+from marimo._ai._tools.types import SuccessResult
+from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ast.models import CellData
 from marimo._types.ids import CellId_t, SessionId
 

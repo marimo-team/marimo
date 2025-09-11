@@ -1,6 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import dataclasses
 import inspect
 import re
 from abc import ABC, abstractmethod
@@ -20,10 +21,11 @@ from starlette.applications import (
     Starlette,  # noqa: TCH002 - required at runtime for MCP/Pydantic schema validation and isinstance checks
 )
 
-from marimo._ai.tools.utils.exceptions import ToolExecutionError
+from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._server.api.deps import AppStateBase
 from marimo._server.sessions import Session, SessionManager
 from marimo._types.ids import SessionId
+from marimo._utils.parse_dataclass import parse_raw
 
 ArgsT = TypeVar("ArgsT")
 OutT = TypeVar("OutT")
@@ -124,7 +126,16 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
         Unified runner: calls __call__ and awaits if it returns a coroutine.
         Adapters should always use this.
         """
-        coerced_args = self._coerce_args(args)
+        try:
+            coerced_args = self._coerce_args(args)
+        except Exception as e:
+            raise ToolExecutionError(
+                f"Bad arguments: {args}",
+                code="BAD_ARGUMENTS",
+                is_retryable=False,
+                suggested_fix="Try again with valid arguments.",
+                meta={"args": args},
+            ) from e
         try:
             result = self.handle(coerced_args)
             if inspect.isawaitable(result):
@@ -199,17 +210,10 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
 
     def _coerce_args(self, args: Any) -> ArgsT:  # type: ignore[override]
         """If Args is a dataclass and args is a dict, construct it; else pass through."""
-        ArgsType: Any = getattr(self, "Args", None)
-        if (
-            isinstance(args, dict)
-            and inspect.isclass(ArgsType)
-            and is_dataclass(ArgsType)
-        ):
-            try:
-                return cast(ArgsT, ArgsType(**args))
-            except Exception:
-                return cast(ArgsT, args)
-        return cast(ArgsT, args)
+        if dataclasses.is_dataclass(args):
+            # Already parsed
+            return args  # type: ignore[return-value]
+        return parse_raw(args, self.Args)
 
     def _to_snake_case(self, name: str) -> str:
         """Convert a PascalCase/CamelCase class name to snake_case function name.
