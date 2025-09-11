@@ -11,7 +11,7 @@ step through the code, and evaluate expressions.
 
 Here's an example of how to use `breakpoint()` in a marimo notebook cell.
 
-![PDB in marimo](../_static/pdb_in_marimo.png)
+![PDB in marimo](/_static/docs-pdb-demo.png)
 
 Type `help` in the debugger for a list of commands:
 
@@ -56,7 +56,7 @@ def __():
 
 !!! tip
     Click the little bug icon in the stack trace to add breakpoints.
-    <video autoplay muted loop playsinline width="100%" align="center" src="../_static/docs-pdb-breakpoint.webm" alt="Animation showing how to click the bug icon to add PDB breakpoints">
+    <video autoplay muted loop playsinline width="100%" align="center" src="/_static/docs-pdb-breakpoint.webm" alt="Animation showing how to click the bug icon to add PDB breakpoints">
     </video>
     Clicking on the cell link will also take you to the cell where the error occurred.
 
@@ -66,7 +66,7 @@ If your code raises an exception, you can use postmortem debugging to inspect
 the state of the program at the point where the exception occurred. Click on
 the "Launch debugger" button as shown below:
 
-<video autoplay muted loop playsinline width="100%" align="center" src="../_static/docs-postmortem-debugging.webm" alt="Video demonstrating postmortem debugging with the Launch debugger button">
+<video autoplay muted loop playsinline width="100%" align="center" src="/_static/docs-postmortem-debugging.webm" alt="Video demonstrating postmortem debugging with the Launch debugger button">
 </video>
 
 
@@ -93,7 +93,7 @@ Errors" context** that can be shared with AI assistants. This feature
 automatically collects comprehensive error information from your notebook,
 making it easier to get targeted debugging help.
 
-![Notebook Errors context in marimo](../_static/notebook_errors_context_in_marimo.png)
+![Notebook Errors context in marimo](/_static/docs-notebook-errors-context.png)
 
 ### Best practices for AI-assisted debugging
 
@@ -156,7 +156,7 @@ will debug a marimo notebook in [script mode](../scripts.md).
 Partial support for edit mode debugging is also available.
 This mode allows the marimo editor to hit breakpoints set in an IDE like VSCode.
 
-<video autoplay muted loop playsinline width="100%" align="center" src="../_static/docs-debugpy-edit-mode.webm" alt="Video showing debugpy edit mode debugging with VSCode hitting marimo breakpoints">
+<video autoplay muted loop playsinline width="100%" align="center" src="/_static/docs-debugpy-edit-mode.webm" alt="Video showing debugpy edit mode debugging with VSCode hitting marimo breakpoints">
 </video>
 
 Note, this will disable marimo's internal debugging features.
