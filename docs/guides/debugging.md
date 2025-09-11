@@ -56,7 +56,7 @@ def __():
 
 !!! tip
     Click the little bug icon in the stack trace to add breakpoints.
-    <video autoplay muted loop playsinline width="100%" align="center" src="../_static/pdb_breakpoint_in_marimo.webm" alt="Animation showing how to click the bug icon to add PDB breakpoints">
+    <video autoplay muted loop playsinline width="100%" align="center" src="../_static/docs-pdb-breakpoint.webm" alt="Animation showing how to click the bug icon to add PDB breakpoints">
     </video>
     Clicking on the cell link will also take you to the cell where the error occurred.
 
@@ -66,7 +66,7 @@ If your code raises an exception, you can use postmortem debugging to inspect
 the state of the program at the point where the exception occurred. Click on
 the "Launch debugger" button as shown below:
 
-<video autoplay muted loop playsinline width="100%" align="center" src="../_static/postmortem_debugging_in_marimo.webm" alt="Video demonstrating postmortem debugging with the Launch debugger button">
+<video autoplay muted loop playsinline width="100%" align="center" src="../_static/docs-postmortem-debugging.webm" alt="Video demonstrating postmortem debugging with the Launch debugger button">
 </video>
 
 
@@ -133,7 +133,7 @@ python -m pdb your_script.py
 ### Debugpy script mode
 Likewise, using debugpy directly in marimo notebooks is supported.
 If you want to use VSCode's debugging features, the following `launch.json`
-will debug a marimo notebook in [script mode](link-to-script-mode).
+will debug a marimo notebook in [script mode](../scripts.md).
 
 ```json
 {
@@ -156,7 +156,7 @@ will debug a marimo notebook in [script mode](link-to-script-mode).
 Partial support for edit mode debugging is also available.
 This mode allows the marimo editor to hit breakpoints set in an IDE like VSCode.
 
-<video autoplay muted loop playsinline width="100%" align="center" src="../_static/debugpy_edit_mode_in_marimo.webm" alt="Video showing debugpy edit mode debugging with VSCode hitting marimo breakpoints">
+<video autoplay muted loop playsinline width="100%" align="center" src="../_static/docs-debugpy-edit-mode.webm" alt="Video showing debugpy edit mode debugging with VSCode hitting marimo breakpoints">
 </video>
 
 Note, this will disable marimo's internal debugging features.
