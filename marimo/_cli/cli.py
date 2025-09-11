@@ -1282,9 +1282,17 @@ def check(
                 echo(yellow(f"Skipping non-marimo file: {file}"))
                 continue
 
-            attempt = get_notebook_status(file)
-            if attempt.status == "invalid":
-                echo(red(f"Error in {file}: {attempt.status}"))
+            attempt = None
+            try:
+                attempt = get_notebook_status(file)
+                status = attempt.status
+            except MarimoFileError:
+                status = "invalid"
+
+            if status == "invalid" or attempt is None:
+                echo(red(f"Error in {file}: {status}"))
+                if attempt is not None and attempt.notebook is not None:
+                    echo(red(f"{attempt.notebook.violations[-1].description}"))
                 errored = True
                 continue
 
@@ -1297,16 +1305,8 @@ def check(
             errors = lint_notebook(notebook)
 
             if errors:
-                # Get code lines for context display
-                # Read the original file to get the complete code for context
-                try:
-                    with open(file, encoding="utf-8") as f:
-                        code_lines = f.read().split("\n")
-                except Exception:
-                    # Fallback: build from notebook cells
-                    code_lines = []
-                    for cell in notebook.cells:
-                        code_lines.extend(cell.code.split("\n"))
+                with open(file, encoding="utf-8") as f:
+                    code_lines = f.read().split("\n")
 
                 for error in errors:
                     errored = (

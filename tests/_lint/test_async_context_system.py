@@ -1,8 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
 """Unit tests for the async context-based lint system."""
 
-import asyncio
-
 from marimo._ast.parse import parse_notebook
 from marimo._lint.checker import LintChecker
 from marimo._lint.context import LintContext
@@ -337,9 +335,3 @@ def _():
         expected_codes = {"MF001", "MR001", "MR002", "MR003", "MB001"}
 
         assert expected_codes.issubset(rule_codes)
-
-
-# Async test runner
-def run_async_test(coro):
-    """Helper to run async test methods."""
-    return asyncio.run(coro)
