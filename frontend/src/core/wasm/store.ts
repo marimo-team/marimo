@@ -97,9 +97,9 @@ export class CompositeFileStore implements FileStore {
     this.stores.forEach((store) => store.saveFile(contents));
   }
 
-  readFile() {
+  async readFile() {
     for (const store of this.stores) {
-      const contents = store.readFile();
+      const contents = await store.readFile();
       if (contents) {
         return contents;
       }

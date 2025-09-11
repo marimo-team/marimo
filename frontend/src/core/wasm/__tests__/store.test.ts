@@ -7,9 +7,9 @@ import {
 } from "../store";
 
 describe("localStorageFileStore", () => {
-  it("calls set with correct contents on saveFile", () => {
+  it("calls set with correct contents on saveFile", async () => {
     localStorageFileStore.saveFile("test content");
-    expect(localStorageFileStore.readFile()).toBe("test content");
+    expect(await localStorageFileStore.readFile()).toBe("test content");
   });
 });
 
@@ -20,16 +20,16 @@ describe("domElementFileStore", () => {
     expect(element.innerHTML).toBe("");
   });
 
-  it("returns correct value from get on readFile", () => {
+  it("returns correct value from get on readFile", async () => {
     const element = document.createElement("marimo-code");
     document.body.replaceChildren(element);
     element.innerHTML = "other content";
-    expect(domElementFileStore.readFile()).toBe("other content");
+    expect(await domElementFileStore.readFile()).toBe("other content");
   });
 });
 
 describe("CompositeFileStore", () => {
-  it("returns correct value from get on readFile", () => {
+  it("returns correct value from get on readFile", async () => {
     const saved = vi.fn();
     const composite = new CompositeFileStore([
       {
@@ -46,7 +46,7 @@ describe("CompositeFileStore", () => {
       },
     ]);
 
-    expect(composite.readFile()).toBe("one");
+    expect(await composite.readFile()).toBe("one");
 
     composite.saveFile("new content");
     expect(saved).toHaveBeenCalledWith("new content");
