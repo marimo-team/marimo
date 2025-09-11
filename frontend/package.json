@@ -86,6 +86,7 @@
     "@radix-ui/react-use-callback-ref": "~1.1.1",
     "@radix-ui/react-use-controllable-state": "~1.2.2",
     "@replit/codemirror-vim": "^6.3.0",
+    "@supabase/supabase-js": "^2.57.4",
     "@tailwindcss/postcss": "^4.1.11",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-table": "^8.21.3",
