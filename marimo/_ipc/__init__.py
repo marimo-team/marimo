@@ -2,10 +2,9 @@
 """Experimental IPC implementation (using ZeroMQ)."""
 
 from marimo._ipc.queue_manager import QueueManager
-from marimo._ipc.types import ConnectionInfo, LaunchKernelArgs
+from marimo._ipc.types import encode_kernel_args
 
 __all__ = [
-    "LaunchKernelArgs",
-    "ConnectionInfo",
+    "encode_kernel_args",
     "QueueManager",
 ]

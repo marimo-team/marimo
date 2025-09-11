@@ -6,7 +6,7 @@ from __future__ import annotations
 import sys
 
 from marimo._ipc.queue_manager import QueueManager
-from marimo._ipc.types import ConnectionInfo, LaunchKernelArgs
+from marimo._ipc.types import decode_kernel_args
 from marimo._runtime import runtime
 
 
@@ -25,10 +25,9 @@ def main() -> None:
     used by external consumers (e.g., marimo-lsp). Changing this path is a
     BREAKING CHANGE and should be done with care and proper deprecation.
     """
-    info = ConnectionInfo.decode_json(sys.stdin.readline().strip())
-    args = LaunchKernelArgs.decode_json(sys.stdin.readline().strip())
+    args = decode_kernel_args(sys.stdin.buffer.read())
+    queue_manager = QueueManager.connect(args.connection_info)
 
-    queue_manager = QueueManager.connect(info)
     runtime.launch_kernel(
         set_ui_element_queue=queue_manager.set_ui_element_queue,
         interrupt_queue=queue_manager.win32_interrupt_queue,

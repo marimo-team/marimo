@@ -30,7 +30,7 @@ def test_kernel_launch_and_execute_cells():
     """Test launching a kernel and executing cells with stdout/stderr."""
 
     from marimo._ipc.queue_manager import QueueManager
-    from marimo._ipc.types import LaunchKernelArgs
+    from marimo._ipc.types import KernelArgs, encode_kernel_args
 
     execute_request = ExecuteMultipleRequest(
         cell_ids=[CellId_t("cell1")],
@@ -44,7 +44,8 @@ x = 42"""
     )
 
     queue_manager, connection_info = QueueManager.create()
-    kernel_args = LaunchKernelArgs(
+    kernel_args = KernelArgs(
+        connection_info=connection_info,
         profile_path=None,
         configs={cid: CellConfig() for cid in execute_request.cell_ids},
         user_config=DEFAULT_CONFIG,
@@ -65,9 +66,9 @@ x = 42"""
     )
 
     assert process.stdin is not None
-    process.stdin.write(connection_info.encode_json() + b"\n")
-    process.stdin.write(kernel_args.encode_json() + b"\n")
+    process.stdin.write(encode_kernel_args(kernel_args))
     process.stdin.flush()
+    process.stdin.close()
 
     time.sleep(1.0)  # let kernel start
 

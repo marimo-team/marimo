@@ -11,25 +11,6 @@ from marimo._runtime.requests import AppMetadata
 from marimo._types.ids import CellId_t
 
 
-class LaunchKernelArgs(msgspec.Struct):
-    """Args to send to the kernel."""
-
-    configs: dict[CellId_t, CellConfig]
-    app_metadata: AppMetadata
-    user_config: MarimoConfig
-    log_level: int
-    profile_path: str | None
-
-    def encode_json(self) -> bytes:
-        """Encode kernel args as JSON."""
-        return encode_json_bytes(self)
-
-    @classmethod
-    def decode_json(cls, buf: bytes | str) -> LaunchKernelArgs:
-        """Encode kernel args as JSON."""
-        return msgspec.json.decode(buf, type=cls)
-
-
 class ConnectionInfo(msgspec.Struct):
     """ZeroMQ socket connection info."""
 
@@ -41,11 +22,22 @@ class ConnectionInfo(msgspec.Struct):
     input: int
     stream: int
 
-    def encode_json(self) -> bytes:
-        """Encode ConnectionInfo as JSON."""
-        return encode_json_bytes(self)
 
-    @classmethod
-    def decode_json(cls, buf: bytes | str) -> ConnectionInfo:
-        """Decode JSON connection info."""
-        return msgspec.json.decode(buf, type=cls)
+class KernelArgs(msgspec.Struct):
+    """Args to send to the kernel."""
+
+    configs: dict[CellId_t, CellConfig]
+    app_metadata: AppMetadata
+    user_config: MarimoConfig
+    log_level: int
+    profile_path: str | None
+
+    connection_info: ConnectionInfo
+
+
+def encode_kernel_args(args: KernelArgs) -> bytes:
+    return encode_json_bytes(args)
+
+
+def decode_kernel_args(buf: bytes) -> KernelArgs:
+    return msgspec.json.decode(buf, type=KernelArgs)
