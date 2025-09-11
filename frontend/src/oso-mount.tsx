@@ -48,6 +48,7 @@ import { reportVitals } from "./utils/vitals";
 import { OSOWrapper } from "./oso-extensions/wrapper";
 import { OSONotebook, LazyOSONotebookEditPage, preloadPage } from "./oso-extensions/OSONotebook";
 import { FragmentStore, FragmentStoreProvider } from "./oso-extensions/fragment-store";
+import { SupabaseFileStore } from "./oso-extensions/supabase-filestore";
 
 
 let hasMounted = false;
@@ -301,7 +302,7 @@ function initStore(fragmentStore: FragmentStore, options: unknown) {
 
   // Initialize file stores if provided
   notebookFileStore.overrideStores([
-    // Add the supabaseFilestore here!
+    new SupabaseFileStore(fragmentStore),
     new OSOFileStore(fragmentStore),
     { // This is a fallback store that does nothing but return a default notebook
       saveFile: (_contents: string) => {
