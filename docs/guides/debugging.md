@@ -56,7 +56,8 @@ def __():
 
 !!! tip
     Click the little bug icon in the stack trace to add breakpoints.
-    ![PDB breakpoint in marimo](../_static/pdb_breakpoint_in_marimo.webm)
+    <video autoplay muted loop playsinline width="100%" align="center" src="../_static/pdb_breakpoint_in_marimo.webm" alt="Animation showing how to click the bug icon to add PDB breakpoints">
+    </video>
     Clicking on the cell link will also take you to the cell where the error occurred.
 
 ### Postmortem Debugging
@@ -65,7 +66,8 @@ If your code raises an exception, you can use postmortem debugging to inspect
 the state of the program at the point where the exception occurred. Click on
 the "Launch debugger" button as shown below:
 
-![Postmortem debugging in marimo](../_static/postmortem_debugging_in_marimo.webm)
+<video autoplay muted loop playsinline width="100%" align="center" src="../_static/postmortem_debugging_in_marimo.webm" alt="Video demonstrating postmortem debugging with the Launch debugger button">
+</video>
 
 
 !!! note
@@ -154,7 +156,8 @@ will debug a marimo notebook in [script mode](link-to-script-mode).
 Partial support for edit mode debugging is also available.
 This mode allows the marimo editor to hit breakpoints set in an IDE like VSCode.
 
-![Debugpy debugging in marimo](../_static/debugpy_edit_mode_in_marimo.png)
+<video autoplay muted loop playsinline width="100%" align="center" src="../_static/debugpy_edit_mode_in_marimo.webm" alt="Video showing debugpy edit mode debugging with VSCode hitting marimo breakpoints">
+</video>
 
 Note, this will disable marimo's internal debugging features.
 
