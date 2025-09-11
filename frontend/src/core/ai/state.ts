@@ -4,6 +4,7 @@ import type { UIMessage } from "@ai-sdk/react";
 import type { FileUIPart } from "ai";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import { uniqueBy } from "@/utils/arrays";
 import { adaptForLocalStorage } from "@/utils/storage";
 import type { TypedString } from "@/utils/typed";
 import type { CellId } from "../cells/ids";
@@ -46,9 +47,17 @@ export interface ChatState {
 }
 
 function removeEmptyChats(chatState: Map<ChatId, Chat>): Map<ChatId, Chat> {
-  return new Map(
-    [...chatState.entries()].filter(([_, chat]) => chat.messages.length > 0),
-  );
+  const result = new Map<ChatId, Chat>();
+
+  // Dedupe messages with the same id
+  for (const [chatId, chat] of chatState.entries()) {
+    if (chat.messages.length === 0) {
+      continue;
+    }
+    const dedupedMessages = uniqueBy(chat.messages, (message) => message.id);
+    result.set(chatId, { ...chat, messages: dedupedMessages });
+  }
+  return result;
 }
 
 export const chatStateAtom = atomWithStorage<ChatState>(

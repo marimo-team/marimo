@@ -1,10 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import {
-  type LanguageName,
-  langs,
-  loadLanguage,
-} from "@uiw/codemirror-extensions-langs";
+import { langs, loadLanguage } from "@uiw/codemirror-extensions-langs";
 import ReactCodeMirror, {
   type Extension,
   type ReactCodeMirrorProps,
@@ -14,6 +10,12 @@ import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
+
+export const LANGUAGE_MAP: Record<string, string> = {
+  python: "py",
+  javascript: "js",
+  typescript: "ts",
+};
 
 /**
  * A code editor that supports any language.
@@ -28,6 +30,9 @@ const AnyLanguageCodeMirror: React.FC<
     showCopyButton?: boolean;
   }
 > = ({ language, showCopyButton, extensions = [], ...props }) => {
+  // Maybe normalize the language to the extension
+  language = LANGUAGE_MAP[language || ""] || language;
+
   const isNotSupported = language && !(language in langs);
   if (isNotSupported) {
     Logger.warn(`Language ${language} not found in CodeMirror.`);
@@ -37,9 +42,7 @@ const AnyLanguageCodeMirror: React.FC<
     if (!language) {
       return extensions;
     }
-    return [loadLanguage(language as LanguageName), ...extensions].filter(
-      Boolean,
-    );
+    return [loadLanguage(language), ...extensions].filter(Boolean);
   }, [language, extensions]);
 
   return (

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from functools import partial
+from unittest.mock import patch
 
 import pytest
 
@@ -1337,3 +1338,70 @@ def public_func():
 
     # Private variable shouldn't appear directly
     assert "_private_var" not in refs
+
+
+def test_directed_graph_copy() -> None:
+    """Test DirectedGraph.copy() method for recompiling cells with filename."""
+    graph = dataflow.DirectedGraph()
+
+    # Create some cells
+    code = "import marimo as mo"
+    cell1 = parse_cell(code)
+
+    graph.register_cell("0", cell1)
+
+    # Mock compile_cell to verify it's called with filename
+    with patch("marimo._ast.compiler.compile_cell") as mock_compile:
+        mock_compile.return_value = parse_cell(code)
+
+        filename = "test_notebook.py"
+        copied_graph = graph.copy(filename)
+
+        # Verify compile_cell was called for each cell with filename
+        assert mock_compile.call_count == 1
+        for call in mock_compile.call_args_list:
+            assert call[1]["filename"] == filename
+
+        # Verify the copied graph has the same structure
+        assert len(copied_graph.cells) == 1
+        assert set(copied_graph.cells.keys()) == {"0"}
+
+        # Verify import workspace data is preserved
+        for cell_id in copied_graph.cells:
+            original_cell = graph.cells[cell_id]
+            copied_cell = copied_graph.cells[cell_id]
+            assert (
+                copied_cell.import_workspace.imported_defs
+                == original_cell.import_workspace.imported_defs
+            )
+            assert (
+                copied_cell.import_workspace.is_import_block
+                == original_cell.import_workspace.is_import_block
+            )
+
+
+def test_directed_graph_copy_no_filename() -> None:
+    """Test DirectedGraph.copy() method without filename."""
+    graph = dataflow.DirectedGraph()
+
+    # Create a cell
+    code = "y = x + 1"
+    cell1 = parse_cell(code)
+    graph.register_cell("0", cell1)
+
+    # Mock compile_cell to verify it's called without filename
+    with patch("marimo._ast.compiler.compile_cell") as mock_compile:
+        mock_compile.return_value = parse_cell(code)
+
+        copied_graph = graph.copy(None)
+
+        # Verify compile_cell was called without filename
+        assert mock_compile.call_count == 1
+        call_args = mock_compile.call_args
+        assert (
+            "filename" not in call_args[1] or call_args[1]["filename"] is None
+        )
+
+        # Verify the copied graph has the same structure
+        assert len(copied_graph.cells) == 1
+        assert "0" in copied_graph.cells

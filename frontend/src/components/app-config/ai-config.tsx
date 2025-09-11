@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import type { SupportedRole } from "@/core/ai/config";
 import {
   AiModelId,
   PROVIDERS,
@@ -225,6 +226,7 @@ interface ModelSelectorProps {
   description?: React.ReactNode;
   disabled?: boolean;
   label: string;
+  forRole: SupportedRole;
   onSubmit: (values: UserConfig) => void;
 }
 
@@ -237,6 +239,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   description,
   disabled = false,
   label,
+  forRole,
   onSubmit,
 }) => {
   return (
@@ -289,6 +292,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                     </div>
                   </>
                 }
+                forRole={forRole}
               />
             </FormControl>
             <FormMessage />
@@ -420,6 +424,7 @@ const renderCopilotProvider = ({
         testId="custom-model-input"
         description="Model to use for code completion when using a custom provider."
         onSubmit={onSubmit}
+        forRole="autocomplete"
       />
     );
   }
@@ -905,6 +910,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         description={
           <span>Model to use for chat conversations in the Chat panel.</span>
         }
+        forRole="chat"
         onSubmit={onSubmit}
       />
       <ModelSelector
@@ -921,6 +927,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
             <Kbd className="inline">Generate with AI</Kbd> button.
           </span>
         }
+        forRole="edit"
         onSubmit={onSubmit}
       />
 

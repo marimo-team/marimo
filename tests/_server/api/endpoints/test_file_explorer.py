@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
@@ -113,3 +114,130 @@ def test_open_file(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert "success" in response.json()
+
+
+def test_search_files_basic(client: TestClient, tmp_path: Path) -> None:
+    """Test basic file search functionality."""
+    response = client.post(
+        "/api/files/search",
+        headers=HEADERS,
+        json={"query": "test", "path": str(tmp_path)},
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/json"
+    data = response.json()
+    assert "files" in data
+    assert "query" in data
+    assert "totalFound" in data
+    assert data["query"] == "test"
+    assert isinstance(data["files"], list)
+    assert isinstance(data["totalFound"], int)
+
+
+def test_search_files_with_matches(client: TestClient, tmp_path: Path) -> None:
+    """Test search returns expected matches."""
+    # Create test structure
+    search_dir = tmp_path
+
+    # Create test files
+    Path(search_dir, "hello.txt").write_text("content")
+    Path(search_dir, "world.txt").write_text("content")
+    Path(search_dir, "hello_world.py").write_text("print('hello')")
+
+    # Create subdirectory with files
+    sub_dir = Path(search_dir, "subdir")
+    sub_dir.mkdir()
+    Path(sub_dir, "hello.md").write_text("# Hello")
+
+    response = client.post(
+        "/api/files/search",
+        headers=HEADERS,
+        json={"query": "hello", "path": str(search_dir), "depth": 2},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+
+    # Should find hello.txt, hello_world.py, and hello.md
+    assert data["totalFound"] >= 2
+    file_names = [f["name"] for f in data["files"]]
+    assert "hello.txt" in file_names
+    assert "hello_world.py" in file_names
+
+
+def test_search_files_with_directory_and_file_filters(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Test directory and file filtering parameters in API."""
+    # Create test structure
+    (tmp_path / "test_file.txt").write_text("content")
+    (tmp_path / "test_file.py").write_text("# test content")
+    test_subdir = tmp_path / "test_dir"
+    test_subdir.mkdir()
+    (test_subdir / "nested_file.txt").write_text("content")
+
+    # Test searching for files only
+    response = client.post(
+        "/api/files/search",
+        headers=HEADERS,
+        json={
+            "query": "test",
+            "path": str(tmp_path),
+            "includeFiles": True,
+            "includeDirectories": False,
+        },
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+
+    # Should only find files
+    for file_info in data["files"]:
+        assert not file_info["isDirectory"], (
+            f"Found directory {file_info['name']} when includeFiles=True, includeDirectories=False"
+        )
+    assert data["totalFound"] >= 2  # Should find test files
+
+    # Test searching for directories only
+    response = client.post(
+        "/api/files/search",
+        headers=HEADERS,
+        json={
+            "query": "test",
+            "path": str(tmp_path),
+            "includeFiles": False,
+            "includeDirectories": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+
+    # Should only find directories
+    for file_info in data["files"]:
+        assert file_info["isDirectory"], (
+            f"Found file {file_info['name']} when includeFiles=False, includeDirectories=True"
+        )
+    assert data["totalFound"] >= 1  # Should find test_dir
+
+    # Test with both file and directory filters as false
+    response = client.post(
+        "/api/files/search",
+        headers=HEADERS,
+        json={
+            "query": "test",
+            "path": str(tmp_path),
+            "includeFiles": False,
+            "includeDirectories": False,
+        },
+    )
+    assert response.status_code == 200, response.text
+    data_both_false = response.json()
+    assert data_both_false["totalFound"] == 0
+
+    # Compare with no filter
+    response = client.post(
+        "/api/files/search",
+        headers=HEADERS,
+        json={"query": "test", "path": str(tmp_path)},
+    )
+    assert response.status_code == 200, response.text
+    data_no_filter = response.json()
+    assert data_no_filter["totalFound"] == 3

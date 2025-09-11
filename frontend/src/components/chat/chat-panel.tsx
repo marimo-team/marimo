@@ -4,13 +4,10 @@ import type { UIMessage } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import {
-  DefaultChatTransport,
-  lastAssistantMessageIsCompleteWithToolCalls,
-  type ToolUIPart,
-} from "ai";
+import { DefaultChatTransport, type ToolUIPart } from "ai";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
+  AtSignIcon,
   BotMessageSquareIcon,
   ClockIcon,
   Loader2,
@@ -59,7 +56,11 @@ import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
-import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
+import {
+  addContextCompletion,
+  CONTEXT_TRIGGER,
+  getAICompletionBodyWithAttachments,
+} from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Input } from "../ui/input";
@@ -267,6 +268,10 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
                   />
                 );
 
+              // These are cryptographic signatures, so we don't need to render them
+              case "data-reasoning-signature":
+                return null;
+
               /* handle other part types … */
               default:
                 if (part.type.startsWith("data-")) {
@@ -313,8 +318,9 @@ interface ChatInputFooterProps {
   onSendClick: () => void;
   isLoading: boolean;
   onStop: () => void;
-  handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onAddFiles: (files: File[]) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onAddContext: () => void;
 }
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
@@ -324,14 +330,15 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
     isLoading,
     onStop,
     fileInputRef,
-    handleFileChange,
+    onAddFiles,
+    onAddContext,
   }) => {
     const ai = useAtomValue(aiAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
     const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
     const currentProvider = AiModelId.parse(currentModel).providerId;
 
-    const { saveModeChange, saveModelChange } = useModelChange();
+    const { saveModeChange } = useModelChange();
 
     const modeOptions = [
       {
@@ -351,82 +358,95 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
 
     return (
-      <div className="px-3 py-2 border-t border-border/20 flex flex-row items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FeatureFlagged feature="mcp_docs">
-            <Select value={currentMode} onValueChange={saveModeChange}>
-              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
-                {currentMode}
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>AI Mode</SelectLabel>
-                  {modeOptions.map((option) => (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      className="text-xs"
-                    >
-                      <div className="flex flex-col">
-                        {option.label}
-                        <div className="text-muted-foreground text-xs pt-1 block">
-                          {option.subtitle}
+      <TooltipProvider>
+        <div className="px-3 py-2 border-t border-border/20 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FeatureFlagged feature="mcp_docs">
+              <Select value={currentMode} onValueChange={saveModeChange}>
+                <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
+                  {currentMode}
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>AI Mode</SelectLabel>
+                    {modeOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="text-xs"
+                      >
+                        <div className="flex flex-col">
+                          {option.label}
+                          <div className="text-muted-foreground text-xs pt-1 block">
+                            {option.subtitle}
+                          </div>
                         </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FeatureFlagged>
-          <AIModelDropdown
-            value={currentModel}
-            placeholder="Model"
-            onSelect={(model) => saveModelChange(model, "chat")}
-            triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
-            iconSize="small"
-            showAddCustomModelDocs={true}
-            forRole="chat"
-          />
-        </div>
-        <div className="flex flex-row">
-          {isAttachmentSupported && (
-            <>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </FeatureFlagged>
+            <AIModelDropdown
+              placeholder="Model"
+              triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
+              iconSize="small"
+              showAddCustomModelDocs={true}
+              forRole="chat"
+            />
+          </div>
+          <div className="flex flex-row">
+            <Tooltip content="Add context">
+              <Button variant="text" size="icon" onClick={onAddContext}>
+                <AtSignIcon className="h-3.5 w-3.5" />
+              </Button>
+            </Tooltip>
+            {isAttachmentSupported && (
+              <>
+                <Tooltip content="Attach a file">
+                  <Button
+                    variant="text"
+                    size="icon"
+                    className="cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Attach a file"
+                  >
+                    <PaperclipIcon className="h-3.5 w-3.5" />
+                  </Button>
+                </Tooltip>
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple={true}
+                  hidden={true}
+                  onChange={(event) => {
+                    if (event.target.files) {
+                      onAddFiles([...event.target.files]);
+                    }
+                  }}
+                  accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
+                />
+              </>
+            )}
+
+            <Tooltip content="Submit">
               <Button
                 variant="text"
-                size="icon"
-                className="cursor-pointer"
-                onClick={() => fileInputRef.current?.click()}
-                title="Attach a file"
+                size="sm"
+                className="h-6 w-6 p-0 hover:bg-muted/30 cursor-pointer"
+                onClick={isLoading ? onStop : onSendClick}
+                disabled={isLoading ? false : isEmpty}
               >
-                <PaperclipIcon className="h-3.5 w-3.5" />
+                {isLoading ? (
+                  <SquareIcon className="h-3 w-3 fill-current" />
+                ) : (
+                  <SendIcon className="h-3 w-3" />
+                )}
               </Button>
-              <Input
-                ref={fileInputRef}
-                type="file"
-                multiple={true}
-                hidden={true}
-                onChange={handleFileChange}
-                accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
-              />
-            </>
-          )}
-
-          <Button
-            variant="text"
-            size="sm"
-            className="h-6 w-6 p-0 hover:bg-muted/30 cursor-pointer"
-            onClick={isLoading ? onStop : onSendClick}
-            disabled={isLoading ? false : isEmpty}
-          >
-            {isLoading ? (
-              <SquareIcon className="h-3 w-3 fill-current" />
-            ) : (
-              <SendIcon className="h-3 w-3" />
-            )}
-          </Button>
+            </Tooltip>
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
     );
   },
 );
@@ -444,7 +464,7 @@ interface ChatInputProps {
   onStop: () => void;
   onClose: () => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
-  handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onAddFiles: (files: File[]) => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = memo(
@@ -458,7 +478,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     isLoading,
     onStop,
     fileInputRef,
-    handleFileChange,
+    onAddFiles,
     onClose,
   }) => {
     const handleSendClick = useEvent(() => {
@@ -476,16 +496,18 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onChange={setInput}
             onSubmit={onSubmit}
             onClose={onClose}
+            onAddFiles={onAddFiles}
             placeholder={placeholder || "Type your message..."}
           />
         </div>
         <ChatInputFooter
           isEmpty={!input.trim()}
+          onAddContext={() => addContextCompletion(inputRef)}
           onSendClick={handleSendClick}
           isLoading={isLoading}
           onStop={onStop}
           fileInputRef={fileInputRef}
-          handleFileChange={handleFileChange}
+          onAddFiles={onAddFiles}
         />
       </div>
     );
@@ -543,8 +565,41 @@ const ChatPanelBody = () => {
     id: chatId,
   } = useChat({
     id: activeChatId,
-    // Automatically submit when all tool results are available
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    // Only automatically submit if we have tool calls but no text response yet
+    sendAutomaticallyWhen: ({ messages }) => {
+      if (messages.length === 0) {
+        return false;
+      }
+
+      const lastMessage = messages[messages.length - 1];
+      const parts = lastMessage.parts;
+
+      if (parts.length === 0) {
+        return false;
+      }
+
+      // Only auto-send if the last message is an assistant message
+      // Because assistant messages are the ones that can have tool calls
+      if (lastMessage.role !== "assistant") {
+        return false;
+      }
+
+      const toolParts = parts.filter((part) =>
+        part.type.startsWith("tool-"),
+      ) as ToolUIPart[];
+
+      const hasCompletedToolCalls = toolParts.some(
+        (part) => part.state === "output-available",
+      );
+
+      // Check if the last part has any text content
+      const lastPart = parts[parts.length - 1];
+      const hasTextContent =
+        lastPart.type === "text" && lastPart.text?.trim().length > 0;
+
+      // Only auto-send if we have completed tool calls and there is no reply yet
+      return hasCompletedToolCalls && !hasTextContent;
+    },
     messages: activeChat?.messages || [], // initial messages
     transport: new DefaultChatTransport({
       api: runtimeManager.getAiURL("chat").toString(),
@@ -622,29 +677,26 @@ const ChatPanelBody = () => {
     },
   });
 
-  const handleFileChange = useEvent(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = event.target.files;
-      if (!files) {
-        return;
-      }
+  const onAddFiles = useEvent((files: File[]) => {
+    if (files.length === 0) {
+      return;
+    }
 
-      let fileSize = 0;
-      for (const file of files) {
-        fileSize += file.size;
-      }
+    let fileSize = 0;
+    for (const file of files) {
+      fileSize += file.size;
+    }
 
-      if (fileSize > MAX_ATTACHMENT_SIZE) {
-        toast({
-          title: "File size exceeds 50MB limit",
-          description: "Please remove some files and try again.",
-        });
-        return;
-      }
+    if (fileSize > MAX_ATTACHMENT_SIZE) {
+      toast({
+        title: "File size exceeds 50MB limit",
+        description: "Please remove some files and try again.",
+      });
+      return;
+    }
 
-      setFiles((prev) => [...(prev ?? []), ...files]);
-    },
-  );
+    setFiles((prev) => [...(prev ?? []), ...files]);
+  });
 
   const removeFile = useEvent((file: File) => {
     if (files) {
@@ -774,7 +826,7 @@ const ChatPanelBody = () => {
   const chatInput = isNewThread ? (
     <ChatInput
       key="new-thread-input"
-      placeholder="Ask anything, @ to include context about tables or dataframes"
+      placeholder={`Ask anything, ${CONTEXT_TRIGGER} to include context about tables or dataframes`}
       input={newThreadInput}
       inputRef={newThreadInputRef}
       inputClassName="px-1 py-0"
@@ -783,7 +835,7 @@ const ChatPanelBody = () => {
       isLoading={isLoading}
       onStop={stop}
       fileInputRef={fileInputRef}
-      handleFileChange={handleFileChange}
+      onAddFiles={onAddFiles}
       onClose={handleOnCloseThread}
     />
   ) : (
@@ -796,7 +848,7 @@ const ChatPanelBody = () => {
       onStop={stop}
       onClose={() => newMessageInputRef.current?.editor?.blur()}
       fileInputRef={fileInputRef}
-      handleFileChange={handleFileChange}
+      onAddFiles={onAddFiles}
     />
   );
 

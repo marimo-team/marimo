@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pathlib
 import sys
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, Mock, call, patch
 
 import pytest
@@ -498,3 +498,281 @@ def test_missing_packages_hook_pip(
         "pandas": "",
         "scipy": "",
     }
+
+
+async def test_install_missing_packages_with_streaming_logs(
+    mocked_kernel: MockedKernel,
+) -> None:
+    """Test that install_missing_packages uses streaming logs functionality."""
+    k = mocked_kernel.k
+    broadcast_messages: list[InstallingPackageAlert] = []
+
+    def mock_broadcast(self):
+        """Mock the broadcast method to capture alerts"""
+        broadcast_messages.append(self)
+
+    # Mock package manager
+    mock_package_manager = Mock(spec=PipPackageManager)
+    mock_package_manager.name = "pip"
+    mock_package_manager.is_manager_installed.return_value = True
+    mock_package_manager.attempted_to_install.return_value = False
+    mock_package_manager.package_to_module.return_value = "test_module"
+
+    # Mock successful installation with log callback
+    async def mock_install(pkg: str, version=None, log_callback=None):
+        del pkg, version
+        if log_callback:
+            log_callback("Starting installation...\n")
+            log_callback("Downloading package...\n")
+            log_callback("Installing package...\n")
+            log_callback("Installation complete!\n")
+        return True
+
+    mock_package_manager.install = AsyncMock(side_effect=mock_install)
+
+    # Set up packages callbacks
+    k.packages_callbacks.package_manager = mock_package_manager
+
+    # Monkey patch broadcast for testing
+    original_broadcast = InstallingPackageAlert.broadcast
+    InstallingPackageAlert.broadcast = mock_broadcast
+
+    try:
+        # Create install request
+        request = InstallMissingPackagesRequest(
+            manager="pip", versions={"numpy": ""}
+        )
+
+        await k.packages_callbacks.install_missing_packages(request)
+
+        # Verify broadcast messages
+        assert (
+            len(broadcast_messages) >= 5
+        )  # Initial + start + done + status updates
+
+        # Check that streaming logs were sent
+        streaming_alerts = [
+            msg for msg in broadcast_messages if msg.logs is not None
+        ]
+        assert len(streaming_alerts) >= 2  # At least start and done
+
+        # Verify start log
+        start_alerts = [
+            msg for msg in streaming_alerts if msg.log_status == "start"
+        ]
+        assert len(start_alerts) == 1
+        assert "numpy" in start_alerts[0].logs
+        assert "Installing numpy" in start_alerts[0].logs["numpy"]
+
+        # Verify done log
+        done_alerts = [
+            msg for msg in streaming_alerts if msg.log_status == "done"
+        ]
+        assert len(done_alerts) == 1
+        assert "numpy" in done_alerts[0].logs
+        assert "Successfully installed numpy" in done_alerts[0].logs["numpy"]
+
+        # Verify package manager was called with log callback
+        mock_package_manager.install.assert_called_once()
+        call_args = mock_package_manager.install.call_args
+        assert call_args.kwargs.get("log_callback") is not None
+
+    finally:
+        # Restore original broadcast method
+        InstallingPackageAlert.broadcast = original_broadcast
+
+
+async def test_install_missing_packages_streaming_logs_failure(
+    mocked_kernel: MockedKernel,
+) -> None:
+    """Test streaming logs when package installation fails."""
+    k = mocked_kernel.k
+    broadcast_messages: list[InstallingPackageAlert] = []
+
+    def mock_broadcast(self):
+        broadcast_messages.append(self)
+
+    # Mock package manager
+    mock_package_manager = Mock(spec=PipPackageManager)
+    mock_package_manager.name = "pip"
+    mock_package_manager.is_manager_installed.return_value = True
+    mock_package_manager.attempted_to_install.return_value = False
+    mock_package_manager.package_to_module.return_value = "test_module"
+
+    # Mock failed installation with log callback
+    async def mock_install_fail(pkg: str, version=None, log_callback=None):
+        del pkg, version
+        if log_callback:
+            log_callback("Starting installation...\n")
+            log_callback("Error: Package not found\n")
+        return False  # Installation failed
+
+    mock_package_manager.install = AsyncMock(side_effect=mock_install_fail)
+    k.packages_callbacks.package_manager = mock_package_manager
+
+    # Monkey patch broadcast
+    original_broadcast = InstallingPackageAlert.broadcast
+    InstallingPackageAlert.broadcast = mock_broadcast
+
+    try:
+        request = InstallMissingPackagesRequest(
+            manager="pip", versions={"nonexistent-package": ""}
+        )
+
+        await k.packages_callbacks.install_missing_packages(request)
+
+        # Verify failure logs were sent
+        streaming_alerts = [
+            msg for msg in broadcast_messages if msg.logs is not None
+        ]
+        assert len(streaming_alerts) >= 2
+
+        # Verify done log with failure message
+        done_alerts = [
+            msg for msg in streaming_alerts if msg.log_status == "done"
+        ]
+        assert len(done_alerts) == 1
+        assert "nonexistent-package" in done_alerts[0].logs
+        assert (
+            "Failed to install" in done_alerts[0].logs["nonexistent-package"]
+        )
+
+    finally:
+        InstallingPackageAlert.broadcast = original_broadcast
+
+
+async def test_install_missing_packages_streaming_logs_multiple_packages(
+    mocked_kernel: MockedKernel,
+) -> None:
+    """Test streaming logs for multiple packages."""
+    k = mocked_kernel.k
+    broadcast_messages: list[InstallingPackageAlert] = []
+
+    def mock_broadcast(self):
+        broadcast_messages.append(self)
+
+    # Mock package manager
+    mock_package_manager = Mock(spec=PipPackageManager)
+    mock_package_manager.name = "pip"
+    mock_package_manager.is_manager_installed.return_value = True
+    mock_package_manager.attempted_to_install.return_value = False
+    mock_package_manager.package_to_module.side_effect = (
+        lambda pkg: pkg.replace("-", "_")
+    )
+
+    # Track which packages are being installed
+    installation_calls = []
+
+    async def mock_install(pkg: str, version=None, log_callback=None):
+        del version
+        installation_calls.append(pkg)
+        if log_callback:
+            log_callback(f"Installing {pkg}...\n")
+            log_callback(f"Successfully installed {pkg}!\n")
+        return True
+
+    mock_package_manager.install = AsyncMock(side_effect=mock_install)
+    k.packages_callbacks.package_manager = mock_package_manager
+
+    # Monkey patch broadcast
+    original_broadcast = InstallingPackageAlert.broadcast
+    InstallingPackageAlert.broadcast = mock_broadcast
+
+    try:
+        request = InstallMissingPackagesRequest(
+            manager="pip", versions={"numpy": "", "pandas": "", "scipy": ""}
+        )
+
+        await k.packages_callbacks.install_missing_packages(request)
+
+        # Verify all packages were processed
+        assert len(installation_calls) == 3
+        assert set(installation_calls) == {"numpy", "pandas", "scipy"}
+
+        # Verify streaming logs for each package
+        streaming_alerts = [
+            msg for msg in broadcast_messages if msg.logs is not None
+        ]
+
+        # Should have start and done logs for each package
+        start_alerts = [
+            msg for msg in streaming_alerts if msg.log_status == "start"
+        ]
+        done_alerts = [
+            msg for msg in streaming_alerts if msg.log_status == "done"
+        ]
+
+        assert len(start_alerts) == 3
+        assert len(done_alerts) == 3
+
+        # Verify each package has its own logs
+        packages_in_start_logs = set()
+        for alert in start_alerts:
+            packages_in_start_logs.update(alert.logs.keys())
+
+        packages_in_done_logs = set()
+        for alert in done_alerts:
+            packages_in_done_logs.update(alert.logs.keys())
+
+        assert packages_in_start_logs == {"numpy", "pandas", "scipy"}
+        assert packages_in_done_logs == {"numpy", "pandas", "scipy"}
+
+    finally:
+        InstallingPackageAlert.broadcast = original_broadcast
+
+
+async def test_install_missing_packages_no_logs_backward_compatibility(
+    mocked_kernel: MockedKernel,
+) -> None:
+    """Test that package installation still works without streaming logs (backward compatibility)."""
+    k = mocked_kernel.k
+    broadcast_messages: list[InstallingPackageAlert] = []
+
+    def mock_broadcast(self):
+        broadcast_messages.append(self)
+
+    # Mock package manager that doesn't use log callbacks
+    mock_package_manager = Mock(spec=PipPackageManager)
+    mock_package_manager.name = "pip"
+    mock_package_manager.is_manager_installed.return_value = True
+    mock_package_manager.attempted_to_install.return_value = False
+    mock_package_manager.package_to_module.return_value = "test_module"
+
+    # Mock installation without using log callback parameter
+    async def mock_install_old_style(pkg: str, version=None, **kwargs: Any):
+        del version, kwargs, pkg
+        # Ignore log_callback if provided (simulating old package managers)
+        return True
+
+    mock_package_manager.install = AsyncMock(
+        side_effect=mock_install_old_style
+    )
+    k.packages_callbacks.package_manager = mock_package_manager
+
+    # Monkey patch broadcast
+    original_broadcast = InstallingPackageAlert.broadcast
+    InstallingPackageAlert.broadcast = mock_broadcast
+
+    try:
+        request = InstallMissingPackagesRequest(
+            manager="pip", versions={"requests": ""}
+        )
+
+        await k.packages_callbacks.install_missing_packages(request)
+
+        # Should still work and send basic status updates
+        status_alerts = [msg for msg in broadcast_messages if msg.logs is None]
+        assert len(status_alerts) >= 2  # At least installing and installed
+
+        # Verify normal package status progression
+        package_statuses = []
+        for alert in status_alerts:
+            if "requests" in alert.packages:
+                package_statuses.append(alert.packages["requests"])
+
+        # Should have at least installing and installed statuses
+        assert "installed" in package_statuses
+        # Note: The exact sequence might vary, but we should have final success
+
+    finally:
+        InstallingPackageAlert.broadcast = original_broadcast

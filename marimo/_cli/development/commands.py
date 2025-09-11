@@ -170,6 +170,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         files.FileDetailsResponse,
         files.FileListRequest,
         files.FileListResponse,
+        files.FileSearchRequest,
+        files.FileSearchResponse,
         files.FileMoveRequest,
         files.FileMoveResponse,
         files.FileOpenRequest,

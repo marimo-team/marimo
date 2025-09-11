@@ -56,6 +56,14 @@ def headers(session_id: str) -> dict[str, str]:
     }
 
 
+def _create_ws_url(session_id: str) -> str:
+    return f"/ws?session_id={session_id}&access_token=fake-token"
+
+
+WS_URL = _create_ws_url("123")
+OTHER_WS_URL = _create_ws_url("456")
+
+
 def assert_kernel_ready_response(
     raw_data: dict[str, Any], response: Optional[dict[str, Any]] = None
 ) -> None:
@@ -81,7 +89,7 @@ def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
 
 
 def test_ws(client: TestClient) -> None:
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
     # shut down after websocket context manager exists, otherwise
@@ -91,7 +99,7 @@ def test_ws(client: TestClient) -> None:
 
 def test_without_session(client: TestClient) -> None:
     with pytest.raises(WebSocketDisconnect) as exc_info:
-        with client.websocket_connect("/ws"):
+        with client.websocket_connect("/ws?access_token=fake-token"):
             raise AssertionError()
     assert exc_info.value.code == 1000
     assert exc_info.value.reason == "MARIMO_NO_SESSION_ID"
@@ -99,11 +107,11 @@ def test_without_session(client: TestClient) -> None:
 
 
 def test_disconnect_and_reconnect(client: TestClient) -> None:
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
     # Connect by the same session id
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = websocket.receive_json()
@@ -113,18 +121,18 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
 
 
 def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
         websocket.close()
     # Connect by the same session id
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = websocket.receive_json()
         assert data["op"] == "alert"
     # New session with new ID (simulates refresh)
-    with client.websocket_connect("/ws?session_id=456") as websocket:
+    with client.websocket_connect(OTHER_WS_URL) as websocket:
         data = websocket.receive_json()
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = websocket.receive_json()
@@ -137,13 +145,11 @@ def test_allows_multiple_connections_with_other_sessions(
     client: TestClient,
 ) -> None:
     with rtc_enabled(get_user_config_manager(client)):
-        with client.websocket_connect("/ws?session_id=123") as websocket:
+        with client.websocket_connect(WS_URL) as websocket:
             data = websocket.receive_json()
             assert_kernel_ready_response(data)
             # Should allow second connection
-            with client.websocket_connect(
-                "/ws?session_id=456"
-            ) as other_websocket:
+            with client.websocket_connect(OTHER_WS_URL) as other_websocket:
                 data = other_websocket.receive_json()
                 assert_kernel_ready_response(
                     data, create_response({"resumed": True})
@@ -154,13 +160,11 @@ def test_allows_multiple_connections_with_other_sessions(
 def test_fails_on_multiple_connections_with_other_sessions(
     client: TestClient,
 ) -> None:
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
         with pytest.raises(WebSocketDisconnect) as exc_info:  # noqa: PT012
-            with client.websocket_connect(
-                "/ws?session_id=456"
-            ) as other_websocket:
+            with client.websocket_connect(OTHER_WS_URL) as other_websocket:
                 other_websocket.receive_json()
                 raise AssertionError()
         assert exc_info.value.code == 1003
@@ -172,9 +176,10 @@ def test_allows_multiple_connections_with_same_file(
     client: TestClient,
     temp_marimo_file: str,
 ) -> None:
+    del temp_marimo_file
     with rtc_enabled(get_user_config_manager(client)):
-        ws_1 = f"/ws?session_id=123&file={temp_marimo_file}"
-        ws_2 = f"/ws?session_id=456&file={temp_marimo_file}"
+        ws_1 = WS_URL
+        ws_2 = _create_ws_url("456")
         with client.websocket_connect(ws_1) as websocket:
             data = websocket.receive_json()
             assert_parse_ready_response(data)
@@ -189,8 +194,8 @@ def test_fails_on_multiple_connections_with_same_file(
     client: TestClient,
     temp_marimo_file: str,
 ) -> None:
-    ws_1 = f"/ws?session_id=123&file={temp_marimo_file}"
-    ws_2 = f"/ws?session_id=456&file={temp_marimo_file}"
+    ws_1 = f"{WS_URL}&file={temp_marimo_file}"
+    ws_2 = f"{OTHER_WS_URL}&file={temp_marimo_file}"
     with client.websocket_connect(ws_1) as websocket:
         data = websocket.receive_json()
         assert_parse_ready_response(data)
@@ -207,7 +212,7 @@ def test_fails_on_multiple_connections_with_same_file(
 async def test_file_watcher_calls_reload(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     session_manager.watch = True
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
         session_manager.mode = SessionMode.RUN
@@ -228,7 +233,7 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
 
 async def test_query_params(client: TestClient) -> None:
     with client.websocket_connect(
-        "/ws?session_id=123&foo=1&bar=2&bar=3&baz=4"
+        f"{WS_URL}&foo=1&bar=2&bar=3&baz=4"
     ) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
@@ -246,7 +251,7 @@ async def test_query_params(client: TestClient) -> None:
 async def test_connect_kiosk_without_session(client: TestClient) -> None:
     with pytest.raises(WebSocketDisconnect) as exc_info:  # noqa: PT012
         with client.websocket_connect(
-            "/ws?session_id=123&kiosk=true"
+            "/ws?session_id=123&kiosk=true&access_token=fake-token"
         ) as websocket:
             websocket.receive_json()
             raise AssertionError()
@@ -257,13 +262,13 @@ async def test_connect_kiosk_without_session(client: TestClient) -> None:
 
 async def test_connect_kiosk_with_session(client: TestClient) -> None:
     # Create the first session
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
 
         # Connect by the same session id in kiosk mode
         with client.websocket_connect(
-            "/ws?session_id=123&kiosk=true"
+            f"{WS_URL}&kiosk=true"
         ) as other_websocket:
             data = other_websocket.receive_json()
             assert_kernel_ready_response(
@@ -278,14 +283,14 @@ async def test_cannot_connect_kiosk_with_run_session(
     # Create the first session
     session_manager = get_session_manager(client)
     session_manager.mode = SessionMode.RUN
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
 
         # Connect by the same session id in kiosk mode
         with pytest.raises(WebSocketDisconnect) as exc_info:  # noqa: PT012
             with client.websocket_connect(
-                "/ws?session_id=123&kiosk=true"
+                f"{WS_URL}&kiosk=true"
             ) as other_websocket:
                 data = other_websocket.receive_json()
                 raise AssertionError()
@@ -300,8 +305,8 @@ async def test_connects_to_existing_session_with_same_file(
     client: TestClient,
     temp_marimo_file: str,
 ) -> None:
-    ws_1 = f"/ws?session_id=123&file={temp_marimo_file}"
-    ws_2 = f"/ws?session_id=456&file={temp_marimo_file}"
+    ws_1 = f"{WS_URL}&file={temp_marimo_file}"
+    ws_2 = f"{OTHER_WS_URL}&file={temp_marimo_file}"
 
     with rtc_enabled(get_user_config_manager(client)):
         with client.websocket_connect(ws_1) as websocket1:
@@ -362,3 +367,42 @@ def rtc_enabled(config: UserConfigManager):
         yield
     finally:
         config.save_config(prev_config)
+
+
+def test_ws_requires_authentication(client: TestClient) -> None:
+    """Test that WebSocket connections require authentication."""
+    # Try to connect without any authentication headers
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect("/ws"):
+            raise AssertionError("Should not be able to connect without auth")
+
+    assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
+    assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"
+
+    # Ensure shutdown
+    try:
+        client.post("/api/kernel/shutdown", headers=HEADERS)
+    except Exception:
+        pass
+
+
+def test_ws_sync_requires_authentication(client: TestClient) -> None:
+    """Test that WebSocket sync endpoint requires authentication."""
+    # Try to connect without any authentication headers
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect("/ws_sync?file=test"):
+            raise AssertionError("Should not be able to connect without auth")
+
+    assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
+    assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"
+
+
+def test_ws_with_valid_authentication(client: TestClient) -> None:
+    """Test that WebSocket connections work with valid authentication."""
+    # Connect with proper authentication headers
+    with client.websocket_connect(WS_URL, headers=HEADERS) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+    # Clean up
+    client.post("/api/kernel/shutdown", headers=HEADERS)

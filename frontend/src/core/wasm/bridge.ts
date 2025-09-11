@@ -21,6 +21,7 @@ import type {
   FileDetailsResponse,
   FileListResponse,
   FileMoveResponse,
+  FileSearchResponse,
   FileUpdateResponse,
   FormatResponse,
   RunRequests,
@@ -371,6 +372,14 @@ export class PyodideBridge implements RunRequests, EditRequests {
       payload: request,
     });
     return response as FileListResponse;
+  };
+
+  sendSearchFiles: EditRequests["sendSearchFiles"] = async (request) => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "search_files",
+      payload: request,
+    });
+    return response as FileSearchResponse;
   };
 
   sendComponentValues: RunRequests["sendComponentValues"] = async (request) => {

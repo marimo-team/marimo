@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import queue
 import signal
 import threading
@@ -6,11 +8,11 @@ from _thread import interrupt_main
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from multiprocessing import Queue
+    from marimo._server.types import QueueType
 
 
 class Win32InterruptHandler(threading.Thread):
-    def __init__(self, interrupt_queue: "Queue[bool]") -> None:
+    def __init__(self, interrupt_queue: QueueType[bool]) -> None:
         super().__init__()
         self.daemon = True
         self.interrupt_queue = interrupt_queue

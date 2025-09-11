@@ -902,6 +902,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/files/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["FileSearchRequest"];
+        };
+      };
+      responses: {
+        /** @description Search for files and directories matching a query */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["FileSearchResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/files/update": {
     parameters: {
       query?: never;
@@ -3308,6 +3347,26 @@ export interface components {
     FileOpenRequest: {
       path: string;
     };
+    /** FileSearchRequest */
+    FileSearchRequest: {
+      /** @default 3 */
+      depth?: number;
+      /** @default true */
+      includeDirectories?: boolean;
+      /** @default true */
+      includeFiles?: boolean;
+      /** @default 100 */
+      limit?: number;
+      /** @default null */
+      path?: string | null;
+      query: string;
+    };
+    /** FileSearchResponse */
+    FileSearchResponse: {
+      files: components["schemas"]["FileInfo"][];
+      query: string;
+      totalFound: number;
+    };
     /** FileUpdateRequest */
     FileUpdateRequest: {
       contents: string;
@@ -3444,6 +3503,12 @@ export interface components {
     };
     /** InstallingPackageAlert */
     InstallingPackageAlert: {
+      /** @default null */
+      log_status?: ("append" | "done" | "start") | null;
+      /** @default null */
+      logs?: {
+        [key: string]: string;
+      } | null;
       /** @enum {unknown} */
       op: "installing-package-alert";
       packages: {

@@ -13,6 +13,7 @@ from marimo._messaging.ops import (
     Datasets,
     DataSourceConnection,
     DataSourceConnections,
+    InstallingPackageAlert,
     SendUIElementMessage,
     StartupLogs,
     UpdateCellCodes,
@@ -1049,3 +1050,210 @@ def test_session_view_startup_logs_standalone_done() -> None:
     assert session_view.startup_logs is not None
     assert session_view.startup_logs.content == "Process complete"
     assert session_view.startup_logs.status == "done"
+
+
+def test_session_view_package_logs_initialization() -> None:
+    """Test that SessionView initializes package_logs correctly."""
+    session_view = SessionView()
+    assert hasattr(session_view, "package_logs")
+    assert isinstance(session_view.package_logs, dict)
+    assert len(session_view.package_logs) == 0
+
+
+def test_session_view_package_logs_start() -> None:
+    """Test SessionView handles package logs start status."""
+    session_view = SessionView()
+
+    alert = InstallingPackageAlert(
+        packages={"numpy": "installing"},
+        logs={"numpy": "Installing numpy...\n"},
+        log_status="start",
+    )
+
+    session_view.add_operation(alert)
+
+    assert "numpy" in session_view.package_logs
+    assert session_view.package_logs["numpy"] == "Installing numpy...\n"
+
+
+def test_session_view_package_logs_append() -> None:
+    """Test SessionView handles package logs append status."""
+    session_view = SessionView()
+
+    # Start with initial log
+    start_alert = InstallingPackageAlert(
+        packages={"pandas": "installing"},
+        logs={"pandas": "Starting installation...\n"},
+        log_status="start",
+    )
+    session_view.add_operation(start_alert)
+
+    # Append more logs
+    append_alert = InstallingPackageAlert(
+        packages={"pandas": "installing"},
+        logs={"pandas": "Downloading dependencies...\n"},
+        log_status="append",
+    )
+    session_view.add_operation(append_alert)
+
+    expected_content = (
+        "Starting installation...\nDownloading dependencies...\n"
+    )
+    assert session_view.package_logs["pandas"] == expected_content
+
+
+def test_session_view_package_logs_done() -> None:
+    """Test SessionView handles package logs done status."""
+    session_view = SessionView()
+
+    # Start installation
+    start_alert = InstallingPackageAlert(
+        packages={"scipy": "installing"},
+        logs={"scipy": "Installing scipy...\n"},
+        log_status="start",
+    )
+    session_view.add_operation(start_alert)
+
+    # Add progress log
+    append_alert = InstallingPackageAlert(
+        packages={"scipy": "installing"},
+        logs={"scipy": "Building wheels...\n"},
+        log_status="append",
+    )
+    session_view.add_operation(append_alert)
+
+    # Finish installation
+    done_alert = InstallingPackageAlert(
+        packages={"scipy": "installed"},
+        logs={"scipy": "Successfully installed scipy!\n"},
+        log_status="done",
+    )
+    session_view.add_operation(done_alert)
+
+    expected_content = (
+        "Installing scipy...\n"
+        "Building wheels...\n"
+        "Successfully installed scipy!\n"
+    )
+    assert session_view.package_logs["scipy"] == expected_content
+
+
+def test_session_view_package_logs_multiple_packages() -> None:
+    """Test SessionView handles logs for multiple packages simultaneously."""
+    session_view = SessionView()
+
+    # Start installing multiple packages
+    multi_alert = InstallingPackageAlert(
+        packages={"numpy": "installing", "pandas": "installing"},
+        logs={
+            "numpy": "Starting numpy install...\n",
+            "pandas": "Starting pandas install...\n",
+        },
+        log_status="start",
+    )
+    session_view.add_operation(multi_alert)
+
+    # Add logs for numpy only
+    numpy_alert = InstallingPackageAlert(
+        packages={"numpy": "installing", "pandas": "installing"},
+        logs={"numpy": "Numpy progress...\n"},
+        log_status="append",
+    )
+    session_view.add_operation(numpy_alert)
+
+    # Add logs for pandas only
+    pandas_alert = InstallingPackageAlert(
+        packages={"numpy": "installing", "pandas": "installing"},
+        logs={"pandas": "Pandas progress...\n"},
+        log_status="append",
+    )
+    session_view.add_operation(pandas_alert)
+
+    assert len(session_view.package_logs) == 2
+    assert "numpy" in session_view.package_logs
+    assert "pandas" in session_view.package_logs
+
+    assert session_view.package_logs["numpy"] == (
+        "Starting numpy install...\nNumpy progress...\n"
+    )
+    assert session_view.package_logs["pandas"] == (
+        "Starting pandas install...\nPandas progress...\n"
+    )
+
+
+def test_session_view_package_logs_without_logs() -> None:
+    """Test SessionView handles InstallingPackageAlert without logs (backward compatibility)."""
+    session_view = SessionView()
+
+    # Old-style alert without logs
+    alert = InstallingPackageAlert(packages={"requests": "installing"})
+    session_view.add_operation(alert)
+
+    # Should not add any package logs
+    assert len(session_view.package_logs) == 0
+
+
+def test_session_view_package_logs_partial_logs() -> None:
+    """Test SessionView handles alerts with logs but no log_status."""
+    session_view = SessionView()
+
+    # Alert with logs but no log_status
+    alert = InstallingPackageAlert(
+        packages={"matplotlib": "installing"},
+        logs={"matplotlib": "Some log content...\n"},
+        # log_status is None
+    )
+    session_view.add_operation(alert)
+
+    # Should not add any package logs since log_status is missing
+    assert len(session_view.package_logs) == 0
+
+
+def test_session_view_package_logs_start_without_existing() -> None:
+    """Test package logs start status on package that doesn't exist yet."""
+    session_view = SessionView()
+
+    alert = InstallingPackageAlert(
+        packages={"new_package": "installing"},
+        logs={"new_package": "Starting fresh install...\n"},
+        log_status="start",
+    )
+    session_view.add_operation(alert)
+
+    assert (
+        session_view.package_logs["new_package"]
+        == "Starting fresh install...\n"
+    )
+
+
+def test_session_view_package_logs_append_without_existing() -> None:
+    """Test package logs append status on package that doesn't exist yet."""
+    session_view = SessionView()
+
+    # Append to non-existing package should start with empty string
+    alert = InstallingPackageAlert(
+        packages={"orphan_package": "installing"},
+        logs={"orphan_package": "Appending to nothing...\n"},
+        log_status="append",
+    )
+    session_view.add_operation(alert)
+
+    assert (
+        session_view.package_logs["orphan_package"]
+        == "Appending to nothing...\n"
+    )
+
+
+def test_session_view_package_logs_empty_content() -> None:
+    """Test SessionView handles empty log content."""
+    session_view = SessionView()
+
+    alert = InstallingPackageAlert(
+        packages={"empty_logs": "installing"},
+        logs={"empty_logs": ""},
+        log_status="start",
+    )
+    session_view.add_operation(alert)
+
+    assert "empty_logs" in session_view.package_logs
+    assert session_view.package_logs["empty_logs"] == ""

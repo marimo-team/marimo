@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import inspect
+import os
 import sys
 import threading
 from collections.abc import Iterable, Iterator, Mapping
@@ -594,6 +595,19 @@ class App:
     def run(
         self,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
+        # Enabled specifically for debugging purposes.
+        # see docs.marimo.io/guides/debugging
+        if os.environ.get("MARIMO_SCRIPT_EDIT"):
+            from marimo._cli.cli import edit
+
+            if self._filename is None:
+                raise RuntimeError(
+                    "MARIMO_SCRIPT_EDIT is set, but filename cannot be determined."
+                )
+            ctx = edit.make_context("edit", ["--watch", self._filename])
+            edit.invoke(ctx)
+            return ((), {})
+
         self._maybe_initialize()
         glbls: dict[str, Any] = {}
         if self._setup is not None:

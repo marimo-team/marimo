@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.15.2"
+version = "0.15.3"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments;we need a very compelling reason for each dependency added.
@@ -532,7 +532,6 @@ format_on_save = true
 [tool.marimo.experimental]
 multi_column = true
 performant_table_charts = true
-mcp_docs = true
 sql_linter = true
 
 [tool.marimo.display]

@@ -11,6 +11,7 @@ from marimo._messaging.ops import (
     CellOp,
     Datasets,
     DataSourceConnections,
+    InstallingPackageAlert,
     Interrupted,
     MessageOperation,
     SendUIElementMessage,
@@ -98,6 +99,11 @@ class SessionView:
 
         # Startup logs for startup command - only one at a time
         self.startup_logs: Optional[StartupLogs] = None
+
+        # Package installation logs - accumulated per package
+        self.package_logs: dict[
+            str, str
+        ] = {}  # package name -> accumulated logs
 
         # Auto-saving
         self.auto_export_state = AutoExportState()
@@ -262,6 +268,28 @@ class SessionView:
                 content=prev + operation.content,
                 status=operation.status,
             )
+
+        elif isinstance(operation, InstallingPackageAlert):
+            # Handle streaming logs if present
+            if operation.logs and operation.log_status:
+                for package_name, new_content in operation.logs.items():
+                    if operation.log_status == "start":
+                        # Start new log for this package
+                        self.package_logs[package_name] = new_content
+                    elif operation.log_status == "append":
+                        # Append to existing log
+                        prev_content = self.package_logs.get(package_name, "")
+                        self.package_logs[package_name] = (
+                            prev_content + new_content
+                        )
+                    elif operation.log_status == "done":
+                        # Append final content and mark as done
+                        prev_content = self.package_logs.get(package_name, "")
+                        self.package_logs[package_name] = (
+                            prev_content + new_content
+                        )
+                        # We could clean up completed logs here if desired,
+                        # but for now keep them for replay purposes
 
     def get_cell_outputs(
         self, ids: list[CellId_t]

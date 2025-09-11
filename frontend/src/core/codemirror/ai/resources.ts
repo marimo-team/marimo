@@ -12,30 +12,72 @@ import {
   resourcesField,
   resourceTheme,
 } from "@marimo-team/codemirror-mcp";
-import { getAIContextRegistry } from "@/core/ai/context/context";
+import {
+  getAIContextRegistry,
+  getFileContextProvider,
+} from "@/core/ai/context/context";
 import type { AIContextItem } from "@/core/ai/context/registry";
 import type { JotaiStore } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
+import { contextCallbacks } from "./state";
 
-export function resourceExtension(
-  language: Language,
-  store: JotaiStore,
-): Extension[] {
+const NONE_RESOURCE_TYPE = "_none_";
+const NONE_RESOURCE = [
+  {
+    uri: "",
+    name: "No resources",
+    type: NONE_RESOURCE_TYPE,
+    data: {},
+  },
+];
+const NONE_RESOURCE_FORMAT_COMPLETION = {
+  info: "Variables, dataframes, and tables will appear here.",
+  apply: () => {
+    return;
+  },
+};
+
+export function resourceExtension(opts: {
+  language: Language;
+  store: JotaiStore;
+  onAddFiles?: (files: File[]) => void;
+}): Extension[] {
+  const { language, store, onAddFiles } = opts;
+
   return [
     language.data.of({
+      // Resource completion for static resources (variables, tables, etc.)
       autocomplete: resourceCompletion(
         async (): Promise<Resource[]> => {
           const registry = getAIContextRegistry(store);
           const resources = registry.getAllItems();
+          if (resources.length === 0) {
+            return NONE_RESOURCE;
+          }
           return resources;
         },
         (resource) => {
+          if (resource.type === NONE_RESOURCE_TYPE) {
+            return NONE_RESOURCE_FORMAT_COMPLETION;
+          }
+
           const registry = getAIContextRegistry(store);
           const provider = registry.getProvider(resource.type);
           return provider?.formatCompletion(resource as AIContextItem) || {};
         },
       ),
     }),
+    contextCallbacks.of({
+      addAttachment: (attachment) => onAddFiles?.([attachment]),
+    }),
+    // Dynamic file completion
+    ...(onAddFiles
+      ? [
+          language.data.of({
+            autocomplete: getFileContextProvider().createCompletionSource(),
+          }),
+        ]
+      : []),
     resourceDecorations,
     resourceInputFilter,
     resourcesField.init(() => {

@@ -25,10 +25,8 @@ export const createAiCompletionOnKeydown = (opts: {
     const metaKey = isPlatformMac() ? e.metaKey : e.ctrlKey;
 
     // Mod+Enter should accept the completion, if there is one
-    if (metaKey && e.key === "Enter") {
-      if (!isLoading && completion) {
-        handleAcceptCompletion();
-      }
+    if (metaKey && e.key === "Enter" && !isLoading && completion) {
+      handleAcceptCompletion();
     }
 
     // Mod+Shift+Delete should decline the completion

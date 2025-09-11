@@ -17,7 +17,7 @@ import ReactCodeMirror, {
   minimalSetup,
   type ReactCodeMirrorRef,
 } from "@uiw/react-codemirror";
-import { useAtom, useAtomValue, useStore } from "jotai";
+import { useAtom, useStore } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import {
   ChevronsUpDown,
@@ -40,12 +40,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
-import { useModelChange } from "@/core/ai/config";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
-import { aiAtom } from "@/core/config/config";
-import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
@@ -58,6 +55,7 @@ import {
   createAiCompletionOnKeydown,
 } from "./completion-handlers";
 import {
+  CONTEXT_TRIGGER,
   getAICompletionBody,
   mentionsCompletionSource,
 } from "./completion-utils";
@@ -90,9 +88,6 @@ export const AddCellWithAI: React.FC<{
   const { theme } = useTheme();
   const runtimeManager = useRuntimeManager();
 
-  const ai = useAtomValue(aiAtom);
-  const editModel = ai?.models?.edit_model || DEFAULT_AI_MODEL;
-  const { saveModelChange } = useModelChange();
   const inputRef = useRef<ReactCodeMirrorRef>(null);
 
   const {
@@ -261,10 +256,6 @@ export const AddCellWithAI: React.FC<{
         <div className="ml-auto flex items-center gap-1">
           {languageDropdown}
           <AIModelDropdown
-            value={editModel}
-            onSelect={(model) => {
-              saveModelChange(model, "edit");
-            }}
             triggerClassName="h-7 text-xs max-w-64"
             iconSize="small"
             forRole="edit"
@@ -301,6 +292,7 @@ interface PromptInputProps {
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   additionalCompletions?: AdditionalCompletions;
   maxHeight?: string;
+  onAddFiles?: (files: File[]) => void;
 }
 
 /**
@@ -318,6 +310,7 @@ export const PromptInput = ({
   onSubmit,
   onKeyDown,
   onClose,
+  onAddFiles,
   additionalCompletions,
   maxHeight,
 }: PromptInputProps) => {
@@ -346,7 +339,11 @@ export const PromptInput = ({
     return [
       autocompletion({}),
       markdownLanguage,
-      resourceExtension(markdownLanguage.language, store),
+      resourceExtension({
+        language: markdownLanguage.language,
+        store,
+        onAddFiles,
+      }),
       markdownLanguage.language.data.of({
         autocomplete: additionalCompletionsSource,
       }),
@@ -411,7 +408,13 @@ export const PromptInput = ({
         },
       ]),
     ];
-  }, [store, additionalCompletionsSource, handleSubmit, handleEscape]);
+  }, [
+    store,
+    onAddFiles,
+    additionalCompletionsSource,
+    handleSubmit,
+    handleEscape,
+  ]);
 
   return (
     <ReactCodeMirror
@@ -425,7 +428,9 @@ export const PromptInput = ({
       onChange={onChange}
       onKeyDown={onKeyDown}
       theme={theme === "dark" ? "dark" : "light"}
-      placeholder={placeholder || "Generate with AI"}
+      placeholder={
+        placeholder || `Generate with AI, ${CONTEXT_TRIGGER} to include context`
+      }
     />
   );
 };

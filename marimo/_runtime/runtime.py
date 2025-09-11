@@ -111,7 +111,10 @@ from marimo._runtime.packages.import_error_extractors import (
     try_extract_packages_from_import_error_message,
 )
 from marimo._runtime.packages.module_registry import ModuleRegistry
-from marimo._runtime.packages.package_manager import PackageManager
+from marimo._runtime.packages.package_manager import (
+    LogCallback,
+    PackageManager,
+)
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import (
     PackageRequirement,
@@ -188,7 +191,6 @@ from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    import queue
     from collections.abc import Awaitable, Iterator, Sequence
     from types import ModuleType
 
@@ -843,7 +845,9 @@ class Kernel:
         error: Optional[Error] = None
         try:
             cell = compile_cell(
-                code, cell_id=cell_id, carried_imports=carried_imports
+                code,
+                cell_id=cell_id,
+                carried_imports=carried_imports,
             )
         except Exception as e:
             cell = None
@@ -1393,9 +1397,15 @@ class Kernel:
             if isinstance(run_result.exception, MarimoInterrupt):
                 self.last_interrupt_timestamp = time.time()
 
+        # Rebuild graph with sourceful positions
+        # Note, this is relatively expensive, but a reasonable tradeoff
+        graph = self.graph
+        if os.getenv("DEBUGPY_RUNNING"):
+            graph = self.graph.copy(self.app_metadata.filename)
+
         runner = cell_runner.Runner(
             roots=roots,
-            graph=self.graph,
+            graph=graph,
             glbls=self.globals,
             excluded_cells=set(self.errors.keys()),
             debugger=self.debugger,
@@ -2548,6 +2558,16 @@ class PackagesCallbacks:
         }
         InstallingPackageAlert(packages=package_statuses).broadcast()
 
+        def create_log_callback(pkg: str) -> LogCallback:
+            def log_callback(log_line: str) -> None:
+                InstallingPackageAlert(
+                    packages=package_statuses,
+                    logs={pkg: log_line},
+                    log_status="append",
+                ).broadcast()
+
+            return log_callback
+
         for pkg in missing_packages:
             if self.package_manager.attempted_to_install(package=pkg):
                 # Already attempted an installation; it must have failed.
@@ -2555,15 +2575,35 @@ class PackagesCallbacks:
                 continue
             package_statuses[pkg] = "installing"
             InstallingPackageAlert(packages=package_statuses).broadcast()
+
+            # Send initial "start" log
+            InstallingPackageAlert(
+                packages=package_statuses,
+                logs={pkg: f"Installing {pkg}...\n"},
+                log_status="start",
+            ).broadcast()
+
             version = request.versions.get(pkg)
-            if await self.package_manager.install(pkg, version=version):
+            if await self.package_manager.install(
+                pkg, version=version, log_callback=create_log_callback(pkg)
+            ):
                 package_statuses[pkg] = "installed"
-                InstallingPackageAlert(packages=package_statuses).broadcast()
+                # Send final "done" log
+                InstallingPackageAlert(
+                    packages=package_statuses,
+                    logs={pkg: f"Successfully installed {pkg}\n"},
+                    log_status="done",
+                ).broadcast()
             else:
                 package_statuses[pkg] = "failed"
                 mod = self.package_manager.package_to_module(pkg)
                 self._kernel.module_registry.excluded_modules.add(mod)
-                InstallingPackageAlert(packages=package_statuses).broadcast()
+                # Send final "done" log with error
+                InstallingPackageAlert(
+                    packages=package_statuses,
+                    logs={pkg: f"Failed to install {pkg}\n"},
+                    log_status="done",
+                ).broadcast()
 
         installed_modules = [
             self.package_manager.package_to_module(pkg)
@@ -2645,7 +2685,7 @@ def launch_kernel(
     set_ui_element_queue: QueueType[SetUIElementValueRequest],
     completion_queue: QueueType[CodeCompletionRequest],
     input_queue: QueueType[str],
-    stream_queue: queue.Queue[KernelMessage] | None,
+    stream_queue: QueueType[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
@@ -2715,7 +2755,7 @@ def launch_kernel(
     stdin = ThreadSafeStdin(stream) if is_edit_mode else None
     debugger = (
         marimo_pdb.MarimoPdb(stdout=stdout, stdin=stdin)
-        if is_edit_mode
+        if is_edit_mode and not bool(os.getenv("DEBUGPY_RUNNING"))
         else None
     )
 

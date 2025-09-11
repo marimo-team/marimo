@@ -10,6 +10,7 @@ import {
   CircleHelpIcon,
 } from "lucide-react";
 import React from "react";
+import { type SupportedRole, useModelChange } from "@/core/ai/config";
 import {
   AiModelId,
   isKnownAIProvider,
@@ -36,12 +37,13 @@ import { getCurrentRoleTooltip, getTagColour } from "./display-helpers";
 interface AIModelDropdownProps {
   value?: string;
   placeholder?: string;
-  onSelect: (modelId: QualifiedModelId) => void;
+  onSelect?: (modelId: QualifiedModelId) => void;
   triggerClassName?: string;
   customDropdownContent?: React.ReactNode;
   iconSize?: "medium" | "small";
   showAddCustomModelDocs?: boolean;
-  forRole?: Role;
+  displayIconOnly?: boolean;
+  forRole: SupportedRole;
 }
 
 export const AIModelDropdown = ({
@@ -53,12 +55,13 @@ export const AIModelDropdown = ({
   iconSize = "medium",
   showAddCustomModelDocs = false,
   forRole,
+  displayIconOnly = false,
 }: AIModelDropdownProps) => {
-  const currentValue = value ? AiModelId.parse(value) : undefined;
   const [isOpen, setIsOpen] = React.useState(false);
 
   const ai = useAtomValue(aiAtom);
   const completion = useAtomValue(completionAtom);
+  const { saveModelChange } = useModelChange();
 
   // Only include autocompleteModel if copilot is set to "custom"
   const autocompleteModel =
@@ -87,6 +90,13 @@ export const AIModelDropdown = ({
         : forRole === "edit"
           ? ai?.models?.edit_model
           : undefined;
+
+  // If value is provided, use it, otherwise use the active model
+  const currentValue = value
+    ? AiModelId.parse(value)
+    : activeModel
+      ? AiModelId.parse(activeModel)
+      : undefined;
 
   const iconSizeClass = iconSize === "medium" ? "h-4 w-4" : "h-3 w-3";
 
@@ -119,7 +129,11 @@ export const AIModelDropdown = ({
   };
 
   const handleSelect = (modelId: QualifiedModelId) => {
-    onSelect(modelId);
+    if (onSelect) {
+      onSelect(modelId);
+    } else {
+      saveModelChange(modelId, forRole);
+    }
     setIsOpen(false);
   };
 
@@ -136,11 +150,13 @@ export const AIModelDropdown = ({
                 provider={currentValue.providerId}
                 className={iconSizeClass}
               />
-              <span className="truncate">
-                {isKnownAIProvider(currentValue.providerId)
-                  ? currentValue.shortModelId
-                  : currentValue.id}
-              </span>
+              {displayIconOnly ? null : (
+                <span className="truncate">
+                  {isKnownAIProvider(currentValue.providerId)
+                    ? currentValue.shortModelId
+                    : currentValue.id}
+                </span>
+              )}
             </>
           ) : (
             <span className="text-muted-foreground truncate">

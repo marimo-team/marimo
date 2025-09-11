@@ -120,6 +120,10 @@ class AppStateBase:
     def asset_url(self) -> Optional[str]:
         return getattr(self.state, "asset_url", None)
 
+    @property
+    def enable_auth(self) -> bool:
+        return getattr(self.state, "enable_auth", True)
+
 
 class AppState(AppStateBase):
     """The app state with a request."""

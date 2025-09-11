@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Optional

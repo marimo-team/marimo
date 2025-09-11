@@ -227,7 +227,8 @@ class CellManager:
             cell_id = CellId_t(SETUP_CELL_NAME)
         else:
             cell_id = self.create_cell_id()
-        cell = ir_cell_factory(cell_def, cell_id=cell_id)
+        filename = app.filename if app is not None else None
+        cell = ir_cell_factory(cell_def, cell_id=cell_id, filename=filename)
         cell_config = CellConfig.from_dict(
             cell_def.options,
         )
