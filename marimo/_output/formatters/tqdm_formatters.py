@@ -1,14 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeVar
 
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.stateless.status._progress import progress_bar
 from marimo._runtime.context.utils import running_in_notebook
 
+S = TypeVar("S")
 
-class ProgressBarTqdmPatch(progress_bar):
+
+class ProgressBarTqdmPatch(progress_bar[S]):
     def __init__(self, *args: Any, **kwargs: Any):
         # Partial translation from tqdm to our native progress bar;
         # uses API of tqdm v4.66.4, likely backward compatible.
@@ -67,7 +69,7 @@ class ProgressBarTqdmPatch(progress_bar):
         fp.write(end)
 
 
-class ProgressBarTrangePatch(ProgressBarTqdmPatch):
+class ProgressBarTrangePatch(ProgressBarTqdmPatch[S]):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(range(*args), **kwargs)
 
