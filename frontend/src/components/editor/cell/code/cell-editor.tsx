@@ -404,6 +404,7 @@ const CellEditorInternal = ({
 
   return (
     <AiCompletionEditor
+      cellId={cellId}
       enabled={aiCompletionCell?.cellId === cellId}
       initialPrompt={aiCompletionCell?.initialPrompt}
       currentCode={editorViewRef.current?.state.doc.toString() ?? code}

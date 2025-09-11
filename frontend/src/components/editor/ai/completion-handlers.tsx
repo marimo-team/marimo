@@ -49,6 +49,7 @@ export const CompletionActions: React.FC<{
   size?: "xs" | "sm";
   acceptShortcut?: string;
   declineShortcut?: string;
+  multipleCompletions?: boolean;
 }> = ({
   isLoading,
   onAccept,
@@ -56,6 +57,7 @@ export const CompletionActions: React.FC<{
   size = "sm",
   acceptShortcut = "Mod-↵",
   declineShortcut = "Shift-Mod-Delete",
+  multipleCompletions = false,
 }) => {
   return (
     <>
@@ -68,7 +70,7 @@ export const CompletionActions: React.FC<{
         onClick={onAccept}
       >
         <span className="text-(--grass-11) opacity-100">
-          Accept{" "}
+          Accept{multipleCompletions && " all"}{" "}
           <MinimalHotkeys className="ml-1 inline" shortcut={acceptShortcut} />
         </span>
       </Button>
@@ -76,11 +78,11 @@ export const CompletionActions: React.FC<{
         data-testid="decline-completion-button"
         variant="text"
         size={size}
-        className="mb-0 pl-1"
+        className="mb-0 pl-1 pr-0"
         onClick={onDecline}
       >
         <span className="text-(--red-10)">
-          Reject{" "}
+          Reject{multipleCompletions && " all"}{" "}
           <MinimalHotkeys className="ml-1 inline" shortcut={declineShortcut} />
         </span>
       </Button>

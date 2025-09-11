@@ -2624,6 +2624,8 @@ export interface components {
        * @enum {unknown}
        */
       language?: "markdown" | "python" | "sql";
+      /** @default [] */
+      messages?: components["schemas"]["ChatMessage"][];
       prompt: string;
       /** @default null */
       selectedText?: string | null;

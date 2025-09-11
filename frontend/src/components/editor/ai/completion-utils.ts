@@ -145,3 +145,44 @@ export function addContextCompletion(
     startCompletion(inputRef.current.view);
   }
 }
+
+export interface AiCompletion {
+  language: string;
+  code: string;
+}
+
+/**
+ * Splits code blocks wrapped in triple backticks with an optional language identifier
+ * Example: ```python\ncode\n```
+ */
+export function splitCodeIntoCells(code: string): AiCompletion[] {
+  const cells: AiCompletion[] = [];
+  let start = 0;
+
+  let openIndex = code.indexOf("```", start);
+  while (openIndex !== -1) {
+    const newlineIndex = code.indexOf("\n", openIndex);
+    if (newlineIndex === -1) {
+      break;
+    }
+
+    const language = code.slice(openIndex + 3, newlineIndex).trim() || "";
+    const codeStart = newlineIndex + 1;
+
+    const closeIndex = code.indexOf("```", codeStart);
+    if (closeIndex === -1) {
+      break;
+    }
+
+    // Remove trailing newlines
+    const codeContent = code.slice(codeStart, closeIndex).replace(/\n+$/, "");
+    if (codeContent) {
+      cells.push({ language, code: codeContent });
+    }
+
+    start = closeIndex + 3;
+    openIndex = code.indexOf("```", start);
+  }
+
+  return cells;
+}

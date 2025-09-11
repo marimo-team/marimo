@@ -86,12 +86,52 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
     *,
     language: Language,
     is_insert: bool,
+    support_multiple_cells: bool,
     custom_rules: Optional[str],
     cell_code: Optional[str],
     selected_text: Optional[str],
     other_cell_codes: Optional[str],
     context: Optional[AiCompletionContext],
 ) -> str:
+    if support_multiple_cells:
+        system_prompt = (
+            "You are an AI assistant integrated into the marimo notebook code editor.\n"
+            "Your goal is to create new cells in the notebook.\n"
+            "You can create multiple cells with different languages. Each cell should be wrapped in backticks.\n"
+            "The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.\n"
+            "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
+            "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
+            "```python\n{CELL_CODE}\n```\n\n"
+            '```sql\n_df = mo.sql("""{SQL_QUERY}""")\n```\n\n'
+            '```markdown\nmo.md("""{MARKDOWN_CONTENT}""")\n```\n\n'
+            "You can have multiple cells of any type. Each cell is wrapped in backticks with the appropriate language identifier.\n"
+            "Separate logic into multiple cells to keep the code organized and readable."
+        )
+
+        if context:
+            system_prompt += _format_plain_text(context.plain_text)
+            system_prompt += _format_variables(context.variables)
+            system_prompt += _format_schema_info(context.schema)
+
+        if other_cell_codes:
+            system_prompt += "\n\n" + _tag(
+                "code_from_other_cells", other_cell_codes
+            )
+
+        # Add language-specific rules for multi-cell scenarios
+        for lang in language_rules:
+            if len(language_rules[lang]) > 0:
+                system_prompt += (
+                    f"\n\n## Rules for {lang}:\n{_rules(language_rules[lang])}"
+                )
+
+        if custom_rules and custom_rules.strip():
+            system_prompt += f"\n\n## Additional rules:\n{custom_rules}"
+
+        system_prompt += "\n\nAgain, just output code wrapped in cells. Each cell is wrapped in backticks with the appropriate language identifier (python, sql, markdown)."
+
+        return system_prompt
+
     if cell_code:
         system_prompt = f"Here's a {language} document from a Python notebook that I'm going to ask you to make an edit to.\n\n"
     else:
