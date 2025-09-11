@@ -39,7 +39,7 @@ exec  pdb
 
 ```python
 @app.cell
-def __():
+def _():
     # Compute triangle numbers
     triangle = 0
     triangle_count = 20
@@ -86,19 +86,13 @@ the "Launch debugger" button as shown below:
 
 marimo provides built-in integration with AI assistants to help debug your notebooks more effectively.
 
-### Using the Notebook Errors context
+### Ask about notebook errors
 
-When errors occur in your notebook, marimo captures them in a **"Notebook
-Errors" context** that can be shared with AI assistants. This feature
-automatically collects comprehensive error information from your notebook,
+When interacting with the AI chat, you can reference the notebook "Errors" with
+the `@-symbol` to bring in comprehensive error information from your notebook,
 making it easier to get targeted debugging help.
 
 ![Notebook Errors context in marimo](/_static/docs-notebook-errors-context.png)
-
-### Ask about notebook errors
-
-When interacting with the AI chat, you can reference the notebook "Errors" with the `@-symbol` to bring in comprehensive error information from your notebook,
-making it easier to get targeted debugging help.
 
 ### Best practices for AI-assisted debugging
 
@@ -193,8 +187,4 @@ Use the following `launch.json` configuration to enable edit mode debugging:
 ## Debug in VSCode
 
 !!! note
-    LSP support for marimo notebooks is coming soon...
-
-## Coming soon
-
-LSP support for marimo notebooks is coming soon, along with native debug server integration.
+    LSP support for marimo notebooks is coming soon, along with native debug server integration.
