@@ -136,7 +136,7 @@ inspect variables directly from your IDE.
 ### Script mode
 You can debug marimo notebooks in VSCode using the following `launch.json`.
 This launch configuration will debug a marimo notebook in [script
-mode](../scripts.md).
+mode](./scripts.md).
 
 ```json
 {
