@@ -89,3 +89,48 @@ export const CompletionActions: React.FC<{
     </>
   );
 };
+
+export const CompletionActionsCellFooter: React.FC<{
+  isLoading: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+  size?: "xs" | "sm";
+  acceptShortcut?: string;
+  declineShortcut?: string;
+  multipleCompletions?: boolean;
+}> = ({
+  isLoading,
+  onAccept,
+  onDecline,
+  acceptShortcut = "Mod-↵",
+  declineShortcut = "Shift-Mod-Delete",
+}) => {
+  return (
+    <>
+      <Button
+        variant="text"
+        size="xs"
+        disabled={isLoading}
+        onClick={onAccept}
+        className="text-white bg-(--grass-11) hover:bg-(--grass-10) 
+        dark:bg-(--grass-6) dark:hover:bg-(--grass-5) h-6 rounded-sm px-3 font-medium"
+      >
+        Accept
+        <MinimalHotkeys className="ml-1 inline" shortcut={acceptShortcut} />
+      </Button>
+      <Button
+        variant="text"
+        size="xs"
+        onClick={onDecline}
+        className="text-white bg-(--red-11) hover:bg-(--red-10) 
+        dark:bg-(--red-7) dark:hover:bg-(--red-6) h-6 rounded-sm px-3 font-medium"
+      >
+        Reject
+        <MinimalHotkeys
+          className="ml-1 inline text-white/80"
+          shortcut={declineShortcut}
+        />
+      </Button>
+    </>
+  );
+};

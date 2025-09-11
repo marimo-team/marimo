@@ -176,15 +176,13 @@ async def ai_completion(
             text_only=False,
         )
     else:
-        content = (
-            safe_stream_wrapper(
-                without_wrapping_backticks(
-                    provider.as_stream_response(
-                        response, StreamOptions(text_only=True)
-                    )
-                ),
-                text_only=True,
+        content = safe_stream_wrapper(
+            without_wrapping_backticks(
+                provider.as_stream_response(
+                    response, StreamOptions(text_only=True)
+                )
             ),
+            text_only=True,
         )
 
     return StreamingResponse(

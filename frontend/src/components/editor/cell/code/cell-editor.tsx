@@ -39,6 +39,7 @@ import { mergeRefs } from "@/utils/mergeRefs";
 import { AiCompletionEditor } from "../../ai/ai-completion-editor";
 import { HideCodeButton } from "../../code/readonly-python-code";
 import { useCellEditorNavigationProps } from "../../navigation/navigation";
+import { StagedAICellBackground } from "../StagedCellsAI";
 import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSplitCellCallback } from "../useSplitCell";
 import { LanguageToggles } from "./language-toggle";
@@ -404,7 +405,6 @@ const CellEditorInternal = ({
 
   return (
     <AiCompletionEditor
-      cellId={cellId}
       enabled={aiCompletionCell?.cellId === cellId}
       initialPrompt={aiCompletionCell?.initialPrompt}
       currentCode={editorViewRef.current?.state.doc.toString() ?? code}
@@ -442,6 +442,7 @@ const CellEditorInternal = ({
             onClick={showHiddenCode}
           />
         )}
+        <StagedAICellBackground cellId={cellId} />
         <CellCodeMirrorEditor
           className={editorClassName}
           editorView={editorViewRef.current}
