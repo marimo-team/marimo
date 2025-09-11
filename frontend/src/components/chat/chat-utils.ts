@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { components } from "@marimo-team/marimo-api";
-import type { FileUIPart, UIMessage } from "ai";
+import type { FileUIPart, ToolUIPart, UIMessage } from "ai";
 import type {
   InvokeAiToolRequest,
   InvokeAiToolResponse,
@@ -134,4 +134,43 @@ export async function handleToolCall({
       output: `Error: ${error instanceof Error ? error.message : String(error)}`,
     });
   }
+}
+
+/**
+ * Checks if we should send a message automatically based on the messages.
+ * We only want to send a message if we have completed tool calls and there is no reply yet.
+ */
+export function hasPendingToolCalls(messages: UIMessage[]): boolean {
+  if (messages.length === 0) {
+    return false;
+  }
+
+  const lastMessage = messages[messages.length - 1];
+  const parts = lastMessage.parts;
+
+  if (parts.length === 0) {
+    return false;
+  }
+
+  // Only auto-send if the last message is an assistant message
+  // Because assistant messages are the ones that can have tool calls
+  if (lastMessage.role !== "assistant") {
+    return false;
+  }
+
+  const toolParts = parts.filter((part) =>
+    part.type.startsWith("tool-"),
+  ) as ToolUIPart[];
+
+  const hasCompletedToolCalls = toolParts.some(
+    (part) => part.state === "output-available",
+  );
+
+  // Check if the last part has any text content
+  const lastPart = parts[parts.length - 1];
+  const hasTextContent =
+    lastPart.type === "text" && lastPart.text?.trim().length > 0;
+
+  // Only auto-send if we have completed tool calls and there is no reply yet
+  return hasCompletedToolCalls && !hasTextContent;
 }

@@ -411,4 +411,12 @@ describe("splitCodeIntoCells", () => {
       { language: "python", code: "print('Hello, world!')" },
     ]);
   });
+
+  it("should handle markdown with code blocks", () => {
+    const code = "```markdown\n```python\nprint('Hello, world!')\n```";
+    const result = splitCodeIntoCells(code);
+    expect(result).toEqual([
+      { language: "markdown", code: "```python\nprint('Hello, world!')\n```" },
+    ]);
+  });
 });

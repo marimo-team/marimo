@@ -70,6 +70,7 @@ import {
   convertToFileUIPart,
   generateChatTitle,
   handleToolCall,
+  hasPendingToolCalls,
   isLastMessageReasoning,
 } from "./chat-utils";
 import { MarkdownRenderer } from "./markdown-renderer";
@@ -565,41 +566,7 @@ const ChatPanelBody = () => {
     id: chatId,
   } = useChat({
     id: activeChatId,
-    // Only automatically submit if we have tool calls but no text response yet
-    sendAutomaticallyWhen: ({ messages }) => {
-      if (messages.length === 0) {
-        return false;
-      }
-
-      const lastMessage = messages[messages.length - 1];
-      const parts = lastMessage.parts;
-
-      if (parts.length === 0) {
-        return false;
-      }
-
-      // Only auto-send if the last message is an assistant message
-      // Because assistant messages are the ones that can have tool calls
-      if (lastMessage.role !== "assistant") {
-        return false;
-      }
-
-      const toolParts = parts.filter((part) =>
-        part.type.startsWith("tool-"),
-      ) as ToolUIPart[];
-
-      const hasCompletedToolCalls = toolParts.some(
-        (part) => part.state === "output-available",
-      );
-
-      // Check if the last part has any text content
-      const lastPart = parts[parts.length - 1];
-      const hasTextContent =
-        lastPart.type === "text" && lastPart.text?.trim().length > 0;
-
-      // Only auto-send if we have completed tool calls and there is no reply yet
-      return hasCompletedToolCalls && !hasTextContent;
-    },
+    sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
     messages: activeChat?.messages || [], // initial messages
     transport: new DefaultChatTransport({
       api: runtimeManager.getAiURL("chat").toString(),

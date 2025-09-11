@@ -17,6 +17,7 @@ import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import {
   buildCompletionRequestBody,
   handleToolCall,
+  hasPendingToolCalls,
 } from "@/components/chat/chat-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -109,6 +110,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
   }, [initialPrompt]);
 
   const { sendMessage, stop, status, addToolResult } = useChat({
+    // Only automatically submit if we have tool calls but no text response yet
+    sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
     messages: initialMessages,
