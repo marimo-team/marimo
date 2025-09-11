@@ -182,14 +182,14 @@ def categorize_entries(
 
         if "breaking" in label_names:
             categories["breaking"].append(entry)
+        elif "preview" in label_names:
+            categories["preview"].append(entry)
         elif "bug" in label_names:
             categories["bug"].append(entry)
         elif "enhancement" in label_names:
             categories["enhancement"].append(entry)
         elif "documentation" in label_names:
             categories["documentation"].append(entry)
-        elif "preview" in label_names:
-            categories["preview"].append(entry)
         else:
             categories["other"].append(entry)
 
