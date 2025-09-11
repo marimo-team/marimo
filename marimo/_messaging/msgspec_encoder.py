@@ -78,6 +78,30 @@ def enc_hook(obj: Any) -> Any:
         if isinstance(obj, pl.Series):
             return obj.to_list()
 
+    # Handle objects with __slots__
+    slots = getattr(obj, "__slots__", None)
+    if slots is not None:
+        try:
+            slots = iter(slots)
+        except TypeError:
+            pass  # Fall through to __dict__ handling
+        else:
+            # Convert to dict using msgspec.to_builtins for proper handling
+            result = {}
+            for slot in slots:
+                if hasattr(obj, slot):
+                    attr_value = getattr(obj, slot)
+                    # Use msgspec.to_builtins which properly handles nested structures
+                    result[slot] = msgspec.to_builtins(
+                        attr_value, enc_hook=enc_hook
+                    )
+            return result
+
+    # Handle custom objects with `__dict__`
+    if hasattr(obj, "__dict__"):
+        # Convert the __dict__ using msgspec.to_builtins for proper handling
+        return msgspec.to_builtins(obj.__dict__, enc_hook=enc_hook)
+
     raise NotImplementedError(f"Objects of type {type(obj)} are not supported")
 
 
