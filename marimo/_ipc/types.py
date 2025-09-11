@@ -1,6 +1,8 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import typing
+
 import msgspec
 import msgspec.json
 
@@ -17,7 +19,7 @@ class ConnectionInfo(msgspec.Struct):
     control: int
     ui_element: int
     completion: int
-    win32_interrupt: int | None
+    win32_interrupt: typing.Union[int, None]
 
     input: int
     stream: int
@@ -30,7 +32,7 @@ class KernelArgs(msgspec.Struct):
     app_metadata: AppMetadata
     user_config: MarimoConfig
     log_level: int
-    profile_path: str | None
+    profile_path: typing.Union[str, None]
     connection_info: ConnectionInfo
 
     def encode_json(self) -> bytes:

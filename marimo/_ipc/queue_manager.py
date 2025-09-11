@@ -53,7 +53,7 @@ class QueueManager:
         return self.conn.completion.queue
 
     @property
-    def win32_interrupt_queue(self) -> QueueType[bool] | None:
+    def win32_interrupt_queue(self) -> typing.Union[QueueType[bool], None]:
         """Queue for Windows interrupt signals (None on non-Windows)."""
         return (
             self.conn.win32_interrupt.queue
