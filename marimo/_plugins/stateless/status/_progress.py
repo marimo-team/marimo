@@ -10,6 +10,7 @@ from typing import (
     Literal,
     Optional,
     TypeVar,
+    cast,
     overload,
 )
 
@@ -380,6 +381,7 @@ class progress_bar(Generic[S]):
         self.completion_subtitle = completion_subtitle
         self.remove_on_exit = remove_on_exit
         self.disabled = disabled
+        self.step: int = 1
 
         if collection is not None:
             self.collection: Optional[Collection[S] | Iterator[S]] = collection
@@ -391,7 +393,8 @@ class progress_bar(Generic[S]):
                     + "to specify"
                 ) from None
             total = total or len(collection)
-            self.step = collection.step if isinstance(collection, range) else 1
+            if isinstance(collection, range):
+                self.step = cast(range, collection).step
 
         elif total is None:
             raise ValueError(
