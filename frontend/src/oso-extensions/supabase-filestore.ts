@@ -70,7 +70,7 @@ export class SupabaseFileStore implements FileStore {
 
   private async findExistingRecord(): Promise<string | null> {
     const { data, error } = await this.client!
-      .from("saved_queries")
+      .from("notebooks")
       .select("id")
       .eq("org_id", this.organizationId!)
       .eq("display_name", this.notebookId!)
@@ -86,7 +86,7 @@ export class SupabaseFileStore implements FileStore {
 
   private async updateRecord(id: string, contents: string) {
     return this.client!
-      .from("saved_queries")
+      .from("notebooks")
       .update({
         data: contents,
         updated_at: new Date().toISOString(),
@@ -96,7 +96,7 @@ export class SupabaseFileStore implements FileStore {
 
   private async createRecord(contents: string) {
     return this.client!
-      .from("saved_queries")
+      .from("notebooks")
       .insert({
         org_id: this.organizationId!,
         display_name: this.notebookId!,
@@ -111,7 +111,7 @@ export class SupabaseFileStore implements FileStore {
     }
 
     const { data, error } = await this.client!
-      .from("saved_queries")
+      .from("notebooks")
       .select("data")
       .eq("org_id", this.organizationId!)
       .eq("display_name", this.notebookId!)
