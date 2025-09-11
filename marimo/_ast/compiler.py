@@ -152,7 +152,16 @@ def compile_cell(
     source_position: Optional[SourcePosition] = None,
     carried_imports: list[ImportData] | None = None,
     test_rewrite: bool = False,
+    filename: Optional[str] = None,
 ) -> CellImpl:
+    if filename is not None and source_position is None:
+        source_position = solve_source_position(
+            code,
+            filename,
+        )
+    elif filename is not None and source_position is not None:
+        source_position.filename = filename
+
     # Replace non-breaking spaces with regular spaces -- some frontends
     # send nbsp in place of space, which is a syntax error.
     #
@@ -213,7 +222,6 @@ def compile_cell(
     expr.col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
     expr.end_col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
 
-    filename: str
     if source_position:
         # Modify the "source" position for meaningful stacktraces
         fix_source_position(module, source_position)
@@ -291,6 +299,36 @@ def compile_cell(
         last_expr=last_expr,
         cell_id=cell_id,
         _test=is_test,
+    )
+
+
+def solve_source_position(
+    code: str, filename: str
+) -> Optional[SourcePosition]:
+    from marimo._ast.load import _maybe_contents
+    from marimo._ast.parse import parse_notebook
+    from marimo._utils.cell_matching import match_cell_ids_by_similarity
+
+    contents = _maybe_contents(filename)
+    if not contents:
+        return None
+
+    notebook = parse_notebook(contents)
+    if notebook is None or not notebook.valid:
+        return None
+    on_disk = {
+        CellId_t(str(i)): cell.code for i, cell in enumerate(notebook.cells)
+    }
+    matches = match_cell_ids_by_similarity(on_disk, {CellId_t("new"): code})
+    if not matches or len(matches) != 1:
+        return None
+    (cell_index,) = matches.keys()
+    index = int(cell_index)
+
+    return SourcePosition(
+        filename=filename,
+        lineno=notebook.cells[index].lineno,
+        col_offset=notebook.cells[index].col_offset,
     )
 
 
@@ -427,9 +465,21 @@ def toplevel_cell_factory(
     )
 
 
-def ir_cell_factory(cell_def: CellDef, cell_id: CellId_t) -> Cell:
+def ir_cell_factory(
+    cell_def: CellDef, cell_id: CellId_t, filename: Optional[str] = None
+) -> Cell:
     # NB. no need for test rewrite, anonymous file, etc.
     # Because this is never invoked in script mode.
+    source_position = None
+    # EXCEPT in the case of debugpy, where we need to preserve source position.
+    if os.environ.get("DEBUGPY_RUNNING"):
+        if filename and cell_def.lineno:
+            source_position = SourcePosition(
+                filename=filename,
+                lineno=cell_def.lineno,
+                col_offset=cell_def.col_offset,
+            )
+
     prefix = ""
     if isinstance(cell_def, (FunctionCell, ClassCell)):
         prefix = TOPLEVEL_CELL_PREFIX
@@ -438,6 +488,7 @@ def ir_cell_factory(cell_def: CellDef, cell_id: CellId_t) -> Cell:
         _cell=compile_cell(
             cell_def.code,
             cell_id=cell_id,
+            source_position=source_position,
         ),
     )
 

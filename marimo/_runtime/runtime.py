@@ -845,7 +845,9 @@ class Kernel:
         error: Optional[Error] = None
         try:
             cell = compile_cell(
-                code, cell_id=cell_id, carried_imports=carried_imports
+                code,
+                cell_id=cell_id,
+                carried_imports=carried_imports,
             )
         except Exception as e:
             cell = None
@@ -1395,9 +1397,15 @@ class Kernel:
             if isinstance(run_result.exception, MarimoInterrupt):
                 self.last_interrupt_timestamp = time.time()
 
+        # Rebuild graph with sourceful positions
+        # Note, this is relatively expensive, but a reasonable tradeoff
+        graph = self.graph
+        if os.getenv("DEBUGPY_RUNNING"):
+            graph = self.graph.copy(self.app_metadata.filename)
+
         runner = cell_runner.Runner(
             roots=roots,
-            graph=self.graph,
+            graph=graph,
             glbls=self.globals,
             excluded_cells=set(self.errors.keys()),
             debugger=self.debugger,
@@ -2747,7 +2755,7 @@ def launch_kernel(
     stdin = ThreadSafeStdin(stream) if is_edit_mode else None
     debugger = (
         marimo_pdb.MarimoPdb(stdout=stdout, stdin=stdin)
-        if is_edit_mode
+        if is_edit_mode and not bool(os.getenv("DEBUGPY_RUNNING"))
         else None
     )
 
