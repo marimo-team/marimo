@@ -382,7 +382,7 @@ class progress_bar(Generic[S]):
         self.disabled = disabled
 
         if collection is not None:
-            self.collection = collection
+            self.collection: Optional[Collection[S] | Iterator[S]] = collection
 
             if isinstance(collection, Sized):
                 total = total or len(collection)
