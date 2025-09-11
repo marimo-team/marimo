@@ -128,7 +128,7 @@ export const AddCellWithAI: React.FC<{
     },
     onError: (error) => {
       toast({
-        title: "Completion failed",
+        title: "Generate with AI failed",
         description: prettyError(error),
       });
     },
