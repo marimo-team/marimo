@@ -60,7 +60,7 @@ def _():
     </video>
     Clicking on the cell link will also take you to the cell where the error occurred.
 
-### Postmortem Debugging
+### Postmortem debugging
 
 If your code raises an exception, you can use postmortem debugging to inspect
 the state of the program at the point where the exception occurred. Click on
@@ -117,7 +117,7 @@ advice.
     concepts like reactive execution, cell dependencies, and the differences
     between marimo notebooks and traditional Jupyter notebooks.
 
-## marimo as a Script
+## Debugging notebooks as a script
 Since marimo notebooks are standard Python files, you can run them as scripts
 from the command line. The following command will run your marimo notebook and
 drop you into the pdb debugger if an exception occurs, or if you hit a
@@ -127,10 +127,16 @@ breakpoint.
 python -m pdb your_script.py
 ```
 
-## Debugpy
+## External IDE debugging with `debugpy`
 
-### Debugpy script mode
-You can debug marimo notebooks in VSCode using the following `launch.json`. This launch configuration will debug a marimo notebook in [script mode](../scripts.md).
+marimo supports debugging with IDEs, like VSCode, which natively support the
+`debugpy` library. This allows you to set breakpoints, step through code, and
+inspect variables directly from your IDE.
+
+### Script mode
+You can debug marimo notebooks in VSCode using the following `launch.json`.
+This launch configuration will debug a marimo notebook in [script
+mode](../scripts.md).
 
 ```json
 {
@@ -149,18 +155,13 @@ You can debug marimo notebooks in VSCode using the following `launch.json`. This
 }
 ```
 
-### Debugpy edit mode
-Edit mode debugging allows the marimo editor to hit breakpoints set in an IDE like VSCode. Forcing a save and toggling breakpoints work consistently.
-
-<video autoplay muted loop playsinline width="100%" align="center" src="/_static/docs-debugpy-edit-mode.webm" alt="Video showing debugpy edit mode debugging with VSCode hitting marimo breakpoints">
-</video>
-
-!!! note
-    This will disable marimo's internal debugging features.
-
-!!! danger
-    This mode is blocking in VSCode, so you will need to interact with the
-    debugger in your editor to regain control of the marimo notebook.
+### Edit mode
+Edit mode debugging allows the marimo editor to trigger breakpoints set in an
+IDE like VSCode. Running in this mode will automatically start your notebook in
+[watch mode](./editor_features/watching.md). Note that the file state and
+editor must be consistent for break points to correctly work. If debugging is
+not acting as expected, force a notebook save and toggle the relevant
+breakpoints.
 
 Use the following `launch.json` configuration to enable edit mode debugging:
 
@@ -184,7 +185,18 @@ Use the following `launch.json` configuration to enable edit mode debugging:
 }
 ```
 
-## Debug in VSCode
+<video autoplay muted loop playsinline width="100%" align="center" src="/_static/docs-debugpy-edit-mode.webm" alt="Video showing debugpy edit mode debugging with VSCode hitting marimo breakpoints">
+</video>
+
+!!! note
+    This will disable marimo's internal debugging features.
+
+!!! danger
+    This mode is blocking in VSCode, so you will need to interact with the
+    debugger in your editor to regain control of the marimo notebook.
+
+
+## Debug directly in VSCode
 
 !!! note
     LSP support for marimo notebooks is coming soon, along with native debug server integration.
