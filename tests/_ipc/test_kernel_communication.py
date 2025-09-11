@@ -72,10 +72,18 @@ x = 42"""
     assert process.stderr is not None
 
     ready_line = process.stdout.readline().decode("utf-8").strip()
+
     if ready_line != "KERNEL_READY":
-        raise RuntimeError(
-            f"Expected KERNEL_READY, got: '{ready_line}'. Stderr: {process.stderr.read().decode('utf-8')}"
-        )
+        exit_code = process.poll()
+        stderr_content = process.stderr.read().decode("utf-8")
+        if exit_code is not None and exit_code != 0:
+            raise RuntimeError(
+                f"Kernel process failed with exit code {exit_code}. Stderr: {stderr_content}"
+            )
+        else:
+            raise RuntimeError(
+                f"Expected KERNEL_READY, got: '{ready_line}'. Stderr: {stderr_content}"
+            )
 
     queue_manager.control_queue.put(execute_request)
 
