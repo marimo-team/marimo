@@ -1,12 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 
 from __future__ import annotations
+import os
 import pathlib
 import subprocess
 import sys
 import textwrap
 from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 
+import click
 import pytest
 
 from marimo._ast.app import (

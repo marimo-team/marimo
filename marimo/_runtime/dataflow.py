@@ -594,6 +594,32 @@ class DirectedGraph:
             return processed | refs
         return processed - refs
 
+    def copy(self, filename: None | str = None) -> DirectedGraph:
+        """Return a deep copy of the graph by recompiling all cells.
+
+        This is mainly useful in the case where recompilation must be done
+        due to a dynamically changing notebook, where the line cache must be
+        consistent with the cell code, e.g. for debugging.
+        """
+        from marimo._ast.compiler import compile_cell
+
+        graph = DirectedGraph()
+        with self.lock:
+            for cid, old_cell in self.cells.items():
+                cell = compile_cell(
+                    old_cell.code,
+                    cell_id=cid,
+                    filename=filename,
+                )
+                # Carry over import data manually
+                imported_defs = old_cell.import_workspace.imported_defs
+                is_import_block = old_cell.import_workspace.is_import_block
+                cell.import_workspace.imported_defs = imported_defs
+                cell.import_workspace.is_import_block = is_import_block
+                # Reregister
+                graph.register_cell(cid, cell)
+        return graph
+
 
 def transitive_closure(
     graph: DirectedGraph,
