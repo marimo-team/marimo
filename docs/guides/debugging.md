@@ -1,8 +1,8 @@
-# Debugging marimo Notebooks
+# Debugging marimo notebooks
 
 ## Debugging in marimo
 
-### Using pdb in marimo Notebooks
+### Using pdb in marimo notebooks
 
 marimo has direct support for pdb, the Python debugger. You can set breakpoints
 in your code using the built-in `breakpoint()` function. When the code
@@ -95,6 +95,11 @@ making it easier to get targeted debugging help.
 
 ![Notebook Errors context in marimo](/_static/docs-notebook-errors-context.png)
 
+### Ask about notebook errors
+
+When interacting with the AI chat, you can reference the notebook "Errors" with the `@-symbol` to bring in comprehensive error information from your notebook,
+making it easier to get targeted debugging help.
+
 ### Best practices for AI-assisted debugging
 
 **Provide context beyond just the error.** Include information about:
@@ -131,9 +136,7 @@ python -m pdb your_script.py
 ## Debugpy
 
 ### Debugpy script mode
-Likewise, using debugpy directly in marimo notebooks is supported.
-If you want to use VSCode's debugging features, the following `launch.json`
-will debug a marimo notebook in [script mode](../scripts.md).
+You can debug marimo notebooks in VSCode using the following `launch.json`. This launch configuration will debug a marimo notebook in [script mode](../scripts.md).
 
 ```json
 {
@@ -153,13 +156,13 @@ will debug a marimo notebook in [script mode](../scripts.md).
 ```
 
 ### Debugpy edit mode
-Partial support for edit mode debugging is also available.
-This mode allows the marimo editor to hit breakpoints set in an IDE like VSCode.
+Edit mode debugging allows the marimo editor to hit breakpoints set in an IDE like VSCode. Forcing a save and toggling breakpoints work consistently.
 
 <video autoplay muted loop playsinline width="100%" align="center" src="/_static/docs-debugpy-edit-mode.webm" alt="Video showing debugpy edit mode debugging with VSCode hitting marimo breakpoints">
 </video>
 
-Note, this will disable marimo's internal debugging features.
+!!! note
+    This will disable marimo's internal debugging features.
 
 !!! danger
     This mode is blocking in VSCode, so you will need to interact with the
@@ -187,7 +190,11 @@ Use the following `launch.json` configuration to enable edit mode debugging:
 }
 ```
 
+## Debug in VSCode
+
+!!! note
+    LSP support for marimo notebooks is coming soon...
+
 ## Coming soon
 
-LSP support for marimo notebooks is coming soon, and a native debug server
-integration should be available in the near future.
+LSP support for marimo notebooks is coming soon, along with native debug server integration.
