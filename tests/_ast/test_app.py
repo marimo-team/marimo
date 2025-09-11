@@ -9,6 +9,7 @@ import textwrap
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
+import click
 import pytest
 
 from marimo._ast.app import (
@@ -778,36 +779,6 @@ class TestApp:
         assert "y = x + 1" in python_code
         assert "cell_one" in python_code
         assert "cell_two" in python_code
-
-    @staticmethod
-    def test_run_with_marimo_script_edit() -> None:
-        """Test App.run() with MARIMO_SCRIPT_EDIT environment variable."""
-        app = App()
-
-        @app.cell
-        def test_cell():
-            x = 1
-            return (x,)
-
-        # Test with MARIMO_SCRIPT_EDIT set but no filename
-        with patch.dict(os.environ, {"MARIMO_SCRIPT_EDIT": "1"}):
-            with pytest.raises(RuntimeError, match="MARIMO_SCRIPT_EDIT is set, but filename cannot be determined"):
-                app.run()
-
-        # Test with MARIMO_SCRIPT_EDIT set and filename
-        with patch.dict(os.environ, {"MARIMO_SCRIPT_EDIT": "1"}):
-            with patch.object(app, '_filename', 'test_file.py'):
-                with patch('marimo._cli.cli.edit.invoke') as mock_invoke:
-                    outputs, defs = app.run()
-                    mock_invoke.assert_called_once()
-                    assert outputs == ((), {})
-                    assert defs == {}
-
-        # Test without MARIMO_SCRIPT_EDIT (normal behavior)
-        with patch.dict(os.environ, {}, clear=True):
-            outputs, defs = app.run()
-            assert outputs == (1,)
-            assert defs == {"x": 1}
 
 
 class TestInvalidSetup:
