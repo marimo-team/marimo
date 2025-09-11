@@ -186,15 +186,5 @@ class Connection:
         if self._receiver_thread.is_alive():
             self._receiver_thread.join(timeout=1)
 
-        # Close sockets
-        self.control.socket.close()
-        self.ui_element.socket.close()
-        self.completion.socket.close()
-        if self.win32_interrupt:
-            self.win32_interrupt.socket.close()
-
-        self.input.socket.close()
-        self.stream.socket.close()
-
-        # Destroy zmq context
-        self.context.term()
+        # Close all associated sockets (and finally terminate)
+        self.context.destroy()
