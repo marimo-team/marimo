@@ -16,6 +16,7 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._ast import codegen
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import Cell, CellImpl
 from marimo._ast.names import DEFAULT_CELL_NAME, is_internal_cell_name
@@ -163,11 +164,15 @@ class Exporter:
                 )
 
         graph = app.graph
+        header = codegen.get_header_comments(filename) if filename else ""
         codes: list[str] = [
             "# %%\n" + graph.cells[cid].code
             for cid in dataflow.topological_sort(graph, graph.cells.keys())
         ]
-        code = f'\n__generated_with = "{__version__}"\n\n' + "\n\n".join(codes)
+        code = (
+            f'{header}\n__generated_with = "{__version__}"\n\n'
+            + "\n\n".join(codes)
+        )
 
         download_filename = get_download_filename(filename, "script.py")
         return code, download_filename
