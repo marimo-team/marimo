@@ -417,7 +417,7 @@ class progress_bar(Generic[S]):
                 "progress_bar can only be iterated over if a collection is provided"
             )
         for item in self.collection:
-            yield item  # type: ignore[misc]
+            yield item
             if not self.disabled:
                 self.progress.update(increment=self.step)
         self._finish()
