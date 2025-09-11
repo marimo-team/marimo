@@ -16,11 +16,13 @@ import {
 import { cn } from "@/utils/cn";
 import { AgentDocs } from "./agent-docs";
 import {
-  activeSessionAtom,
+  type AgentSession,
   addSession,
   agentSessionStateAtom,
   createSession,
   type ExternalAgentId,
+  getAgentSessionSupport,
+  selectedTabAtom,
 } from "./state";
 
 interface AgentSelectorProps {
@@ -44,25 +46,42 @@ const AVAILABLE_AGENTS = [
 interface AgentMenuItemProps {
   agent: (typeof AVAILABLE_AGENTS)[number];
   onSelect: (agentId: ExternalAgentId) => void;
+  existingSessions: AgentSession[];
 }
 
-const AgentMenuItem = memo<AgentMenuItemProps>(({ agent, onSelect }) => (
-  <DropdownMenuItem
-    onClick={() => onSelect(agent.id)}
-    className="cursor-pointer"
-  >
-    <div className="flex items-center w-full">
-      <AiProviderIcon provider={agent.iconId} className="h-3 w-3 mr-2" />
-      <span>New {agent.displayName} session</span>
-    </div>
-  </DropdownMenuItem>
-));
+const AgentMenuItem = memo<AgentMenuItemProps>(
+  ({ agent, onSelect, existingSessions }) => {
+    const sessionSupport = getAgentSessionSupport(agent.id);
+    const hasExistingSession = existingSessions.some(
+      (s) => s.agentId === agent.id,
+    );
+
+    const getText = () => {
+      if (sessionSupport === "single" && hasExistingSession) {
+        return `Reset ${agent.displayName} session`;
+      }
+      return `New ${agent.displayName} session`;
+    };
+
+    return (
+      <DropdownMenuItem
+        onClick={() => onSelect(agent.id)}
+        className="cursor-pointer"
+      >
+        <div className="flex items-center w-full">
+          <AiProviderIcon provider={agent.iconId} className="h-3 w-3 mr-2" />
+          <span>{getText()}</span>
+        </div>
+      </DropdownMenuItem>
+    );
+  },
+);
 AgentMenuItem.displayName = "AgentMenuItem";
 
 export const AgentSelector: React.FC<AgentSelectorProps> = memo(
   ({ onSessionCreated, className }) => {
     const [sessionState, setSessionState] = useAtom(agentSessionStateAtom);
-    const [, setActiveSession] = useAtom(activeSessionAtom);
+    const [, setActiveSession] = useAtom(selectedTabAtom);
     const [isOpen, setIsOpen] = useState(false);
 
     const handleCreateSession = useEvent(async (agentId: ExternalAgentId) => {
@@ -70,7 +89,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = memo(
       const newState = addSession(sessionState, newSession);
 
       setSessionState(newState);
-      setActiveSession(newSession.id);
+      setActiveSession(newSession.tabId);
       setIsOpen(false);
 
       onSessionCreated?.(agentId);
@@ -98,6 +117,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = memo(
               key={agent.id}
               agent={agent}
               onSelect={handleCreateSession}
+              existingSessions={sessionState.sessions}
             />
           ))}
           <DropdownMenuSeparator />

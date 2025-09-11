@@ -4,24 +4,27 @@ import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { capitalize } from "lodash-es";
 import type { TypedString } from "@/utils/typed";
+import { generateUUID } from "@/utils/uuid";
+import type { SessionSupportType } from "./types";
 
 // Types
-export type AgentSessionId = TypedString<"AgentSessionId">;
+export type TabId = TypedString<"TabId">;
+export type ExternalAgentSessionId = TypedString<"ExternalAgentSessionId">;
 export type ExternalAgentId = "claude" | "gemini";
 
 export interface AgentSession {
-  id: AgentSessionId;
+  tabId: TabId;
   agentId: ExternalAgentId;
   title: string;
   createdAt: number;
   lastUsedAt: number;
   // Store the actual agent session ID for resumption
-  agentSessionId?: string;
+  externalAgentSessionId?: ExternalAgentSessionId;
 }
 
 export interface AgentSessionState {
   sessions: AgentSession[];
-  activeSessionId: AgentSessionId | null;
+  activeTabId: TabId | null;
 }
 
 // Constants
@@ -32,32 +35,33 @@ export const agentSessionStateAtom = atomWithStorage<AgentSessionState>(
   STORAGE_KEY,
   {
     sessions: [],
-    activeSessionId: null,
+    activeTabId: null,
   },
 );
 
-export const activeSessionAtom = atom(
+export const selectedTabAtom = atom(
   (get) => {
     const state = get(agentSessionStateAtom);
-    if (!state.activeSessionId) {
+    if (!state.activeTabId) {
       return null;
     }
     return (
-      state.sessions.find((session) => session.id === state.activeSessionId) ||
+      state.sessions.find((session) => session.tabId === state.activeTabId) ||
       null
     );
   },
-  (get, set, sessionId: AgentSessionId | null) => {
+  (get, set, activeTabId: TabId | null) => {
     set(agentSessionStateAtom, (prev) => ({
       ...prev,
-      activeSessionId: sessionId,
+      activeTabId: activeTabId,
     }));
   },
 );
 
 // Utilities
-export function generateSessionId(): AgentSessionId {
-  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` as AgentSessionId;
+function generateTabId(): TabId {
+  // Our tab ID for internal session management
+  return `tab_${generateUUID()}` as TabId;
 }
 
 export function truncateTitle(title: string, maxLength: number = 20): string {
@@ -67,62 +71,93 @@ export function truncateTitle(title: string, maxLength: number = 20): string {
   return `${title.slice(0, maxLength - 3)}...`;
 }
 
-export function createSession(
-  agentId: ExternalAgentId,
-  firstMessage?: string,
-): AgentSession {
-  const now = Date.now();
-  const title = firstMessage
-    ? truncateTitle(firstMessage.trim())
-    : `New ${agentId} session`;
-
-  return {
-    id: generateSessionId(),
-    agentId,
-    title,
-    createdAt: now,
-    lastUsedAt: now,
-  };
-}
-
 export function addSession(
   state: AgentSessionState,
-  session: AgentSession,
+  session: {
+    agentId: ExternalAgentId;
+    firstMessage?: string;
+  },
 ): AgentSessionState {
+  const sessionSupport = getAgentSessionSupport(session.agentId);
+
+  const now = Date.now();
+  const title = session.firstMessage
+    ? truncateTitle(session.firstMessage.trim())
+    : `New ${session.agentId} session`;
+  const tabId = generateTabId();
+
+  if (sessionSupport === "single") {
+    // For single session agents, replace any existing session for this agent
+    const existingSessions = state.sessions.filter(
+      (s) => s.agentId === session.agentId,
+    );
+    const otherSessions = state.sessions.filter(
+      (s) => s.agentId !== session.agentId,
+    );
+
+    if (existingSessions.length > 0) {
+      // Replace the existing session (overwrite it)
+      const existingSession = existingSessions[0];
+      const updatedSession: AgentSession = {
+        ...session,
+        title,
+        createdAt: now,
+        lastUsedAt: now,
+        tabId: existingSession.tabId, // Keep the same ID to maintain tab reference
+      };
+
+      return {
+        ...state,
+        sessions: [...otherSessions, updatedSession],
+        activeTabId: updatedSession.tabId,
+      };
+    }
+  }
+
+  // For multiple session agents or when no existing session exists
   return {
     ...state,
-    sessions: [...state.sessions, session],
-    activeSessionId: session.id,
+    sessions: [
+      ...state.sessions,
+      {
+        ...session,
+        tabId,
+        title,
+        createdAt: now,
+        lastUsedAt: now,
+      },
+    ],
+    activeTabId: tabId,
   };
 }
 
 export function removeSession(
   state: AgentSessionState,
-  sessionId: AgentSessionId,
+  sessionId: TabId,
 ): AgentSessionState {
-  const filteredSessions = state.sessions.filter((s) => s.id !== sessionId);
+  const filteredSessions = state.sessions.filter((s) => s.tabId !== sessionId);
   const newActiveSessionId =
-    state.activeSessionId === sessionId
+    state.activeTabId === sessionId
       ? filteredSessions.length > 0
-        ? filteredSessions[filteredSessions.length - 1].id
+        ? filteredSessions[filteredSessions.length - 1].tabId
         : null
-      : state.activeSessionId;
+      : state.activeTabId;
 
   return {
     sessions: filteredSessions,
-    activeSessionId: newActiveSessionId,
+    activeTabId: newActiveSessionId,
   };
 }
 
 export function updateSessionTitle(
   state: AgentSessionState,
-  sessionId: AgentSessionId,
+  sessionId: TabId,
   title: string,
 ): AgentSessionState {
   return {
     ...state,
     sessions: state.sessions.map((session) =>
-      session.id === sessionId
+      session.tabId === sessionId
         ? { ...session, title: truncateTitle(title) }
         : session,
     ),
@@ -131,28 +166,28 @@ export function updateSessionTitle(
 
 export function updateSessionLastUsed(
   state: AgentSessionState,
-  sessionId: AgentSessionId,
+  sessionId: TabId,
 ): AgentSessionState {
   return {
     ...state,
     sessions: state.sessions.map((session) =>
-      session.id === sessionId
+      session.tabId === sessionId
         ? { ...session, lastUsedAt: Date.now() }
         : session,
     ),
   };
 }
 
-export function updateSessionAgentId(
+export function updateSessionExternalAgentSessionId(
   state: AgentSessionState,
-  sessionId: AgentSessionId,
-  agentSessionId: string,
+  sessionId: TabId,
+  externalAgentSessionId: ExternalAgentSessionId,
 ): AgentSessionState {
   return {
     ...state,
     sessions: state.sessions.map((session) =>
-      session.id === sessionId
-        ? { ...session, agentSessionId, lastUsedAt: Date.now() }
+      session.tabId === sessionId
+        ? { ...session, externalAgentSessionId, lastUsedAt: Date.now() }
         : session,
     ),
   };
@@ -179,18 +214,33 @@ export function getAgentWebSocketUrl(agentId: ExternalAgentId): string {
   return AGENT_CONFIG[agentId].webSocketUrl;
 }
 
-const AGENT_CONFIG = {
+interface AgentConfig {
+  port: number;
+  command: string;
+  webSocketUrl: string;
+  sessionSupport: SessionSupportType;
+}
+
+const AGENT_CONFIG: Record<ExternalAgentId, AgentConfig> = {
   claude: {
     port: 3017,
     command: "npx @zed-industries/claude-code-acp",
     webSocketUrl: "ws://localhost:3017/message",
+    sessionSupport: "single",
   },
   gemini: {
     port: 3019,
     command: "npx @google/gemini-cli --experimental-acp",
     webSocketUrl: "ws://localhost:3019/message",
+    sessionSupport: "single",
   },
 };
+
+export function getAgentSessionSupport(
+  agentId: ExternalAgentId,
+): SessionSupportType {
+  return AGENT_CONFIG[agentId].sessionSupport;
+}
 
 export function getAgentConnectionCommand(agentId: ExternalAgentId): string {
   const port = AGENT_CONFIG[agentId].port;

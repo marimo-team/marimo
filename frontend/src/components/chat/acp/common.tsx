@@ -10,7 +10,6 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import React, { memo } from "react";
-import type { useAcpClient } from "use-acp";
 import {
   Accordion,
   AccordionContent,
@@ -21,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { ToolBodyBlock } from "./blocks";
+import type { AgentPendingPermission } from "./types";
 
 interface SimpleAccordionProps {
   title: string | React.ReactNode;
@@ -150,7 +150,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = memo(
 ConnectionStatus.displayName = "ConnectionStatus";
 
 interface PermissionRequestProps {
-  permission: NonNullable<ReturnType<typeof useAcpClient>["pendingPermission"]>;
+  permission: NonNullable<AgentPendingPermission>;
   onResolve: (option: any) => void;
 }
 

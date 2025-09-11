@@ -313,6 +313,9 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
+      debug:
+        specifier: ^4.4.1
+        version: 4.4.1(supports-color@10.0.0)
       dequal:
         specifier: ^2.0.3
         version: 2.0.3
@@ -458,8 +461,8 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1
       use-acp:
-        specifier: ^0.1.0
-        version: 0.1.0(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1))
+        specifier: ^0.1.2
+        version: 0.1.2(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1))
       use-resize-observer:
         specifier: ^9.1.0
         version: 9.1.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -521,6 +524,9 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.0(@testing-library/dom@10.4.0)(@types/react-dom@19.1.9(@types/react@19.1.12))(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      '@types/debug':
+        specifier: ^4.1.12
+        version: 4.1.12
       '@types/katex':
         specifier: ^0.16.7
         version: 0.16.7
@@ -9287,8 +9293,8 @@ packages:
   url-parse@1.5.10:
     resolution: {integrity: sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==}
 
-  use-acp@0.1.0:
-    resolution: {integrity: sha512-Ve0EQef1ZT+4Kw/qgPmT+d+kBJ/c8MYS6PsqXWGWhB2jAxQp00KT1IVCxNJDzMPkF53OPH/NtLiMUhQPKsW3xQ==}
+  use-acp@0.1.2:
+    resolution: {integrity: sha512-rEJ4ZRC9kAfAYqLQg87wE3tP0bODGKcxcIW3n8U2bDvA3he+BhF4NQ9Ng1yKZ3rJdeYsYPUsuz9/+CvMXsrE9A==}
     peerDependencies:
       react: ^19
       react-dom: ^19
@@ -20553,7 +20559,7 @@ snapshots:
       querystringify: 2.2.0
       requires-port: 1.0.0
 
-  use-acp@0.1.0(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1)):
+  use-acp@0.1.2(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1)):
     dependencies:
       '@zed-industries/agent-client-protocol': 0.1.2
       react: 19.1.1

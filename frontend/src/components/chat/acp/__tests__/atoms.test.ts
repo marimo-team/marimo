@@ -4,10 +4,10 @@ import { createStore } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type AgentSessionState,
-  activeSessionAtom,
   addSession,
   agentSessionStateAtom,
   createSession,
+  selectedTabAtom,
 } from "../state";
 
 describe("Jotai atoms", () => {
@@ -36,7 +36,7 @@ describe("Jotai atoms", () => {
       const session = createSession("claude", "Test message");
       const newState: AgentSessionState = {
         sessions: [session],
-        activeSessionId: session.id,
+        activeTabId: session.tabId,
       };
 
       store.set(agentSessionStateAtom, newState);
@@ -48,7 +48,7 @@ describe("Jotai atoms", () => {
 
   describe("activeSessionAtom", () => {
     it("should return null when no active session", () => {
-      const activeSession = store.get(activeSessionAtom);
+      const activeSession = store.get(selectedTabAtom);
       expect(activeSession).toBe(null);
     });
 
@@ -57,13 +57,13 @@ describe("Jotai atoms", () => {
       const state = addSession(
         {
           sessions: [],
-          activeSessionId: null,
+          activeTabId: null,
         },
         session,
       );
 
       store.set(agentSessionStateAtom, state);
-      const activeSession = store.get(activeSessionAtom);
+      const activeSession = store.get(selectedTabAtom);
 
       expect(activeSession).toEqual(session);
     });
@@ -72,11 +72,11 @@ describe("Jotai atoms", () => {
       const session = createSession("claude");
       const state: AgentSessionState = {
         sessions: [session],
-        activeSessionId: "non_existent_id" as any,
+        activeTabId: "non_existent_id" as any,
       };
 
       store.set(agentSessionStateAtom, state);
-      const activeSession = store.get(activeSessionAtom);
+      const activeSession = store.get(selectedTabAtom);
 
       expect(activeSession).toBe(null);
     });
@@ -86,18 +86,18 @@ describe("Jotai atoms", () => {
       const session2 = createSession("gemini");
       const state: AgentSessionState = {
         sessions: [session1, session2],
-        activeSessionId: session1.id,
+        activeTabId: session1.tabId,
       };
 
       store.set(agentSessionStateAtom, state);
 
       // Set new active session
-      store.set(activeSessionAtom, session2.id);
+      store.set(selectedTabAtom, session2.tabId);
 
       const updatedState = store.get(agentSessionStateAtom);
-      expect(updatedState.activeSessionId).toBe(session2.id);
+      expect(updatedState.activeTabId).toBe(session2.tabId);
 
-      const activeSession = store.get(activeSessionAtom);
+      const activeSession = store.get(selectedTabAtom);
       expect(activeSession).toEqual(session2);
     });
 
@@ -106,20 +106,20 @@ describe("Jotai atoms", () => {
       const state = addSession(
         {
           sessions: [],
-          activeSessionId: null,
+          activeTabId: null,
         },
         session,
       );
 
       store.set(agentSessionStateAtom, state);
-      expect(store.get(activeSessionAtom)).toEqual(session);
+      expect(store.get(selectedTabAtom)).toEqual(session);
 
       // Set to null
-      store.set(activeSessionAtom, null);
+      store.set(selectedTabAtom, null);
 
       const updatedState = store.get(agentSessionStateAtom);
-      expect(updatedState.activeSessionId).toBe(null);
-      expect(store.get(activeSessionAtom)).toBe(null);
+      expect(updatedState.activeTabId).toBe(null);
+      expect(store.get(selectedTabAtom)).toBe(null);
     });
   });
 });

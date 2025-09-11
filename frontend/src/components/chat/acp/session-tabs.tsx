@@ -10,18 +10,18 @@ import { cn } from "@/utils/cn";
 import { AgentSelector } from "./agent-selector";
 import {
   type AgentSession,
-  type AgentSessionId,
-  activeSessionAtom,
   agentSessionStateAtom,
   removeSession,
+  selectedTabAtom,
+  type TabId,
   updateSessionLastUsed,
 } from "./state";
 
 interface SessionTabProps {
   session: AgentSession;
   isActive: boolean;
-  onSelect: (sessionId: AgentSessionId) => void;
-  onClose: (sessionId: AgentSessionId) => void;
+  onSelect: (sessionId: TabId) => void;
+  onClose: (sessionId: TabId) => void;
 }
 
 const SessionTab: React.FC<SessionTabProps> = memo(
@@ -32,7 +32,7 @@ const SessionTab: React.FC<SessionTabProps> = memo(
           "flex items-center gap-1 px-2 py-1 text-xs border-r border-border bg-muted/30 hover:bg-muted/50 cursor-pointer min-w-0",
           isActive && "bg-background border-b-0 relative z-10",
         )}
-        onClick={() => onSelect(session.id)}
+        onClick={() => onSelect(session.tabId)}
       >
         <div className="flex items-center gap-1 min-w-0 flex-1">
           <span className="text-muted-foreground text-[10px] font-medium">
@@ -48,7 +48,7 @@ const SessionTab: React.FC<SessionTabProps> = memo(
           className="h-4 w-4 p-0 hover:bg-destructive/20 hover:text-destructive flex-shrink-0"
           onClick={(e) => {
             e.stopPropagation();
-            onClose(session.id);
+            onClose(session.tabId);
           }}
         >
           <XIcon className="h-3 w-3" />
@@ -66,9 +66,9 @@ interface SessionTabsProps {
 
 interface SessionListProps {
   sessions: AgentSession[];
-  activeSessionId: AgentSessionId | null;
-  onSelectSession: (sessionId: AgentSessionId) => void;
-  onCloseSession: (sessionId: AgentSessionId) => void;
+  activeSessionId: TabId | null;
+  onSelectSession: (sessionId: TabId) => void;
+  onCloseSession: (sessionId: TabId) => void;
 }
 
 const SessionList = memo<SessionListProps>(
@@ -76,9 +76,9 @@ const SessionList = memo<SessionListProps>(
     <div className="flex min-w-0 flex-1 overflow-x-auto">
       {sessions.map((session) => (
         <SessionTab
-          key={session.id}
+          key={session.tabId}
           session={session}
-          isActive={session.id === activeSessionId}
+          isActive={session.tabId === activeSessionId}
           onSelect={onSelectSession}
           onClose={onCloseSession}
         />
@@ -101,18 +101,18 @@ EmptySessionTabs.displayName = "EmptySessionTabs";
 
 export const SessionTabs: React.FC<SessionTabsProps> = memo(({ className }) => {
   const [sessionState, setSessionState] = useAtom(agentSessionStateAtom);
-  const setActiveSession = useSetAtom(activeSessionAtom);
+  const setActiveSession = useSetAtom(selectedTabAtom);
 
-  const handleSelectSession = useEvent((sessionId: AgentSessionId) => {
+  const handleSelectSession = useEvent((sessionId: TabId) => {
     setActiveSession(sessionId);
     setSessionState((prev) => updateSessionLastUsed(prev, sessionId));
   });
 
-  const handleCloseSession = useEvent((sessionId: AgentSessionId) => {
+  const handleCloseSession = useEvent((sessionId: TabId) => {
     setSessionState((prev) => removeSession(prev, sessionId));
   });
 
-  const { sessions, activeSessionId } = sessionState;
+  const { sessions, activeTabId: activeSessionId } = sessionState;
 
   if (sessions.length === 0) {
     return <EmptySessionTabs className={className} />;

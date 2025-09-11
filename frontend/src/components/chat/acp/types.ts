@@ -1,10 +1,18 @@
 /* Copyright 2025 Marimo. All rights reserved. */
 import type { ContentBlock } from "@zed-industries/agent-client-protocol";
-import type { groupNotifications } from "use-acp";
+import type { groupNotifications, useAcpClient } from "use-acp";
 
 export type NotificationEvent = Awaited<
   ReturnType<typeof groupNotifications>
 >[number][number];
+
+export type AgentConnectionState = ReturnType<
+  typeof useAcpClient
+>["connectionState"];
+
+export type AgentPendingPermission = ReturnType<
+  typeof useAcpClient
+>["pendingPermission"];
 
 // Notification events
 
@@ -47,3 +55,6 @@ export type ContentBlockOf<T extends ContentBlockType> = Extract<
   ContentBlock,
   { type: T }
 >;
+
+// Agent session support types
+export type SessionSupportType = "single" | "multiple";
