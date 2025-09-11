@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useChat } from "@ai-sdk/react";
+import { useCompletion } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
 import { AtSignIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
-import React, { useEffect, useId, useMemo, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { Button } from "@/components/ui/button";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
@@ -11,47 +11,32 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/language
 import "./merge-editor.css";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { DefaultChatTransport, type UIMessage } from "ai";
 import { useAtom } from "jotai";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
-import {
-  buildCompletionRequestBody,
-  handleToolCall,
-  hasPendingToolCalls,
-} from "@/components/chat/chat-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { includeOtherCellsAtom } from "@/core/ai/state";
-import { useCellActions } from "@/core/cells/cells";
-import type { CellId } from "@/core/cells/ids";
+import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { selectAllText } from "@/core/codemirror/utils";
-import { useRequestClient } from "@/core/network/requests";
-import type { AiCompletionRequest } from "@/core/network/types";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
 import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
-import { CompletionCellPreview } from "./completion-cells";
 import {
   CompletionActions,
   createAiCompletionOnKeydown,
 } from "./completion-handlers";
-import {
-  type AiCompletion,
-  addContextCompletion,
-  UIMessageToCodeCells,
-} from "./completion-utils";
+import { addContextCompletion, getAICompletionBody } from "./completion-utils";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
 interface Props {
-  cellId: string;
   className?: string;
   currentCode: string;
   currentLanguageAdapter: LanguageAdapterType | undefined;
@@ -74,7 +59,6 @@ const baseExtensions = [customPythonLanguageSupport(), EditorView.lineWrapping];
  * This shows a left/right split with the original and modified code.
  */
 export const AiCompletionEditor: React.FC<Props> = ({
-  cellId,
   className,
   onChange,
   initialPrompt,
@@ -85,66 +69,35 @@ export const AiCompletionEditor: React.FC<Props> = ({
   enabled,
   children,
 }) => {
-  const [input, setInput] = useState("");
-  const [completionCells, setCompletionCells] = useState<AiCompletion[]>([]);
+  const [completionBody, setCompletionBody] = useState<object>({});
 
   const [includeOtherCells, setIncludeOtherCells] = useAtom(
     includeOtherCellsAtom,
   );
   const includeOtherCellsCheckboxId = useId();
+
   const runtimeManager = useRuntimeManager();
-  const { createNewCell } = useCellActions();
-  const { invokeAiTool } = useRequestClient();
 
-  const initialMessages: UIMessage[] = useMemo(() => {
-    if (initialPrompt) {
-      return [
-        {
-          id: "system",
-          role: "system",
-          parts: [{ type: "text", text: initialPrompt }],
-        },
-      ];
-    }
-    return [];
-  }, [initialPrompt]);
-
-  const { sendMessage, stop, status, addToolResult } = useChat({
-    // Only automatically submit if we have tool calls but no text response yet
-    sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
+  const {
+    completion: untrimmedCompletion,
+    input,
+    stop,
+    isLoading,
+    setCompletion,
+    setInput,
+    handleSubmit,
+  } = useCompletion({
+    api: runtimeManager.getAiURL("completion").toString(),
+    headers: runtimeManager.headers(),
+    initialInput: initialPrompt,
+    streamProtocol: "text",
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
-    messages: initialMessages,
-    transport: new DefaultChatTransport({
-      api: runtimeManager.getAiURL("completion").toString(),
-      headers: runtimeManager.headers(),
-      prepareSendMessagesRequest: async (options) => {
-        const completionBody = await buildCompletionRequestBody(
-          options.messages,
-        );
-        const body: AiCompletionRequest = {
-          ...options,
-          ...completionBody,
-          code: currentCode,
-          prompt: "", // Don't need prompt since we are using messages
-          language: currentLanguageAdapter,
-        };
-
-        return {
-          body: body,
-        };
-      },
-    }),
-    onToolCall: async ({ toolCall }) => {
-      await handleToolCall({
-        invokeAiTool,
-        addToolResult,
-        toolCall: {
-          toolName: toolCall.toolName,
-          toolCallId: toolCall.toolCallId,
-          input: toolCall.input as Record<string, never>,
-        },
-      });
+    body: {
+      ...completionBody,
+      includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
+      code: currentCode,
+      language: currentLanguageAdapter,
     },
     onError: (error) => {
       toast({
@@ -152,16 +105,14 @@ export const AiCompletionEditor: React.FC<Props> = ({
         description: prettyError(error),
       });
     },
-    onFinish: ({ message }) => {
-      // Take the last message (response from assistant) and get the text parts
-      setCompletionCells(UIMessageToCodeCells(message));
+    onFinish: (_prompt, completion) => {
+      // Remove trailing new lines
+      setCompletion(completion.trimEnd());
     },
   });
 
-  const multipleCompletions = completionCells.length > 1;
-
-  const isLoading = status === "streaming" || status === "submitted";
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
+  const completion = untrimmedCompletion.trimEnd();
 
   // Focus the input
   useEffect(() => {
@@ -191,98 +142,13 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const { theme } = useTheme();
 
-  const hasCompletion = completionCells.length > 0;
   const handleAcceptCompletion = () => {
-    // Accept first cell
-    acceptChange(completionCells[0].code);
-
-    // Create new cells if there are multiple completions
-    if (multipleCompletions) {
-      for (const cell of completionCells.slice(1)) {
-        createNewCell({
-          cellId: cellId as CellId,
-          code: cell.code,
-          before: false,
-        });
-      }
-    }
-    setCompletionCells([]);
+    acceptChange(completion);
+    setCompletion("");
   };
 
   const handleDeclineCompletion = () => {
-    setCompletionCells([]);
-  };
-
-  const handleAcceptNewCell = (completionIndex: number) => {
-    const code = completionCells[completionIndex].code;
-    createNewCell({
-      cellId: cellId as CellId,
-      code: code,
-      before: false,
-    });
-    setCompletionCells((prev) =>
-      prev.filter((_, index) => index !== completionIndex),
-    );
-  };
-
-  const handleRejectNewCell = (completionIndex: number) => {
-    setCompletionCells((prev) =>
-      prev.filter((_, index) => index !== completionIndex),
-    );
-  };
-
-  const renderCompletionCells = () => {
-    if (completionCells.length === 0) {
-      return null;
-    }
-
-    // First completion will replace the current code
-    // Subsequent completions will create new cells
-    const firstCompletion = completionCells[0];
-    const newCompletions = completionCells.slice(1);
-
-    const isCurrentCodeEmpty = currentCode.trim() === "";
-
-    return (
-      <>
-        {isCurrentCodeEmpty ? (
-          <CompletionCellPreview
-            code={firstCompletion.code}
-            language={firstCompletion.language}
-            onAccept={() => handleAcceptNewCell(0)}
-            onDecline={() => handleRejectNewCell(0)}
-            theme={theme}
-            displayActions={multipleCompletions}
-          />
-        ) : (
-          <CodeMirrorMerge className="cm" theme={theme}>
-            <Original
-              onChange={onChange}
-              value={currentCode}
-              extensions={baseExtensions}
-            />
-            <Modified
-              value={firstCompletion.code}
-              editable={false}
-              readOnly={true}
-              extensions={baseExtensions}
-            />
-          </CodeMirrorMerge>
-        )}
-        {newCompletions.map((cell, index) => (
-          <CompletionCellPreview
-            key={index}
-            code={cell.code}
-            language={cell.language}
-            // Add 1 to index since newCells starts from index 1 of completionCells
-            onAccept={() => handleAcceptNewCell(index + 1)}
-            onDecline={() => handleRejectNewCell(index + 1)}
-            theme={theme}
-            className="border-t"
-          />
-        ))}
-      </>
-    );
+    setCompletion("");
   };
 
   return (
@@ -299,30 +165,29 @@ export const AiCompletionEditor: React.FC<Props> = ({
             <SparklesIcon className="text-(--blue-10) shrink-0" size={16} />
             <PromptInput
               inputRef={inputRef}
-              className="h-full my-0 py-2"
+              className="h-full my-0 py-2 flex items-center"
               onClose={() => {
                 declineChange();
-                setCompletionCells([]);
+                setCompletion("");
               }}
               value={input}
               onChange={(newValue) => {
                 setInput(newValue);
+                setCompletionBody(getAICompletionBody({ input: newValue }));
               }}
               onSubmit={() => {
                 if (!isLoading) {
                   if (inputRef.current?.view) {
                     storePrompt(inputRef.current.view);
                   }
-                  sendMessage({
-                    text: input,
-                  });
+                  handleSubmit();
                 }
               }}
               onKeyDown={createAiCompletionOnKeydown({
                 handleAcceptCompletion,
                 handleDeclineCompletion,
                 isLoading,
-                hasCompletion,
+                hasCompletion: completion.trim().length > 0,
               })}
             />
             {isLoading && (
@@ -354,14 +219,13 @@ export const AiCompletionEditor: React.FC<Props> = ({
                   forRole="edit"
                 />
               </div>
-              {hasCompletion && (
+              {completion && (
                 <div className="-mb-1.5">
                   <CompletionActions
                     isLoading={isLoading}
                     onAccept={handleAcceptCompletion}
                     onDecline={handleDeclineCompletion}
                     size="xs"
-                    multipleCompletions={multipleCompletions}
                   />
                 </div>
               )}
@@ -394,7 +258,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
               onClick={() => {
                 stop();
                 declineChange();
-                setCompletionCells([]);
+                setCompletion("");
               }}
             >
               <XIcon className="text-(--red-10)" size={16} />
@@ -402,9 +266,22 @@ export const AiCompletionEditor: React.FC<Props> = ({
           </>
         )}
       </div>
-
-      {hasCompletion && enabled && renderCompletionCells()}
-      {(!hasCompletion || !enabled) && children}
+      {completion && enabled && (
+        <CodeMirrorMerge className="cm" theme={theme}>
+          <Original
+            onChange={onChange}
+            value={currentCode}
+            extensions={baseExtensions}
+          />
+          <Modified
+            value={completion}
+            editable={false}
+            readOnly={true}
+            extensions={baseExtensions}
+          />
+        </CodeMirrorMerge>
+      )}
+      {(!completion || !enabled) && children}
     </div>
   );
 };
