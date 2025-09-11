@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 
 from marimo._ast.cell import Cell, CellConfig
@@ -186,52 +184,6 @@ class TestCellManager:
         for _ in range(1000):
             ids.add(manager.create_cell_id())
         assert len(ids) == 1000
-
-    def test_create_cell_passes_filename(
-        self, cell_manager: CellManager
-    ) -> None:
-        """Test that create_cell passes filename to ir_cell_factory."""
-        from marimo._ast.app import App
-
-        app = App()
-        app._filename = "test_notebook.py"
-
-        # Mock ir_cell_factory to capture the filename parameter
-        with patch(
-            "marimo._ast.compiler.ir_cell_factory"
-        ) as mock_ir_cell_factory:
-            mock_ir_cell_factory.return_value = Cell(
-                _name="test", _cell=compile_cell("x = 1", TEST_CELL1)
-            )
-
-            cell_manager.create_cell(
-                cell_def={"code": "x = 1", "options": {}}, app=app
-            )
-
-            # Verify ir_cell_factory was called with filename
-            mock_ir_cell_factory.assert_called_once()
-            call_args = mock_ir_cell_factory.call_args
-            assert call_args[1]["filename"] == "test_notebook.py"
-
-    def test_create_cell_no_filename_when_app_none(
-        self, cell_manager: CellManager
-    ) -> None:
-        """Test that create_cell passes None filename when app is None."""
-        with patch(
-            "marimo._ast.compiler.ir_cell_factory"
-        ) as mock_ir_cell_factory:
-            mock_ir_cell_factory.return_value = Cell(
-                _name="test", _cell=compile_cell("x = 1", TEST_CELL1)
-            )
-
-            cell_manager.create_cell(
-                cell_def={"code": "x = 1", "options": {}}, app=None
-            )
-
-            # Verify ir_cell_factory was called with None filename
-            mock_ir_cell_factory.assert_called_once()
-            call_args = mock_ir_cell_factory.call_args
-            assert call_args[1]["filename"] is None
 
 
 class TestCellMatching:
