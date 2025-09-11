@@ -1,29 +1,108 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ai.tools.base import ToolBase
-from marimo._ai.tools.types import (
-    CellErrors,
-    CellRuntimeMetadata,
-    CellVariables,
-    CellVariableValue,
-    ErrorDetail,
-    GetCellRuntimeDataArgs,
-    GetCellRuntimeDataData,
-    GetCellRuntimeDataOutput,
-    GetLightweightCellMapArgs,
-    GetLightweightCellMapOutput,
-    LightweightCellInfo,
-    SupportedCellType,
-)
+from marimo._ai.tools.types import SuccessResult
 from marimo._ai.tools.utils.exceptions import ToolExecutionError
-from marimo._server.api.deps import AppStateBase
+from marimo._ast.models import CellData
 from marimo._types.ids import CellId_t, SessionId
 
 if TYPE_CHECKING:
     from marimo._ast.models import CellData
     from marimo._server.sessions import Session
+
+
+class SupportedCellType(str, Enum):
+    CODE = "code"
+    MARKDOWN = "markdown"
+    SQL = "sql"
+
+
+@dataclass
+class GetLightweightCellMapArgs:
+    session_id: SessionId
+    preview_lines: int = 3  # random default value
+
+
+@dataclass
+class LightweightCellInfo:
+    cell_id: str
+    preview: str
+    line_count: int
+    cell_type: SupportedCellType
+
+
+@dataclass
+class GetLightweightCellMapOutput(SuccessResult):
+    session_id: str = ""
+    notebook_name: str = ""
+    cells: list[LightweightCellInfo] = field(default_factory=list)
+    total_cells: int = 0
+    preview_lines: int = 3
+
+
+@dataclass
+class ErrorDetail:
+    type: str
+    message: str
+    traceback: list[str]
+
+
+@dataclass
+class CellErrors:
+    has_errors: bool
+    error_details: Optional[list[ErrorDetail]]
+
+
+@dataclass
+class CellRuntimeMetadata:
+    # String form of the runtime state (see marimo._ast.cell.RuntimeStateType);
+    # keep as str for py39/Pydantic compatibility and to avoid Literal/Enum
+    # validation issues in models.
+    runtime_state: Optional[str] = None
+    execution_time: Optional[float] = None
+
+
+@dataclass
+class CellVariableValue:
+    name: str
+    # Cell variables can be arbitrary Python values (int, str, list, dict, ...),
+    # so we keep this as Any to reflect actual runtime.
+    value: Optional[Any] = None
+    datatype: Optional[str] = None
+
+
+CellVariables = dict[str, CellVariableValue]
+
+
+@dataclass
+class GetCellRuntimeDataData:
+    session_id: str
+    cell_id: str
+    code: Optional[str] = None
+    errors: Optional[CellErrors] = None
+    metadata: Optional[CellRuntimeMetadata] = None
+    variables: Optional[CellVariables] = None
+
+
+def _default_cell_runtime_data() -> GetCellRuntimeDataData:
+    return GetCellRuntimeDataData(session_id="", cell_id="")
+
+
+@dataclass
+class GetCellRuntimeDataArgs:
+    session_id: SessionId
+    cell_id: CellId_t
+
+
+@dataclass
+class GetCellRuntimeDataOutput(SuccessResult):
+    data: GetCellRuntimeDataData = field(
+        default_factory=_default_cell_runtime_data
+    )
 
 
 class GetLightweightCellMap(
@@ -42,108 +121,82 @@ class GetLightweightCellMap(
         A success result containing lightweight cell previews and navigation info.
     """
 
-    def __call__(
+    def handle(
         self, args: GetLightweightCellMapArgs
     ) -> GetLightweightCellMapOutput:
-        if self.app is None:
-            raise ToolExecutionError(
-                "App is not available for tool execution",
-                code="APP_UNAVAILABLE",
-                is_retryable=False,
-            )
+        session_id = args.session_id
+        context = self.context
+        session = context.get_session(session_id)
+        cell_manager = session.app_file_manager.app.cell_manager
+        notebook_filename = (
+            session.app_file_manager.filename or "untitled_notebook.py"
+        )
 
-        try:
-            app_state = AppStateBase.from_app(self.app)
+        # Validate preview_lines
+        preview_lines = max(1, min(50, args.preview_lines))
 
-            session_manager = app_state.session_manager
-            session_id_typed = SessionId(args.session_id)
-            if session_id_typed not in session_manager.sessions:
-                raise ToolExecutionError(
-                    f"Session {args.session_id} not found",
-                    code="SESSION_NOT_FOUND",
-                    is_retryable=False,
-                    suggested_fix="Use get_active_notebooks to find valid session IDs",
-                    meta={"session_id": args.session_id},
+        cells: list[LightweightCellInfo] = []
+        for cell_data in cell_manager.cell_data():
+            code_lines = cell_data.code.split("\n")
+            preview = "\n".join(code_lines[:preview_lines])
+
+            # Determine cell type using compiled cell info when available
+            cell_type = self._get_cell_type(cell_data)
+
+            # Add cell to cell map
+            cells.append(
+                LightweightCellInfo(
+                    cell_id=cell_data.cell_id,
+                    preview=preview,
+                    line_count=len(code_lines),
+                    cell_type=cell_type,
                 )
-
-            session = session_manager.sessions[session_id_typed]
-            cell_manager = session.app_file_manager.app.cell_manager
-            notebook_filename = (
-                session.app_file_manager.filename or "untitled_notebook.py"
             )
 
-            cells: list[LightweightCellInfo] = []
-            for cell_data in cell_manager.cell_data():
-                code_lines = cell_data.code.split("\n")
-                preview = "\n".join(code_lines[: args.preview_lines])
-
-                # Determine cell type using compiled cell info when available
-                cell_type: SupportedCellType
-                if cell_data.cell is not None:
-                    language = cell_data.cell._cell.language
-                    if language == "sql":
-                        cell_type = SupportedCellType.SQL
-                    elif language == "python":
-                        cell_type = (
-                            SupportedCellType.MARKDOWN
-                            if self._is_markdown_cell(cell_data.code)
-                            else SupportedCellType.CODE
-                        )
-                    else:
-                        cell_type = SupportedCellType.CODE
-                else:
-                    # Fallback when compiled cell is unavailable
-                    cell_type = (
-                        SupportedCellType.MARKDOWN
-                        if self._is_markdown_cell(cell_data.code)
-                        else SupportedCellType.CODE
-                    )
-
-                cells.append(
-                    LightweightCellInfo(
-                        cell_id=cell_data.cell_id,
-                        preview=preview,
-                        line_count=len(code_lines),
-                        cell_type=cell_type,
-                    )
-                )
-
-            return GetLightweightCellMapOutput(
-                status="success",
-                session_id=args.session_id,
-                notebook_name=notebook_filename,
-                cells=cells,
-                total_cells=len(cells),
-                preview_lines=args.preview_lines,
-                next_steps=[
-                    "Use cell_id to get full cell content or execute specific cells",
-                    "Identify key sections based on cell types and previews",
-                    "Focus on import cells first to understand dependencies",
-                ],
-                message=(
-                    "Refer to cells ordinally in the following format: @[cell:1]. "
-                    "Do _not_ use cell_id when discussing with users."
-                ),
-            )
-
-        except ToolExecutionError:
-            raise
-        except Exception as e:  # pragma: no cover - defensive guardrail
-            raise ToolExecutionError(
-                f"Failed to retrieve cell map for session {args.session_id}",
-                code="CELL_MAP_ERROR",
-                is_retryable=True,
-                suggested_fix="Verify the session_id exists and the notebook is active.",
-                meta={
-                    "session_id": args.session_id,
-                    "preview_lines": args.preview_lines,
-                },
-            ) from e
+        return GetLightweightCellMapOutput(
+            status="success",
+            session_id=args.session_id,
+            notebook_name=notebook_filename,
+            cells=cells,
+            total_cells=len(cells),
+            preview_lines=preview_lines,
+            next_steps=[
+                "Use cell_id to get full cell content or execute specific cells",
+                "Identify key sections based on cell types and previews",
+                "Focus on import cells first to understand dependencies",
+            ],
+            message=(
+                "Refer to cells ordinally in the following format: @[cell:1]. "
+                "Do _not_ use cell_id when discussing with users."
+            ),
+        )
 
     # helper methods
 
     def _is_markdown_cell(self, code: str) -> bool:
         return code.lstrip().startswith("mo.md(")
+
+    def _get_cell_type(self, cell_data: CellData) -> SupportedCellType:
+        if cell_data.cell is None:
+            # Fallback when compiled cell is unavailable
+            return (
+                SupportedCellType.MARKDOWN
+                if self._is_markdown_cell(cell_data.code)
+                else SupportedCellType.CODE
+            )
+
+        # Otherwise, use the compiled cell's language
+        language = cell_data.cell._cell.language
+        if language == "sql":
+            return SupportedCellType.SQL
+        elif language == "python":
+            return (
+                SupportedCellType.MARKDOWN
+                if self._is_markdown_cell(cell_data.code)
+                else SupportedCellType.CODE
+            )
+        else:
+            return SupportedCellType.CODE
 
 
 class GetCellRuntimeData(
@@ -163,88 +216,58 @@ class GetCellRuntimeData(
         A success result containing cell runtime data including code, errors, and variables.
     """
 
-    def __call__(
-        self, args: GetCellRuntimeDataArgs
-    ) -> GetCellRuntimeDataOutput:
-        try:
-            if not self.app:
-                raise ToolExecutionError(
-                    "App is not available for tool execution",
-                    code="APP_UNAVAILABLE",
-                    is_retryable=False,
-                )
+    def handle(self, args: GetCellRuntimeDataArgs) -> GetCellRuntimeDataOutput:
+        session_id = args.session_id
+        cell_id = args.cell_id
+        context = self.context
+        session = context.get_session(session_id)
 
-            app_state = AppStateBase.from_app(self.app)
-            session_id = args.session_id
-            cell_id = args.cell_id
+        # Get cell data using CellManager's existing method
+        cell_data = self._get_cell_data(session, session_id, cell_id)
 
-            # Access session manager and get the specific session
-            session_manager = app_state.session_manager
-            session_id_typed = SessionId(session_id)
-            if session_id_typed not in session_manager.sessions:
-                raise ToolExecutionError(
-                    f"Session {session_id} not found",
-                    code="SESSION_NOT_FOUND",
-                    is_retryable=False,
-                    suggested_fix="Use get_active_notebooks to find valid session IDs",
-                )
+        # Get cell code/source
+        cell_code = cell_data.code
 
-            session = session_manager.sessions[session_id_typed]
-            cell_manager = session.app_file_manager.app.cell_manager
+        # Get cell errors from session view with actual error details
+        cell_errors = self._get_cell_errors(session, cell_id)
 
-            # Get cell data using CellManager's existing method
-            cell_id_typed = CellId_t(cell_id)
-            cell_data = cell_manager.get_cell_data(cell_id_typed)
-            if cell_data is None:
-                raise ToolExecutionError(
-                    f"Cell {cell_id} not found in session {session_id}",
-                    code="CELL_NOT_FOUND",
-                    is_retryable=False,
-                    suggested_fix="Use get_lightweight_cell_map to find valid cell IDs",
-                )
+        # Get cell runtime metadata
+        cell_metadata = self._get_cell_metadata(session, cell_id)
 
-            # Get cell code/source
-            cell_code = cell_data.code
+        # Get variable names and values defined by the cell
+        cell_variables = self._get_cell_variables(session, cell_data)
 
-            # Get cell errors from session view with actual error details
-            cell_errors = self._get_cell_errors(session, cell_id_typed)
-
-            # Get cell runtime metadata
-            cell_metadata = self._get_cell_metadata(session, cell_id_typed)
-
-            # Get variable names and values defined by the cell
-            cell_variables = self._get_cell_variables(session, cell_data)
-
-            return GetCellRuntimeDataOutput(
-                data=GetCellRuntimeDataData(
-                    session_id=session_id,
-                    cell_id=cell_id,
-                    code=cell_code,
-                    errors=cell_errors,
-                    metadata=cell_metadata,
-                    variables=cell_variables,
-                ),
-                next_steps=[
-                    "Review cell code for understanding the implementation",
-                    "Check errors to identify any execution issues",
-                    "Examine variables to understand cell outputs and state",
-                ],
-            )
-
-        except ToolExecutionError:
-            # Re-raise our specific tool errors (like CELL_NOT_FOUND, SESSION_NOT_FOUND)
-            raise
-        except Exception as e:
-            # Only catch unexpected exceptions
-            raise ToolExecutionError(
-                f"Failed to retrieve runtime data for cell {cell_id} in session {session_id}",
-                code="CELL_RUNTIME_ERROR",
-                is_retryable=True,
-                suggested_fix="Verify the session_id using get_active_notebooks and the cell_id using get_lightweight_cell_map.",
-                meta={"session_id": session_id, "cell_id": cell_id},
-            ) from e
+        return GetCellRuntimeDataOutput(
+            data=GetCellRuntimeDataData(
+                session_id=session_id,
+                cell_id=cell_id,
+                code=cell_code,
+                errors=cell_errors,
+                metadata=cell_metadata,
+                variables=cell_variables,
+            ),
+            next_steps=[
+                "Review cell code for understanding the implementation",
+                "Check errors to identify any execution issues",
+                "Examine variables to understand cell outputs and state",
+            ],
+        )
 
     # helper methods
+
+    def _get_cell_data(
+        self, session: Session, session_id: SessionId, cell_id: CellId_t
+    ) -> CellData:
+        cell_manager = session.app_file_manager.app.cell_manager
+        cell_data = cell_manager.get_cell_data(cell_id)
+        if cell_data is None:
+            raise ToolExecutionError(
+                f"Cell {cell_id} not found in session {session_id}",
+                code="CELL_NOT_FOUND",
+                is_retryable=False,
+                suggested_fix="Use get_lightweight_cell_map to find valid cell IDs",
+            )
+        return cell_data
 
     def _get_cell_errors(
         self, session: Session, cell_id: CellId_t
@@ -357,7 +380,6 @@ class GetCellRuntimeData(
         for var_name in cell_defs:
             if var_name in all_variables:
                 var_value = all_variables[var_name]
-                # Convert VariableValue to pydantic parsable dataclass
                 cell_variables[var_name] = CellVariableValue(
                     name=var_name,
                     value=var_value.value,

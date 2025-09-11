@@ -1,75 +1,78 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from unittest.mock import Mock
 
+from marimo._ai.tools.base import ToolContext
 from marimo._ai.tools.tools.cells import (
-    GetCellRuntimeData,
-    GetLightweightCellMap,
-)
-from marimo._ai.tools.types import (
     CellErrors,
     CellRuntimeMetadata,
     CellVariables,
     CellVariableValue,
+    GetCellRuntimeData,
+    GetLightweightCellMap,
 )
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.ops import VariableValue
 
 
+@dataclass
 class MockCellOp:
-    def __init__(self, output=None, console=None, status=None):
-        self.output = output
-        self.console = console
-        self.status = status
+    output: object | None = None
+    console: object | None = None
+    status: object | None = None
 
 
+@dataclass
 class MockOutput:
-    def __init__(self, channel, data):
-        self.channel = channel
-        self.data = data
+    channel: object
+    data: object
 
 
+@dataclass
 class MockConsoleOutput:
-    def __init__(self, channel, data):
-        self.channel = channel
-        self.data = data
+    channel: object
+    data: object
 
 
+@dataclass
 class MockError:
-    def __init__(self, error_type, message, traceback=None):
-        self.type = error_type
-        self._message = message
-        self.traceback = traceback or []
+    type: str
+    _message: str
+    traceback: list[str] = field(default_factory=list)
 
-    def describe(self):
+    def describe(self) -> str:
         return self._message
 
 
+@dataclass
 class MockSessionView:
-    def __init__(
-        self,
-        cell_operations=None,
-        last_execution_time=None,
-        variable_values=None,
-    ):
-        self.cell_operations = cell_operations or {}
-        self.last_execution_time = last_execution_time or {}
-        self.variable_values = variable_values or {}
+    cell_operations: dict | None = None
+    last_execution_time: dict | None = None
+    variable_values: dict | None = None
+
+    def __post_init__(self) -> None:
+        if self.cell_operations is None:
+            self.cell_operations = {}
+        if self.last_execution_time is None:
+            self.last_execution_time = {}
+        if self.variable_values is None:
+            self.variable_values = {}
 
 
+@dataclass
 class MockSession:
-    def __init__(self, session_view):
-        self.session_view = session_view
+    session_view: MockSessionView
 
 
 def test_is_markdown_cell():
-    tool = GetLightweightCellMap(app=None)
+    tool = GetLightweightCellMap(ToolContext())
     assert tool._is_markdown_cell('mo.md("hi")') is True
     assert tool._is_markdown_cell("print('x')") is False
 
 
 def test_get_cell_errors_no_cell_op():
-    tool = GetCellRuntimeData(app=None)
+    tool = GetCellRuntimeData(ToolContext())
     session = MockSession(MockSessionView())
 
     result = tool._get_cell_errors(session, "missing")
@@ -77,7 +80,7 @@ def test_get_cell_errors_no_cell_op():
 
 
 def test_get_cell_errors_with_marimo_error():
-    tool = GetCellRuntimeData(app=None)
+    tool = GetCellRuntimeData(ToolContext())
     error = MockError(
         "NameError", "name 'x' is not defined", ["line1", "line2"]
     )
@@ -92,7 +95,7 @@ def test_get_cell_errors_with_marimo_error():
 
 
 def test_get_cell_errors_with_stderr():
-    tool = GetCellRuntimeData(app=None)
+    tool = GetCellRuntimeData(ToolContext())
     console_output = MockConsoleOutput(CellChannel.STDERR, "warn")
     cell_op = MockCellOp(console=[console_output])
     session = MockSession(MockSessionView(cell_operations={"c1": cell_op}))
@@ -104,7 +107,7 @@ def test_get_cell_errors_with_stderr():
 
 
 def test_get_cell_errors_dict_error():
-    tool = GetCellRuntimeData(app=None)
+    tool = GetCellRuntimeData(ToolContext())
     dict_error = {"type": "ValueError", "msg": "invalid", "traceback": ["tb1"]}
     output = MockOutput(CellChannel.MARIMO_ERROR, [dict_error])
     cell_op = MockCellOp(output=output)
@@ -117,7 +120,7 @@ def test_get_cell_errors_dict_error():
 
 
 def test_get_cell_metadata_basic():
-    tool = GetCellRuntimeData(app=None)
+    tool = GetCellRuntimeData(ToolContext())
     cell_op = MockCellOp(status="idle")
     session = MockSession(
         MockSessionView(
@@ -132,7 +135,7 @@ def test_get_cell_metadata_basic():
 
 
 def test_get_cell_metadata_no_cell_op():
-    tool = GetCellRuntimeData(app=None)
+    tool = GetCellRuntimeData(ToolContext())
     session = MockSession(MockSessionView())
 
     result = tool._get_cell_metadata(session, "missing")
@@ -142,7 +145,7 @@ def test_get_cell_metadata_no_cell_op():
 
 
 def test_get_cell_variables():
-    tool = GetCellRuntimeData(app=None)
+    tool = GetCellRuntimeData(ToolContext())
     cell = Mock()
     cell._cell = Mock()
     cell._cell.defs = {"x", "y"}

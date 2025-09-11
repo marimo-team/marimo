@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from unittest.mock import Mock, patch
 
+from marimo._ai.tools.base import ToolContext
 from marimo._ai.tools.tools.notebooks import GetActiveNotebooks
 from marimo._server.model import ConnectionState
 
@@ -25,31 +26,26 @@ class MockSessionManager:
         self.sessions = sessions or {}
 
 
-class MockAppState:
-    def __init__(self, sessions=None):
-        self.session_manager = MockSessionManager(sessions)
-
-
 def test_get_active_sessions_internal_empty():
-    tool = GetActiveNotebooks(app=None)
-    result = tool._get_active_sessions_internal(MockAppState())
+    tool = GetActiveNotebooks(ToolContext())
+    result = tool._get_active_sessions_internal(MockSessionManager())
     assert result == []
 
 
 def test_get_active_sessions_internal_open_session():
-    tool = GetActiveNotebooks(app=None)
+    tool = GetActiveNotebooks(ToolContext())
     session = MockSession(
         connection_state=ConnectionState.OPEN,
         filename="/path/to/notebook.py",
         session_id="session1",
     )
-    app_state = MockAppState({"session1": session})
+    session_manager = MockSessionManager({"session1": session})
 
     with patch(
         "marimo._ai.tools.tools.notebooks.pretty_path"
     ) as mock_pretty_path:
         mock_pretty_path.return_value = "notebook.py"
-        result = tool._get_active_sessions_internal(app_state)
+        result = tool._get_active_sessions_internal(session_manager)
 
     assert len(result) == 1
     assert result[0].name == "notebook.py"
@@ -59,45 +55,45 @@ def test_get_active_sessions_internal_open_session():
 
 
 def test_get_active_sessions_internal_orphaned_session():
-    tool = GetActiveNotebooks(app=None)
+    tool = GetActiveNotebooks(ToolContext())
     session = MockSession(
         connection_state=ConnectionState.ORPHANED,
         filename="/path/to/test.py",
         session_id="session2",
     )
-    app_state = MockAppState({"session2": session})
+    session_manager = MockSessionManager({"session2": session})
 
     with patch(
         "marimo._ai.tools.tools.notebooks.pretty_path"
     ) as mock_pretty_path:
         mock_pretty_path.return_value = "test.py"
-        result = tool._get_active_sessions_internal(app_state)
+        result = tool._get_active_sessions_internal(session_manager)
 
     assert len(result) == 1
     assert result[0].name == "test.py"
 
 
 def test_get_active_sessions_internal_closed_session():
-    tool = GetActiveNotebooks(app=None)
+    tool = GetActiveNotebooks(ToolContext())
     session = MockSession(
         connection_state=ConnectionState.CLOSED,
         filename="/path/to/closed.py",
         session_id="session3",
     )
-    app_state = MockAppState({"session3": session})
+    session_manager = MockSessionManager({"session3": session})
 
-    result = tool._get_active_sessions_internal(app_state)
+    result = tool._get_active_sessions_internal(session_manager)
     assert result == []
 
 
 def test_get_active_sessions_internal_no_filename():
-    tool = GetActiveNotebooks(app=None)
+    tool = GetActiveNotebooks(ToolContext())
     session = MockSession(
         connection_state=ConnectionState.OPEN, filename=None, session_id="s4"
     )
-    app_state = MockAppState({"s4": session})
+    session_manager = MockSessionManager({"s4": session})
 
-    result = tool._get_active_sessions_internal(app_state)
+    result = tool._get_active_sessions_internal(session_manager)
     assert len(result) == 1
     assert result[0].name == "new notebook"
     assert result[0].path == "s4"
@@ -105,19 +101,19 @@ def test_get_active_sessions_internal_no_filename():
 
 
 def test_get_active_sessions_internal_multiple_sessions():
-    tool = GetActiveNotebooks(app=None)
+    tool = GetActiveNotebooks(ToolContext())
     sessions = {
         "s1": MockSession(ConnectionState.OPEN, "/path/first.py", "s1"),
         "s2": MockSession(ConnectionState.CLOSED, "/path/closed.py", "s2"),
         "s3": MockSession(ConnectionState.ORPHANED, "/path/third.py", "s3"),
     }
-    app_state = MockAppState(sessions)
+    session_manager = MockSessionManager(sessions)
 
     with patch(
         "marimo._ai.tools.tools.notebooks.pretty_path"
     ) as mock_pretty_path:
         mock_pretty_path.side_effect = lambda x: os.path.basename(x)
-        result = tool._get_active_sessions_internal(app_state)
+        result = tool._get_active_sessions_internal(session_manager)
 
     assert len(result) == 2
     session_ids = [f.session_id for f in result]

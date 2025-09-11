@@ -3,6 +3,7 @@
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 
+from marimo._ai.tools.base import ToolContext
 from marimo._ai.tools.tools.cells import (
     GetCellRuntimeData,
     GetLightweightCellMap,
@@ -12,5 +13,7 @@ from marimo._ai.tools.tools.cells import (
 def register_cells_tools(mcp: FastMCP, app: Starlette) -> None:
     """Register cell-level management tools"""
 
-    mcp.tool()(GetLightweightCellMap(app).as_mcp_tool_fn())
-    mcp.tool()(GetCellRuntimeData(app).as_mcp_tool_fn())
+    context = ToolContext(app=app)
+
+    mcp.tool()(GetLightweightCellMap(context).as_mcp_tool_fn())
+    mcp.tool()(GetCellRuntimeData(context).as_mcp_tool_fn())

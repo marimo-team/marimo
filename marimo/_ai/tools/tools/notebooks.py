@@ -1,16 +1,53 @@
+from dataclasses import dataclass, field
+from typing import Optional
+
 from marimo._ai.tools.base import ToolBase
 from marimo._ai.tools.types import (
     EmptyArgs,
-    GetActiveNotebooksData,
-    GetActiveNotebooksOutput,
-    NotebookInfo,
-    SummaryInfo,
+    SuccessResult,
 )
-from marimo._ai.tools.utils.exceptions import ToolExecutionError
-from marimo._server.api.deps import AppStateBase
 from marimo._server.model import ConnectionState
 from marimo._server.models.home import MarimoFile
+from marimo._server.sessions import SessionManager
+from marimo._types.ids import SessionId
 from marimo._utils.paths import pretty_path
+
+
+@dataclass
+class NotebookInfo:
+    name: str
+    path: str
+    session_id: Optional[SessionId] = None
+    initialization_id: Optional[str] = None
+
+
+@dataclass
+class SummaryInfo:
+    total_notebooks: int
+    total_sessions: int
+    active_connections: int
+
+
+@dataclass
+class GetActiveNotebooksData:
+    summary: SummaryInfo
+    notebooks: list[NotebookInfo]
+
+
+def _default_active_notebooks_data() -> GetActiveNotebooksData:
+    return GetActiveNotebooksData(
+        summary=SummaryInfo(
+            total_notebooks=0, total_sessions=0, active_connections=0
+        ),
+        notebooks=[],
+    )
+
+
+@dataclass
+class GetActiveNotebooksOutput(SuccessResult):
+    data: GetActiveNotebooksData = field(
+        default_factory=_default_active_notebooks_data
+    )
 
 
 class GetActiveNotebooks(ToolBase[EmptyArgs, GetActiveNotebooksOutput]):
@@ -20,62 +57,46 @@ class GetActiveNotebooks(ToolBase[EmptyArgs, GetActiveNotebooksOutput]):
         A success result containing summary statistics and notebook details.
     """
 
-    def __call__(self, _args: EmptyArgs) -> GetActiveNotebooksOutput:
-        try:
-            if self.app is None:
-                raise ToolExecutionError(
-                    "App is not available for tool execution",
-                    code="APP_UNAVAILABLE",
-                    is_retryable=False,
+    def handle(self, _args: EmptyArgs) -> GetActiveNotebooksOutput:
+        context = self.context
+        session_manager = context.session_manager
+        active_files = self._get_active_sessions_internal(session_manager)
+
+        # Build notebooks list
+        notebooks: list[NotebookInfo] = []
+        for file_info in active_files:
+            notebooks.append(
+                NotebookInfo(
+                    name=file_info.name,
+                    path=file_info.path,
+                    session_id=file_info.session_id,
+                    initialization_id=file_info.initialization_id,
                 )
-
-            app_state = AppStateBase.from_app(self.app)
-            active_files = self._get_active_sessions_internal(app_state)
-
-            # Build notebooks list
-            notebooks: list[NotebookInfo] = []
-            for file_info in active_files:
-                notebooks.append(
-                    NotebookInfo(
-                        name=file_info.name,
-                        path=file_info.path,
-                        session_id=file_info.session_id,
-                        initialization_id=file_info.initialization_id,
-                    )
-                )
-
-            # Build summary statistics
-            session_manager = app_state.session_manager
-            summary: SummaryInfo = SummaryInfo(
-                total_notebooks=len(active_files),
-                total_sessions=len(session_manager.sessions),
-                active_connections=session_manager.get_active_connection_count(),
             )
 
-            # Build data object
-            data = GetActiveNotebooksData(summary=summary, notebooks=notebooks)
+        # Build summary statistics
+        summary: SummaryInfo = SummaryInfo(
+            total_notebooks=len(active_files),
+            total_sessions=len(session_manager.sessions),
+            active_connections=session_manager.get_active_connection_count(),
+        )
 
-            # Return a success result with summary statistics and notebook details
-            return GetActiveNotebooksOutput(
-                data=data,
-                next_steps=[
-                    "Use the `get_lightweight_cell_map` tool to get the content of a notebook"
-                ],
-            )
+        # Build data object
+        data = GetActiveNotebooksData(summary=summary, notebooks=notebooks)
 
-        except Exception as e:
-            # Return a structured error result
-            raise ToolExecutionError(
-                "Failed to retrieve active notebooks",
-                code="NOTEBOOK_FETCH_ERROR",
-                is_retryable=True,
-                suggested_fix="Tell the user to check if marimo server is running and accessible. Suggest restarting the server if they haven't already tried that.",
-            ) from e
+        # Return a success result with summary statistics and notebook details
+        return GetActiveNotebooksOutput(
+            data=data,
+            next_steps=[
+                "Use the `get_lightweight_cell_map` tool to get the content of a notebook",
+                "Use the `get_cell_runtime_data` tool to get the code, errors, and variables of a cell if you already have the cell id",
+            ],
+        )
 
     # helper methods
 
     def _get_active_sessions_internal(
-        self, app_state: AppStateBase
+        self, session_manager: SessionManager
     ) -> list[MarimoFile]:
         """
         Get active sessions from the app state.
@@ -85,7 +106,7 @@ class GetActiveNotebooks(ToolBase[EmptyArgs, GetActiveNotebooksOutput]):
         import os
 
         files: list[MarimoFile] = []
-        for session_id, session in app_state.session_manager.sessions.items():
+        for session_id, session in session_manager.sessions.items():
             state = session.connection_state()
             if (
                 state == ConnectionState.OPEN

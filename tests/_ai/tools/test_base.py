@@ -1,37 +1,38 @@
 from __future__ import annotations
 
 import inspect
+from dataclasses import dataclass
 from typing import Any
 
-from pydantic import BaseModel
-
-from marimo._ai.tools.base import ToolBase
+from marimo._ai.tools.base import ToolBase, ToolContext
 
 
-class _Args(BaseModel):
+@dataclass
+class _Args:
     value: int
 
 
-class _Out(BaseModel):
+@dataclass
+class _Out:
     doubled: int
 
 
 class _EchoTool(ToolBase[_Args, _Out]):
     """Dummy tool for testing base adapter behavior."""
 
-    def __call__(self, args: _Args) -> _Out:
+    def handle(self, args: _Args) -> _Out:
         return _Out(doubled=args.value * 2)
 
 
 def test_as_mcp_tool_fn_returns_async_callable() -> None:
-    tool = _EchoTool(app=None)
+    tool = _EchoTool(ToolContext())
     handler = tool.as_mcp_tool_fn()
 
     assert inspect.iscoroutinefunction(handler)
 
 
 def test_handler_annotations_and_signature() -> None:
-    tool = _EchoTool(app=None)
+    tool = _EchoTool(ToolContext())
     handler = tool.as_mcp_tool_fn()
 
     annotations: dict[str, Any] = getattr(handler, "__annotations__", {})
@@ -47,7 +48,7 @@ def test_handler_annotations_and_signature() -> None:
 
 
 def test_name_and_description_defaults() -> None:
-    tool = _EchoTool(app=None)
+    tool = _EchoTool(ToolContext())
     # Name should default from class name
     assert tool.name == "_echo_tool"
     # Description defaults to class docstring (stripped)
