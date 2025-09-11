@@ -196,6 +196,8 @@ dependencies = [
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
     "mcp>=1.0.0; python_version >= '3.10'",
+    # zeromq
+    "pyzmq>=27.1.0",
 ]
 
 [tool.hatch.envs.typecheck.scripts]
@@ -207,6 +209,7 @@ tutorials = "mypy marimo/_tutorials"
 
 [tool.hatch.envs.test]
 extra-dependencies = [
+    "dirty-equals~=0.9.0",
     "hypothesis~=6.102.1",
     # For server testing
     "httpx~=0.27.0",
@@ -237,6 +240,7 @@ test-narwhals = """
 [tool.hatch.envs.test-optional]
 template = "test"
 extra-dependencies = [
+    "dirty-equals~=0.9.0",
     "hypothesis~=6.102.1",
     "httpx~=0.27.0",
     "matplotlib~=3.9.2",
@@ -286,6 +290,8 @@ extra-dependencies = [
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
     "mcp>=1.0.0; python_version >= '3.10'",
+    # zeromq
+    "pyzmq>=27.1.0",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
