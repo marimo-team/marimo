@@ -646,6 +646,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "readability": "readability-lxml",
         "readline": "gnureadline",
         "recaptcha_works": "django-recaptcha-works",
+        "redcap": "pycap",
         "relstorage": "RelStorage",
         "reportapi": "django-reportapi",
         "requests": "Requests",
