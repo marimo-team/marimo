@@ -384,16 +384,14 @@ class progress_bar(Generic[S]):
         if collection is not None:
             self.collection: Optional[Collection[S] | Iterator[S]] = collection
 
-            if isinstance(collection, Sized):
-                total = total or len(collection)
-                self.step = (
-                    collection.step if isinstance(collection, range) else 1
-                )
-            else:  # if collection is a generator
+            if not isinstance(collection, Sized):
+                # if collection is a generator
                 raise TypeError(
                     "fail to determine length of collection, use `total`"
                     + "to specify"
                 ) from None
+            total = total or len(collection)
+            self.step = collection.step if isinstance(collection, range) else 1
 
         elif total is None:
             raise ValueError(
