@@ -61,19 +61,18 @@ class PushQueue(QueueType[T]):
         raise NotImplementedError(msg)
 
 
-def start_queue_receiver_thread(
-    mapping: dict[zmq.Socket[bytes], QueueType[typing.Any]],
-    stop_event: threading.Event,
-) -> threading.Thread:
-    """Start a thread to receive messages from ZeroMQ sockets and populate queues."""
+def start_receiver_thread(
+    receivers: dict[zmq.Socket[bytes], QueueType[typing.Any]],
+) -> tuple[threading.Event, threading.Thread]:
+    """Start receiver thread."""
 
     def receive_loop(
-        mapping: dict[zmq.Socket[bytes], QueueType[typing.Any]],
+        receivers: dict[zmq.Socket[bytes], QueueType[typing.Any]],
         stop_event: threading.Event,
     ) -> None:
         """Receive messages from sockets and put them in queues using polling."""
         poller = zmq.Poller()
-        for socket in mapping:
+        for socket in receivers:
             poller.register(socket, zmq.POLLIN)
 
         while not stop_event.is_set():
@@ -83,8 +82,8 @@ def start_queue_receiver_thread(
                 for socket, event in socks.items():
                     if event & zmq.POLLIN:
                         msg = socket.recv(flags=zmq.NOBLOCK)
-                        obj = pickle.loads(msg)  # noqa: S301
-                        mapping[socket].put(obj)
+                        obj = pickle.loads(msg)
+                        receivers[socket].put(obj)
             except zmq.Again:
                 continue
             except zmq.ZMQError as e:
@@ -97,10 +96,11 @@ def start_queue_receiver_thread(
                 )
                 continue
 
+    stop_event = threading.Event()
     thread = threading.Thread(
         target=receive_loop,
-        args=(mapping, stop_event),
+        args=(receivers, stop_event),
         daemon=True,
     )
     thread.start()
-    return thread
+    return stop_event, thread

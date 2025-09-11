@@ -1,17 +1,12 @@
 # Copyright 2025 Marimo. All rights reserved.
-"""ZeroMQ-based QueueManager implementation."""
+"""Queue manager for generic inter-process communication."""
 
 from __future__ import annotations
 
 import dataclasses
-import queue
-import sys
-import threading
 import typing
 
-import zmq
-
-from marimo._ipc.queue_proxy import PushQueue, start_queue_receiver_thread
+from marimo._ipc.connection import Connection
 from marimo._ipc.types import ConnectionInfo
 
 if typing.TYPE_CHECKING:
@@ -23,183 +18,86 @@ if typing.TYPE_CHECKING:
     )
     from marimo._server.types import QueueType
 
-ADDR = "tcp://127.0.0.1"
-
-
-@dataclasses.dataclass
-class Connection:
-    """Marimo socket connection info."""
-
-    context: zmq.Context[zmq.Socket[bytes]]
-
-    control: zmq.Socket[bytes]
-    ui_element: zmq.Socket[bytes]
-    completion: zmq.Socket[bytes]
-    win32_interrupt: zmq.Socket[bytes] | None
-
-    input: zmq.Socket[bytes]
-    stream: zmq.Socket[bytes]
-
-    def close(self) -> None:
-        """Close all sockets and connections."""
-        self.control.close()
-        self.ui_element.close()
-        self.completion.close()
-        if self.win32_interrupt:
-            self.win32_interrupt.close()
-
-        self.input.close()
-        self.stream.close()
-
-        self.context.term()
-
 
 @dataclasses.dataclass
 class QueueManager:
-    """Queue manager using ZeroMQ for inter-process communication."""
+    """High-level interface for inter-process communication queues.
+
+    Usage:
+        # Host side - create and bind
+        host_manager, connection_info = QueueManager.create()
+
+        # Kernel side - connect
+        kernel_manager = QueueManager.connect(connection_info)
+
+        # Send/receive messages through queues
+        host_manager.control_queue.put(request)
+        response = kernel_manager.stream_queue.get()
+    """
 
     conn: Connection
 
-    control_queue: QueueType[ControlRequest]
-    set_ui_element_queue: QueueType[SetUIElementValueRequest]
-    completion_queue: QueueType[CodeCompletionRequest]
-    win32_interrupt_queue: QueueType[bool] | None
+    @property
+    def control_queue(self) -> QueueType[ControlRequest]:
+        """Queue for control requests (execute, interrupt, etc.)."""
+        return self.conn.control.queue
 
-    input_queue: QueueType[str]
-    stream_queue: QueueType[KernelMessage]
+    @property
+    def set_ui_element_queue(self) -> QueueType[SetUIElementValueRequest]:
+        """Queue for UI element value updates."""
+        return self.conn.ui_element.queue
 
-    def __post_init__(self) -> None:
-        self._stop_event = threading.Event()
-        self._receiver_thread: threading.Thread | None = None
+    @property
+    def completion_queue(self) -> QueueType[CodeCompletionRequest]:
+        """Queue for code completion requests."""
+        return self.conn.completion.queue
 
-    def start(self) -> None:
-        """Start receiver thread."""
-        assert self._receiver_thread is None, "Already started"
-
-        receivers: dict[zmq.Socket[bytes], QueueType[typing.Any]] = {}
-
-        if self.conn.control.getsockopt(zmq.TYPE) == zmq.PULL:
-            receivers[self.conn.control] = self.control_queue
-        if self.conn.ui_element.getsockopt(zmq.TYPE) == zmq.PULL:
-            receivers[self.conn.ui_element] = self.set_ui_element_queue
-        if (
-            self.conn.win32_interrupt
-            and self.conn.win32_interrupt.getsockopt(zmq.TYPE) == zmq.PULL
-        ):
-            assert self.win32_interrupt_queue, "Expected win32_interrupt_queue"
-            receivers[self.conn.win32_interrupt] = self.win32_interrupt_queue
-        if self.conn.completion.getsockopt(zmq.TYPE) == zmq.PULL:
-            receivers[self.conn.completion] = self.completion_queue
-        if self.conn.input.getsockopt(zmq.TYPE) == zmq.PULL:
-            receivers[self.conn.input] = self.input_queue
-        if self.conn.stream.getsockopt(zmq.TYPE) == zmq.PULL:
-            receivers[self.conn.stream] = self.stream_queue
-
-        self._receiver_thread = start_queue_receiver_thread(
-            receivers, self._stop_event
+    @property
+    def win32_interrupt_queue(self) -> QueueType[bool] | None:
+        """Queue for Windows interrupt signals (None on non-Windows)."""
+        return (
+            self.conn.win32_interrupt.queue
+            if self.conn.win32_interrupt
+            else None
         )
+
+    @property
+    def input_queue(self) -> QueueType[str]:
+        """Queue for user input responses."""
+        return self.conn.input.queue
+
+    @property
+    def stream_queue(self) -> QueueType[KernelMessage]:
+        """Queue for kernel output messages."""
+        return self.conn.stream.queue
 
     def close_queues(self) -> None:
         """Close all queues and cleanup resources."""
-        self._stop_event.set()
-        if self._receiver_thread and self._receiver_thread.is_alive():
-            self._receiver_thread.join(timeout=1)
         self.conn.close()
 
     @classmethod
     def create(
         cls,
     ) -> tuple[QueueManager, ConnectionInfo]:
-        """Create host-side connections with all sockets and start receivers."""
-        context = zmq.Context()
+        """Create host-side queue manager with all sockets bound.
 
-        conn = Connection(
-            context=context,
-            control=context.socket(zmq.PUSH),
-            ui_element=context.socket(zmq.PUSH),
-            completion=context.socket(zmq.PUSH),
-            win32_interrupt=context.socket(zmq.PUSH)
-            if sys.platform == "win32"
-            else None,
-            input=context.socket(zmq.PULL),
-            stream=context.socket(zmq.PULL),
-        )
-
-        # Bind each socket to a port
-        info = ConnectionInfo(
-            control=conn.control.bind_to_random_port(ADDR),
-            ui_element=conn.ui_element.bind_to_random_port(ADDR),
-            completion=conn.completion.bind_to_random_port(ADDR),
-            input=conn.input.bind_to_random_port(ADDR),
-            stream=conn.stream.bind_to_random_port(ADDR),
-            win32_interrupt=conn.win32_interrupt.bind_to_random_port(ADDR)
-            if conn.win32_interrupt
-            else None,
-        )
-
-        queue_manager = cls(
-            conn=conn,
-            # push queues
-            control_queue=PushQueue(conn.control),
-            set_ui_element_queue=PushQueue(conn.ui_element),
-            completion_queue=PushQueue(conn.completion),
-            win32_interrupt_queue=PushQueue(conn.win32_interrupt)
-            if conn.win32_interrupt
-            else None,
-            # pull queues
-            input_queue=queue.Queue(maxsize=1),
-            stream_queue=queue.Queue(),
-        )
-        queue_manager.start()
-
-        return queue_manager, info
+        Returns:
+            Tuple of (QueueManager instance, ConnectionInfo for kernel)
+        """
+        conn, info = Connection.create()
+        return cls(conn=conn), info
 
     @classmethod
     def connect(
         cls,
         connection_info: ConnectionInfo,
     ) -> QueueManager:
-        """Connect to host with all sockets and start receivers."""
-        context = zmq.Context()
+        """Connect to host and create kernel-side queue manager.
 
-        # Create all sockets (inverse of host)
-        conn = Connection(
-            context=context,
-            control=context.socket(zmq.PULL),
-            ui_element=context.socket(zmq.PULL),
-            completion=context.socket(zmq.PULL),
-            win32_interrupt=context.socket(zmq.PULL)
-            if connection_info.win32_interrupt
-            else None,
-            input=context.socket(zmq.PUSH),
-            stream=context.socket(zmq.PUSH),
-        )
+        Args:
+            connection_info: Connection details from host
 
-        # Attach to existing ports
-        conn.control.connect(f"{ADDR}:{connection_info.control}")
-        conn.ui_element.connect(f"{ADDR}:{connection_info.ui_element}")
-        conn.completion.connect(f"{ADDR}:{connection_info.completion}")
-        if conn.win32_interrupt and connection_info.win32_interrupt:
-            conn.win32_interrupt.connect(
-                f"{ADDR}:{connection_info.win32_interrupt}"
-            )
-
-        conn.input.connect(f"{ADDR}:{connection_info.input}")
-        conn.stream.connect(f"{ADDR}:{connection_info.stream}")
-
-        queue_manager = cls(
-            conn=conn,
-            # pull queues
-            control_queue=queue.Queue(),
-            set_ui_element_queue=queue.Queue(),
-            completion_queue=queue.Queue(),
-            win32_interrupt_queue=queue.Queue()
-            if conn.win32_interrupt
-            else None,
-            # push queues
-            input_queue=PushQueue(conn.input, maxsize=1),
-            stream_queue=PushQueue(conn.stream),
-        )
-        queue_manager.start()
-
-        return queue_manager
+        Returns:
+            Connected QueueManager instance
+        """
+        return cls(conn=Connection.connect(connection_info))
