@@ -378,18 +378,36 @@ describe("splitCodeIntoCells", () => {
     ]);
   });
 
-  it("should handle empty cells", () => {
-    const code = "```python\n\n```\n```sql\n\n```\n```markdown\n\n```";
-    const result = splitCodeIntoCells(code);
-    expect(result).toEqual([]);
-  });
-
   it("should handle cells with similar language identifiers", () => {
     const code =
       "```python\nprint('Hello, world!')\n```\n```python\nprint('Hello, world!')\n```";
     const result = splitCodeIntoCells(code);
     expect(result).toEqual([
       { language: "python", code: "print('Hello, world!')" },
+      { language: "python", code: "print('Hello, world!')" },
+    ]);
+  });
+
+  it("should handle code with no backticks", () => {
+    // Assume code is in 1 cell and python
+    const code = "print('Hello, world!')";
+    const result = splitCodeIntoCells(code);
+    expect(result).toEqual([
+      { language: "python", code: "print('Hello, world!')" },
+    ]);
+  });
+
+  it("should handle empty cells", () => {
+    const code = "```python\n\n```";
+    const result = splitCodeIntoCells(code);
+    expect(result).toEqual([{ language: "python", code: "```python\n\n```" }]);
+  });
+
+  it("should handle code with no language identifier", () => {
+    // Defaults to python
+    const code = "```\nprint('Hello, world!')\n```";
+    const result = splitCodeIntoCells(code);
+    expect(result).toEqual([
       { language: "python", code: "print('Hello, world!')" },
     ]);
   });

@@ -48,7 +48,6 @@ import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
-import type { ChatMessage } from "@/plugins/impl/chat/types";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
@@ -59,7 +58,6 @@ import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import {
   addContextCompletion,
   CONTEXT_TRIGGER,
-  getAICompletionBodyWithAttachments,
 } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
@@ -68,8 +66,10 @@ import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 import { AttachmentRenderer, FileAttachmentPill } from "./chat-components";
 import {
+  buildCompletionRequestBody,
   convertToFileUIPart,
   generateChatTitle,
+  handleToolCall,
   isLastMessageReasoning,
 } from "./chat-utils";
 import { MarkdownRenderer } from "./markdown-renderer";
@@ -605,40 +605,14 @@ const ChatPanelBody = () => {
       api: runtimeManager.getAiURL("chat").toString(),
       headers: runtimeManager.headers(),
       prepareSendMessagesRequest: async (options) => {
-        // Map from parts to a single string
-        function toContent(parts: UIMessage["parts"]): string {
-          return parts
-            .map((part) => (part.type === "text" ? part.text : ""))
-            .join("\n");
-        }
-
-        const input = toContent(options.messages.flatMap((m) => m.parts));
-        const completionBody = await getAICompletionBodyWithAttachments({
-          input,
-        });
-
-        // Map from UIMessage to our ChatMessage type
-        // If it's the last message, add the attachments from the completion body
-        function mapMessage(m: UIMessage, isLastMessage: boolean): ChatMessage {
-          const parts = m.parts;
-          if (isLastMessage) {
-            parts.push(...completionBody.attachments);
-          }
-          return {
-            role: m.role,
-            content: toContent(m.parts),
-            parts: parts,
-          };
-        }
+        const completionBody = await buildCompletionRequestBody(
+          options.messages,
+        );
 
         return {
           body: {
             ...options,
-            ...completionBody.body,
-            messages: options.messages.map((m, idx) => ({
-              ...m,
-              ...mapMessage(m, idx === options.messages.length - 1),
-            })),
+            ...completionBody,
           },
         };
       },
@@ -653,24 +627,15 @@ const ChatPanelBody = () => {
       });
     },
     onToolCall: async ({ toolCall }) => {
-      try {
-        const response = await invokeAiTool({
+      await handleToolCall({
+        invokeAiTool,
+        addToolResult,
+        toolCall: {
           toolName: toolCall.toolName,
-          arguments: toolCall.input as Record<string, never>,
-        });
-        addToolResult({
-          tool: toolCall.toolName,
           toolCallId: toolCall.toolCallId,
-          output: response.result || response.error,
-        });
-      } catch (error) {
-        Logger.error("Tool call failed:", error);
-        addToolResult({
-          tool: toolCall.toolName,
-          toolCallId: toolCall.toolCallId,
-          output: `Error: ${error instanceof Error ? error.message : String(error)}`,
-        });
-      }
+          input: toolCall.input as Record<string, never>,
+        },
+      });
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);

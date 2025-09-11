@@ -12,20 +12,20 @@ export const createAiCompletionOnKeydown = (opts: {
   handleAcceptCompletion: () => void;
   handleDeclineCompletion: () => void;
   isLoading: boolean;
-  completion: string;
+  hasCompletion: boolean;
 }) => {
   const {
     handleAcceptCompletion,
     handleDeclineCompletion,
     isLoading,
-    completion,
+    hasCompletion,
   } = opts;
 
   return (e: React.KeyboardEvent<HTMLDivElement>) => {
     const metaKey = isPlatformMac() ? e.metaKey : e.ctrlKey;
 
     // Mod+Enter should accept the completion, if there is one
-    if (metaKey && e.key === "Enter" && !isLoading && completion) {
+    if (metaKey && e.key === "Enter" && !isLoading && hasCompletion) {
       handleAcceptCompletion();
     }
 

@@ -7,7 +7,7 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import type { FileUIPart } from "ai";
+import type { FileUIPart, UIMessage } from "ai";
 import { getAIContextRegistry } from "@/core/ai/context/context";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { AiCompletionRequest } from "@/core/network/types";
@@ -146,14 +146,17 @@ export function addContextCompletion(
   }
 }
 
+export type Language = "python" | "sql" | "markdown";
+
 export interface AiCompletion {
-  language: string;
+  language: Language;
   code: string;
 }
 
 /**
- * Splits code blocks wrapped in triple backticks with an optional language identifier
- * Example: ```python\ncode\n```
+ * Extracts code blocks (delimited by triple backticks) and their language ("python", "sql", "markdown").
+ * Defaults to "python" if no language is specified or no code blocks are found.
+ * Returns an array of AiCompletion objects.
  */
 export function splitCodeIntoCells(code: string): AiCompletion[] {
   const cells: AiCompletion[] = [];
@@ -166,7 +169,13 @@ export function splitCodeIntoCells(code: string): AiCompletion[] {
       break;
     }
 
-    const language = code.slice(openIndex + 3, newlineIndex).trim() || "";
+    let language = code.slice(openIndex + 3, newlineIndex).trim() || "";
+    language =
+      language === "markdown"
+        ? "markdown"
+        : language === "sql"
+          ? "sql"
+          : "python";
     const codeStart = newlineIndex + 1;
 
     const closeIndex = code.indexOf("```", codeStart);
@@ -177,12 +186,23 @@ export function splitCodeIntoCells(code: string): AiCompletion[] {
     // Remove trailing newlines
     const codeContent = code.slice(codeStart, closeIndex).replace(/\n+$/, "");
     if (codeContent) {
-      cells.push({ language, code: codeContent });
+      cells.push({ language: language as Language, code: codeContent });
     }
 
     start = closeIndex + 3;
     openIndex = code.indexOf("```", start);
   }
 
+  // If no cells found, assume code is in 1 cell and python
+  if (cells.length === 0) {
+    cells.push({ language: "python", code: code });
+  }
+
   return cells;
+}
+
+export function UIMessageToCodeCells(message: UIMessage): AiCompletion[] {
+  const textParts = message.parts?.filter((p) => p.type === "text");
+  const textResponse = textParts?.map((p) => p.text).join("\n");
+  return splitCodeIntoCells(textResponse);
 }

@@ -11,10 +11,13 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/language
 import "./merge-editor.css";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import ReactCodeMirror from "@uiw/react-codemirror";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useAtom } from "jotai";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
+import {
+  buildCompletionRequestBody,
+  handleToolCall,
+} from "@/components/chat/chat-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -24,14 +27,15 @@ import { useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { selectAllText } from "@/core/codemirror/utils";
+import { useRequestClient } from "@/core/network/requests";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { useRuntimeManager } from "@/core/runtime/config";
-import type { ChatMessage } from "@/plugins/impl/chat/types";
-import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
+import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
 import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
+import { CompletionCellPreview } from "./completion-cells";
 import {
   CompletionActions,
   createAiCompletionOnKeydown,
@@ -39,8 +43,7 @@ import {
 import {
   type AiCompletion,
   addContextCompletion,
-  getAICompletionBodyWithAttachments,
-  splitCodeIntoCells,
+  UIMessageToCodeCells,
 } from "./completion-utils";
 
 const Original = CodeMirrorMerge.Original;
@@ -82,17 +85,15 @@ export const AiCompletionEditor: React.FC<Props> = ({
   children,
 }) => {
   const [input, setInput] = useState("");
-  const [completion, setCompletion] = useState("");
   const [completionCells, setCompletionCells] = useState<AiCompletion[]>([]);
 
   const [includeOtherCells, setIncludeOtherCells] = useAtom(
     includeOtherCellsAtom,
   );
   const includeOtherCellsCheckboxId = useId();
-
-  const { createNewCell } = useCellActions();
-
   const runtimeManager = useRuntimeManager();
+  const { createNewCell } = useCellActions();
+  const { invokeAiTool } = useRequestClient();
 
   const initialMessages: UIMessage[] = useMemo(() => {
     if (initialPrompt) {
@@ -107,7 +108,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     return [];
   }, [initialPrompt]);
 
-  const { sendMessage, stop, status } = useChat({
+  const { sendMessage, stop, status, addToolResult } = useChat({
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
     messages: initialMessages,
@@ -115,39 +116,12 @@ export const AiCompletionEditor: React.FC<Props> = ({
       api: runtimeManager.getAiURL("completion").toString(),
       headers: runtimeManager.headers(),
       prepareSendMessagesRequest: async (options) => {
-        // Map from parts to a single string
-        function toContent(parts: UIMessage["parts"]): string {
-          return parts
-            .map((part) => (part.type === "text" ? part.text : ""))
-            .join("\n");
-        }
-
-        const input = toContent(options.messages.flatMap((m) => m.parts));
-        const completionBody = await getAICompletionBodyWithAttachments({
-          input,
-        });
-
-        // Map from UIMessage to our ChatMessage type
-        // If it's the last message, add the attachments from the completion body
-        function mapMessage(m: UIMessage, isLastMessage: boolean): ChatMessage {
-          const parts = m.parts;
-          if (isLastMessage) {
-            parts.push(...completionBody.attachments);
-          }
-          return {
-            role: m.role,
-            content: toContent(m.parts),
-            parts: parts,
-          };
-        }
-
+        const completionBody = await buildCompletionRequestBody(
+          options.messages,
+        );
         const body: AiCompletionRequest = {
           ...options,
-          ...completionBody.body,
-          messages: options.messages.map((m, idx) => ({
-            ...m,
-            ...mapMessage(m, idx === options.messages.length - 1),
-          })),
+          ...completionBody,
           code: currentCode,
           prompt: "", // Don't need prompt since we are using messages
           language: currentLanguageAdapter,
@@ -158,6 +132,17 @@ export const AiCompletionEditor: React.FC<Props> = ({
         };
       },
     }),
+    onToolCall: async ({ toolCall }) => {
+      await handleToolCall({
+        invokeAiTool,
+        addToolResult,
+        toolCall: {
+          toolName: toolCall.toolName,
+          toolCallId: toolCall.toolCallId,
+          input: toolCall.input as Record<string, never>,
+        },
+      });
+    },
     onError: (error) => {
       toast({
         title: "Completion failed",
@@ -166,16 +151,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
     },
     onFinish: ({ message }) => {
       // Take the last message (response from assistant) and get the text parts
-      const textParts = message.parts?.filter((p) => p.type === "text");
-      const textResponse = textParts?.map((p) => p.text).join("\n");
-      setCompletion(textResponse);
-      setCompletionCells(splitCodeIntoCells(textResponse));
+      setCompletionCells(UIMessageToCodeCells(message));
     },
   });
 
-  // const completionCells = useMemo(() => {
-  //   return splitCodeIntoCells(completion);
-  // }, [completion]);
   const multipleCompletions = completionCells.length > 1;
 
   const isLoading = status === "streaming" || status === "submitted";
@@ -209,6 +188,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const { theme } = useTheme();
 
+  const hasCompletion = completionCells.length > 0;
   const handleAcceptCompletion = () => {
     // Accept first cell
     acceptChange(completionCells[0].code);
@@ -223,11 +203,11 @@ export const AiCompletionEditor: React.FC<Props> = ({
         });
       }
     }
-    setCompletion("");
+    setCompletionCells([]);
   };
 
   const handleDeclineCompletion = () => {
-    setCompletion("");
+    setCompletionCells([]);
   };
 
   const handleAcceptNewCell = (completionIndex: number) => {
@@ -253,18 +233,19 @@ export const AiCompletionEditor: React.FC<Props> = ({
       return null;
     }
 
-    // First cell will replace the current code
-    // Subsequent cells will be the new cells
-    const firstCell = completionCells[0];
-    const newCells = completionCells.slice(1);
+    // First completion will replace the current code
+    // Subsequent completions will create new cells
+    const firstCompletion = completionCells[0];
+    const newCompletions = completionCells.slice(1);
 
     const isCurrentCodeEmpty = currentCode.trim() === "";
 
     return (
       <>
         {isCurrentCodeEmpty ? (
-          <NewCellView
-            cell={firstCell.code}
+          <CompletionCellPreview
+            code={firstCompletion.code}
+            language={firstCompletion.language}
             onAccept={() => handleAcceptNewCell(0)}
             onDecline={() => handleRejectNewCell(0)}
             theme={theme}
@@ -278,17 +259,18 @@ export const AiCompletionEditor: React.FC<Props> = ({
               extensions={baseExtensions}
             />
             <Modified
-              value={firstCell.code}
+              value={firstCompletion.code}
               editable={false}
               readOnly={true}
               extensions={baseExtensions}
             />
           </CodeMirrorMerge>
         )}
-        {newCells.map((cell, index) => (
-          <NewCellView
+        {newCompletions.map((cell, index) => (
+          <CompletionCellPreview
             key={index}
-            cell={cell.code}
+            code={cell.code}
+            language={cell.language}
             // Add 1 to index since newCells starts from index 1 of completionCells
             onAccept={() => handleAcceptNewCell(index + 1)}
             onDecline={() => handleRejectNewCell(index + 1)}
@@ -317,7 +299,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
               className="h-full my-0 py-2"
               onClose={() => {
                 declineChange();
-                setCompletion("");
+                setCompletionCells([]);
               }}
               value={input}
               onChange={(newValue) => {
@@ -337,7 +319,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 handleAcceptCompletion,
                 handleDeclineCompletion,
                 isLoading,
-                completion,
+                hasCompletion,
               })}
             />
             {isLoading && (
@@ -369,7 +351,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                   forRole="edit"
                 />
               </div>
-              {completion && (
+              {hasCompletion && (
                 <div className="-mb-1.5">
                   <CompletionActions
                     isLoading={isLoading}
@@ -409,7 +391,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
               onClick={() => {
                 stop();
                 declineChange();
-                setCompletion("");
+                setCompletionCells([]);
               }}
             >
               <XIcon className="text-(--red-10)" size={16} />
@@ -418,63 +400,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
         )}
       </div>
 
-      {completion && enabled && renderCompletionCells()}
-      {(!completion || !enabled) && children}
-    </div>
-  );
-};
-
-const NewCellView: React.FC<{
-  cell: string;
-  onAccept: () => void;
-  onDecline: () => void;
-  theme: ResolvedTheme;
-  className?: string;
-  displayActions?: boolean;
-}> = ({
-  cell,
-  onAccept,
-  onDecline,
-  theme,
-  className,
-  displayActions = true,
-}) => {
-  return (
-    <div className={cn("flex flex-row relative", className)}>
-      <div
-        className="absolute top-0 left-0 h-full w-1 z-10 bg-green-600"
-        data-testid="new-cell-gutter"
-      />
-      <ReactCodeMirror
-        value={cell}
-        className="cm"
-        theme={theme}
-        extensions={baseExtensions}
-        editable={false}
-        readOnly={true}
-      />
-      {displayActions && (
-        <div className="flex flex-col justify-center p-2 gap-2">
-          <Button
-            size="xs"
-            variant="text"
-            className="h-6 w-6 text-green-600 hover:bg-green-600/10"
-            onClick={onAccept}
-            title="Accept this cell"
-          >
-            ✓
-          </Button>
-          <Button
-            size="xs"
-            variant="text"
-            className="h-6 w-6 text-red-600 hover:bg-red-600/10"
-            onClick={onDecline}
-            title="Reject this cell"
-          >
-            ✕
-          </Button>
-        </div>
-      )}
+      {hasCompletion && enabled && renderCompletionCells()}
+      {(!hasCompletion || !enabled) && children}
     </div>
   );
 };
