@@ -25,8 +25,14 @@ def main() -> None:
     used by external consumers (e.g., marimo-lsp). Changing this path is a
     BREAKING CHANGE and should be done with care and proper deprecation.
     """
-    args = KernelArgs.decode_json(sys.stdin.buffer.read())
-    queue_manager = QueueManager.connect(args.connection_info)
+    try:
+        args = KernelArgs.decode_json(sys.stdin.buffer.read())
+        queue_manager = QueueManager.connect(args.connection_info)
+
+        print("KERNEL_READY", flush=True)  # noqa: T201
+    except Exception as e:
+        print(f"KERNEL_ERROR: {e}", flush=True)  # noqa: T201
+        sys.exit(1)
 
     runtime.launch_kernel(
         set_ui_element_queue=queue_manager.set_ui_element_queue,

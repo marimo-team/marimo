@@ -68,7 +68,14 @@ x = 42"""
     process.stdin.flush()
     process.stdin.close()
 
-    time.sleep(1.0)  # let kernel start
+    assert process.stdout is not None
+    assert process.stderr is not None
+
+    ready_line = process.stdout.readline().decode("utf-8").strip()
+    if ready_line != "KERNEL_READY":
+        raise RuntimeError(
+            f"Expected KERNEL_READY, got: '{ready_line}'. Stderr: {process.stderr.read().decode('utf-8')}"
+        )
 
     queue_manager.control_queue.put(execute_request)
 
