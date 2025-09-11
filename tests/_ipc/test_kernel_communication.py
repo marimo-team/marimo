@@ -69,7 +69,7 @@ x = 42"""
     process.stdin.write(kernel_args.encode_json() + b"\n")
     process.stdin.flush()
 
-    time.sleep(0.4)  # let kernel start
+    time.sleep(1.0)  # let kernel start
 
     queue_manager.control_queue.put(execute_request)
 
