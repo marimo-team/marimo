@@ -292,6 +292,20 @@ class DirectedGraph:
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).
                 for other_id in other_ids_defining_name:
+                    if other_id not in self.cells:
+                        LOGGER.error(
+                            "Variable %s is defined in cell %s, but is not in the graph",
+                            variable_name,
+                            other_id,
+                        )
+                        continue
+                    if variable_name not in self.cells[other_id].variable_data:
+                        LOGGER.info(
+                            "Variable %s is not defined in cell %s",
+                            variable_name,
+                            other_id,
+                        )
+                        continue
                     other_variable_data = self.cells[other_id].variable_data[
                         variable_name
                     ][-1]

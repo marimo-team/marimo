@@ -451,6 +451,40 @@ SQL_CASES = [
         expected_defs={"0": ["my_table"], "1": []},
     ),
     GraphTestCase(
+        name="sql table attach statements, single definition",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f\"ATTACH 'my_db.db' as my_db\")",
+            "1": "_ = mo.sql(f'FROM my_db.main.my_table SELECT *')",
+        },
+        expected_parents={"0": [], "1": ["0"]},
+        expected_children={"0": ["1"], "1": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo", "my_db.main.my_table"],
+        },
+        expected_defs={"0": ["my_db"], "1": []},
+    ),
+    GraphTestCase(
+        name="sql table attach statements, multiple definitions",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f\"ATTACH 'my_db.db' as my_db\")",
+            "1": "_ = mo.sql(f'CREATE OR REPLACE TABLE my_db.my_table AS SELECT 1')",
+            "2": "_ = mo.sql(f'FROM my_db.main.my_table SELECT *')",
+            "3": "_ = mo.sql(f'FROM my_db.my_table SELECT *')",
+        },
+        expected_parents={"0": [], "1": [], "2": ["1"], "3": ["1"]},
+        expected_children={"0": [], "1": ["2", "3"], "2": [], "3": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo"],
+            "2": ["mo", "my_db.main.my_table"],
+            "3": ["mo", "my_db.my_table"],
+        },
+        expected_defs={"0": ["my_db"], "1": ["my_table"], "2": [], "3": []},
+    ),
+    GraphTestCase(
         name="sql table ordering doesn't cause false positives",
         enabled=HAS_DUCKDB,
         code={
