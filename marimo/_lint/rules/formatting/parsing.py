@@ -11,13 +11,39 @@ if TYPE_CHECKING:
     from marimo._lint.context import RuleContext
 
 
-class ParseDiagnosticsRule(LintRule):
-    """MF002/MF003: Parse stdout/stderr captured during notebook loading.
+class StdoutRule(LintRule):
+    """MF002: Parse stdout captured during notebook loading.
 
-    When marimo parses a notebook file, any output to stdout or stderr
-    (such as syntax warnings) is captured and converted to formatting
-    diagnostics. This rule processes that captured output and extracts
-    useful information like line numbers.
+    When marimo parses a notebook file, any output to stdout.
+    """
+
+    code = "MF002"
+    name = "parse-stdout"
+    description = "Parse captured stdout during notebook loading"
+    severity = Severity.FORMATTING
+    fixable = False
+
+    async def check(self, ctx: RuleContext) -> None:
+        """Process captured stdout and create diagnostics."""
+        # Process stdout content
+        if ctx.stdout:
+            await ctx.add_diagnostic(
+                Diagnostic(
+                    message=f"Parsing output: {ctx.stdout}",
+                    cell_id=None,
+                    line=0,
+                    column=0,
+                )
+            )
+
+
+class StderrRule(LintRule):
+    """MF002: Parse stdout captured during notebook loading.
+
+    When marimo parses a notebook file, any output to stderr (such as syntax
+    warnings) is captured and converted to formatting diagnostics. This rule
+    processes that captured output and extracts useful information like line
+    numbers.
 
     Examples:
         Stderr: "file.py:68: SyntaxWarning: invalid escape sequence '\\l'"
@@ -27,35 +53,18 @@ class ParseDiagnosticsRule(LintRule):
         -> Creates diagnostic at line 1
     """
 
-    code = "MF002"  # Will be overridden per diagnostic type
-    name = "parse-diagnostics"
-    description = "Parse captured stdout/stderr during notebook loading"
+    code = "MF003"
+    name = "parse-stderr"
+    description = "Parse captured stdout during notebook loading"
     severity = Severity.FORMATTING
     fixable = False
 
-    def __init__(self, stdout_content: str = "", stderr_content: str = ""):
-        """Initialize with captured stdout/stderr content."""
-        self.stdout_content = stdout_content.strip()
-        self.stderr_content = stderr_content.strip()
-
     async def check(self, ctx: RuleContext) -> None:
-        """Process captured stdout/stderr and create diagnostics."""
-        # Process stdout content
-        if self.stdout_content:
-            await ctx.add_diagnostic(
-                Diagnostic(
-                    message=f"Parsing output: {self.stdout_content}",
-                    cell_id=None,
-                    line=0,
-                    column=0,
-                )
-            )
-
         # Pattern to match file:line format (e.g., "file.py:68: SyntaxWarning")
         line_pattern = re.compile(r"([^:]+):(\d+):\s*(.+)")
 
         # Split stderr by lines to handle multiple warnings
-        lines = self.stderr_content.strip().split("\n")
+        lines = ctx.stderr.strip().split("\n")
         captured = False
 
         for line in lines:
@@ -78,10 +87,10 @@ class ParseDiagnosticsRule(LintRule):
                 )
 
         # Fallback: if no line patterns found, create single diagnostic
-        if not captured and self.stderr_content:
+        if not captured and ctx.stderr:
             await ctx.add_diagnostic(
                 Diagnostic(
-                    message=f"Parsing warning: {self.stderr_content}",
+                    message=f"Parsing warning: {ctx.stderr}",
                     cell_id=None,
                     line=1,
                     column=0,

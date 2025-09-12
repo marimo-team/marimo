@@ -14,11 +14,23 @@ if TYPE_CHECKING:
     from marimo._lint.rules.base import LintRule
     from marimo._runtime.dataflow import DirectedGraph
 
+# Priority mapping: lower numbers = higher priority
+PRIORITY_MAP = {
+    Severity.BREAKING: 0,
+    Severity.RUNTIME: 1,
+    Severity.FORMATTING: 2,
+}
+
 
 class LintContext:
     """Context for lint rule execution with priority queuing and graph caching."""
 
-    def __init__(self, notebook: NotebookSerialization):
+    def __init__(
+        self,
+        notebook: NotebookSerialization,
+        stderr: str = "",
+        stdout: str = "",
+    ):
         self.notebook = notebook
         self._diagnostics: list[tuple[int, int, Diagnostic]] = []
         self._graph: DirectedGraph | None = None
@@ -29,12 +41,8 @@ class LintContext:
             -1
         )  # Track what was last retrieved for streaming
 
-        # Priority mapping: lower numbers = higher priority
-        self._priority_map = {
-            Severity.BREAKING: 0,
-            Severity.RUNTIME: 1,
-            Severity.FORMATTING: 2,
-        }
+        self.stderr = stderr
+        self.stdout = stdout
 
     def _get_diagnostics_lock(self) -> asyncio.Lock:
         """Get the diagnostics lock, creating it if needed."""
@@ -46,7 +54,7 @@ class LintContext:
         """Add a diagnostic to the priority queue."""
         priority = 999  # Default low priority
         if diagnostic.severity:
-            priority = self._priority_map.get(diagnostic.severity, priority)
+            priority = PRIORITY_MAP.get(diagnostic.severity, priority)
 
         # Use counter as tiebreaker to avoid comparing Diagnostic objects
         async with self._get_diagnostics_lock():
@@ -143,11 +151,21 @@ class RuleContext:
 
         await self.global_context.add_diagnostic(diagnostic)
 
+    def get_graph(self) -> DirectedGraph:
+        """Access to the dependency graph."""
+        return self.global_context.get_graph()
+
     @property
     def notebook(self) -> NotebookSerialization:
         """Access to the notebook being linted."""
         return self.global_context.notebook
 
-    def get_graph(self) -> DirectedGraph:
-        """Access to the dependency graph."""
-        return self.global_context.get_graph()
+    @property
+    def stdout(self) -> str:
+        """Access to the captured stdout."""
+        return self.global_context.stdout
+
+    @property
+    def stderr(self) -> str:
+        """Access to the captured stderr."""
+        return self.global_context.stderr

@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import glob
+import io
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from marimo._ast.load import get_notebook_status
@@ -11,14 +14,6 @@ from marimo._ast.parse import MarimoFileError
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
 from marimo._lint.rules.base import LintRule
-from marimo._lint.rules.breaking import UnparsableRule
-from marimo._lint.rules.formatting import GeneralFormattingRule
-from marimo._lint.rules.parsing import ParseDiagnosticsRule
-from marimo._lint.rules.runtime import (
-    CycleDependenciesRule,
-    MultipleDefinitionsRule,
-    SetupCellDependenciesRule,
-)
 from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
@@ -96,10 +91,6 @@ class Linter:
                 )
                 return file_status
 
-            # Parse file as notebook and capture stdout/stderr for formatting diagnostics
-            import contextlib
-            import io
-
             captured_stdout = io.StringIO()
             captured_stderr = io.StringIO()
 
@@ -127,9 +118,6 @@ class Linter:
             file_status.notebook = load_result.notebook
             file_status.contents = load_result.contents
 
-            # Capture stdout/stderr for processing by ParseDiagnosticsRule
-            stdout_content = captured_stdout.getvalue().strip()
-            stderr_content = captured_stderr.getvalue().strip()
             if load_result.status == "empty":
                 file_status.skipped = True
                 file_status.message = f"Skipped: {file_path} (empty file)"
@@ -140,26 +128,14 @@ class Linter:
                 )
             elif load_result.notebook is not None:
                 try:
-                    # Create a temporary rule engine that includes parsing diagnostics
-                    temp_rules = list(self.rule_engine.rules)
-
-                    # Add parsing rule if there's captured output
-                    if stdout_content or stderr_content:
-                        parse_rule = ParseDiagnosticsRule(
-                            stdout_content, stderr_content
-                        )
-                        temp_rules.append(parse_rule)
-
-                    # Create temporary engine with parsing rule
-                    from marimo._lint.rule_engine import RuleEngine
-
-                    temp_engine = RuleEngine(
-                        temp_rules, self.rule_engine.early_stopping
-                    )
-
                     # Check notebook with all rules including parsing
-                    file_status.diagnostics = await temp_engine.check_notebook(
-                        load_result.notebook
+                    file_status.diagnostics = (
+                        await self.rule_engine.check_notebook(
+                            load_result.notebook,
+                            # Add parsing rule if there's captured output
+                            stdout=captured_stdout.getvalue().strip(),
+                            stderr=captured_stderr.getvalue().strip(),
+                        )
                     )
                 except Exception as e:
                     # Handle other parsing errors
@@ -279,9 +255,6 @@ class Linter:
 
         # Only write if content changed
         if file_status.contents != generated_contents:
-            # Run IO in executor to keep it async
-            from pathlib import Path
-
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
                 None,
@@ -317,11 +290,6 @@ __all__ = [
     "Severity",
     "EarlyStoppingConfig",
     "RuleEngine",
-    "GeneralFormattingRule",
-    "MultipleDefinitionsRule",
-    "CycleDependenciesRule",
-    "SetupCellDependenciesRule",
-    "UnparsableRule",
     "lint_notebook",
     "run_check",
     "Linter",

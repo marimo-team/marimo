@@ -63,10 +63,13 @@ class RuleEngine:
         self.early_stopping = early_stopping or EarlyStoppingConfig()
 
     async def check_notebook_streaming(
-        self, notebook: NotebookSerialization
+        self,
+        notebook: NotebookSerialization,
+        stdout: str = "",
+        stderr: str = "",
     ) -> AsyncIterator[Diagnostic]:
         """Check notebook and yield diagnostics as they become available."""
-        ctx = LintContext(notebook)
+        ctx = LintContext(notebook, stdout, stderr)
 
         # Create tasks for all rules with their completion tracking
         pending_tasks = {
@@ -108,19 +111,27 @@ class RuleEngine:
                     return
 
     async def check_notebook(
-        self, notebook: NotebookSerialization
+        self,
+        notebook: NotebookSerialization,
+        stdout: str = "",
+        stderr: str = "",
     ) -> list[Diagnostic]:
         """Check notebook for all lint rule violations using async execution."""
         diagnostics = []
-        async for diagnostic in self.check_notebook_streaming(notebook):
+        async for diagnostic in self.check_notebook_streaming(
+            notebook, stdout, stderr
+        ):
             diagnostics.append(diagnostic)
         return diagnostics
 
     def check_notebook_sync(
-        self, notebook: NotebookSerialization
+        self,
+        notebook: NotebookSerialization,
+        stdout: str = "",
+        stderr: str = "",
     ) -> list[Diagnostic]:
         """Synchronous wrapper for check_notebook for backward compatibility."""
-        return asyncio.run(self.check_notebook(notebook))
+        return asyncio.run(self.check_notebook(notebook, stdout, stderr))
 
     @classmethod
     def create_default(

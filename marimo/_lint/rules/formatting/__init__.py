@@ -1,9 +1,17 @@
 # Copyright 2025 Marimo. All rights reserved.
 from marimo._lint.rules.base import LintRule
 from marimo._lint.rules.formatting.general import GeneralFormattingRule
+from marimo._lint.rules.formatting.parsing import StderrRule, StdoutRule
 
 FORMATTING_RULE_CODES: dict[str, type[LintRule]] = {
     "MF001": GeneralFormattingRule,
+    "MF002": StdoutRule,
+    "MF003": StderrRule,
 }
 
-__all__ = ["GeneralFormattingRule", "FORMATTING_RULE_CODES"]
+__all__ = [
+    "GeneralFormattingRule",
+    "FORMATTING_RULE_CODES",
+    "StdoutRule",
+    "StderrRule",
+]
