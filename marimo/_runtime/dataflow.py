@@ -7,9 +7,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, cast
 
 from marimo import _loggers
-from marimo._ast.cell import (
-    CellImpl,
-)
+from marimo._ast.cell import CellImpl
 from marimo._ast.compiler import code_key
 from marimo._ast.sql_visitor import SQLRef, SQLTypes
 from marimo._ast.variables import is_mangled_local
@@ -135,7 +133,7 @@ class DirectedGraph:
 
     def _find_sql_hierarchical_matches(
         self, sql_ref: SQLRef
-    ) -> tuple[set[CellId_t], Name]:
+    ) -> list[tuple[set[CellId_t], Name]]:
         """
         This method searches through all definitions in the graph to find cells
         that define the individual components (table, schema, or catalog) of the
@@ -151,20 +149,64 @@ class DirectedGraph:
                   "catalog.schema.table") to find matching definitions for.
 
         Returns:
-            A tuple containing:
+            A list of tuples containing:
             - A set of cell IDs that define components of the hierarchical reference
             - The definition of the name that was found (e.g., "schema.table" -> "table")
         """
-        variable_name: Name = sql_ref.qualified_name
-        matching_cell_ids = set()
+        matching_cell_ids_list = []
 
         for (def_name, kind), cell_ids in self.typed_definitions.items():
             # Match table/view definitions
             if sql_ref.contains_hierarchical_ref(def_name, kind):
-                variable_name = def_name
-                matching_cell_ids.update(cell_ids)
+                matching_cell_ids_list.append((cell_ids, def_name))
 
-        return matching_cell_ids, variable_name
+        return matching_cell_ids_list
+
+    def _is_valid_cell_reference(
+        self, cell_id: CellId_t, variable_name: Name
+    ) -> bool:
+        """Check if a cell reference is valid and log errors if not."""
+        if cell_id not in self.cells:
+            LOGGER.error(
+                "Variable %s is defined in cell %s, but is not in the graph",
+                variable_name,
+                cell_id,
+            )
+            return False
+        return True
+
+    def _resolve_variable_name(
+        self,
+        name: Name,
+        other_cell: CellImpl,
+        sql_ref: Optional[SQLRef],
+        sql_matches: list[tuple[set[CellId_t], Name]],
+    ) -> Name:
+        """
+        Resolve the variable name to use when checking if it exists in another cell.
+
+        For regular (non-SQL) references, returns the original name unchanged.
+        For SQL hierarchical references, finds the variable name from sql_matches that
+        is actually defined in the other_cell.
+
+        Example:
+            cell_1: CREATE SCHEMA schema_name
+            cell_2: CREATE TABLE schema_name.table_name
+            cell_3: FROM schema_name.table_name SELECT *
+
+            When cell_3 references "schema_name.table_name":
+            - For cell_1: returns "schema_name" (what cell_1 actually defines)
+            - For cell_2: returns "table_name" (what cell_2 actually defines)
+        """
+        if not sql_ref or name in other_cell.variable_data:
+            return name
+
+        # For SQL hierarchical references, find the matching variable name
+        for _, matching_variable_name in sql_matches:
+            if matching_variable_name in other_cell.variable_data:
+                return matching_variable_name
+
+        return name
 
     def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]:
         """Get a path from `source` to `dst`, if any."""
@@ -271,6 +313,7 @@ class DirectedGraph:
             # special logic for handling references that are deleted by this cell,
             # since cells that delete variables that were defined elsewhere
             # are made children of cells that reference that variable.
+
             for name in cell.refs:
                 # First, for each referenced variable, we add cells that define
                 # that variable as parents
@@ -281,32 +324,37 @@ class DirectedGraph:
                 ) - set((cell_id,))
 
                 variable_name: Name = name
+
                 # Handle SQL matching for hierarchical references
+                sql_matches: list[tuple[set[CellId_t], Name]] = []
                 sql_ref = cell.sql_refs.get(name)
                 if sql_ref:
-                    _other_ids_defining_name, variable_name = (
-                        self._find_sql_hierarchical_matches(sql_ref)
-                    )
-                    other_ids_defining_name.update(_other_ids_defining_name)
+                    sql_matches = self._find_sql_hierarchical_matches(sql_ref)
+                    for matching_cell_ids, _ in sql_matches:
+                        other_ids_defining_name.update(matching_cell_ids)
 
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).
                 for other_id in other_ids_defining_name:
-                    if other_id not in self.cells:
-                        LOGGER.error(
-                            "Variable %s is defined in cell %s, but is not in the graph",
-                            variable_name,
-                            other_id,
-                        )
+                    if not self._is_valid_cell_reference(
+                        other_id, variable_name
+                    ):
                         continue
                     other_cell = self.cells[other_id]
+
+                    variable_name = self._resolve_variable_name(
+                        variable_name, other_cell, sql_ref, sql_matches
+                    )
+
+                    # If we don't have a matching variable name, skip
                     if variable_name not in other_cell.variable_data:
-                        LOGGER.info(
+                        LOGGER.error(
                             "Variable %s is not defined in cell %s",
                             variable_name,
                             other_id,
                         )
                         continue
+
                     other_variable_data = other_cell.variable_data[
                         variable_name
                     ][-1]
