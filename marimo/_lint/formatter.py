@@ -1,8 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
+
+from marimo._cli.print import bold, cyan, red, yellow
+from marimo._lint.diagnostic import Severity
 
 if TYPE_CHECKING:
     from marimo._lint.diagnostic import Diagnostic
@@ -41,10 +45,10 @@ class FullFormatter(DiagnosticFormatter):
         code_lines: list[str] | None = None,
     ) -> str:
         """Format the diagnostic for display with code context."""
-        import os
 
-        from marimo._cli.print import bold, cyan, red, yellow
-        from marimo._lint.diagnostic import Severity
+        # Implementation error if this is raised.
+        assert diagnostic.name is not None, diagnostic
+        assert diagnostic.severity is not None, diagnostic
 
         severity_color = {
             Severity.FORMATTING: yellow,
@@ -62,23 +66,6 @@ class FullFormatter(DiagnosticFormatter):
         location = filename
         if max(lines + (0,)) > 0:
             location = f"{filename}:{lines[0]}:{columns[0]}"
-        # Defensive check for None name - should never happen but provides debugging info
-        if diagnostic.name is None:
-            debug_info = (
-                f"DIAGNOSTIC DEBUG INFO:\n"
-                f"  code: {diagnostic.code!r}\n"
-                f"  name: {diagnostic.name!r}\n"
-                f"  severity: {diagnostic.severity!r}\n"
-                f"  message: {diagnostic.message!r}\n"
-                f"  cell_id: {diagnostic.cell_id!r}\n"
-                f"  line: {diagnostic.line!r}\n"
-                f"  column: {diagnostic.column!r}\n"
-                f"  fixable: {diagnostic.fixable!r}\n"
-                f"  filename: {getattr(diagnostic, 'filename', 'NOT_SET')!r}\n"
-            )
-            raise ValueError(
-                f"Diagnostic has None name field, which should be impossible!\n{debug_info}"
-            )
 
         header = f"{bold(severity_color(severity_str + '[' + diagnostic.name + ']'))}: {bold(diagnostic.message)}"
         header += "\n" + cyan(" --> ") + cyan(location)

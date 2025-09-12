@@ -6,7 +6,8 @@ import glob
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from marimo._ast.load import MarimoFileError, get_notebook_status
+from marimo._ast.load import get_notebook_status
+from marimo._ast.parse import MarimoFileError
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
 from marimo._lint.rules.base import LintRule
@@ -140,17 +141,21 @@ class Linter:
             elif load_result.notebook is not None:
                 try:
                     # Create a temporary rule engine that includes parsing diagnostics
-                    from marimo._lint.context import LintContext
                     temp_rules = list(self.rule_engine.rules)
 
                     # Add parsing rule if there's captured output
                     if stdout_content or stderr_content:
-                        parse_rule = ParseDiagnosticsRule(stdout_content, stderr_content)
+                        parse_rule = ParseDiagnosticsRule(
+                            stdout_content, stderr_content
+                        )
                         temp_rules.append(parse_rule)
 
                     # Create temporary engine with parsing rule
                     from marimo._lint.rule_engine import RuleEngine
-                    temp_engine = RuleEngine(temp_rules, self.rule_engine.early_stopping)
+
+                    temp_engine = RuleEngine(
+                        temp_rules, self.rule_engine.early_stopping
+                    )
 
                     # Check notebook with all rules including parsing
                     file_status.diagnostics = await temp_engine.check_notebook(
@@ -189,7 +194,7 @@ class Linter:
 
     async def _run_async(
         self, file_patterns: tuple[str, ...]
-    ) -> AsyncIterator[FileStatus]:
+    ) -> list[FileStatus]:
         """Internal async implementation of run."""
         return [
             file_status

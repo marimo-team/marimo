@@ -11,6 +11,7 @@ from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
+    from marimo._lint.rules.base import LintRule
     from marimo._runtime.dataflow import DirectedGraph
 
 
@@ -43,7 +44,10 @@ class LintContext:
 
     async def add_diagnostic(self, diagnostic: Diagnostic) -> None:
         """Add a diagnostic to the priority queue."""
-        priority = self._priority_map.get(diagnostic.severity, 999)
+        priority = 999  # Default low priority
+        if diagnostic.severity:
+            priority = self._priority_map.get(diagnostic.severity, priority)
+
         # Use counter as tiebreaker to avoid comparing Diagnostic objects
         async with self._get_diagnostics_lock():
             heapq.heappush(
@@ -117,7 +121,7 @@ class LintContext:
 class RuleContext:
     """Context for a specific rule execution that wraps LintContext with filename info."""
 
-    def __init__(self, global_context: LintContext, rule):
+    def __init__(self, global_context: LintContext, rule: LintRule):
         self.global_context = global_context
         self.rule = rule
 
