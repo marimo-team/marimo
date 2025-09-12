@@ -14,13 +14,13 @@ def test_multiple_definitions_snapshot():
     with open(file) as f:
         code = f.read()
 
-    notebook = parse_notebook(code)
+    notebook = parse_notebook(code, filepath=file)
     errors = lint_notebook(notebook)
 
     # Format errors for snapshot
     error_output = []
     for error in errors:
-        error_output.append(error.format(file))
+        error_output.append(error.format())
 
     snapshot("multiple_definitions_errors.txt", "\n".join(error_output))
 
@@ -31,13 +31,13 @@ def test_cycle_dependencies_snapshot():
     with open(file) as f:
         code = f.read()
 
-    notebook = parse_notebook(code)
+    notebook = parse_notebook(code, filepath=file)
     errors = lint_notebook(notebook)
 
     # Format errors for snapshot
     error_output = []
     for error in errors:
-        error_output.append(error.format(file))
+        error_output.append(error.format())
 
     snapshot("cycle_dependencies_errors.txt", "\n".join(error_output))
 
@@ -48,13 +48,13 @@ def test_setup_dependencies_snapshot():
     with open(file) as f:
         code = f.read()
 
-    notebook = parse_notebook(code)
+    notebook = parse_notebook(code, filepath=file)
     errors = lint_notebook(notebook)
 
     # Format errors for snapshot
     error_output = []
     for error in errors:
-        error_output.append(error.format(file))
+        error_output.append(error.format())
 
     snapshot("setup_dependencies_errors.txt", "\n".join(error_output))
 
@@ -65,12 +65,12 @@ def test_unparsable_cell_snapshot():
     with open(file) as f:
         code = f.read()
 
-    notebook = parse_notebook(code)
+    notebook = parse_notebook(code, filepath=file)
     errors = lint_notebook(notebook)
 
     # Format errors for snapshot
     error_output = []
     for error in errors:
-        error_output.append(error.format(file))
+        error_output.append(error.format())
 
     snapshot("unparsable_cell_errors.txt", "\n".join(error_output))
