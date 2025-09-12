@@ -92,6 +92,9 @@ def _static_load(filepath: Path) -> Optional[App]:
 def load_notebook_ir(
     notebook: NotebookSerialization, filepath: Optional[str] = None
 ) -> App:
+    # Use filepath from notebook if not explicitly provided
+    if filepath is None:
+        filepath = notebook.filename
     app = App(**notebook.app.options, _filename=filepath)
     for cell in notebook.cells:
         if isinstance(cell, UnparsableCell):

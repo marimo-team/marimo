@@ -23,7 +23,7 @@ from marimo._cli.envinfo import get_system_info
 from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
 from marimo._cli.parse_args import parse_args
-from marimo._cli.print import bold, green, red, yellow
+from marimo._cli.print import bold, green, red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
@@ -1255,47 +1255,23 @@ def check(
         # If no files are provided, we lint the current directory
         files = ("**/*.py", "**/*.md", "**/*.qmd")
 
-    linter = run_check(files)
-    issues = 0
-    fixed = 0
+    # Pass click.echo directly as pipe for streaming output, or None
+    pipe = click.echo if verbose else None
+    linter = run_check(files, pipe=pipe, fix=fix)
 
-    # Fix files if requested - this runs concurrently
-    if fix:
-        fixed = linter.fix_all()
+    # Get counts from linter (fix happens automatically during streaming)
+    fixed = linter.fixed_count
+    total_issues = linter.issues_count
 
-    for file_status in linter.files:
-        if file_status.skipped:
-            if verbose:
-                click.echo(yellow(file_status.message))
-            continue
-
-        if file_status.failed:
-            if verbose:
-                click.echo(red(file_status.message))
-                for detail in file_status.details:
-                    click.echo(red(f"{detail}"))
-            issues += 1
-            continue
-
-        to_fix = False
-        for diagnostic in file_status.diagnostics:
-            # Don't print fixable errors if they will be solved.
-            if fix and diagnostic.fixable:
-                to_fix = True
-                continue
-            issues += 1
-            if verbose:
-                click.echo(diagnostic.format())
-                click.echo("")
-        if to_fix and verbose:
-            click.echo(f"Updated: {file_status.file}")
-
+    # Final summary
     if fixed > 0:
         click.echo(f"Updated {fixed} file{'s' if fixed > 1 else ''}.")
-    if issues > 0:
-        click.echo(f"Found {issues} issue{'s' if issues > 1 else ''}.")
+    if total_issues > 0:
+        click.echo(
+            f"Found {total_issues} issue{'s' if total_issues > 1 else ''}."
+        )
 
-    if linter.errored or (strict and (fixed > 0 or issues > 0)):
+    if linter.errored or (strict and (fixed > 0 or total_issues > 0)):
         sys.exit(1)
 
 
