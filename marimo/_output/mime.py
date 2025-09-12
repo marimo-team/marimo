@@ -1,12 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from marimo._messaging.mimetypes import KnownMimeType
 
 
-@dataclass
 class MIME:
     """Protocol for instantiating objects using marimo's media viewer.
 
@@ -41,3 +38,8 @@ class MIME:
           text/plain
         """
         raise NotImplementedError
+
+    def _marimo_serialize_(self) -> dict:
+        """Serialize to builtin types"""
+        mimetype, data = self._mime_()
+        return {"mimetype": mimetype, "data": data}

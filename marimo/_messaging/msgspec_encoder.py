@@ -14,15 +14,18 @@ from marimo._dependencies.dependencies import DependencyManager
 def enc_hook(obj: Any) -> Any:
     """Custom encoding hook for marimo types."""
 
+    if hasattr(obj, "_marimo_serialize_"):
+        return obj._marimo_serialize_()
+
+    if hasattr(obj, "_mime_"):
+        mimetype, data = obj._mime_()
+        return {"mimetype": mimetype, "data": data}
+
     if isinstance(obj, range):
         return list(obj)
 
     if isinstance(obj, complex):
         return str(obj)
-
-    if hasattr(obj, "_mime_"):
-        mimetype, data = obj._mime_()
-        return {"mimetype": mimetype, "data": data}
 
     if DependencyManager.numpy.imported():
         import numpy as np

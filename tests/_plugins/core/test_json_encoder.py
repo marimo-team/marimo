@@ -6,6 +6,7 @@ from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from marimo._messaging.mimetypes import KnownMimeType
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -104,13 +105,9 @@ def test_polars_encoding() -> None:
     assert encoded_series == "[1,2,3]"
 
 
-class MockMIMEObject:
-    def _mime_(self) -> tuple[str, str]:
+class MockMIMEObject(MIME):
+    def _mime_(self) -> tuple[KnownMimeType, str]:
         return "text/plain", "data"
-
-    @property
-    def __dict__(self) -> dict:
-        return {}
 
 
 def test_mime_encoding() -> None:
@@ -169,7 +166,7 @@ def test_dataclass_with_list_encoding() -> None:
     encoded = encode_json_str(dataclass_obj)
     assert (
         encoded
-        == '{"a":1,"b":"hello","items":[1,"2",{"mimetype":"text/plain","data":"data"},{"mimetype":"text/html","data":"<button>Clickme!</button>"}],"other_items":null}'  # noqa:E501
+        == '{"a":1,"b":"hello","items":[1,"2",{"mimetype":"text/plain","data":"data"},{"mimetype":"text/html","data":"<button>Click me!</button>"}],"other_items":null}'  # noqa:E501
     )
 
 
