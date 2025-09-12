@@ -38,8 +38,3 @@ class MIME:
           text/plain
         """
         raise NotImplementedError
-
-    def _marimo_serialize_(self) -> dict:
-        """Serialize to builtin types"""
-        mimetype, data = self._mime_()
-        return {"mimetype": mimetype, "data": data}

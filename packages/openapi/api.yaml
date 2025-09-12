@@ -2005,14 +2005,6 @@ components:
       - keys
       title: ListSecretKeysResponse
       type: object
-    MIME:
-      description: "Protocol for instantiating objects using marimo's media viewer.\n\
-        \n    To implement this protocol, a class needs to define\n    just one method,\
-        \ _mime_."
-      properties: {}
-      required: []
-      title: MIME
-      type: object
     MarimoAncestorPreventedError:
       properties:
         blamed_cell:
@@ -3390,7 +3382,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.15.2
+  version: 0.15.3
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
