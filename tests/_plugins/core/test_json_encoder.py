@@ -19,6 +19,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._output.mime import MIME
+from marimo._utils.platform import is_windows
 
 HAS_DEPS = (
     DependencyManager.pandas.has()
@@ -582,6 +583,7 @@ def test_numeric_types_encoding() -> None:
     assert encoded == '"3/4"'
 
 
+@pytest.mark.skipif(is_windows(), reason="Test specific to POSIX")
 def test_pathlib_encoding() -> None:
     """Test encoding of pathlib Path objects."""
     # PosixPath
@@ -772,6 +774,7 @@ def test_superjson_with_bytes() -> None:
         (range(10), "[0,1,2,3,4,5,6,7,8,9]"),
         (datetime.datetime(2023, 1, 1, 12, 30, 45), '"2023-01-01 12:30:45"'),
         (datetime.timedelta(days=1, hours=2, minutes=3), '"1 day, 2:03:00"'),
+        (datetime.date(2023, 1, 1), '"2023-01-01"'),
         (3 + 4j, '"(3+4j)"'),
         (
             [float("inf"), float("nan"), 1.0, 2.0, float("-inf")],

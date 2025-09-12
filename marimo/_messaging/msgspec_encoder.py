@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import collections
+import datetime
 import fractions
 from math import isnan
 from pathlib import PurePath
@@ -185,14 +186,18 @@ def enc_hook(obj: Any) -> Any:
             return obj.decode("latin1")
 
     # Handle primitive types
-    if isinstance(obj, (int, bool)):
+    if isinstance(obj, (int, str, bool)):
         return obj
+
+    # Handle datetime types
+    if isinstance(obj, (datetime.datetime, datetime.timedelta, datetime.date)):
+        return str(obj)
 
     # Handle None
     if obj is None:
         return None
 
-    return str(obj)
+    return repr(obj)
 
 
 _encoder = msgspec.json.Encoder(enc_hook=enc_hook, decimal_format="number")
