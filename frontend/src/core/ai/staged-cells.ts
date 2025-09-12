@@ -67,6 +67,11 @@ export function useStagedCells() {
   };
 
   const updateStagedCell = (cellId: CellId, code: string) => {
+    if (!stagedAICells.cellIds.has(cellId)) {
+      Logger.error("Staged cell not found", { cellId });
+      return;
+    }
+
     updateCellCode({
       cellId: cellId,
       code: code,
