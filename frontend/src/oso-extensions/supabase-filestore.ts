@@ -22,12 +22,14 @@ export class SupabaseFileStore implements FileStore {
 
     const supabaseUrl = envVars["SUPABASE_URL"];
     const jwtToken = envVars["SUPABASE_JWT_TOKEN"];
+    const anonKey = envVars["SUPABASE_ANON_KEY"];
     this.notebookName = envVars["OSO_NOTEBOOK_NAME"];
     this.organizationName = envVars["OSO_ORGANIZATION_NAME"];
 
     const requiredVars = [
       supabaseUrl,
       jwtToken,
+      anonKey,
       this.notebookName,
       this.organizationName,
     ];
@@ -36,7 +38,9 @@ export class SupabaseFileStore implements FileStore {
     }
 
     this.userId = this.extractUserIdFromJWT(jwtToken);
-    this.client = createClient(supabaseUrl, jwtToken);
+    this.client = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${jwtToken}` } },
+    });
   }
 
   private extractUserIdFromJWT(token: string): string | null {
@@ -85,7 +89,7 @@ export class SupabaseFileStore implements FileStore {
     if (error?.code === "PGRST116") {
       return null;
     }
-    
+
     return data?.id || null;
   }
 
