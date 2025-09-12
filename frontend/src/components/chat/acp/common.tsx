@@ -157,7 +157,7 @@ interface PermissionRequestProps {
 export const PermissionRequest: React.FC<PermissionRequestProps> = memo(
   ({ permission, onResolve }) => {
     return (
-      <div className="border border-[var(--amber-8)] bg-[var(--amber-2)] rounded-lg p-2 m-2">
+      <div className="border border-[var(--amber-8)] bg-[var(--amber-2)] rounded-lg p-2">
         <div className="flex items-center gap-2 mb-3">
           <ShieldCheckIcon className="h-4 w-4 text-[var(--amber-11)]" />
           <h3 className="text-sm font-medium text-[var(--amber-11)]">

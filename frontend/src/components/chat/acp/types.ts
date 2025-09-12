@@ -58,3 +58,6 @@ export type ContentBlockOf<T extends ContentBlockType> = Extract<
 
 // Agent session support types
 export type SessionSupportType = "single" | "multiple";
+export type ExternalAgentSessionId = NonNullable<
+  ReturnType<typeof useAcpClient>["activeSessionId"]
+>;

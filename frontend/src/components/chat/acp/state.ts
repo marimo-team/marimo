@@ -5,12 +5,15 @@ import { atomWithStorage } from "jotai/utils";
 import { capitalize } from "lodash-es";
 import type { TypedString } from "@/utils/typed";
 import { generateUUID } from "@/utils/uuid";
-import type { SessionSupportType } from "./types";
+import type { ExternalAgentSessionId, SessionSupportType } from "./types";
 
 // Types
 export type TabId = TypedString<"TabId">;
-export type ExternalAgentSessionId = TypedString<"ExternalAgentSessionId">;
 export type ExternalAgentId = "claude" | "gemini";
+
+// No agents support loading sessions, so we limit to 1, otherwise
+// this is confusing to the user when switching between sessions
+const MAX_SESSIONS = 1;
 
 export interface AgentSession {
   tabId: TabId;
@@ -19,7 +22,7 @@ export interface AgentSession {
   createdAt: number;
   lastUsedAt: number;
   // Store the actual agent session ID for resumption
-  externalAgentSessionId?: ExternalAgentSessionId;
+  externalAgentSessionId: ExternalAgentSessionId | null;
 }
 
 export interface AgentSessionState {
@@ -99,16 +102,17 @@ export function addSession(
       // Replace the existing session (overwrite it)
       const existingSession = existingSessions[0];
       const updatedSession: AgentSession = {
-        ...session,
+        agentId: session.agentId,
         title,
         createdAt: now,
         lastUsedAt: now,
         tabId: existingSession.tabId, // Keep the same ID to maintain tab reference
+        externalAgentSessionId: null, // Clear the external session ID
       };
 
       return {
         ...state,
-        sessions: [...otherSessions, updatedSession],
+        sessions: [...otherSessions.slice(0, MAX_SESSIONS - 1), updatedSession],
         activeTabId: updatedSession.tabId,
       };
     }
@@ -118,13 +122,14 @@ export function addSession(
   return {
     ...state,
     sessions: [
-      ...state.sessions,
+      ...state.sessions.slice(0, MAX_SESSIONS - 1),
       {
-        ...session,
+        agentId: session.agentId,
         tabId,
         title,
         createdAt: now,
         lastUsedAt: now,
+        externalAgentSessionId: null,
       },
     ],
     activeTabId: tabId,
@@ -136,7 +141,7 @@ export function removeSession(
   sessionId: TabId,
 ): AgentSessionState {
   const filteredSessions = state.sessions.filter((s) => s.tabId !== sessionId);
-  const newActiveSessionId =
+  const newActiveTabId =
     state.activeTabId === sessionId
       ? filteredSessions.length > 0
         ? filteredSessions[filteredSessions.length - 1].tabId
@@ -145,19 +150,22 @@ export function removeSession(
 
   return {
     sessions: filteredSessions,
-    activeTabId: newActiveSessionId,
+    activeTabId: newActiveTabId,
   };
 }
 
 export function updateSessionTitle(
   state: AgentSessionState,
-  sessionId: TabId,
   title: string,
 ): AgentSessionState {
+  const selectedTab = state.activeTabId;
+  if (!selectedTab) {
+    return state;
+  }
   return {
     ...state,
     sessions: state.sessions.map((session) =>
-      session.tabId === sessionId
+      session.tabId === selectedTab
         ? { ...session, title: truncateTitle(title) }
         : session,
     ),
@@ -178,15 +186,21 @@ export function updateSessionLastUsed(
   };
 }
 
+/**
+ * Update the sessionId for the current;y selected tab
+ */
 export function updateSessionExternalAgentSessionId(
   state: AgentSessionState,
-  sessionId: TabId,
   externalAgentSessionId: ExternalAgentSessionId,
 ): AgentSessionState {
+  const selectedTab = state.activeTabId;
+  if (!selectedTab) {
+    return state;
+  }
   return {
     ...state,
     sessions: state.sessions.map((session) =>
-      session.tabId === sessionId
+      session.tabId === selectedTab
         ? { ...session, externalAgentSessionId, lastUsedAt: Date.now() }
         : session,
     ),

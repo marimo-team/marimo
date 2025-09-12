@@ -18,6 +18,7 @@ import {
   TextSearchIcon,
   XCircleIcon,
 } from "lucide-react";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { isWasm } from "@/core/wasm/utils";
 
 export type PanelType =
@@ -93,7 +94,7 @@ export const PANELS: PanelDescriptor[] = [
     Icon: BotIcon,
     tooltip: "Agents",
     position: "sidebar",
-    hidden: !import.meta.env.DEV,
+    hidden: getFeatureFlag("external_agents"),
   },
   {
     type: "documentation",

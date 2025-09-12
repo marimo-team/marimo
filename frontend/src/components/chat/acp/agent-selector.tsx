@@ -1,7 +1,7 @@
 /* Copyright 2025 Marimo. All rights reserved. */
 
-import { useAtom } from "jotai";
-import { ChevronDownIcon, PlusIcon } from "lucide-react";
+import { useAtom, useSetAtom } from "jotai";
+import { ChevronDownIcon } from "lucide-react";
 import React, { memo, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
@@ -19,7 +19,6 @@ import {
   type AgentSession,
   addSession,
   agentSessionStateAtom,
-  createSession,
   type ExternalAgentId,
   getAgentSessionSupport,
   selectedTabAtom,
@@ -81,15 +80,16 @@ AgentMenuItem.displayName = "AgentMenuItem";
 export const AgentSelector: React.FC<AgentSelectorProps> = memo(
   ({ onSessionCreated, className }) => {
     const [sessionState, setSessionState] = useAtom(agentSessionStateAtom);
-    const [, setActiveSession] = useAtom(selectedTabAtom);
+    const setActiveTab = useSetAtom(selectedTabAtom);
     const [isOpen, setIsOpen] = useState(false);
 
     const handleCreateSession = useEvent(async (agentId: ExternalAgentId) => {
-      const newSession = createSession(agentId);
-      const newState = addSession(sessionState, newSession);
+      const newState = addSession(sessionState, {
+        agentId,
+      });
 
       setSessionState(newState);
-      setActiveSession(newSession.tabId);
+      setActiveTab(newState.activeTabId);
       setIsOpen(false);
 
       onSessionCreated?.(agentId);
@@ -106,8 +106,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = memo(
               className,
             )}
           >
-            <PlusIcon className="h-3 w-3" />
-            <span>New Session</span>
+            <span>New session</span>
             <ChevronDownIcon className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>

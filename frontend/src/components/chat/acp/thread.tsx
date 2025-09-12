@@ -26,7 +26,19 @@ export const AgentThread = ({
   onRetryLastAction,
   onDismissError,
 }: AgentThreadProps) => {
-  const combinedNotifications = groupNotifications(notifications);
+  let combinedNotifications = groupNotifications(notifications);
+
+  // Filter out all connection changes unless it is the last one
+  combinedNotifications = combinedNotifications.filter((group, index) => {
+    const isLast = index === combinedNotifications.length - 1;
+    if (isLast) {
+      return true;
+    }
+    if (isConnectionChangeGroup(group)) {
+      return false;
+    }
+    return true;
+  });
 
   const renderNotification = (group: NotificationEvent[]) => {
     if (group.length === 0) {

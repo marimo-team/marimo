@@ -35,17 +35,16 @@ import {
 import { AgentThread } from "./thread";
 import "./agent-panel.css";
 import type {
-  ReadTextFileRequest,
   ReadTextFileResponse,
-  WriteTextFileRequest,
   WriteTextFileResponse,
 } from "@zed-industries/agent-client-protocol";
 import { toast } from "@/components/ui/use-toast";
 import { useRequestClient } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
+import { Paths } from "@/utils/paths";
 import { getAgentPrompt } from "./prompt";
-import type { AgentConnectionState } from "./types";
+import type { AgentConnectionState, ExternalAgentSessionId } from "./types";
 
 const logger = Logger.get("agents");
 
@@ -87,14 +86,17 @@ ConnectionControl.displayName = "ConnectionControl";
 interface HeaderInfoProps {
   currentAgentId?: ExternalAgentId;
   connectionStatus: string;
+  shouldShowConnectionControl?: boolean;
 }
 
 const HeaderInfo = memo<HeaderInfoProps>(
-  ({ currentAgentId, connectionStatus }) => (
+  ({ currentAgentId, connectionStatus, shouldShowConnectionControl }) => (
     <div className="flex items-center gap-2">
       <BotMessageSquareIcon className="h-4 w-4 text-muted-foreground" />
       <AgentTitle currentAgentId={currentAgentId} />
-      <ConnectionStatus status={connectionStatus} />
+      {shouldShowConnectionControl && (
+        <ConnectionStatus status={connectionStatus} />
+      )}
     </div>
   ),
 );
@@ -107,6 +109,7 @@ interface AgentPanelHeaderProps {
   onDisconnect: () => void;
   onRestartThread?: () => void;
   hasActiveSession?: boolean;
+  shouldShowConnectionControl?: boolean;
 }
 
 const AgentPanelHeader = memo<AgentPanelHeaderProps>(
@@ -117,11 +120,13 @@ const AgentPanelHeader = memo<AgentPanelHeaderProps>(
     onDisconnect,
     onRestartThread,
     hasActiveSession,
+    shouldShowConnectionControl,
   }) => (
     <div className="flex border-b px-3 py-2 justify-between shrink-0 items-center">
       <HeaderInfo
         currentAgentId={currentAgentId}
         connectionStatus={connectionState.status}
+        shouldShowConnectionControl={shouldShowConnectionControl}
       />
       <div className="flex items-center gap-2">
         {hasActiveSession &&
@@ -137,11 +142,14 @@ const AgentPanelHeader = memo<AgentPanelHeaderProps>(
               Restart
             </Button>
           )}
-        <ConnectionControl
-          connectionState={connectionState}
-          onConnect={onConnect}
-          onDisconnect={onDisconnect}
-        />
+
+        {shouldShowConnectionControl && (
+          <ConnectionControl
+            connectionState={connectionState}
+            onConnect={onConnect}
+            onDisconnect={onDisconnect}
+          />
+        )}
       </div>
     </div>
   ),
@@ -229,7 +237,7 @@ LoadingIndicator.displayName = "LoadingIndicator";
 
 interface PromptAreaProps {
   isLoading: boolean;
-  activeSessionId: string | null;
+  activeSessionId: ExternalAgentSessionId | null;
   promptValue: string;
   onPromptValueChange: (value: string) => void;
   onPromptSubmit: (e: KeyboardEvent | undefined, prompt: string) => void;
@@ -266,6 +274,7 @@ PromptArea.displayName = "PromptArea";
 interface ChatContentProps {
   hasNotifications: boolean;
   connectionState: AgentConnectionState;
+  sessionId: ExternalAgentSessionId | null;
   notifications: any[];
   pendingPermission: any;
   onResolvePermission: (option: any) => void;
@@ -284,16 +293,21 @@ const ChatContent = memo<ChatContentProps>(
     onRetryConnection,
     onRetryLastAction,
     onDismissError,
+    sessionId,
   }) => {
     const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+    // Scroll handler to determine if we're at the bottom of the chat
     const handleScroll = useEvent(() => {
       const container = scrollContainerRef.current;
       if (!container) return;
 
       const { scrollTop, scrollHeight, clientHeight } = container;
-      const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 5; // 5px threshold
+      const hasOverflow = scrollHeight > clientHeight;
+      const isAtBottom = hasOverflow
+        ? Math.abs(scrollHeight - clientHeight - scrollTop) < 5
+        : true; // 5px threshold
       setIsScrolledToBottom(isAtBottom);
     });
 
@@ -311,14 +325,15 @@ const ChatContent = memo<ChatContentProps>(
     useEffect(() => {
       if (isScrolledToBottom && notifications.length > 0) {
         // Use setTimeout to ensure DOM is updated before scrolling
-        setTimeout(scrollToBottom, 100);
+        const timeout = setTimeout(scrollToBottom, 100);
+        return () => clearTimeout(timeout);
       }
     }, [notifications.length, isScrolledToBottom, scrollToBottom]);
 
     return (
       <div className="flex-1 flex flex-col overflow-hidden flex-shrink-0 relative">
         {pendingPermission && (
-          <div className="p-1 border-b">
+          <div className="p-3 border-b">
             <PermissionRequest
               permission={pendingPermission}
               onResolve={onResolvePermission}
@@ -328,30 +343,33 @@ const ChatContent = memo<ChatContentProps>(
 
         <div
           ref={scrollContainerRef}
-          className="flex-1 bg-muted/20 w-full flex flex-col overflow-y-auto"
+          className="flex-1 bg-muted/20 w-full flex flex-col overflow-y-auto p-2"
           onScroll={handleScroll}
         >
-          <div className="p-3">
-            {hasNotifications ? (
-              <div className="space-y-2">
-                <AgentThread
-                  isConnected={connectionState.status === "connected"}
-                  notifications={notifications}
-                  onRetryConnection={onRetryConnection}
-                  onRetryLastAction={onRetryLastAction}
-                  onDismissError={onDismissError}
-                />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full min-h-[200px]">
-                <PanelEmptyState
-                  title="Waiting for agent"
-                  description="Your AI agent will appear here when active"
-                  icon={<BotMessageSquareIcon />}
-                />
-              </div>
-            )}
-          </div>
+          {sessionId && (
+            <div className="text-xs text-muted-foreground mb-2 px-2">
+              Session ID: {sessionId}
+            </div>
+          )}
+          {hasNotifications ? (
+            <div className="space-y-2">
+              <AgentThread
+                isConnected={connectionState.status === "connected"}
+                notifications={notifications}
+                onRetryConnection={onRetryConnection}
+                onRetryLastAction={onRetryLastAction}
+                onDismissError={onDismissError}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full min-h-[200px]">
+              <PanelEmptyState
+                title="Waiting for agent"
+                description="Your AI agent will appear here when active"
+                icon={<BotMessageSquareIcon />}
+              />
+            </div>
+          )}
         </div>
 
         <ScrollToBottomButton
@@ -364,42 +382,44 @@ const ChatContent = memo<ChatContentProps>(
 );
 ChatContent.displayName = "ChatContent";
 
+const NO_WS_SET = "_skip_auto_connect_";
+
+function getCwd() {
+  const filename = store.get(filenameAtom);
+  if (!filename) {
+    return "";
+  }
+  return Paths.basename(filename);
+}
+
 const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [promptValue, setPromptValue] = useState("");
-  const [hasAttemptedConnection, setHasAttemptedConnection] = useState(false);
-  const [connectionAttemptedForSession, setConnectionAttemptedForSession] =
-    useState<string | null>(null);
 
-  const [activeSession] = useAtom(selectedTabAtom);
+  const [selectedTab] = useAtom(selectedTabAtom);
   const [sessionState, setSessionState] = useAtom(agentSessionStateAtom);
 
-  const wsUrl = activeSession
-    ? getAgentWebSocketUrl(activeSession.agentId)
-    : "ws://localhost:8000/message";
+  const wsUrl = selectedTab
+    ? getAgentWebSocketUrl(selectedTab.agentId)
+    : NO_WS_SET;
   const { sendUpdateFile, sendFileDetails } = useRequestClient();
+  const isCreatingNewSession = useRef(false);
 
   const acpClient = useAcpClient({
     wsUrl,
     clientOptions: {
-      readTextFile: (
-        request: ReadTextFileRequest,
-      ): Promise<ReadTextFileResponse> => {
+      readTextFile: (request): Promise<ReadTextFileResponse> => {
         logger.debug("Agent requesting file read", {
           path: request.path,
-          sessionId: activeSession?.tabId,
         });
         return sendFileDetails({ path: request.path }).then((response) => ({
           content: response.contents || "",
         }));
       },
-      writeTextFile: (
-        request: WriteTextFileRequest,
-      ): Promise<WriteTextFileResponse> => {
+      writeTextFile: (request): Promise<WriteTextFileResponse> => {
         logger.debug("Agent requesting file write", {
           path: request.path,
           contentLength: request.content.length,
-          sessionId: activeSession?.tabId,
         });
         return sendUpdateFile({
           path: request.path,
@@ -421,221 +441,137 @@ const AgentPanel: React.FC = () => {
     agent,
   } = acpClient;
 
-  // Auto-connect when we have an active session, but only once per session
+  // Auto-connect to agent when we have an active session, but only once per session
   useEffect(() => {
-    if (
-      activeSession &&
-      connectionState.status === "disconnected" &&
-      !hasAttemptedConnection &&
-      connectionAttemptedForSession !== activeSession.tabId
-    ) {
-      logger.debug("Auto-connecting to agent", {
-        sessionId: activeSession.tabId,
-        agentId: activeSession.agentId,
-        connectionAttemptedFor: connectionAttemptedForSession,
-      });
-      setHasAttemptedConnection(true);
-      setConnectionAttemptedForSession(activeSession.tabId);
-      connect();
-    }
-  }, [
-    activeSession,
-    connectionState.status,
-    connect,
-    hasAttemptedConnection,
-    connectionAttemptedForSession,
-  ]);
+    if (wsUrl === NO_WS_SET) return;
 
-  // Reset connection attempt tracking when active session changes
-  useEffect(() => {
-    if (
-      activeSession &&
-      connectionAttemptedForSession !== activeSession.tabId
-    ) {
-      logger.debug(
-        "Active session changed, resetting connection attempt tracking",
-        {
-          previousSessionId: connectionAttemptedForSession,
-          newSessionId: activeSession.tabId,
-          agentId: activeSession.agentId,
-        },
+    logger.debug("Auto-connecting to agent", {
+      sessionId: activeSessionId,
+    });
+    connect();
+
+    return () => {
+      // We don't want to disconnect so users can switch between different
+      // panels without losing their session
+    };
+  }, [wsUrl]);
+
+  const handleNewSession = useEvent(async () => {
+    if (isCreatingNewSession.current) {
+      return;
+    }
+    if (!agent) {
+      return;
+    }
+
+    // If there is an active session, we should stop it
+    if (activeSessionId) {
+      await agent.cancel({ sessionId: activeSessionId }).catch((error) => {
+        logger.error("Failed to cancel active session", { error });
+      });
+    }
+
+    logger.debug("Creating new agent session", {});
+    isCreatingNewSession.current = true;
+    const newSession = await agent
+      .newSession({
+        cwd: getCwd(),
+        mcpServers: [],
+      })
+      .finally(() => {
+        isCreatingNewSession.current = false;
+      });
+    setSessionState((prev) =>
+      updateSessionExternalAgentSessionId(
+        prev,
+        newSession.sessionId as ExternalAgentSessionId,
+      ),
+    );
+  });
+
+  const handleResumeSession = useEvent(
+    async (previousSessionId: ExternalAgentSessionId) => {
+      if (!agent) {
+        return;
+      }
+      logger.debug("Resuming agent session", {
+        sessionId: previousSessionId,
+      });
+      if (!agent.loadSession) {
+        throw new Error("Agent does not support loading sessions");
+      }
+      await agent.loadSession({
+        sessionId: previousSessionId,
+        cwd: getCwd(),
+        mcpServers: [],
+      });
+      setSessionState((prev) =>
+        updateSessionExternalAgentSessionId(prev, previousSessionId),
       );
-      setHasAttemptedConnection(false);
-    }
-  }, [activeSession, connectionAttemptedForSession]);
-
-  // Reset connection attempt tracking on successful connection
-  useEffect(() => {
-    if (connectionState.status === "connected") {
-      logger.debug("Connection established, resetting attempt tracking", {
-        sessionId: activeSession?.tabId,
-        agentId: activeSession?.agentId,
-      });
-      setHasAttemptedConnection(false);
-    }
-  }, [connectionState.status, activeSession]);
+    },
+  );
 
   // Create or resume a session when successfully connected
+  const isConnected = connectionState.status === "connected";
+  const tabLastActiveSessionId = selectedTab?.externalAgentSessionId;
   useEffect(() => {
-    if (
-      connectionState.status === "connected" &&
-      agent &&
-      activeSession &&
-      !activeSessionId
-    ) {
-      const createOrResumeSession = async () => {
-        try {
-          let sessionId: string;
-          const newSessionRequest = {
-            cwd: "",
-            mcpServers: [],
-          };
+    // No need to do anything if we're not connected, don't have an agent, or don't have a selected tab
+    if (!isConnected || !selectedTab || !agent) {
+      return;
+    }
 
-          // Check if we need to create a new session
-          if (!activeSession.externalAgentSessionId) {
-            // No existing session, create new one
-            logger.debug("Creating new agent session (no existing session)", {
-              sessionId: activeSession.tabId,
-              agentId: activeSession.agentId,
+    // Already have an active session
+    if (activeSessionId && tabLastActiveSessionId) {
+      return;
+    }
+
+    const createOrResumeSession = async () => {
+      try {
+        // Check if we need to create a new session
+        if (!tabLastActiveSessionId) {
+          // No existing session, create new one
+          await handleNewSession();
+        } else {
+          // Try to resume existing session
+          try {
+            await handleResumeSession(tabLastActiveSessionId);
+          } catch (resumeError) {
+            logger.debug("Failed to resume session, creating new session", {
+              externalSessionId: tabLastActiveSessionId,
+              error: resumeError,
             });
-            await agent.initialize({
-              clientCapabilities: {
-                fs: {
-                  readTextFile: true,
-                  writeTextFile: true,
-                },
-              },
-              protocolVersion: 1,
-            });
-            const newSession = await agent.newSession(newSessionRequest);
-            sessionId = newSession.sessionId;
-
-            // Update our state with the new external agent session ID
-            logger.debug(
-              "Updating session state with new external agent session ID",
-              {
-                sessionId: activeSession.tabId,
-                externalSessionId: sessionId,
-              },
-            );
-            setSessionState((prev) =>
-              updateSessionExternalAgentSessionId(
-                prev,
-                activeSession.tabId,
-                sessionId as any,
-              ),
-            );
-          } else {
-            // Try to resume existing session
-            try {
-              logger.debug("Attempting to resume existing agent session", {
-                sessionId: activeSession.tabId,
-                externalSessionId: activeSession.externalAgentSessionId,
-                agentId: activeSession.agentId,
-              });
-              await agent.loadSession?.({
-                sessionId: activeSession.externalAgentSessionId,
-                ...newSessionRequest,
-              });
-
-              sessionId = activeSession.externalAgentSessionId;
-              logger.debug("Successfully resumed agent session", {
-                sessionId: activeSession.tabId,
-                externalSessionId: sessionId,
-                agentId: activeSession.agentId,
-              });
-            } catch (resumeError) {
-              logger.debug("Failed to resume session, creating new session", {
-                sessionId: activeSession.tabId,
-                externalSessionId: activeSession.externalAgentSessionId,
-                error: resumeError,
-              });
-              // Fall back to creating new session
-              const newSession = await agent.newSession(newSessionRequest);
-              sessionId = newSession.sessionId;
-
-              // Update our state with the new external agent session ID
-              logger.debug(
-                "Updating session state after fallback session creation",
-                {
-                  sessionId: activeSession.tabId,
-                  newExternalSessionId: sessionId,
-                },
-              );
-              setSessionState((prev) =>
-                updateSessionExternalAgentSessionId(
-                  prev,
-                  activeSession.tabId,
-                  sessionId as any,
-                ),
-              );
-            }
+            // Fall back to creating new session
+            await handleNewSession();
           }
-
-          logger.debug("Setting current session", {
-            sessionId: activeSession.tabId,
-            externalSessionId: sessionId,
-            agentId: activeSession.agentId,
-          });
-        } catch (error) {
-          logger.error("Failed to create or resume session:", error);
         }
-      };
+      } catch (error) {
+        logger.error("Failed to create or resume session:", error);
+      }
+    };
 
-      createOrResumeSession();
-    }
-    // Reset session when disconnected
-    if (connectionState.status === "disconnected") {
-      logger.debug("Connection disconnected, clearing current session", {
-        previousSession: activeSessionId,
-        activeSessionId: activeSession?.tabId,
-      });
-    }
-  }, [
-    connectionState.status,
-    agent,
-    activeSession,
-    activeSessionId,
-    setSessionState,
-  ]);
+    createOrResumeSession();
+  }, [isConnected, agent, tabLastActiveSessionId, activeSessionId]);
 
   // Handler for prompt submission
   const handlePromptSubmit = useEvent(
     async (_e: KeyboardEvent | undefined, prompt: string) => {
-      if (!activeSessionId || !agent || isLoading || !activeSession) {
-        logger.debug("Prompt submit blocked", {
-          hasActiveSessionId: !!activeSessionId,
-          hasAgent: !!agent,
-          isLoading,
-          hasActiveSession: !!activeSession,
-        });
+      if (!activeSessionId || !agent || isLoading) {
         return;
       }
 
       logger.debug("Submitting prompt to agent", {
-        sessionId: activeSession.tabId,
-        externalSessionId: activeSessionId,
-        promptLength: prompt.length,
-        promptPreview: prompt.substring(0, 100),
+        sessionId: activeSessionId,
       });
       setIsLoading(true);
       setPromptValue("");
 
       // Update session title with first message if it's still the default
-      if (activeSession.title.startsWith("New ")) {
-        logger.debug("Updating session title with first message", {
-          sessionId: activeSession.tabId,
-          oldTitle: activeSession.title,
-          newTitle: prompt.substring(0, 50),
-        });
-        setSessionState((prev) =>
-          updateSessionTitle(prev, activeSession.tabId, prompt),
-        );
+      if (selectedTab?.title.startsWith("New ")) {
+        setSessionState((prev) => updateSessionTitle(prev, prompt));
       }
 
       const filename = store.get(filenameAtom);
       if (!filename) {
-        logger.debug("Prompt submission failed: notebook not named");
         toast({
           title: "Notebook must be named",
           description: "Please name the notebook to use the agent",
@@ -644,190 +580,68 @@ const AgentPanel: React.FC = () => {
         return;
       }
 
-      logger.debug("Sending prompt to agent", {
-        sessionId: activeSession.tabId,
-        externalSessionId: activeSessionId,
-        filename,
-      });
-
       try {
         await agent.prompt({
           sessionId: activeSessionId,
-          prompt: [{ type: "text", text: getAgentPrompt(prompt, filename) }],
-        });
-        logger.debug("Prompt sent successfully", {
-          sessionId: activeSession.tabId,
-          externalSessionId: activeSessionId,
+          prompt: [
+            { type: "text", text: prompt },
+            {
+              type: "resource_link",
+              uri: filename,
+              mimeType: "text/x-python",
+              name: filename,
+            },
+            {
+              type: "resource",
+              resource: {
+                uri: "marimo_rules.md",
+                mimeType: "text/markdown",
+                text: getAgentPrompt(filename),
+              },
+            },
+          ],
         });
       } catch (error) {
-        logger.error("Failed to send prompt", {
-          sessionId: activeSession.tabId,
-          externalSessionId: activeSessionId,
-          error,
-        });
+        logger.error("Failed to send prompt", { error });
       } finally {
-        logger.debug("Setting loading state to false after prompt submission");
         setIsLoading(false);
       }
     },
   );
 
   // Handler for stopping the current operation
-  const handleStop = useEvent(() => {
-    if (!activeSessionId) {
-      logger.debug("Stop requested but no current session");
+  const handleStop = useEvent(async () => {
+    if (!activeSessionId || !agent) {
       return;
     }
-    logger.debug("Stopping current agent operation", {
-      sessionId: activeSession?.tabId,
-      externalSessionId: activeSessionId,
-    });
-    agent?.cancel({ sessionId: activeSessionId });
+    await agent.cancel({ sessionId: activeSessionId });
     setIsLoading(false);
   });
 
-  // Handler for manual connect - allows retry after failed auto-connect
+  // Handler for manual connect
   const handleManualConnect = useEvent(() => {
     logger.debug("Manual connect requested", {
-      sessionId: activeSession?.tabId,
-      agentId: activeSession?.agentId,
       currentStatus: connectionState.status,
     });
-    setHasAttemptedConnection(false);
-    if (activeSession) {
-      setConnectionAttemptedForSession(activeSession.tabId);
-    }
     connect();
   });
 
   // Handler for manual disconnect
   const handleManualDisconnect = useEvent(() => {
     logger.debug("Manual disconnect requested", {
-      sessionId: activeSession?.tabId,
-      agentId: activeSession?.agentId,
+      sessionId: activeSessionId,
       currentStatus: connectionState.status,
     });
     disconnect();
   });
 
-  // Handler for retry connection from error/connection components
-  const handleRetryConnection = useEvent(() => {
-    logger.debug("Retry connection requested", {
-      sessionId: activeSession?.tabId,
-      agentId: activeSession?.agentId,
-      currentStatus: connectionState.status,
-    });
-    setHasAttemptedConnection(false);
-    if (activeSession) {
-      setConnectionAttemptedForSession(activeSession.tabId);
-    }
-    connect();
-  });
-
-  // Handler for restarting the thread (creates new session)
-  const handleRestartThread = useEvent(async () => {
-    if (!activeSession || !agent || isLoading) {
-      logger.debug("Restart thread blocked", {
-        hasActiveSession: !!activeSession,
-        hasAgent: !!agent,
-        isLoading,
-      });
-      return;
-    }
-
-    logger.debug("Restarting thread - creating new session", {
-      sessionId: activeSession.tabId,
-      agentId: activeSession.agentId,
-      currentExternalSessionId: activeSession.externalAgentSessionId,
-    });
-    setIsLoading(true);
-
-    try {
-      // Create new session
-      logger.debug("Creating new session for thread restart", {
-        sessionId: activeSession.tabId,
-        agentId: activeSession.agentId,
-      });
-      const newSessionRequest = {
-        cwd: "",
-        mcpServers: [],
-      };
-      const newSession = await agent.newSession(newSessionRequest);
-      const sessionId = newSession.sessionId;
-
-      // Update our state with the new external agent session ID
-      logger.debug("Updating session state after thread restart", {
-        sessionId: activeSession.tabId,
-        newExternalSessionId: sessionId,
-      });
-      setSessionState((prev) =>
-        updateSessionExternalAgentSessionId(
-          prev,
-          activeSession.tabId,
-          sessionId as any,
-        ),
-      );
-
-      logger.debug("Thread restart completed successfully", {
-        sessionId: activeSession.tabId,
-        newExternalSessionId: sessionId,
-      });
-    } catch (error) {
-      logger.error("Failed to restart thread", {
-        sessionId: activeSession.tabId,
-        agentId: activeSession.agentId,
-        error,
-      });
-    } finally {
-      logger.debug(
-        "Setting loading state to false after thread restart attempt",
-      );
-      setIsLoading(false);
-    }
-  });
-
-  // // Handler for retry last action (for errors)
-  // const handleRetryLastAction = useEvent(() => {
-  //   // Could implement logic to retry the last failed action
-  //   // For now, just log that retry was requested
-  //   console.log("Retry last action requested");
-  // });
-
-  // // Handler for dismiss error
-  // const handleDismissError = useEvent((errorId: string) => {
-  //   // Could implement logic to dismiss/hide specific errors
-  //   // For now, just log that dismiss was requested
-  //   console.log("Dismiss error requested for:", errorId);
-  // });
-
   const hasNotifications = notifications.length > 0;
   const hasActiveSessions = sessionState.sessions.length > 0;
 
-  // Log state changes for debugging
-  useEffect(() => {
-    logger.debug("Agent panel state update", {
-      hasActiveSessions,
-      hasNotifications,
-      notificationCount: notifications.length,
-      connectionStatus: connectionState.status,
-      activeSessionId: activeSession?.tabId,
-      isLoading,
-    });
-  }, [
-    hasActiveSessions,
-    hasNotifications,
-    notifications.length,
-    connectionState.status,
-    activeSession?.tabId,
-    activeSessionId,
-    isLoading,
-  ]);
-
   if (!hasActiveSessions) {
-    logger.debug("Rendering empty state - no active sessions");
     return (
       <EmptyState
-        currentAgentId={activeSession?.agentId}
+        currentAgentId={selectedTab?.agentId}
         connectionState={connectionState}
         onConnect={handleManualConnect}
         onDisconnect={handleManualDisconnect}
@@ -835,41 +649,33 @@ const AgentPanel: React.FC = () => {
     );
   }
 
-  logger.debug("Rendering main agent panel", {
-    activeSessionId: activeSession?.tabId,
-    agentId: activeSession?.agentId,
-    connectionStatus: connectionState.status,
-    hasNotifications,
-  });
-
   return (
     <div className="flex flex-col flex-1 overflow-hidden mo-agent-panel">
       <AgentPanelHeader
         connectionState={connectionState}
-        currentAgentId={activeSession?.agentId}
+        currentAgentId={selectedTab?.agentId}
         onConnect={handleManualConnect}
         onDisconnect={handleManualDisconnect}
-        onRestartThread={handleRestartThread}
+        onRestartThread={handleNewSession}
         hasActiveSession={true}
+        shouldShowConnectionControl={wsUrl !== NO_WS_SET}
       />
       <SessionTabs />
 
       <ChatContent
+        sessionId={activeSessionId}
         hasNotifications={hasNotifications}
         connectionState={connectionState}
         notifications={notifications}
         pendingPermission={pendingPermission}
         onResolvePermission={(option) => {
           logger.debug("Resolving permission request", {
-            sessionId: activeSession?.tabId,
+            sessionId: activeSessionId,
             option,
-            pendingPermission,
           });
           resolvePermission(option);
         }}
-        onRetryConnection={handleRetryConnection}
-        // onRetryLastAction={handleRetryLastAction}
-        // onDismissError={handleDismissError}
+        onRetryConnection={handleManualConnect}
       />
 
       <LoadingIndicator

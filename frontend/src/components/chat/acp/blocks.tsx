@@ -5,6 +5,12 @@ import type {
 } from "@zed-industries/agent-client-protocol";
 import { capitalize } from "lodash-es";
 import {
+  FileAudio2Icon,
+  FileIcon,
+  FileImageIcon,
+  FileJsonIcon,
+  FileTextIcon,
+  FileVideoCameraIcon,
   RotateCcwIcon,
   WifiIcon,
   WifiOffIcon,
@@ -17,7 +23,14 @@ import { Streamdown } from "streamdown";
 import { mergeToolCalls } from "use-acp";
 import { JsonOutput } from "@/components/editor/output/JsonOutput";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { logNever } from "@/utils/assertNever";
+import { cn } from "@/utils/cn";
+import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { Strings } from "@/utils/strings";
 import { SimpleAccordion } from "./common";
 import type {
@@ -47,8 +60,16 @@ export const ErrorBlock = (props: {
 }) => {
   const { message } = props.data;
 
+  // Don't show WebSocket connection errors
+  if (message.includes("WebSocket")) {
+    return null;
+  }
+
   return (
-    <div className="border border-[var(--red-6)] bg-[var(--red-2)] rounded-lg p-4 my-2">
+    <div
+      className="border border-[var(--red-6)] bg-[var(--red-2)] rounded-lg p-4 my-2"
+      data-block-type="error"
+    >
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0">
           <XCircleIcon className="h-5 w-5 text-[var(--red-11)]" />
@@ -165,6 +186,8 @@ export const ConnectionChangeBlock = (props: {
   return (
     <div
       className={`border ${config.borderColor} ${config.bgColor} rounded-lg p-3 my-2`}
+      data-block-type="connection-change"
+      data-status={status}
     >
       <div className="flex items-start gap-3">
         <div className={`flex-shrink-0 ${config.iconColor}`}>{config.icon}</div>
@@ -222,22 +245,14 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
   const plans = props.data.flatMap((item) => item.entries);
 
   return (
-    <div className="rounded-lg border bg-background p-3 my-2">
+    <div className="rounded-lg border bg-background p-2 text-xs">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-muted-foreground">
+        <span className="font-medium text-muted-foreground">
           To-dos{" "}
-          <span className="text-xs font-normal text-muted-foreground">
+          <span className="font-normal text-muted-foreground">
             {plans.length}
           </span>
         </span>
-        <button
-          className="rounded px-1 py-0.5 text-xs text-muted-foreground hover:bg-accent"
-          tabIndex={-1}
-          aria-label="More options"
-          type="button"
-        >
-          <span className="text-lg leading-none">⋮</span>
-        </button>
       </div>
       <ul className="flex flex-col gap-1">
         {plans.map((item, index) => (
@@ -245,11 +260,6 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
             key={`${item.status}-${index}`}
             className={`
               flex items-center gap-2 px-2 py-1 rounded
-              ${
-                item.status === "completed"
-                  ? "bg-transparent"
-                  : "hover:bg-accent transition-colors"
-              }
             `}
           >
             <input
@@ -260,14 +270,11 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
               tabIndex={-1}
             />
             <span
-              className={`
-                text-sm
-                ${
-                  item.status === "completed"
-                    ? "line-through text-muted-foreground"
-                    : ""
-                }
-              `}
+              className={cn(
+                "text-xs",
+                item.status === "completed" &&
+                  "line-through text-muted-foreground",
+              )}
             >
               {item.content}
             </span>
@@ -280,7 +287,7 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
 
 export const UserMessagesBlock = (props: { data: UserNotificationEvent[] }) => {
   return (
-    <div className="flex flex-col gap-2 text-muted-foreground border p-2 bg-background rounded">
+    <div className="flex flex-col gap-2 text-muted-foreground border p-2 bg-background rounded break-words">
       <ContentBlocks data={props.data.map((item) => item.content)} />
     </div>
   );
@@ -350,15 +357,57 @@ export const AudioBlock = (props: { data: ContentBlockOf<"audio"> }) => {
 
 export const ResourceBlock = (props: { data: ContentBlockOf<"resource"> }) => {
   if ("text" in props.data.resource) {
-    return <a href={props.data.resource.uri}>{props.data.resource.text}</a>;
+    return (
+      <Popover>
+        <PopoverTrigger>
+          <span className="flex items-center gap-1">
+            {props.data.resource.mimeType && (
+              <MimeIcon mimeType={props.data.resource.mimeType} />
+            )}
+            {props.data.resource.uri}
+          </span>
+        </PopoverTrigger>
+        <PopoverContent className="max-h-96 overflow-y-auto scrollbar-thin">
+          <Streamdown>{props.data.resource.text}</Streamdown>
+        </PopoverContent>
+      </Popover>
+    );
   }
 
   if ("blob" in props.data.resource) {
+    if (props.data.resource.mimeType?.startsWith("image/")) {
+      return (
+        <ImageBlock
+          data={{
+            type: "image",
+            mimeType: props.data.resource.mimeType,
+            data: props.data.resource.blob,
+          }}
+        />
+      );
+    }
+    if (props.data.resource.mimeType?.startsWith("audio/")) {
+      return (
+        <AudioBlock
+          data={{
+            type: "audio",
+            mimeType: props.data.resource.mimeType,
+            data: props.data.resource.blob,
+          }}
+        />
+      );
+    }
+    const dataURL = base64ToDataURL(
+      props.data.resource.blob as Base64String<unknown>,
+      props.data.resource.mimeType ?? "",
+    );
     return (
-      <img
-        src={`data:${props.data.resource.mimeType};base64,${props.data.resource.blob}`}
-        alt={props.data.resource.uri}
-      />
+      <a href={dataURL} className="flex items-center gap-1" download={true}>
+        {props.data.resource.mimeType && (
+          <MimeIcon mimeType={props.data.resource.mimeType} />
+        )}
+        {props.data.resource.uri}
+      </a>
     );
   }
   logNever(props.data.resource);
@@ -368,7 +417,44 @@ export const ResourceBlock = (props: { data: ContentBlockOf<"resource"> }) => {
 export const ResourceLinkBlock = (props: {
   data: ContentBlockOf<"resource_link">;
 }) => {
-  return <a href={props.data.uri}>{props.data.name}</a>;
+  if (props.data.uri.startsWith("http")) {
+    return (
+      <a
+        href={props.data.uri}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-link hover:underline"
+      >
+        {props.data.name}
+      </a>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1">
+      {props.data.mimeType && <MimeIcon mimeType={props.data.mimeType} />}
+      {props.data.name || props.data.title || props.data.uri}
+    </span>
+  );
+};
+
+export const MimeIcon = (props: { mimeType: string }) => {
+  if (props.mimeType.startsWith("image/")) {
+    return <FileImageIcon className="h-2 w-2" />;
+  }
+  if (props.mimeType.startsWith("audio/")) {
+    return <FileAudio2Icon className="h-2 w-2" />;
+  }
+  if (props.mimeType.startsWith("video/")) {
+    return <FileVideoCameraIcon className="h-2 w-2" />;
+  }
+  if (props.mimeType.startsWith("text/")) {
+    return <FileTextIcon className="h-2 w-2" />;
+  }
+  if (props.mimeType.startsWith("application/")) {
+    return <FileJsonIcon className="h-2 w-2" />;
+  }
+  return <FileIcon className="h-2 w-2" />;
 };
 
 export const SessionNotificationsBlock = <

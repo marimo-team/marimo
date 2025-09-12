@@ -66,19 +66,19 @@ interface SessionTabsProps {
 
 interface SessionListProps {
   sessions: AgentSession[];
-  activeSessionId: TabId | null;
+  activeTabId: TabId | null;
   onSelectSession: (sessionId: TabId) => void;
   onCloseSession: (sessionId: TabId) => void;
 }
 
 const SessionList = memo<SessionListProps>(
-  ({ sessions, activeSessionId, onSelectSession, onCloseSession }) => (
+  ({ sessions, activeTabId, onSelectSession, onCloseSession }) => (
     <div className="flex min-w-0 flex-1 overflow-x-auto">
       {sessions.map((session) => (
         <SessionTab
           key={session.tabId}
           session={session}
-          isActive={session.tabId === activeSessionId}
+          isActive={session.tabId === activeTabId}
           onSelect={onSelectSession}
           onClose={onCloseSession}
         />
@@ -112,7 +112,7 @@ export const SessionTabs: React.FC<SessionTabsProps> = memo(({ className }) => {
     setSessionState((prev) => removeSession(prev, sessionId));
   });
 
-  const { sessions, activeTabId: activeSessionId } = sessionState;
+  const { sessions, activeTabId } = sessionState;
 
   if (sessions.length === 0) {
     return <EmptySessionTabs className={className} />;
@@ -127,7 +127,7 @@ export const SessionTabs: React.FC<SessionTabsProps> = memo(({ className }) => {
     >
       <SessionList
         sessions={sessions}
-        activeSessionId={activeSessionId}
+        activeTabId={activeTabId}
         onSelectSession={handleSelectSession}
         onCloseSession={handleCloseSession}
       />
