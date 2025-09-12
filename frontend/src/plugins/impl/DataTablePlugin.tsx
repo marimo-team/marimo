@@ -198,7 +198,7 @@ type DataTableFunctions = {
     sort?: {
       by: string;
       descending: boolean;
-    };
+    }[];
     query?: string;
     filters?: ConditionType[];
     page_number: number;
@@ -282,7 +282,12 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       .input(
         z.object({
           sort: z
-            .object({ by: z.string(), descending: z.boolean() })
+            .array(
+              z.object({
+                by: z.string(),
+                descending: z.boolean(),
+              }),
+            )
             .optional(),
           query: z.string().optional(),
           filters: z.array(ConditionSchema).optional(),
@@ -476,18 +481,14 @@ export const LoadingDataTableComponent = memo(
         !props.lazy &&
         !pageSizeChanged;
 
-      if (sorting.length > 1) {
-        Logger.warn("Multiple sort columns are not supported");
-      }
-
       // If we have sort/search/filter, use the search function
       const searchResultsPromise = search<T>({
         sort:
           sorting.length > 0
-            ? {
-                by: sorting[0].id,
-                descending: sorting[0].desc,
-              }
+            ? sorting.map((column) => ({
+                by: column.id,
+                descending: column.desc,
+              }))
             : undefined,
         query: searchQuery,
         page_number: paginationState.pageIndex,
@@ -540,10 +541,10 @@ export const LoadingDataTableComponent = memo(
           page_size: 1,
           sort:
             sorting.length > 0
-              ? {
-                  by: sorting[0].id,
-                  descending: sorting[0].desc,
-                }
+              ? sorting.map((column) => ({
+                  by: column.id,
+                  descending: column.desc,
+                }))
               : undefined,
           query: searchQuery,
           filters: filters.flatMap((filter) => {

@@ -617,16 +617,18 @@ class NarwhalsTableManager(
             return []
 
     def sort_values(
-        self, by: ColumnName, descending: bool
+        self, by: list[tuple[ColumnName, bool]]
     ) -> TableManager[Any]:
-        if is_narwhals_lazyframe(self.data):
-            return self.with_new_data(
-                self.data.sort(by, descending=descending, nulls_last=True)
-            )
-        else:
-            return self.with_new_data(
-                self.data.sort(by, descending=descending, nulls_last=True)
-            )
+        if not by:
+            return self
+
+        # Extract columns and descending flags for Narwhals/Polars
+        columns = [col for col, _ in by]
+        descending = [desc for _, desc in by]
+
+        return self.with_new_data(
+            self.data.sort(columns, descending=descending, nulls_last=True)
+        )
 
     def __repr__(self) -> str:
         rows = self.get_num_rows(force=False)
