@@ -47,7 +47,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._ast.cell import CellConfig, RuntimeStateType
     from marimo._messaging.cell_output import CellChannel, CellOutput
     from marimo._messaging.mimetypes import KnownMimeType
-    from marimo._output.mime import MIME
     from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.packages.package_manager import PackageDescription
     from marimo._server.api.router import build_routes
@@ -60,7 +59,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
     # these are always snake_case
     MESSAGES = [
         # Base
-        MIME,
         RuntimeStateType,
         KnownMimeType,
         CellChannel,
