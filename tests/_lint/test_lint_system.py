@@ -3,8 +3,8 @@
 
 from marimo._ast.parse import parse_notebook
 from marimo._lint import lint_notebook
-from marimo._lint.checker import LintChecker
-from marimo._lint.context import LintContext
+from marimo._lint.context import LintContext, RuleContext
+from marimo._lint.rule_engine import RuleEngine
 from marimo._lint.rules.base import Severity
 from marimo._lint.rules.breaking import UnparsableRule
 from marimo._lint.rules.formatting import GeneralFormattingRule
@@ -90,7 +90,8 @@ class TestLintRules:
         )
 
         ctx = LintContext(notebook)
-        await rule.check(ctx)
+        rule_ctx = RuleContext(ctx, rule)
+        await rule.check(rule_ctx)
         errors = await ctx.get_diagnostics()
         assert len(errors) == 1
         assert errors[0].code == "MF001"
@@ -110,7 +111,8 @@ class TestLintRules:
         )
 
         ctx = LintContext(notebook)
-        await rule.check(ctx)
+        rule_ctx = RuleContext(ctx, rule)
+        await rule.check(rule_ctx)
         errors = await ctx.get_diagnostics()
         # The rule should run without errors (even if no multiple definitions found)
         assert isinstance(errors, list)
@@ -129,7 +131,8 @@ class TestLintRules:
         )
 
         ctx = LintContext(notebook)
-        await rule.check(ctx)
+        rule_ctx = RuleContext(ctx, rule)
+        await rule.check(rule_ctx)
         errors = await ctx.get_diagnostics()
         # The rule should run without errors
         assert isinstance(errors, list)
@@ -147,7 +150,8 @@ class TestLintRules:
         )
 
         ctx = LintContext(notebook)
-        await rule.check(ctx)
+        rule_ctx = RuleContext(ctx, rule)
+        await rule.check(rule_ctx)
         errors = await ctx.get_diagnostics()
         # The rule should run without errors
         assert isinstance(errors, list)
@@ -169,25 +173,26 @@ class TestLintRules:
         )
 
         ctx = LintContext(notebook)
-        await rule.check(ctx)
+        rule_ctx = RuleContext(ctx, rule)
+        await rule.check(rule_ctx)
         errors = await ctx.get_diagnostics()
         assert len(errors) == 1
         assert errors[0].code == "MB001"
         assert errors[0].severity == Severity.BREAKING
 
 
-class TestLintChecker:
-    """Test the LintChecker class."""
+class TestRuleEngine:
+    """Test the RuleEngine class."""
 
     def test_create_default(self):
         """Test creating a default checker."""
-        checker = LintChecker.create_default()
+        checker = RuleEngine.create_default()
         assert checker is not None
         assert len(checker.rules) > 0
 
     def test_check_notebook(self):
         """Test checking a notebook."""
-        checker = LintChecker.create_default()
+        checker = RuleEngine.create_default()
 
         notebook = NotebookSerializationV1(
             app=AppInstantiation(), cells=[], violations=[]

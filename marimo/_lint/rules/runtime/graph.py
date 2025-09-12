@@ -160,10 +160,10 @@ class MultipleDefinitionsRule(GraphRule):
             Cell 2: y = 2  # Use different variable name
     """
 
-    code = "MB002"
+    code = "MR001"
     name = "multiple-definitions"
     description = "Multiple cells define the same variable"
-    severity = Severity.BREAKING
+    severity = Severity.RUNTIME
     fixable = False
 
     async def _validate_graph(
@@ -193,6 +193,10 @@ class MultipleDefinitionsRule(GraphRule):
                 cell_id=cell_ids,
                 line=lines,
                 column=columns,
+                code=self.code,
+                name=self.name,
+                severity=self.severity,
+                fixable=self.fixable,
                 fix=(
                     "Variables must be unique across cells. Alternatively, "
                     f"they can be private with an underscore prefix (i.e. `_{name}`.)"
@@ -226,10 +230,10 @@ class CycleDependenciesRule(GraphRule):
             Cell 2: b = a + 1  # Unidirectional dependency
     """
 
-    code = "MB003"
+    code = "MR002"
     name = "cycle-dependencies"
     description = "Cells have circular dependencies"
-    severity = Severity.BREAKING
+    severity = Severity.RUNTIME
     fixable = False
 
     async def _validate_graph(
@@ -263,6 +267,10 @@ class CycleDependenciesRule(GraphRule):
                     cell_id=cells,
                     line=lines,
                     column=columns,
+                    code=self.code,
+                    name=self.name,
+                    severity=self.severity,
+                    fixable=self.fixable,
                 )
 
                 await ctx.add_diagnostic(diagnostic)
@@ -293,10 +301,10 @@ class SetupCellDependenciesRule(GraphRule):
             Cell 1: x = y + 1  # Other cells can use setup variables
     """
 
-    code = "MB004"
+    code = "MR003"
     name = "setup-cell-dependencies"
     description = "Setup cell cannot have dependencies"
-    severity = Severity.BREAKING
+    severity = Severity.RUNTIME
     fixable = False
 
     async def _validate_graph(
@@ -318,6 +326,10 @@ class SetupCellDependenciesRule(GraphRule):
                     cell_id=[cell_id],
                     line=line,
                     column=column,
+                    code=self.code,
+                    name=self.name,
+                    severity=self.severity,
+                    fixable=self.fixable,
                 )
 
                 await ctx.add_diagnostic(diagnostic)

@@ -134,8 +134,8 @@ class RuleContext:
             diagnostic.fixable = self.rule.fixable
 
         # Set filename from notebook
-        if diagnostic._filename is None:
-            diagnostic._filename = self.global_context.notebook.filename
+        if diagnostic.filename is None:
+            diagnostic.filename = self.global_context.notebook.filename
 
         await self.global_context.add_diagnostic(diagnostic)
 

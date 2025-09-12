@@ -4,10 +4,29 @@
 import asyncio
 
 from marimo._ast.parse import parse_notebook
-from marimo._lint.checker import EarlyStoppingConfig, LintChecker
 from marimo._lint.context import LintContext
 from marimo._lint.diagnostic import Diagnostic, Severity
+from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
 from marimo._lint.rules.base import LintRule
+
+
+def create_diagnostic(
+    code: str,
+    cell_id: str,
+    message: str,
+    severity: Severity,
+    fixable: bool = False,
+) -> Diagnostic:
+    """Helper to create diagnostic with correct parameter order."""
+    return Diagnostic(
+        message=message,
+        cell_id=cell_id,
+        line=1,
+        column=1,
+        code=code,
+        severity=severity,
+        fixable=fixable,
+    )
 
 
 class SlowRule(LintRule):
@@ -20,13 +39,14 @@ class SlowRule(LintRule):
         delay: float = 0.1,
         diagnostic_count: int = 1,
     ):
-        super().__init__(
-            code=code,
-            name=f"slow-{code.lower()}",
-            description=f"Slow rule {code}",
-            severity=severity,
-            fixable=False,
-        )
+        # Set class attributes dynamically
+        self.code = code
+        self.name = f"slow-{code.lower()}"
+        self.description = f"Slow rule {code}"
+        self.severity = severity
+        self.fixable = False
+
+        # Instance attributes
         self.delay = delay
         self.diagnostic_count = diagnostic_count
         self.started = False
@@ -72,10 +92,22 @@ class TestLintContextStreaming:
         """Test get_new_diagnostics returns only new diagnostics."""
         # Add first batch
         diag1 = Diagnostic(
-            "MF001", "test1", "first", Severity.FORMATTING, None, 1, 1, False
+            message="first",
+            cell_id="test1",
+            line=1,
+            column=1,
+            code="MF001",
+            severity=Severity.FORMATTING,
+            fixable=False,
         )
         diag2 = Diagnostic(
-            "MR001", "test2", "second", Severity.RUNTIME, None, 1, 1, False
+            message="second",
+            cell_id="test2",
+            line=1,
+            column=1,
+            code="MR001",
+            severity=Severity.RUNTIME,
+            fixable=False,
         )
 
         await self.ctx.add_diagnostic(diag1)
@@ -90,9 +122,7 @@ class TestLintContextStreaming:
         assert new_diagnostics[1].severity == Severity.FORMATTING
 
         # Add second batch
-        diag3 = Diagnostic(
-            "MB001", "test3", "third", Severity.BREAKING, None, 1, 1, False
-        )
+        diag3 = create_diagnostic("MB001", "test3", "third", Severity.BREAKING)
         await self.ctx.add_diagnostic(diag3)
 
         # Get only new diagnostics
@@ -106,12 +136,10 @@ class TestLintContextStreaming:
 
     async def test_get_all_diagnostics_still_works(self):
         """Test that get_diagnostics still returns all diagnostics."""
-        diag1 = Diagnostic(
-            "MF001", "test1", "first", Severity.FORMATTING, None, 1, 1, False
+        diag1 = create_diagnostic(
+            "MF001", "test1", "first", Severity.FORMATTING
         )
-        diag2 = Diagnostic(
-            "MR001", "test2", "second", Severity.RUNTIME, None, 1, 1, False
-        )
+        diag2 = create_diagnostic("MR001", "test2", "second", Severity.RUNTIME)
 
         await self.ctx.add_diagnostic(diag1)
         await self.ctx.add_diagnostic(diag2)
@@ -131,11 +159,11 @@ class TestEarlyStoppingConfig:
         """Test default config doesn't stop."""
         config = EarlyStoppingConfig()
 
-        breaking_diag = Diagnostic(
-            "MB001", "test", "breaking", Severity.BREAKING, None, 1, 1, False
+        breaking_diag = create_diagnostic(
+            "MB001", "test", "breaking", Severity.BREAKING
         )
-        runtime_diag = Diagnostic(
-            "MR001", "test", "runtime", Severity.RUNTIME, None, 1, 1, False
+        runtime_diag = create_diagnostic(
+            "MR001", "test", "runtime", Severity.RUNTIME
         )
 
         assert not config.should_stop(breaking_diag, 1)
@@ -145,11 +173,11 @@ class TestEarlyStoppingConfig:
         """Test stopping on breaking severity."""
         config = EarlyStoppingConfig(stop_on_breaking=True)
 
-        breaking_diag = Diagnostic(
-            "MB001", "test", "breaking", Severity.BREAKING, None, 1, 1, False
+        breaking_diag = create_diagnostic(
+            "MB001", "test", "breaking", Severity.BREAKING
         )
-        runtime_diag = Diagnostic(
-            "MR001", "test", "runtime", Severity.RUNTIME, None, 1, 1, False
+        runtime_diag = create_diagnostic(
+            "MR001", "test", "runtime", Severity.RUNTIME
         )
 
         assert config.should_stop(breaking_diag, 1)
@@ -159,18 +187,11 @@ class TestEarlyStoppingConfig:
         """Test stopping on runtime severity."""
         config = EarlyStoppingConfig(stop_on_runtime=True)
 
-        runtime_diag = Diagnostic(
-            "MR001", "test", "runtime", Severity.RUNTIME, None, 1, 1, False
+        runtime_diag = create_diagnostic(
+            "MR001", "test", "runtime", Severity.RUNTIME
         )
-        formatting_diag = Diagnostic(
-            "MF001",
-            "test",
-            "formatting",
-            Severity.FORMATTING,
-            None,
-            1,
-            1,
-            False,
+        formatting_diag = create_diagnostic(
+            "MF001", "test", "formatting", Severity.FORMATTING
         )
 
         assert config.should_stop(runtime_diag, 1)
@@ -201,21 +222,14 @@ class TestEarlyStoppingConfig:
             stop_on_first_of_severity=Severity.RUNTIME
         )
 
-        runtime_diag = Diagnostic(
-            "MR001", "test", "runtime", Severity.RUNTIME, None, 1, 1, False
+        runtime_diag = create_diagnostic(
+            "MR001", "test", "runtime", Severity.RUNTIME
         )
-        breaking_diag = Diagnostic(
-            "MB001", "test", "breaking", Severity.BREAKING, None, 1, 1, False
+        breaking_diag = create_diagnostic(
+            "MB001", "test", "breaking", Severity.BREAKING
         )
-        formatting_diag = Diagnostic(
-            "MF001",
-            "test",
-            "formatting",
-            Severity.FORMATTING,
-            None,
-            1,
-            1,
-            False,
+        formatting_diag = create_diagnostic(
+            "MF001", "test", "formatting", Severity.FORMATTING
         )
 
         assert config.should_stop(runtime_diag, 1)
@@ -223,8 +237,8 @@ class TestEarlyStoppingConfig:
         assert not config.should_stop(formatting_diag, 1)
 
 
-class TestStreamingLintChecker:
-    """Test streaming functionality of LintChecker."""
+class TestStreamingRuleEngine:
+    """Test streaming functionality of RuleEngine."""
 
     def setup_method(self):
         self.notebook = parse_notebook("import marimo\napp = marimo.App()")
@@ -235,7 +249,7 @@ class TestStreamingLintChecker:
         fast_rule = SlowRule("MR001", Severity.RUNTIME, delay=0.01)
         slow_rule = SlowRule("MF001", Severity.FORMATTING, delay=0.05)
 
-        checker = LintChecker([fast_rule, slow_rule])
+        checker = RuleEngine([fast_rule, slow_rule])
 
         # Collect diagnostics as they stream
         diagnostics = []
@@ -265,7 +279,7 @@ class TestStreamingLintChecker:
         )  # Takes longer
 
         config = EarlyStoppingConfig(stop_on_breaking=True)
-        checker = LintChecker(
+        checker = RuleEngine(
             [fast_breaking, slow_formatting], early_stopping=config
         )
 
@@ -293,7 +307,7 @@ class TestStreamingLintChecker:
         slow_rule = SlowRule("MR001", Severity.RUNTIME, delay=0.1)
 
         config = EarlyStoppingConfig(max_diagnostics=2)
-        checker = LintChecker([multi_rule, slow_rule], early_stopping=config)
+        checker = RuleEngine([multi_rule, slow_rule], early_stopping=config)
 
         diagnostics = []
         async for diagnostic in checker.check_notebook_streaming(
@@ -312,7 +326,7 @@ class TestStreamingLintChecker:
         fast_rule = SlowRule("MR001", Severity.RUNTIME, delay=0.01)
         slow_rule = SlowRule("MF001", Severity.FORMATTING, delay=0.02)
 
-        checker = LintChecker([fast_rule, slow_rule])
+        checker = RuleEngine([fast_rule, slow_rule])
 
         # Non-streaming method should still work
         diagnostics = checker.check_notebook_sync(self.notebook)
@@ -347,7 +361,7 @@ def _():
 
         # Stop on first runtime error
         config = EarlyStoppingConfig(stop_on_runtime=True)
-        checker = LintChecker(
+        checker = RuleEngine(
             [MultipleDefinitionsRule(), GeneralFormattingRule()],
             early_stopping=config,
         )

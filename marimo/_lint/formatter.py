@@ -62,6 +62,24 @@ class FullFormatter(DiagnosticFormatter):
         location = filename
         if max(lines + (0,)) > 0:
             location = f"{filename}:{lines[0]}:{columns[0]}"
+        # Defensive check for None name - should never happen but provides debugging info
+        if diagnostic.name is None:
+            debug_info = (
+                f"DIAGNOSTIC DEBUG INFO:\n"
+                f"  code: {diagnostic.code!r}\n"
+                f"  name: {diagnostic.name!r}\n"
+                f"  severity: {diagnostic.severity!r}\n"
+                f"  message: {diagnostic.message!r}\n"
+                f"  cell_id: {diagnostic.cell_id!r}\n"
+                f"  line: {diagnostic.line!r}\n"
+                f"  column: {diagnostic.column!r}\n"
+                f"  fixable: {diagnostic.fixable!r}\n"
+                f"  filename: {getattr(diagnostic, 'filename', 'NOT_SET')!r}\n"
+            )
+            raise ValueError(
+                f"Diagnostic has None name field, which should be impossible!\n{debug_info}"
+            )
+
         header = f"{bold(severity_color(severity_str + '[' + diagnostic.name + ']'))}: {bold(diagnostic.message)}"
         header += "\n" + cyan(" --> ") + cyan(location)
 
@@ -92,7 +110,7 @@ class FullFormatter(DiagnosticFormatter):
                 )
                 line_num = cyan(f"{i:4d} |")
 
-                if i == line + 1:
+                if i == line:
                     # Current line with error indicator
                     context_lines.append(f"{line_num} {line_content}")
                     # Add error indicator line

@@ -51,8 +51,8 @@ class EarlyStoppingConfig:
         return False
 
 
-class LintChecker:
-    """Orchestrates lint rules and provides checking and fixing functionality."""
+class RuleEngine:
+    """Orchestrates lint rules and provides checking functionality for a single notebook."""
 
     def __init__(
         self,
@@ -125,8 +125,8 @@ class LintChecker:
     @classmethod
     def create_default(
         cls, early_stopping: Optional[EarlyStoppingConfig] = None
-    ) -> LintChecker:
-        """Create a LintChecker with all default rules."""
+    ) -> RuleEngine:
+        """Create a RuleEngine with all default rules."""
         # TODO: Filter rules based on user configuration if needed
         rules = [rule() for rule in RULE_CODES.values()]
         return cls(rules, early_stopping)

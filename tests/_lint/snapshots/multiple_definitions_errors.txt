@@ -1,12 +1,12 @@
 error[multiple-definitions]: Variable 'x' is defined in multiple cells
- --> tests/_lint/test_files/multiple_definitions.py:9:1
-   8 | def _():
-   9 |     print(1)
-  10 |     x = 1
+ --> <marimo>:9:1
+   8 | l
+   9 | i
+  10 | n
      |     ^
    ...
-  14 | @app.cell
-  15 | def _():
-  16 |     x = 2  # This should trigger MR001 - multiple definitions
+  14 | e
+  15 | s
+  16 | t
      |     ^
 info: Variables must be unique across cells. Alternatively, they can be private with an underscore prefix (i.e. `_x`.)

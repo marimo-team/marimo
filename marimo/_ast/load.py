@@ -170,13 +170,17 @@ def get_notebook_status(filename: str) -> LoadResult:
     if notebook is None:
         return LoadResult(status="empty", contents=contents)
     if not notebook.valid:
-        return LoadResult(status="invalid", notebook=notebook, contents=contents)
+        return LoadResult(
+            status="invalid", notebook=notebook, contents=contents
+        )
     if len(notebook.violations) > 0:
         LOGGER.debug(
             "Notebook has violations: \n%s",
             "\n".join(map(repr, notebook.violations)),
         )
-        return LoadResult(status="has_errors", notebook=notebook, contents=contents)
+        return LoadResult(
+            status="has_errors", notebook=notebook, contents=contents
+        )
     return LoadResult(status="valid", notebook=notebook, contents=contents)
 
 

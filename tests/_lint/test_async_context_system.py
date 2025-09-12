@@ -2,9 +2,9 @@
 """Unit tests for the async context-based lint system."""
 
 from marimo._ast.parse import parse_notebook
-from marimo._lint.checker import LintChecker
-from marimo._lint.context import LintContext
+from marimo._lint.context import LintContext, RuleContext
 from marimo._lint.diagnostic import Diagnostic, Severity
+from marimo._lint.rule_engine import RuleEngine
 from marimo._lint.rules.base import LintRule
 from marimo._lint.rules.breaking import UnparsableRule
 from marimo._lint.rules.formatting import GeneralFormattingRule
@@ -17,31 +17,32 @@ class MockRule(LintRule):
     def __init__(
         self, code: str, severity: Severity, diagnostic_count: int = 1
     ):
-        super().__init__(
-            code=code,
-            name=f"mock-{code.lower()}",
-            description=f"Mock rule {code}",
-            severity=severity,
-            fixable=False,
-        )
+        # Set class attributes dynamically
+        self.code = code
+        self.name = f"mock-{code.lower()}"
+        self.description = f"Mock rule {code}"
+        self.severity = severity
+        self.fixable = False
+
+        # Instance attributes
         self.diagnostic_count = diagnostic_count
         self.call_count = 0
 
-    async def check(self, ctx: LintContext) -> None:
+    async def check(self, rule_ctx: RuleContext) -> None:
         """Add mock diagnostics to context."""
         self.call_count += 1
         for i in range(self.diagnostic_count):
             diagnostic = Diagnostic(
-                code=self.code,
-                name=self.name,
                 message=f"Mock diagnostic {i + 1}",
-                severity=self.severity,
                 cell_id=None,
                 line=1,
                 column=1,
+                code=self.code,
+                name=self.name,
+                severity=self.severity,
                 fixable=self.fixable,
             )
-            await ctx.add_diagnostic(diagnostic)
+            await rule_ctx.add_diagnostic(diagnostic)
 
 
 class TestLintContext:
@@ -55,20 +56,34 @@ class TestLintContext:
         """Test that diagnostics are queued by priority."""
         # Add diagnostics in reverse priority order
         formatting_diag = Diagnostic(
-            "MF001",
-            "test",
-            "formatting",
-            Severity.FORMATTING,
-            None,
-            1,
-            1,
-            False,
+            message="formatting",
+            cell_id=None,
+            line=1,
+            column=1,
+            code="MF001",
+            name="test",
+            severity=Severity.FORMATTING,
+            fixable=False,
         )
         breaking_diag = Diagnostic(
-            "MB001", "test", "breaking", Severity.BREAKING, None, 1, 1, False
+            message="breaking",
+            cell_id=None,
+            line=1,
+            column=1,
+            code="MB001",
+            name="test",
+            severity=Severity.BREAKING,
+            fixable=False,
         )
         runtime_diag = Diagnostic(
-            "MR001", "test", "runtime", Severity.RUNTIME, None, 1, 1, False
+            message="runtime",
+            cell_id=None,
+            line=1,
+            column=1,
+            code="MR001",
+            name="test",
+            severity=Severity.RUNTIME,
+            fixable=False,
         )
 
         # Add in non-priority order
@@ -88,13 +103,34 @@ class TestLintContext:
         """Test that diagnostics with same priority maintain insertion order."""
         # Add multiple diagnostics with same priority
         diag1 = Diagnostic(
-            "MF001", "test1", "first", Severity.FORMATTING, None, 1, 1, False
+            message="first",
+            cell_id=None,
+            line=1,
+            column=1,
+            code="MF001",
+            name="test1",
+            severity=Severity.FORMATTING,
+            fixable=False,
         )
         diag2 = Diagnostic(
-            "MF002", "test2", "second", Severity.FORMATTING, None, 1, 1, False
+            message="second",
+            cell_id=None,
+            line=1,
+            column=1,
+            code="MF002",
+            name="test2",
+            severity=Severity.FORMATTING,
+            fixable=False,
         )
         diag3 = Diagnostic(
-            "MF003", "test3", "third", Severity.FORMATTING, None, 1, 1, False
+            message="third",
+            cell_id=None,
+            line=1,
+            column=1,
+            code="MF003",
+            name="test3",
+            severity=Severity.FORMATTING,
+            fixable=False,
         )
 
         await self.ctx.add_diagnostic(diag1)
@@ -148,8 +184,8 @@ class TestLintContext:
         assert all(graph is graphs[0] for graph in graphs)
 
 
-class TestAsyncLintChecker:
-    """Test the async LintChecker functionality."""
+class TestAsyncRuleEngine:
+    """Test the async RuleEngine functionality."""
 
     def setup_method(self):
         self.notebook = parse_notebook("import marimo\napp = marimo.App()")
@@ -165,7 +201,7 @@ class TestAsyncLintChecker:
             "MF001", Severity.FORMATTING, diagnostic_count=3
         )
 
-        checker = LintChecker([breaking_rule, runtime_rule, formatting_rule])
+        checker = RuleEngine([breaking_rule, runtime_rule, formatting_rule])
 
         # Execute rules
         diagnostics = await checker.check_notebook(self.notebook)
@@ -193,7 +229,7 @@ class TestAsyncLintChecker:
     def test_sync_wrapper(self):
         """Test the synchronous wrapper."""
         mock_rule = MockRule("MF001", Severity.FORMATTING)
-        checker = LintChecker([mock_rule])
+        checker = RuleEngine([mock_rule])
 
         # Should work synchronously
         diagnostics = checker.check_notebook_sync(self.notebook)
@@ -208,7 +244,7 @@ class TestAsyncLintChecker:
         breaking_rule = MockRule("MB001", Severity.BREAKING)
         runtime_rule = MockRule("MR001", Severity.RUNTIME)
 
-        checker = LintChecker([formatting_rule, breaking_rule, runtime_rule])
+        checker = RuleEngine([formatting_rule, breaking_rule, runtime_rule])
 
         # Get diagnostics
         diagnostics = checker.check_notebook_sync(self.notebook)
@@ -328,7 +364,7 @@ def _():
 
     def test_default_checker_creation(self):
         """Test that default checker includes all expected rules."""
-        checker = LintChecker.create_default()
+        checker = RuleEngine.create_default()
 
         # Should include all the standard rules
         rule_codes = {rule.code for rule in checker.rules}

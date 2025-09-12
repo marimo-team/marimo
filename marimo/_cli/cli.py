@@ -1257,6 +1257,11 @@ def check(
 
     linter = run_check(files)
     issues = 0
+    fixed = 0
+
+    # Fix files if requested - this runs concurrently
+    if fix:
+        fixed = linter.fix_all()
 
     for file_status in linter.files:
         if file_status.skipped:
@@ -1272,19 +1277,18 @@ def check(
             issues += 1
             continue
 
+        to_fix = False
         for diagnostic in file_status.diagnostics:
             # Don't print fixable errors if they will be solved.
             if fix and diagnostic.fixable:
+                to_fix = True
                 continue
             issues += 1
             if verbose:
                 click.echo(diagnostic.format())
                 click.echo("")
-
-    # Fix files if requested - this runs concurrently
-    fixed = 0
-    if fix:
-        fixed = linter.fix_all(verbose=verbose)
+        if to_fix and verbose:
+            click.echo(f"Updated: {file_status.file}")
 
     if fixed > 0:
         click.echo(f"Updated {fixed} file{'s' if fixed > 1 else ''}.")

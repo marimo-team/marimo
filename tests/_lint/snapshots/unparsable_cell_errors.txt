@@ -1,6 +1,6 @@
 critical[unparsable-cells]: Notebook contains unparsable code
- --> tests/_lint/test_files/unparsable_cell.py:14:0
-  13 | # This should create an unparsable cell
-  14 | app._unparsable_cell("""
-  15 | x = 1 +  # Syntax error
+ --> <marimo>:14:0
+  13 | t
+  14 | e
+  15 | s
      |     ^
