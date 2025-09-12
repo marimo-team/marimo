@@ -42,6 +42,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useRequestClient } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
+import { Functions } from "@/utils/functions";
 import { Paths } from "@/utils/paths";
 import { getAgentPrompt } from "./prompt";
 import type {
@@ -264,9 +265,9 @@ const PromptArea = memo<PromptAreaProps>(
     >
       <PromptInput
         value={promptValue}
-        onChange={isLoading ? undefined : onPromptValueChange}
+        onChange={isLoading ? Functions.NOOP : onPromptValueChange}
         onSubmit={onPromptSubmit}
-        onClose={undefined}
+        onClose={Functions.NOOP}
         placeholder={isLoading ? "Processing..." : "Ask your AI agent..."}
         className={isLoading ? "opacity-50 pointer-events-none" : ""}
         maxHeight="120px"
@@ -459,7 +460,8 @@ const AgentPanel: React.FC = () => {
       // We don't want to disconnect so users can switch between different
       // panels without losing their session
     };
-  }, [wsUrl, activeSessionId, connect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsUrl]);
 
   const handleNewSession = useEvent(async () => {
     if (isCreatingNewSession.current) {
@@ -555,15 +557,8 @@ const AgentPanel: React.FC = () => {
     };
 
     createOrResumeSession();
-  }, [
-    isConnected,
-    agent,
-    tabLastActiveSessionId,
-    activeSessionId,
-    handleNewSession,
-    handleResumeSession,
-    selectedTab,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, agent, tabLastActiveSessionId, activeSessionId]);
 
   // Handler for prompt submission
   const handlePromptSubmit = useEvent(
