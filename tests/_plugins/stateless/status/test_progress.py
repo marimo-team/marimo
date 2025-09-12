@@ -160,7 +160,7 @@ def test_progress_no_total_error():
 
     with pytest.raises(
         TypeError,
-        match="Cannot determine length of collection. Please provide a `total`.",
+        match="Cannot determine the length of a collection. A `total` must be provided.",
     ):
         progress_bar(sync_generator())
 
@@ -175,7 +175,7 @@ def test_progress_async_no_total_error():
 
     with pytest.raises(
         TypeError,
-        match="Cannot determine length of async collection. Please provide a `total`.",
+        match="Cannot determine the length of a collection. A `total` must be provided.",
     ):
         progress_bar(async_generator())
 

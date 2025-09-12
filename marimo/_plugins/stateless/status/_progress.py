@@ -392,19 +392,10 @@ class progress_bar(Generic[S]):
                 if isinstance(collection, Sized):
                     total = len(collection)
 
-                # For async iterables, we require total
-                elif self._is_async:
-                    raise TypeError(
-                        "Cannot determine length of async collection. "
-                        "Please provide a `total`."
-                    )
-
-                # For sync iterables that are not Sized (generators),
-                # we also require total
                 else:
                     raise TypeError(
-                        "Cannot determine length of collection. "
-                        "Please provide a `total`."
+                        "Cannot determine the length of a collection. "
+                        "A `total` must be provided."
                     )
 
             if isinstance(collection, range):
