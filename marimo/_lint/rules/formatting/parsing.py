@@ -25,46 +25,11 @@ class StdoutRule(LintRule):
 
     async def check(self, ctx: RuleContext) -> None:
         """Process captured stdout and create diagnostics."""
-        # Process stdout content
-        if ctx.stdout:
-            await ctx.add_diagnostic(
-                Diagnostic(
-                    message=f"Parsing output: {ctx.stdout}",
-                    cell_id=None,
-                    line=0,
-                    column=0,
-                )
-            )
-
-
-class StderrRule(LintRule):
-    """MF002: Parse stdout captured during notebook loading.
-
-    When marimo parses a notebook file, any output to stderr (such as syntax
-    warnings) is captured and converted to formatting diagnostics. This rule
-    processes that captured output and extracts useful information like line
-    numbers.
-
-    Examples:
-        Stderr: "file.py:68: SyntaxWarning: invalid escape sequence '\\l'"
-        -> Creates diagnostic pointing to line 68
-
-        Stdout: General parsing information
-        -> Creates diagnostic at line 1
-    """
-
-    code = "MF003"
-    name = "parse-stderr"
-    description = "Parse captured stdout during notebook loading"
-    severity = Severity.FORMATTING
-    fixable = False
-
-    async def check(self, ctx: RuleContext) -> None:
         # Pattern to match file:line format (e.g., "file.py:68: SyntaxWarning")
         line_pattern = re.compile(r"([^:]+):(\d+):\s*(.+)")
 
         # Split stderr by lines to handle multiple warnings
-        lines = ctx.stderr.strip().split("\n")
+        lines = ctx.stdout.strip().split("\n")
         captured = False
 
         for line in lines:
@@ -87,12 +52,47 @@ class StderrRule(LintRule):
                 )
 
         # Fallback: if no line patterns found, create single diagnostic
-        if not captured and ctx.stderr:
+        if not captured and ctx.stdout:
             await ctx.add_diagnostic(
                 Diagnostic(
                     message=f"Parsing warning: {ctx.stderr}",
                     cell_id=None,
                     line=1,
+                    column=0,
+                )
+            )
+
+
+class StderrRule(LintRule):
+    """MF003: Parse stderr captured during notebook loading.
+
+    When marimo parses a notebook file, any output to stderr (such as syntax
+    warnings) is captured and converted to formatting diagnostics. This rule
+    processes that captured output and extracts useful information like line
+    numbers.
+
+    Examples:
+        Stderr: "file.py:68: SyntaxWarning: invalid escape sequence '\\l'"
+        -> Creates diagnostic pointing to line 68
+
+        Stdout: General parsing information
+        -> Creates diagnostic at line 1
+    """
+
+    code = "MF003"
+    name = "parse-stderr"
+    description = "Parse captured stderr during notebook loading"
+    severity = Severity.FORMATTING
+    fixable = False
+
+    async def check(self, ctx: RuleContext) -> None:
+        # Process stderr content
+        if ctx.stderr:
+            await ctx.add_diagnostic(
+                Diagnostic(
+                    message=f"stderr: {ctx.stderr}",
+                    cell_id=None,
+                    line=0,
                     column=0,
                 )
             )
