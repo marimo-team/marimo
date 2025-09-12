@@ -50,6 +50,7 @@ from marimo._ast.errors import (
     SetupRootError,
     UnparsableError,
 )
+from marimo._cli.parse_args import parse_args
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -594,6 +595,7 @@ class App:
 
     def run(
         self,
+        *cli_args: str,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         # Enabled specifically for debugging purposes.
         # see docs.marimo.io/guides/debugging
@@ -616,7 +618,7 @@ class App:
             InternalApp(self),
             filename=self._filename,
             glbls=glbls,
-        ).run()
+        ).run(parse_args(cli_args) if cli_args else None)
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
     async def _run_cell_async(

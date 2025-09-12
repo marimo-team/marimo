@@ -27,6 +27,7 @@ from marimo._runtime.patches import (
     create_main_module,
     patch_main_module_context,
 )
+from marimo._runtime.requests import SerializedCLIArgs
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -149,7 +150,7 @@ class AppScriptRunner:
                             hook()
         return outputs, glbls
 
-    def run(self) -> RunOutput:
+    def run(self, cli_args: SerializedCLIArgs | None = None) -> RunOutput:
         from marimo._runtime.context.script_context import (
             initialize_script_context,
         )
@@ -174,7 +175,10 @@ class AppScriptRunner:
                 # script context is ephemeral, only installed while the app is
                 # running
                 initialize_script_context(
-                    app=app, stream=NoopStream(), filename=self.filename
+                    app=app,
+                    stream=NoopStream(),
+                    filename=self.filename,
+                    cli_args=cli_args,
                 )
                 installed_script_context = True
 
