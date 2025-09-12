@@ -38,6 +38,7 @@ def _hypertext_cleanup(virtual_filenames: list[str]) -> None:
 
 
 @mddoc
+@dataclass
 class Html(MIME):
     """A wrapper around HTML text that can be used as an output.
 
