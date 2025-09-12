@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Sized
+from collections.abc import AsyncIterable, Iterable, Sized
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -23,7 +23,7 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._utils.debounce import debounce
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterator
+    from collections.abc import AsyncIterator, Collection, Iterator
 
 S = TypeVar("S")
 T = TypeVar("T")
@@ -303,7 +303,7 @@ class progress_bar(Generic[S]):
         every 150ms.
 
     Args:
-        collection (Union[Collection[S], Iterator[S]], optional): Optional collection to iterate over.
+        collection (Union[Collection[S], Iterator[S], AsyncIterable[S]], optional): Optional collection to iterate over.
         title (str, optional): Optional title.
         subtitle (str, optional): Optional subtitle.
         completion_title (str, optional): Optional title to show during completion.
@@ -334,7 +334,7 @@ class progress_bar(Generic[S]):
     @overload
     def __init__(
         self,
-        collection: Iterator[S] = ...,
+        collection: Iterator[S] | AsyncIterable[S] = ...,
         *,
         title: Optional[str] = ...,
         subtitle: Optional[str] = ...,
@@ -365,7 +365,9 @@ class progress_bar(Generic[S]):
 
     def __init__(
         self,
-        collection: Optional[Collection[S] | Iterator[S]] = None,
+        collection: Optional[
+            Collection[S] | Iterator[S] | AsyncIterable[S]
+        ] = None,
         *,
         title: Optional[str] = None,
         subtitle: Optional[str] = None,
@@ -382,17 +384,29 @@ class progress_bar(Generic[S]):
         self.remove_on_exit = remove_on_exit
         self.disabled = disabled
         self.step: int = 1
+        self.collection = collection
+        self._is_async = isinstance(collection, AsyncIterable)
 
         if collection is not None:
-            self.collection: Optional[Collection[S] | Iterator[S]] = collection
+            if total is None:
+                if isinstance(collection, Sized):
+                    total = len(collection)
 
-            if not isinstance(collection, Sized):
-                # if collection is a generator
-                raise TypeError(
-                    "fail to determine length of collection, use `total`"
-                    + "to specify"
-                ) from None
-            total = total or len(collection)
+                # For async iterables, we require total
+                elif self._is_async:
+                    raise TypeError(
+                        "Cannot determine length of async collection. "
+                        "Please provide a `total`."
+                    )
+
+                # For sync iterables that are not Sized (generators),
+                # we also require total
+                else:
+                    raise TypeError(
+                        "Cannot determine length of collection. "
+                        "Please provide a `total`."
+                    )
+
             if isinstance(collection, range):
                 self.step = cast(range, collection).step
 
@@ -400,9 +414,6 @@ class progress_bar(Generic[S]):
             raise ValueError(
                 "`total` is required when using as a context manager"
             )
-
-        else:
-            self.collection = None
 
         self.progress = ProgressBar(
             title=title,
@@ -419,11 +430,40 @@ class progress_bar(Generic[S]):
             raise RuntimeError(
                 "progress_bar can only be iterated over if a collection is provided"
             )
-        for item in self.collection:
-            yield item
-            if not self.disabled:
-                self.progress.update(increment=self.step)
-        self._finish()
+
+        if self._is_async:
+            raise RuntimeError(
+                "Cannot iterate over an async collection with `for`. "
+                "Use `async for` instead."
+            )
+
+        try:
+            for item in cast(Iterable[S], self.collection):
+                yield item
+                if not self.disabled:
+                    self.progress.update(increment=self.step)
+        finally:
+            self._finish()
+
+    async def __aiter__(self) -> AsyncIterator[S]:
+        if self.collection is None:
+            raise RuntimeError(
+                "progress_bar can only be iterated over if a collection is provided"
+            )
+
+        if not self._is_async:
+            raise RuntimeError(
+                "Cannot iterate over a sync collection with `async for`. "
+                "Use `for` instead."
+            )
+
+        try:
+            async for item in cast(AsyncIterable[S], self.collection):
+                yield item
+                if not self.disabled:
+                    self.progress.update(increment=self.step)
+        finally:
+            self._finish()
 
     def __enter__(self) -> ProgressBar:
         return self.progress
