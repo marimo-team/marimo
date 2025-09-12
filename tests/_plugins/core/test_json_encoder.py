@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -337,6 +338,9 @@ def test_enum_encoding() -> None:
     assert encoded == "1"
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="StrEnum not supported in Python 3.10"
+)
 def test_str_enum() -> None:
     from enum import StrEnum
 
@@ -410,7 +414,7 @@ def test_complex_nested_structure():
 
 
 def test_png_encoding() -> None:
-    purple_square = "b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x14\x00\x00\x00\x14\x08\x02\x00\x00\x00\x02\xeb\x8aZ\x00\x00\x00\tpHYs\x00\x00.#\x00\x00.#\x01x\xa5?v\x00\x00\x00\x1dIDAT8\xcbc\xac\x11\xa9g \x1701P\x00F5\x8fj\x1e\xd5<\xaa\x99r\xcd\x00m\xba\x017\xd3\x00\xdf\xcb\x00\x00\x00\x00IEND\xaeB`\x82'"  # noqa: E501
+    purple_square = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x14\x00\x00\x00\x14\x08\x02\x00\x00\x00\x02\xeb\x8aZ\x00\x00\x00\tpHYs\x00\x00.#\x00\x00.#\x01x\xa5?v\x00\x00\x00\x1dIDAT8\xcbc\xac\x11\xa9g \x1701P\x00F5\x8fj\x1e\xd5<\xaa\x99r\xcd\x00m\xba\x017\xd3\x00\xdf\xcb\x00\x00\x00\x00IEND\xaeB`\x82"  # noqa: E501
     encoded = encode_json_str(purple_square)
     assert isinstance(encoded, str)
 
@@ -466,3 +470,70 @@ def test_decimal_encoding() -> None:
     decimal_obj = Decimal("123.45")
     encoded = encode_json_str(decimal_obj)
     assert encoded == "123.45"
+
+
+def test_html_encoding() -> None:
+    from marimo._output.hypertext import Html
+
+    html_obj = Html("<h1>Hello World</h1>")
+    encoded = encode_json_str(html_obj)
+    assert (
+        encoded
+        == '{"_serialized_mime_bundle":{"mimetype":"text/html","data":"<h1>Hello World</h1>"}}'
+    )
+
+
+def test_binary_data_encoding() -> None:
+    # Test various binary data types
+    binary_data = bytearray(b"binary data")
+    encoded = encode_json_str(binary_data)
+    assert encoded == '"YmluYXJ5IGRhdGE="'  # base64 encoded
+
+
+def test_memoryview_additional_encoding() -> None:
+    # Additional memoryview tests beyond the existing one
+    data = bytearray(b"memory view test")
+    memview = memoryview(data)
+    encoded = encode_json_str(memview)
+    assert encoded == '"bWVtb3J5IHZpZXcgdGVzdA=="'  # base64 encoded
+
+    # Test memoryview with different data types
+    int_array = memoryview(b"\x01\x02\x03\x04")
+    encoded_int = encode_json_str(int_array)
+    assert encoded_int == '"AQIDBA=="'
+
+
+class MockMarimoSerializable:
+    """Mock class that implements _marimo_serialize_"""
+
+    def __init__(self, data):
+        self.data = data
+
+    def _marimo_serialize_(self):
+        return {"serialized_data": self.data, "type": "mock"}
+
+
+def test_marimo_serialize_encoding() -> None:
+    mock_obj = MockMarimoSerializable("test data")
+    encoded = encode_json_str(mock_obj)
+    assert encoded == '{"serialized_data":"test data","type":"mock"}'
+
+    # Test with nested data
+    nested_mock = MockMarimoSerializable({"nested": [1, 2, 3]})
+    encoded_nested = encode_json_str(nested_mock)
+    assert (
+        encoded_nested
+        == '{"serialized_data":{"nested":[1,2,3]},"type":"mock"}'
+    )
+
+
+def test_list_of_inf_encoding() -> None:
+    inf_list = [float("inf"), -float("inf"), float("nan"), 1.0, 2.0]
+    encoded = encode_json_str(inf_list)
+    # msgspec encodes infinity and NaN as null
+    assert encoded == "[null,null,null,1.0,2.0]"
+
+    # Test nested list with inf
+    nested_inf_list = [[float("inf")], [1, float("-inf")], [float("nan"), 3]]
+    encoded_nested = encode_json_str(nested_inf_list)
+    assert encoded_nested == "[[null],[1,null],[null,3]]"
