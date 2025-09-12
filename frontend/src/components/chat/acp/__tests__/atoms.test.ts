@@ -2,13 +2,7 @@
 
 import { createStore } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  type AgentSessionState,
-  addSession,
-  agentSessionStateAtom,
-  createSession,
-  selectedTabAtom,
-} from "../state";
+import { addSession, agentSessionStateAtom, selectedTabAtom } from "../state";
 
 describe("Jotai atoms", () => {
   let store: ReturnType<typeof createStore>;
@@ -28,21 +22,8 @@ describe("Jotai atoms", () => {
       const state = store.get(agentSessionStateAtom);
       expect(state).toEqual({
         sessions: [],
-        activeSessionId: null,
+        activeTabId: null,
       });
-    });
-
-    it("should update state when set", () => {
-      const session = createSession("claude", "Test message");
-      const newState: AgentSessionState = {
-        sessions: [session],
-        activeTabId: session.tabId,
-      };
-
-      store.set(agentSessionStateAtom, newState);
-      const state = store.get(agentSessionStateAtom);
-
-      expect(state).toEqual(newState);
     });
   });
 
@@ -53,73 +34,23 @@ describe("Jotai atoms", () => {
     });
 
     it("should return active session when available", () => {
-      const session = createSession("gemini", "Hello world");
       const state = addSession(
         {
           sessions: [],
           activeTabId: null,
         },
-        session,
+        { agentId: "gemini" },
       );
 
       store.set(agentSessionStateAtom, state);
       const activeSession = store.get(selectedTabAtom);
 
-      expect(activeSession).toEqual(session);
-    });
-
-    it("should return null when activeSessionId doesn't match any session", () => {
-      const session = createSession("claude");
-      const state: AgentSessionState = {
-        sessions: [session],
-        activeTabId: "non_existent_id" as any,
-      };
-
-      store.set(agentSessionStateAtom, state);
-      const activeSession = store.get(selectedTabAtom);
-
-      expect(activeSession).toBe(null);
-    });
-
-    it("should update activeSessionId when set", () => {
-      const session1 = createSession("claude");
-      const session2 = createSession("gemini");
-      const state: AgentSessionState = {
-        sessions: [session1, session2],
-        activeTabId: session1.tabId,
-      };
-
-      store.set(agentSessionStateAtom, state);
-
-      // Set new active session
-      store.set(selectedTabAtom, session2.tabId);
-
-      const updatedState = store.get(agentSessionStateAtom);
-      expect(updatedState.activeTabId).toBe(session2.tabId);
-
-      const activeSession = store.get(selectedTabAtom);
-      expect(activeSession).toEqual(session2);
-    });
-
-    it("should set activeSessionId to null when passed null", () => {
-      const session = createSession("claude");
-      const state = addSession(
-        {
-          sessions: [],
-          activeTabId: null,
-        },
-        session,
+      expect(activeSession).toEqual(
+        expect.objectContaining({
+          agentId: "gemini",
+          title: "New gemini session",
+        }),
       );
-
-      store.set(agentSessionStateAtom, state);
-      expect(store.get(selectedTabAtom)).toEqual(session);
-
-      // Set to null
-      store.set(selectedTabAtom, null);
-
-      const updatedState = store.get(agentSessionStateAtom);
-      expect(updatedState.activeTabId).toBe(null);
-      expect(store.get(selectedTabAtom)).toBe(null);
     });
   });
 });

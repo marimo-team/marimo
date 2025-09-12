@@ -94,7 +94,7 @@ export const PANELS: PanelDescriptor[] = [
     Icon: BotIcon,
     tooltip: "Agents",
     position: "sidebar",
-    hidden: getFeatureFlag("external_agents"),
+    hidden: !getFeatureFlag("external_agents"),
   },
   {
     type: "documentation",

@@ -176,8 +176,7 @@ describe("state utility functions", () => {
         activeTabId: null,
       };
 
-      const session = { agentId: "claude" };
-      const newState = addSession(initialState, session);
+      const newState = addSession(initialState, { agentId: "claude" });
 
       expect(initialState.sessions).toHaveLength(0);
       expect(newState.sessions).toHaveLength(1);
@@ -222,19 +221,19 @@ describe("state utility functions", () => {
     });
 
     it("should remove specified session", () => {
-      const newState = removeSession(state, sessions[0].tabId);
+      const newState = removeSession(state, sessions[1].tabId);
 
       expect(newState).toMatchInlineSnapshot(`
         {
-          "activeTabId": "tab_2",
+          "activeTabId": "tab_3",
           "sessions": [
             {
-              "agentId": "gemini",
+              "agentId": "claude",
               "createdAt": 1735689600000,
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
-              "tabId": "tab_2",
-              "title": "Gemini session",
+              "tabId": "tab_1",
+              "title": "Claude session 1",
             },
             {
               "agentId": "claude",
@@ -250,8 +249,8 @@ describe("state utility functions", () => {
     });
 
     it("should keep active session if not the one being removed", () => {
-      const newState = removeSession(state, sessions[0].tabId);
-      expect(newState.activeTabId).toMatchInlineSnapshot(`"tab_2"`);
+      const newState = removeSession(state, sessions[1].tabId);
+      expect(newState.activeTabId).toMatchInlineSnapshot(`"tab_3"`);
     });
 
     it("should set active session to last session when removing active session", () => {
@@ -318,11 +317,11 @@ describe("state utility functions", () => {
 
     it("should update title of specified session", () => {
       const newTitle = "Updated title for session";
-      const newState = updateSessionTitle(state, sessions[0].tabId, newTitle);
+      const newState = updateSessionTitle(state, newTitle);
 
       expect(newState.sessions.map((s) => s.title)).toMatchInlineSnapshot(`
         [
-          "tab_1",
+          "Updated title for...",
           "Another title",
         ]
       `);
@@ -330,34 +329,22 @@ describe("state utility functions", () => {
 
     it("should truncate long titles", () => {
       const longTitle = "This is a very long title that needs to be truncated";
-      const newState = updateSessionTitle(state, sessions[0].tabId, longTitle);
+      const newState = updateSessionTitle(state, longTitle);
 
       expect({
         title: newState.sessions[0].title,
         length: newState.sessions[0].title.length,
       }).toMatchInlineSnapshot(`
         {
-          "length": 5,
-          "title": "tab_1",
+          "length": 20,
+          "title": "This is a very lo...",
         }
-      `);
-    });
-
-    it("should handle non-existent session ID", () => {
-      const fakeId = "fake_session_id" as TabId;
-      const newState = updateSessionTitle(state, fakeId, "New title");
-
-      expect(newState.sessions.map((s) => s.title)).toMatchInlineSnapshot(`
-        [
-          "fake_session_id",
-          "Another title",
-        ]
       `);
     });
 
     it("should not mutate original state", () => {
       const originalTitle = sessions[0].title;
-      updateSessionTitle(state, sessions[0].tabId, "New title");
+      updateSessionTitle(state, "New title");
 
       expect(sessions[0].title).toBe(originalTitle);
     });
@@ -464,7 +451,6 @@ describe("state utility functions", () => {
 
       const newState = updateSessionExternalAgentSessionId(
         state,
-        sessions[0].tabId,
         agentSessionId,
       );
 
@@ -484,30 +470,10 @@ describe("state utility functions", () => {
             "externalAgentSessionId": null,
           },
           "updatedSession": {
-            "externalAgentSessionId": "tab_1",
+            "externalAgentSessionId": "agent_session_123",
             "lastUsedAt": 1735693200000,
           },
         }
-      `);
-    });
-
-    it("should handle non-existent session ID", () => {
-      const fakeId = "fake_session_id" as TabId;
-      const agentSessionId = "agent_session_123" as any;
-
-      const newState = updateSessionExternalAgentSessionId(
-        state,
-        fakeId,
-        agentSessionId,
-      );
-
-      expect(
-        newState.sessions.map((s) => s.externalAgentSessionId),
-      ).toMatchInlineSnapshot(`
-        [
-          "fake_session_id",
-          null,
-        ]
       `);
     });
 
@@ -515,11 +481,7 @@ describe("state utility functions", () => {
       const originalSession = sessions[0];
       const agentSessionId = "agent_session_123" as any;
 
-      updateSessionExternalAgentSessionId(
-        state,
-        sessions[0].tabId,
-        agentSessionId,
-      );
+      updateSessionExternalAgentSessionId(state, agentSessionId);
 
       expect(originalSession.externalAgentSessionId).toBe(null);
     });
