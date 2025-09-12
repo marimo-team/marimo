@@ -33,6 +33,7 @@ LOGGER = _loggers.marimo_logger()
 class LoadResult:
     status: Literal["empty", "has_errors", "invalid", "valid"] = "empty"
     notebook: Optional[NotebookSerialization] = None
+    contents: Optional[str] = None
 
 
 def _maybe_contents(filename: Optional[Union[str, Path]]) -> Optional[str]:
@@ -151,7 +152,7 @@ def get_notebook_status(filename: str) -> LoadResult:
 
     contents = _maybe_contents(filename)
     if not contents:
-        return LoadResult(status="empty")
+        return LoadResult(status="empty", contents=contents)
 
     notebook: Optional[NotebookSerialization] = None
     if path.suffix in (".md", ".qmd"):
@@ -167,16 +168,16 @@ def get_notebook_status(filename: str) -> LoadResult:
 
     # NB. A invalid notebook can still be opened.
     if notebook is None:
-        return LoadResult(status="empty")
+        return LoadResult(status="empty", contents=contents)
     if not notebook.valid:
-        return LoadResult(status="invalid", notebook=notebook)
+        return LoadResult(status="invalid", notebook=notebook, contents=contents)
     if len(notebook.violations) > 0:
         LOGGER.debug(
             "Notebook has violations: \n%s",
             "\n".join(map(repr, notebook.violations)),
         )
-        return LoadResult(status="has_errors", notebook=notebook)
-    return LoadResult(status="valid", notebook=notebook)
+        return LoadResult(status="has_errors", notebook=notebook, contents=contents)
+    return LoadResult(status="valid", notebook=notebook, contents=contents)
 
 
 def load_app(filename: Optional[str]) -> Optional[App]:

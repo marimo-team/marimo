@@ -1255,11 +1255,10 @@ def check(
         # If no files are provided, we lint the current directory
         files = ("**/*.py", "**/*.md", "**/*.qmd")
 
-    diagnostics = run_check(files)
-    fixed = 0
+    linter = run_check(files)
     issues = 0
 
-    for file_status in diagnostics.files:
+    for file_status in linter.files:
         if file_status.skipped:
             if verbose:
                 click.echo(yellow(file_status.message))
@@ -1282,27 +1281,17 @@ def check(
                 click.echo(diagnostic.format())
                 click.echo("")
 
-        if fix:
-            original_contents = Path(file_status.file).read_text(
-                encoding="utf-8"
-            )
-            updated_contents = file_status.fix()
-            if (
-                updated_contents is not None
-                and original_contents != updated_contents
-            ):
-                with open(file_status.file, "w", encoding="utf-8") as f:
-                    f.write(updated_contents)
-                if verbose:
-                    click.echo(f"Updated: {file_status.file}")
-                fixed += 1
+    # Fix files if requested - this runs concurrently
+    fixed = 0
+    if fix:
+        fixed = linter.fix_all(verbose=verbose)
 
     if fixed > 0:
-        click.echo(f"Updated {fixed} file{'s' if fixed > 0 else ''}.")
+        click.echo(f"Updated {fixed} file{'s' if fixed > 1 else ''}.")
     if issues > 0:
         click.echo(f"Found {issues} issue{'s' if issues > 1 else ''}.")
 
-    if diagnostics.errored or (strict and fixed > 0 or issues > 0):
+    if linter.errored or (strict and (fixed > 0 or issues > 0)):
         sys.exit(1)
 
 
