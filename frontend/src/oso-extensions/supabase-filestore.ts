@@ -5,8 +5,8 @@ import type { FragmentStore } from "./fragment-store";
 export class SupabaseFileStore implements FileStore {
   private client: SupabaseClient | null = null;
   private fragmentStore: FragmentStore;
-  private notebookId: string | null = null;
-  private organizationId: string | null = null;
+  private notebookName: string | null = null;
+  private organizationName: string | null = null;
   private userId: string | null = null;
 
   constructor(fragmentStore: FragmentStore) {
@@ -22,14 +22,14 @@ export class SupabaseFileStore implements FileStore {
 
     const supabaseUrl = envVars["SUPABASE_URL"];
     const jwtToken = envVars["SUPABASE_JWT_TOKEN"];
-    this.notebookId = envVars["OSO_NOTEBOOK_ID"];
-    this.organizationId = envVars["OSO_ORGANIZATION_ID"];
+    this.notebookName = envVars["OSO_NOTEBOOK_NAME"];
+    this.organizationName = envVars["OSO_ORGANIZATION_NAME"];
 
     const requiredVars = [
       supabaseUrl,
       jwtToken,
-      this.notebookId,
-      this.organizationId,
+      this.notebookName,
+      this.organizationName,
     ];
     if (!requiredVars.every(Boolean)) {
       return;
@@ -50,7 +50,7 @@ export class SupabaseFileStore implements FileStore {
   }
 
   private get isConfigured(): boolean {
-    return Boolean(this.client && this.notebookId && this.organizationId);
+    return Boolean(this.client && this.notebookName && this.organizationName);
   }
 
   async saveFile(contents: string): Promise<void> {
@@ -69,11 +69,16 @@ export class SupabaseFileStore implements FileStore {
   }
 
   private async findExistingRecord(): Promise<string | null> {
+    const orgId = await this.getOrganizationId();
+    if (!orgId) {
+      return null;
+    }
+
     const { data, error } = await this.client!
       .from("notebooks")
       .select("id")
-      .eq("org_id", this.organizationId!)
-      .eq("display_name", this.notebookId!)
+      .eq("org_id", orgId)
+      .eq("notebook_name", this.notebookName!)
       .is("deleted_at", null)
       .single();
 
@@ -81,6 +86,21 @@ export class SupabaseFileStore implements FileStore {
       return null;
     }
     
+    return data?.id || null;
+  }
+
+  private async getOrganizationId(): Promise<string | null> {
+    const { data, error } = await this.client!
+      .from("organizations")
+      .select("id")
+      .eq("org_name", this.organizationName!)
+      .is("deleted_at", null)
+      .single();
+
+    if (error) {
+      return null;
+    }
+
     return data?.id || null;
   }
 
@@ -95,11 +115,16 @@ export class SupabaseFileStore implements FileStore {
   }
 
   private async createRecord(contents: string) {
+    const orgId = await this.getOrganizationId();
+    if (!orgId) {
+      throw new Error(`Organization not found: ${this.organizationName}`);
+    }
+
     return this.client!
       .from("notebooks")
       .insert({
-        org_id: this.organizationId!,
-        display_name: this.notebookId!,
+        org_id: orgId,
+        notebook_name: this.notebookName!,
         data: contents,
         created_by: this.userId!,
       });
@@ -110,11 +135,16 @@ export class SupabaseFileStore implements FileStore {
       return null;
     }
 
+    const orgId = await this.getOrganizationId();
+    if (!orgId) {
+      return null;
+    }
+
     const { data, error } = await this.client!
       .from("notebooks")
       .select("data")
-      .eq("org_id", this.organizationId!)
-      .eq("display_name", this.notebookId!)
+      .eq("org_id", orgId)
+      .eq("notebook_name", this.notebookName!)
       .is("deleted_at", null)
       .single();
 
