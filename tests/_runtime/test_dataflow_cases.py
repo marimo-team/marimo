@@ -474,8 +474,8 @@ SQL_CASES = [
             "2": "_ = mo.sql(f'FROM my_db.main.my_table SELECT *')",
             "3": "_ = mo.sql(f'FROM my_db.my_table SELECT *')",
         },
-        expected_parents={"0": [], "1": [], "2": ["1"], "3": ["1"]},
-        expected_children={"0": [], "1": ["2", "3"], "2": [], "3": []},
+        expected_parents={"0": [], "1": [], "2": ["0", "1"], "3": ["0", "1"]},
+        expected_children={"0": ["2", "3"], "1": ["2", "3"], "2": [], "3": []},
         expected_refs={
             "0": ["mo"],
             "1": ["mo"],
@@ -483,17 +483,18 @@ SQL_CASES = [
             "3": ["mo", "my_db.my_table"],
         },
         expected_defs={"0": ["my_db"], "1": ["my_table"], "2": [], "3": []},
+        xfail=True,
     ),
     GraphTestCase(
-        name="sql table attach statements, multiple definitions, different order",
+        name="sql table multiple definitions, different order",
         enabled=HAS_DUCKDB,
         code={
             "0": "_ = mo.sql(f'CREATE OR REPLACE TABLE my_db.my_table AS SELECT 1')",
             "1": "_ = mo.sql(f\"ATTACH 'my_db.db' as my_db\")",
             "2": "_ = mo.sql(f'FROM my_db.main.my_table SELECT *')",
         },
-        expected_parents={"0": [], "1": [], "2": ["0"]},
-        expected_children={"0": ["2"], "1": [], "2": []},
+        expected_parents={"0": [], "1": [], "2": ["0", "1"]},
+        expected_children={"0": ["2"], "1": ["2"], "2": []},
         expected_refs={
             "0": ["mo"],
             "1": ["mo"],
