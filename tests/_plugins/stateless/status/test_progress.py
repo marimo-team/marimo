@@ -145,9 +145,9 @@ async def sleep(seconds):
 async def test_progress_async():
     assert runtime_context_installed() is False
 
-    ait = sleep([0.3, 0.2, 0.1])
+    ait = sleep([0.01, 0.003, 0.001])
     result = [s async for s in progress_bar(ait, total=3)]
-    assert result == [0.1, 0.2, 0.3]
+    assert result == [0.001, 0.003, 0.01]
 
 
 def test_progress_no_total_error():
