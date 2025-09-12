@@ -483,7 +483,6 @@ SQL_CASES = [
             "3": ["mo", "my_db.my_table"],
         },
         expected_defs={"0": ["my_db"], "1": ["my_table"], "2": [], "3": []},
-        xfail=True,
     ),
     GraphTestCase(
         name="sql table multiple definitions, different order",
@@ -501,7 +500,6 @@ SQL_CASES = [
             "2": ["mo", "my_db.main.my_table"],
         },
         expected_defs={"0": ["my_table"], "1": ["my_db"], "2": []},
-        xfail=True,
     ),
     GraphTestCase(
         name="sql table ordering doesn't cause false positives",
