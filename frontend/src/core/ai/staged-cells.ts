@@ -50,7 +50,7 @@ const {
 export function useStagedCells() {
   const { addStagedCell, removeStagedCell, clearStagedCells } =
     useStagedAICellsActions();
-  const { createNewCell } = useCellActions();
+  const { createNewCell, updateCellCode } = useCellActions();
   const deleteCellCallback = useDeleteCellCallback();
   const stagedAICells = useAtomValue(stagedAICellsAtom);
 
@@ -64,6 +64,14 @@ export function useStagedCells() {
       newCellId: newCellId,
     });
     return newCellId;
+  };
+
+  const updateStagedCell = (cellId: CellId, code: string) => {
+    updateCellCode({
+      cellId: cellId,
+      code: code,
+      formattingChange: false,
+    });
   };
 
   // Delete a staged cell and the corresponding cell in the notebook.
@@ -82,6 +90,7 @@ export function useStagedCells() {
 
   return {
     createStagedCell,
+    updateStagedCell,
     addStagedCell,
     removeStagedCell,
     clearStagedCells,

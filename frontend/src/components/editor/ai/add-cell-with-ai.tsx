@@ -27,7 +27,7 @@ import {
   SparklesIcon,
   XIcon,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
+import type { CellId } from "@/core/cells/ids";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { useRequestClient } from "@/core/network/requests";
 import type { AiCompletionRequest } from "@/core/network/types";
@@ -60,8 +61,8 @@ import {
 } from "./completion-handlers";
 import {
   CONTEXT_TRIGGER,
+  codeToCells,
   mentionsCompletionSource,
-  UIMessageToCodeCells,
 } from "./completion-utils";
 
 // Persist across sessions
@@ -81,8 +82,12 @@ export const AddCellWithAI: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
   const [input, setInput] = useState("");
-  const { createStagedCell, deleteAllStagedCells, clearStagedCells } =
-    useStagedCells();
+  const {
+    deleteAllStagedCells,
+    clearStagedCells,
+    createStagedCell,
+    updateStagedCell,
+  } = useStagedCells();
   const [language, setLanguage] = useAtom(languageAtom);
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();
@@ -90,7 +95,7 @@ export const AddCellWithAI: React.FC<{
   const stagedAICells = useAtomValue(stagedAICellsAtom);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
 
-  const { sendMessage, stop, status, addToolResult } = useChat({
+  const { messages, sendMessage, stop, status, addToolResult } = useChat({
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
     transport: new DefaultChatTransport({
@@ -130,14 +135,30 @@ export const AddCellWithAI: React.FC<{
         description: prettyError(error),
       });
     },
-    onFinish: ({ message }) => {
-      // Take the last message (response from assistant) and get the text parts
-      const completionCells = UIMessageToCodeCells(message);
-      for (const cell of completionCells) {
-        createStagedCell(cell.code);
-      }
-    },
   });
+
+  const aiResponses = messages.filter((m) => m.role === "assistant");
+  const textResponse = aiResponses
+    .flatMap((m) =>
+      m.parts?.filter((p) => p.type === "text").map((p) => p.text),
+    )
+    .join("\n");
+  const codeCells = codeToCells(textResponse);
+
+  const [createdCells, setCreatedCells] = useState<CellId[]>([]);
+  useEffect(() => {
+    const newCells = codeCells.slice(createdCells.length);
+    for (const cell of newCells) {
+      const cellId = createStagedCell(cell.code);
+      setCreatedCells((prev) => [...prev, cellId]);
+    }
+
+    const updatedCells = codeCells.slice(0, createdCells.length);
+    for (const [idx, cell] of updatedCells.entries()) {
+      const cellIdToUpdate = createdCells[idx];
+      updateStagedCell(cellIdToUpdate, cell.code);
+    }
+  }, [codeCells, createStagedCell, createdCells, updateStagedCell]);
 
   const isLoading = status === "streaming" || status === "submitted";
   const hasCompletion = stagedAICells.cellIds.size > 0;
@@ -148,6 +169,8 @@ export const AddCellWithAI: React.FC<{
       if (inputRef.current?.view) {
         storePrompt(inputRef.current.view);
       }
+      // TODO: When we have conversations, don't delete existing cells
+      deleteAllStagedCells();
       sendMessage({ text: input });
     }
   };
