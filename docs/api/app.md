@@ -4,6 +4,7 @@
     options:
       members:
         - embed
+        - run
 
 ## AppMeta
 

@@ -26,6 +26,7 @@ from marimo._runtime.patches import (
     create_main_module,
     patch_main_module_context,
 )
+from marimo._runtime.requests import SerializedCLIArgs
 from marimo._runtime.state import State, StateRegistry
 
 if TYPE_CHECKING:
@@ -140,7 +141,10 @@ class ScriptRuntimeContext(RuntimeContext):
 
 
 def initialize_script_context(
-    app: InternalApp, stream: Stream, filename: str | None
+    app: InternalApp,
+    stream: Stream,
+    filename: str | None,
+    cli_args: SerializedCLIArgs | None = None,
 ) -> None:
     """Initializes thread-local/session-specific context.
 
@@ -167,4 +171,6 @@ def initialize_script_context(
         filename=filename,
         app_config=app.config,
     )
+    if cli_args is not None:
+        runtime_context._cli_args = CLIArgs(cli_args)
     initialize_context(runtime_context=runtime_context)

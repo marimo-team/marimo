@@ -50,6 +50,7 @@ from marimo._ast.errors import (
     SetupRootError,
     UnparsableError,
 )
+from marimo._cli.parse_args import parse_args
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -594,7 +595,38 @@ class App:
 
     def run(
         self,
+        *cli_args: str,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
+        """
+        Run the marimo app and return its outputs and definitions.
+
+        Enables programmatic execution of marimo apps with custom parameters.
+
+        Args:
+            *cli_args: Command-line arguments to pass to the app. These can be
+                accessed within the app using `mo.cli_args()`. If no arguments
+                are provided, the app will inherit CLI arguments from the parent
+                process (sys.argv).
+
+        Returns:
+            A tuple containing:
+            - Sequence of cell outputs (visual outputs from each cell)
+            - Mapping of variable names to their values (definitions)
+
+        Example:
+            ```python
+            from my_notebook import app
+
+            # Run with custom CLI arguments
+            outputs, defs = app.run(
+                "--batch_size", "64", "--model", "transformer"
+            )
+            ```
+
+        Environment Variables:
+            MARIMO_SCRIPT_EDIT: If set, opens the notebook in edit mode instead
+                of running it. Requires the app to have a filename.
+        """
         # Enabled specifically for debugging purposes.
         # see docs.marimo.io/guides/debugging
         if os.environ.get("MARIMO_SCRIPT_EDIT"):
@@ -616,7 +648,7 @@ class App:
             InternalApp(self),
             filename=self._filename,
             glbls=glbls,
-        ).run()
+        ).run(parse_args(cli_args) if cli_args else None)
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
     async def _run_cell_async(

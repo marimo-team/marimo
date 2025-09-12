@@ -732,6 +732,59 @@ class TestApp:
         assert location is not None
         assert dirpath == location
 
+    def test_run_with_cli_args(self) -> None:
+        """Test that cli_args can be passed to app.run() and accessed via mo.cli_args()"""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[Any]:
+            import marimo as mo
+            args = mo.cli_args()
+            return (args,)
+
+        # Test with various argument types
+        outputs, defs = app.run("--count", "42", "--name", "test", "--enabled", "true")
+
+        args = defs["args"]
+        assert args.get("count") == 42
+        assert args.get("name") == "test"
+        assert args.get("enabled") is True
+
+    def test_run_with_cli_args_empty(self) -> None:
+        """Test that empty cli_args work correctly"""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[Any]:
+            import marimo as mo
+            args = mo.cli_args()
+            return (args,)
+
+        # Test with no CLI args
+        outputs, defs = app.run()
+        args = defs["args"]
+        # Something is returned since invoked through pytest
+        assert args.to_dict() != {}
+
+    def test_run_with_cli_args_numeric_types(self) -> None:
+        """Test that numeric values are parsed correctly"""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[Any]:
+            import marimo as mo
+            args = mo.cli_args()
+            return (args,)
+
+        outputs, defs = app.run(
+            "--integer", "123",
+            "--float", "45.67",
+        )
+
+        args = defs["args"]
+        assert args.get("integer") == 123
+        assert args.get("float") == 45.67
+
     def test_app_clone(self) -> None:
         app = App()
 

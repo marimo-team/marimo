@@ -88,7 +88,19 @@ programmatically.
    This API also allows for parametrizing the inputs to the cell; to learn more,
    make sure to checkout [the example][marimo.Cell.run] in our API reference.
 
-2. **Using subprocess**:
+2. **Programmatic execution with CLI arguments**:
+
+   You can run a marimo app directly with CLI arguments:
+
+   ```python
+   import marimo
+   from my_notebook import app
+
+   # Run the app with CLI arguments
+   outputs, defs = app.run("--param1", "value1", "--param2", "value2")
+   ```
+
+3. **Using subprocess**:
 
    ```python
    import subprocess
