@@ -299,14 +299,15 @@ class DirectedGraph:
                             other_id,
                         )
                         continue
-                    if variable_name not in self.cells[other_id].variable_data:
+                    other_cell = self.cells[other_id]
+                    if variable_name not in other_cell.variable_data:
                         LOGGER.info(
                             "Variable %s is not defined in cell %s",
                             variable_name,
                             other_id,
                         )
                         continue
-                    other_variable_data = self.cells[other_id].variable_data[
+                    other_variable_data = other_cell.variable_data[
                         variable_name
                     ][-1]
                     language = other_variable_data.language
