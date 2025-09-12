@@ -151,7 +151,7 @@ ConnectionStatus.displayName = "ConnectionStatus";
 
 interface PermissionRequestProps {
   permission: NonNullable<AgentPendingPermission>;
-  onResolve: (option: any) => void;
+  onResolve: (option: unknown) => void;
 }
 
 export const PermissionRequest: React.FC<PermissionRequestProps> = memo(

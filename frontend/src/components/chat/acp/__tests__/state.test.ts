@@ -17,6 +17,7 @@ import {
   updateSessionLastUsed,
   updateSessionTitle,
 } from "../state";
+import type { ExternalAgentSessionId } from "../types";
 
 describe("state utility functions", () => {
   beforeEach(() => {
@@ -444,7 +445,7 @@ describe("state utility functions", () => {
 
     it("should update externalAgentSessionId and lastUsedAt", () => {
       const originalTimestamp = sessions[0].lastUsedAt;
-      const agentSessionId = "agent_session_123" as any;
+      const agentSessionId = "agent_session_123" as ExternalAgentSessionId;
 
       // Advance time by 1 hour
       vi.advanceTimersByTime(3600000);
@@ -479,7 +480,7 @@ describe("state utility functions", () => {
 
     it("should not mutate original state", () => {
       const originalSession = sessions[0];
-      const agentSessionId = "agent_session_123" as any;
+      const agentSessionId = "agent_session_123" as ExternalAgentSessionId;
 
       updateSessionExternalAgentSessionId(state, agentSessionId);
 

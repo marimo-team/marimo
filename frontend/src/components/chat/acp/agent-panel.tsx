@@ -44,7 +44,12 @@ import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { Paths } from "@/utils/paths";
 import { getAgentPrompt } from "./prompt";
-import type { AgentConnectionState, ExternalAgentSessionId } from "./types";
+import type {
+  AgentConnectionState,
+  AgentPendingPermission,
+  ExternalAgentSessionId,
+  NotificationEvent,
+} from "./types";
 
 const logger = Logger.get("agents");
 
@@ -259,9 +264,9 @@ const PromptArea = memo<PromptAreaProps>(
     >
       <PromptInput
         value={promptValue}
-        onChange={isLoading ? () => {} : onPromptValueChange}
+        onChange={isLoading ? undefined : onPromptValueChange}
         onSubmit={onPromptSubmit}
-        onClose={() => {}}
+        onClose={undefined}
         placeholder={isLoading ? "Processing..." : "Ask your AI agent..."}
         className={isLoading ? "opacity-50 pointer-events-none" : ""}
         maxHeight="120px"
@@ -275,9 +280,9 @@ interface ChatContentProps {
   hasNotifications: boolean;
   connectionState: AgentConnectionState;
   sessionId: ExternalAgentSessionId | null;
-  notifications: any[];
-  pendingPermission: any;
-  onResolvePermission: (option: any) => void;
+  notifications: NotificationEvent[];
+  pendingPermission: AgentPendingPermission;
+  onResolvePermission: (option: unknown) => void;
   onRetryConnection?: () => void;
   onRetryLastAction?: () => void;
   onDismissError?: (errorId: string) => void;
@@ -454,7 +459,7 @@ const AgentPanel: React.FC = () => {
       // We don't want to disconnect so users can switch between different
       // panels without losing their session
     };
-  }, [wsUrl]);
+  }, [wsUrl, activeSessionId, connect]);
 
   const handleNewSession = useEvent(async () => {
     if (isCreatingNewSession.current) {
@@ -550,7 +555,15 @@ const AgentPanel: React.FC = () => {
     };
 
     createOrResumeSession();
-  }, [isConnected, agent, tabLastActiveSessionId, activeSessionId]);
+  }, [
+    isConnected,
+    agent,
+    tabLastActiveSessionId,
+    activeSessionId,
+    handleNewSession,
+    handleResumeSession,
+    selectedTab,
+  ]);
 
   // Handler for prompt submission
   const handlePromptSubmit = useEvent(

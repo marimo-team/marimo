@@ -5,6 +5,7 @@ import { memo } from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
+import { copyToClipboard } from "@/utils/copy";
 import {
   type ExternalAgentId,
   getAgentConnectionCommand,
@@ -23,14 +24,6 @@ const AgentDocItem = memo<AgentDocItemProps>(
     const command = getAgentConnectionCommand(agentId);
     const displayName = getAgentDisplayName(agentId);
 
-    const handleCopy = async () => {
-      try {
-        await navigator.clipboard.writeText(command);
-      } catch (err) {
-        console.error("Failed to copy command:", err);
-      }
-    };
-
     return (
       <div className={cn("space-y-2", className)}>
         <div className="flex items-center gap-2">
@@ -48,7 +41,7 @@ const AgentDocItem = memo<AgentDocItemProps>(
                 variant="ghost"
                 size="xs"
                 className="h-5 w-5 p-0 flex-shrink-0"
-                onClick={handleCopy}
+                onClick={() => copyToClipboard(command)}
                 title="Copy command"
               >
                 <CopyIcon className="h-3 w-3" />
