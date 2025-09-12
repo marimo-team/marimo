@@ -93,7 +93,9 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
     other_cell_codes: Optional[str],
     context: Optional[AiCompletionContext],
 ) -> str:
-    if support_multiple_cells:
+    if cell_code:
+        system_prompt = f"Here's a {language} document from a Python notebook that I'm going to ask you to make an edit to.\n\n"
+    elif support_multiple_cells:
         system_prompt = (
             "You are an AI assistant integrated into the marimo notebook code editor.\n"
             "Your goal is to create new cells in the notebook.\n"
@@ -108,33 +110,6 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             "You can have multiple cells of any type. Each cell is wrapped in backticks with the appropriate language identifier.\n"
             "Separate logic into multiple cells to keep the code organized and readable."
         )
-
-        if context:
-            system_prompt += _format_plain_text(context.plain_text)
-            system_prompt += _format_variables(context.variables)
-            system_prompt += _format_schema_info(context.schema)
-
-        if other_cell_codes:
-            system_prompt += "\n\n" + _tag(
-                "code_from_other_cells", other_cell_codes
-            )
-
-        # Add language-specific rules for multi-cell scenarios
-        for lang in language_rules:
-            if len(language_rules[lang]) > 0:
-                system_prompt += (
-                    f"\n\n## Rules for {lang}:\n{_rules(language_rules[lang])}"
-                )
-
-        if custom_rules and custom_rules.strip():
-            system_prompt += f"\n\n## Additional rules:\n{custom_rules}"
-
-        system_prompt += "\n\nAgain, just output code wrapped in cells. Each cell is wrapped in backticks with the appropriate language identifier (python, sql, markdown)."
-
-        return system_prompt
-
-    if cell_code:
-        system_prompt = f"Here's a {language} document from a Python notebook that I'm going to ask you to make an edit to.\n\n"
     else:
         system_prompt = (
             "You are an AI assistant integrated into the marimo notebook code editor.\n"
@@ -188,7 +163,14 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
         system_prompt += "\n\nAnd here's the section to rewrite based on that prompt again for reference:\n\n"
         system_prompt += _tag("rewrite_this", selected_text)
 
-    if language in language_rules and language_rules[language]:
+    if support_multiple_cells:
+        # Add all language rules for multi-cell scenarios
+        for lang in language_rules:
+            if len(language_rules[lang]) > 0:
+                system_prompt += (
+                    f"\n\n## Rules for {lang}:\n{_rules(language_rules[lang])}"
+                )
+    elif language in language_rules and language_rules[language]:
         system_prompt += (
             f"\n\n## Rules for {language}\n{_rules(language_rules[language])}"
         )
@@ -206,7 +188,10 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             "code_from_other_cells", other_cell_codes
         )
 
-    system_prompt += "\n\nAgain, just output the code itself."
+    if support_multiple_cells:
+        system_prompt += "\n\nAgain, just output code wrapped in cells. Each cell is wrapped in backticks with the appropriate language identifier (python, sql, markdown)."
+    else:
+        system_prompt += "\n\nAgain, just output the code itself."
 
     return system_prompt
 
