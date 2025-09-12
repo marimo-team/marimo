@@ -6,10 +6,10 @@ from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from marimo._messaging.mimetypes import KnownMimeType
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._output.mime import MIME
 

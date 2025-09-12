@@ -19,6 +19,8 @@ from typing import (
     get_type_hints,
 )
 
+from marimo._messaging.msgspec_encoder import schema_hook
+from marimo._output.mime import MIME
 from marimo._utils.case import to_camel_case
 
 if sys.version_info < (3, 11):
@@ -51,8 +53,10 @@ class PythonTypeToOpenAPI:
         Returns:
             Dict[str, Any]: The OpenAPI schema.
         """
-        if type(py_type) is type(msgspec.Struct):
-            return msgspec.json.schema(py_type)["$defs"][py_type.__name__]  # type: ignore[no-any-return]
+        if type(py_type) is type(msgspec.Struct) or py_type is MIME:
+            return msgspec.json.schema(py_type, schema_hook=schema_hook)[
+                "$defs"
+            ][py_type.__name__]  # type: ignore[no-any-return]
 
         origin = get_origin(py_type)
         optional_name_overrides = self.optional_name_overrides

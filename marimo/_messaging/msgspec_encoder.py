@@ -9,6 +9,25 @@ import msgspec
 import msgspec.json
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.mime import MIME
+
+
+def schema_hook(type_: type) -> dict[str, Any]:
+    if type_ == MIME:
+        return {
+            "$ref": "#/$defs/MIME",
+            "$defs": {
+                "MIME": {
+                    "title": "MIME",
+                    "description": MIME.__doc__,
+                    "type": "object",
+                    "properties": {"mimetype": {"type": "string"}},
+                    "required": ["mimetype"],
+                }
+            },
+        }
+
+    raise NotImplementedError(f"Objects of type {type_} are not supported")
 
 
 def enc_hook(obj: Any) -> Any:

@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import weakref
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import field
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast, final
 
 from marimo._messaging.mimetypes import KnownMimeType
