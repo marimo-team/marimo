@@ -1,3 +1,5 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+
 export function getAgentPrompt(filename: string) {
   return `
   I am currently editing a marimo notebook.

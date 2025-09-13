@@ -1,4 +1,4 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtom, useSetAtom } from "jotai";
 import { ChevronDownIcon } from "lucide-react";
@@ -97,7 +97,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = memo(
 
     return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger asChild={true}>
           <Button
             variant="ghost"
             size="sm"

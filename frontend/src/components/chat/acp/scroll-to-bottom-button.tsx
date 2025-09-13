@@ -1,4 +1,4 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { ArrowDownIcon } from "lucide-react";
 import { memo } from "react";
@@ -13,7 +13,9 @@ interface ScrollToBottomButtonProps {
 
 const ScrollToBottomButton = memo<ScrollToBottomButtonProps>(
   ({ isVisible, onScrollToBottom, className }) => {
-    if (!isVisible) return null;
+    if (!isVisible) {
+      return null;
+    }
 
     return (
       <div

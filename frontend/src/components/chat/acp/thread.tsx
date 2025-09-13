@@ -1,4 +1,5 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
+
 import React from "react";
 import { groupNotifications } from "use-acp";
 import {
@@ -98,21 +99,23 @@ export const AgentThread = ({
 
 function isErrorGroup(
   group: NotificationEvent[],
-): group is Extract<NotificationEvent, { type: "error" }>[] {
+): group is Array<Extract<NotificationEvent, { type: "error" }>> {
   // We only check the first since we know the group is the same type
   return group[0].type === "error";
 }
 
 function isConnectionChangeGroup(
   group: NotificationEvent[],
-): group is Extract<NotificationEvent, { type: "connection_change" }>[] {
+): group is Array<Extract<NotificationEvent, { type: "connection_change" }>> {
   // We only check the first since we know the group is the same type
   return group[0].type === "connection_change";
 }
 
 function isSessionNotificationGroup(
   group: NotificationEvent[],
-): group is Extract<NotificationEvent, { type: "session_notification" }>[] {
+): group is Array<
+  Extract<NotificationEvent, { type: "session_notification" }>
+> {
   // We only check the first since we know the group is the same type
   return group[0].type === "session_notification";
 }
