@@ -16,7 +16,6 @@ import ReactCodeMirror, {
   minimalSetup,
   type ReactCodeMirrorRef,
 } from "@uiw/react-codemirror";
-import { DefaultChatTransport } from "ai";
 import { useAtom, useAtomValue, useStore } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import {
@@ -27,7 +26,7 @@ import {
   SparklesIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
@@ -45,7 +44,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
-import type { CellId } from "@/core/cells/ids";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { useRequestClient } from "@/core/network/requests";
 import type { AiCompletionRequest } from "@/core/network/types";
@@ -59,11 +57,8 @@ import {
   CompletionActions,
   createAiCompletionOnKeydown,
 } from "./completion-handlers";
-import {
-  CONTEXT_TRIGGER,
-  codeToCells,
-  mentionsCompletionSource,
-} from "./completion-utils";
+import { CONTEXT_TRIGGER, mentionsCompletionSource } from "./completion-utils";
+import { StreamingChunkTransport } from "./transport/chat-transport";
 
 // Persist across sessions
 const languageAtom = atomWithStorage<"python" | "sql">(
@@ -82,12 +77,7 @@ export const AddCellWithAI: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
   const [input, setInput] = useState("");
-  const {
-    deleteAllStagedCells,
-    clearStagedCells,
-    createStagedCell,
-    updateStagedCell,
-  } = useStagedCells();
+  const { deleteAllStagedCells, clearStagedCells, onStream } = useStagedCells();
   const [language, setLanguage] = useAtom(languageAtom);
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();
@@ -95,29 +85,34 @@ export const AddCellWithAI: React.FC<{
   const stagedAICells = useAtomValue(stagedAICellsAtom);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
 
-  const { messages, sendMessage, stop, status, addToolResult } = useChat({
+  const { sendMessage, stop, status, addToolResult } = useChat({
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
-    transport: new DefaultChatTransport({
-      api: runtimeManager.getAiURL("completion").toString(),
-      headers: runtimeManager.headers(),
-      prepareSendMessagesRequest: async (options) => {
-        const completionBody = await buildCompletionRequestBody(
-          options.messages,
-        );
-        const body: AiCompletionRequest = {
-          ...options,
-          ...completionBody,
-          code: "",
-          prompt: "", // Don't need prompt since we are using messages
-          language: language,
-        };
+    transport: new StreamingChunkTransport(
+      {
+        api: runtimeManager.getAiURL("completion").toString(),
+        headers: runtimeManager.headers(),
+        prepareSendMessagesRequest: async (options) => {
+          const completionBody = await buildCompletionRequestBody(
+            options.messages,
+          );
+          const body: AiCompletionRequest = {
+            ...options,
+            ...completionBody,
+            code: "",
+            prompt: "", // Don't need prompt since we are using messages
+            language: language,
+          };
 
-        return {
-          body: body,
-        };
+          return {
+            body: body,
+          };
+        },
       },
-    }),
+      (chunk) => {
+        onStream(chunk);
+      },
+    ),
     onToolCall: async ({ toolCall }) => {
       await handleToolCall({
         invokeAiTool,
@@ -137,32 +132,9 @@ export const AddCellWithAI: React.FC<{
     },
   });
 
-  const aiResponses = messages.filter((m) => m.role === "assistant");
-  const textResponse = aiResponses
-    .flatMap((m) =>
-      m.parts?.filter((p) => p.type === "text").map((p) => p.text),
-    )
-    .join("\n");
-  const codeCells = codeToCells(textResponse);
-
-  const [createdCells, setCreatedCells] = useState<CellId[]>([]);
-  useEffect(() => {
-    const newCells = codeCells.slice(createdCells.length);
-    for (const cell of newCells) {
-      const cellId = createStagedCell(cell.code);
-      setCreatedCells((prev) => [...prev, cellId]);
-    }
-
-    const updatedCells = codeCells.slice(0, createdCells.length);
-    for (const [idx, cell] of updatedCells.entries()) {
-      const cellIdToUpdate = createdCells[idx];
-      updateStagedCell(cellIdToUpdate, cell.code);
-    }
-  }, [codeCells, createStagedCell, createdCells, updateStagedCell]);
-
   const isLoading = status === "streaming" || status === "submitted";
-  const hasCompletion = stagedAICells.cellIds.size > 0;
-  const multipleCompletions = stagedAICells.cellIds.size > 1;
+  const hasCompletion = stagedAICells.cellsMap.size > 0;
+  const multipleCompletions = stagedAICells.cellsMap.size > 1;
 
   const submit = () => {
     if (!isLoading) {

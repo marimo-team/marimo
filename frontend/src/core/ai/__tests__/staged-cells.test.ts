@@ -5,6 +5,7 @@ import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CellId } from "@/core/cells/ids";
 import {
+  type StagedCellData,
   stagedAICellsAtom,
   useStagedCells,
   visibleForTesting,
@@ -14,11 +15,13 @@ const { createActions, reducer, initialState } = visibleForTesting;
 
 // Mock the dependencies
 const mockCreateNewCell = vi.fn();
+const mockUpdateCellCode = vi.fn();
 const mockDeleteCellCallback = vi.fn();
 
 vi.mock("../../cells/cells", () => ({
   useCellActions: () => ({
     createNewCell: mockCreateNewCell,
+    updateCellCode: mockUpdateCellCode,
   }),
 }));
 
@@ -47,51 +50,79 @@ describe("staged-cells", () => {
     vi.clearAllMocks();
 
     // Reset the atom state
-    store.set(stagedAICellsAtom, { cellIds: new Set<CellId>() });
+    store.set(stagedAICellsAtom, {
+      cellsMap: new Map<CellId, StagedCellData>(),
+    });
   });
 
   describe("reducer and actions", () => {
-    it("should initialize with empty set", () => {
+    it("should initialize with empty map", () => {
       const state = initialState();
-      expect(state.cellIds).toEqual(new Set());
+      expect(state.cellsMap).toEqual(new Map());
     });
 
     it("should add cell IDs", () => {
       let state = initialState();
-      state = reducer(state, { type: "addStagedCell", payload: cellId1 });
-      state = reducer(state, { type: "addStagedCell", payload: cellId2 });
+      state = reducer(state, {
+        type: "addStagedCell",
+        payload: { cellId: cellId1, code: "test1" },
+      });
+      state = reducer(state, {
+        type: "addStagedCell",
+        payload: { cellId: cellId2, code: "test2" },
+      });
 
-      expect(state.cellIds).toEqual(new Set([cellId1, cellId2]));
+      expect(state.cellsMap.has(cellId1)).toBe(true);
+      expect(state.cellsMap.has(cellId2)).toBe(true);
+      expect(state.cellsMap.get(cellId1)?.code).toBe("test1");
+      expect(state.cellsMap.get(cellId2)?.code).toBe("test2");
     });
 
     it("should remove cell IDs", () => {
-      const state = { cellIds: new Set([cellId1, cellId2]) };
+      const state = {
+        cellsMap: new Map([
+          [cellId1, { code: "test1" }],
+          [cellId2, { code: "test2" }],
+        ]),
+      };
       const newState = reducer(state, {
         type: "removeStagedCell",
         payload: cellId1,
       });
 
-      expect(newState.cellIds).toEqual(new Set([cellId2]));
+      expect(newState.cellsMap.has(cellId1)).toBe(false);
+      expect(newState.cellsMap.has(cellId2)).toBe(true);
     });
 
     it("should clear all cell IDs", () => {
-      const state = { cellIds: new Set([cellId1, cellId2]) };
+      const state = {
+        cellsMap: new Map([
+          [cellId1, { code: "test1" }],
+          [cellId2, { code: "test2" }],
+        ]),
+      };
       const newState = reducer(state, {
         type: "clearStagedCells",
         payload: undefined,
       });
 
-      expect(newState.cellIds).toEqual(new Set());
+      expect(newState.cellsMap).toEqual(new Map());
     });
 
     it("should not mutate original state", () => {
-      const state = { cellIds: new Set([cellId1]) };
-      const originalSize = state.cellIds.size;
+      const state = {
+        cellsMap: new Map([[cellId1, { code: "test1" }]]),
+      };
+      const originalSize = state.cellsMap.size;
 
-      reducer(state, { type: "addStagedCell", payload: cellId2 });
+      reducer(state, {
+        type: "addStagedCell",
+        payload: { cellId: cellId2, code: "test2" },
+      });
 
-      expect(state.cellIds.size).toBe(originalSize);
-      expect(state.cellIds).toEqual(new Set([cellId1]));
+      expect(state.cellsMap.size).toBe(originalSize);
+      expect(state.cellsMap.has(cellId1)).toBe(true);
+      expect(state.cellsMap.has(cellId2)).toBe(false);
     });
 
     it("should create action functions", () => {
@@ -103,9 +134,9 @@ describe("staged-cells", () => {
       expect(typeof actions.clearStagedCells).toBe("function");
     });
 
-    it("should initialize atom with empty set", () => {
+    it("should initialize atom with empty map", () => {
       const state = store.get(stagedAICellsAtom);
-      expect(state.cellIds).toEqual(new Set());
+      expect(state.cellsMap).toEqual(new Map());
     });
   });
 
@@ -150,14 +181,19 @@ describe("staged-cells", () => {
 
     it("should delete all staged cells when cells exist", () => {
       // First set the atom state before rendering the hook
-      store.set(stagedAICellsAtom, { cellIds: new Set([cellId1, cellId2]) });
+      store.set(stagedAICellsAtom, {
+        cellsMap: new Map([
+          [cellId1, { code: "test1" }],
+          [cellId2, { code: "test2" }],
+        ]),
+      });
 
       const { result } = renderHook(() => useStagedCells());
 
       // Verify cells are in the atom
       let state = store.get(stagedAICellsAtom);
-      expect(state.cellIds).toContain(cellId1);
-      expect(state.cellIds).toContain(cellId2);
+      expect(state.cellsMap.has(cellId1)).toBe(true);
+      expect(state.cellsMap.has(cellId2)).toBe(true);
 
       result.current.deleteAllStagedCells();
 
@@ -167,48 +203,49 @@ describe("staged-cells", () => {
 
       // Verify cells were cleared from the atom
       state = store.get(stagedAICellsAtom);
-      expect(state.cellIds).toEqual(new Set());
+      expect(state.cellsMap).toEqual(new Map());
     });
 
     it("should add staged cell", () => {
       const { result } = renderHook(() => useStagedCells());
 
-      result.current.addStagedCell(cellId1);
+      result.current.addStagedCell({ cellId: cellId1, code: "test code" });
 
       // Check that the cell was added to the atom
       const state = store.get(stagedAICellsAtom);
-      expect(state.cellIds).toContain(cellId1);
+      expect(state.cellsMap.has(cellId1)).toBe(true);
+      expect(state.cellsMap.get(cellId1)?.code).toBe("test code");
     });
 
     it("should remove staged cell", () => {
       const { result } = renderHook(() => useStagedCells());
 
-      // First add a cell
-      result.current.addStagedCell(cellId1);
-      result.current.addStagedCell(cellId2);
+      // First add cells
+      result.current.addStagedCell({ cellId: cellId1, code: "test1" });
+      result.current.addStagedCell({ cellId: cellId2, code: "test2" });
 
       // Then remove one
       result.current.removeStagedCell(cellId1);
 
-      // Check that only the remaining cell is in the set
+      // Check that only the remaining cell is in the map
       const state = store.get(stagedAICellsAtom);
-      expect(state.cellIds).not.toContain(cellId1);
-      expect(state.cellIds).toContain(cellId2);
+      expect(state.cellsMap.has(cellId1)).toBe(false);
+      expect(state.cellsMap.has(cellId2)).toBe(true);
     });
 
     it("should clear all staged cells", () => {
       const { result } = renderHook(() => useStagedCells());
 
       // First add some cells
-      result.current.addStagedCell(cellId1);
-      result.current.addStagedCell(cellId2);
+      result.current.addStagedCell({ cellId: cellId1, code: "test1" });
+      result.current.addStagedCell({ cellId: cellId2, code: "test2" });
 
       // Then clear all
       result.current.clearStagedCells();
 
       // Check that no cells remain
       const state = store.get(stagedAICellsAtom);
-      expect(state.cellIds).toEqual(new Set());
+      expect(state.cellsMap).toEqual(new Map());
     });
 
     it("should handle multiple operations correctly", () => {
@@ -225,7 +262,7 @@ describe("staged-cells", () => {
       expect(mockCreateNewCell).toHaveBeenCalled();
 
       let state = store.get(stagedAICellsAtom);
-      expect(state.cellIds).toContain(mockCellId);
+      expect(state.cellsMap.has(mockCellId)).toBe(true);
 
       // Delete the staged cell
       result.current.deleteStagedCell(mockCellId);
@@ -235,7 +272,7 @@ describe("staged-cells", () => {
 
       // Verify it was removed from staged cells
       state = store.get(stagedAICellsAtom);
-      expect(state.cellIds).not.toContain(mockCellId);
+      expect(state.cellsMap.has(mockCellId)).toBe(false);
     });
   });
 });

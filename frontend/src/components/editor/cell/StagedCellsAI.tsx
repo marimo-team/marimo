@@ -11,7 +11,7 @@ export const StagedAICellBackground: React.FC<{ cellId: CellId }> = ({
 }) => {
   const stagedAICells = useAtomValue(stagedAICellsAtom);
 
-  if (!stagedAICells.cellIds.has(cellId)) {
+  if (!stagedAICells.cellsMap.has(cellId)) {
     return null;
   }
 
@@ -35,20 +35,24 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   const stagedAICells = useAtomValue(stagedAICellsAtom);
   const { deleteStagedCell, removeStagedCell } = useStagedCells();
 
-  if (!stagedAICells.cellIds.has(cellId)) {
+  if (!stagedAICells.cellsMap.has(cellId)) {
     return null;
   }
+
+  const handleAcceptCompletion = () => {
+    removeStagedCell(cellId);
+  };
+
+  const handleDeclineCompletion = () => {
+    deleteStagedCell(cellId);
+  };
 
   return (
     <div className="flex items-center justify-end gap-1.5 w-full pb-1 pt-2">
       <CompletionActionsCellFooter
         isLoading={false}
-        onAccept={() => {
-          removeStagedCell(cellId);
-        }}
-        onDecline={() => {
-          deleteStagedCell(cellId);
-        }}
+        onAccept={handleAcceptCompletion}
+        onDecline={handleDeclineCompletion}
         size="xs"
       />
     </div>

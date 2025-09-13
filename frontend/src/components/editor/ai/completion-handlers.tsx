@@ -95,16 +95,8 @@ export const CompletionActionsCellFooter: React.FC<{
   onAccept: () => void;
   onDecline: () => void;
   size?: "xs" | "sm";
-  acceptShortcut?: string;
-  declineShortcut?: string;
   multipleCompletions?: boolean;
-}> = ({
-  isLoading,
-  onAccept,
-  onDecline,
-  acceptShortcut = "Mod-↵",
-  declineShortcut = "Shift-Mod-Delete",
-}) => {
+}> = ({ isLoading, onAccept, onDecline }) => {
   return (
     <>
       <Button
@@ -116,7 +108,6 @@ export const CompletionActionsCellFooter: React.FC<{
         dark:bg-(--grass-6) dark:hover:bg-(--grass-5) h-6 rounded-sm px-3 font-medium"
       >
         Accept
-        <MinimalHotkeys className="ml-1 inline" shortcut={acceptShortcut} />
       </Button>
       <Button
         variant="text"
@@ -126,10 +117,6 @@ export const CompletionActionsCellFooter: React.FC<{
         dark:bg-(--red-7) dark:hover:bg-(--red-6) h-6 rounded-sm px-3 font-medium"
       >
         Reject
-        <MinimalHotkeys
-          className="ml-1 inline text-white/80"
-          shortcut={declineShortcut}
-        />
       </Button>
     </>
   );

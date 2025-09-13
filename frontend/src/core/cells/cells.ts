@@ -681,6 +681,15 @@ const {
       return state;
     }
 
+    // Update codemirror if mounted
+    // If RTC is enabled, the editor view will already be updated, so we don't need to do this
+    if (!isRtcEnabled()) {
+      const cellHandle = state.cellHandles[cellId]?.current;
+      if (cellHandle?.editorViewOrNull) {
+        updateEditorCodeFromPython(cellHandle.editorViewOrNull, code);
+      }
+    }
+
     return updateCellData({
       state,
       cellId,
