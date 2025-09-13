@@ -11,8 +11,10 @@ import re
 import sys
 import textwrap
 import token as token_types
+import warnings
 from tokenize import tokenize
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from types import CodeType, FrameType
+from typing import Any, Callable, Optional, cast
 
 from marimo import _loggers
 from marimo._ast import parse
@@ -38,8 +40,12 @@ else:
 LOGGER = _loggers.marimo_logger()
 Cls: TypeAlias = type
 
-if TYPE_CHECKING:
-    from types import FrameType
+
+def ast_compile(*args: Any, **kwargs: Any) -> CodeType:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=SyntaxWarning)
+        # The SyntaxWarning is suppressed only inside this `with` block
+        return cast(CodeType, compile(*args, **kwargs))  # type: ignore[call-overload]
 
 
 def code_key(code: str) -> int:
@@ -168,14 +174,19 @@ def compile_cell(
     # See https://github.com/pyodide/pyodide/issues/3337,
     #     https://github.com/marimo-team/marimo/issues/1546
     code = code.replace("\u00a0", " ")
-    module = compile(
-        code,
-        "<unknown>",
-        mode="exec",
-        # don't inherit compiler flags, in particular future annotations
-        dont_inherit=True,
-        flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+    # Overloads on compile are strange, cast for proper typing.
+    module = cast(
+        ast.Module,
+        ast_compile(
+            code,
+            "<unknown>",
+            mode="exec",
+            # don't inherit compiler flags, in particular future annotations
+            dont_inherit=True,
+            flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+        ),
     )
+
     if not module.body:
         # either empty code or just comments
         return CellImpl(
@@ -208,7 +219,8 @@ def compile_cell(
     # Use final expression if it exists doesn't end in a
     # semicolon. Evaluates expression to "None" otherwise.
     if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
-        expr = ast.Expression(module.body.pop().value)
+        module.body.pop()
+        expr = ast.Expression(final_expr.value)
         expr.lineno = final_expr.lineno  # type: ignore[attr-defined]
     else:
         const = ast.Constant(value=None)
@@ -250,10 +262,10 @@ def compile_cell(
             )
 
     flags = ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
-    body = compile(
+    body = ast_compile(
         module, filename, mode="exec", dont_inherit=True, flags=flags
     )
-    last_expr = compile(
+    last_expr = ast_compile(
         expr, filename, mode="eval", dont_inherit=True, flags=flags
     )
 
@@ -378,7 +390,7 @@ def context_cell_factory(
         entry_line += 1 - lnum
 
     _, with_block = ContainedExtractWithBlock(entry_line).visit(
-        ast.parse(textwrap.dedent(source)).body  # type: ignore[arg-type]
+        parse.ast_parse(textwrap.dedent(source)).body  # type: ignore[arg-type]
     )
 
     start_node = with_block.body[0]
@@ -426,7 +438,7 @@ def toplevel_cell_factory(
     # We need to scrub through the initial decorator. Since we don't care about
     # indentation etc, easiest just to use AST.
 
-    tree = ast.parse(function_code, type_comments=True)
+    tree = parse.ast_parse(function_code, type_comments=True)
     try:
         decorator = tree.body[0].decorator_list.pop(0)  # type: ignore
         # NB. We don't unparse from the AST because it strips comments.
@@ -509,7 +521,7 @@ def cell_factory(
     function_code = textwrap.dedent("".join(code))
 
     extractor = parse.Extractor(contents=function_code)
-    func_ast = ast.parse(function_code).body[0]
+    func_ast = parse.ast_parse(function_code).body[0]
     cell_def = extractor.to_cell(func_ast, attribute="cell")
 
     # anonymous file is required for deterministic testing.

@@ -71,6 +71,13 @@ def red(text: str, bold: bool = False) -> str:
     return prefix + text + "\033[0m"
 
 
+def cyan(text: str, bold: bool = False) -> str:
+    if not _USE_COLOR:
+        return text
+    prefix = "\033[94m" if not bold else "\033[1;94m"
+    return prefix + text + "\033[0m"
+
+
 def muted(text: str) -> str:
     # Use dark gray (37 is white, 2 is dim) which is more widely supported than 90
     return "\033[37;2m" + text + "\033[0m" if _USE_COLOR else text

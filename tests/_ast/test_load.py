@@ -308,16 +308,23 @@ class TestGetCodes:
 class TestGetStatus:
     @staticmethod
     def test_get_status_valid() -> None:
-        assert load.get_notebook_status(get_filepath("test_main")) == "valid"
+        assert (
+            load.get_notebook_status(get_filepath("test_main")).status
+            == "valid"
+        )
 
     @staticmethod
     def test_get_status_empty() -> None:
-        assert load.get_notebook_status(get_filepath("test_empty")) == "empty"
+        assert (
+            load.get_notebook_status(get_filepath("test_empty")).status
+            == "empty"
+        )
 
     @staticmethod
     def test_get_status_invalid() -> None:
         assert (
-            load.get_notebook_status(get_filepath("test_invalid")) == "invalid"
+            load.get_notebook_status(get_filepath("test_invalid")).status
+            == "invalid"
         )
 
     @staticmethod
@@ -325,6 +332,6 @@ class TestGetStatus:
         assert (
             load.get_notebook_status(
                 get_filepath("test_get_codes_messy_toplevel")
-            )
+            ).status
             == "has_errors"
         )

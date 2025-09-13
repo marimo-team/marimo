@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import ast
 import base64
 import inspect
 import os
@@ -25,6 +24,7 @@ from typing import (
 
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell_id import external_prefix
+from marimo._ast.parse import ast_parse
 from marimo._ast.variables import BUILTINS
 from marimo._convert.converters import MarimoConvert
 from marimo._schemas.serialization import (
@@ -531,7 +531,7 @@ class App:
             errors: list[str] = []
             for code in self._unparsable_code:
                 try:
-                    ast.parse(dedent(code))
+                    ast_parse(dedent(code))
                 except SyntaxError as e:
                     error_line = e.text
                     error_marker: str = (

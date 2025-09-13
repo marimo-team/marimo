@@ -13,6 +13,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
+from marimo._ast.parse import ast_parse
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
@@ -450,7 +451,7 @@ def get_header_comments(filename: str | Path) -> Optional[str]:
     # Ensure the header only contains non-executable code
     # ast parses out single line comments, so we only
     # need to check that every node is not a multiline comment
-    module = ast.parse(header)
+    module = ast_parse(header)
     if any(not is_multiline_comment(node) for node in module.body):
         return None
 

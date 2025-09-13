@@ -670,8 +670,12 @@ class TestExecution:
         assert len(k.errors["1"]) == 1
         if k.execution_type == "strict":
             assert len(k.errors["2"]) == 1
-        _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
-        _check_edges(k.errors["1"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
+        _check_edges(
+            k.errors["0"][0], [("0", ("x",), "1"), ("1", ("y",), "0")]
+        )
+        _check_edges(
+            k.errors["1"][0], [("0", ("x",), "1"), ("1", ("y",), "0")]
+        )
 
         # break cycle by modifying cell
         await k.run([ExecutionRequest(cell_id="1", code="y=1")])
@@ -702,7 +706,9 @@ class TestExecution:
         assert set(k.errors.keys()) == {"0", "1"}
         assert len(k.errors["0"]) == 1
         assert len(k.errors["1"]) == 1
-        _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
+        _check_edges(
+            k.errors["0"][0], [("0", ("x",), "1"), ("1", ("y",), "0")]
+        )
 
         # break cycle by deleting cell
         await k.delete_cell(DeleteCellRequest(cell_id="1"))
@@ -742,8 +748,12 @@ class TestExecution:
             ]
         )
         assert set(k.errors.keys()) == {"0", "1"}
-        _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["x"], "0")])
-        _check_edges(k.errors["1"][0], [("0", ["x"], "1"), ("1", ["x"], "0")])
+        _check_edges(
+            k.errors["0"][0], [("0", ("x",), "1"), ("1", ("x",), "0")]
+        )
+        _check_edges(
+            k.errors["1"][0], [("0", ("x",), "1"), ("1", ("x",), "0")]
+        )
 
     async def test_delete_nonlocal_incremental_ref_raises_name_error(
         self, k: Kernel
