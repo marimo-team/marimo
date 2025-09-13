@@ -40,6 +40,7 @@ class AiCompletionRequest(msgspec.Struct, rename="camel"):
     prompt: str
     include_other_code: str
     code: str
+    messages: list[ChatMessage] = []
     selected_text: Optional[str] = None
     context: Optional[AiCompletionContext] = None
     language: Language = "python"

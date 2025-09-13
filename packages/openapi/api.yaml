@@ -67,6 +67,11 @@ components:
           - markdown
           - python
           - sql
+        messages:
+          default: []
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          type: array
         prompt:
           type: string
         selectedText:

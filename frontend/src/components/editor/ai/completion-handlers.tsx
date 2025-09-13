@@ -12,20 +12,20 @@ export const createAiCompletionOnKeydown = (opts: {
   handleAcceptCompletion: () => void;
   handleDeclineCompletion: () => void;
   isLoading: boolean;
-  completion: string;
+  hasCompletion: boolean;
 }) => {
   const {
     handleAcceptCompletion,
     handleDeclineCompletion,
     isLoading,
-    completion,
+    hasCompletion,
   } = opts;
 
   return (e: React.KeyboardEvent<HTMLDivElement>) => {
     const metaKey = isPlatformMac() ? e.metaKey : e.ctrlKey;
 
     // Mod+Enter should accept the completion, if there is one
-    if (metaKey && e.key === "Enter" && !isLoading && completion) {
+    if (metaKey && e.key === "Enter" && !isLoading && hasCompletion) {
       handleAcceptCompletion();
     }
 
@@ -49,6 +49,7 @@ export const CompletionActions: React.FC<{
   size?: "xs" | "sm";
   acceptShortcut?: string;
   declineShortcut?: string;
+  multipleCompletions?: boolean;
 }> = ({
   isLoading,
   onAccept,
@@ -56,6 +57,7 @@ export const CompletionActions: React.FC<{
   size = "sm",
   acceptShortcut = "Mod-↵",
   declineShortcut = "Shift-Mod-Delete",
+  multipleCompletions = false,
 }) => {
   return (
     <>
@@ -68,7 +70,7 @@ export const CompletionActions: React.FC<{
         onClick={onAccept}
       >
         <span className="text-(--grass-11) opacity-100">
-          Accept{" "}
+          Accept{multipleCompletions && " all"}{" "}
           <MinimalHotkeys className="ml-1 inline" shortcut={acceptShortcut} />
         </span>
       </Button>
@@ -76,13 +78,58 @@ export const CompletionActions: React.FC<{
         data-testid="decline-completion-button"
         variant="text"
         size={size}
-        className="mb-0 pl-1"
+        className="mb-0 pl-1 pr-0"
         onClick={onDecline}
       >
         <span className="text-(--red-10)">
-          Reject{" "}
+          Reject{multipleCompletions && " all"}{" "}
           <MinimalHotkeys className="ml-1 inline" shortcut={declineShortcut} />
         </span>
+      </Button>
+    </>
+  );
+};
+
+export const CompletionActionsCellFooter: React.FC<{
+  isLoading: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+  size?: "xs" | "sm";
+  acceptShortcut?: string;
+  declineShortcut?: string;
+  multipleCompletions?: boolean;
+}> = ({
+  isLoading,
+  onAccept,
+  onDecline,
+  acceptShortcut = "Mod-↵",
+  declineShortcut = "Shift-Mod-Delete",
+}) => {
+  return (
+    <>
+      <Button
+        variant="text"
+        size="xs"
+        disabled={isLoading}
+        onClick={onAccept}
+        className="text-white bg-(--grass-11) hover:bg-(--grass-10) 
+        dark:bg-(--grass-6) dark:hover:bg-(--grass-5) h-6 rounded-sm px-3 font-medium"
+      >
+        Accept
+        <MinimalHotkeys className="ml-1 inline" shortcut={acceptShortcut} />
+      </Button>
+      <Button
+        variant="text"
+        size="xs"
+        onClick={onDecline}
+        className="text-white bg-(--red-11) hover:bg-(--red-10) 
+        dark:bg-(--red-7) dark:hover:bg-(--red-6) h-6 rounded-sm px-3 font-medium"
+      >
+        Reject
+        <MinimalHotkeys
+          className="ml-1 inline text-white/80"
+          shortcut={declineShortcut}
+        />
       </Button>
     </>
   );

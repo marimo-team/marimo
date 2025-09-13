@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useCompletion } from "@ai-sdk/react";
+import { useChat } from "@ai-sdk/react";
 import {
   autocompletion,
   type Completion,
@@ -8,7 +8,6 @@ import {
   type CompletionSource,
 } from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
-import { sql } from "@codemirror/lang-sql";
 import { Prec } from "@codemirror/state";
 import { promptHistory, storePrompt } from "@marimo-team/codemirror-ai";
 import ReactCodeMirror, {
@@ -17,7 +16,8 @@ import ReactCodeMirror, {
   minimalSetup,
   type ReactCodeMirrorRef,
 } from "@uiw/react-codemirror";
-import { useAtom, useStore } from "jotai";
+import { DefaultChatTransport } from "ai";
+import { useAtom, useAtomValue, useStore } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import {
   ChevronsUpDown,
@@ -27,10 +27,14 @@ import {
   SparklesIcon,
   XIcon,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
+import {
+  buildCompletionRequestBody,
+  handleToolCall,
+} from "@/components/chat/chat-utils";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -40,15 +44,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
+import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
+import type { CellId } from "@/core/cells/ids";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
-import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
+import { useRequestClient } from "@/core/network/requests";
+import type { AiCompletionRequest } from "@/core/network/types";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
 import { ZodLocalStorage } from "@/utils/localStorage";
-import { useCellActions } from "../../../core/cells/cells";
 import { PythonIcon } from "../cell/code/icons";
 import {
   CompletionActions,
@@ -56,15 +61,9 @@ import {
 } from "./completion-handlers";
 import {
   CONTEXT_TRIGGER,
-  getAICompletionBody,
+  codeToCells,
   mentionsCompletionSource,
 } from "./completion-utils";
-
-const pythonExtensions = [
-  customPythonLanguageSupport(),
-  EditorView.lineWrapping,
-];
-const sqlExtensions = [sql(), EditorView.lineWrapping];
 
 // Persist across sessions
 const languageAtom = atomWithStorage<"python" | "sql">(
@@ -82,32 +81,53 @@ const promptHistoryStorage = new ZodLocalStorage(z.array(z.string()), () => []);
 export const AddCellWithAI: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
-  const { createNewCell } = useCellActions();
-  const [completionBody, setCompletionBody] = useState<object>({});
+  const [input, setInput] = useState("");
+  const {
+    deleteAllStagedCells,
+    clearStagedCells,
+    createStagedCell,
+    updateStagedCell,
+  } = useStagedCells();
   const [language, setLanguage] = useAtom(languageAtom);
-  const { theme } = useTheme();
   const runtimeManager = useRuntimeManager();
+  const { invokeAiTool } = useRequestClient();
 
+  const stagedAICells = useAtomValue(stagedAICellsAtom);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
 
-  const {
-    completion,
-    input,
-    stop,
-    isLoading,
-    setCompletion,
-    setInput,
-    handleSubmit,
-  } = useCompletion({
-    api: runtimeManager.getAiURL("completion").toString(),
-    headers: runtimeManager.headers(),
-    streamProtocol: "text",
+  const { messages, sendMessage, stop, status, addToolResult } = useChat({
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
-    body: {
-      ...completionBody,
-      language: language,
-      code: "",
+    transport: new DefaultChatTransport({
+      api: runtimeManager.getAiURL("completion").toString(),
+      headers: runtimeManager.headers(),
+      prepareSendMessagesRequest: async (options) => {
+        const completionBody = await buildCompletionRequestBody(
+          options.messages,
+        );
+        const body: AiCompletionRequest = {
+          ...options,
+          ...completionBody,
+          code: "",
+          prompt: "", // Don't need prompt since we are using messages
+          language: language,
+        };
+
+        return {
+          body: body,
+        };
+      },
+    }),
+    onToolCall: async ({ toolCall }) => {
+      await handleToolCall({
+        invokeAiTool,
+        addToolResult,
+        toolCall: {
+          toolName: toolCall.toolName,
+          toolCallId: toolCall.toolCallId,
+          input: toolCall.input as Record<string, never>,
+        },
+      });
     },
     onError: (error) => {
       toast({
@@ -115,18 +135,43 @@ export const AddCellWithAI: React.FC<{
         description: prettyError(error),
       });
     },
-    onFinish: (_prompt, completion) => {
-      // Remove trailing new lines
-      setCompletion(completion.trimEnd());
-    },
   });
+
+  const aiResponses = messages.filter((m) => m.role === "assistant");
+  const textResponse = aiResponses
+    .flatMap((m) =>
+      m.parts?.filter((p) => p.type === "text").map((p) => p.text),
+    )
+    .join("\n");
+  const codeCells = codeToCells(textResponse);
+
+  const [createdCells, setCreatedCells] = useState<CellId[]>([]);
+  useEffect(() => {
+    const newCells = codeCells.slice(createdCells.length);
+    for (const cell of newCells) {
+      const cellId = createStagedCell(cell.code);
+      setCreatedCells((prev) => [...prev, cellId]);
+    }
+
+    const updatedCells = codeCells.slice(0, createdCells.length);
+    for (const [idx, cell] of updatedCells.entries()) {
+      const cellIdToUpdate = createdCells[idx];
+      updateStagedCell(cellIdToUpdate, cell.code);
+    }
+  }, [codeCells, createStagedCell, createdCells, updateStagedCell]);
+
+  const isLoading = status === "streaming" || status === "submitted";
+  const hasCompletion = stagedAICells.cellIds.size > 0;
+  const multipleCompletions = stagedAICells.cellIds.size > 1;
 
   const submit = () => {
     if (!isLoading) {
       if (inputRef.current?.view) {
         storePrompt(inputRef.current.view);
       }
-      handleSubmit();
+      // TODO: When we have conversations, don't delete existing cells
+      deleteAllStagedCells();
+      sendMessage({ text: input });
     }
   };
 
@@ -171,20 +216,12 @@ export const AddCellWithAI: React.FC<{
   );
 
   const handleAcceptCompletion = () => {
-    createNewCell({
-      cellId: "__end__",
-      before: false,
-      code:
-        language === "python"
-          ? completion
-          : SQLLanguageAdapter.fromQuery(completion),
-    });
-    setCompletion("");
+    clearStagedCells();
     onClose();
   };
 
   const handleDeclineCompletion = () => {
-    setCompletion("");
+    deleteAllStagedCells();
   };
 
   const inputComponent = (
@@ -193,20 +230,19 @@ export const AddCellWithAI: React.FC<{
       <PromptInput
         inputRef={inputRef}
         onClose={() => {
-          setCompletion("");
+          deleteAllStagedCells();
           onClose();
         }}
         value={input}
         onChange={(newValue) => {
           setInput(newValue);
-          setCompletionBody(getAICompletionBody({ input: newValue }));
         }}
         onSubmit={submit}
         onKeyDown={createAiCompletionOnKeydown({
           handleAcceptCompletion,
           handleDeclineCompletion,
           isLoading,
-          completion,
+          hasCompletion,
         })}
       />
       {isLoading && (
@@ -234,7 +270,7 @@ export const AddCellWithAI: React.FC<{
     <div className={cn("flex flex-col w-full gap-2 py-2")}>
       {inputComponent}
       <div className="flex flex-row justify-between -mt-1 ml-1 mr-3">
-        {!completion && (
+        {!hasCompletion && (
           <span className="text-xs text-muted-foreground px-3 flex flex-col gap-1">
             <span>
               You can mention{" "}
@@ -245,12 +281,13 @@ export const AddCellWithAI: React.FC<{
             <span>Code from other cells is automatically included.</span>
           </span>
         )}
-        {completion && (
+        {hasCompletion && (
           <CompletionActions
             isLoading={isLoading}
             onAccept={handleAcceptCompletion}
             onDecline={handleDeclineCompletion}
             size="sm"
+            multipleCompletions={multipleCompletions}
           />
         )}
         <div className="ml-auto flex items-center gap-1">
@@ -262,16 +299,6 @@ export const AddCellWithAI: React.FC<{
           />
         </div>
       </div>
-
-      {completion && (
-        <ReactCodeMirror
-          value={completion}
-          className="cm border-t"
-          onChange={setCompletion}
-          theme={theme === "dark" ? "dark" : "light"}
-          extensions={language === "python" ? pythonExtensions : sqlExtensions}
-        />
-      )}
     </div>
   );
 };

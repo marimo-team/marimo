@@ -34,6 +34,7 @@ def test_system_prompts():
         result += get_refactor_or_insert_notebook_cell_system_prompt(
             language=cast(Language, language),
             is_insert=False,
+            support_multiple_cells=False,
             custom_rules=None,
             cell_code=None,
             selected_text=None,
@@ -45,6 +46,7 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules="Always use type hints.",
         cell_code=None,
         selected_text=None,
@@ -55,6 +57,7 @@ def test_system_prompts():
     result += _header("with context")
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
+        support_multiple_cells=False,
         context=AiCompletionContext(
             schema=[
                 SchemaTable(
@@ -84,6 +87,7 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=True,
+        support_multiple_cells=False,
         custom_rules=None,
         cell_code="def fib(n):\n    <insert_here></insert_here>",
         selected_text=None,
@@ -95,6 +99,7 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules=None,
         cell_code="def hello():\n    <rewrite_this>print('Hello, world!')</rewrite_this>",
         selected_text="print('Hello, world!')",
@@ -106,6 +111,7 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules=None,
         cell_code="def hello():\n    <rewrite_this>print('Hello, world!')</rewrite_this>",
         selected_text="print('Hello, world!')",
@@ -117,6 +123,7 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules=None,
         cell_code="<rewrite_this>pl.DataFrame()</rewrite_this>",
         selected_text="pl.DataFrame()",
@@ -128,6 +135,32 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
+        custom_rules=None,
+        cell_code=None,
+        selected_text=None,
+        other_cell_codes=None,
+        context=AiCompletionContext(
+            variables=[
+                VariableContext(
+                    name="df",
+                    value_type="DataFrame",
+                    preview_value="<DataFrame with 100 rows and 5 columns>",
+                ),
+                VariableContext(
+                    name="model",
+                    value_type="Model",
+                    preview_value="<Model object>",
+                ),
+            ]
+        ),
+    )
+
+    result += _header("with support_multiple_cells=True")
+    result += get_refactor_or_insert_notebook_cell_system_prompt(
+        language="python",
+        is_insert=False,
+        support_multiple_cells=True,
         custom_rules=None,
         cell_code=None,
         selected_text=None,
@@ -155,6 +188,7 @@ def test_empty_rules():
     assert get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules=None,
         cell_code=None,
         selected_text=None,
@@ -163,6 +197,7 @@ def test_empty_rules():
     ) == get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules="  ",
         cell_code=None,
         selected_text=None,

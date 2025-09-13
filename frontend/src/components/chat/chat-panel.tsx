@@ -48,7 +48,6 @@ import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
-import type { ChatMessage } from "@/plugins/impl/chat/types";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
@@ -59,7 +58,6 @@ import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import {
   addContextCompletion,
   CONTEXT_TRIGGER,
-  getAICompletionBodyWithAttachments,
 } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
@@ -68,8 +66,11 @@ import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 import { AttachmentRenderer, FileAttachmentPill } from "./chat-components";
 import {
+  buildCompletionRequestBody,
   convertToFileUIPart,
   generateChatTitle,
+  handleToolCall,
+  hasPendingToolCalls,
   isLastMessageReasoning,
 } from "./chat-utils";
 import { MarkdownRenderer } from "./markdown-renderer";
@@ -565,80 +566,20 @@ const ChatPanelBody = () => {
     id: chatId,
   } = useChat({
     id: activeChatId,
-    // Only automatically submit if we have tool calls but no text response yet
-    sendAutomaticallyWhen: ({ messages }) => {
-      if (messages.length === 0) {
-        return false;
-      }
-
-      const lastMessage = messages[messages.length - 1];
-      const parts = lastMessage.parts;
-
-      if (parts.length === 0) {
-        return false;
-      }
-
-      // Only auto-send if the last message is an assistant message
-      // Because assistant messages are the ones that can have tool calls
-      if (lastMessage.role !== "assistant") {
-        return false;
-      }
-
-      const toolParts = parts.filter((part) =>
-        part.type.startsWith("tool-"),
-      ) as ToolUIPart[];
-
-      const hasCompletedToolCalls = toolParts.some(
-        (part) => part.state === "output-available",
-      );
-
-      // Check if the last part has any text content
-      const lastPart = parts[parts.length - 1];
-      const hasTextContent =
-        lastPart.type === "text" && lastPart.text?.trim().length > 0;
-
-      // Only auto-send if we have completed tool calls and there is no reply yet
-      return hasCompletedToolCalls && !hasTextContent;
-    },
+    sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
     messages: activeChat?.messages || [], // initial messages
     transport: new DefaultChatTransport({
       api: runtimeManager.getAiURL("chat").toString(),
       headers: runtimeManager.headers(),
       prepareSendMessagesRequest: async (options) => {
-        // Map from parts to a single string
-        function toContent(parts: UIMessage["parts"]): string {
-          return parts
-            .map((part) => (part.type === "text" ? part.text : ""))
-            .join("\n");
-        }
-
-        const input = toContent(options.messages.flatMap((m) => m.parts));
-        const completionBody = await getAICompletionBodyWithAttachments({
-          input,
-        });
-
-        // Map from UIMessage to our ChatMessage type
-        // If it's the last message, add the attachments from the completion body
-        function mapMessage(m: UIMessage, isLastMessage: boolean): ChatMessage {
-          const parts = m.parts;
-          if (isLastMessage) {
-            parts.push(...completionBody.attachments);
-          }
-          return {
-            role: m.role,
-            content: toContent(m.parts),
-            parts: parts,
-          };
-        }
+        const completionBody = await buildCompletionRequestBody(
+          options.messages,
+        );
 
         return {
           body: {
             ...options,
-            ...completionBody.body,
-            messages: options.messages.map((m, idx) => ({
-              ...m,
-              ...mapMessage(m, idx === options.messages.length - 1),
-            })),
+            ...completionBody,
           },
         };
       },
@@ -653,24 +594,15 @@ const ChatPanelBody = () => {
       });
     },
     onToolCall: async ({ toolCall }) => {
-      try {
-        const response = await invokeAiTool({
+      await handleToolCall({
+        invokeAiTool,
+        addToolResult,
+        toolCall: {
           toolName: toolCall.toolName,
-          arguments: toolCall.input as Record<string, never>,
-        });
-        addToolResult({
-          tool: toolCall.toolName,
           toolCallId: toolCall.toolCallId,
-          output: response.result || response.error,
-        });
-      } catch (error) {
-        Logger.error("Tool call failed:", error);
-        addToolResult({
-          tool: toolCall.toolName,
-          toolCallId: toolCall.toolCallId,
-          output: `Error: ${error instanceof Error ? error.message : String(error)}`,
-        });
-      }
+          input: toolCall.input as Record<string, never>,
+        },
+      });
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
