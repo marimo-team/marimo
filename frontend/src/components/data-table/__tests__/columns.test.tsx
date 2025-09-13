@@ -2,7 +2,11 @@
 
 import { render } from "@testing-library/react";
 import { describe, expect, it, test } from "vitest";
-import { generateColumns, inferFieldTypes } from "../columns";
+import {
+  generateColumns,
+  inferFieldTypes,
+  overrideFieldTypes,
+} from "../columns";
 import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
 import type { FieldTypesWithExternalType } from "../types";
 import { uniformSample } from "../uniformSample";
@@ -244,6 +248,27 @@ describe("generateColumns", () => {
     expect(columns).toHaveLength(2);
     expect(columns[0].id).toBe("name");
     expect(columns[1].id).toBe("age");
+  });
+
+  it("should detect various box drawing characters", () => {
+    const fieldTypes: FieldTypesWithExternalType = [
+      ["box1", ["string", "string"]],
+      ["box2", ["string", "string"]],
+      ["normal", ["string", "string"]],
+    ];
+
+    // Box2 is the one that should be detected as box drawing
+    const data = [{ box1: "|_|", box2: "┌┐", normal: "Hello World" }];
+    const overriddenFieldTypes = overrideFieldTypes(fieldTypes, data);
+
+    // Check that box drawing columns are detected
+    const box1Type = overriddenFieldTypes.find(([name]) => name === "box1");
+    const box2Type = overriddenFieldTypes.find(([name]) => name === "box2");
+    const normalType = overriddenFieldTypes.find(([name]) => name === "normal");
+
+    expect(box1Type?.[1][1]).toBe("string");
+    expect(box2Type?.[1][1]).toBe("box_drawing");
+    expect(normalType?.[1][1]).toBe("string");
   });
 });
 

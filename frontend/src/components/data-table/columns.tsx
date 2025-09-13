@@ -23,6 +23,7 @@ import { DatePopover } from "./date-popover";
 import type { FilterType } from "./filters";
 import { getMimeValues, MimeCell } from "./mime-cell";
 import {
+  BOX_DRAWING_EXTERNAL_TYPE,
   type DataTableSelection,
   extractTimezone,
   type FieldTypesWithExternalType,
@@ -34,6 +35,9 @@ import { parseContent, UrlDetector } from "./url-detector";
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;
 const SELECT_ID = "__select__";
+
+// Box drawing characters eg. in EXPLAIN queries
+const BOX_DRAWING_REGEX = /[─│┌┐└┘┬┴┼]/;
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -91,6 +95,50 @@ export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
   });
 
   return Objects.entries(fieldTypes);
+}
+
+/**
+ * Override field types to suit particular rendering needs
+ *
+ * Currently we support rendering box drawing characters in strings
+ */
+export function overrideFieldTypes<T>(
+  fieldTypes: FieldTypesWithExternalType,
+  items: T[],
+): FieldTypesWithExternalType {
+  // For now, don't support expensive checks
+  if (items.length === 0 || items.length > 3 || fieldTypes.length > 3) {
+    return fieldTypes;
+  }
+
+  const overriddenTypes = [...fieldTypes];
+
+  // Sample some rows
+  const sampleItems = uniformSample(items, 3);
+
+  overriddenTypes.forEach((fieldType, index) => {
+    const [columnName, [dataType, _externalType]] = fieldType;
+
+    if (dataType === "string") {
+      // Check if any sample contains box drawing characters for this column
+      const hasBoxDrawing = sampleItems.some((item) => {
+        if (typeof item !== "object" || item === null) {
+          return false;
+        }
+        const value = (item as Record<string, unknown>)[columnName];
+        return typeof value === "string" && BOX_DRAWING_REGEX.test(value);
+      });
+
+      if (hasBoxDrawing) {
+        overriddenTypes[index] = [
+          columnName,
+          [dataType, BOX_DRAWING_EXTERNAL_TYPE],
+        ];
+      }
+    }
+  });
+
+  return overriddenTypes;
 }
 
 export const NAMELESS_COLUMN_PREFIX = "__m_column__";
@@ -458,6 +506,18 @@ export function renderCellValue<TData, TValue>(
 
     const parts = parseContent(stringValue);
     const hasMarkup = parts.some((part) => part.type !== "text");
+
+    // For box drawing characters, show it inline
+    if (dtype === BOX_DRAWING_EXTERNAL_TYPE) {
+      return (
+        <div onClick={selectCell} className={cellStyles}>
+          <pre className="max-h-[450px] text-xs overflow-y-auto">
+            {stringValue}
+          </pre>
+        </div>
+      );
+    }
+
     if (hasMarkup || stringValue.length < MAX_STRING_LENGTH) {
       return (
         <div onClick={selectCell} className={cellStyles}>
