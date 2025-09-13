@@ -6,9 +6,9 @@ import copy
 import functools
 import inspect
 import itertools
+from collections.abc import Awaitable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar, cast
-from collections.abc import Awaitable
 
 from marimo._ast.cell import Cell
 from marimo._runtime.context import ContextNotInitializedError, get_context
