@@ -8,12 +8,13 @@ import inspect
 import itertools
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar, cast
+from collections.abc import Awaitable
 
 from marimo._ast.cell import Cell
 from marimo._runtime.context import ContextNotInitializedError, get_context
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Mapping
+    from collections.abc import Mapping
 
 Fn = TypeVar("Fn", bound=Callable[..., Any])
 
@@ -167,7 +168,14 @@ def build_test_class(
 
     def hook(var: str) -> Callable[..., Any] | type[MarimoTest]:
         def _hook(*args: Any, **kwargs: Any) -> Any:
-            _, defs = run()  # type: ignore
+            res = run()
+            if isinstance(res, Awaitable):
+                import asyncio
+
+                loop = asyncio.new_event_loop()
+                _, defs = loop.run_until_complete(res)
+            else:
+                _, defs = res
             return defs[var](*args, **kwargs)
 
         test = tests.get(var, None)
