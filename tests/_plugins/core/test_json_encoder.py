@@ -1,10 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import collections
+import datetime
+import fractions
 import json
+import pathlib
 import sys
+import uuid
 from collections import namedtuple
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Any, Optional
 
 import pytest
@@ -13,6 +19,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._output.mime import MIME
+from marimo._utils.platform import is_windows
 
 HAS_DEPS = (
     DependencyManager.pandas.has()
@@ -40,6 +47,23 @@ def test_numpy_encoding() -> None:
     complex_arr = np.array([1 + 2j, 3 + 4j])
     encoded_complex_arr = encode_json_str(complex_arr)
     assert encoded_complex_arr == '["(1+2j)","(3+4j)"]'
+
+    # Additional numpy types
+    td64 = np.timedelta64(1, "D")
+    encoded = encode_json_str(td64)
+    assert encoded == '"1 days"'
+
+    bool_val = np.bool_(True)
+    encoded = encode_json_str(bool_val)
+    assert encoded == "true"
+
+    bytes_val = np.bytes_(b"hello")
+    encoded = encode_json_str(bytes_val)
+    assert encoded == "\"b'hello'\""
+
+    str_val = np.str_("hello")
+    encoded = encode_json_str(str_val)
+    assert encoded == '"hello"'
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -92,6 +116,29 @@ def test_pandas_encoding() -> None:
     encoded_other = encode_json_str(other)
     assert encoded_other == '["a","b","c"]'
 
+    # Additional pandas types
+    period = pd.Period("2021-01", freq="M")
+    encoded = encode_json_str(period)
+    assert encoded == '"2021-01"'
+
+    # DatetimeIndex
+    dt_index = pd.date_range("2021-01-01", periods=3, freq="D")
+    encoded = encode_json_str(dt_index)
+    result = json.loads(encoded)
+    assert len(result) == 3
+    assert "2021-01-01" in result[0]
+
+    # MultiIndex
+    multi_index = pd.MultiIndex.from_tuples([("A", 1), ("B", 2)])
+    encoded = encode_json_str(multi_index)
+    result = json.loads(encoded)
+    assert result == [["A", 1], ["B", 2]]
+
+    # Index
+    index = pd.Index([1, 2, 3])
+    encoded = encode_json_str(index)
+    assert encoded == "[1,2,3]"
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_polars_encoding() -> None:
@@ -104,6 +151,17 @@ def test_polars_encoding() -> None:
     series = pl.Series([1, 2, 3])
     encoded_series = encode_json_str(series)
     assert encoded_series == "[1,2,3]"
+
+    # LazyFrame
+    lazy_df = pl.DataFrame({"a": [1, 2], "b": [3, 4]}).lazy()
+    encoded = encode_json_str(lazy_df)
+    result = json.loads(encoded)
+    assert result == {"a": [1, 2], "b": [3, 4]}
+
+    # Polars data types
+    dtype = pl.Int64()
+    encoded = encode_json_str(dtype)
+    assert "Int64" in encoded
 
 
 class MockMIMEObject(MIME):
@@ -222,7 +280,8 @@ def test_tuple_encoding() -> None:
     assert encoded_empty == "[]"
 
 
-def test_frozen_set_encoding() -> None:
+def test_collections_encoding() -> None:
+    # frozenset
     frozen_set_obj = frozenset(["a", "b"])
     encoded = encode_json_str(frozen_set_obj)
     assert encoded == '["a","b"]' or encoded == '["b","a"]'
@@ -232,6 +291,29 @@ def test_frozen_set_encoding() -> None:
     number_frozen_set = frozenset([1, 2])
     encoded_number = encode_json_str(number_frozen_set)
     assert encoded_number == "[1,2]" or encoded_number == "[2,1]"
+
+    # deque
+    deque_obj = collections.deque([1, 2, 3])
+    encoded = encode_json_str(deque_obj)
+    assert encoded == "[1,2,3]"
+
+    # defaultdict
+    default_dict = collections.defaultdict(int, {"a": 1, "b": 2})
+    encoded = encode_json_str(default_dict)
+    result = json.loads(encoded)
+    assert result == {"a": 1, "b": 2}
+
+    # OrderedDict
+    ordered_dict = collections.OrderedDict([("a", 1), ("b", 2)])
+    encoded = encode_json_str(ordered_dict)
+    result = json.loads(encoded)
+    assert result == {"a": 1, "b": 2}
+
+    # Counter
+    counter = collections.Counter(["a", "b", "a"])
+    encoded = encode_json_str(counter)
+    result = json.loads(encoded)
+    assert result == {"a": 2, "b": 1}
 
 
 def test_null_encoding() -> None:
@@ -303,8 +385,7 @@ def test_nested_structure_encoding() -> None:
 
 
 def test_date_time_encoding() -> None:
-    import datetime
-
+    # Standard datetime types
     date_obj = datetime.date(2023, 1, 1)
     time_obj = datetime.time(12, 30, 45)
     datetime_obj = datetime.datetime(2023, 1, 1, 12, 30, 45)
@@ -319,23 +400,45 @@ def test_date_time_encoding() -> None:
 
 
 def test_timedelta_encoding() -> None:
-    import datetime
-
+    # Standard timedelta
     timedelta_obj = datetime.timedelta(days=1, seconds=2, microseconds=3)
     encoded = encode_json_str(timedelta_obj)
     assert encoded == '"P1DT2.000003S"'
 
+    delta = datetime.timedelta(days=1, hours=2, minutes=3)
+    encoded = encode_json_str(delta)
+    assert encoded == '"P1DT7380S"'  # ISO 8601 duration format
+
 
 def test_enum_encoding() -> None:
-    from enum import Enum
+    from enum import Enum, IntEnum
 
     class Color(Enum):
         RED = 1
         GREEN = 2
         BLUE = 3
 
+    class StringColor(Enum):
+        RED = "red"
+        GREEN = "green"
+        BLUE = "blue"
+
+    class Number(IntEnum):
+        ONE = 1
+        TWO = 2
+        THREE = 3
+
+    # Int enum
     encoded = encode_json_str(Color.RED)
     assert encoded == "1"
+
+    # String enum
+    encoded = encode_json_str(StringColor.RED)
+    assert encoded == '"red"'
+
+    # IntEnum
+    encoded = encode_json_str(Number.TWO)
+    assert encoded == "2"
 
 
 @pytest.mark.skipif(
@@ -354,8 +457,7 @@ def test_str_enum() -> None:
 
 
 def test_uuid_encoding() -> None:
-    import uuid
-
+    # Random UUID
     uuid_obj = uuid.uuid4()
     encoded = encode_json_str(uuid_obj)
     assert encoded == f'"{str(uuid_obj)}"'
@@ -464,12 +566,48 @@ def test_empty_slots() -> None:
     assert encoded == "{}"
 
 
-def test_decimal_encoding() -> None:
-    from decimal import Decimal
-
+def test_numeric_types_encoding() -> None:
+    # Decimal
     decimal_obj = Decimal("123.45")
     encoded = encode_json_str(decimal_obj)
     assert encoded == "123.45"
+
+    # More precise decimal
+    decimal_val = Decimal("123.456")
+    encoded = encode_json_str(decimal_val)
+    assert encoded == "123.456"
+
+    # Fraction
+    fraction_val = fractions.Fraction(3, 4)
+    encoded = encode_json_str(fraction_val)
+    assert encoded == '"3/4"'
+
+
+@pytest.mark.skipif(is_windows(), reason="Test specific to POSIX")
+def test_pathlib_encoding() -> None:
+    """Test encoding of pathlib Path objects."""
+    # PosixPath
+    path = pathlib.Path("/tmp/test.txt")
+    encoded = encode_json_str(path)
+    assert encoded == '"/tmp/test.txt"'
+
+    # PurePath
+    pure_path = pathlib.PurePath("relative/path.txt")
+    encoded = encode_json_str(pure_path)
+    assert encoded == '"relative/path.txt"'
+
+
+def test_generator_encoding() -> None:
+    """Test encoding of generator objects."""
+
+    def gen():
+        yield 1
+        yield 2
+        yield 3
+
+    generator = gen()
+    encoded = encode_json_str(generator)
+    assert "<generator" in encoded
 
 
 def test_html_encoding() -> None:
@@ -537,3 +675,122 @@ def test_list_of_inf_encoding() -> None:
     nested_inf_list = [[float("inf")], [1, float("-inf")], [float("nan"), 3]]
     encoded_nested = encode_json_str(nested_inf_list)
     assert encoded_nested == "[[null],[1,null],[null,3]]"
+
+
+def test_superjson_with_custom_objects() -> None:
+    from marimo._output.superjson import SuperJson
+
+    # Test SuperJson with objects that have __dict__ (custom classes)
+    @dataclass
+    class CustomData:
+        name: str
+        value: int
+
+    custom_data = CustomData(name="test", value=42)
+    superjson_obj = SuperJson(custom_data)
+    encoded = encode_json_str(superjson_obj)
+    assert encoded == '{"name":"test","value":42}'
+
+
+def test_superjson_with_mime_objects() -> None:
+    from marimo._output.superjson import SuperJson
+
+    # Test SuperJson with MIME objects (which have _mime_ method)
+    mime_data = MockMIMEObject()
+    superjson_obj = SuperJson(mime_data)
+    encoded = encode_json_str(superjson_obj)
+    assert encoded == '{"mimetype":"text/plain","data":"data"}'
+
+
+def test_superjson_with_marimo_serializable() -> None:
+    from marimo._output.superjson import SuperJson
+
+    # Test SuperJson with objects that have _marimo_serialize_
+    serializable_data = MockMarimoSerializable("superjson test")
+    superjson_obj = SuperJson(serializable_data)
+    encoded = encode_json_str(superjson_obj)
+    assert encoded == '{"serialized_data":"superjson test","type":"mock"}'
+
+
+def test_superjson_with_ranges() -> None:
+    from marimo._output.superjson import SuperJson
+
+    # Test SuperJson with range objects (handled by enc_hook)
+    range_data = range(5)
+    superjson_obj = SuperJson(range_data)
+    encoded = encode_json_str(superjson_obj)
+    assert encoded == "[0,1,2,3,4]"
+
+
+def test_superjson_with_complex_numbers() -> None:
+    from marimo._output.superjson import SuperJson
+
+    # Test SuperJson with complex numbers (handled by enc_hook)
+    complex_data = 3 + 4j
+    superjson_obj = SuperJson(complex_data)
+    encoded = encode_json_str(superjson_obj)
+    assert encoded == '"(3+4j)"'
+
+
+def test_superjson_with_inf_nan() -> None:
+    from marimo._output.superjson import SuperJson
+
+    # Test SuperJson with inf and nan (handled by enc_hook)
+    superjson_obj = SuperJson(
+        [float("inf"), float("nan"), 1.0, 2.0, float("-inf")]
+    )
+    encoded = encode_json_str(superjson_obj)
+    assert encoded == '["Infinity","NaN",1.0,2.0,"-Infinity"]'
+
+
+def test_superjson_with_bytes() -> None:
+    from marimo._output.superjson import SuperJson
+
+    # ASCII bytes
+    bytes_data = b"hello"
+    superjson_obj = SuperJson(bytes_data)
+    encoded = encode_json_str(superjson_obj)
+    assert encoded == '"hello"'
+
+    # Unicode bytes
+    bytes_data = b"hello\x80\x81\x82"
+    superjson_obj = SuperJson(bytes_data)
+    encoded = encode_json_str(superjson_obj)
+    assert encoded == '"hello\x80\x81\x82"'
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (1, "1"),
+        (True, "true"),
+        ("hello", '"hello"'),
+        (None, "null"),
+        ([1, 2, 3], "[1,2,3]"),
+        ({"a": 1, "b": 2}, '{"a":1,"b":2}'),
+        ((), "[]"),
+        (set([1, 2, 3]), "[1,2,3]"),
+        (frozenset([1, 2, 3]), "[1,2,3]"),
+        (range(10), "[0,1,2,3,4,5,6,7,8,9]"),
+        (datetime.datetime(2023, 1, 1, 12, 30, 45), '"2023-01-01 12:30:45"'),
+        (datetime.timedelta(days=1, hours=2, minutes=3), '"1 day, 2:03:00"'),
+        (datetime.date(2023, 1, 1), '"2023-01-01"'),
+        (3 + 4j, '"(3+4j)"'),
+        (
+            [float("inf"), float("nan"), 1.0, 2.0, float("-inf")],
+            '["Infinity","NaN",1.0,2.0,"-Infinity"]',
+        ),
+        (b"hello", '"hello"'),
+        (memoryview(b"hello"), '"hello"'),
+        (
+            MockMarimoSerializable("test data"),
+            '{"serialized_data":"test data","type":"mock"}',
+        ),
+    ],
+)
+def test_wrapped_in_superjson(value: Any, expected: str) -> None:
+    from marimo._output.superjson import SuperJson
+
+    obj = SuperJson(value)
+    encoded = encode_json_str(obj)
+    assert encoded == expected
