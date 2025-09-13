@@ -65,7 +65,7 @@ export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
       key={`tool-${index}`}
       type="single"
       collapsible={true}
-      className="w-full my-4"
+      className="w-full"
     >
       <AccordionItem value="tool-call" className="border-0">
         <AccordionTrigger

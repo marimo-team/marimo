@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable no-console */
 
+import { debug } from "debug";
 import { Functions } from "./functions";
 
 declare global {
@@ -8,6 +9,8 @@ declare global {
     Logger?: ILogger;
   }
 }
+
+const baseDebugger = debug("marimo");
 
 interface ILogger {
   debug: (typeof console)["debug"];
@@ -24,14 +27,15 @@ const createNamespacedLogger = (
   baseLogger: ILogger,
 ): ILogger => {
   const prefix = `[${namespace}]`;
+  const namedDebugger = debug(namespace);
   return {
-    debug: (...args) => baseLogger.debug(prefix, ...args),
+    debug: (...args) => namedDebugger(...args),
     log: (...args) => baseLogger.log(prefix, ...args),
     warn: (...args) => baseLogger.warn(prefix, ...args),
     error: (...args) => baseLogger.error(prefix, ...args),
     trace: (...args) => baseLogger.trace(prefix, ...args),
     get: (subNamespace: string) =>
-      createNamespacedLogger(`${namespace}.${subNamespace}`, baseLogger),
+      createNamespacedLogger(`${namespace}:${subNamespace}`, baseLogger),
     disabled: (disabled = true) => {
       if (disabled) {
         return DisabledLogger;
@@ -46,9 +50,7 @@ const createNamespacedLogger = (
  */
 const ConsoleLogger: ILogger = {
   debug: (...args) => {
-    if (process.env.NODE_ENV !== "production") {
-      console.debug(...args);
-    }
+    baseDebugger(...args);
   },
   log: (...args) => {
     console.log(...args);
@@ -62,7 +64,8 @@ const ConsoleLogger: ILogger = {
   trace: (...args) => {
     console.trace(...args);
   },
-  get: (namespace: string) => createNamespacedLogger(namespace, ConsoleLogger),
+  get: (namespace: string) =>
+    createNamespacedLogger(`marimo:${namespace}`, ConsoleLogger),
   disabled: (disabled = true) => {
     if (disabled) {
       return DisabledLogger;

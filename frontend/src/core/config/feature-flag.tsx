@@ -13,6 +13,7 @@ export interface ExperimentalFeatures {
   performant_table_charts: boolean;
   mcp_docs: boolean;
   sql_linter: boolean;
+  external_agents: boolean;
   // Add new feature flags here
 }
 
@@ -24,6 +25,7 @@ const defaultValues: ExperimentalFeatures = {
   performant_table_charts: false,
   mcp_docs: false,
   sql_linter: false,
+  external_agents: import.meta.env.DEV,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

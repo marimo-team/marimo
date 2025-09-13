@@ -8,6 +8,7 @@ import {
   FileTextIcon,
   FolderTreeIcon,
   FunctionSquareIcon,
+  HatGlassesIcon,
   KeyRoundIcon,
   type LucideIcon,
   NetworkIcon,
@@ -17,6 +18,7 @@ import {
   TextSearchIcon,
   XCircleIcon,
 } from "lucide-react";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { isWasm } from "@/core/wasm/utils";
 
 export type PanelType =
@@ -32,6 +34,7 @@ export type PanelType =
   | "datasources"
   | "scratchpad"
   | "chat"
+  | "agents"
   | "secrets"
   | "logs";
 
@@ -85,6 +88,13 @@ export const PANELS: PanelDescriptor[] = [
     Icon: BotMessageSquareIcon,
     tooltip: "Chat with AI",
     position: "sidebar",
+  },
+  {
+    type: "agents",
+    Icon: HatGlassesIcon,
+    tooltip: "Agents",
+    position: "sidebar",
+    hidden: !getFeatureFlag("external_agents"),
   },
   {
     type: "documentation",
