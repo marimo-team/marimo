@@ -2,13 +2,13 @@
 
 import {
   ActivityIcon,
-  BotIcon,
   BotMessageSquareIcon,
   BoxIcon,
   DatabaseIcon,
   FileTextIcon,
   FolderTreeIcon,
   FunctionSquareIcon,
+  HatGlassesIcon,
   KeyRoundIcon,
   type LucideIcon,
   NetworkIcon,
@@ -91,7 +91,7 @@ export const PANELS: PanelDescriptor[] = [
   },
   {
     type: "agents",
-    Icon: BotIcon,
+    Icon: HatGlassesIcon,
     tooltip: "Agents",
     position: "sidebar",
     hidden: !getFeatureFlag("external_agents"),

@@ -1,4 +1,4 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
@@ -53,7 +53,7 @@ export const selectedTabAtom = atom(
       null
     );
   },
-  (get, set, activeTabId: TabId | null) => {
+  (_get, set, activeTabId: TabId | null) => {
     set(agentSessionStateAtom, (prev) => ({
       ...prev,
       activeTabId: activeTabId,
@@ -67,7 +67,7 @@ function generateTabId(): TabId {
   return `tab_${generateUUID()}` as TabId;
 }
 
-export function truncateTitle(title: string, maxLength: number = 20): string {
+export function truncateTitle(title: string, maxLength = 20): string {
   if (title.length <= maxLength) {
     return title;
   }

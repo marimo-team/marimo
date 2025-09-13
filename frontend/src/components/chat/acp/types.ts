@@ -1,4 +1,4 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import type { ContentBlock } from "@zed-industries/agent-client-protocol";
 import type { groupNotifications, useAcpClient } from "use-acp";
 

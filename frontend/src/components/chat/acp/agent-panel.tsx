@@ -1,4 +1,4 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtom } from "jotai";
 import { capitalize } from "lodash-es";
@@ -36,6 +36,7 @@ import { AgentThread } from "./thread";
 import "./agent-panel.css";
 import type {
   ReadTextFileResponse,
+  RequestPermissionResponse,
   WriteTextFileResponse,
 } from "@zed-industries/agent-client-protocol";
 import { toast } from "@/components/ui/use-toast";
@@ -60,7 +61,7 @@ interface AgentTitleProps {
 
 const AgentTitle = memo<AgentTitleProps>(({ currentAgentId }) => (
   <span className="text-sm font-medium">
-    {currentAgentId ? `${capitalize(currentAgentId)}` : "Agents"}
+    {currentAgentId ? capitalize(currentAgentId) : "Agents"}
   </span>
 ));
 AgentTitle.displayName = "AgentTitle";
@@ -210,7 +211,9 @@ interface LoadingIndicatorProps {
 
 const LoadingIndicator = memo<LoadingIndicatorProps>(
   ({ isLoading, isRequestingPermission, onStop }) => {
-    if (!isLoading) return null;
+    if (!isLoading) {
+      return null;
+    }
 
     return (
       <div className="px-3 py-2 border-t bg-muted/30 flex-shrink-0">
@@ -307,7 +310,9 @@ const ChatContent = memo<ChatContentProps>(
     // Scroll handler to determine if we're at the bottom of the chat
     const handleScroll = useEvent(() => {
       const container = scrollContainerRef.current;
-      if (!container) return;
+      if (!container) {
+        return;
+      }
 
       const { scrollTop, scrollHeight, clientHeight } = container;
       const hasOverflow = scrollHeight > clientHeight;
@@ -319,7 +324,9 @@ const ChatContent = memo<ChatContentProps>(
 
     const scrollToBottom = useEvent(() => {
       const container = scrollContainerRef.current;
-      if (!container) return;
+      if (!container) {
+        return;
+      }
 
       container.scrollTo({
         top: container.scrollHeight,
@@ -449,7 +456,9 @@ const AgentPanel: React.FC = () => {
 
   // Auto-connect to agent when we have an active session, but only once per session
   useEffect(() => {
-    if (wsUrl === NO_WS_SET) return;
+    if (wsUrl === NO_WS_SET) {
+      return;
+    }
 
     logger.debug("Auto-connecting to agent", {
       sessionId: activeSessionId,
@@ -535,10 +544,7 @@ const AgentPanel: React.FC = () => {
     const createOrResumeSession = async () => {
       try {
         // Check if we need to create a new session
-        if (!tabLastActiveSessionId) {
-          // No existing session, create new one
-          await handleNewSession();
-        } else {
+        if (tabLastActiveSessionId) {
           // Try to resume existing session
           try {
             await handleResumeSession(tabLastActiveSessionId);
@@ -550,6 +556,9 @@ const AgentPanel: React.FC = () => {
             // Fall back to creating new session
             await handleNewSession();
           }
+        } else {
+          // No existing session, create new one
+          await handleNewSession();
         }
       } catch (error) {
         logger.error("Failed to create or resume session:", error);
@@ -681,7 +690,7 @@ const AgentPanel: React.FC = () => {
             sessionId: activeSessionId,
             option,
           });
-          resolvePermission(option);
+          resolvePermission(option as RequestPermissionResponse);
         }}
         onRetryConnection={handleManualConnect}
       />

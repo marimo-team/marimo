@@ -1,11 +1,10 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
-import { CopyIcon, TerminalIcon } from "lucide-react";
+import { TerminalIcon } from "lucide-react";
 import { memo } from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
-import { Button } from "@/components/ui/button";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { cn } from "@/utils/cn";
-import { copyToClipboard } from "@/utils/copy";
 import {
   type ExternalAgentId,
   getAgentConnectionCommand,
@@ -37,15 +36,7 @@ const AgentDocItem = memo<AgentDocItemProps>(
               {command}
             </code>
             {showCopy && (
-              <Button
-                variant="ghost"
-                size="xs"
-                className="h-5 w-5 p-0 flex-shrink-0"
-                onClick={() => copyToClipboard(command)}
-                title="Copy command"
-              >
-                <CopyIcon className="h-3 w-3" />
-              </Button>
+              <CopyClipboardIcon value={command} className="h-3 w-3" />
             )}
           </div>
         </div>

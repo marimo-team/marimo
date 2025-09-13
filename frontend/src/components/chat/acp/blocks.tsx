@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import type {
   ContentBlock,
   ToolCallContent,
@@ -265,7 +266,7 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
             <input
               type="checkbox"
               checked={item.status === "completed"}
-              readOnly
+              readOnly={true}
               className="accent-primary h-4 w-4 rounded border border-muted-foreground/30"
               tabIndex={-1}
             />
@@ -351,7 +352,9 @@ export const AudioBlock = (props: { data: ContentBlockOf<"audio"> }) => {
     <audio
       src={`data:${props.data.mimeType};base64,${props.data.data}`}
       controls={true}
-    />
+    >
+      <track kind="captions" />
+    </audio>
   );
 };
 
@@ -398,7 +401,7 @@ export const ResourceBlock = (props: { data: ContentBlockOf<"resource"> }) => {
       );
     }
     const dataURL = base64ToDataURL(
-      props.data.resource.blob as Base64String<unknown>,
+      props.data.resource.blob as Base64String,
       props.data.resource.mimeType ?? "",
     );
     return (
@@ -507,7 +510,7 @@ export const SessionNotificationsBlock = <
 };
 
 export const ToolNotificationsBlock = (props: {
-  data: (ToolCallNotificationEvent | ToolCallUpdateNotificationEvent)[];
+  data: Array<ToolCallNotificationEvent | ToolCallUpdateNotificationEvent>;
 }) => {
   const toolCalls = mergeToolCalls(props.data);
 
@@ -540,7 +543,7 @@ export const ToolNotificationsBlock = (props: {
 };
 
 export const DiffBlocks = (props: {
-  data: Extract<ToolCallContent, { type: "diff" }>[];
+  data: Array<Extract<ToolCallContent, { type: "diff" }>>;
 }) => {
   return (
     <div className="flex flex-col gap-2 text-muted-foreground">
