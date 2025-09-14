@@ -8,11 +8,7 @@ import type { DatasetsState } from "@/core/datasets/types";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import type { Variable, VariableName } from "@/core/variables/types";
-import {
-  codeToCells,
-  getAICompletionBody,
-  splitCodeIntoCells,
-} from "../completion-utils";
+import { codeToCells, getAICompletionBody } from "../completion-utils";
 
 // Mock getCodes function
 vi.mock("@/core/codemirror/copilot/getCodes", () => ({
@@ -359,72 +355,6 @@ describe("getAICompletionBody", () => {
         "includeOtherCode": "// Some other code",
       }
     `);
-  });
-});
-
-describe("splitCodeIntoCells", () => {
-  it("should split code into cells", () => {
-    const code = "```python\nprint('Hello, world!')\n```";
-    const result = splitCodeIntoCells(code);
-    expect(result).toEqual([
-      { language: "python", code: "print('Hello, world!')" },
-    ]);
-  });
-
-  it("should split code into multiple cells", () => {
-    const code =
-      "```python\nprint('Hello, world!')\n```\n```sql\nSELECT * FROM users\n```\n```markdown\n# Hello, world!\n```";
-    const result = splitCodeIntoCells(code);
-    expect(result).toEqual([
-      { language: "python", code: "print('Hello, world!')" },
-      { language: "sql", code: "SELECT * FROM users" },
-      { language: "markdown", code: "# Hello, world!" },
-    ]);
-  });
-
-  it("should handle cells with similar language identifiers", () => {
-    const code =
-      "```python\nprint('Hello, world!')\n```\n```python\nprint('Hello, world!')\n```";
-    const result = splitCodeIntoCells(code);
-    expect(result).toEqual([
-      { language: "python", code: "print('Hello, world!')" },
-      { language: "python", code: "print('Hello, world!')" },
-    ]);
-  });
-
-  it("should handle code with no backticks", () => {
-    // Assume code is in 1 cell and python
-    const code = "print('Hello, world!')";
-    const result = splitCodeIntoCells(code);
-    expect(result).toEqual([
-      { language: "python", code: "print('Hello, world!')" },
-    ]);
-  });
-
-  it("should handle empty cells", () => {
-    const code = "```python\n\n```";
-    const result = splitCodeIntoCells(code);
-    expect(result).toEqual([{ language: "python", code: "```python\n\n```" }]);
-  });
-
-  it("should handle code with no language identifier", () => {
-    // Defaults to python
-    const code = "```\nprint('Hello, world!')\n```";
-    const result = splitCodeIntoCells(code);
-    expect(result).toEqual([
-      { language: "python", code: "print('Hello, world!')" },
-    ]);
-  });
-
-  it("should handle markdown with code blocks", { fails: true }, () => {
-    const code = "```markdown\n```python\nprint('Hello, world!')\n```";
-    const result = splitCodeIntoCells(code);
-    expect(result).toEqual([
-      {
-        language: "markdown",
-        code: "```python\nprint('Hello, world!')\n```",
-      },
-    ]);
   });
 });
 

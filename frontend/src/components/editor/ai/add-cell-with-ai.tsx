@@ -76,8 +76,11 @@ const promptHistoryStorage = new ZodLocalStorage(z.array(z.string()), () => []);
 export const AddCellWithAI: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
+  const store = useStore();
   const [input, setInput] = useState("");
-  const { deleteAllStagedCells, clearStagedCells, onStream } = useStagedCells();
+
+  const { deleteAllStagedCells, clearStagedCells, onStream } =
+    useStagedCells(store);
   const [language, setLanguage] = useAtom(languageAtom);
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();

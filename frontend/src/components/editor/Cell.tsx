@@ -72,7 +72,10 @@ import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { DeleteButton } from "./cell/DeleteButton";
 import { PendingDeleteConfirmation } from "./cell/PendingDeleteConfirmation";
 import { RunButton } from "./cell/RunButton";
-import { StagedAICellFooter } from "./cell/StagedCellsAI";
+import {
+  StagedAICellBackground,
+  StagedAICellFooter,
+} from "./cell/StagedCellsAI";
 import { useDeleteCellCallback } from "./cell/useDeleteCell";
 import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";
@@ -570,6 +573,7 @@ const EditableCellComponent = ({
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}
           >
+            <StagedAICellBackground cellId={cellId} className="z-5" />
             {cellOutput === "above" && outputArea}
             <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
               <div className="absolute right-2 -top-4 z-10">

@@ -15,13 +15,13 @@ const { createActions, reducer, initialState } = visibleForTesting;
 
 // Mock the dependencies
 const mockCreateNewCell = vi.fn();
-const mockUpdateCellCode = vi.fn();
+const mockUpdateCellEditor = vi.fn();
 const mockDeleteCellCallback = vi.fn();
 
 vi.mock("../../cells/cells", () => ({
   useCellActions: () => ({
     createNewCell: mockCreateNewCell,
-    updateCellCode: mockUpdateCellCode,
+    updateCellEditor: mockUpdateCellEditor,
   }),
 }));
 
@@ -142,7 +142,7 @@ describe("staged-cells", () => {
 
   describe("useStagedCells hook", () => {
     it("should create a staged cell with code", () => {
-      const { result } = renderHook(() => useStagedCells());
+      const { result } = renderHook(() => useStagedCells(store));
       const testCode = "print('hello world')";
 
       // Mock CellId.create to return a predictable ID
@@ -161,7 +161,7 @@ describe("staged-cells", () => {
     });
 
     it("should delete a staged cell", () => {
-      const { result } = renderHook(() => useStagedCells());
+      const { result } = renderHook(() => useStagedCells(store));
       const testCellId = "test-cell-id" as CellId;
 
       result.current.deleteStagedCell(testCellId);
@@ -172,7 +172,7 @@ describe("staged-cells", () => {
     });
 
     it("should delete all staged cells when none exist", () => {
-      const { result } = renderHook(() => useStagedCells());
+      const { result } = renderHook(() => useStagedCells(store));
 
       // Should not throw when no cells exist
       expect(() => result.current.deleteAllStagedCells()).not.toThrow();
@@ -188,7 +188,7 @@ describe("staged-cells", () => {
         ]),
       });
 
-      const { result } = renderHook(() => useStagedCells());
+      const { result } = renderHook(() => useStagedCells(store));
 
       // Verify cells are in the atom
       let state = store.get(stagedAICellsAtom);
@@ -207,7 +207,7 @@ describe("staged-cells", () => {
     });
 
     it("should add staged cell", () => {
-      const { result } = renderHook(() => useStagedCells());
+      const { result } = renderHook(() => useStagedCells(store));
 
       result.current.addStagedCell({ cellId: cellId1, code: "test code" });
 
@@ -218,7 +218,7 @@ describe("staged-cells", () => {
     });
 
     it("should remove staged cell", () => {
-      const { result } = renderHook(() => useStagedCells());
+      const { result } = renderHook(() => useStagedCells(store));
 
       // First add cells
       result.current.addStagedCell({ cellId: cellId1, code: "test1" });
@@ -234,7 +234,7 @@ describe("staged-cells", () => {
     });
 
     it("should clear all staged cells", () => {
-      const { result } = renderHook(() => useStagedCells());
+      const { result } = renderHook(() => useStagedCells(store));
 
       // First add some cells
       result.current.addStagedCell({ cellId: cellId1, code: "test1" });
@@ -249,7 +249,7 @@ describe("staged-cells", () => {
     });
 
     it("should handle multiple operations correctly", () => {
-      const { result } = renderHook(() => useStagedCells());
+      const { result } = renderHook(() => useStagedCells(store));
 
       // Create a staged cell
       const mockCellId = "mock-cell-id" as CellId;
@@ -273,6 +273,103 @@ describe("staged-cells", () => {
       // Verify it was removed from staged cells
       state = store.get(stagedAICellsAtom);
       expect(state.cellsMap.has(mockCellId)).toBe(false);
+    });
+  });
+});
+
+describe("onStream", () => {
+  let store: ReturnType<typeof getDefaultStore>;
+  beforeEach(() => {
+    store = getDefaultStore();
+  });
+
+  it("should create a cell creation stream", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({ type: "text-start", id: "test-id" });
+
+    // No cell or cell update should have been called
+    expect(mockCreateNewCell).not.toHaveBeenCalled();
+    expect(mockUpdateCellEditor).not.toHaveBeenCalled();
+  });
+
+  it("should not create cells when text-delta is received and no stream has been created", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({
+      type: "text-delta",
+      id: "test-id",
+      delta: "test-delta",
+    });
+
+    // No cell or cell update should have been called
+    expect(mockCreateNewCell).not.toHaveBeenCalled();
+    expect(mockUpdateCellEditor).not.toHaveBeenCalled();
+  });
+
+  it("should create cells when text-delta is received and a stream has been created", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({ type: "text-start", id: "test-id" });
+
+    // Mock CellId.create to return a predictable ID
+    const mockCellId = "mock-cell-id" as CellId;
+    vi.mocked(CellId.create).mockReturnValue(mockCellId);
+
+    result.current.onStream({
+      type: "text-delta",
+      id: "test-id",
+      delta: "some code",
+    });
+
+    expect(mockCreateNewCell).toHaveBeenCalledWith({
+      cellId: "__end__",
+      code: "some code",
+      before: false,
+      newCellId: "mock-cell-id",
+    });
+  });
+
+  it("should handle delta chunks", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({ type: "text-start", id: "test-id" });
+
+    const mockCellId = "mock-cell-id" as CellId;
+    vi.mocked(CellId.create).mockReturnValue(mockCellId);
+
+    result.current.onStream({
+      type: "text-delta",
+      id: "test-id",
+      delta: "``",
+    });
+
+    expect(mockCreateNewCell).toHaveBeenCalledWith({
+      cellId: "__end__",
+      code: "``",
+      before: false,
+      newCellId: "mock-cell-id",
+    });
+
+    result.current.onStream({
+      type: "text-delta",
+      id: "test-id",
+      delta: "```python\nsome code",
+    });
+
+    // Now the cell is recognized and only some code is seen
+    expect(mockUpdateCellEditor).toHaveBeenCalledWith({
+      cellId: "mock-cell-id",
+      code: "some code",
+      language: "python",
+    });
+
+    result.current.onStream({
+      type: "text-delta",
+      id: "test-id",
+      delta: "\n```",
+    });
+
+    expect(mockUpdateCellEditor).toHaveBeenCalledWith({
+      cellId: "mock-cell-id",
+      code: "some code",
+      language: "python",
     });
   });
 });

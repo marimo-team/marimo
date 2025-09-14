@@ -2,8 +2,9 @@
 
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import { languageAdapterState } from "./extension";
+import { languageAdapterState, switchLanguage } from "./extension";
 import { languageMetadataField } from "./metadata";
+import type { LanguageAdapterType } from "./types";
 
 /**
  * Get the editor code as Python
@@ -45,6 +46,21 @@ export function updateEditorCodeFromPython(
     changes: { from: 0, to: doc.length, insert: code },
   });
   return code;
+}
+
+/**
+ * Update the editor code and language
+ */
+export function updateEditorCodeAndLanguage(opts: {
+  editor: EditorView;
+  code: string;
+  language?: LanguageAdapterType;
+}) {
+  const { editor, code, language } = opts;
+  updateEditorCodeFromPython(editor, code);
+  if (language) {
+    switchLanguage(editor, { language, keepCodeAsIs: true });
+  }
 }
 
 /**
