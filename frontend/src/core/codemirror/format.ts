@@ -13,7 +13,10 @@ import { getRequestClient } from "../network/requests";
 import { cellActionsState } from "./cells/state";
 import { cellIdState } from "./config/extension";
 import { languageAdapterState } from "./language/extension";
-import { getEditorCodeAsPython } from "./language/utils";
+import {
+  getEditorCodeAsPython,
+  updateEditorCodeFromPython,
+} from "./language/utils";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
@@ -53,6 +56,7 @@ export async function formatEditorViews(views: Record<CellId, EditorView>) {
       code: formattedCode,
       formattingChange: true,
     });
+    updateEditorCodeFromPython(view, formattedCode);
   }
 }
 

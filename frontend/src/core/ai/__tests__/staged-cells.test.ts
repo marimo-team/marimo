@@ -4,6 +4,7 @@ import { renderHook } from "@testing-library/react";
 import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CellId } from "@/core/cells/ids";
+import { updateEditorCodeAndLanguage } from "../../codemirror/language/utils";
 import {
   type StagedCellData,
   stagedAICellsAtom,
@@ -18,15 +19,31 @@ const mockCreateNewCell = vi.fn();
 const mockUpdateCellEditor = vi.fn();
 const mockDeleteCellCallback = vi.fn();
 
+// Mock cell handle with editor view
+const mockCellHandle = {
+  current: {
+    editorViewOrNull: {
+      dispatch: vi.fn(),
+    },
+  },
+};
+
 vi.mock("../../cells/cells", () => ({
   useCellActions: () => ({
     createNewCell: mockCreateNewCell,
     updateCellEditor: mockUpdateCellEditor,
   }),
+  cellHandleAtom: vi.fn(() => ({
+    read: vi.fn(() => mockCellHandle),
+  })),
 }));
 
 vi.mock("@/components/editor/cell/useDeleteCell", () => ({
   useDeleteCellCallback: () => mockDeleteCellCallback,
+}));
+
+vi.mock("../../codemirror/language/utils", () => ({
+  updateEditorCodeAndLanguage: vi.fn(),
 }));
 
 // Mock CellId.create
@@ -354,8 +371,8 @@ describe("onStream", () => {
     });
 
     // Now the cell is recognized and only some code is seen
-    expect(mockUpdateCellEditor).toHaveBeenCalledWith({
-      cellId: "mock-cell-id",
+    expect(vi.mocked(updateEditorCodeAndLanguage)).toHaveBeenCalledWith({
+      editor: mockCellHandle.current.editorViewOrNull,
       code: "some code",
       language: "python",
     });
@@ -366,8 +383,8 @@ describe("onStream", () => {
       delta: "\n```",
     });
 
-    expect(mockUpdateCellEditor).toHaveBeenCalledWith({
-      cellId: "mock-cell-id",
+    expect(vi.mocked(updateEditorCodeAndLanguage)).toHaveBeenCalledWith({
+      editor: mockCellHandle.current.editorViewOrNull,
       code: "some code",
       language: "python",
     });

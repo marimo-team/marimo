@@ -50,6 +50,7 @@ export function updateEditorCodeFromPython(
 
 /**
  * Update the editor code and language
+ * Codemirror will also react to changes in the editor and updates the cell data.
  */
 export function updateEditorCodeAndLanguage(opts: {
   editor: EditorView;

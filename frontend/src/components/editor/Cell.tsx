@@ -75,7 +75,7 @@ import { RunButton } from "./cell/RunButton";
 import {
   StagedAICellBackground,
   StagedAICellFooter,
-} from "./cell/StagedCellsAI";
+} from "./cell/StagedAICell";
 import { useDeleteCellCallback } from "./cell/useDeleteCell";
 import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";

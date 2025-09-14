@@ -10,8 +10,9 @@ import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import { CellId } from "@/core/cells/ids";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
-import { useCellActions } from "../cells/cells";
+import { cellHandleAtom, useCellActions } from "../cells/cells";
 import type { LanguageAdapterType } from "../codemirror/language/types";
+import { updateEditorCodeAndLanguage } from "../codemirror/language/utils";
 import type { JotaiStore } from "../state/jotai";
 
 export interface StagedCellData {
@@ -69,7 +70,7 @@ interface UpdateStagedCellAction {
 export function useStagedCells(store: JotaiStore) {
   const { addStagedCell, removeStagedCell, clearStagedCells } =
     useStagedAICellsActions();
-  const { createNewCell, updateCellEditor } = useCellActions();
+  const { createNewCell } = useCellActions();
   const deleteCellCallback = useDeleteCellCallback();
 
   const cellCreationStream = useRef<CellCreationStream | null>(null);
@@ -95,7 +96,13 @@ export function useStagedCells(store: JotaiStore) {
       return;
     }
 
-    updateCellEditor({ cellId, code, language });
+    const cellHandle = store.get(cellHandleAtom(cellId));
+    const editorView = cellHandle?.current?.editorViewOrNull;
+    if (!editorView) {
+      Logger.error("Editor for this cell not found", { cellId });
+      return;
+    }
+    updateEditorCodeAndLanguage({ editor: editorView, code, language });
   };
 
   // Delete a staged cell and the corresponding cell in the notebook.
