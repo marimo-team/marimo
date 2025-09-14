@@ -319,7 +319,6 @@ Your goal is to create new cells in the notebook.
 You can create multiple cells with different languages. Each cell should be wrapped in backticks.
 The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
-If you are creating variables for other cells to use, they cannot be private (do not prefix with underscore).
 Immediately start with the following format. Do NOT comment on the code, just output the code itself: 
 
 ```python
@@ -327,7 +326,7 @@ Immediately start with the following format. Do NOT comment on the code, just ou
 ```
 
 ```sql
-_df = mo.sql("""{SQL_QUERY}""")
+df_name = mo.sql("""{SQL_QUERY}""")
 ```
 
 ```markdown
@@ -335,6 +334,7 @@ mo.md("""{MARKDOWN_CONTENT}""")
 ```
 
 You can have multiple cells of any type. Each cell is wrapped in backticks with the appropriate language identifier.
+Create clear variable names if they will be used in other cells. Do not prefix with underscore.
 Separate logic into multiple cells to keep the code organized and readable.
 
 ## Rules for python:
