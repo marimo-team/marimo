@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CellId } from "@/core/cells/ids";
 import { updateEditorCodeAndLanguage } from "../../codemirror/language/utils";
 import {
-  type StagedCellData,
   stagedAICellsAtom,
   useStagedCells,
   visibleForTesting,
@@ -67,79 +66,63 @@ describe("staged-cells", () => {
     vi.clearAllMocks();
 
     // Reset the atom state
-    store.set(stagedAICellsAtom, {
-      cellsMap: new Map<CellId, StagedCellData>(),
-    });
+    store.set(stagedAICellsAtom, new Set<CellId>());
   });
 
   describe("reducer and actions", () => {
     it("should initialize with empty map", () => {
       const state = initialState();
-      expect(state.cellsMap).toEqual(new Map());
+      expect(state).toEqual(new Set());
     });
 
     it("should add cell IDs", () => {
       let state = initialState();
       state = reducer(state, {
         type: "addStagedCell",
-        payload: { cellId: cellId1, code: "test1" },
+        payload: { cellId: cellId1 },
       });
       state = reducer(state, {
         type: "addStagedCell",
-        payload: { cellId: cellId2, code: "test2" },
+        payload: { cellId: cellId2 },
       });
 
-      expect(state.cellsMap.has(cellId1)).toBe(true);
-      expect(state.cellsMap.has(cellId2)).toBe(true);
-      expect(state.cellsMap.get(cellId1)?.code).toBe("test1");
-      expect(state.cellsMap.get(cellId2)?.code).toBe("test2");
+      expect(state.has(cellId1)).toBe(true);
+      expect(state.has(cellId2)).toBe(true);
     });
 
     it("should remove cell IDs", () => {
-      const state = {
-        cellsMap: new Map([
-          [cellId1, { code: "test1" }],
-          [cellId2, { code: "test2" }],
-        ]),
-      };
+      const state = new Set([cellId1, cellId2]);
       const newState = reducer(state, {
         type: "removeStagedCell",
         payload: cellId1,
       });
 
-      expect(newState.cellsMap.has(cellId1)).toBe(false);
-      expect(newState.cellsMap.has(cellId2)).toBe(true);
+      expect(newState.has(cellId1)).toBe(false);
+      expect(newState.has(cellId2)).toBe(true);
     });
 
     it("should clear all cell IDs", () => {
-      const state = {
-        cellsMap: new Map([
-          [cellId1, { code: "test1" }],
-          [cellId2, { code: "test2" }],
-        ]),
-      };
+      const state = new Set([cellId1, cellId2]);
       const newState = reducer(state, {
         type: "clearStagedCells",
         payload: undefined,
       });
 
-      expect(newState.cellsMap).toEqual(new Map());
+      expect(newState).toEqual(new Set());
     });
 
     it("should not mutate original state", () => {
-      const state = {
-        cellsMap: new Map([[cellId1, { code: "test1" }]]),
-      };
-      const originalSize = state.cellsMap.size;
+      const state = new Set([cellId1]);
+      const originalSize = state.size;
 
       reducer(state, {
         type: "addStagedCell",
-        payload: { cellId: cellId2, code: "test2" },
+        payload: { cellId: cellId2 },
       });
 
-      expect(state.cellsMap.size).toBe(originalSize);
-      expect(state.cellsMap.has(cellId1)).toBe(true);
-      expect(state.cellsMap.has(cellId2)).toBe(false);
+      expect(state.size).toBe(originalSize);
+      expect(state.has(cellId1)).toBe(true);
+      expect(state.has(cellId2)).toBe(false);
     });
 
     it("should create action functions", () => {
@@ -153,7 +136,7 @@ describe("staged-cells", () => {
 
     it("should initialize atom with empty map", () => {
       const state = store.get(stagedAICellsAtom);
-      expect(state.cellsMap).toEqual(new Map());
+      expect(state).toEqual(new Set());
     });
   });
 
@@ -198,20 +181,9 @@ describe("staged-cells", () => {
 
     it("should delete all staged cells when cells exist", () => {
       // First set the atom state before rendering the hook
-      store.set(stagedAICellsAtom, {
-        cellsMap: new Map([
-          [cellId1, { code: "test1" }],
-          [cellId2, { code: "test2" }],
-        ]),
-      });
+      store.set(stagedAICellsAtom, new Set([cellId1, cellId2]));
 
       const { result } = renderHook(() => useStagedCells(store));
-
-      // Verify cells are in the atom
-      let state = store.get(stagedAICellsAtom);
-      expect(state.cellsMap.has(cellId1)).toBe(true);
-      expect(state.cellsMap.has(cellId2)).toBe(true);
-
       result.current.deleteAllStagedCells();
 
       expect(mockDeleteCellCallback).toHaveBeenCalledTimes(2);
@@ -219,78 +191,77 @@ describe("staged-cells", () => {
       expect(mockDeleteCellCallback).toHaveBeenCalledWith({ cellId: cellId2 });
 
       // Verify cells were cleared from the atom
-      state = store.get(stagedAICellsAtom);
-      expect(state.cellsMap).toEqual(new Map());
-    });
-
-    it("should add staged cell", () => {
-      const { result } = renderHook(() => useStagedCells(store));
-
-      result.current.addStagedCell({ cellId: cellId1, code: "test code" });
-
-      // Check that the cell was added to the atom
       const state = store.get(stagedAICellsAtom);
-      expect(state.cellsMap.has(cellId1)).toBe(true);
-      expect(state.cellsMap.get(cellId1)?.code).toBe("test code");
+      expect(state).toEqual(new Set());
+    });
+  });
+
+  it("should add staged cell", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+
+    result.current.addStagedCell({ cellId: cellId1 });
+
+    // Check that the cell was added to the atom
+    const state = store.get(stagedAICellsAtom);
+    expect(state.has(cellId1)).toBe(true);
+  });
+
+  it("should remove staged cell", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+
+    // First add cells
+    result.current.addStagedCell({ cellId: cellId1 });
+    result.current.addStagedCell({ cellId: cellId2 });
+
+    // Then remove one
+    result.current.removeStagedCell(cellId1);
+
+    // Check that only the remaining cell is in the map
+    const state = store.get(stagedAICellsAtom);
+    expect(state.has(cellId1)).toBe(false);
+    expect(state.has(cellId2)).toBe(true);
+  });
+
+  it("should clear all staged cells", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+
+    // First add some cells
+    result.current.addStagedCell({ cellId: cellId1 });
+    result.current.addStagedCell({ cellId: cellId2 });
+
+    // Then clear all
+    result.current.clearStagedCells();
+
+    // Check that no cells remain
+    const state = store.get(stagedAICellsAtom);
+    expect(state).toEqual(new Set());
+  });
+
+  it("should handle multiple operations correctly", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+
+    // Create a staged cell
+    const mockCellId = "mock-cell-id" as CellId;
+    vi.mocked(CellId.create).mockReturnValue(mockCellId);
+
+    const createdCellId = result.current.createStagedCell("test code");
+
+    // Verify it was created and added
+    expect(createdCellId).toBe(mockCellId);
+    expect(mockCreateNewCell).toHaveBeenCalled();
+
+    let state = store.get(stagedAICellsAtom);
+    expect(state.has(mockCellId)).toBe(true);
+
+    // Delete the staged cell
+    result.current.deleteStagedCell(mockCellId);
+    expect(mockDeleteCellCallback).toHaveBeenCalledWith({
+      cellId: mockCellId,
     });
 
-    it("should remove staged cell", () => {
-      const { result } = renderHook(() => useStagedCells(store));
-
-      // First add cells
-      result.current.addStagedCell({ cellId: cellId1, code: "test1" });
-      result.current.addStagedCell({ cellId: cellId2, code: "test2" });
-
-      // Then remove one
-      result.current.removeStagedCell(cellId1);
-
-      // Check that only the remaining cell is in the map
-      const state = store.get(stagedAICellsAtom);
-      expect(state.cellsMap.has(cellId1)).toBe(false);
-      expect(state.cellsMap.has(cellId2)).toBe(true);
-    });
-
-    it("should clear all staged cells", () => {
-      const { result } = renderHook(() => useStagedCells(store));
-
-      // First add some cells
-      result.current.addStagedCell({ cellId: cellId1, code: "test1" });
-      result.current.addStagedCell({ cellId: cellId2, code: "test2" });
-
-      // Then clear all
-      result.current.clearStagedCells();
-
-      // Check that no cells remain
-      const state = store.get(stagedAICellsAtom);
-      expect(state.cellsMap).toEqual(new Map());
-    });
-
-    it("should handle multiple operations correctly", () => {
-      const { result } = renderHook(() => useStagedCells(store));
-
-      // Create a staged cell
-      const mockCellId = "mock-cell-id" as CellId;
-      vi.mocked(CellId.create).mockReturnValue(mockCellId);
-
-      const createdCellId = result.current.createStagedCell("test code");
-
-      // Verify it was created and added
-      expect(createdCellId).toBe(mockCellId);
-      expect(mockCreateNewCell).toHaveBeenCalled();
-
-      let state = store.get(stagedAICellsAtom);
-      expect(state.cellsMap.has(mockCellId)).toBe(true);
-
-      // Delete the staged cell
-      result.current.deleteStagedCell(mockCellId);
-      expect(mockDeleteCellCallback).toHaveBeenCalledWith({
-        cellId: mockCellId,
-      });
-
-      // Verify it was removed from staged cells
-      state = store.get(stagedAICellsAtom);
-      expect(state.cellsMap.has(mockCellId)).toBe(false);
-    });
+    // Verify it was removed from staged cells
+    state = store.get(stagedAICellsAtom);
+    expect(state.has(mockCellId)).toBe(false);
   });
 });
 

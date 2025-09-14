@@ -15,23 +15,14 @@ import type { LanguageAdapterType } from "../codemirror/language/types";
 import { updateEditorCodeAndLanguage } from "../codemirror/language/utils";
 import type { JotaiStore } from "../state/jotai";
 
-export interface StagedCellData {
-  code: string;
-}
-
 /**
  * Cells that are staged for AI completion
  * They function similarly to cells in the notebook, but they can be deleted or accepted by the user.
  * We only track one set of staged cells at a time.
  */
-interface StagedAiCells {
-  cellsMap: Map<CellId, StagedCellData>;
-}
 
-const initialState = (): StagedAiCells => {
-  return {
-    cellsMap: new Map(),
-  };
+const initialState = (): Set<CellId> => {
+  return new Set();
 };
 
 const {
@@ -40,18 +31,12 @@ const {
   createActions,
   reducer,
 } = createReducerAndAtoms(initialState, {
-  addStagedCell: (state, action: { cellId: CellId; code: string }) => {
-    const { cellId, code } = action;
-    return {
-      ...state,
-      cellsMap: new Map([...state.cellsMap, [cellId, { code }]]),
-    };
+  addStagedCell: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    return new Set([...state, cellId]);
   },
   removeStagedCell: (state, cellId: CellId) => {
-    return {
-      ...state,
-      cellsMap: new Map([...state.cellsMap].filter(([id]) => id !== cellId)),
-    };
+    return new Set([...state].filter((id) => id !== cellId));
   },
   clearStagedCells: () => {
     return initialState();
@@ -77,7 +62,7 @@ export function useStagedCells(store: JotaiStore) {
 
   const createStagedCell = (code: string): CellId => {
     const newCellId = CellId.create();
-    addStagedCell({ cellId: newCellId, code });
+    addStagedCell({ cellId: newCellId });
     createNewCell({
       cellId: "__end__",
       code,
@@ -91,7 +76,7 @@ export function useStagedCells(store: JotaiStore) {
     const { cellId, code, language } = opts;
     const stagedAICells = store.get(stagedAICellsAtom);
 
-    if (!stagedAICells.cellsMap.has(cellId)) {
+    if (!stagedAICells.has(cellId)) {
       Logger.error("Staged cell not found", { cellId });
       return;
     }
@@ -114,7 +99,7 @@ export function useStagedCells(store: JotaiStore) {
   // Delete all staged cells and the corresponding cells in the notebook.
   const deleteAllStagedCells = () => {
     const stagedAICells = store.get(stagedAICellsAtom);
-    for (const cellId of stagedAICells.cellsMap.keys()) {
+    for (const cellId of stagedAICells) {
       deleteCellCallback({ cellId });
     }
     clearStagedCells();
@@ -160,6 +145,14 @@ export function useStagedCells(store: JotaiStore) {
     onStream,
   };
 }
+
+export { stagedAICellsAtom };
+export const visibleForTesting = {
+  createActions,
+  reducer,
+  initialState,
+  useStagedAICellsActions,
+};
 
 type TextDeltaChunk = Extract<UIMessageChunk, { type: "text-delta" }>;
 
@@ -212,11 +205,3 @@ class CellCreationStream {
     this.buffer = "";
   }
 }
-
-export { stagedAICellsAtom };
-export const visibleForTesting = {
-  createActions,
-  reducer,
-  initialState,
-  useStagedAICellsActions,
-};

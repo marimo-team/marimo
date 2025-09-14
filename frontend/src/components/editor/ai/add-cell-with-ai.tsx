@@ -136,8 +136,8 @@ export const AddCellWithAI: React.FC<{
   });
 
   const isLoading = status === "streaming" || status === "submitted";
-  const hasCompletion = stagedAICells.cellsMap.size > 0;
-  const multipleCompletions = stagedAICells.cellsMap.size > 1;
+  const hasCompletion = stagedAICells.size > 0;
+  const multipleCompletions = stagedAICells.size > 1;
 
   const submit = () => {
     if (!isLoading) {

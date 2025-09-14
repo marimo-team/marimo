@@ -12,7 +12,7 @@ export const StagedAICellBackground: React.FC<{
 }> = ({ cellId, className }) => {
   const stagedAICells = useAtomValue(stagedAICellsAtom);
 
-  if (!stagedAICells.cellsMap.has(cellId)) {
+  if (!stagedAICells.has(cellId)) {
     return null;
   }
 
@@ -35,7 +35,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   const stagedAICells = useAtomValue(stagedAICellsAtom);
   const { deleteStagedCell, removeStagedCell } = useStagedCells(store);
 
-  if (!stagedAICells.cellsMap.has(cellId)) {
+  if (!stagedAICells.has(cellId)) {
     return null;
   }
 
