@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable no-console */
 
-import { debug } from "debug";
 import { Functions } from "./functions";
 
 declare global {
@@ -9,8 +8,6 @@ declare global {
     Logger?: ILogger;
   }
 }
-
-const baseDebugger = debug("marimo");
 
 interface ILogger {
   debug: (typeof console)["debug"];
@@ -27,9 +24,8 @@ const createNamespacedLogger = (
   baseLogger: ILogger,
 ): ILogger => {
   const prefix = `[${namespace}]`;
-  const namedDebugger = debug(namespace);
   return {
-    debug: (...args) => namedDebugger(...args),
+    debug: (...args) => console.debug(prefix, ...args),
     log: (...args) => baseLogger.log(prefix, ...args),
     warn: (...args) => baseLogger.warn(prefix, ...args),
     error: (...args) => baseLogger.error(prefix, ...args),
@@ -50,7 +46,7 @@ const createNamespacedLogger = (
  */
 const ConsoleLogger: ILogger = {
   debug: (...args) => {
-    baseDebugger(...args);
+    console.debug(...args);
   },
   log: (...args) => {
     console.log(...args);

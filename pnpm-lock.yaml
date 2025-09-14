@@ -313,9 +313,6 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
-      debug:
-        specifier: ^4.4.1
-        version: 4.4.1(supports-color@10.0.0)
       dequal:
         specifier: ^2.0.3
         version: 2.0.3
@@ -524,9 +521,6 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.0(@testing-library/dom@10.4.0)(@types/react-dom@19.1.9(@types/react@19.1.12))(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      '@types/debug':
-        specifier: ^4.1.12
-        version: 4.1.12
       '@types/katex':
         specifier: ^0.16.7
         version: 0.16.7
