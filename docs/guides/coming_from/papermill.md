@@ -97,7 +97,7 @@ programmatically.
    from my_notebook import app
 
    # Run the app with CLI arguments
-   outputs, defs = app.run("--param1", "value1", "--param2", "value2")
+   outputs, defs = app.run(args=["--param1", "value1", "--param2", "value2"])
    ```
 
 3. **Using subprocess**:

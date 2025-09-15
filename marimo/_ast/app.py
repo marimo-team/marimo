@@ -595,7 +595,7 @@ class App:
 
     def run(
         self,
-        *cli_args: str,
+        args: list[str] | None = None,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         """
         Run the marimo app and return its outputs and definitions.
@@ -603,7 +603,7 @@ class App:
         Enables programmatic execution of marimo apps with custom parameters.
 
         Args:
-            *cli_args: Command-line arguments to pass to the app. These can be
+            args: List of command-line arguments to pass to the app. These can be
                 accessed within the app using `mo.cli_args()`. If no arguments
                 are provided, the app will inherit CLI arguments from the parent
                 process (sys.argv).
@@ -619,7 +619,7 @@ class App:
 
             # Run with custom CLI arguments
             outputs, defs = app.run(
-                "--batch_size", "64", "--model", "transformer"
+                args=["--batch_size", "64", "--model", "transformer"]
             )
             ```
 
@@ -648,7 +648,7 @@ class App:
             InternalApp(self),
             filename=self._filename,
             glbls=glbls,
-        ).run(parse_args(cli_args) if cli_args else None)
+        ).run(parse_args(args) if args else None)
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
     async def _run_cell_async(

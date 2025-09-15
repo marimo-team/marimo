@@ -38,7 +38,7 @@ def process_data():
     return batch_size,
 
 # Run with CLI arguments
-outputs, defs = app.run("--batch_size", "64", "--model", "transformer")
+outputs, defs = app.run(args=["--batch_size", "64", "--model", "transformer"])
 ```
 
 If you call `app.run()` without any CLI arguments, the app will inherit the

@@ -743,7 +743,7 @@ class TestApp:
             return (args,)
 
         # Test with various argument types
-        outputs, defs = app.run("--count", "42", "--name", "test", "--enabled", "true")
+        outputs, defs = app.run(args=["--count", "42", "--name", "test", "--enabled", "true"])
 
         args = defs["args"]
         assert args.get("count") == 42
