@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo import _loggers
+from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import (
@@ -213,10 +214,16 @@ async def update_file(
                     schema:
                         $ref: "#/components/schemas/FileUpdateResponse"
     """
+    app_state = AppState(request)
     body = await parse_request(request, cls=FileUpdateRequest)
     try:
         file_system.get_details(body.path)
         info = file_system.update_file(body.path, body.contents)
+
+        # Handle marimo notebook reload if there's an active session
+        session_manager = app_state.session_manager
+        await session_manager.handle_file_change(body.path)
+
         return FileUpdateResponse(success=True, info=info)
     except Exception as e:
         LOGGER.error(f"Error updating file or directory: {e}")

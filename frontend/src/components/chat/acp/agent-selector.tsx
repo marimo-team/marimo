@@ -13,7 +13,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useFilename } from "@/core/saving/filename";
 import { cn } from "@/utils/cn";
+import { Paths } from "@/utils/paths";
 import { AgentDocs } from "./agent-docs";
 import {
   type AgentSession,
@@ -79,6 +81,7 @@ AgentMenuItem.displayName = "AgentMenuItem";
 
 export const AgentSelector: React.FC<AgentSelectorProps> = memo(
   ({ onSessionCreated, className }) => {
+    const filename = useFilename();
     const [sessionState, setSessionState] = useAtom(agentSessionStateAtom);
     const setActiveTab = useSetAtom(selectedTabAtom);
     const [isOpen, setIsOpen] = useState(false);
@@ -123,7 +126,10 @@ export const AgentSelector: React.FC<AgentSelectorProps> = memo(
           <div className="px-2 py-2">
             <div className="text-xs font-medium text-muted-foreground mb-3">
               To start an external agent, run the following command in your
-              terminal:
+              terminal.
+              <br />
+              Note: This must be in the directory{" "}
+              {Paths.dirname(filename ?? "")}
             </div>
             <AgentDocs
               agents={AVAILABLE_AGENTS.map((agent) => agent.id)}

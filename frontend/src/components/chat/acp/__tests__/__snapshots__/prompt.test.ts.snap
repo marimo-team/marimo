@@ -3,7 +3,7 @@
 exports[`getAgentPrompt > should generate complete agent prompt with default filename 1`] = `
 "
   I am currently editing a marimo notebook.
-  You can read or write to the notebook at @test-notebook.py
+  You can read or write to the notebook at test-notebook.py
 
   If you make edits to the notebook, only edit the contents inside the function decorator with @app.cell.
   marimo will automatically handle adding the parameters and return statement of the function. For example,
@@ -115,13 +115,29 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
 
   - \`mo.md(text)\` - display markdown
   - \`mo.stop(predicate, output=None)\` - stop execution conditionally
+  - \`mo.output.append(value)\` - append to the output when it is not the last expression
+  - \`mo.output.replace(value)\` - replace the output when it is not the last expression
   - \`mo.Html(html)\` - display HTML
   - \`mo.image(image)\` - display an image
   - \`mo.hstack(elements)\` - stack elements horizontally
   - \`mo.vstack(elements)\` - stack elements vertically
   - \`mo.tabs(elements)\` - create a tabbed interface
 
+
+
   ## Examples
+
+  <example title="Markdown ccell">
+  
+  @app.cell
+  def __():
+      mo.md("""
+      # Hello world
+      This is a _markdown_ **cell**.
+      """)
+      return
+  
+  </example>
 
   <example title="Basic UI with reactivity">
   
@@ -218,6 +234,20 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
       )
       plt.title(f"{y_feature.value} vs {x_feature.value}")
       plt.gca()
+      return
+  
+  </example>
+
+  <example title="Conditional Outputs">
+  
+  @app.cell
+  def __():
+      mo.stop(not data.value, mo.md("No data to display"))
+    
+      if mode.value == "scatter":
+        mo.output.replace(render_scatter(data.value))
+      else:
+        mo.output.replace(render_bar_chart(data.value))
       return
   
   </example>

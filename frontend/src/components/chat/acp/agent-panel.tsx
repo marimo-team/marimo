@@ -1,20 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { capitalize } from "lodash-es";
 import {
   BotMessageSquareIcon,
   RefreshCwIcon,
   StopCircleIcon,
 } from "lucide-react";
-import React, { memo, useEffect, useRef, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { useAcpClient } from "use-acp";
 import {
   ConnectionStatus,
   PermissionRequest,
 } from "@/components/chat/acp/common";
-import { PromptInput } from "@/components/editor/ai/add-cell-with-ai";
+import {
+  type AdditionalCompletions,
+  PromptInput,
+} from "@/components/editor/ai/add-cell-with-ai";
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
@@ -34,11 +37,19 @@ import {
 } from "./state";
 import { AgentThread } from "./thread";
 import "./agent-panel.css";
+import type { Completion } from "@codemirror/autocomplete";
 import type {
-  ReadTextFileResponse,
+  ContentBlock,
   RequestPermissionResponse,
-  WriteTextFileResponse,
 } from "@zed-industries/agent-client-protocol";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { useRequestClient } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
@@ -49,8 +60,10 @@ import { getAgentPrompt } from "./prompt";
 import type {
   AgentConnectionState,
   AgentPendingPermission,
+  AvailableCommands,
   ExternalAgentSessionId,
   NotificationEvent,
+  SessionMode,
 } from "./types";
 
 const logger = Logger.get("agents");
@@ -171,35 +184,45 @@ interface EmptyStateProps {
 }
 
 const EmptyState = memo<EmptyStateProps>(
-  ({ currentAgentId, connectionState, onConnect, onDisconnect }) => (
-    <div className="flex flex-col h-full">
-      <AgentPanelHeader
-        connectionState={connectionState}
-        currentAgentId={currentAgentId}
-        onConnect={onConnect}
-        onDisconnect={onDisconnect}
-        hasActiveSession={false}
-      />
-      <SessionTabs />
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="max-w-md w-full space-y-6">
-          <PanelEmptyState
-            title="No Agent Sessions"
-            description="Create a new session to start a conversation"
-            action={<AgentSelector className="border-y-1 rounded" />}
-            icon={<BotMessageSquareIcon />}
-          />
-          {connectionState.status === "disconnected" && (
-            <AgentDocs
-              className="border-t pt-6"
-              title="Connect to an agent"
-              description="Start agents by running these commands in your terminal:"
+  ({ currentAgentId, connectionState, onConnect, onDisconnect }) => {
+    const filename = useAtomValue(filenameAtom);
+    return (
+      <div className="flex flex-col h-full">
+        <AgentPanelHeader
+          connectionState={connectionState}
+          currentAgentId={currentAgentId}
+          onConnect={onConnect}
+          onDisconnect={onDisconnect}
+          hasActiveSession={false}
+        />
+        <SessionTabs />
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="max-w-md w-full space-y-6">
+            <PanelEmptyState
+              title="No Agent Sessions"
+              description="Create a new session to start a conversation"
+              action={<AgentSelector className="border-y-1 rounded" />}
+              icon={<BotMessageSquareIcon />}
             />
-          )}
+            {connectionState.status === "disconnected" && (
+              <AgentDocs
+                className="border-t pt-6"
+                title="Connect to an agent"
+                description={
+                  <>
+                    Start agents by running these commands in your terminal:
+                    <br />
+                    Note: This must be in the directory{" "}
+                    {Paths.dirname(filename ?? "")}
+                  </>
+                }
+              />
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  ),
+    );
+  },
 );
 EmptyState.displayName = "EmptyState";
 
@@ -248,6 +271,7 @@ interface PromptAreaProps {
   isLoading: boolean;
   activeSessionId: ExternalAgentSessionId | null;
   promptValue: string;
+  commands: AvailableCommands | undefined;
   onPromptValueChange: (value: string) => void;
   onPromptSubmit: (e: KeyboardEvent | undefined, prompt: string) => void;
 }
@@ -257,28 +281,100 @@ const PromptArea = memo<PromptAreaProps>(
     isLoading,
     activeSessionId,
     promptValue,
+    commands,
     onPromptValueChange,
     onPromptSubmit,
-  }) => (
-    <div
-      className={cn(
-        "px-3 py-2 border-t bg-background flex-shrink-0 min-h-[80px]",
-        (isLoading || !activeSessionId) && "opacity-50 pointer-events-none",
-      )}
-    >
-      <PromptInput
-        value={promptValue}
-        onChange={isLoading ? Functions.NOOP : onPromptValueChange}
-        onSubmit={onPromptSubmit}
-        onClose={Functions.NOOP}
-        placeholder={isLoading ? "Processing..." : "Ask your AI agent..."}
-        className={isLoading ? "opacity-50 pointer-events-none" : ""}
-        maxHeight="120px"
-      />
-    </div>
-  ),
+  }) => {
+    const promptCompletions: AdditionalCompletions | undefined = useMemo(() => {
+      if (!commands) {
+        return undefined;
+      }
+      // sentence has to begin with '/' to trigger autocomplete
+      return {
+        triggerCompletionRegex: /^\/(\w+)?/,
+        completions: commands.map(
+          (prompt): Completion => ({
+            label: `/${prompt.name}`,
+            info: prompt.description,
+          }),
+        ),
+      };
+    }, [commands]);
+
+    return (
+      <div
+        className={cn(
+          "px-3 py-2 border-t bg-background flex-shrink-0 min-h-[80px]",
+          (isLoading || !activeSessionId) && "opacity-50 pointer-events-none",
+        )}
+      >
+        <PromptInput
+          value={promptValue}
+          onChange={isLoading ? Functions.NOOP : onPromptValueChange}
+          onSubmit={onPromptSubmit}
+          additionalCompletions={promptCompletions}
+          onClose={Functions.NOOP}
+          placeholder={isLoading ? "Processing..." : "Ask your AI agent..."}
+          className={isLoading ? "opacity-50 pointer-events-none" : ""}
+          maxHeight="120px"
+        />
+      </div>
+    );
+  },
 );
 PromptArea.displayName = "PromptArea";
+
+interface ModeSelectorProps {
+  sessionMode: SessionMode;
+  onModeChange: (mode: string) => void;
+}
+
+const ModeSelector = memo<ModeSelectorProps>(
+  ({ sessionMode, onModeChange }) => {
+    const availableModes = sessionMode?.availableModes || [];
+    const currentModeId = sessionMode?.currentModeId;
+    if (availableModes.length === 0) {
+      return null;
+    }
+
+    const modeOptions = availableModes.map((mode) => ({
+      value: mode.id,
+      label: mode.name,
+      subtitle: mode.description ?? "",
+    }));
+    const currentMode = modeOptions.find((opt) => opt.value === currentModeId);
+
+    return (
+      <Select value={currentModeId} onValueChange={onModeChange}>
+        <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
+          {currentMode?.label ?? currentModeId}
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectLabel>Agent Mode</SelectLabel>
+            {modeOptions.map((option) => (
+              <SelectItem
+                key={option.value}
+                value={option.value}
+                className="text-xs"
+              >
+                <div className="flex flex-col">
+                  {option.label}
+                  {option.subtitle && (
+                    <div className="text-muted-foreground text-xs pt-1 block">
+                      {option.subtitle}
+                    </div>
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    );
+  },
+);
+ModeSelector.displayName = "ModeSelector";
 
 interface ChatContentProps {
   hasNotifications: boolean;
@@ -286,7 +382,7 @@ interface ChatContentProps {
   sessionId: ExternalAgentSessionId | null;
   notifications: NotificationEvent[];
   pendingPermission: AgentPendingPermission;
-  onResolvePermission: (option: unknown) => void;
+  onResolvePermission: (option: RequestPermissionResponse) => void;
   onRetryConnection?: () => void;
   onRetryLastAction?: () => void;
   onDismissError?: (errorId: string) => void;
@@ -421,7 +517,7 @@ const AgentPanel: React.FC = () => {
   const acpClient = useAcpClient({
     wsUrl,
     clientOptions: {
-      readTextFile: (request): Promise<ReadTextFileResponse> => {
+      readTextFile: (request) => {
         logger.debug("Agent requesting file read", {
           path: request.path,
         });
@@ -429,7 +525,7 @@ const AgentPanel: React.FC = () => {
           content: response.contents || "",
         }));
       },
-      writeTextFile: (request): Promise<WriteTextFileResponse> => {
+      writeTextFile: (request) => {
         logger.debug("Agent requesting file write", {
           path: request.path,
           contentLength: request.content.length,
@@ -437,7 +533,7 @@ const AgentPanel: React.FC = () => {
         return sendUpdateFile({
           path: request.path,
           contents: request.content,
-        }).then(() => null);
+        }).then(() => ({}));
       },
     },
     autoConnect: false, // We'll manage connection manually based on active session
@@ -449,10 +545,24 @@ const AgentPanel: React.FC = () => {
     connectionState,
     notifications,
     pendingPermission,
+    availableCommands,
     resolvePermission,
+    sessionMode,
     activeSessionId,
     agent,
   } = acpClient;
+
+  useEffect(() => {
+    agent?.initialize({
+      protocolVersion: 1,
+      clientCapabilities: {
+        fs: {
+          readTextFile: true,
+          writeTextFile: true,
+        },
+      },
+    });
+  }, [agent]);
 
   // Auto-connect to agent when we have an active session, but only once per session
   useEffect(() => {
@@ -597,26 +707,35 @@ const AgentPanel: React.FC = () => {
         return;
       }
 
+      const promptBlocks: ContentBlock[] = [{ type: "text", text: prompt }];
+      const hasGivenRules = notifications.some(
+        (notification) =>
+          notification.type === "session_notification" &&
+          notification.data.update.sessionUpdate === "user_message_chunk",
+      );
+      if (!hasGivenRules) {
+        promptBlocks.push(
+          {
+            type: "resource_link",
+            uri: filename,
+            mimeType: "text/x-python",
+            name: filename,
+          },
+          {
+            type: "resource",
+            resource: {
+              uri: "marimo_rules.md",
+              mimeType: "text/markdown",
+              text: getAgentPrompt(filename),
+            },
+          },
+        );
+      }
+
       try {
         await agent.prompt({
           sessionId: activeSessionId,
-          prompt: [
-            { type: "text", text: prompt },
-            {
-              type: "resource_link",
-              uri: filename,
-              mimeType: "text/x-python",
-              name: filename,
-            },
-            {
-              type: "resource",
-              resource: {
-                uri: "marimo_rules.md",
-                mimeType: "text/markdown",
-                text: getAgentPrompt(filename),
-              },
-            },
-          ],
+          prompt: promptBlocks,
         });
       } catch (error) {
         logger.error("Failed to send prompt", { error });
@@ -650,6 +769,33 @@ const AgentPanel: React.FC = () => {
       currentStatus: connectionState.status,
     });
     disconnect();
+  });
+
+  const handleModeChange = useEvent((mode: string) => {
+    logger.debug("Mode change requested", {
+      sessionId: activeSessionId,
+      mode,
+    });
+    if (!agent) {
+      toast({
+        title: "Agent not connected",
+        description: "Please connect to an agent to change the mode",
+        variant: "danger",
+      });
+      return;
+    }
+    if (!agent.setSessionMode) {
+      toast({
+        title: "Mode change not supported",
+        description: "The agent does not support mode changes",
+        variant: "danger",
+      });
+      return;
+    }
+    void agent.setSessionMode?.({
+      sessionId: activeSessionId as string,
+      modeId: mode,
+    });
   });
 
   const hasNotifications = notifications.length > 0;
@@ -690,7 +836,7 @@ const AgentPanel: React.FC = () => {
             sessionId: activeSessionId,
             option,
           });
-          resolvePermission(option as RequestPermissionResponse);
+          resolvePermission(option);
         }}
         onRetryConnection={handleManualConnect}
       />
@@ -707,7 +853,17 @@ const AgentPanel: React.FC = () => {
         promptValue={promptValue}
         onPromptValueChange={setPromptValue}
         onPromptSubmit={handlePromptSubmit}
+        commands={availableCommands}
       />
+
+      {sessionMode && (
+        <div className="px-3 py-2 border-t flex-shrink-0 h-10">
+          <ModeSelector
+            sessionMode={sessionMode}
+            onModeChange={handleModeChange}
+          />
+        </div>
+      )}
     </div>
   );
 };

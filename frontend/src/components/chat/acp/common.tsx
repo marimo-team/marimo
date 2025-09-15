@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { RequestPermissionResponse } from "@zed-industries/agent-client-protocol";
 import {
   CheckCircleIcon,
   Loader2,
@@ -151,7 +152,7 @@ ConnectionStatus.displayName = "ConnectionStatus";
 
 interface PermissionRequestProps {
   permission: NonNullable<AgentPendingPermission>;
-  onResolve: (option: unknown) => void;
+  onResolve: (option: RequestPermissionResponse) => void;
 }
 
 export const PermissionRequest: React.FC<PermissionRequestProps> = memo(
@@ -179,7 +180,14 @@ export const PermissionRequest: React.FC<PermissionRequestProps> = memo(
                   ? "text-[var(--blue-10)]"
                   : "text-[var(--red-10)]"
               }
-              onClick={() => onResolve(option)}
+              onClick={() =>
+                onResolve({
+                  outcome: {
+                    outcome: "selected",
+                    optionId: option.optionId,
+                  },
+                })
+              }
             >
               {option.kind.startsWith("allow") && (
                 <CheckCircleIcon className="h-3 w-3 mr-1" />

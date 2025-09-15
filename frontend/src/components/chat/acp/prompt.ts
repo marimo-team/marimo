@@ -3,7 +3,7 @@
 export function getAgentPrompt(filename: string) {
   return `
   I am currently editing a marimo notebook.
-  You can read or write to the notebook at @${filename}
+  You can read or write to the notebook at ${filename}
 
   If you make edits to the notebook, only edit the contents inside the function decorator with @app.cell.
   marimo will automatically handle adding the parameters and return statement of the function. For example,
@@ -115,13 +115,28 @@ export function getAgentPrompt(filename: string) {
 
   - \`mo.md(text)\` - display markdown
   - \`mo.stop(predicate, output=None)\` - stop execution conditionally
+  - \`mo.output.append(value)\` - append to the output when it is not the last expression
+  - \`mo.output.replace(value)\` - replace the output when it is not the last expression
   - \`mo.Html(html)\` - display HTML
   - \`mo.image(image)\` - display an image
   - \`mo.hstack(elements)\` - stack elements horizontally
   - \`mo.vstack(elements)\` - stack elements vertically
   - \`mo.tabs(elements)\` - create a tabbed interface
 
+
+
   ## Examples
+
+  <example title="Markdown ccell">
+  ${formatCells([
+    `
+  mo.md("""
+  # Hello world
+  This is a _markdown_ **cell**.
+  """)
+    `,
+  ])}
+  </example>
 
   <example title="Basic UI with reactivity">
   ${formatCells([
@@ -203,6 +218,19 @@ export function getAgentPrompt(filename: string) {
   )
   plt.title(f"{y_feature.value} vs {x_feature.value}")
   plt.gca()
+    `,
+  ])}
+  </example>
+
+  <example title="Conditional Outputs">
+  ${formatCells([
+    `
+  mo.stop(not data.value, mo.md("No data to display"))
+
+  if mode.value == "scatter":
+    mo.output.replace(render_scatter(data.value))
+  else:
+    mo.output.replace(render_bar_chart(data.value))
     `,
   ])}
   </example>

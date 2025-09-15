@@ -159,7 +159,7 @@
     "thememirror": "^2.0.1",
     "timestring": "^7.0.0",
     "typescript-memoize": "^1.1.1",
-    "use-acp": "^0.1.5",
+    "use-acp": "^0.2.1",
     "use-resize-observer": "^9.1.0",
     "vega-lite": "^5.23.0",
     "vega-loader": "^4.5.3",
