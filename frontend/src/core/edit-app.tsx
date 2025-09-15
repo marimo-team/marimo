@@ -156,11 +156,11 @@ export const EditApp: React.FC<AppProps> = ({
             "sticky left-0",
           )}
         >
-          {isEditing && (
+          {/* {isEditing && (
             <div className="flex items-center justify-center container">
               <FilenameForm filename={filename} />
             </div>
-          )}
+          )} */}
         </AppHeader>
 
         {/* Don't render until we have a single cell */}
