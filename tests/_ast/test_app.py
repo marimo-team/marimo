@@ -167,6 +167,35 @@ class TestApp:
         assert defs["z"] == 70
 
     @staticmethod
+    def test_run_with_refs_setup_cell_protection() -> None:
+        """Test that overriding setup cell definitions raises IncompleteRefsError."""
+        app = App()
+
+        with app.setup:
+            import os
+            setup_var = "from_setup"
+
+        @app.cell
+        def use_setup(setup_var: str) -> tuple[str]:
+            result = f"Used {setup_var}"
+            return (result,)
+
+        # Test: Trying to override setup cell variables should fail
+        with pytest.raises(IncompleteRefsError) as exc_info:
+            app.run(defs={"setup_var": "overridden"})
+        assert "Cannot override definitions from the setup cell" in str(exc_info.value)
+
+        # Test: Can still override non-setup variables
+        @app.cell
+        def normal_cell() -> tuple[int]:
+            normal_var = 42
+            return (normal_var,)
+
+        outputs, defs = app.run(defs={"normal_var": 100})
+        assert defs["normal_var"] == 100
+        assert "setup_var" in defs  # setup still ran
+
+    @staticmethod
     def test_setup() -> None:
         app = App()
 

@@ -697,7 +697,7 @@ class App:
         self._maybe_initialize()
         glbls: dict[str, Any] = {}
         if self._setup is not None:
-            glbls = self._setup._glbls
+            glbls = {**self._setup._glbls}
         if defs is not None:
             glbls.update(defs)
         outputs, glbls = AppScriptRunner(

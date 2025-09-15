@@ -59,6 +59,12 @@ class AppScriptRunner:
                     )
                     cells_to_prune.update(defining_cells)
 
+            if SETUP_CELL_NAME in cells_to_prune:
+                raise IncompleteRefsError(
+                    f"Cannot override definitions from the setup cell "
+                    f"('{SETUP_CELL_NAME}')."
+                )
+
             # Validate that all definitions from pruned cells are provided
             missing_defs: set[str] = set()
             for cell_id in cells_to_prune:
