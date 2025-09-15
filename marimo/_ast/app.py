@@ -50,7 +50,6 @@ from marimo._ast.errors import (
     SetupRootError,
     UnparsableError,
 )
-from marimo._cli.parse_args import parse_args
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -595,7 +594,7 @@ class App:
 
     def run(
         self,
-        **refs: Any,
+        **defs: Any,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         """
         Run the marimo app and return its outputs and definitions.
@@ -617,17 +616,20 @@ class App:
             with app.setup:
                 import pandas as pd
 
+
             @app.cell
             def config():
                 batch_size = 32
                 learning_rate = 0.01
                 return batch_size, learning_rate
 
+
             @app.cell
             def process_data(pd, batch_size, learning_rate):
                 data = pd.DataFrame({"x": [1, 2, 3]})
                 result = data * batch_size * learning_rate
                 return (result,)
+
 
             if __name__ == "__main__":
                 app.run()
@@ -690,11 +692,12 @@ class App:
         glbls: dict[str, Any] = {}
         if self._setup is not None:
             glbls = self._setup._glbls
+        glbls.update(defs)
         outputs, glbls = AppScriptRunner(
             InternalApp(self),
             filename=self._filename,
             glbls=glbls,
-        ).run(refs)
+        ).run()
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
     async def _run_cell_async(

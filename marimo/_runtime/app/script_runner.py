@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
+from marimo._ast.errors import IncompleteRefsError
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.types import NoopStream
@@ -46,11 +47,39 @@ class AppScriptRunner:
         self.filename = filename
         self.cells_cancelled: set[CellId_t] = set()
         self._glbls = glbls if glbls else {}
+
+        # Prune cells that define provided refs
+        cells_to_prune: set[CellId_t] = set()
+        if self._glbls:
+            refs = set(self._glbls.keys())
+            for ref_name in refs:
+                if ref_name in self.app.graph.definitions:
+                    defining_cells = self.app.graph.get_defining_cells(
+                        ref_name
+                    )
+                    cells_to_prune.update(defining_cells)
+
+            # Validate that all definitions from pruned cells are provided
+            missing_defs: set[str] = set()
+            for cell_id in cells_to_prune:
+                cell = self.app.graph.cells[cell_id]
+                # Check all definitions this cell would have provided
+                for missing in cell.defs - refs:
+                    missing_defs.add(missing)
+
+            if missing_defs:
+                raise IncompleteRefsError(
+                    f"When providing refs that override cell definitions, you must "
+                    f"provide all definitions from those cells. Missing: {sorted(missing_defs)}. "
+                    f"Provided refs: {sorted(refs)}."
+                )
+
         self.cells_to_run = [
             cid
             for cid in self.app.execution_order
             if app.cell_manager.cell_data_at(cid).cell is not None
             and not self.app.graph.is_disabled(cid)
+            and cid not in cells_to_prune
         ]
         self._executor = get_executor(ExecutionConfig())
 
@@ -77,6 +106,7 @@ class AppScriptRunner:
         ) as module:
             glbls = module.__dict__
             glbls.update(self._glbls)
+
             outputs: dict[CellId_t, Any] = {}
             while self.cells_to_run:
                 cid = self.cells_to_run.pop(0)
@@ -118,6 +148,7 @@ class AppScriptRunner:
         ) as module:
             glbls = module.__dict__
             glbls.update(self._glbls)
+
             outputs: dict[CellId_t, Any] = {}
 
             while self.cells_to_run:
