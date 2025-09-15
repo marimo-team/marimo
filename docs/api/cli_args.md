@@ -20,33 +20,6 @@ marimo edit notebook.py -- --lr 1e-4 --epochs 15
 
 sets `sys.argv` to `["notebook.py", "--lr", "1e-4", "--epochs", "15"]`.
 
-## Programmatic execution with CLI arguments
-
-When running a marimo app programmatically using `app.run()`, you can pass
-CLI arguments directly to the method:
-
-```python
-import marimo
-
-app = marimo.App()
-
-@app.cell
-def process_data():
-    import marimo as mo
-    args = mo.cli_args()
-    batch_size = args.get("batch_size", 32)
-    return batch_size,
-
-# Run with CLI arguments
-outputs, defs = app.run(args=["--batch_size", "64", "--model", "transformer"])
-```
-
-If you call `app.run()` without any CLI arguments, the app will inherit the
-CLI arguments from the parent process (i.e., from `sys.argv`).
-
-This is particularly useful for testing, batch processing, or when embedding
-marimo apps in larger Python applications.
-
 For usage examples, see the guide on [running as a script](../guides/scripts.md).
 
 ## Utility function for parsing arguments

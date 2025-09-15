@@ -595,33 +595,77 @@ class App:
 
     def run(
         self,
-        args: list[str] | None = None,
+        **refs: Any,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         """
         Run the marimo app and return its outputs and definitions.
 
-        Enables programmatic execution of marimo apps with custom parameters.
+        Use this method to run marimo apps programmatically and retrieve their
+        outputs and definitions. This lets you execute notebooks from other
+        Python scripts. By providing keyword references to `app.run()`, you can
+        override specific cells in the notebook with your own values.
+
+
+        Examples:
+            Consider a notebook `my_notebook.py`:
+
+            ```python
+            import marimo
+
+            app = marimo.App()
+
+            with app.setup:
+                import pandas as pd
+
+            @app.cell
+            def config():
+                batch_size = 32
+                learning_rate = 0.01
+                return batch_size, learning_rate
+
+            @app.cell
+            def process_data(pd, batch_size, learning_rate):
+                data = pd.DataFrame({"x": [1, 2, 3]})
+                result = data * batch_size * learning_rate
+                return (result,)
+
+            if __name__ == "__main__":
+                app.run()
+            ```
+
+            To run this app programmatically:
+
+            ```python
+            from my_notebook import app
+
+            # Run with default values
+            outputs, defs = app.run()
+            # defs["batch_size"] == 32, defs["learning_rate"] == 0.01
+
+            # Override the specific cell definitions in `config`
+            outputs, defs = app.run(batch_size=64, learning_rate=0.001)
+            # defs["batch_size"] == 64, defs["learning_rate"] == 0.001
+            ```
+
+        Definition Override Behavior:
+            When you provide keyword arguments to `app.run()`, you are **completely
+            overriding** the definitions of cells that define those variables:
+
+            - The cells that originally defined those variables will not execute
+            - You must provide **all** the definitions that a cell would normally produce
+            - Cells that depend on the overridden variables will use your provided values
 
         Args:
-            args: List of command-line arguments to pass to the app. These can be
-                accessed within the app using `mo.cli_args()`. If no arguments
-                are provided, the app will inherit CLI arguments from the parent
-                process (sys.argv).
+            **defs (Any):
+                You may pass values for any variable definitions as keyword
+                arguments. marimo will use these values instead of executing
+                the cells that would normally define them. Cells that depend
+                on these variables will use your provided values.
 
         Returns:
             A tuple containing:
             - Sequence of cell outputs (visual outputs from each cell)
             - Mapping of variable names to their values (definitions)
-
-        Example:
-            ```python
-            from my_notebook import app
-
-            # Run with custom CLI arguments
-            outputs, defs = app.run(
-                args=["--batch_size", "64", "--model", "transformer"]
-            )
-            ```
 
         Environment Variables:
             MARIMO_SCRIPT_EDIT: If set, opens the notebook in edit mode instead
@@ -630,6 +674,8 @@ class App:
         # Enabled specifically for debugging purposes.
         # see docs.marimo.io/guides/debugging
         if os.environ.get("MARIMO_SCRIPT_EDIT"):
+            # unset the env var to avoid recursion
+            os.environ.pop("MARIMO_SCRIPT_EDIT")
             from marimo._cli.cli import edit
 
             if self._filename is None:
@@ -648,7 +694,7 @@ class App:
             InternalApp(self),
             filename=self._filename,
             glbls=glbls,
-        ).run(parse_args(args) if args else None)
+        ).run(refs)
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
     async def _run_cell_async(
