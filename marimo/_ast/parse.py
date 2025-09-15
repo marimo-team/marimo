@@ -119,9 +119,8 @@ class Extractor:
 
             # Scrub past the decorator + 1, lineno 1 index -1
             decorator: Optional[ast.expr]
-            if (
-                len(node.decorator_list)
-                and (decorator := get_valid_decorator(node))  # type: ignore
+            if len(node.decorator_list) and (
+                decorator := get_valid_decorator(node)
             ):
                 # We may have a decorator between cell decorator and function.
                 # This is invalid serialization, but still possible.
@@ -761,7 +760,7 @@ def get_valid_decorator(
     for decorator in node.decorator_list:
         if (
             isinstance(decorator, ast.Call)
-            and getattr(decorator.func, "attr", None) in valid_decorators  # type: ignore
+            and getattr(decorator.func, "attr", None) in valid_decorators
         ) or (
             isinstance(decorator, ast.Attribute)
             and decorator.attr in valid_decorators
