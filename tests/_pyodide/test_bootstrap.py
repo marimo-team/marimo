@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any, Callable
 
 import pytest
@@ -176,3 +177,22 @@ def test_save_file(
     # Verify the file was saved correctly
     saved_content = mock_app_file.read_text()
     assert "print('hello')" in saved_content
+
+
+def test_message_callback_format(
+    mock_app_file: Path,
+) -> None:
+    """Test that message_callback receives properly formatted JSON."""
+    received_messages: list[str] = []
+
+    session, _ = create_session(
+        filename=str(mock_app_file),
+        query_params={},
+        message_callback=lambda text: received_messages.append(text),
+        user_config=DEFAULT_CONFIG,
+    )
+
+    assert len(received_messages) >= 1
+    parsed = json.loads(received_messages[0])
+    assert parsed["op"] == "kernel-ready"
+    assert isinstance(parsed["data"], dict)
