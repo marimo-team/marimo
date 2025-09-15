@@ -617,17 +617,20 @@ class App:
             with app.setup:
                 import pandas as pd
 
+
             @app.cell
             def config():
                 batch_size = 32
                 learning_rate = 0.01
                 return batch_size, learning_rate
 
+
             @app.cell
             def process_data(pd, batch_size, learning_rate):
                 data = pd.DataFrame({"x": [1, 2, 3]})
                 result = data * batch_size * learning_rate
                 return (result,)
+
 
             if __name__ == "__main__":
                 app.run()
