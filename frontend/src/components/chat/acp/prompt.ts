@@ -11,7 +11,7 @@ export function getAgentPrompt(filename: string) {
 
   \`\`\`
   @app.cell
-  def __():
+  def _():
     <your code here>
     return
   \`\`\`
