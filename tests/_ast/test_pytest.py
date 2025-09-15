@@ -45,6 +45,7 @@ async def _(pytest, x, y, Z):
         def test_static() -> None:
             assert x + y == Z
 
+    @pytest.mark.asyncio
     async def test_async_cell():
         assert True
 
@@ -67,6 +68,7 @@ def test_cell_is_invoked():
 
 
 @app.cell
+@pytest.mark.asyncio
 async def test_async_cell():
     assert True
 
