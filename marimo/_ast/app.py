@@ -594,14 +594,15 @@ class App:
 
     def run(
         self,
-        **defs: Any,
+        defs: dict[str, Any] | None = None,
+        **kwargs: Any,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         """
         Run the marimo app and return its outputs and definitions.
 
         Use this method to run marimo apps programmatically and retrieve their
         outputs and definitions. This lets you execute notebooks from other
-        Python scripts. By providing keyword references to `app.run()`, you can
+        Python scripts. By providing definitions to `app.run()`, you can
         override specific cells in the notebook with your own values.
 
 
@@ -645,12 +646,14 @@ class App:
             # defs["batch_size"] == 32, defs["learning_rate"] == 0.01
 
             # Override the specific cell definitions in `config`
-            outputs, defs = app.run(batch_size=64, learning_rate=0.001)
+            outputs, defs = app.run(
+                defs={batch_size: 64, learning_rate: 0.001}
+            )
             # defs["batch_size"] == 64, defs["learning_rate"] == 0.001
             ```
 
         Definition Override Behavior:
-            When you provide keyword arguments to `app.run()`, you are **completely
+            When you provide definitions to `app.run()`, you are **completely
             overriding** the definitions of cells that define those variables:
 
             - The cells that originally defined those variables will not execute
@@ -658,11 +661,13 @@ class App:
             - Cells that depend on the overridden variables will use your provided values
 
         Args:
-            **defs (Any):
+            defs (dict[str, Any]):
                 You may pass values for any variable definitions as keyword
                 arguments. marimo will use these values instead of executing
                 the cells that would normally define them. Cells that depend
                 on these variables will use your provided values.
+            **kwargs (Any):
+                For forward-compatibility with future arguments.
 
         Returns:
             A tuple containing:
@@ -673,6 +678,7 @@ class App:
             MARIMO_SCRIPT_EDIT: If set, opens the notebook in edit mode instead
                 of running it. Requires the app to have a filename.
         """
+        del kwargs
         # Enabled specifically for debugging purposes.
         # see docs.marimo.io/guides/debugging
         if os.environ.get("MARIMO_SCRIPT_EDIT"):
@@ -692,7 +698,8 @@ class App:
         glbls: dict[str, Any] = {}
         if self._setup is not None:
             glbls = self._setup._glbls
-        glbls.update(defs)
+        if defs is not None:
+            glbls.update(defs)
         outputs, glbls = AppScriptRunner(
             InternalApp(self),
             filename=self._filename,

@@ -98,11 +98,11 @@ programmatically.
 
    # Run the app with overridden definitions
    # This completely replaces the definitions in cells that define these variables
-   outputs, defs = app.run(batch_size=64, learning_rate=0.001, model_type="transformer")
+   outputs, defs = app.run(defs={"batch_size": 64, "learning_rate": 0.001, "model_type": "transformer"})
    ```
 
    **Important limitations:**
-   - When you provide keyword arguments to `app.run()`, you are **completely overriding**
+   - When you provide definitions to `app.run()`, you are **completely overriding**
      the definitions of cells that define those variables
    - The cells that originally defined those variables will not execute their logic
    - You must provide **all** the definitions that a cell would normally produce,
@@ -121,10 +121,10 @@ programmatically.
    To override this cell, you must provide both variables:
    ```python
    # Correct: Override the entire cell's definitions
-   outputs, defs = app.run(batch_size=64, learning_rate=0.001)
+   outputs, defs = app.run(defs={"batch_size": 64, "learning_rate": 0.001})
 
    # Incorrect: This would leave learning_rate undefined
-   # outputs, defs = app.run(batch_size=64)
+   # outputs, defs = app.run(defs={"batch_size": 64})
    ```
 
 3. **Using subprocess**:

@@ -92,7 +92,7 @@ class TestApp:
 
     @staticmethod
     def test_run_with_refs() -> None:
-        """Test that app.run() can override cell definitions with provided refs."""
+        """Test that app.run() can override variables with provided defs."""
         app = App()
 
         @app.cell
@@ -119,7 +119,7 @@ class TestApp:
         assert defs["message"] == "independent"
 
         # Test 2: Run with overridden values
-        outputs, defs = app.run(batch_size=64, learning_rate=0.001)
+        outputs, defs = app.run(defs={"batch_size": 64, "learning_rate": 0.001})
         assert defs["batch_size"] == 64
         assert defs["learning_rate"] == 0.001
         assert defs["result"] == 64 * 0.001
@@ -129,14 +129,14 @@ class TestApp:
         # because we're only providing batch_size but the config cell defines both
         # batch_size and learning_rate
         with pytest.raises(IncompleteRefsError) as exc_info:
-            app.run(batch_size=128)
+            app.run(defs={"batch_size": 128})
         assert "learning_rate" in str(exc_info.value)
         assert "Missing: ['learning_rate']" in str(exc_info.value)
         assert "Provided refs: ['batch_size']" in str(exc_info.value)
 
     @staticmethod
     def test_run_with_refs_multiple_cells() -> None:
-        """Test ref override with multiple cells that define different variables."""
+        """Test defs override with multiple cells that define different variables."""
         app = App()
 
         @app.cell
@@ -155,13 +155,13 @@ class TestApp:
             return (z,)
 
         # Test: Override both x and y - cells a and b should be pruned
-        outputs, defs = app.run(x=100, y=200)
+        outputs, defs = app.run(defs={"x": 100, "y": 200})
         assert defs["x"] == 100
         assert defs["y"] == 200
         assert defs["z"] == 300
 
         # Test: Override only x - cell a is pruned, cell b still runs
-        outputs, defs = app.run(x=50)
+        outputs, defs = app.run(defs={"x": 50})
         assert defs["x"] == 50
         assert defs["y"] == 20  # cell_b still ran
         assert defs["z"] == 70
