@@ -128,3 +128,89 @@ def test_progress_without_context():
         for _ in range(10):
             assert bar
             bar.update()
+
+    with pytest.raises(RuntimeError):
+        for _ in progress_bar(total=10):
+            pass
+
+
+async def sleep(seconds):
+    import asyncio
+
+    tasks = [asyncio.create_task(asyncio.sleep(s, s)) for s in seconds]
+    for future in asyncio.as_completed(tasks):
+        yield await future
+
+
+async def test_progress_async():
+    assert runtime_context_installed() is False
+
+    ait = sleep([0.01, 0.003, 0.001])
+    result = [s async for s in progress_bar(ait, total=3)]
+    assert result == [0.001, 0.003, 0.01]
+
+
+def test_progress_no_total_error():
+    assert runtime_context_installed() is False
+
+    def sync_generator():
+        yield 1
+        yield 2
+        yield 3
+
+    with pytest.raises(
+        TypeError,
+        match="Cannot determine the length of a collection. A `total` must be provided.",
+    ):
+        progress_bar(sync_generator())
+
+
+def test_progress_async_no_total_error():
+    assert runtime_context_installed() is False
+
+    async def async_generator():
+        yield 1
+        yield 2
+        yield 3
+
+    with pytest.raises(
+        TypeError,
+        match="Cannot determine the length of a collection. A `total` must be provided.",
+    ):
+        progress_bar(async_generator())
+
+
+def test_progress_for_loop_error():
+    assert runtime_context_installed() is False
+
+    async def async_generator():
+        yield 1
+
+    with pytest.raises(
+        RuntimeError,
+        match="Cannot iterate over an async collection with `for`. Use `async for` instead.",
+    ):
+        for _ in progress_bar(async_generator(), total=1):
+            pass
+
+
+async def test_progress_async_for_loop_error():
+    assert runtime_context_installed() is False
+
+    with pytest.raises(
+        RuntimeError,
+        match="Cannot iterate over a sync collection with `async for`. Use `for` instead.",
+    ):
+        async for _ in progress_bar([1, 2, 3]):
+            pass
+
+
+async def test_progress_async_for_loop_without_collection_error():
+    assert runtime_context_installed() is False
+
+    with pytest.raises(
+        RuntimeError,
+        match="progress_bar can only be iterated over if a collection is provided",
+    ):
+        async for _ in progress_bar(total=1):
+            pass

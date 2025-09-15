@@ -3685,14 +3685,6 @@ export interface components {
     ListSecretKeysResponse: {
       keys: components["schemas"]["SecretKeysWithProvider"][];
     };
-    /**
-     * MIME
-     * @description Protocol for instantiating objects using marimo's media viewer.
-     *
-     *         To implement this protocol, a class needs to define
-     *         just one method, _mime_.
-     */
-    MIME: Record<string, any>;
     /** MarimoAncestorPreventedError */
     MarimoAncestorPreventedError: {
       blamed_cell: string | null;

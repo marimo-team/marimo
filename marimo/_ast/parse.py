@@ -116,10 +116,11 @@ class Extractor:
             ]
         )
 
-    def extract_from_code(self, node: Node) -> str:
+    def extract_from_code(self, node: Node) -> ParseResult[str]:
         # NB. Ast line reference and col index is on a 1-indexed basis.
         lineno = node.lineno
         col_offset = node.col_offset
+        violations: list[Violation] = []
 
         if hasattr(node, "decorator_list"):
             # From the ast, having a decorator list means we are either a
@@ -129,10 +130,24 @@ class Extractor:
             )
 
             # Scrub past the decorator + 1, lineno 1 index -1
-            if (
-                len(node.decorator_list)
-                and (decorator := get_valid_decorator(node))  # type: ignore
+            decorator: Optional[ast.expr]
+            if len(node.decorator_list) and (
+                decorator := get_valid_decorator(node)
             ):
+                # We may have a decorator between cell decorator and function.
+                # This is invalid serialization, but still possible.
+                if is_cell_decorator(decorator, allowed=("cell",)):
+                    # We just take the last decorator in this case, which will
+                    # be removed on serialization.
+                    violations.append(
+                        Violation(
+                            "Multiple decorators found, only @app.cell is valid.",
+                            lineno=decorator.lineno,
+                            col_offset=decorator.col_offset,
+                        )
+                    )
+
+                    decorator = node.decorator_list[-1]
                 lineno = _none_to_0(decorator.end_lineno)
                 col_offset = decorator.col_offset - 1
             else:
@@ -144,15 +159,20 @@ class Extractor:
             _none_to_0(node.end_lineno) - 1,
             _none_to_0(node.end_col_offset),
         )
-        return fixed_dedent(code)
+        return ParseResult(fixed_dedent(code), violations=violations)
 
-    def to_cell_def(self, node: FnNode, kwargs: dict[str, Any]) -> CellDef:
+    def to_cell_def(
+        self, node: FnNode, kwargs: dict[str, Any]
+    ) -> ParseResult[CellDef]:
         # A general note on the apparent brittleness of this code:
         #    - Ast line reference and col index is on a 1-indexed basis
         #    - Multiline statements need to be accounted for
         #    - Painstaking testing can be found in test/_ast/test_{load, parse}
 
-        function_code = self.extract_from_code(node)
+        function_code_reult = self.extract_from_code(node)
+        violations = function_code_reult.violations
+        function_code = function_code_reult.unwrap()
+
         lineno_offset, col_offset = extract_offsets_post_colon(
             function_code,
             block_start="def",
@@ -196,14 +216,17 @@ class Extractor:
                 # If we are on the same line as the return statement,
                 # just return a blank cell.
                 if start_lineno == node.body[0].lineno:
-                    return CellDef(
-                        code="",
-                        options=kwargs,
-                        lineno=start_lineno,
-                        col_offset=node.col_offset + col_offset,
-                        end_lineno=start_lineno,
-                        end_col_offset=len(self.lines[-1]),
-                        name=getattr(node, "name", DEFAULT_CELL_NAME),
+                    return ParseResult(
+                        CellDef(
+                            code="",
+                            options=kwargs,
+                            lineno=start_lineno,
+                            col_offset=node.col_offset + col_offset,
+                            end_lineno=start_lineno,
+                            end_col_offset=len(self.lines[-1]),
+                            name=getattr(node, "name", DEFAULT_CELL_NAME),
+                        ),
+                        violations=violations,
                     )
                 else:
                     end_lineno = node.body[-1].lineno - 1
@@ -254,20 +277,25 @@ class Extractor:
 
         # Line positioning here is still consequential for correct stack tracing
         # produced in _ast.compiler.
-        return CellDef(
-            code=fixed_dedent(cell_code),
-            options=kwargs,
-            lineno=start_lineno - 1,
-            col_offset=node.col_offset + col_offset,
-            end_lineno=_none_to_0(node.end_lineno) + end_lineno,
-            end_col_offset=_none_to_0(node.end_col_offset) + end_col_offset,
-            name=getattr(node, "name", DEFAULT_CELL_NAME),
+        return ParseResult(
+            CellDef(
+                code=fixed_dedent(cell_code),
+                options=kwargs,
+                lineno=start_lineno - 1,
+                col_offset=node.col_offset + col_offset,
+                end_lineno=_none_to_0(node.end_lineno) + end_lineno,
+                end_col_offset=_none_to_0(node.end_col_offset)
+                + end_col_offset,
+                name=getattr(node, "name", DEFAULT_CELL_NAME),
+            ),
+            violations=violations,
         )
 
     def to_setup_cell(self, node: Node) -> SetupCell:
         kwargs, _violations = _maybe_kwargs(node.items[0].context_expr)  # type: ignore
-        code = self.extract_from_code(node)
-        code = fixed_dedent(code)
+        code_result = self.extract_from_code(node)
+        _violations.extend(code_result.violations)
+        code = fixed_dedent(code_result.unwrap())
         if code.endswith("\npass"):
             code = code[: -len("\npass")]
         return SetupCell(
@@ -282,6 +310,7 @@ class Extractor:
 
     def to_cell(self, node: Node, attribute: Optional[str] = None) -> CellDef:
         """Convert an AST node to a CellDef."""
+        # TODO: Handle violations
         if isinstance(
             node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
         ):
@@ -302,15 +331,17 @@ class Extractor:
                 assert isinstance(
                     node, (ast.FunctionDef, ast.AsyncFunctionDef)
                 ), "@app.cell cannot be used on classes."
-                return self.to_cell_def(node, kwargs)
+                cell_result = self.to_cell_def(node, kwargs)
+                return cell_result.unwrap()
             cell_types: dict[Optional[str], type[CellDef]] = {
                 "function": FunctionCell,
                 "class_definition": ClassCell,
             }
             cell_type = cell_types.get(attribute, None)
             if cell_type is not None:
+                code = self.extract_from_code(node)
                 return cell_type(
-                    code=self.extract_from_code(node),
+                    code=code.unwrap(),
                     _ast=node,
                     options=kwargs,
                 )
@@ -750,7 +781,7 @@ def get_valid_decorator(
     for decorator in node.decorator_list:
         if (
             isinstance(decorator, ast.Call)
-            and decorator.func.attr in valid_decorators  # type: ignore
+            and getattr(decorator.func, "attr", None) in valid_decorators
         ) or (
             isinstance(decorator, ast.Attribute)
             and decorator.attr in valid_decorators
@@ -804,12 +835,15 @@ def is_app_def(node: Node, import_alias: str = "marimo") -> bool:
     )
 
 
-def is_cell_decorator(decorator: ast.expr) -> bool:
+def is_cell_decorator(
+    decorator: ast.expr,
+    allowed: tuple[str, ...] = ("cell", "function", "class_definition"),
+) -> bool:
     if isinstance(decorator, ast.Attribute):
         return (
             isinstance(decorator.value, ast.Name)
             and decorator.value.id == "app"
-            and decorator.attr in ("cell", "function", "class_definition")
+            and decorator.attr in allowed
         )
     elif isinstance(decorator, ast.Call):
         return is_cell_decorator(decorator.func)
