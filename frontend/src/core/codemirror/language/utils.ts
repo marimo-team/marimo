@@ -2,9 +2,8 @@
 
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import { languageAdapterState, switchLanguage } from "./extension";
+import { languageAdapterState } from "./extension";
 import { languageMetadataField } from "./metadata";
-import type { LanguageAdapterType } from "./types";
 
 /**
  * Get the editor code as Python
@@ -46,22 +45,6 @@ export function updateEditorCodeFromPython(
     changes: { from: 0, to: doc.length, insert: code },
   });
   return code;
-}
-
-/**
- * Update the editor code and language
- * Codemirror will also react to changes in the editor and update the cell data.
- */
-export function updateEditorCodeAndLanguage(opts: {
-  editor: EditorView;
-  code: string;
-  language?: LanguageAdapterType;
-}) {
-  const { editor, code, language } = opts;
-  updateEditorCodeFromPython(editor, code);
-  if (language) {
-    switchLanguage(editor, { language, keepCodeAsIs: true });
-  }
 }
 
 /**

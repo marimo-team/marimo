@@ -12,7 +12,7 @@ import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
 import { cellHandleAtom, useCellActions } from "../cells/cells";
 import type { LanguageAdapterType } from "../codemirror/language/types";
-import { updateEditorCodeAndLanguage } from "../codemirror/language/utils";
+import { updateEditorCodeFromPython } from "../codemirror/language/utils";
 import type { JotaiStore } from "../state/jotai";
 
 /**
@@ -87,7 +87,8 @@ export function useStagedCells(store: JotaiStore) {
       Logger.error("Editor for this cell not found", { cellId });
       return;
     }
-    updateEditorCodeAndLanguage({ editor: editorView, code, language });
+    // TODO: Update the language
+    updateEditorCodeFromPython(editorView, code);
   };
 
   // Delete a staged cell and the corresponding cell in the notebook.

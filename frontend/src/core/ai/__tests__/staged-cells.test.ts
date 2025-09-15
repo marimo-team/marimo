@@ -4,7 +4,7 @@ import { renderHook } from "@testing-library/react";
 import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CellId } from "@/core/cells/ids";
-import { updateEditorCodeAndLanguage } from "../../codemirror/language/utils";
+import { updateEditorCodeFromPython } from "../../codemirror/language/utils";
 import {
   stagedAICellsAtom,
   useStagedCells,
@@ -42,7 +42,7 @@ vi.mock("@/components/editor/cell/useDeleteCell", () => ({
 }));
 
 vi.mock("../../codemirror/language/utils", () => ({
-  updateEditorCodeAndLanguage: vi.fn(),
+  updateEditorCodeFromPython: vi.fn(),
 }));
 
 // Mock CellId.create
@@ -342,22 +342,15 @@ describe("onStream", () => {
     });
 
     // Now the cell is recognized and only some code is seen
-    expect(vi.mocked(updateEditorCodeAndLanguage)).toHaveBeenCalledWith({
-      editor: mockCellHandle.current.editorViewOrNull,
-      code: "some code",
-      language: "python",
-    });
+    expect(vi.mocked(updateEditorCodeFromPython)).toHaveBeenCalledWith(
+      mockCellHandle.current.editorViewOrNull,
+      "some code",
+    );
 
     result.current.onStream({
       type: "text-delta",
       id: "test-id",
       delta: "\n```",
-    });
-
-    expect(vi.mocked(updateEditorCodeAndLanguage)).toHaveBeenCalledWith({
-      editor: mockCellHandle.current.editorViewOrNull,
-      code: "some code",
-      language: "python",
     });
   });
 });

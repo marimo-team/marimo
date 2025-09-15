@@ -18,10 +18,8 @@ import { Objects } from "@/utils/objects";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
-import type { LanguageAdapterType } from "../codemirror/language/types";
 import {
   splitEditor,
-  updateEditorCodeAndLanguage,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
 import { findCollapseRange, mergeOutlines } from "../dom/outline";
@@ -700,38 +698,6 @@ const {
               code: code,
               edited: code.trim() !== cell.lastCodeRun,
             };
-      },
-    });
-  },
-  /**
-   * Use this when you want to update the cell data and codemirror editor.
-   */
-  updateCellEditor: (
-    state,
-    action: {
-      cellId: CellId;
-      code: string;
-      language?: LanguageAdapterType;
-    },
-  ) => {
-    const { cellId, code, language } = action;
-    if (!state.cellData[cellId]) {
-      return state;
-    }
-
-    const cellHandle = state.cellHandles[cellId].current;
-    const editorView = cellHandle?.editorViewOrNull;
-
-    // If RTC is enabled, the editor view will already be updated, so we don't need to do this
-    if (!isRtcEnabled() && editorView) {
-      updateEditorCodeAndLanguage({ editor: editorView, code, language });
-    }
-
-    return updateCellData({
-      state,
-      cellId,
-      cellReducer: (cell) => {
-        return { ...cell, code, edited: code.trim() !== cell.lastCodeRun };
       },
     });
   },
