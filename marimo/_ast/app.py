@@ -76,7 +76,7 @@ if TYPE_CHECKING:
 P = ParamSpec("P")
 R = TypeVar("R")
 Fn: TypeAlias = Callable[P, R]
-Cls: TypeAlias = type
+Cls = TypeVar("Cls", bound=type)
 LOGGER = _loggers.marimo_logger()
 
 
