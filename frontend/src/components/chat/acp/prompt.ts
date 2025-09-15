@@ -37,6 +37,7 @@ export function getAgentPrompt(filename: string) {
   7. The last expression in a cell is automatically displayed, just like in Jupyter notebooks.
   8. Don't include comments in markdown cells
   9. Don't include comments in SQL cells
+  10. Never define anything using \`global\`.
 
   ## Reactivity
 

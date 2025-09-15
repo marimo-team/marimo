@@ -783,6 +783,9 @@ class SessionManager:
         self.include_code = include_code
         self.ttl_seconds = ttl_seconds
         self.lsp_server = lsp_server
+        self.file_change_handler = SessionFileChangeHandler(
+            mode, config_manager
+        )
         self.watcher_manager = FileWatcherManager()
         self.watch = watch
         self.recents = RecentFilesManager()
@@ -891,7 +894,9 @@ class SessionManager:
                 return
 
             # Use the centralized file change handler
-            await self.handle_file_change(str(path))
+            await self.file_change_handler.handle_file_change(
+                str(path), [session]
+            )
 
         session._unsubscribe_file_watcher_ = on_file_changed  # type: ignore
 
@@ -942,6 +947,12 @@ class SessionManager:
                 self._start_file_watcher_for_session(session)
             return False, str(e)
 
+    async def handle_file_change(self, path: str) -> None:
+        """Handle a file change."""
+        await self.file_change_handler.handle_file_change(
+            path, list(self.sessions.values())
+        )
+
     def get_session(self, session_id: SessionId) -> Optional[Session]:
         session = self.sessions.get(session_id)
         if session:
@@ -964,86 +975,6 @@ class SessionManager:
             ):
                 return session
         return None
-
-    async def handle_file_change(self, file_path: str) -> None:
-        """Handle file changes for marimo notebooks.
-
-        This method reloads the notebook and sends appropriate operations
-        to the frontend when a marimo file is modified.
-        """
-        abs_file_path = os.path.abspath(file_path)
-
-        # Find the session associated with this file
-        session = None
-        for s in self.sessions.values():
-            if s.app_file_manager.path == abs_file_path:
-                session = s
-                break
-
-        if not session:
-            # No active session for this file
-            return
-
-        LOGGER.debug(f"{file_path} was modified")
-
-        # Reload the file manager to get the latest code
-        try:
-            changed_cell_ids = session.app_file_manager.reload()
-        except Exception as e:
-            # If there are syntax errors, we just skip
-            # and don't send the changes
-            LOGGER.error(f"Error loading file: {e}")
-            return
-
-        # In run mode, we just call Reload()
-        if self.mode == SessionMode.RUN:
-            session.write_operation(Reload(), from_consumer_id=None)
-            return
-
-        # Get the latest codes
-        codes = list(session.app_file_manager.app.cell_manager.codes())
-        cell_ids = list(session.app_file_manager.app.cell_manager.cell_ids())
-        # Send the updated cell ids and codes to the frontend
-        session.write_operation(
-            UpdateCellIdsRequest(cell_ids=cell_ids),
-            from_consumer_id=None,
-        )
-
-        # Check if we should auto-run cells based on config
-        should_autorun = (
-            self._config_manager.get_config()["runtime"]["watcher_on_save"]
-            == "autorun"
-        )
-
-        # Auto-run cells if configured
-        if should_autorun:
-            changed_cell_ids_list = list(changed_cell_ids)
-            cell_ids_to_idx = {
-                cell_id: idx for idx, cell_id in enumerate(cell_ids)
-            }
-            changed_codes = [
-                codes[cell_ids_to_idx[cell_id]]
-                for cell_id in changed_cell_ids_list
-            ]
-
-            # This runs the request and also runs UpdateCellCodes
-            session.put_control_request(
-                ExecuteMultipleRequest(
-                    cell_ids=changed_cell_ids_list,
-                    codes=changed_codes,
-                    request=None,
-                ),
-                from_consumer_id=None,
-            )
-        else:
-            session.write_operation(
-                UpdateCellCodes(
-                    cell_ids=cell_ids,
-                    codes=codes,
-                    code_is_stale=True,
-                ),
-                from_consumer_id=None,
-            )
 
     def maybe_resume_session(
         self, new_session_id: SessionId, file_key: MarimoFileKey
@@ -1188,6 +1119,117 @@ class SessionManager:
                 if session.connection_state() == ConnectionState.OPEN
             ]
         )
+
+
+class SessionFileChangeHandler:
+    def __init__(
+        self, mode: SessionMode, config_manager: MarimoConfigManager
+    ) -> None:
+        self.mode = mode
+        self.config_manager = config_manager
+        # Track ongoing file change operations to prevent duplicates
+        self._file_change_locks: dict[str, asyncio.Lock] = {}
+
+    async def handle_file_change(
+        self, file_path: str, sessions: list[Session]
+    ) -> None:
+        """Handle file changes for marimo notebooks.
+
+        This method reloads the notebook and sends appropriate operations
+        to the frontend when a marimo file is modified.
+        """
+        abs_file_path = os.path.abspath(file_path)
+
+        # Use a lock to prevent concurrent processing of the same file
+        if abs_file_path not in self._file_change_locks:
+            self._file_change_locks[abs_file_path] = asyncio.Lock()
+
+        async with self._file_change_locks[abs_file_path]:
+            # Find all sessions associated with this file
+            sessions_for_file: list[Session] = []
+            for s in sessions:
+                if s.app_file_manager.path == abs_file_path:
+                    sessions_for_file.append(s)
+
+            if not sessions_for_file:
+                # No active session for this file
+                return
+
+            if len(sessions_for_file) > 1:
+                LOGGER.error(
+                    f"Only one session should exist for a file: {abs_file_path}"
+                )
+
+            self._handle_file_change(
+                abs_file_path,
+                sessions_for_file[0],
+            )
+
+    def _handle_file_change(
+        self,
+        file_path: str,
+        session: Session,
+    ) -> None:
+        LOGGER.debug(f"{file_path} was modified, handling {session}")
+
+        # Reload the file manager to get the latest code
+        try:
+            changed_cell_ids = session.app_file_manager.reload()
+        except Exception as e:
+            # If there are syntax errors, we just skip
+            # and don't send the changes
+            LOGGER.error(f"Error loading file: {e}")
+            return
+
+        # In run mode, we just call Reload()
+        if self.mode == SessionMode.RUN:
+            session.write_operation(Reload(), from_consumer_id=None)
+            return
+
+        # Get the latest codes
+        codes = list(session.app_file_manager.app.cell_manager.codes())
+        cell_ids = list(session.app_file_manager.app.cell_manager.cell_ids())
+        # Send the updated cell ids and codes to the frontend
+        session.write_operation(
+            UpdateCellIdsRequest(cell_ids=cell_ids),
+            from_consumer_id=None,
+        )
+
+        # Check if we should auto-run cells based on config
+        watcher_on_save = self.config_manager.get_config()["runtime"][
+            "watcher_on_save"
+        ]
+        should_autorun = watcher_on_save == "autorun"
+
+        # Auto-run cells if configured
+        if should_autorun:
+            changed_cell_ids_list = list(changed_cell_ids)
+            cell_ids_to_idx = {
+                cell_id: idx for idx, cell_id in enumerate(cell_ids)
+            }
+            changed_codes = [
+                codes[cell_ids_to_idx[cell_id]]
+                for cell_id in changed_cell_ids_list
+            ]
+
+            # This runs the request and also runs UpdateCellCodes
+            session.put_control_request(
+                ExecuteMultipleRequest(
+                    cell_ids=changed_cell_ids_list,
+                    codes=changed_codes,
+                    request=None,
+                ),
+                from_consumer_id=None,
+            )
+        else:
+            session.write_operation(
+                UpdateCellCodes(
+                    cell_ids=cell_ids,
+                    codes=codes,
+                    code_is_stale=True,
+                ),
+                from_consumer_id=None,
+            )
 
 
 def send_message_to_consumer(

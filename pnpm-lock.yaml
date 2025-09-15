@@ -287,8 +287,8 @@ importers:
         specifier: ^5.5.0
         version: 5.5.0
       '@zed-industries/agent-client-protocol':
-        specifier: ^0.1.2
-        version: 0.1.2
+        specifier: ^0.3.1
+        version: 0.3.1
       ai:
         specifier: ^5.0.30
         version: 5.0.30(zod@3.25.76)
@@ -458,8 +458,8 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1
       use-acp:
-        specifier: ^0.2.1
-        version: 0.2.2(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1))
+        specifier: ^0.2.3
+        version: 0.2.3(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1))
       use-resize-observer:
         specifier: ^9.1.0
         version: 9.1.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -4233,9 +4233,6 @@ packages:
 
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
-
-  '@zed-industries/agent-client-protocol@0.1.2':
-    resolution: {integrity: sha512-A1RCN7Uf09vngbhBVLiZENenKYOYD2OGiILLGXPaSBloDbem8xmLaDmrKQuYl0kjLJ1DcWmVaHUv97n1l5vJ6w==}
 
   '@zed-industries/agent-client-protocol@0.3.1':
     resolution: {integrity: sha512-G3gGwNZ18vuuo6rDCo8eoGs/V/P2stIMV7srlaTNXf3u8qAoUNm91p2qhMurR/bCebq8J8yWCKuBZXdC/E162w==}
@@ -9300,8 +9297,8 @@ packages:
   url-parse@1.5.10:
     resolution: {integrity: sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==}
 
-  use-acp@0.2.2:
-    resolution: {integrity: sha512-iSvVIO9ctcx9ikYm6FK9rHGt5Xht+0j7YuvOZkPrFwD00CDsQ76jCn1fewNtW3Y5DM/Ah4fxV+r+klSh63Mkgw==}
+  use-acp@0.2.3:
+    resolution: {integrity: sha512-bcnKK82iJctyk+gp/8AgGnbd7WoteU2fVa+GDAJSZuOoze6zN3CiqCYBCTUnpyJKmfzQrSL3okUblt0FITArBw==}
     peerDependencies:
       react: ^19
       react-dom: ^19
@@ -14457,10 +14454,6 @@ snapshots:
   '@xtuc/ieee754@1.2.0': {}
 
   '@xtuc/long@4.2.2': {}
-
-  '@zed-industries/agent-client-protocol@0.1.2':
-    dependencies:
-      zod: 3.25.76
 
   '@zed-industries/agent-client-protocol@0.3.1':
     dependencies:
@@ -20579,7 +20572,7 @@ snapshots:
       querystringify: 2.2.0
       requires-port: 1.0.0
 
-  use-acp@0.2.2(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1)):
+  use-acp@0.2.3(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1)):
     dependencies:
       '@zed-industries/agent-client-protocol': 0.3.1
       react: 19.1.1
