@@ -5,10 +5,7 @@ import json
 from typing import TYPE_CHECKING, Callable
 
 from marimo._config.config import merge_config
-from marimo._messaging.msgspec_encoder import (
-    encode_json_bytes,
-    encode_json_str,
-)
+from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._messaging.ops import KernelCapabilities, KernelReady
 from marimo._runtime.requests import (
     AppMetadata,
@@ -81,7 +78,9 @@ def create_session(
     """
 
     def write_kernel_message(op: KernelMessage) -> None:
-        message_callback(encode_json_str({"op": op[0], "data": op[1]}))
+        op_name, data_bytes = op
+        text = f'{{"op": "{op_name}", "data": {data_bytes.decode("utf-8")}}}'
+        message_callback(text)
 
     # Lazy import to decrease startup time
     from marimo._config.config import merge_default_config
