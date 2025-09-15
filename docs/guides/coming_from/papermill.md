@@ -88,7 +88,46 @@ programmatically.
    This API also allows for parametrizing the inputs to the cell; to learn more,
    make sure to checkout [the example][marimo.Cell.run] in our API reference.
 
-2. **Using subprocess**:
+2. **Programmatic execution with definition overrides**:
+
+   You can run a marimo app programmatically and override cell definitions:
+
+   ```python
+   import marimo
+   from my_notebook import app
+
+   # Run the app with overridden definitions
+   # This completely replaces the definitions in cells that define these variables
+   outputs, defs = app.run(batch_size=64, learning_rate=0.001, model_type="transformer")
+   ```
+
+   **Important limitations:**
+   - When you provide keyword arguments to `app.run()`, you are **completely overriding**
+     the definitions of cells that define those variables
+   - The cells that originally defined those variables will not execute their logic
+   - You must provide **all** the definitions that a cell would normally produce,
+     not just individual parameters
+   - This is different from CLI arguments which are parsed within the cell's execution
+
+   For example, if you have a cell that defines:
+   ```python
+   @app.cell
+   def config():
+       batch_size = 32
+       learning_rate = 0.01
+       return batch_size, learning_rate
+   ```
+
+   To override this cell, you must provide both variables:
+   ```python
+   # Correct: Override the entire cell's definitions
+   outputs, defs = app.run(batch_size=64, learning_rate=0.001)
+
+   # Incorrect: This would leave learning_rate undefined
+   # outputs, defs = app.run(batch_size=64)
+   ```
+
+3. **Using subprocess**:
 
    ```python
    import subprocess
