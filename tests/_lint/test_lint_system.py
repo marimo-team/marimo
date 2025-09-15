@@ -1,6 +1,12 @@
 # Copyright 2025 Marimo. All rights reserved.
 """Unit tests for the marimo lint system."""
 
+from marimo._lint.rules.runtime import (
+    CycleDependenciesRule,
+    MultipleDefinitionsRule,
+    SetupCellDependenciesRule,
+)
+
 from marimo._ast.parse import parse_notebook
 from marimo._lint import lint_notebook
 from marimo._lint.context import LintContext, RuleContext
@@ -8,11 +14,6 @@ from marimo._lint.rule_engine import RuleEngine
 from marimo._lint.rules.base import Severity
 from marimo._lint.rules.breaking import UnparsableRule
 from marimo._lint.rules.formatting import GeneralFormattingRule
-from marimo._lint.rules.runtime import (
-    CycleDependenciesRule,
-    MultipleDefinitionsRule,
-    SetupCellDependenciesRule,
-)
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,

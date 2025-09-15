@@ -1,6 +1,8 @@
 # Copyright 2025 Marimo. All rights reserved.
 """Unit tests for the async context-based lint system."""
 
+from marimo._lint.rules.runtime import MultipleDefinitionsRule
+
 from marimo._ast.parse import parse_notebook
 from marimo._lint.context import LintContext, RuleContext
 from marimo._lint.diagnostic import Diagnostic, Severity
@@ -8,7 +10,6 @@ from marimo._lint.rule_engine import RuleEngine
 from marimo._lint.rules.base import LintRule
 from marimo._lint.rules.breaking import UnparsableRule
 from marimo._lint.rules.formatting import GeneralFormattingRule
-from marimo._lint.rules.runtime import MultipleDefinitionsRule
 
 
 class MockRule(LintRule):
