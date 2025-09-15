@@ -179,7 +179,7 @@ def test_save_file(
     assert "print('hello')" in saved_content
 
 
-def test_message_callback_format(
+async def test_message_callback_format(
     mock_app_file: Path,
 ) -> None:
     """Test that message_callback receives properly formatted JSON."""
