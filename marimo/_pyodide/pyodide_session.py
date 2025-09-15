@@ -220,7 +220,7 @@ def parse_wasm_control_request(request: str) -> requests.ControlRequest:
     Raises:
         msgspec.DecodeError: If no type successfully parses
     """
-    parsed = None
+    parsed: typing.Union[requests.ControlRequest, None] = None
     for ControlRequestType in typing.get_args(requests.ControlRequest):
         try:
             parsed = parse_raw(request, cls=ControlRequestType)
