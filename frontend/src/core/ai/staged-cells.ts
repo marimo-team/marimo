@@ -73,7 +73,7 @@ export function useStagedCells(store: JotaiStore) {
   };
 
   const updateStagedCell = (opts: UpdateStagedCellAction) => {
-    const { cellId, code, language } = opts;
+    const { cellId, code } = opts;
     const stagedAICells = store.get(stagedAICellsAtom);
 
     if (!stagedAICells.has(cellId)) {
