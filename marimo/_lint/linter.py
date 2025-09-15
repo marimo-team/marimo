@@ -163,7 +163,7 @@ class Linter:
             return
         elif file_status.failed:
             # Import colors from CLI module
-            from marimo._cli.print import red, yellow
+            from marimo._cli.print import red
 
             self.pipe(red(file_status.message))
             for detail in file_status.details:
@@ -266,9 +266,7 @@ class Linter:
                 if await self._check_and_maybe_fix(file_status):
                     fixed_count += 1
                     if self.pipe:
-                        self.pipe(
-                            f"Updated: {file_status.file}"
-                        )
+                        self.pipe(f"Updated: {file_status.file}")
         self.fixed_count = fixed_count
 
     def fix_all(self) -> int:

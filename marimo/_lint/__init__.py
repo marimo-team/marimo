@@ -12,6 +12,7 @@ from marimo._utils.files import expand_file_patterns
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
     pass
 
 

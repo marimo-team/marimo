@@ -23,7 +23,7 @@ def get_files(folder: str) -> Generator[Path, None, None]:
         for item in scan:
             if item.is_file():
                 yield Path(item.path)
-            elif item.is_dir() and not item.name.startswith('.'):
+            elif item.is_dir() and not item.name.startswith("."):
                 yield from get_files(item.path)
 
 
