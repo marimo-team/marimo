@@ -204,6 +204,38 @@ class PyodideSession:
 T = TypeVar("T")
 
 
+def parse_wasm_control_request(request: str) -> requests.ControlRequest:
+    """Parse a control request string for WASM/Pyodide.
+
+    This iterates through ControlRequest types in order until one successfully
+    parses. The order matters because some types have overlapping structures
+    when parsed with msgspec (e.g., types with only optional fields).
+
+    Args:
+        request: JSON string containing the request
+
+    Returns:
+        Parsed ControlRequest
+
+    Raises:
+        msgspec.DecodeError: If no type successfully parses
+    """
+    parsed = None
+    for ControlRequestType in typing.get_args(requests.ControlRequest):
+        try:
+            parsed = parse_raw(request, cls=ControlRequestType)
+            break  # success
+        except msgspec.DecodeError:
+            continue
+
+    if parsed is None:
+        raise msgspec.DecodeError(
+            f"Could not decode ControlRequest as any of {typing.get_args(requests.ControlRequest)}"
+        )
+
+    return parsed
+
+
 class PyodideBridge:
     def __init__(
         self,
@@ -213,21 +245,7 @@ class PyodideBridge:
         self.file_system = OSFileSystem()
 
     def put_control_request(self, request: str) -> None:
-        # Hack: msgspec only supports discriminated unions. This is a hack to just
-        # iterate through possible ControlRequest variants and decode until one works.
-        parsed = None
-        for ControlRequestType in typing.get_args(requests.ControlRequest):
-            try:
-                parsed = parse_raw(request, cls=ControlRequestType)
-                break  # success
-            except msgspec.DecodeError:
-                continue
-
-        if parsed is None:
-            raise msgspec.DecodeError(
-                f"Could not decode ControlRequest as any of {typing.get_args(requests.ControlRequest)}"
-            )
-
+        parsed = parse_wasm_control_request(request)
         self.session.put_control_request(parsed)
 
     def put_input(self, text: str) -> None:

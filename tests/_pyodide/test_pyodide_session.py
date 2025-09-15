@@ -11,11 +11,22 @@ import pytest
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.types import KernelMessage
-from marimo._pyodide.pyodide_session import AsyncQueueManager, PyodideSession
+from marimo._pyodide.pyodide_session import (
+    AsyncQueueManager,
+    PyodideSession,
+    parse_wasm_control_request,
+)
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.requests import (
     AppMetadata,
+    CreationRequest,
+    DeleteCellRequest,
     ExecuteMultipleRequest,
+    ExecuteScratchpadRequest,
+    InstallMissingPackagesRequest,
+    ListSecretKeysRequest,
+    RenameRequest,
+    SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
 )
@@ -215,3 +226,60 @@ async def test_pyodide_session_put_input(
 
     assert not pyodide_session._queue_manager.input_queue.empty()
     assert await pyodide_session._queue_manager.input_queue.get() == input_text
+
+
+@pytest.mark.parametrize(
+    ("json_payload", "expected_type"),
+    [
+        # Most specific requests with many required fields
+        (
+            '{"executionRequests": [{"cellId": "cell-1", "code": "print(1)"}], '
+            '"setUiElementValueRequest": {"objectIds": [], "values": []}, '
+            '"autoRun": true}',
+            CreationRequest,
+        ),
+        (
+            '{"cellIds": ["cell-1"], "codes": ["print(1)"]}',
+            ExecuteMultipleRequest,
+        ),
+        (
+            '{"manager": "pip", "packages": ["numpy"], "versions": {}}',
+            InstallMissingPackagesRequest,
+        ),
+        # SetUIElementValueRequest - has specific fields
+        (
+            '{"objectIds": ["test-1"], "values": [42], "token": "test-token"}',
+            SetUIElementValueRequest,
+        ),
+        (
+            '{"objectIds": ["test-1"], "values": [42]}',  # Without token
+            SetUIElementValueRequest,
+        ),
+        # Requests with single required fields
+        # DeleteCellRequest comes before PdbRequest
+        # Note: Can't test PdbRequest since DeleteCellRequest will always match first
+        ('{"cellId": "cell-1"}', DeleteCellRequest),
+        ('{"code": "print(1)"}', ExecuteScratchpadRequest),
+        ('{"filename": "test.py"}', RenameRequest),
+        ('{"configs": {"cell-1": {"hide_code": true}}}', SetCellConfigRequest),
+        ('{"requestId": "req-1"}', ListSecretKeysRequest),
+        # Empty objects - StopRequest matches first among the empty requests
+        # Note: Can't test RefreshSecretsRequest since StopRequest will always match first
+        ("{}", StopRequest),
+    ],
+)
+def test_control_request_parsing_order(
+    json_payload: str, expected_type: type
+) -> None:
+    """Test that ControlRequest types are parsed in the correct order.
+
+    This is critical for WASM/Pyodide where we iterate through types until
+    one successfully parses. Types with overlapping structures must be
+    ordered correctly.
+    """
+
+    parsed = parse_wasm_control_request(json_payload)
+    assert type(parsed) is expected_type, (
+        f"Expected {expected_type.__name__} but got {type(parsed).__name__} "
+        f"for payload: {json_payload}"
+    )

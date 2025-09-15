@@ -357,25 +357,48 @@ class RefreshSecretsRequest(msgspec.Struct, rename="camel"):
     pass
 
 
+# IMPORTANT: This is NOT a discriminated union. In WASM/Pyodide, we parse requests
+# by trying each type in order until one succeeds (see PyodideBridge.put_control_request).
+# The order matters because some types have overlapping structures when parsed with
+# msgspec (e.g., types with only optional fields).
+#
+# Ordering principles for WASM compatibility:
+# 1. Types with more specific/required fields should come before generic ones
+# 2. Types with unique field names should come before types with common field names
+# 3. Types with no fields or only optional fields should come last
+#
+# Known overlaps to be careful about:
+# - SetUIElementValueRequest has specific fields (object_ids, values) and should
+#   come before generic requests
+# - ExecuteStaleRequest has only an optional 'request' field and could match many
+#   payloads - should be near the end
+# - StopRequest and RefreshSecretsRequest have no fields and will match any empty
+#   object - should be last
 ControlRequest = Union[
+    # Requests with many specific required fields (most specific first)
     CreationRequest,
-    DeleteCellRequest,
     ExecuteMultipleRequest,
-    ExecuteScratchpadRequest,
-    ExecuteStaleRequest,
-    FunctionCallRequest,
     InstallMissingPackagesRequest,
-    ListSecretKeysRequest,
-    PdbRequest,
     PreviewDatasetColumnRequest,
-    PreviewSQLTableListRequest,
-    PreviewDataSourceConnectionRequest,
     PreviewSQLTableRequest,
-    RefreshSecretsRequest,
-    RenameRequest,
-    SetCellConfigRequest,
+    PreviewSQLTableListRequest,
     SetUIElementValueRequest,
     SetModelMessageRequest,
+    FunctionCallRequest,
+    # Requests with fewer but still specific required fields
+    # Note: DeleteCellRequest and PdbRequest both have only cellId as required field.
+    # We put DeleteCellRequest first as it's more commonly used in WASM.
+    # PdbRequest (debugger) is rarely/never used in WASM context.
+    DeleteCellRequest,
+    PdbRequest,
+    ExecuteScratchpadRequest,
+    RenameRequest,
+    SetCellConfigRequest,
     SetUserConfigRequest,
+    ListSecretKeysRequest,
+    PreviewDataSourceConnectionRequest,
+    # Requests with no fields (will match any empty object)
     StopRequest,
+    RefreshSecretsRequest,
+    ExecuteStaleRequest,  # only comes from backend set low priority
 ]
