@@ -7,6 +7,10 @@ with app.setup():
     def wrapper(fn):
         return fn
 
+    # AST is slightly different when decorator is called
+    def called_wrapper():
+        return wrapper
+
 
 @app.function
 @wrapper
@@ -38,15 +42,47 @@ def inv_cell():
 @app.class_definition
 @wrapper
 class MyClass:
-    def method(self):
-        pass
+    pass
 
 
 @wrapper
 @app.class_definition
 class InvClass:
-    def method(self):
-        pass
+    pass
+
+
+@app.function
+@called_wrapper()
+def my_wrapped_called():
+    pass
+
+@called_wrapper()
+@app.function
+def inv_wrapped_called():
+    pass
+
+
+@called_wrapper()
+@app.cell
+def my_cell_called():
+    pass
+
+@app.cell
+@called_wrapper()
+def inv_cell_called():
+    pass
+
+
+@app.class_definition
+@called_wrapper()
+class MyClassCalled:
+    pass
+
+
+@called_wrapper()
+@app.class_definition
+class InvClassCalled:
+    pass
 
 
 if __name__ == "__main__":
