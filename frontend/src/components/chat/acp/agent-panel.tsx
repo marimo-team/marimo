@@ -402,7 +402,7 @@ function getCwd() {
   if (!filename) {
     return "";
   }
-  return Paths.basename(filename);
+  return Paths.dirname(filename);
 }
 
 const AgentPanel: React.FC = () => {
