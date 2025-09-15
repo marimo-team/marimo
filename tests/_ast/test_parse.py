@@ -108,3 +108,11 @@ class TestParser:
         assert "generated" in notebook.violations[0].description
         assert "statement" in notebook.violations[1].description
         assert "run guard" in notebook.violations[2].description
+
+    @staticmethod
+    def test_parse_decorator_permutations() -> None:
+        notebook = parse_notebook(get_filepath("test_decorators").read_text())
+        assert notebook
+        # Valid currently
+        # TODO: Propagate decorators violations.
+        assert len(notebook.violations) == 0
