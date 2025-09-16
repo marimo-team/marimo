@@ -41,6 +41,7 @@ class GeneralFormattingRule(LintRule):
     def __():
         return
 
+
     if __name__ == "__main__":
         app.run()
     ```
@@ -52,9 +53,11 @@ class GeneralFormattingRule(LintRule):
     __generated_with = "0.1.0"
     app = marimo.App()
 
+
     @app.cell
     def __():
         return
+
 
     if __name__ == "__main__":
         app.run()

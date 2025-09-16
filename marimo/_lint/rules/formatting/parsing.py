@@ -122,13 +122,13 @@ class StderrRule(LintRule):
 
     **Captured stderr:**
     ```
-    notebook.py:68: SyntaxWarning: invalid escape sequence '\l'
+    notebook.py:68: SyntaxWarning: invalid escape sequence '\\l'
     ```
 
     **Result:** Creates a diagnostic pointing to line 68 about the invalid escape sequence.
 
     **Common issues:**
-    - Raw strings needed: `r"\path\to\file"` instead of `"\path\to\file"`
+    - Raw strings needed: `r"\\path\to\file"` instead of `"\\path\to\file"`
     - Deprecated library usage
     - Missing import dependencies
 
