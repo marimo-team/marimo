@@ -236,11 +236,14 @@ class CellManager:
             cell = ir_cell_factory(cell_def, cell_id=cell_id, filename=filename)
         except SyntaxError:
             self.unparsable = True
-            return self.register_unparsable_cell(
+            self.register_cell(
+                cell_id=cell_id,
                 code=cell_def.code,
+                config=cell_config,
                 name=cell_def.name,
-                cell_config=cell_config,
+                cell=None,
             )
+            return
         cell._cell.configure(cell_config)
         self._register_cell(cell, app=app)
 

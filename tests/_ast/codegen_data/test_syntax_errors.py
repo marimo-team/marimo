@@ -5,12 +5,12 @@ app = marimo.App(width="medium")
 
 
 @app.cell
-def _():
+def global_error():
     tickers = ["AAPL", "GOOGL"]
     global tickers
 
 @app.cell
-def _(tickers):
+def return_error(tickers):
     if tickers is not None:
         return tickers
     return

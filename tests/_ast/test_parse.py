@@ -116,6 +116,10 @@ class TestParser:
         # Valid currently
         # TODO: Propagate decorators violations.
         assert len(notebook.violations) == 0
+        assert [cell.name for cell in notebook.cells] == [
+            "global_error",
+            "return_error",
+        ]
 
     @staticmethod
     def test_parse_decorator_permutations() -> None:
