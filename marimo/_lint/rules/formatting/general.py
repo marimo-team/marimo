@@ -43,8 +43,8 @@ class GeneralFormattingRule(LintRule):
             diagnostic = Diagnostic(
                 message=violation.description,
                 cell_id=[],  # Violations don't have cell_id
-                line=violation.lineno,
-                column=violation.col_offset + 1,  # Convert 0-based to 1-based
+                line=violation.lineno - 1,  # Convert 1-based to 0-based
+                column=violation.col_offset + 1,
                 fixable=is_fixable,
             )
 

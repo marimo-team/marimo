@@ -53,11 +53,7 @@ if __name__ == "__main__":
             f.write("""
 import marimo
 
-__generated_with = "0.0.0"
 app = marimo.App()
-
-# This should create a violation
-x = 1
 
 @app.cell
 def _():
@@ -67,7 +63,7 @@ def _():
             f.flush()
 
             # Run check command
-            result = runner.invoke(check, [f.name])
+            result = runner.invoke(check, [f.name, "--strict"])
 
             # Should give and show errors
             assert result.exit_code == 1, result.output
@@ -86,13 +82,12 @@ import marimo
 
 app = marimo.App()
 
-# This should create a violation
-x = 1
-
 @app.cell
 def _():
     y = 2
     return (y,)
+
+# This should create a violation with missing guard
 """)
             f.flush()
 
@@ -101,10 +96,7 @@ def _():
 
             # The fix might fail due to file permissions or other issues
             # Just check that the command runs
-            assert result.exit_code in [
-                0,
-                1,
-            ]  # Either success or expected failure
+            assert result.exit_code == 0, result.output
 
     def test_check_command_nonexistent_file(self):
         """Test check command with nonexistent file."""

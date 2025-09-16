@@ -1233,7 +1233,7 @@ def shell_completion() -> None:
 @click.option(
     "--strict",
     is_flag=True,
-    default=True,
+    default=False,
     show_default=True,
     type=bool,
     help="Whether warnings return a non-zero exit code.",

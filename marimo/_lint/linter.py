@@ -89,12 +89,14 @@ class Linter:
                     load_result = get_notebook_status(file_path)
             except SyntaxError as e:
                 # Handle syntax errors in notebooks
+                self.errored = True
                 file_status.failed = True
                 file_status.message = f"Failed to parse: {file_path}"
                 file_status.details = [f"SyntaxError: {str(e)}"]
                 return file_status
             except MarimoFileError as e:
                 # Handle syntax errors in notebooks
+                self.errored = True
                 file_status.failed = True
                 file_status.message = (
                     f"Not recognizable as a marimo notebook: {file_path}"
@@ -126,10 +128,10 @@ class Linter:
                     )
                 except Exception as e:
                     # Handle other parsing errors
+                    self.errored = True
                     file_status.failed = True
                     file_status.message = f"Failed to process {file_path}"
                     file_status.details = [str(e)]
-                    self.errored = True
             else:
                 # Status is valid but no notebook - shouldn't happen but handle gracefully
                 file_status.skipped = True
@@ -156,6 +158,10 @@ class Linter:
 
     def _pipe_file_status(self, file_status: FileStatus) -> None:
         """Send file status through pipe for real-time output."""
+        for diagnostic in file_status.diagnostics:
+            if not (self.fix_files and diagnostic.fixable):
+                self.issues_count += 1
+
         if not self.pipe:
             return
 
@@ -186,26 +192,6 @@ class Linter:
             return converter.to_markdown(file_status.file)
         else:
             return converter.to_py()
-
-    async def _run_async(self, files_to_check: list[Path]) -> list[FileStatus]:
-        """Internal async implementation of run."""
-        return [
-            file_status
-            async for file_status in self._run_stream(files_to_check)
-        ]
-
-    def run(self, files_to_check: list[Path]) -> list[FileStatus]:
-        """Run linting checks on files.
-
-        Args:
-            files_to_check: List of Path objects to check
-
-        Returns:
-            List of FileStatus objects with per-file results
-        """
-        # Run the async operation and collect results
-        self.files = list(asyncio.run(self._run_async(files_to_check)))
-        return self.files
 
     def run_streaming(self, files_to_check: list[Path]) -> None:
         """Run linting checks with real-time streaming output."""

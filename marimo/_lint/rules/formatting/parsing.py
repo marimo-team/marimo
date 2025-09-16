@@ -45,7 +45,7 @@ class StdoutRule(LintRule):
                 await ctx.add_diagnostic(
                     Diagnostic(
                         message=warning_msg,
-                        line=int(line_num_str),
+                        line=int(line_num_str) - 1,  # Convert to 0-based index
                         cell_id=None,
                         column=0,
                     )
@@ -57,7 +57,7 @@ class StdoutRule(LintRule):
                 Diagnostic(
                     message=f"Parsing warning: {ctx.stderr}",
                     cell_id=None,
-                    line=1,
+                    line=0,
                     column=0,
                 )
             )

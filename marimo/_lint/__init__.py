@@ -35,10 +35,7 @@ def run_check(
     files_to_check = expand_file_patterns(file_patterns)
 
     linter = Linter(pipe=pipe, fix_files=fix)
-    if pipe:
-        linter.run_streaming(files_to_check)
-    else:
-        linter.run(files_to_check)
+    linter.run_streaming(files_to_check)
     return linter
 
 

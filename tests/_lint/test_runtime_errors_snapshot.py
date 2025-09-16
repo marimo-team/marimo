@@ -74,3 +74,20 @@ def test_unparsable_cell_snapshot():
         error_output.append(error.format())
 
     snapshot("unparsable_cell_errors.txt", "\n".join(error_output))
+
+
+def test_formatting_snapshot():
+    """Test snapshot for unparsable cell error."""
+    file = "tests/_lint/test_files/formatting.py"
+    with open(file) as f:
+        code = f.read()
+
+    notebook = parse_notebook(code, filepath=file)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format())
+
+    snapshot("formatting.txt", "\n".join(error_output))
