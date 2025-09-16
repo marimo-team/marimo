@@ -176,7 +176,9 @@ class Linter:
     def _generate_file_contents(file_status: FileStatus) -> str:
         """Generate file contents from notebook serialization."""
         if file_status.notebook is None:
-            raise ValueError("Cannot generate contents for file without notebook")
+            raise ValueError(
+                "Cannot generate contents for file without notebook"
+            )
 
         converter = MarimoConvert.from_ir(file_status.notebook)
 
@@ -249,7 +251,7 @@ class Linter:
             await asyncio.to_thread(
                 Path(file_status.file).write_text,
                 generated_contents,
-                encoding="utf-8"
+                encoding="utf-8",
             )
             return True
 

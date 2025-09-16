@@ -13,7 +13,7 @@ class TestRunCheck:
 
     def test_run_check_with_empty_files(self):
         """Test run_check with file patterns that match no files."""
-        result = run_check(("nonexistent/**/*.py",), pipe=lambda x: None)
+        result = run_check(("nonexistent/**/*.py",))
 
         assert isinstance(result, Linter)
         assert len(result.files) == 0
@@ -26,7 +26,7 @@ class TestRunCheck:
             txt_file = Path(tmpdir) / "test.txt"
             txt_file.write_text("This is not a notebook")
 
-            result = run_check((str(txt_file),), pipe=lambda x: None)
+            result = run_check((str(txt_file),))
 
             assert len(result.files) == 1
             assert result.files[0].skipped is True
@@ -38,7 +38,7 @@ class TestRunCheck:
             py_file = Path(tmpdir) / "empty.py"
             py_file.write_text("")
 
-            result = run_check((str(py_file),), pipe=lambda x: None)
+            result = run_check((str(py_file),))
 
             assert len(result.files) == 1
             assert result.files[0].skipped is True

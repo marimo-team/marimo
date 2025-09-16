@@ -25,9 +25,7 @@ class MarimoConverterIntermediate:
         from marimo._server.export.exporter import Exporter
 
         exporter = Exporter()
-        generated_contents, _ = exporter.export_as_md(
-            self.ir, filename
-        )
+        generated_contents, _ = exporter.export_as_md(self.ir, filename)
         return generated_contents
 
     def to_py(self) -> str:

@@ -357,7 +357,6 @@ def _():
     async def test_real_rules_with_early_stopping(self):
         """Test real rules with early stopping."""
         from marimo._lint.rules.breaking import MultipleDefinitionsRule
-
         from marimo._lint.rules.formatting import GeneralFormattingRule
 
         # Stop on first runtime error
