@@ -366,6 +366,14 @@ def _():
 
         # Should include all the standard rules
         rule_codes = {rule.code for rule in checker.rules}
-        expected_codes = {"MF001", "MF002", "MF003", "MB001", "MB002", "MB003", "MB004"}
+        expected_codes = {
+            "MF001",
+            "MF002",
+            "MF003",
+            "MB001",
+            "MB002",
+            "MB003",
+            "MB004",
+        }
 
         assert expected_codes.issubset(rule_codes)

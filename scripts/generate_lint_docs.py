@@ -29,6 +29,7 @@ from typing import Any
 class Severity(Enum):
     """Severity levels for diagnostic errors."""
     FORMATTING = "formatting"
+    # Retained for future use: RUNTIME severity is intended for runtime-related lint rules.
     RUNTIME = "runtime"
     BREAKING = "breaking"
 

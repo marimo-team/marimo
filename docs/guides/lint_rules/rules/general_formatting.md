@@ -28,6 +28,7 @@ Format violations can prevent marimo from properly loading or executing
     def __():
         return
 
+
     if __name__ == "__main__":
         app.run()
     ```
@@ -39,9 +40,11 @@ Format violations can prevent marimo from properly loading or executing
     __generated_with = "0.1.0"
     app = marimo.App()
 
+
     @app.cell
     def __():
         return
+
 
     if __name__ == "__main__":
         app.run()
