@@ -11,6 +11,16 @@ Running a notebook as a script is useful when your notebook has side-effects,
 like writing to disk. Print statements and other console outputs will show
 up in your terminal.
 
+!!! tip "Check before running"
+
+    Before running a notebook as a script, you can use marimo's linter to check for issues that might prevent execution:
+
+    ```bash
+    marimo check my_marimo_notebook.py
+    ```
+
+    See the [Lint Rules](lint_rules/index.md) guide for more information about marimo's linting system.
+
 
 !!! note "Saving notebook outputs"
 
