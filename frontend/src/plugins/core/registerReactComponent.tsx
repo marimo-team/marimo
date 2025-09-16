@@ -1,18 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { notebookAtom } from "@/core/cells/cells.ts";
-import { findCellId } from "@/core/cells/ids.ts";
-import { isUninstantiated } from "@/core/cells/utils"
-import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
-import { getUIElementObjectId } from "@/core/dom/ui-element";
-import { UIElementRegistry } from "@/core/dom/uiregistry";
-import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
-import { store } from "@/core/state/jotai";
-import { type HTMLElementNotDerivedFromRef, useEventListener, } from "@/hooks/useEventListener";
-import { StyleNamespace } from "@/theme/namespace";
-import { useTheme } from "@/theme/useTheme";
-import { CellNotInitializedError } from "@/utils/errors.ts";
-import { Functions } from "@/utils/functions";
-import { shallowCompare } from "@/utils/shallow-compare";
 
 /* eslint-disable unicorn/prefer-spread */
 /**
@@ -36,8 +22,29 @@ import React, {
 import ReactDOM, { type Root } from "react-dom/client";
 import useEvent from "react-use-event-hook";
 import type { ZodSchema } from "zod";
+import { notebookAtom } from "@/core/cells/cells.ts";
+import { findCellId } from "@/core/cells/ids.ts";
+import { isUninstantiated } from "@/core/cells/utils";
+import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
+import { getUIElementObjectId } from "@/core/dom/ui-element";
+import { UIElementRegistry } from "@/core/dom/uiregistry";
+import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
+import { store } from "@/core/state/jotai";
+import {
+  type HTMLElementNotDerivedFromRef,
+  useEventListener,
+} from "@/hooks/useEventListener";
+import { StyleNamespace } from "@/theme/namespace";
+import { useTheme } from "@/theme/useTheme";
+import { CellNotInitializedError } from "@/utils/errors.ts";
+import { Functions } from "@/utils/functions";
+import { shallowCompare } from "@/utils/shallow-compare";
 import { defineCustomElement } from "../../core/dom/defineCustomElement";
-import { parseAttrValue, parseDataset, parseInitialValue, } from "../../core/dom/htmlUtils";
+import {
+  parseAttrValue,
+  parseDataset,
+  parseInitialValue,
+} from "../../core/dom/htmlUtils";
 import { invariant } from "../../utils/invariant";
 import { Logger } from "../../utils/Logger";
 import { Objects } from "../../utils/objects";
@@ -80,12 +87,12 @@ interface PluginSlotProps<T> {
 
 // eslint-disable-next-line react/function-component-definition
 function PluginSlotInternal<T>(
-  {hostElement, plugin, children, getInitialValue}: PluginSlotProps<T>,
+  { hostElement, plugin, children, getInitialValue }: PluginSlotProps<T>,
   ref: React.Ref<PluginSlotHandle>,
 ): JSX.Element {
   const [childNodes, setChildNodes] = useState<ReactNode>(children);
   const [value, setValue] = useState<T>(getInitialValue());
-  const {theme} = useTheme();
+  const { theme } = useTheme();
 
   const [parsedResult, setParsedResult] = useState(() => {
     return plugin.validator.safeParse(parseDataset(hostElement));
@@ -161,7 +168,7 @@ function PluginSlotInternal<T>(
 
     const methods: PluginFunctions = {};
     for (const [key, schemas] of Objects.entries(plugin.functions)) {
-      const {input, output} = schemas as {
+      const { input, output } = schemas as {
         input: ZodSchema<Record<string, unknown>>;
         output: ZodSchema<Record<string, unknown>>;
       };
@@ -181,12 +188,13 @@ function PluginSlotInternal<T>(
         const cellData = notebookState.cellData[cellId];
 
         const cellNotInitialized = isUninstantiated({
-          executionTime: cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
+          executionTime:
+            cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
           status: cellRuntime.status,
           errored: cellRuntime.errored,
           interrupted: cellRuntime.interrupted,
           stopped: cellRuntime.stopped,
-        })
+        });
 
         if (cellNotInitialized) {
           throw new CellNotInitializedError();
@@ -223,7 +231,7 @@ function PluginSlotInternal<T>(
   return (
     <StyleNamespace>
       <div className={`contents ${theme}`}>
-        <Suspense fallback={<div/>}>
+        <Suspense fallback={<div />}>
           {plugin.render({
             setValue: setValueAndSendInput,
             value,
@@ -280,7 +288,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       super();
       // Create a shadow root so we can store the React tree on the shadow root, while the original
       // element's children are still on the DOM
-      this.attachShadow({mode: "open"});
+      this.attachShadow({ mode: "open" });
       this.copyStyles();
 
       // This observer is used to detect changes to the children and re-render the component
@@ -344,7 +352,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
      * Get the children of the element as React nodes.
      */
     private getChildren(): React.ReactNode {
-      return renderHTML({html: this.innerHTML});
+      return renderHTML({ html: this.innerHTML });
     }
 
     /**

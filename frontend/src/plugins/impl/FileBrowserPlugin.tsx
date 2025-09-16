@@ -132,16 +132,16 @@ interface FileBrowserProps extends Data, PluginFunctions {
  * Only works for absolute paths.
  */
 export const FileBrowser = ({
-                              value,
-                              setValue,
-                              initialPath,
-                              selectionMode,
-                              multiple,
-                              label,
-                              restrictNavigation,
-                              list_directory,
-                              host,
-                            }: FileBrowserProps): JSX.Element | null => {
+  value,
+  setValue,
+  initialPath,
+  selectionMode,
+  multiple,
+  label,
+  restrictNavigation,
+  list_directory,
+  host,
+}: FileBrowserProps): JSX.Element | null => {
   const [path, setPath] = useInternalStateWithSync(initialPath);
   const [selectAllLabel, setSelectAllLabel] = useState("Select all");
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
@@ -150,8 +150,8 @@ export const FileBrowser = ({
   // when the random-id changes, this means the cell was re-rendered
   const randomId = host.closest("[random-id]")?.getAttribute("random-id");
 
-  const {data, error, isPending} = useAsyncData(() => {
-    return list_directory({path: path});
+  const { data, error, isPending } = useAsyncData(() => {
+    return list_directory({ path: path });
   }, [path, randomId]);
 
   if (isPending) {
@@ -159,10 +159,10 @@ export const FileBrowser = ({
   }
 
   if (!data && error) {
-    return <Banner kind="danger">{error.message}</Banner>
+    return <Banner kind="danger">{error.message}</Banner>;
   }
 
-  let {files} = data || {};
+  let { files } = data || {};
   if (files === undefined) {
     files = [];
   }
@@ -220,10 +220,10 @@ export const FileBrowser = ({
   }
 
   function createFileInfo({
-                            path,
-                            name,
-                            isDirectory,
-                          }: {
+    path,
+    name,
+    isDirectory,
+  }: {
     path: string;
     name: string;
     isDirectory: boolean;
@@ -237,15 +237,15 @@ export const FileBrowser = ({
   }
 
   function handleSelection({
-                             path,
-                             name,
-                             isDirectory,
-                           }: {
+    path,
+    name,
+    isDirectory,
+  }: {
     path: string;
     name: string;
     isDirectory: boolean;
   }) {
-    const fileInfo = createFileInfo({path, name, isDirectory});
+    const fileInfo = createFileInfo({ path, name, isDirectory });
 
     if (multiple) {
       if (selectedPaths.has(path)) {
@@ -301,7 +301,7 @@ export const FileBrowser = ({
       onClick={() => setNewPath(PARENT_DIRECTORY)}
     >
       <TableCell className="w-[50px] pl-4">
-        <CornerLeftUp size={16}/>
+        <CornerLeftUp size={16} />
       </TableCell>
       <TableCell>{PARENT_DIRECTORY}</TableCell>
     </TableRow>,
@@ -316,7 +316,7 @@ export const FileBrowser = ({
 
     // Click handler
     const handleClick = file.is_directory
-      ? ({path}: { path: string }) => setNewPath(path)
+      ? ({ path }: { path: string }) => setNewPath(path)
       : handleSelection;
 
     // Icon
@@ -359,7 +359,7 @@ export const FileBrowser = ({
         );
       }
 
-      return <Icon size={16} className="mr-2"/>;
+      return <Icon size={16} className="mr-2" />;
     };
 
     fileRows.push(
@@ -391,7 +391,7 @@ export const FileBrowser = ({
   //
   // Assumes that path contains at least one delimiter, which is true
   // only if this is an absolute path.
-  const {parentDirectories} = getProtocolAndParentDirectories({
+  const { parentDirectories } = getProtocolAndParentDirectories({
     path,
     delimiter,
     initialPath,
@@ -407,7 +407,7 @@ export const FileBrowser = ({
 
   const renderHeader = () => {
     label = label ?? `Select ${selectionKindLabel.join(" and ", 2)}...`;
-    const labelText = <Label>{renderHTML({html: label})}</Label>;
+    const labelText = <Label>{renderHTML({ html: label })}</Label>;
 
     if (multiple) {
       return (
@@ -423,7 +423,7 @@ export const FileBrowser = ({
                   : () => deselectAllFiles()
               }
             >
-              {renderHTML({html: selectAllLabel})}
+              {renderHTML({ html: selectAllLabel })}
             </Button>
           </div>
         </div>
@@ -460,7 +460,7 @@ export const FileBrowser = ({
 
       <div
         className="mt-3 overflow-y-auto w-full border"
-        style={{height: "14rem"}}
+        style={{ height: "14rem" }}
       >
         <Table className="cursor-pointer table-fixed">{fileRows}</Table>
       </div>
@@ -484,7 +484,7 @@ export const FileBrowser = ({
             </div>
             <div className="markdown">
               <ul
-                style={{marginBlock: 0}}
+                style={{ marginBlock: 0 }}
                 className="m-0 text-xs text-muted-foreground"
               >
                 {selectedFiles}
