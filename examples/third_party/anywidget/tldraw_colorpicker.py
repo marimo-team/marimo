@@ -10,12 +10,12 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import matplotlib.pyplot as plt
     import numpy as np
     plt.style.use('_mpl-gallery')
@@ -31,22 +31,22 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     from tldraw import ReactiveColorPicker
     import marimo as mo
 
     widget = mo.ui.anywidget(ReactiveColorPicker())
-    return ReactiveColorPicker, mo, widget
+    return mo, widget
 
 
 @app.cell
-def __(mo, np, opacity, plt, sizes, widget, x, y):
+def _(mo, np, opacity, plt, sizes, widget, x, y):
     fig, ax = plt.subplots()
     fig.set_size_inches(3, 3)
     ax.set(xlim=(0, 8), xticks=np.arange(1, 8), ylim=(0, 8), yticks=np.arange(1, 8))
     ax.scatter(x, y, s=sizes*5, color=widget.color or None, alpha=opacity)
     mo.hstack([widget, plt.gca()], justify="start", widths=[1, 1])
-    return ax, fig
+    return
 
 
 if __name__ == "__main__":

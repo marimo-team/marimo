@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.11.31"
+__generated_with = "0.15.5"
 app = marimo.App(layout_file="layouts/slides.slides.json")
 
 
@@ -47,7 +47,7 @@ def _(pd):
 def _(df, mo):
     table = mo.ui.table(df, label="Wide Iris Data in a table")
     table
-    return (table,)
+    return
 
 
 @app.cell
@@ -59,7 +59,7 @@ def _(alt, df, mo):
         label="Iris Data in chart",
     )
     chart
-    return (chart,)
+    return
 
 
 @app.cell

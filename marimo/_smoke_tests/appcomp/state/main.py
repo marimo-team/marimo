@@ -1,18 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.26"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     from state import app
-    return app,
+    return (app,)
 
 
 @app.cell
-async def __(app):
+async def _(app):
     (await app.embed()).output
     return
 

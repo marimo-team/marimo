@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.11.26"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -95,7 +95,7 @@ def _(mo, office_characters):
     )
 
     table
-    return (table,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -108,7 +108,7 @@ def _(mo):
 def _(mo):
     data = {str(col): [col * 10 + row for row in range(10)] for col in range(10)}
     mo.ui.table(data, selection="multi-cell", initial_selection=[("3", "5"),("9","8")])
-    return (data,)
+    return
 
 
 @app.cell
@@ -140,7 +140,7 @@ def _(mo):
         data=colors, pagination=True, page_size=16, style_cell=apply_styling
     )
     color_table
-    return apply_styling, color_table, colors
+    return
 
 
 @app.cell

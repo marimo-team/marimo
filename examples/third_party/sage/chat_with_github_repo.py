@@ -8,24 +8,24 @@
 
 import marimo
 
-__generated_with = "0.9.0"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __(mo, sys):
+def _(mo, sys):
     mo.md(f"# 🤖💬 {sys.argv[-1]} ")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo, sys):
+def _(mo, sys):
     mo.md(
         f"""
         I'm a chatbot that can answer questions about the **{sys.argv[-1]}** GitHub repo. Ask me anything!
@@ -35,7 +35,7 @@ def __(mo, sys):
 
 
 @app.cell
-def __():
+def _():
     import sys
     import logging                                                                   
 
@@ -63,8 +63,6 @@ def __():
         create_history_aware_retriever,
         create_retrieval_chain,
         create_stuff_documents_chain,
-        dotenv,
-        gr,
         logging,
         sage_config,
         sys,
@@ -72,7 +70,7 @@ def __():
 
 
 @app.cell
-def __(
+def _(
     ChatPromptTemplate,
     MessagesPlaceholder,
     build_llm_via_langchain,
@@ -129,7 +127,7 @@ def __(
 
 
 @app.cell
-def __(configargparse, sage_config, sys):
+def _(configargparse, sage_config, sys):
     parser = configargparse.ArgParser(
         description="Batch-embeds a GitHub repository and its issues.",
         ignore_unknown_config_file_keys=True,
@@ -153,17 +151,17 @@ def __(configargparse, sage_config, sys):
     args = parser.parse_args(_argv)
     for validator in arg_validators:
         validator(args)
-    return arg_validators, args, parser, validator
+    return (args,)
 
 
 @app.cell
-def __(args):
+def _(args):
     args
     return
 
 
 @app.cell
-def __(AIMessage, HumanMessage, args, build_rag_chain, logging, mo):
+def _(AIMessage, HumanMessage, args, build_rag_chain, logging, mo):
     rag_chain = build_rag_chain(args)
 
 
@@ -220,11 +218,11 @@ def __(AIMessage, HumanMessage, args, build_rag_chain, logging, mo):
                         logging.info(f"Query rewrite: {query_rewrite}")
                     response += chunk
                     yield mo.md(response)
-    return predict, rag_chain, source_md
+    return (predict,)
 
 
 @app.cell
-def __(mo, predict):
+def _(mo, predict):
     mo.ui.chat(predict, prompts=["What does this repo do?", "Give me some sample code"])
     return
 

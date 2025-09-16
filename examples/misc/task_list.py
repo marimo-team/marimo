@@ -7,18 +7,18 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("# Task List").left()
     return
 
 
 @app.cell
-def __(dataclass):
+def _(dataclass):
     @dataclass
     class Task:
         name: str
@@ -27,14 +27,14 @@ def __(dataclass):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     get_tasks, set_tasks = mo.state([])
     mutation_signal, set_mutation_signal = mo.state(False)
     return get_tasks, mutation_signal, set_mutation_signal, set_tasks
 
 
 @app.cell
-def __(mo, mutation_signal):
+def _(mo, mutation_signal):
     mutation_signal
 
     task_entry_box = mo.ui.text(placeholder="a task ...")
@@ -42,7 +42,7 @@ def __(mo, mutation_signal):
 
 
 @app.cell
-def __(Task, mo, set_mutation_signal, set_tasks, task_entry_box):
+def _(Task, mo, set_mutation_signal, set_tasks, task_entry_box):
     def add_task():
         if task_entry_box.value:
             set_tasks(lambda v: v + [Task(task_entry_box.value)])
@@ -60,11 +60,11 @@ def __(Task, mo, set_mutation_signal, set_tasks, task_entry_box):
             lambda v: [task for task in v if not task.done]
         ),
     )
-    return add_task, add_task_button, clear_tasks_button
+    return add_task_button, clear_tasks_button
 
 
 @app.cell
-def __(add_task_button, clear_tasks_button, mo, task_entry_box):
+def _(add_task_button, clear_tasks_button, mo, task_entry_box):
     mo.hstack(
         [task_entry_box, add_task_button, clear_tasks_button], justify="start"
     )
@@ -72,7 +72,7 @@ def __(add_task_button, clear_tasks_button, mo, task_entry_box):
 
 
 @app.cell
-def __(Task, get_tasks, mo, set_tasks):
+def _(Task, get_tasks, mo, set_tasks):
     task_list = mo.ui.array(
         [mo.ui.checkbox(value=task.done, label=task.name) for task in get_tasks()],
         label="tasks",
@@ -84,19 +84,19 @@ def __(Task, get_tasks, mo, set_tasks):
 
 
 @app.cell
-def __(mo, task_list):
+def _(mo, task_list):
     mo.as_html(task_list) if task_list.value else mo.md("No tasks! 🎉")
     return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __():
+def _():
     from dataclasses import dataclass
     return (dataclass,)
 

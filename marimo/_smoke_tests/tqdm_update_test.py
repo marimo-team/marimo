@@ -1,52 +1,54 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.13"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     from tqdm.notebook import tqdm, trange
     import time
     return time, tqdm, trange
 
 
 @app.cell
-def __(time, tqdm):
+def _(time, tqdm):
     # Test regular iteration
     for i in tqdm(range(5)):
         time.sleep(0.1)
-    return i,
+    return
+
 
 @app.cell
-def __(time, tqdm):
+def _(time, trange):
     # Test regular iteration
     for i in trange(5):
         time.sleep(0.1)
-    return i,
+    return
 
 
 @app.cell
-def __(time, tqdm):
+def _(time, tqdm):
     # Test manual update method
     pbar = tqdm(total=5)
     for i in range(5):
         time.sleep(0.1)
         pbar.update(1)  # Explicitly calling update
     pbar.close()
-    return i,
+    return
 
 
 @app.cell
-def __(time, tqdm):
+def _(time, tqdm):
     # Test update with different increment
     pbar = tqdm(total=50)
     for i in range(0, 50, 5):
         time.sleep(0.1)
         pbar.update(5)  # Update by 5 each time
     pbar.close()
-    return i,
+    return
 
 
 if __name__ == "__main__":

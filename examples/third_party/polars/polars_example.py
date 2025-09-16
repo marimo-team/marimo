@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.10.12"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
@@ -32,7 +32,7 @@ def _():
     import polars as pl
     import numpy as np
     import altair as alt
-    return alt, mo, np, pl
+    return alt, mo, pl
 
 
 @app.cell
@@ -60,7 +60,7 @@ def _(df, mo):
 
 
     mo.hstack([type_1_filter, type_2_filter], justify="start")
-    return type_1_filter, type_2_filter, values_1, values_2
+    return type_1_filter, type_2_filter
 
 
 @app.cell

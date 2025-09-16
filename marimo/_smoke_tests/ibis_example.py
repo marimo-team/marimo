@@ -7,36 +7,36 @@
 
 import marimo
 
-__generated_with = "0.8.7"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import ibis
     return ibis, mo
 
 
 @app.cell
-def __(ibis):
+def _(ibis):
     df = ibis.read_csv(
         "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv",
         table_name="penguins",
     )
     df
-    return df,
+    return (df,)
 
 
 @app.cell
-def __(df):
+def _(df):
     # Print Ibis data in a pretty table
     df.to_polars()
     return
 
 
 @app.cell
-def __(df):
+def _(df):
     # Transform using the python API
     _res = df.group_by("species", "island").agg(count=df.count()).order_by("count")
     df.to_polars()
@@ -44,7 +44,7 @@ def __(df):
 
 
 @app.cell
-def __(df):
+def _(df):
     # Transform using SQL
     _res = df.sql(
         "SELECT species, island, count(*) AS count FROM penguins GROUP BY 1, 2"
@@ -54,14 +54,14 @@ def __(df):
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     # Transform using the ui.dataframe GUI
     mo.ui.dataframe(df)
     return
 
 
 @app.cell
-def __(ibis):
+def _(ibis):
     # Unnest
     ibis.memtable(
         {
@@ -73,7 +73,7 @@ def __(ibis):
 
 
 @app.cell
-def __(ibis):
+def _(ibis):
     # Unpack
     ibis.memtable({"A": [{"foo": 1, "bar": "hello"}], "B": [1]}).unpack(
         "A"

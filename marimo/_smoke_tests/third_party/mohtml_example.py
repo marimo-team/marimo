@@ -7,12 +7,12 @@
 
 import marimo
 
-__generated_with = "0.9.21"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     # You can import any HTML element this way
     from mohtml import a, p, div, script, h1
 
@@ -23,11 +23,11 @@ def __():
             klass="font-bold text-xl border-yellow-600 border-2 px-2 border-dashed",
         ),
     )
-    return a, div, h1, p, script
+    return
 
 
 @app.cell
-def __():
+def _():
     return
 
 

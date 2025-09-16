@@ -13,12 +13,12 @@
 
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import marimo as mo
     import numpy as np
     import random
@@ -44,22 +44,19 @@ def __():
         MAX_SEED,
         mo,
         model_repo_id,
-        np,
         random,
         torch,
-        tqdm,
-        transformers,
     )
 
 
 @app.cell
-def __(mo, model_repo_id):
+def _(mo, model_repo_id):
     mo.md(f"""# HuggingFace Text-to-Image: **{model_repo_id}**""")
     return
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     examples = [
         "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
         "An astronaut riding a green horse",
@@ -69,14 +66,7 @@ def __():
 
 
 @app.cell
-def __(
-    DiffusionPipeline,
-    MAX_SEED,
-    mo,
-    model_repo_id,
-    random,
-    torch,
-):
+def _(DiffusionPipeline, MAX_SEED, mo, model_repo_id, random, torch):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     if torch.cuda.is_available():
@@ -119,17 +109,17 @@ def __(
 
 
     mo.output.clear()  # Clear loading tdqm
-    return device, infer, pipe, torch_dtype
+    return (infer,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     get_prompt, set_prompt = mo.state("")
     return get_prompt, set_prompt
 
 
 @app.cell
-def __(get_prompt, mo, set_prompt):
+def _(get_prompt, mo, set_prompt):
     prompt = mo.ui.text_area(
         placeholder="Enter your prompt",
         label="Prompt",
@@ -141,7 +131,7 @@ def __(get_prompt, mo, set_prompt):
 
 
 @app.cell
-def __(examples, mo, set_prompt):
+def _(examples, mo, set_prompt):
     def _on_click(example):
         def handle(v):
             set_prompt(example)
@@ -157,11 +147,11 @@ def __(examples, mo, set_prompt):
     )
 
     example_options = mo.vstack(buttons)
-    return buttons, example_options
+    return (example_options,)
 
 
 @app.cell
-def __(MAX_IMAGE_SIZE, MAX_SEED, example_options, mo, prompt):
+def _(MAX_IMAGE_SIZE, MAX_SEED, example_options, mo, prompt):
     run_button = mo.ui.run_button(label="Run", kind="success", full_width=True)
 
     negative_prompt = mo.ui.text_area(
@@ -206,7 +196,6 @@ def __(MAX_IMAGE_SIZE, MAX_SEED, example_options, mo, prompt):
     # Layout the main interface
     mo.vstack([prompt, run_button, advanced_settings])
     return (
-        advanced_settings,
         guidance_scale,
         height,
         negative_prompt,
@@ -219,13 +208,13 @@ def __(MAX_IMAGE_SIZE, MAX_SEED, example_options, mo, prompt):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     get_image, set_image = mo.state(None)
     return get_image, set_image
 
 
 @app.cell
-def __(
+def _(
     guidance_scale,
     height,
     infer,
@@ -257,7 +246,7 @@ def __(
 
 
 @app.cell
-def __(get_image):
+def _(get_image):
     get_image()
     return
 

@@ -7,14 +7,15 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.23"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     from vega_datasets import data
     import polars as pl
@@ -22,32 +23,32 @@ def __():
 
 
 @app.cell
-def __(data, pl):
+def _(data, pl):
     df = pl.from_pandas(data.cars())
     df
-    return df,
+    return (df,)
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.ui.table(df)
     return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.plain(df)
     return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.hstack(["hstack", mo.vstack(["vstack", df])])
     return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.hstack(["hstack", mo.vstack(["vstack", mo.plain(df)])])
     return
 

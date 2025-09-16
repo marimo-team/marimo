@@ -14,14 +14,13 @@
 
 import marimo
 
-__generated_with = "0.11.18"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
-
     return (mo,)
 
 
@@ -62,7 +61,7 @@ def _():
     flights = pl.read_parquet(
         "https://vegafusion-datasets.s3.amazonaws.com/vega/flights_1m.parquet"
     )
-    return alt, flights, pl, vf
+    return alt, flights
 
 
 @app.cell
@@ -121,7 +120,7 @@ def _(alt, flights, mo):
                 )
             )
     mo.hstack(charts)
-    return charts, col, columns
+    return
 
 
 @app.cell

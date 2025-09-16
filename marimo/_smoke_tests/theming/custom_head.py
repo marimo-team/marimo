@@ -8,25 +8,25 @@
 
 import marimo
 
-__generated_with = "0.9.21"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium", html_head_file="head.html")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     from vega_datasets import data
     return data, mo
 
 
 @app.cell
-def __(data):
+def _(data):
     data.cars()
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.callout(
         mo.md("""
     ## Callout
@@ -38,7 +38,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # heading

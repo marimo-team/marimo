@@ -1,24 +1,25 @@
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
-@app.cell
-def _():
-    def inc(x):
-        return x + 1
-    return inc
+@app.function
+def inc(x):
+    return x + 1
 
 
 @app.cell
-def test_answer(inc):
+def test_answer():
     assert inc(3) == 5, "This test fails"
+    return
 
 
 @app.cell
-def test_sanity(inc):
+def test_sanity():
     assert inc(3) == 4, "This test passes"
+    return
+
 
 if __name__ == "__main__":
-	app.run()
+    app.run()

@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.11.2"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -31,7 +31,7 @@ def _():
         height=400,
         width=400,
     )
-    return df, hvplot, panel
+    return
 
 
 @app.cell
@@ -53,7 +53,7 @@ def _(mo):
     slider = pn.widgets.IntSlider(start=0, end=10, value=5)
     rx_stars = mo.ui.panel(slider.rx() * "*")
     rx_stars
-    return pn, rx_stars, slider
+    return
 
 
 if __name__ == "__main__":

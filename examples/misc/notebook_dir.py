@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.12"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -16,7 +16,7 @@ def _(mo):
         contents = f.read()
 
     mo.plain_text(contents)
-    return contents, f
+    return
 
 
 if __name__ == "__main__":

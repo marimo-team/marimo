@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.17"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import time
     import ibis
 
@@ -26,7 +27,7 @@ def __():
     # print(df.__dataframe__().num_rows())
     end = time.time()
     print(f"Time to read from datatable: {(end - start) * 1000}ms")
-    return df, end, get_table_manager_or_none, ibis, manager, start, time
+    return
 
 
 if __name__ == "__main__":

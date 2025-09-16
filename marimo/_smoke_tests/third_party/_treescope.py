@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.11.6"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -22,7 +22,7 @@ def _():
     my_array = np.cos(np.arange(300).reshape((10,30)) * 0.2)
     figure = treescope.render_array(my_array)
     mo.iframe(figure._repr_html_())
-    return figure, mo, my_array, np, treescope
+    return (figure,)
 
 
 @app.cell

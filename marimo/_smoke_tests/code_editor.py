@@ -5,26 +5,27 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.76"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.code_editor("print(2 + 2)", min_height=50)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.code_editor("SELECT * FROM table;", language="sql", theme="light")
     return
 
 
 @app.cell(hide_code=True)
-def __(languages, mo):
+def _(languages, mo):
     language_select = mo.ui.dropdown(
         languages,
         value="javascript",
@@ -37,7 +38,7 @@ def __(languages, mo):
 
 
 @app.cell
-def __(language_select, mo, samples, theme_select):
+def _(language_select, mo, samples, theme_select):
     mo.ui.code_editor(
         samples[language_select.value],
         language=language_select.value,
@@ -47,7 +48,7 @@ def __(language_select, mo, samples, theme_select):
 
 
 @app.cell
-def __():
+def _():
     languages = ["sql", "python", "javascript", "ruby", "c", "java", "go"]
     samples = {
         "sql": "SELECT * FROM table;",
@@ -64,9 +65,9 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

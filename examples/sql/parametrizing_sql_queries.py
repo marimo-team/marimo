@@ -11,18 +11,18 @@
 
 import marimo
 
-__generated_with = "0.9.1"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Parametrizing SQL Queries
@@ -36,33 +36,33 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     from vega_datasets import data
 
     df = data.iris()
     df
-    return data, df
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""Next, we create a dropdown that selects the iris species.""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     species_dropdown = mo.ui.dropdown(["setosa", "versicolor", "virginica"], value="setosa")
     species_dropdown
     return (species_dropdown,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         Next, we **create a SQL cell** that filters the table to the selected species.
-        
+
         Notice that we can reference the Python variable `species_dropdown` in our query
         using **curly braces**. This is because marimo represents SQL queries as Python
         f-strings. 
@@ -72,16 +72,16 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: Creating SQL Cells": mo.md(
                 f"""
                 Create a SQL cell in one of two ways:
-            
+
                 1. Click the {mo.icon("lucide:database")} `SQL` button at the **bottom of your notebook**
                 2. **Right-click** the {mo.icon("lucide:circle-plus")} button to the **left of a cell**, and choose `SQL`.
-            
+
                 In the SQL cell, you can query dataframes in your notebook as if
                 they were tables — just reference them by name.
                 """
@@ -92,7 +92,7 @@ def __(mo):
 
 
 @app.cell
-def __(df, mo, species_dropdown):
+def _(mo, species_dropdown):
     result = mo.sql(
         f"""
         SELECT * FROM df where species == '{species_dropdown.value}'
@@ -102,7 +102,7 @@ def __(df, mo, species_dropdown):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         The query output is returned to Python as a dataframe (Polars if you have it installed, Pandas otherwise).
@@ -118,7 +118,7 @@ def __(mo):
 
 
 @app.cell
-def __(result):
+def _(result):
     result
     return
 

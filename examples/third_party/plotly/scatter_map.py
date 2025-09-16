@@ -6,20 +6,21 @@
 #     "plotly==5.24.1",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.9.4"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # Selectable scatter map
@@ -32,7 +33,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     import plotly.express as px
 
     df = px.data.carshare()
@@ -47,11 +48,11 @@ def __(mo):
         zoom=10,
         mapbox_style="carto-positron",
     ))
-    return df, fig, px
+    return (fig,)
 
 
 @app.cell
-def __(fig, mo):
+def _(fig, mo):
     mo.hstack([fig, fig.value], justify="start")
     return
 

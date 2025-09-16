@@ -10,18 +10,18 @@
 
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return
 
 
 @app.cell
-def __():
+def _():
     class HTMLMime:
         def _mime_(self):
             return (
@@ -31,11 +31,11 @@ def __():
 
 
     HTMLMime()
-    return HTMLMime,
+    return (HTMLMime,)
 
 
 @app.cell
-def __():
+def _():
     class SvgMime:
         def _mime_(self):
             return (
@@ -45,11 +45,11 @@ def __():
 
 
     SvgMime()
-    return SvgMime,
+    return (SvgMime,)
 
 
 @app.cell
-def __():
+def _():
     class JSONMime:
         def _mime_(self):
             return (
@@ -59,11 +59,11 @@ def __():
 
 
     JSONMime()
-    return JSONMime,
+    return (JSONMime,)
 
 
 @app.cell
-def __():
+def _():
     class PngMime:
         def _mime_(self):
             import matplotlib.pyplot as plt
@@ -86,11 +86,11 @@ def __():
 
 
     PngMime()
-    return PngMime,
+    return
 
 
 @app.cell
-def __():
+def _():
     class CSVMime:
         def _mime_(self):
             return (
@@ -100,11 +100,11 @@ def __():
 
 
     CSVMime()
-    return CSVMime,
+    return (CSVMime,)
 
 
 @app.cell
-def __():
+def _():
     class TextMarkdownMime:
         def _mime_(self):
             return (
@@ -114,11 +114,11 @@ def __():
 
 
     TextMarkdownMime()
-    return TextMarkdownMime,
+    return (TextMarkdownMime,)
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
     import pandas as pd
 
@@ -137,11 +137,11 @@ def __():
 
 
     VegaLiteMime()
-    return VegaLiteMime, alt, pd
+    return (VegaLiteMime,)
 
 
 @app.cell
-def __():
+def _():
     class UnknownMime:
         def _mime_(self):
             return (
@@ -151,11 +151,11 @@ def __():
 
 
     UnknownMime()
-    return UnknownMime,
+    return (UnknownMime,)
 
 
 @app.cell
-def __(
+def _(
     CSVMime,
     HTMLMime,
     JSONMime,
@@ -186,11 +186,11 @@ def __(
         TextMarkdownMime(),
         UnknownMime(),
     )
-    return ReprMimeBundle,
+    return (ReprMimeBundle,)
 
 
 @app.cell
-def __(HTMLMime, ReprMimeBundle):
+def _(HTMLMime, ReprMimeBundle):
     ReprMimeBundle(HTMLMime())
     return
 

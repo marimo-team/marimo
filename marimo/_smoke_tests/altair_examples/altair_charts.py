@@ -11,12 +11,12 @@
 
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import json
 
     import numpy as np
@@ -24,12 +24,11 @@ def __():
     from vega_datasets import data
 
     import marimo as mo
-
-    return data, json, mo, np, pd
+    return data, mo, np, pd
 
 
 @app.cell
-def __(data):
+def _(data):
     # data
     cars = data.cars()
     employment = data.unemployment_across_industries.url
@@ -38,7 +37,7 @@ def __(data):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     chart_selection_type = mo.ui.radio(
         ["default", "point", "interval"],
         label="Selection Type",
@@ -56,7 +55,7 @@ def __(mo):
 
 
 @app.cell
-def __(chart_selection_type, legend_selection_type, theme):
+def _(chart_selection_type, legend_selection_type, theme):
     import altair as alt
 
     alt.themes.enable(theme.value)
@@ -71,7 +70,7 @@ def __(chart_selection_type, legend_selection_type, theme):
 
 
 @app.cell
-def __(alt, cars, chart_selection_value, legend_selection_value, mo):
+def _(alt, cars, chart_selection_value, legend_selection_value, mo):
     _chart = (
         alt.Chart(cars)
         .mark_point()
@@ -91,13 +90,13 @@ def __(alt, cars, chart_selection_value, legend_selection_value, mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Basic Chart""")
     return
 
 
 @app.cell
-def __(alt, chart1, chart_selection_value, legend_selection_value, mo):
+def _(alt, chart1, chart_selection_value, legend_selection_value, mo):
     mo.vstack(
         [
             chart1,
@@ -123,7 +122,7 @@ def __(alt, chart1, chart_selection_value, legend_selection_value, mo):
 
 
 @app.cell
-def __(alt, chart_selection_value, employment, legend_selection_value, mo):
+def _(alt, chart_selection_value, employment, legend_selection_value, mo):
     # _selection = alt.selection_point(fields=["series"], bind="legend")
 
     _chart = (
@@ -148,25 +147,25 @@ def __(alt, chart_selection_value, employment, legend_selection_value, mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Another Chart""")
     return
 
 
 @app.cell
-def __(chart2, mo):
+def _(chart2, mo):
     mo.vstack([chart2, chart2.value.head(10)])
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Defined Width + Height""")
     return
 
 
 @app.cell
-def __(alt, iris, mo):
+def _(alt, iris, mo):
     _chart = (
         alt.Chart(iris)
         .mark_circle()
@@ -188,7 +187,7 @@ def __(alt, iris, mo):
 
 
 @app.cell
-def __(alt, chart_selection_value, iris, legend_selection_value, mo):
+def _(alt, chart_selection_value, iris, legend_selection_value, mo):
     # _color_sel = alt.selection_point(fields=["species"], bind="legend")
     # _size_sel = alt.selection_point(fields=["petalWidth"], bind="legend")
 
@@ -216,43 +215,43 @@ def __(alt, chart_selection_value, iris, legend_selection_value, mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Chart + Chart""")
     return
 
 
 @app.cell
-def __(chart3, mo):
+def _(chart3, mo):
     mo.hstack([chart3, chart3])
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Chart + Table""")
     return
 
 
 @app.cell
-def __(chart3, mo):
+def _(chart3, mo):
     mo.hstack([chart3, chart3.value.head(10)], widths="equal")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Chart + Table returned as an array""")
     return
 
 
 @app.cell
-def __(chart3):
+def _(chart3):
     [chart3, chart3.value.head(10)]
     return
 
 
 @app.cell
-def __(alt, cars, chart_selection_value, legend_selection_value, mo):
+def _(alt, cars, chart_selection_value, legend_selection_value, mo):
     brush = alt.selection_interval()
     points = (
         alt.Chart(cars)
@@ -276,39 +275,39 @@ def __(alt, cars, chart_selection_value, legend_selection_value, mo):
         chart_selection=chart_selection_value,
         legend_selection=legend_selection_value,
     )
-    return bars, brush, chart4, plot, points
+    return (chart4,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Chart with transform""")
     return
 
 
 @app.cell
-def __(chart4, mo):
+def _(chart4, mo):
     mo.vstack([chart4, chart4.value.head(10)])
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Bar chart""")
     return
 
 
 @app.cell
-def __(alt, data, mo):
+def _(alt, data, mo):
     binned = mo.ui.altair_chart(
         alt.Chart(data.cars())
         .mark_bar()
         .encode(x=alt.X("Miles_per_Gallon:Q", bin=True), y="count()")
     )
-    return (binned,)
+    return
 
 
 @app.cell
-def __(alt, cars, mo):
+def _(alt, cars, mo):
     mean = mo.ui.altair_chart(
         alt.Chart(cars)
         .mark_bar()
@@ -321,13 +320,13 @@ def __(alt, cars, mo):
 
 
 @app.cell
-def __(mean, mo):
+def _(mean, mo):
     mo.vstack([mean, mean.value])
     return
 
 
 @app.cell
-def __(alt, data, mo):
+def _(alt, data, mo):
     hist = (
         alt.Chart(data.cars())
         .mark_bar()
@@ -338,19 +337,19 @@ def __(alt, data, mo):
 
 
 @app.cell
-def __(hist, mo):
+def _(hist, mo):
     mo.vstack([hist, hist.value])
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Pivot and horizontal bar chart""")
     return
 
 
 @app.cell
-def __(alt, mo, pd):
+def _(alt, mo, pd):
     df = pd.DataFrame.from_records(
         [
             {"country": "Norway", "type": "gold", "count": 14},
@@ -374,17 +373,17 @@ def __(alt, mo, pd):
             y="country:N",
         )
     )
-    return df, pivot
+    return (pivot,)
 
 
 @app.cell
-def __(mo, pivot):
+def _(mo, pivot):
     mo.vstack([pivot, pivot.value.head()])
     return
 
 
 @app.cell
-def __(alt, data, mo):
+def _(alt, data, mo):
     _source = data.population.url
 
     horizontal_bar = mo.ui.altair_chart(
@@ -401,13 +400,13 @@ def __(alt, data, mo):
 
 
 @app.cell
-def __(horizontal_bar, mo):
+def _(horizontal_bar, mo):
     mo.vstack([horizontal_bar, horizontal_bar.value.head()])
     return
 
 
 @app.cell
-def __(alt, mo, pd):
+def _(alt, mo, pd):
     _source = pd.DataFrame(
         {"category": [1, 2, 3, 4, 5, 6], "value": [4, 6, 10, 3, 7, 8]}
     )
@@ -424,19 +423,19 @@ def __(alt, mo, pd):
 
 
 @app.cell
-def __(mo, pie):
+def _(mo, pie):
     mo.vstack([pie, pie.value])
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Line Chart""")
     return
 
 
 @app.cell
-def __(alt, mo, np, pd):
+def _(alt, mo, np, pd):
     x = np.arange(100)
     source = pd.DataFrame({"x": x, "f(x)": np.sin(x / 5)})
 
@@ -445,23 +444,23 @@ def __(alt, mo, np, pd):
         chart_selection="interval",
     )
     line_chart
-    return line_chart, source, x
+    return (line_chart,)
 
 
 @app.cell
-def __(line_chart, mo):
+def _(line_chart, mo):
     mo.hstack([line_chart.value, line_chart.selections])
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Multi-Line Chart""")
     return
 
 
 @app.cell
-def __(alt, data, mo):
+def _(alt, data, mo):
     _source = data.stocks()
 
     alt.Chart(_source).mark_line().encode(
@@ -484,13 +483,13 @@ def __(alt, data, mo):
 
 
 @app.cell
-def __(mo, multiline_chart):
+def _(mo, multiline_chart):
     mo.hstack([multiline_chart.value, multiline_chart.selections])
     return
 
 
 @app.cell
-def __(alt, mo, np, pd):
+def _(alt, mo, np, pd):
     # Example dataset
     _data = pd.DataFrame(
         {
@@ -520,13 +519,13 @@ def __(alt, mo, np, pd):
 
 
 @app.cell
-def __(facet_chart, mo):
+def _(facet_chart, mo):
     mo.hstack([facet_chart.value, facet_chart.selections])
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         # With `transform_filter`
@@ -537,7 +536,7 @@ def __(mo):
 
 
 @app.cell
-def __(alt, data, mo):
+def _(alt, data, mo):
     from altair import datum
 
     _chart = (
@@ -555,19 +554,19 @@ def __(alt, data, mo):
 
 
 @app.cell
-def __(mo, with_transform):
+def _(mo, with_transform):
     mo.vstack([with_transform, with_transform.value])
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Layers""")
     return
 
 
 @app.cell
-def __(alt, mo, pd):
+def _(alt, mo, pd):
     _source = pd.DataFrame(
         {
             "yield_error": [7.5522, 6.9775, 3.9167, 11.9732],
@@ -599,11 +598,11 @@ def __(alt, mo, pd):
     _chart = bar + point
     # layered_chart = mo.ui.altair_chart(_chart, chart_selection="point")
     layered_chart = mo.ui.altair_chart(_chart, chart_selection="interval")
-    return bar, layered_chart, point
+    return (layered_chart,)
 
 
 @app.cell
-def __(layered_chart, mo):
+def _(layered_chart, mo):
     mo.vstack(
         [
             layered_chart,
@@ -614,13 +613,13 @@ def __(layered_chart, mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""# layered""")
     return
 
 
 @app.cell
-def __(alt, data, datum, mo):
+def _(alt, data, datum, mo):
     stocks = data.stocks.url
 
     base = (
@@ -631,29 +630,29 @@ def __(alt, data, datum, mo):
 
     t = mo.ui.altair_chart(base.mark_line() + base.mark_point())
     t
-    return base, stocks, t
+    return (base,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""# hconcat""")
     return
 
 
 @app.cell
-def __(base, mo):
+def _(base, mo):
     mo.ui.altair_chart(base.mark_line() | base.mark_point())
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# vconcat""")
     return
 
 
 @app.cell
-def __(base, mo):
+def _(base, mo):
     mo.ui.altair_chart(base.mark_line() & base.mark_point())
     return
 

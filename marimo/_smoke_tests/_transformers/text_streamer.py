@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.12.0"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -32,14 +32,7 @@ def _():
     tokenizer = AutoTokenizer.from_pretrained("sshleifer/tiny-gpt2")
     pipeline = pipeline("text-generation", model="sshleifer/tiny-gpt2")
     streamer = TextIteratorStreamer(tokenizer)
-    return (
-        AutoModelForCausalLM,
-        AutoTokenizer,
-        TextIteratorStreamer,
-        pipeline,
-        streamer,
-        tokenizer,
-    )
+    return pipeline, streamer
 
 
 @app.cell

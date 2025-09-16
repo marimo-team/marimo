@@ -8,18 +8,18 @@
 
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""## Using [simplemind](https://github.com/kennethreitz/simplemind) with `mo.ui.chat()`""")
     return
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import marimo as mo
     import os
     import simplemind as sm
@@ -27,7 +27,7 @@ def __():
 
 
 @app.cell(hide_code=True)
-def __(__file__, mo, os):
+def _(mo, os):
     has_set_env = os.environ.get("OPENAI_API_KEY") is not None
     mo.md(f"""
     Missing OpenAI API key. Re-run this notebook with the following command:
@@ -37,17 +37,17 @@ def __(__file__, mo, os):
     marimo edit {__file__}
     ```
     """).callout("warn") if not has_set_env else ""
-    return (has_set_env,)
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     get_logs, set_logs = mo.state([], allow_self_loops=True)
     return get_logs, set_logs
 
 
 @app.cell
-def __(set_logs, sm):
+def _(set_logs, sm):
     def add_log(value):
         return set_logs(lambda logs: logs + [value])
 
@@ -71,11 +71,11 @@ def __(set_logs, sm):
 
         def post_send_hook(self, conversation, response):
             add_log(f"Received response: {response.text}")
-    return LoggingPlugin, add_log
+    return (LoggingPlugin,)
 
 
 @app.cell
-def __(LoggingPlugin, mo, sm):
+def _(LoggingPlugin, mo, sm):
     conversation = sm.create_conversation(
         llm_model="gpt-4o", llm_provider="openai"
     )
@@ -88,22 +88,22 @@ def __(LoggingPlugin, mo, sm):
 
 
     chat = mo.ui.chat(on_message)
-    return chat, conversation, on_message
+    return (chat,)
 
 
 @app.cell
-def __(chat, get_logs, mo):
+def _(chat, get_logs, mo):
     logs = list(reversed(get_logs()))
 
     mo.hstack(
         [chat, mo.ui.table(logs, selection=None)],
         widths="equal",
     )
-    return (logs,)
+    return
 
 
 @app.cell
-def __(chat):
+def _(chat):
     chat.value
     return
 

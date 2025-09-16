@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.12.4"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -26,7 +26,7 @@ def _():
             "value2": [100, 34],
         }
     )
-    return alt, date, mo, pl, sample_data
+    return alt, mo, sample_data
 
 
 @app.cell
@@ -44,7 +44,7 @@ def _(alt, mo, sample_data):
     # expected output is to have two rows with same charts
 
     mo.vstack([chart, mo.ui.altair_chart(chart)])
-    return (chart,)
+    return
 
 
 if __name__ == "__main__":

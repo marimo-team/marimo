@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
     import pandas as pd
 
@@ -19,11 +19,11 @@ def __():
     # Plain chart
     chart = alt.Chart(data).mark_line().encode(x="x", y="y")
     chart
-    return alt, chart, data, mo, pd
+    return chart, mo
 
 
 @app.cell
-def __(chart, mo):
+def _(chart, mo):
     # Wrapped chart
     mo.ui.altair_chart(chart)
     return

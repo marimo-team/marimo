@@ -5,28 +5,29 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.2"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     kinds = ["neutral", "success", "warn", "danger"]
 
     mo.vstack([mo.ui.button(label=kind, kind=kind) for kind in kinds])
-    return kinds,
+    return (kinds,)
 
 
 @app.cell
-def __(kinds, mo):
+def _(kinds, mo):
     mo.vstack([mo.ui.button(label=kind, kind=kind, disabled=True) for kind in kinds])
     return
 

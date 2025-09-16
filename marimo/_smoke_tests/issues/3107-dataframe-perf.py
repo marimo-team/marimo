@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.33"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import polars as pl
     import numpy as np
     from typing import Tuple
@@ -65,20 +65,20 @@ def __():
         unique_groups = df["group"].unique().to_list()
 
         return df
-    return Tuple, create_test_dataframe, mo, np, pl
+    return create_test_dataframe, pl
 
 
 @app.cell
-def __(create_test_dataframe):
+def _(create_test_dataframe):
     num_rows = 10
     df = create_test_dataframe(num_rows)
-    return df, num_rows
+    return (df,)
 
 
 @app.cell
-def __(df, pl):
+def _(df, pl):
     x = df.filter(pl.col("group") == "group2")
-    return (x,)
+    return
 
 
 if __name__ == "__main__":

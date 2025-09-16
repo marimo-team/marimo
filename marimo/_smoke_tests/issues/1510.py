@@ -1,20 +1,21 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.11"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import matplotlib.pyplot as plt
     plt.plot([1, 2])
     plt.legend(["asdf"], bbox_to_anchor=(1.2, 0.5))
-    return plt,
+    return (plt,)
 
 
 @app.cell
-def __(plt):
+def _(plt):
     plt.plot([1, 2])
     plt.legend(["asdf"], bbox_to_anchor=(1.2, 0.5))
     plt.show()
@@ -22,11 +23,11 @@ def __(plt):
 
 
 @app.cell
-def __():
+def _():
     import matplotlib
     backend = matplotlib.get_backend()
     backend
-    return backend, matplotlib
+    return
 
 
 if __name__ == "__main__":

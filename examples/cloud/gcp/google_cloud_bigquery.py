@@ -10,12 +10,12 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import os
     from google.cloud import bigquery
@@ -23,13 +23,13 @@ def __():
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""# Google Cloud BigQuery""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     # Configuration
     credentials = mo.ui.text(placeholder="path/to/creds.json")
     mo.md(
@@ -46,14 +46,14 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     project = mo.ui.text(label="gcloud project")
     project
     return (project,)
 
 
 @app.cell(hide_code=True)
-def __(bigquery, credentials, mo, os, project):
+def _(bigquery, credentials, mo, os, project):
     # Set up client
     if credentials.value:
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials.value
@@ -72,7 +72,7 @@ def __(bigquery, credentials, mo, os, project):
 
 
 @app.cell
-def __(datasets, mo):
+def _(datasets, mo):
     # Dataset selection
     selected_dataset = mo.ui.dropdown(
         label="Select dataset", options=[d.dataset_id for d in datasets]
@@ -82,7 +82,7 @@ def __(datasets, mo):
 
 
 @app.cell
-def __(client, mo, selected_dataset):
+def _(client, mo, selected_dataset):
     mo.stop(not selected_dataset.value)
 
     dataset = client.dataset(selected_dataset.value)
@@ -90,21 +90,21 @@ def __(client, mo, selected_dataset):
 
 
 @app.cell
-def __(client, dataset, mo):
+def _(client, dataset, mo):
     # Table selection
     tables = list(client.list_tables(dataset))
     selected_table = mo.ui.dropdown(
         label="Select table", options=[t.table_id for t in tables]
     )
     selected_table
-    return selected_table, tables
+    return (selected_table,)
 
 
 @app.cell
-def __(client, dataset, mo, selected_table):
+def _(client, dataset, mo, selected_table):
     results = client.list_rows(dataset.table(selected_table.value), max_results=10)
     mo.ui.table(results.to_dataframe(), selection=None)
-    return (results,)
+    return
 
 
 if __name__ == "__main__":

@@ -6,14 +6,15 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.8"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import datetime
     import marimo as mo
     import polars as pl
@@ -61,17 +62,17 @@ def __():
         },
         strict=False,
     )
-    return complex_data, datetime, mo, pl
+    return complex_data, mo
 
 
 @app.cell
-def __(complex_data, mo):
+def _(complex_data, mo):
     mo.plain(complex_data)
     return
 
 
 @app.cell
-def __(complex_data):
+def _(complex_data):
     complex_data
     return
 

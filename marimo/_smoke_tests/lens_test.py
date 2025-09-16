@@ -1,18 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.85"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     from functools import partial
 
     data = []
@@ -46,17 +47,17 @@ def __(mo):
         }
     )
     # x
-    return append, data, dict_template, partial, x
+    return data, dict_template, x
 
 
 @app.cell
-def __(mo, x):
+def _(mo, x):
     mo.ui.table([{"data": "foo", "button": btn} for btn in x.values()])
     return
 
 
 @app.cell
-def __(data, x):
+def _(data, x):
     # x.value counts how many times each button has been clicked
     # data is a log of button clicks
     x.value, data
@@ -64,7 +65,7 @@ def __(data, x):
 
 
 @app.cell
-def __(dict_template, mo):
+def _(dict_template, mo):
     composite = mo.ui.array(
         [
             mo.ui.slider(1, 10),
@@ -72,52 +73,50 @@ def __(dict_template, mo):
             mo.ui.dictionary(dict_template),
         ]
     )
-    return composite,
+    return (composite,)
 
 
 @app.cell
-def __():
+def _():
     10
     return
 
 
 @app.cell
-def __(composite):
+def _(composite):
     composite[0], composite[1], composite[2]
     return
 
 
 @app.cell
-def __(composite, mo):
+def _(composite, mo):
     mo.accordion({"Push a button": composite[2]["0"]})
     return
 
 
 @app.cell
-def __(composite):
+def _(composite):
     composite.value
     return
 
 
-@app.cell
-def __():
-    def change_printer(v):
-        print("changed ", v)
-    return change_printer,
+@app.function
+def change_printer(v):
+    print("changed ", v)
 
 
 @app.cell
-def __(checkboxes):
+def _(checkboxes):
     [_item for _item in checkboxes]
     return
 
 
 @app.cell
-def __(change_printer, mo):
+def _(mo):
     checkboxes = mo.ui.array(
         [mo.ui.checkbox(False, on_change=change_printer) for i in range(5)]
     )
-    return checkboxes,
+    return (checkboxes,)
 
 
 if __name__ == "__main__":

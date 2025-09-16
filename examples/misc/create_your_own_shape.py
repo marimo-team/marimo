@@ -7,12 +7,12 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # Inputs
@@ -24,13 +24,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Text boxes""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.hstack(
         [
             username := mo.ui.text(label="Username"),
@@ -38,11 +38,11 @@ def __(mo):
             mo.ui.text(label="Password", kind="password"),
         ]
     )
-    return email, username
+    return (username,)
 
 
 @app.cell
-def __(mo, username):
+def _(mo, username):
     mo.stop(not username.value, mo.md("What is your name?"))
 
     mo.md(f"👋 Hello {username.value}, nice to meet you!")
@@ -50,7 +50,7 @@ def __(mo, username):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.text_area(
         label="A space for your thoughts", full_width=True, max_length=1000
     )
@@ -58,19 +58,19 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.number(label="What is your favorite number?", start=0, stop=10)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Sliders""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     slider = mo.ui.slider(0, 100, value=50, label="Basic slider", show_value=True)
     range_slider = mo.ui.range_slider(
         0, 100, value=(30, 70), label="Range slider", show_value=True
@@ -82,17 +82,17 @@ def __(mo):
         0, 100, value=50, label="Vertical slider", orientation="vertical"
     )
     mo.vstack([slider, range_slider, custom_steps, vertical]).center()
-    return custom_steps, range_slider, slider, vertical
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Checkboxes and Radios""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     COLORS = ["red", "green", "blue"]
     colors = mo.ui.array(
         [mo.ui.checkbox(label=color) for color in COLORS],
@@ -116,7 +116,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(COLORS, colors, mo, shape):
+def _(COLORS, colors, mo, shape):
     selected_colors = [color for i, color in enumerate(COLORS) if colors.value[i]]
 
 
@@ -153,17 +153,17 @@ def __(COLORS, colors, mo, shape):
     A {"/".join(selected_colors)} {shape.value}:
     {draw_shape(shape.value, selected_colors)}
     """).center()
-    return draw_shape, selected_colors
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""## Dates""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     import datetime
 
     start_date = mo.ui.date(
@@ -176,11 +176,11 @@ def __(mo):
         start=datetime.date(2020, 1, 1),
         stop=datetime.date(2020, 12, 31),
     )
-    return datetime, end_date, start_date
+    return end_date, start_date
 
 
 @app.cell
-def __(end_date, mo, start_date):
+def _(end_date, mo, start_date):
     mo.hstack(
         [
             mo.hstack([start_date, "➡️", end_date]).left(),
@@ -191,13 +191,13 @@ def __(end_date, mo, start_date):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## Dropdowns""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     single = mo.ui.dropdown(
         ["Option 1", "Option 2", "Option 3", "Option 4", "Option 5"],
         label="Single select",
@@ -208,11 +208,11 @@ def __(mo):
         value=["Option 1", "Option 2"],
     )
     mo.hstack([single, multi])
-    return multi, single
+    return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

@@ -8,18 +8,18 @@
 
 import marimo
 
-__generated_with = "0.8.3"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return
 
 
 @app.cell
-def __():
+def _():
     print(
         "".join(
             "\x1b[{}m{}\n\x1b[0m".format(31 + i, "Hello, World!") for i in range(8)
@@ -29,37 +29,37 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     txt = "\n\n\x1B[1;33;40m 33;40  \x1B[1;33;41m 33;41  \x1B[1;33;42m 33;42  \x1B[1;33;43m 33;43  \x1B[1;33;44m 33;44  \x1B[1;33;45m 33;45  \x1B[1;33;46m 33;46  \x1B[1m\x1B[0\n\n\x1B[1;33;42m >> Tests OK\n\n"
 
     print(txt)
-    return txt,
+    return
 
 
 @app.cell
-def __():
+def _():
     import sys
 
     print("Hello world", file=sys.stderr)
-    return sys,
+    return
 
 
 @app.cell
-def __():
+def _():
     # No ANSI conversion when not stdout or stderr
     "".join("\x1b[{}m{}\n\x1b[0m".format(31 + i, "Hello, World!") for i in range(8))
     return
 
 
 @app.cell
-def __():
+def _():
     # Colors input()
     input("\x1b[34mPress Enter to continue\x1b[0m")
     return
 
 
 @app.cell
-def __():
+def _():
     import logging
 
     # ANSI escape codes for colors
@@ -94,7 +94,7 @@ def __():
     logger.warning("This is a warning message")
     logger.error("This is an error message")
     logger.critical("This is a critical message")
-    return AnsiColorFormatter, formatter, handler, logger, logging
+    return
 
 
 if __name__ == "__main__":

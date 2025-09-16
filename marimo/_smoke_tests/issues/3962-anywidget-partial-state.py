@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.16"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -51,7 +51,7 @@ def _(Circle, SVG):
 def _(HoverWidget, mo, my_svg):
     w = mo.ui.anywidget(HoverWidget(svg=my_svg.as_str(), selected_id=""))
     [w]
-    return (w,)
+    return
 
 
 if __name__ == "__main__":

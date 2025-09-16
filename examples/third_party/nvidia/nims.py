@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -60,7 +60,7 @@ def _(mo, uploaded_file):
 
     mo.stop(not uploaded_file.value)
     base64_encoded = base64.b64encode(uploaded_file.contents()).decode("utf-8")
-    return base64, base64_encoded, io
+    return (base64_encoded,)
 
 
 @app.cell
@@ -116,7 +116,7 @@ def _(api_token, data_uri, mo, prompt, requests, temperature, top_p, url):
 
     response = requests.post(url, json=payload, headers=headers)
     res = response.json()
-    return headers, payload, res, response
+    return (res,)
 
 
 @app.cell
@@ -127,7 +127,7 @@ def _(mo, res):
         content = res
 
     mo.md(f"**Response:** \n{res}")
-    return (content,)
+    return
 
 
 if __name__ == "__main__":

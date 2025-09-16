@@ -1,18 +1,18 @@
 import marimo
 
-__generated_with = "0.9.4"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     # binary data is a png image of a small purple square
     CONTENT = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x14\x00\x00\x00\x14\x08\x02\x00\x00\x00\x02\xeb\x8aZ\x00\x00\x00\tpHYs\x00\x00.#\x00\x00.#\x01x\xa5?v\x00\x00\x00\x1dIDAT8\xcbc\xac\x11\xa9g \x1701P\x00F5\x8fj\x1e\xd5<\xaa\x99r\xcd\x00m\xba\x017\xd3\x00\xdf\xcb\x00\x00\x00\x00IEND\xaeB`\x82"
     return (CONTENT,)
 
 
 @app.cell
-def __(CONTENT):
+def _(CONTENT):
     import anywidget
     import traitlets
 
@@ -36,25 +36,25 @@ def __(CONTENT):
 
     # binary data is a png image of a small purple square
     BytesWidget(value=CONTENT)
-    return BytesWidget, anywidget, traitlets
+    return anywidget, traitlets
 
 
 @app.cell
-def __(CONTENT, mo):
+def _(CONTENT, mo):
     # Not lossy
     mo.image(CONTENT.decode("latin1").encode("latin1"))
     return
 
 
 @app.cell
-def __(CONTENT, mo):
+def _(CONTENT, mo):
     # Is lossy
     mo.image(CONTENT.decode("utf-8", errors="replace").encode("utf-8"))
     return
 
 
 @app.cell
-def __(CONTENT, anywidget, traitlets):
+def _(CONTENT, anywidget, traitlets):
     import numpy as np
     from pathlib import Path
 
@@ -77,11 +77,11 @@ def __(CONTENT, anywidget, traitlets):
 
     # raises a TraitError
     BytesWritesWidget(value=CONTENT)
-    return BytesWritesWidget, Path, np
+    return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

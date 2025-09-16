@@ -1,26 +1,26 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.79"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import random
-
     return mo, random
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("# Basic form")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     clear_on_submit_input = mo.ui.checkbox(True, label="Clear on submit")
     bordered_input = mo.ui.checkbox(False, label="Bordered")
     show_clear_button_input = mo.ui.checkbox(False, label="Show clear button")
@@ -29,7 +29,7 @@ def __(mo):
 
 
 @app.cell
-def __(bordered_input, clear_on_submit_input, mo, show_clear_button_input):
+def _(bordered_input, clear_on_submit_input, mo, show_clear_button_input):
     form_1 = mo.ui.text_area(
         label="Form label", full_width=True, placeholder="Type..."
     ).form(
@@ -44,7 +44,7 @@ def __(bordered_input, clear_on_submit_input, mo, show_clear_button_input):
 
 
 @app.cell
-def __(form_1, mo, random):
+def _(form_1, mo, random):
     random_number = random.randint(1, 100)
     mo.vstack(
         [
@@ -55,11 +55,11 @@ def __(form_1, mo, random):
             form_1.value,
         ]
     )
-    return (random_number,)
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
     -------
@@ -70,7 +70,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     years_experience = mo.ui.slider(1, 10, value=3)
     fn = mo.ui.text()
     ln = mo.ui.text()
@@ -106,11 +106,11 @@ def __(mo):
     )
 
     form_2
-    return fn, form_2, ln, validate, years_experience
+    return (form_2,)
 
 
 @app.cell
-def __(form_2, mo, random):
+def _(form_2, mo, random):
     _random_number = random.randint(1, 100)
     mo.vstack(
         [
@@ -123,7 +123,7 @@ def __(form_2, mo, random):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
     ------
@@ -133,7 +133,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     dict = mo.ui.dictionary(
         {
             "slider": mo.ui.slider(1, 10),
@@ -152,7 +152,7 @@ def __(mo):
 
 
 @app.cell
-def __(dict, mo):
+def _(dict, mo):
     mo.vstack(
         [
             mo.md("## Dictionary Value"),

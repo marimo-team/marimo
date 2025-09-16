@@ -11,12 +11,12 @@
 
 import marimo
 
-__generated_with = "0.8.13"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     from vega_datasets import data
     import pandas as pd
@@ -24,68 +24,68 @@ def __():
 
 
 @app.cell
-def __(pd):
+def _(pd):
     editable_table = pd.DataFrame({"a": [2, 2, 12], "b": [2, 5, 6]})
-    return editable_table,
+    return
 
 
 @app.cell
-def __(pd):
+def _(pd):
     df_with_list = pd.DataFrame([{"a": [1, 2, 3]}])
-    return df_with_list,
+    return
 
 
 @app.cell
-def __(data, mo):
+def _(data, mo):
     options = data.list_datasets()
     dropdown = mo.ui.dropdown(options)
     dropdown
-    return dropdown, options
+    return (dropdown,)
 
 
 @app.cell
-def __(data, dropdown, mo):
+def _(data, dropdown, mo):
     mo.stop(not dropdown.value)
     df = data.__call__(dropdown.value)
-    return df,
+    return (df,)
 
 
 @app.cell
-def __(df):
+def _(df):
     import polars as pl
 
     polars_df = pl.DataFrame(df)
-    return pl, polars_df
+    return (polars_df,)
 
 
 @app.cell
-def __(df):
+def _(df):
     import pyarrow as pa
 
     pyarrow_df = pa.Table.from_pandas(df)
-    return pa, pyarrow_df
+    return (pyarrow_df,)
 
 
 @app.cell
-def __(mo, polars_df):
+def _(mo, polars_df):
     mo.ui.table(polars_df)
     return
 
 
 @app.cell
-def __(mo, pyarrow_df):
+def _(mo, pyarrow_df):
     mo.ui.table(pyarrow_df)
     return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.ui.table(df)
     return
 
 
 @app.cell
-def __(mo, polars_df):
+def _(mo):
     _df = mo.sql(
         f"""
         SELECT * FROM polars_df
@@ -95,23 +95,23 @@ def __(mo, polars_df):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.table({"a": [2, 2, 12], "b": [2, 5, 6]})
     return
 
 
 @app.cell
-def __(mo, polars_df):
+def _(mo, polars_df):
     mo.plain(polars_df)
     return
 
 
 @app.cell
-def __(pd):
+def _(pd):
     date_range = pd.date_range(start="2023-01-01", periods=10, freq="D")
     date_indexed_df = pd.DataFrame({"Data": range(10)}, index=date_range)
     date_indexed_df
-    return date_indexed_df, date_range
+    return
 
 
 if __name__ == "__main__":

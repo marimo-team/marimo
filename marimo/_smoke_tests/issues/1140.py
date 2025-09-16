@@ -2,12 +2,12 @@
 
 import marimo
 
-__generated_with = "0.4.5"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __():
+def _():
     import pandas as pd
     import numpy as np
     import marimo as mo
@@ -15,7 +15,7 @@ def __():
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
     This highlights some of the differences between displaying data in different libraries: polars, pandas, pyarrow, and dictionaries.
@@ -27,7 +27,7 @@ def __(mo):
 
 
 @app.cell
-def __(np, pd):
+def _(np, pd):
     data = {
         "Integer": [1, 2, 3],
         "Float": [1.0, 2.5, 3.5],
@@ -66,11 +66,11 @@ def __(np, pd):
         "Set": [set(), set(["a", "b"]), set([1, 2])],
         "Empty Tuple": [(), (), ()],
     }
-    return data,
+    return (data,)
 
 
 @app.cell
-def __(pd):
+def _(pd):
     df_with_date_index = pd.DataFrame(
         {
             "a": [1, 2, 3],
@@ -79,59 +79,59 @@ def __(pd):
         },
         index=pd.to_datetime(["2021-01-01", "2021-06-01", "2021-09-01"]),
     )
-    return df_with_date_index,
+    return (df_with_date_index,)
 
 
 @app.cell
-def __(df_with_date_index, mo):
+def _(df_with_date_index, mo):
     mo.ui.table(df_with_date_index, label="Pandas with date index")
     return
 
 
 @app.cell
-def __(df_with_date_index):
+def _(df_with_date_index):
     df_with_date_index
     return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.ui.table(df, label="Pandas")
     return
 
 
 @app.cell
-def __(data, pd):
+def _(data, pd):
     df = pd.DataFrame(data)
     df
-    return df,
+    return (df,)
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.ui.dataframe(df)
     return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.ui.table(df.to_dict(orient="records"), label="List of dictionaries")
     return
 
 
 @app.cell
-def __(data_2, mo, pd):
+def _(data_2, mo, pd):
     # Arrow
     import pyarrow as pa
     import pyarrow.parquet as pq
 
     table = pa.Table.from_pandas(pd.DataFrame(data_2))
     mo.ui.table(table, label="Pyarrow")
-    return pa, pq, table
+    return
 
 
 @app.cell
-def __(np, pd):
+def _(np, pd):
     data_2 = {
         "Integer": [1, 2, 3],
         "Float": [1.0, 2.5, 3.5],
@@ -165,27 +165,27 @@ def __(np, pd):
         # 'Empty Set': [set(), set(), set()],
         # 'Empty Tuple': [(), (), ()],
     }
-    return data_2,
+    return (data_2,)
 
 
 @app.cell
-def __(data_2, mo):
+def _(data_2, mo):
     # Polars
     import polars as pl
 
     pl_df = pl.DataFrame(data_2)
     mo.ui.table(pl_df, label="Polars")
-    return pl, pl_df
+    return (pl_df,)
 
 
 @app.cell
-def __(pl_df):
+def _(pl_df):
     pl_df
     return
 
 
 @app.cell
-def __():
+def _():
     return
 
 

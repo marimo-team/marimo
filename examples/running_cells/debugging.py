@@ -1,19 +1,17 @@
 import marimo
 
-__generated_with = "0.12.9"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
-@app.cell
-def foo():
-    def foo(x):
-        breakpoint()
-        return 1 / x
-    return (foo,)
+@app.function
+def foo(x):
+    breakpoint()
+    return 1 / x
 
 
 @app.cell
-def _(foo):
+def _():
     foo(1)
     return
 

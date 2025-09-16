@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.2.9"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
     # Bug 852
@@ -18,24 +19,24 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import pandas as pd
     return mo, pd
 
 
 @app.cell
-def __(pd):
+def _(pd):
     df = pd.DataFrame({"data": [912312851340981241284, None, "abc"]})
     df
-    return df,
+    return (df,)
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     table = mo.ui.table(df)
     table
-    return table,
+    return
 
 
 if __name__ == "__main__":

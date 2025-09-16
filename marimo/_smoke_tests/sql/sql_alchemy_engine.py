@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -19,7 +19,7 @@ def _(mo):
 @app.cell
 def _():
     from sqlalchemy import text, create_engine
-    return create_engine, text
+    return (create_engine,)
 
 
 @app.cell(hide_code=True)
@@ -29,7 +29,7 @@ def _(mo):
 
 
 @app.cell
-def _(create_engine, mo, products):
+def _(create_engine, mo):
     # Create an in-memory SQLite database
     sqlite = create_engine("sqlite:///:memory:")
 
@@ -59,11 +59,11 @@ def _(create_engine, mo, products):
     """,
         engine=sqlite,
     )
-    return products, sqlite
+    return (sqlite,)
 
 
 @app.cell
-def _(mo, products, sqlite):
+def _(mo, sqlite):
     products_df = mo.sql(
         f"""
         SELECT name, price, category
@@ -105,7 +105,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, products, sqlite):
+def _(mo, sqlite):
     _df = mo.sql(
         f"""
         -- Category summary
@@ -135,7 +135,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, price_threshold, products, sqlite):
+def _(mo, price_threshold, sqlite):
     mo.sql(
         f"""
     SELECT name, price, category
@@ -165,7 +165,7 @@ def _(mo):
         value=os.getenv("POSTGRES_URL") or "",
     )
     psql_url
-    return os, psql_url
+    return (psql_url,)
 
 
 @app.cell
@@ -180,7 +180,7 @@ def _(create_engine, mo, psql_url):
 
 
 @app.cell
-def _(information_schema, mo, my_postgres, tables):
+def _(mo, my_postgres):
     _df = mo.sql(
         f"""
         SELECT table_name 

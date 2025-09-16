@@ -5,27 +5,28 @@
 #     "rich",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.1.88"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return
 
 
 @app.cell
-def __():
+def _():
     # pip install rich
     from rich import print as pprint
-    return pprint,
+    return (pprint,)
 
 
 @app.cell
-def __(pprint):
+def _(pprint):
     pprint("[bold red]Error:[/bold red] Something went wrong!")
     pprint("[green]Success:[/green] Operation completed.")
     return

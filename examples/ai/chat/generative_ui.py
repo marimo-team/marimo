@@ -10,12 +10,12 @@
 
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import polars as pl
     import marimo as mo
     import os
@@ -28,11 +28,11 @@ def __():
 
     # Grab a dataset
     df = pl.read_csv("hf://datasets/scikit-learn/Fish/Fish.csv")
-    return df, has_api_key, mo, os, pl
+    return df, mo
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     import ell
 
 
@@ -66,7 +66,7 @@ def __(df, mo):
 
 
 @app.cell
-def __(chart_data, df, ell, filter_dataset, mo):
+def _(chart_data, df, ell, filter_dataset, mo):
     @ell.complex(model="gpt-4o", tools=[chart_data, filter_dataset])
     def analyze_dataset(prompt: str) -> str:
         """You are a data scientist that can analyze a dataset"""
@@ -88,7 +88,7 @@ def __(chart_data, df, ell, filter_dataset, mo):
             "What is the sum of {{column}}?",
         ],
     )
-    return analyze_dataset, my_model
+    return
 
 
 if __name__ == "__main__":

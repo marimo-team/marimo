@@ -5,20 +5,21 @@
 #     "pymde==0.1.18",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.8.0"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Cluster analysis""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         Here's an **embedding of MNIST**: each point represents a digit,
@@ -29,13 +30,13 @@ def __(mo):
 
 
 @app.cell
-def __(compute_embedding, constraint, embedding_dimension):
+def _(compute_embedding, constraint, embedding_dimension):
     embedding = compute_embedding(embedding_dimension, constraint)
-    return embedding,
+    return (embedding,)
 
 
 @app.cell
-def __(alt, df, mo):
+def _(alt, df, mo):
     chart = mo.ui.altair_chart(
         alt.Chart(df)
         .mark_circle(size=4)
@@ -48,17 +49,17 @@ def __(alt, df, mo):
         chart_selection="interval",
     )
     chart
-    return chart,
+    return (chart,)
 
 
 @app.cell
-def __(chart, mo):
+def _(chart, mo):
     table = mo.ui.table(chart.value)
-    return table,
+    return (table,)
 
 
 @app.cell
-def __(chart, mo, show_images, table):
+def _(chart, mo, show_images, table):
     # mo.stop() prevents this cell from running if the chart has
     # no selection
     mo.stop(not len(chart.value))
@@ -82,18 +83,18 @@ def __(chart, mo, show_images, table):
         {table}
         """
     )
-    return selected_images,
+    return
 
 
 @app.cell
-def __(pymde):
+def _(pymde):
     embedding_dimension = 2
     constraint = pymde.Standardized()
     return constraint, embedding_dimension
 
 
 @app.cell
-def __(embedding, mnist, pd, torch):
+def _(embedding, mnist, pd, torch):
     indices = torch.randperm(mnist.data.shape[0])[:20000].numpy()
     embedding_sampled = embedding.numpy()[indices]
 
@@ -105,11 +106,11 @@ def __(embedding, mnist, pd, torch):
             "digit": mnist.attributes["digits"][indices],
         }
     )
-    return df, embedding_sampled, indices
+    return (df,)
 
 
 @app.cell
-def __(functools, mnist, mo, pymde, torch):
+def _(functools, mnist, mo, pymde, torch):
     @functools.cache
     def compute_embedding(embedding_dim, constraint):
         mo.output.append(
@@ -126,17 +127,17 @@ def __(functools, mnist, mo, pymde, torch):
         X = mde.embed(verbose=True)
         mo.output.clear()
         return X
-    return compute_embedding,
+    return (compute_embedding,)
 
 
 @app.cell
-def __(pymde):
+def _(pymde):
     mnist = pymde.datasets.MNIST()
-    return mnist,
+    return (mnist,)
 
 
 @app.cell
-def __(mnist, plt):
+def _(mnist, plt):
     def show_images(indices, max_images=10):
         indices = indices[:max_images]
         images = mnist.data.reshape((-1, 28, 28))[indices]
@@ -153,11 +154,11 @@ def __(mnist, plt):
             axes.set_xticks([])
         plt.tight_layout()
         return fig
-    return show_images,
+    return (show_images,)
 
 
 @app.cell
-def __():
+def _():
     import functools
 
     import matplotlib.pyplot as plt
@@ -169,15 +170,15 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
-    return alt,
+    return (alt,)
 
 
 @app.cell
-def __():
+def _():
     import pandas as pd
-    return pd,
+    return (pd,)
 
 
 if __name__ == "__main__":

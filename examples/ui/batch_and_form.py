@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -79,7 +79,7 @@ def _(mo, reset, submitted_values, variables):
         {mo.hstack([mo.tree(submitted_values), reset], align="center", gap=4)}
         """
     ).callout()
-    return x, y
+    return
 
 
 @app.cell

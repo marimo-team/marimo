@@ -10,12 +10,12 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import plotly.graph_objects as go
     import plotly.express as px
@@ -24,13 +24,13 @@ def __():
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""#Example: Image with range selection""")
     return
 
 
 @app.cell
-def __(io, mo, px):
+def _(io, mo, px):
     # Create figure
     img = io.imread("https://marimo.io/logo.png")
     _fig = px.imshow(img)
@@ -38,11 +38,11 @@ def __(io, mo, px):
 
     # Wrap with marimo
     plot = mo.ui.plotly(_fig)
-    return img, plot
+    return (plot,)
 
 
 @app.cell
-def __(mo, plot):
+def _(mo, plot):
     mo.hstack(
         [
             plot,
@@ -57,13 +57,13 @@ def __(mo, plot):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""#Example: Image with overlaid trace""")
     return
 
 
 @app.cell
-def __(go, mo):
+def _(go, mo):
     # Create figure
     _fig = go.Figure()
 
@@ -92,7 +92,7 @@ def __(go, mo):
 
 
 @app.cell
-def __(mo, plot2):
+def _(mo, plot2):
     mo.hstack(
         [
             plot2,

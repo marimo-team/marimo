@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.25"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import os
     import keras
@@ -15,7 +16,7 @@ def __():
     model.add(keras.layers.Dense(2, activation='relu'))
     model.add(keras.layers.Dense(1, activation='sigmoid'))
     keras.utils.plot_model(model)
-    return keras, mo, model, os
+    return
 
 
 if __name__ == "__main__":

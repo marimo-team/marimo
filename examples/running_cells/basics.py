@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.12.9"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -35,7 +35,7 @@ def _():
 @app.cell
 def _():
     y = 1
-    return (y,)
+    return
 
 
 @app.cell

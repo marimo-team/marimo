@@ -1,44 +1,44 @@
 import marimo
 
-__generated_with = "0.9.9"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     source = mo.ui.text()
     source
     return (source,)
 
 
 @app.cell
-def __(mo, source):
+def _(mo, source):
     mo.ui.file_browser(initial_path=source.value)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     from vega_datasets import data
 
     df = data.cars()
     columns = df.columns.tolist()
     slider = mo.ui.slider(0, len(columns), label="frozen columns")
     slider
-    return columns, data, df, slider
+    return columns, df, slider
 
 
 @app.cell
-def __(columns, df, mo, slider):
+def _(columns, df, mo, slider):
     frozen = columns[: slider.value]
     mo.ui.table(df, freeze_columns_left=frozen)
-    return (frozen,)
+    return
 
 
 if __name__ == "__main__":

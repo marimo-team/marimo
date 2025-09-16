@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -127,7 +127,7 @@ def _(create, mo):
         ],
         justify="space-around",
     )
-    return date, mo_d, py_d, slider, text
+    return mo_d, py_d
 
 
 @app.cell(hide_code=True)
@@ -141,7 +141,7 @@ def _(mo, mo_d, py_d):
         ],
         justify="space-around",
     )
-    return mo_d_ref, py_d_ref
+    return
 
 
 @app.cell(hide_code=True)

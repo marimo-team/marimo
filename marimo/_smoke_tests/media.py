@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.33"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import requests
     from io import BytesIO
@@ -15,14 +16,14 @@ def __():
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mic = mo.ui.microphone(label="What is your name?")
     mic
-    return mic,
+    return (mic,)
 
 
 @app.cell
-def __(mic, mo):
+def _(mic, mo):
     mo.hstack(
         [mo.audio(mic.value), mo.download(data=mic.value, mimetype="audio/x-wav")]
     )
@@ -30,7 +31,7 @@ def __(mic, mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     # Note, chrome does not support cross-origin download, so this wont auto download until we proxy the download through the backend
     _src = "https://samplelib.com/lib/preview/mp3/sample-3s.mp3"
     mo.hstack(
@@ -43,7 +44,7 @@ def __(mo):
 
 
 @app.cell
-def __(BytesIO, base64, mo, requests):
+def _(BytesIO, base64, mo, requests):
     _src = (
         "https://images.pexels.com/photos/86596/owl-bird-eyes-eagle-owl-86596.jpeg"
     )
@@ -72,11 +73,11 @@ def __(BytesIO, base64, mo, requests):
             ),
         ]
     )
-    return base64str, image_data
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     import os
 
     with open(os.path.realpath("docs/_static/array.png"), "rb") as f:
@@ -87,11 +88,11 @@ def __(mo):
         )
 
     mo.hstack([_image, _download])
-    return f, os
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.video(
         src="https://v3.cdnpk.net/videvo_files/video/free/2013-08/large_watermarked/hd0992_preview.mp4",
         rounded=True,
@@ -100,7 +101,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.video(
         src="https://v3.cdnpk.net/videvo_files/video/free/2013-08/large_watermarked/hd0992_preview.mp4",
         rounded=True,

@@ -8,12 +8,12 @@
 
 import marimo
 
-__generated_with = "0.8.15"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __():
+def _():
     import polars as pl
     import altair as alt
 
@@ -28,11 +28,11 @@ def __():
         }
     )
     df1
-    return alt, df1, pl
+    return (pl,)
 
 
 @app.cell
-def __(pl):
+def _(pl):
     df2 = pl.DataFrame(
         {
             "i.a": [0.0, 0.0, 0.2, 0.2],
@@ -42,7 +42,7 @@ def __(pl):
         }
     )
     df2
-    return df2,
+    return
 
 
 if __name__ == "__main__":

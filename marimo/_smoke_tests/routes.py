@@ -8,18 +8,18 @@
 
 import marimo
 
-__generated_with = "0.5.2"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.sidebar(
         [
             mo.md("# marimo"),
@@ -37,7 +37,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def render_home():
         return mo.md("""
          <p align="center">
@@ -60,11 +60,11 @@ def __(mo):
         </p>
 
         """)
-    return render_home,
+    return (render_home,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def render_about():
         return mo.md(
             """
@@ -99,17 +99,17 @@ def __(mo):
 
         """
         )
-    return render_about,
+    return (render_about,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     slider = mo.ui.slider(0, 100, value=20)
-    return slider,
+    return (slider,)
 
 
 @app.cell
-def __(mo, slider):
+def _(mo, slider):
     def render_sales():
         import altair as alt
         import pandas as pd
@@ -138,11 +138,11 @@ def __(mo, slider):
         {mo.as_html(mo.ui.altair_chart(chart))}
         """
         )
-    return render_sales,
+    return (render_sales,)
 
 
 @app.cell
-def __(mo, render_about, render_home, render_sales):
+def _(mo, render_about, render_home, render_sales):
     mo.routes(
         {
             "#/home": render_home,

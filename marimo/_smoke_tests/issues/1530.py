@@ -1,19 +1,20 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.13"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import pandas as pd
     return mo, pd
 
 
 @app.cell
-def __(pd):
+def _(pd):
     df = pd.DataFrame(
         {
             "col$special": [1, 2, 3],
@@ -30,31 +31,31 @@ def __(pd):
         }
     )
     df
-    return df,
+    return (df,)
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.ui.table(df)
     return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.ui.dataframe(df)
     return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.ui.data_explorer(df)
     return
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
-    return alt,
+    return
 
 
 if __name__ == "__main__":

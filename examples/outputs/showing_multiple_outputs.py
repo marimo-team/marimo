@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.12.9"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -16,7 +16,7 @@ def _(mo):
         mo.output.append(mo.md(f"$i = {i}$"))
 
     mo.output.append(mo.md("Completed iteration."))
-    return (i,)
+    return
 
 
 if __name__ == "__main__":

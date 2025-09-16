@@ -1,33 +1,31 @@
 import marimo
 
-__generated_with = "0.8.17"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-
     return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Toast Notification Test""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def show_toast(title, description="", kind=None):
         mo.status.toast(title, description, kind)
         return None
-
     return (show_toast,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     simple_toast = mo.ui.checkbox(label="Simple Toast")
     html_toast = mo.ui.checkbox(label="Toast with HTML description")
     danger_toast = mo.ui.checkbox(label="Danger Toast")
@@ -35,13 +33,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""Select a checkbox to trigger a toast notification:""")
     return
 
 
 @app.cell
-def __(danger_toast, html_toast, mo, simple_toast):
+def _(danger_toast, html_toast, mo, simple_toast):
     mo.vstack(
         [
             simple_toast,
@@ -53,7 +51,7 @@ def __(danger_toast, html_toast, mo, simple_toast):
 
 
 @app.cell
-def __(danger_toast, html_toast, show_toast, simple_toast):
+def _(danger_toast, html_toast, show_toast, simple_toast):
     if simple_toast.value:
         show_toast("Simple Toast", "This is a basic toast notification")
 

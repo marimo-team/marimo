@@ -1,37 +1,35 @@
 import marimo
 
-__generated_with = "0.9.10"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
-@app.cell
-def __():
-    def foo():
-        print("hi")
-    return (foo,)
+@app.function
+def foo():
+    print("hi")
 
 
 @app.cell
-def __():
+def _():
     import threading
     return (threading,)
 
 
 @app.cell
-def __(foo, mo, threading):
+def _(mo, threading):
     with mo.redirect_stdout():
         threading.Thread(target=foo).start()
     return
 
 
 @app.cell
-def __(foo, mo):
+def _(mo):
     with mo.redirect_stdout():
         mo.Thread(target=foo).start()
     return

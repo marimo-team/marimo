@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.3.9"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import polars as pl
     from sklearn.datasets import fetch_california_housing
 
@@ -16,7 +17,7 @@ def __():
     ).with_columns(Price=housing.target)
 
     df.plot.scatter(x="MedInc", y="Price")
-    return df, fetch_california_housing, housing, pl
+    return
 
 
 if __name__ == "__main__":

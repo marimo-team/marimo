@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.3.1"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import altair as alt
     from vega_datasets import data
@@ -14,7 +15,7 @@ def __():
 
 
 @app.cell
-def __(alt, data, mo):
+def _(alt, data, mo):
     source = data.seattle_weather()
 
     bar = (
@@ -54,29 +55,29 @@ def __(alt, data, mo):
     # Bug: chart_selection does not work when not false
     # This is due to month(date) being an aggregatation that we cannot back out.
     chart = mo.ui.altair_chart(_chart, chart_selection=False)
-    return bar, chart, source, text_max, text_min
+    return (chart,)
 
 
 @app.cell
-def __(chart):
+def _(chart):
     chart
     return
 
 
 @app.cell
-def __(chart):
+def _(chart):
     chart.selections
     return
 
 
 @app.cell
-def __(chart):
+def _(chart):
     chart.value
     return
 
 
 @app.cell
-def __(chart):
+def _(chart):
     chart.dataframe
     return
 

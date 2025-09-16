@@ -5,14 +5,15 @@
 #     "openai==1.53.0",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.9.10"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
 
     chat = mo.ui.chat(
@@ -30,7 +31,7 @@ def __():
 
 
 @app.cell
-def __(chat, mo):
+def _(chat, mo):
     mo.stop(not chat.value)
 
     last_message: str = chat.value[-1].content
@@ -39,7 +40,7 @@ def __(chat, mo):
     with open(f"{title}.md", "w") as f:
         f.write(summary)
         mo.status.toast("Receipt summary saved!", description=title)
-    return f, last_message, summary, title
+    return
 
 
 if __name__ == "__main__":

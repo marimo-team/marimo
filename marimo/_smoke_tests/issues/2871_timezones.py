@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.16"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -13,7 +13,7 @@ def _():
 
     # It should appear as 2010-10-07T13:15:00.000
     pl.DataFrame({"timestamp": [d], "date": [d.date()]})
-    return d, date, datetime, pl
+    return d, date, pl
 
 
 @app.cell
@@ -38,7 +38,7 @@ def _(date, pl):
         }
     )
     alt.Chart(data).mark_line().encode(x="Date:T", y="Value:Q").interactive()
-    return alt, data
+    return
 
 
 if __name__ == "__main__":

@@ -10,12 +10,12 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Smallest Enclosing Circle
@@ -34,7 +34,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     number_of_circles = mo.ui.slider(
         1, 15, value=3, label='Number of circles')
     number_of_circles
@@ -42,7 +42,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo, number_of_circles):
+def _(mo, number_of_circles):
     resample_button = mo.ui.button(label='Click this button')
     mo.md(
         f"""
@@ -54,7 +54,7 @@ def __(mo, number_of_circles):
 
 
 @app.cell(hide_code=True)
-def __(np):
+def _(np):
     def generate_circles(number_of_circles):
         circles = []
         for i in range(number_of_circles):
@@ -66,7 +66,7 @@ def __(np):
 
 
 @app.cell(hide_code=True)
-def __(generate_circles, number_of_circles, resample_button):
+def _(generate_circles, number_of_circles, resample_button):
     resample_button
 
     circles = generate_circles(number_of_circles.value)
@@ -74,13 +74,13 @@ def __(generate_circles, number_of_circles, resample_button):
 
 
 @app.cell
-def __(circles, smallest_enclosing_circle):
+def _(circles, smallest_enclosing_circle):
     center, radius = smallest_enclosing_circle(circles)
     return center, radius
 
 
 @app.cell
-def __(center, circles, plot_circle, plt, radius):
+def _(center, circles, plot_circle, plt, radius):
     for (c_i, r_i) in circles:
         plot_circle(c_i, r_i, color='gray')
     plot_circle(center, radius, color='green', label='smallest enclosing circle')
@@ -89,11 +89,11 @@ def __(center, circles, plot_circle, plt, radius):
     plt.legend(loc='upper right')
     plt.gcf().set_size_inches((6, 6))
     plt.gca()
-    return c_i, r_i
+    return
 
 
 @app.cell
-def __(plt):
+def _(plt):
     def plot_circle(center, radius, ax=None, **kwargs):
         ax = plt.gca() if ax is None else ax
         ax.add_patch(plt.Circle(center, radius, fill=False, **kwargs))
@@ -102,13 +102,13 @@ def __(plt):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""## The solution method""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         We can write down a convex optimization problem whose solution gives us
@@ -152,7 +152,7 @@ def __(mo):
 
 
 @app.cell
-def __(cp):
+def _(cp):
     def smallest_enclosing_circle(circles):
         radius = cp.Variable()
         center = cp.Variable(2)
@@ -167,7 +167,7 @@ def __(cp):
 
 
 @app.cell
-def __():
+def _():
     import matplotlib.pyplot as plt
     import numpy as np
     import cvxpy as cp
@@ -175,7 +175,7 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

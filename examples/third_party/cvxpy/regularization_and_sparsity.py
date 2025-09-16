@@ -10,18 +10,18 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""# Regularization and Sparsity""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         This app shows how the choice of regularization in a least squares regression
@@ -59,14 +59,14 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     m = 100
     n = 20
     return m, n
 
 
 @app.cell
-def __(m, n, np):
+def _(m, n, np):
     np.random.seed(0)
     A = np.random.randn(m, n)
     b = np.random.randn(m)
@@ -74,14 +74,14 @@ def __(m, n, np):
 
 
 @app.cell
-def __(A, b, sparse_solver):
+def _(A, b, sparse_solver):
     l2_solver = sparse_solver(A, b, p=2)
     l1_solver = sparse_solver(A, b, p=1)
     return l1_solver, l2_solver
 
 
 @app.cell
-def __(functools, l1_solver, l2_solver, np, sparsity_parameter):
+def _(functools, l1_solver, l2_solver, np, sparsity_parameter):
     x_min_max= [np.inf, -np.inf]
 
     @functools.cache
@@ -89,17 +89,17 @@ def __(functools, l1_solver, l2_solver, np, sparsity_parameter):
         return l2_solver(lambd), l1_solver(lambd)
 
     x_l2, x_l1 = solve(sparsity_parameter.value)
-    return solve, x_l1, x_l2, x_min_max
+    return x_l1, x_l2, x_min_max
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## Parameter selection""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     sparsity_parameter = mo.ui.slider(0, 10, step=0.1)
     mo.md(
         f"""
@@ -109,7 +109,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo, n, number_of_zeros, sparsity_parameter, x_l1, x_l2):
+def _(mo, n, number_of_zeros, sparsity_parameter, x_l1, x_l2):
     (
         mo.md(
             """
@@ -138,17 +138,17 @@ def __(mo, n, number_of_zeros, sparsity_parameter, x_l1, x_l2):
 
 
 @app.cell
-def __(cdf, plt, x_l1, x_l2):
+def _(cdf, plt, x_l1, x_l2):
     cdf_figure, cdf_axs = plt.subplots(2, 1, sharex=True)
     cdf(x_l1, cdf_axs[0]).set_title("$p=1$")
     cdf(x_l2, cdf_axs[1]).set_title("$p=2$")
     plt.tight_layout()
     cdf_figure
-    return cdf_axs, cdf_figure
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## Sparsity
@@ -166,14 +166,14 @@ def __(mo):
 
 
 @app.cell
-def __(np):
+def _(np):
     def number_of_zeros(x):
         return np.isclose(x, 0).sum()
     return (number_of_zeros,)
 
 
 @app.cell
-def __(np, x_min_max):
+def _(np, x_min_max):
     def cdf(x, ax):
         heights = np.arange(1, x.size+1) / x.size
         xs = np.sort(x)
@@ -190,7 +190,7 @@ def __(np, x_min_max):
 
 
 @app.cell
-def __(cp):
+def _(cp):
     def sparse_solver(A, b, p):
         x = cp.Variable(A.shape[1])
         lambd = cp.Parameter(nonneg=True)
@@ -208,7 +208,7 @@ def __(cp):
 
 
 @app.cell
-def __():
+def _():
     import cvxpy as cp
     import matplotlib.pyplot as plt
     import numpy as np
@@ -216,13 +216,13 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     import functools
     return (functools,)
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

@@ -8,14 +8,14 @@
 
 import marimo
 
-__generated_with = "0.11.4"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import bokeh
-    return (bokeh,)
+    return
 
 
 @app.cell
@@ -23,7 +23,7 @@ def _():
     from bokeh.plotting import figure, show, output_notebook
     # NOOP in marimo
     output_notebook()
-    return figure, output_notebook, show
+    return figure, show
 
 
 @app.cell

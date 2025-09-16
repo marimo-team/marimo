@@ -1,17 +1,17 @@
 import marimo
 
-__generated_with = "0.9.27"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return (mo,)
+    return
 
 
 @app.cell
-def __():
+def _():
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -24,7 +24,7 @@ def __():
     plt.ylabel("sin(x)")
 
     plt.gca()
-    return np, plt, x, y
+    return
 
 
 if __name__ == "__main__":

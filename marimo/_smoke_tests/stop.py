@@ -5,28 +5,29 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.1"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import time
-    return mo, time
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     secret = mo.ui.text(label="Type a valid password: ")
     secret
-    return secret,
+    return (secret,)
 
 
 @app.cell
-def __(mo, secret):
+def _(mo, secret):
     # Validation 1
     # This cell just depends on the secret
     mo.stop(
@@ -34,11 +35,11 @@ def __(mo, secret):
     )
 
     success_1 = True
-    return success_1,
+    return (success_1,)
 
 
 @app.cell
-def __(mo, secret):
+def _(mo, secret):
     # Validation 2
     # This cell just depends on the secret
     mo.stop(
@@ -46,11 +47,11 @@ def __(mo, secret):
     )
 
     success_2 = True
-    return success_2,
+    return (success_2,)
 
 
 @app.cell
-def __(mo, secret, success_1):
+def _(mo, secret, success_1):
     # Validation 3
     # This cell depends on the secret and first validation
     mo.stop(
@@ -59,11 +60,11 @@ def __(mo, secret, success_1):
     )
 
     success_3 = True
-    return success_3,
+    return (success_3,)
 
 
 @app.cell
-def __(mo, success_1, success_2, success_3):
+def _(mo, success_1, success_2, success_3):
     # This depends on all the validations, and not the secret
     _success = success_1 and success_2 and success_3
     mo.stop(not _success)

@@ -9,24 +9,24 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# PDF Q&A""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""This app lets you upload a PDF and ask questions about it.""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.accordion({
         "How is this app implemented?": """
         - Your PDF is tokenized into chunks, which are embedded using
@@ -42,15 +42,15 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     openaikey = mo.ui.text(label="🤖 OpenAI Key", kind="password")
     config = mo.hstack([openaikey])
     mo.accordion({"⚙️ Config": config})
-    return config, openaikey
+    return (openaikey,)
 
 
 @app.cell
-def __(mo, openaikey):
+def _(mo, openaikey):
     pdf = mo.ui.file(
         label="Upload PDF", filetypes=[".pdf"], multiple=False, kind="area"
     )
@@ -59,7 +59,7 @@ def __(mo, openaikey):
 
 
 @app.cell
-def __(
+def _(
     CharacterTextSplitter,
     FAISS,
     OpenAIEmbeddings,
@@ -99,11 +99,11 @@ def __(
 
 
     knowledge_base = parse_pdf()
-    return knowledge_base, parse_pdf
+    return (knowledge_base,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     user_question = mo.ui.text_area(
         placeholder="💬 What are the 3 key points of the document?"
     ).form()
@@ -112,7 +112,7 @@ def __(mo):
 
 
 @app.cell
-def __(
+def _(
     OpenAI,
     get_openai_callback,
     knowledge_base,
@@ -138,11 +138,11 @@ def __(
 
     res = query_pdf()
     mo.md(res)
-    return query_pdf, res
+    return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import openai
 
@@ -167,7 +167,6 @@ def __():
         load_qa_chain,
         mo,
         openai,
-        os,
     )
 
 

@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.13.11"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
@@ -61,7 +61,7 @@ def _(database_url, duckdb):
                 ATTACH DATABASE '{database_url.value}' AS my_db  (TYPE postgres, READ_ONLY);
             """
         )
-    return (my_db,)
+    return
 
 
 @app.cell
@@ -181,7 +181,7 @@ def _(mo, table_select):
 
 
 @app.cell
-def _(limit, mo, my_db, null, table_select_value):
+def _(limit, mo, table_select_value):
     selected_table = mo.sql(
         f"""
         select * from my_db.{table_select_value} LIMIT {limit.value};

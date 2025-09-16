@@ -5,20 +5,21 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.2.3"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     items = mo.ui.array(
         [
             mo.ui.text("name", "Name"),
@@ -29,23 +30,23 @@ def __(mo):
             mo.ui.text("memo", "Memo"),
         ]
     )
-    return items,
+    return (items,)
 
 
 @app.cell
-def __(items):
+def _(items):
     items
     return
 
 
 @app.cell
-def __(items):
+def _(items):
     items.hstack(gap=2)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     dictionary = mo.ui.dictionary(
         {
             "name": mo.ui.text("name", "Name"),
@@ -56,17 +57,17 @@ def __(mo):
             "memo": mo.ui.text("memo", "Memo"),
         }
     )
-    return dictionary,
+    return (dictionary,)
 
 
 @app.cell
-def __(dictionary):
+def _(dictionary):
     dictionary
     return
 
 
 @app.cell
-def __(dictionary):
+def _(dictionary):
     dictionary.vstack()
     return
 

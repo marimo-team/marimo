@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.10.15"
+__generated_with = "0.15.5"
 app = marimo.App(width="columns")
 
 
@@ -32,7 +32,7 @@ async def _():
         await micropip.install("altair")
 
     import altair as alt
-    return alt, micropip, sys
+    return (alt,)
 
 
 @app.cell
@@ -129,7 +129,7 @@ def _(pl, raw_digits, raw_labels, sklearn):
             "index": list(range(X_embedded.shape[0])),
         }
     )
-    return X_embedded, embedding
+    return (embedding,)
 
 
 @app.cell
@@ -168,7 +168,7 @@ def _(chart, mo, show_images, table):
         {table}
         """
     )
-    return (selected_images,)
+    return
 
 
 if __name__ == "__main__":

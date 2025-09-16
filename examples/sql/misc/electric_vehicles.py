@@ -11,12 +11,12 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # Electric Vehicle Population Data
@@ -28,7 +28,7 @@ def __(mo):
 
 
 @app.cell
-def __(evs, mo):
+def _(mo):
     evs = mo.sql(
         f"""
         create or replace table evs as
@@ -36,38 +36,38 @@ def __(evs, mo):
         select * from evs
         """
     )
-    return (evs,)
+    return
 
 
 @app.cell
-def __(mo, years):
+def _(mo, years):
     all_years = years["Model Year"]
     year_select = mo.ui.multiselect.from_series(years["Model Year"])
-    return all_years, year_select
+    return (year_select,)
 
 
 @app.cell
-def __(cities, mo):
+def _(cities, mo):
     all_cities = cities["City"]
     city_select = mo.ui.multiselect.from_series(cities["City"])
-    return all_cities, city_select
+    return (city_select,)
 
 
 @app.cell
-def __(makes, mo):
+def _(makes, mo):
     all_makes = makes["Make"]
     make_select = mo.ui.multiselect.from_series(makes["Make"])
-    return all_makes, make_select
+    return (make_select,)
 
 
 @app.cell
-def __(city_select, make_select, mo, year_select):
+def _(city_select, make_select, mo, year_select):
     mo.hstack([year_select, city_select, make_select], justify="space-between")
     return
 
 
 @app.cell
-def __(alt, grouped_by_city, mo):
+def _(alt, grouped_by_city, mo):
     _chart = (
         alt.Chart(grouped_by_city)
         .mark_bar()
@@ -83,7 +83,7 @@ def __(alt, grouped_by_city, mo):
 
 
 @app.cell
-def __(alt, grouped_by_make, mo):
+def _(alt, grouped_by_make, mo):
     _chart = (
         alt.Chart(grouped_by_make)
         .mark_bar()
@@ -99,19 +99,19 @@ def __(alt, grouped_by_make, mo):
 
 
 @app.cell
-def __(chart1, chart2, mo):
+def _(chart1, chart2, mo):
     mo.hstack([chart1, chart2], widths="equal")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Appendix""")
     return
 
 
 @app.cell
-def __(evs, mo):
+def _(mo):
     years = mo.sql(
         f"""
         SELECT DISTINCT CAST(evs."Model Year" AS VARCHAR) AS "Model Year" FROM evs;
@@ -121,7 +121,7 @@ def __(evs, mo):
 
 
 @app.cell
-def __(evs, mo):
+def _(mo):
     cities = mo.sql(
         f"""
         SELECT DISTINCT CAST(evs."City" AS VARCHAR) AS "City" FROM evs WHERE "City" != 'null';
@@ -131,7 +131,7 @@ def __(evs, mo):
 
 
 @app.cell
-def __(evs, mo):
+def _(mo):
     makes = mo.sql(
         f"""
         SELECT DISTINCT CAST(evs."Make" AS VARCHAR) AS "Make" FROM evs;
@@ -141,15 +141,7 @@ def __(evs, mo):
 
 
 @app.cell
-def __(
-    cast_to_ints,
-    city_select,
-    evs,
-    make_select,
-    mo,
-    sql_list,
-    year_select,
-):
+def _(cast_to_ints, city_select, make_select, mo, sql_list, year_select):
     grouped_by_city = mo.sql(
         f"""
         SELECT COUNT(*) AS "count", "City", "Model Year"
@@ -169,15 +161,7 @@ def __(
 
 
 @app.cell
-def __(
-    cast_to_ints,
-    city_select,
-    evs,
-    make_select,
-    mo,
-    sql_list,
-    year_select,
-):
+def _(cast_to_ints, city_select, make_select, mo, sql_list, year_select):
     grouped_by_make = mo.sql(
         f"""
         SELECT COUNT(*) AS "count", "Make", "Model Year" 
@@ -197,7 +181,7 @@ def __(
 
 
 @app.cell
-def __():
+def _():
     def sql_list(column, items):
         if not items:
             return "True == True"
@@ -211,11 +195,11 @@ def __():
 
     def cast_to_ints(items):
         return [int(i) for i in items]
-    return as_literal, cast_to_ints, sql_list
+    return cast_to_ints, sql_list
 
 
 @app.cell
-def __():
+def _():
     # Imports
     import marimo as mo
     import altair as alt

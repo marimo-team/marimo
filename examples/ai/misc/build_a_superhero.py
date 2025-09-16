@@ -8,34 +8,34 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## Build a Superhero with Generative AI""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     openaikey = mo.ui.text(label="🤖 OpenAI Key", kind="password")
     config = mo.hstack([openaikey])
 
     mo.accordion({"⚙️ Enter your OpenAI key": config})
-    return config, openaikey
+    return (openaikey,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     item = mo.ui.text(label="Enter the name of an animal: ").form()
     item
     return (item,)
 
 
 @app.cell
-def __(item, mo):
+def _(item, mo):
     content = f"💬 Suggest three superhero names, given the following animal: {item.value}"
 
     mo.md(content) if item.value else None
@@ -43,7 +43,7 @@ def __(item, mo):
 
 
 @app.cell
-def __(content, item, mo, openai, openaikey):
+def _(content, item, mo, openai, openaikey):
     openai.api_key = openaikey.value
 
     result = None
@@ -64,15 +64,15 @@ def __(content, item, mo, openai, openaikey):
     mo.md(
         f"""
         🤖 Response:
-        
+
         {result}
         """
     ) if item.value else None
-    return response, result
+    return (result,)
 
 
 @app.cell
-def __(mo, result):
+def _(mo, result):
     choices = result.split("\n") if result else []
     superhero = mo.ui.dropdown(choices)
 
@@ -81,11 +81,11 @@ def __(mo, result):
         Choose a superhero: {superhero}
         """
     ) if result else None
-    return choices, superhero
+    return (superhero,)
 
 
 @app.cell
-def __(mo, openai, superhero):
+def _(mo, openai, superhero):
     catchphrase = None
 
     if superhero.value:
@@ -111,18 +111,18 @@ def __(mo, openai, superhero):
         {catchphrase}
         """
     ) if superhero.value else None
-    return catchphrase, catchphraseResponse
+    return (catchphrase,)
 
 
 @app.cell
-def __(catchphrase, mo):
+def _(catchphrase, mo):
     generate_image_button = mo.ui.button(label="📷 Generate Image")
     generate_image_button if catchphrase else None
     return (generate_image_button,)
 
 
 @app.cell
-def __(generate_image_button, mo, openai, superhero):
+def _(generate_image_button, mo, openai, superhero):
     generate_image_button
 
     url = None
@@ -135,11 +135,11 @@ def __(generate_image_button, mo, openai, superhero):
         url = res["data"][0]["url"]
 
     mo.image(src=url) if url else None
-    return res, url
+    return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import openai
     return mo, openai

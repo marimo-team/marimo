@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.11.2"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -42,7 +42,7 @@ def _():
 
     # Make it reactive ⚡
     chart = mo.ui.anywidget(alt.JupyterChart(_chart))
-    return alt, cars, chart, data, mo
+    return (chart,)
 
 
 @app.cell

@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.21"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import requests
     import io
@@ -14,20 +15,20 @@ def __():
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("# PDFs")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     page = mo.ui.number(1, 10, label="Starting page number")
     page
-    return page,
+    return (page,)
 
 
 @app.cell
-def __(mo, page):
+def _(mo, page):
     mo.pdf(
         src="https://arxiv.org/pdf/2104.00282.pdf",
         initial_page=page.value,
@@ -38,7 +39,7 @@ def __(mo, page):
 
 
 @app.cell
-def __(io, mo, page, requests):
+def _(io, mo, page, requests):
     downloaded = requests.get("https://arxiv.org/pdf/2104.00282.pdf")
     # This is still performant as it does not pass the full PDF to the frontend,
     # and instead creates a VirtualFile
@@ -49,11 +50,11 @@ def __(io, mo, page, requests):
         height="60vh",
     )
     pdf
-    return downloaded, pdf
+    return (pdf,)
 
 
 @app.cell
-def __(pdf):
+def _(pdf):
     pdf
     return
 

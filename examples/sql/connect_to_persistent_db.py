@@ -1,34 +1,34 @@
 import marimo
 
-__generated_with = "0.9.16"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""Connect to duckdb [persistent storage](https://duckdb.org/docs/connect/overview.html#persistent-database) using the `ATTACH` command:""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     _df = mo.sql(
         f"""
         ATTACH 'test.db' as test;
         SHOW ALL TABLES;
         """
     )
-    return (test,)
+    return
 
 
 @app.cell
-def __(mo, test, test_table):
+def _(mo):
     _df = mo.sql(
         f"""
         SELECT * FROM test.test_table;

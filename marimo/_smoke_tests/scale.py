@@ -8,25 +8,25 @@
 
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Scale""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     s = mo.ui.slider(1, 10)
     s
-    return s,
+    return (s,)
 
 
 @app.cell
-def __(mo, s):
+def _(mo, s):
     sliders_as_md = mo.md(f"""{s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} {s} """)
 
     sliders_as_tree = (s,) * 10 + (mo.ui.slider(1, 10),) + (s,) * 10
@@ -56,11 +56,11 @@ def __(mo, s):
         "As Flat Tree": sliders_as_tree,
         "As Nested Tree": sliders_as_nested_tree,
     })
-    return sliders_as_md, sliders_as_nested_tree, sliders_as_tree
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     b = mo.ui.button()
 
     button_as_md = mo.md(
@@ -75,17 +75,17 @@ def __(mo):
             "As Tree": button_as_tree,
         }
     )
-    return b, button_as_md, button_as_tree
+    return
 
 
 @app.cell
-def __(s):
+def _(s):
     [s, s.value]
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     t = mo.ui.text()
 
     distinct = mo.ui.array(
@@ -129,16 +129,16 @@ def __(mo):
     )
 
     mo.hstack([same, distinct])
-    return distinct, same, t
-
-
-@app.cell
-def __():
     return
 
 
 @app.cell
-def __(mo):
+def _():
+    return
+
+
+@app.cell
+def _(mo):
     mo.md(
         """
         ---
@@ -176,9 +176,9 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

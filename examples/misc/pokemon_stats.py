@@ -13,18 +13,18 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""# Pokémon Statistics 📊🔬""")
     return
 
 
 @app.cell(hide_code=True)
-def __(clear_selection, mo, pokemon_types):
+def _(clear_selection, mo, pokemon_types):
     mo.md(
         f"""
         Compare Pokémon by primary type, or drill down into
@@ -37,28 +37,28 @@ def __(clear_selection, mo, pokemon_types):
 
 
 @app.cell
-def __(pokemon):
+def _(pokemon):
     types = pokemon.groupby(["Type 1"])["#"].count()
     types_name = list(types.keys())
     types_name.sort()
-    return types, types_name
+    return (types_name,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     clear_selection = mo.ui.button(label="_Clear selection_")
     return (clear_selection,)
 
 
 @app.cell
-def __(clear_selection, mo, types_name):
+def _(clear_selection, mo, types_name):
     clear_selection
     pokemon_types = mo.ui.multiselect(types_name)
     return (pokemon_types,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     attribute = mo.ui.dropdown(
         {
             "HP": "HP",
@@ -75,13 +75,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo, pokemon_types):
+def _(mo, pokemon_types):
     mo.md("`selected types: " + ", ".join(pokemon_types.value) + "`") if pokemon_types.value else None
     return
 
 
 @app.cell
-def __(mo, pokemon_types):
+def _(mo, pokemon_types):
     mo.md(
         """
         **Compare distributions** by type or **drill down**
@@ -92,7 +92,7 @@ def __(mo, pokemon_types):
 
 
 @app.cell
-def __(pokemon, pokemon_types):
+def _(pokemon, pokemon_types):
     def get_filtered_pokemon(value):
         if value == "All":
             return pokemon
@@ -102,11 +102,11 @@ def __(pokemon, pokemon_types):
     filtered_pokemons = {}
     for pokemon_type in pokemon_types.value:
         filtered_pokemons[pokemon_type] = get_filtered_pokemon(pokemon_type)
-    return filtered_pokemons, get_filtered_pokemon, pokemon_type
+    return (filtered_pokemons,)
 
 
 @app.cell
-def __(distribution_plot, drilldown, mo, pokemon_types):
+def _(distribution_plot, drilldown, mo, pokemon_types):
     mo.ui.tabs(
         {
             "**Compare distributions**": distribution_plot,
@@ -117,7 +117,7 @@ def __(distribution_plot, drilldown, mo, pokemon_types):
 
 
 @app.cell
-def __(attribute, colors, filtered_pokemons, mo, plt, pokemon_types, sns):
+def _(attribute, colors, filtered_pokemons, mo, plt, pokemon_types, sns):
     def plot():
         plt.figure(figsize=(6.5, 4))
         if attribute.value is not None:
@@ -143,11 +143,11 @@ def __(attribute, colors, filtered_pokemons, mo, plt, pokemon_types, sns):
     distribution_plot = (
         plot() if pokemon_types.value else None
     )
-    return distribution_plot, plot
+    return (distribution_plot,)
 
 
 @app.cell
-def __(filtered_pokemons, mo, pokemon_types):
+def _(filtered_pokemons, mo, pokemon_types):
     def make_table():
         records = [
             row
@@ -158,11 +158,11 @@ def __(filtered_pokemons, mo, pokemon_types):
 
 
     table = make_table() if pokemon_types.value else None
-    return make_table, table
+    return (table,)
 
 
 @app.cell
-def __(mo, plot_pokemon, table):
+def _(mo, plot_pokemon, table):
     _names = [v["Name"] for v in table.value] if table is not None else []
     stat_plot = plot_pokemon(_names)
 
@@ -174,11 +174,11 @@ def __(mo, plot_pokemon, table):
         {mo.hstack([table, stat_plot], justify="start")}
         """
     )
-    return drilldown, stat_plot
+    return (drilldown,)
 
 
 @app.cell
-def __(pokemon):
+def _(pokemon):
     def plot_single_pokemon(ax, angles, labels, name):
         pkmn = pokemon[pokemon.Name == name]
 
@@ -199,7 +199,7 @@ def __(pokemon):
 
 
 @app.cell
-def __(np, plot_single_pokemon, plt):
+def _(np, plot_single_pokemon, plt):
     def plot_pokemon(names):
         fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
         labels = np.array(
@@ -219,7 +219,7 @@ def __(np, plot_single_pokemon, plt):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import numpy as np
     import pandas as pd
@@ -233,11 +233,11 @@ def __():
     _downloaded = requests.get("https://gist.githubusercontent.com/armgilles/194bcff35001e7eb53a2a8b441e8b2c6/raw/92200bc0a673d5ce2110aaad4544ed6c4010f687/pokemon.csv").content
     pokemon = pd.read_csv(io.BytesIO(_downloaded), encoding="utf8")
     pokemon = pokemon.drop(["Legendary", "Generation"], axis=1)
-    return io, mo, np, os, pd, plt, pokemon, requests, sns
+    return mo, np, plt, pokemon, sns
 
 
 @app.cell
-def __():
+def _():
     # Defining colors for graphs
     colors = {
         "Bug": "#A6B91A",
@@ -263,9 +263,9 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     import plotly.express as px
-    return (px,)
+    return
 
 
 if __name__ == "__main__":
