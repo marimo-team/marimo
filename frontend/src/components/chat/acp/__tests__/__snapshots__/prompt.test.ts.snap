@@ -129,7 +129,7 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
   ## Examples
 
   <example title="Markdown ccell">
-
+  
   @app.cell
   def __():
       mo.md("""
@@ -137,29 +137,29 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
       This is a _markdown_ **cell**.
       """)
       return
-
+  
   </example>
 
   <example title="Basic UI with reactivity">
-
+  
   @app.cell
   def __():
       import marimo as mo
       import matplotlib.pyplot as plt
       import numpy as np
       return
-
+  
   @app.cell
   def __():
       n_points = mo.ui.slider(10, 100, value=50, label="Number of points")
       n_points
       return
-
+  
   @app.cell
   def __():
       x = np.random.rand(n_points.value)
       y = np.random.rand(n_points.value)
-
+    
       plt.figure(figsize=(8, 6))
       plt.scatter(x, y, alpha=0.7)
       plt.title(f"Scatter plot with {n_points.value} points")
@@ -167,28 +167,28 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
       plt.ylabel("Y axis")
       plt.gca()
       return
-
+  
   </example>
 
   <example title="Data explorer">
-
+  
   @app.cell
   def __():
       import marimo as mo
       import pandas as pd
       from vega_datasets import data
       return
-
+  
   @app.cell
   def __():
       cars_df = data.cars()
       mo.ui.data_explorer(cars_df)
       return
-
+  
   </example>
 
   <example title="Multiple UI elements">
-
+  
   @app.cell
   def __():
       import marimo as mo
@@ -196,12 +196,12 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
       import matplotlib.pyplot as plt
       import seaborn as sns
       return
-
+  
   @app.cell
   def __():
       iris = sns.load_dataset('iris')
       return
-
+  
   @app.cell
   def __():
       species_selector = mo.ui.dropdown(
@@ -221,11 +221,11 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
       )
       mo.hstack([species_selector, x_feature, y_feature])
       return
-
+  
   @app.cell
   def __():
       filtered_data = iris if species_selector.value == "All" else iris[iris["species"] == species_selector.value]
-
+    
       plt.figure(figsize=(10, 6))
       sns.scatterplot(
           data=filtered_data,
@@ -236,32 +236,32 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
       plt.title(f"{y_feature.value} vs {x_feature.value}")
       plt.gca()
       return
-
+  
   </example>
 
   <example title="Conditional Outputs">
-
+  
   @app.cell
   def __():
       mo.stop(not data.value, mo.md("No data to display"))
-
+    
       if mode.value == "scatter":
         mo.output.replace(render_scatter(data.value))
       else:
         mo.output.replace(render_bar_chart(data.value))
       return
-
+  
   </example>
 
   <example title="Interactive chart with Altair">
-
+  
   @app.cell
   def __():
       import marimo as mo
       import altair as alt
       import pandas as pd
       return
-
+  
   @app.cell
   def __():
       # Load dataset
@@ -272,35 +272,35 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
           color='Origin',
       )
       return
-
+  
   @app.cell
   def __():
       chart = mo.ui.altair_chart(_chart)
     chart
       return
-
+  
   @app.cell
   def __():
       # Display the selection
       chart.value
       return
-
+  
   </example>
 
   <example title="Run Button Example">
-
+  
   @app.cell
   def __():
       import marimo as mo
       return
-
+  
   @app.cell
   def __():
       first_button = mo.ui.run_button(label="Option 1")
       second_button = mo.ui.run_button(label="Option 2")
       [first_button, second_button]
       return
-
+  
   @app.cell
   def __():
       if first_button.value:
@@ -310,26 +310,26 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
       else:
           print("Click a button!")
       return
-
+  
   </example>
 
   <example title="SQL with duckdb">
-
+  
   @app.cell
   def __():
       import marimo as mo
     import pandas as pd
       return
-
+  
   @app.cell
   def __():
       cars_df = pd.read_csv('<https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json>')
       return
-
+  
   @app.cell
   def __():
       _df = mo.sql("SELECT * from cars_df WHERE Miles_per_Gallon > 20")
       return
-
+  
   </example>"
 `;
