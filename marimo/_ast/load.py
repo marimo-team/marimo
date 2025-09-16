@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Optional, Union
 
@@ -27,7 +28,12 @@ LOGGER = _loggers.marimo_logger()
 # However for "managed" marimo (i.e. run/ edit), the expectation is to not fail
 # on startup and defer errors to the runtime.
 
-NotebookStatus = Literal["empty", "has_errors", "invalid", "valid"]
+
+@dataclass
+class LoadResult:
+    status: Literal["empty", "has_errors", "invalid", "valid"] = "empty"
+    notebook: Optional[NotebookSerialization] = None
+    contents: Optional[str] = None
 
 
 def _maybe_contents(filename: Optional[Union[str, Path]]) -> Optional[str]:
@@ -69,7 +75,7 @@ def _static_load(filepath: Path) -> Optional[App]:
     if not contents:
         return None
 
-    notebook = parse_notebook(contents)
+    notebook = parse_notebook(contents, filepath=str(filepath))
 
     if notebook and is_non_marimo_python_script(notebook):
         # Should fail instead of overriding contents
@@ -80,7 +86,16 @@ def _static_load(filepath: Path) -> Optional[App]:
     if notebook is None or not notebook.valid:
         return None
 
-    app = App(**notebook.app.options, _filename=str(filepath))
+    return load_notebook_ir(notebook, filepath=str(filepath))
+
+
+def load_notebook_ir(
+    notebook: NotebookSerialization, filepath: Optional[str] = None
+) -> App:
+    # Use filepath from notebook if not explicitly provided
+    if filepath is None:
+        filepath = notebook.filename
+    app = App(**notebook.app.options, _filename=filepath)
     for cell in notebook.cells:
         if isinstance(cell, UnparsableCell):
             app._unparsable_cell(cell.code, **cell.options)
@@ -89,7 +104,42 @@ def _static_load(filepath: Path) -> Optional[App]:
     return app
 
 
-def get_notebook_status(filename: str) -> NotebookStatus:
+def load_notebook(filename: str) -> Optional[NotebookSerialization]:
+    """Load and return notebook serialization from a marimo notebook file.
+
+    Args:
+        filename: Path to a marimo notebook file (.py or .md)
+
+    Returns:
+        NotebookSerialization if the file exists and contains valid code,
+        None if the file is empty or contains only comments.
+
+    Raises:
+        MarimoFileError: If the file exists but doesn't define a valid marimo app
+        RuntimeError: If there are issues loading the module
+        SyntaxError: If the file contains a syntax error
+        FileNotFoundError: If the file doesn't exist
+    """
+    path = Path(filename)
+
+    contents = _maybe_contents(filename)
+    if not contents:
+        return None
+
+    if path.suffix in (".md", ".qmd"):
+        from marimo._convert.markdown.markdown import (
+            convert_from_md_to_marimo_ir,
+        )
+
+        return convert_from_md_to_marimo_ir(contents)
+
+    if path.suffix == ".py":
+        return parse_notebook(contents)
+
+    raise MarimoFileError("File must end with .py, .md, or .qmd.")
+
+
+def get_notebook_status(filename: str) -> LoadResult:
     """Attempts to parse an app- should raise SyntaxError on failure.
 
     Args:
@@ -105,7 +155,7 @@ def get_notebook_status(filename: str) -> NotebookStatus:
 
     contents = _maybe_contents(filename)
     if not contents:
-        return "empty"
+        return LoadResult(status="empty", contents=contents)
 
     notebook: Optional[NotebookSerialization] = None
     if path.suffix in (".md", ".qmd"):
@@ -115,22 +165,26 @@ def get_notebook_status(filename: str) -> NotebookStatus:
 
         notebook = convert_from_md_to_marimo_ir(contents)
     elif path.suffix == ".py":
-        notebook = parse_notebook(contents)
+        notebook = parse_notebook(contents, filepath=filename)
     else:
         raise MarimoFileError("File must end with .py, .md, or .qmd.")
 
     # NB. A invalid notebook can still be opened.
     if notebook is None:
-        return "empty"
+        return LoadResult(status="empty", contents=contents)
     if not notebook.valid:
-        return "invalid"
+        return LoadResult(
+            status="invalid", notebook=notebook, contents=contents
+        )
     if len(notebook.violations) > 0:
         LOGGER.debug(
             "Notebook has violations: \n%s",
             "\n".join(map(repr, notebook.violations)),
         )
-        return "has_errors"
-    return "valid"
+        return LoadResult(
+            status="has_errors", notebook=notebook, contents=contents
+        )
+    return LoadResult(status="valid", notebook=notebook, contents=contents)
 
 
 def load_app(filename: Optional[str]) -> Optional[App]:

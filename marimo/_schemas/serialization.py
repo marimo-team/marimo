@@ -122,6 +122,7 @@ class NotebookSerializationV1:
     cells: list[CellDef] = field(default_factory=list)
     violations: list[Violation] = field(default_factory=list)
     valid: bool = True
+    filename: Optional[str] = None
 
 
 NotebookSerialization: TypeAlias = NotebookSerializationV1

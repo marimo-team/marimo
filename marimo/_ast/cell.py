@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional
 import msgspec
 
 from marimo import _loggers
+from marimo._ast.parse import ast_parse
 from marimo._ast.sql_visitor import SQLRef, SQLVisitor
 from marimo._ast.visitor import ImportData, Language, Name, VariableData
 from marimo._messaging.msgspec_encoder import asdict
@@ -220,7 +221,7 @@ class CellImpl:
     def _get_sqls(self, raw: bool = False) -> list[str]:
         try:
             visitor = SQLVisitor(raw=raw)
-            visitor.visit(ast.parse(self.code))
+            visitor.visit(ast_parse(self.code))
             return visitor.get_sqls()
         except Exception:
             return []
@@ -293,7 +294,7 @@ class CellImpl:
     def toplevel_variable(self) -> Optional[VariableData]:
         """Return the single, scoped, toplevel variable defined if found."""
         try:
-            tree = ast.parse(self.code)
+            tree = ast_parse(self.code)
         except SyntaxError:
             return None
 

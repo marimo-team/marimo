@@ -6,6 +6,7 @@ import inspect
 import textwrap
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
+from marimo._ast.parse import ast_parse
 from marimo._ast.variables import unmangle_local
 
 if TYPE_CHECKING:
@@ -81,7 +82,7 @@ def clean_to_modules(
 def strip_function(fn: Callable[..., Any]) -> ast.Module:
     code, _ = inspect.getsourcelines(fn)
     args = set(fn.__code__.co_varnames)
-    function_ast = ast.parse(textwrap.dedent("".join(code)))
+    function_ast = ast_parse(textwrap.dedent("".join(code)))
     body = function_ast.body.pop()
     assert isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)), (
         "Expected a function definition"
@@ -194,7 +195,7 @@ class RemoveImportTransformer(ast.NodeTransformer):
         self.import_name = import_name
 
     def strip_imports(self, code: str) -> str:
-        tree = ast.parse(code)
+        tree = ast_parse(code)
         tree = self.visit(tree)
         return ast.unparse(tree).strip()
 

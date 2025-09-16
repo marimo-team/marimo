@@ -28,7 +28,7 @@ Edge = tuple[CellId_t, CellId_t]
 # The first entry is the source node; the second entry is a list of defs from
 # the source read by the destination; and the third entry is the destination
 # node.
-EdgeWithVar = tuple[CellId_t, list[str], CellId_t]
+EdgeWithVar = tuple[CellId_t, tuple[str, ...], CellId_t]
 
 LOGGER = _loggers.marimo_logger()
 

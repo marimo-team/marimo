@@ -15,6 +15,37 @@ from marimo._runtime.dataflow import DirectedGraph
 from marimo._types.ids import CellId_t
 
 
+def check_for_errors(
+    graph: DirectedGraph,
+) -> dict[CellId_t, tuple[Error, ...]]:
+    """
+    Check graph for violations of marimo semantics.
+
+    Return a dict of errors in the graph, with an entry for each cell
+    that is involved in an error.
+    """
+    multiple_definition_errors = check_for_multiple_definitions(graph)
+    cycle_errors = check_for_cycles(graph)
+    invalid_root_errors = check_for_invalid_root(graph)
+
+    errors: dict[CellId_t, tuple[Error, ...]] = {}
+    for cid in set(
+        itertools.chain(
+            multiple_definition_errors.keys(),
+            cycle_errors.keys(),
+            invalid_root_errors.keys(),
+        )
+    ):
+        errors[cid] = tuple(
+            itertools.chain(
+                multiple_definition_errors[cid],
+                cycle_errors[cid],
+                invalid_root_errors[cid],
+            )
+        )
+    return errors
+
+
 def check_for_multiple_definitions(
     graph: DirectedGraph,
 ) -> dict[CellId_t, list[MultipleDefinitionError]]:
@@ -53,8 +84,10 @@ def check_for_invalid_root(
             )
             for ancestor in ancestors
             if (
-                deps := sorted(
-                    graph.cells[ancestor].defs & graph.cells[setup_id].refs
+                deps := tuple(
+                    sorted(
+                        graph.cells[ancestor].defs & graph.cells[setup_id].refs
+                    )
                 )
             )
         )
@@ -77,15 +110,17 @@ def check_for_cycles(graph: DirectedGraph) -> dict[CellId_t, list[CycleError]]:
         cycle_with_vars = tuple(
             (
                 edge[0],
-                sorted(
-                    set(
-                        list(
-                            graph.cells[edge[0]].defs
-                            & graph.cells[edge[1]].refs
-                        )
-                        + list(
-                            graph.cells[edge[0]].refs
-                            & graph.cells[edge[1]].deleted_refs
+                tuple(
+                    sorted(
+                        set(
+                            list(
+                                graph.cells[edge[0]].defs
+                                & graph.cells[edge[1]].refs
+                            )
+                            + list(
+                                graph.cells[edge[0]].refs
+                                & graph.cells[edge[1]].deleted_refs
+                            )
                         )
                     )
                 ),
@@ -95,35 +130,4 @@ def check_for_cycles(graph: DirectedGraph) -> dict[CellId_t, list[CycleError]]:
         )
         for cid in nodes_in_cycle:
             errors[cid].append(CycleError(edges_with_vars=cycle_with_vars))
-    return errors
-
-
-def check_for_errors(
-    graph: DirectedGraph,
-) -> dict[CellId_t, tuple[Error, ...]]:
-    """
-    Check graph for violations of marimo semantics.
-
-    Return a dict of errors in the graph, with an entry for each cell
-    that is involved in an error.
-    """
-    multiple_definition_errors = check_for_multiple_definitions(graph)
-    cycle_errors = check_for_cycles(graph)
-    invalid_root_errors = check_for_invalid_root(graph)
-
-    errors: dict[CellId_t, tuple[Error, ...]] = {}
-    for cid in set(
-        itertools.chain(
-            multiple_definition_errors.keys(),
-            cycle_errors.keys(),
-            invalid_root_errors.keys(),
-        )
-    ):
-        errors[cid] = tuple(
-            itertools.chain(
-                multiple_definition_errors[cid],
-                cycle_errors[cid],
-                invalid_root_errors[cid],
-            )
-        )
     return errors

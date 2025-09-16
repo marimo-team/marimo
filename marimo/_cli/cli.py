@@ -29,6 +29,7 @@ from marimo._cli.run_docker import (
 )
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._lint import run_check
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.start import start
@@ -59,7 +60,7 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
 
 def check_app_correctness(filename: str, noninteractive: bool = True) -> None:
     try:
-        status = get_notebook_status(filename)
+        status = get_notebook_status(filename).status
     except SyntaxError:
         import traceback
 
@@ -1218,6 +1219,60 @@ def shell_completion() -> None:
         + "' to enable completions",
         fg="green",
     )
+
+
+@main.command(help="""Check and format marimo files.""")
+@click.option(
+    "--fix",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Whether to in place update files.",
+)
+@click.option(
+    "--strict",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Whether warnings return a non-zero exit code.",
+)
+@click.option(
+    "-v/-q",
+    "--verbose/--quiet",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    type=bool,
+    help="Whether to print detailed messages.",
+)
+@click.argument("files", nargs=-1, type=click.UNPROCESSED)
+def check(
+    fix: bool, strict: bool, verbose: bool, files: tuple[str, ...]
+) -> None:
+    if not files:
+        # If no files are provided, we lint the current directory
+        files = ("**/*.py", "**/*.md", "**/*.qmd")
+
+    # Pass click.echo directly as pipe for streaming output, or None
+    pipe = click.echo if verbose else None
+    linter = run_check(files, pipe=pipe, fix=fix)
+
+    # Get counts from linter (fix happens automatically during streaming)
+    fixed = linter.fixed_count
+    total_issues = linter.issues_count
+
+    # Final summary
+    if fixed > 0:
+        click.echo(f"Updated {fixed} file{'s' if fixed > 1 else ''}.")
+    if total_issues > 0:
+        click.echo(
+            f"Found {total_issues} issue{'s' if total_issues > 1 else ''}."
+        )
+
+    if linter.errored or (strict and (fixed > 0 or total_issues > 0)):
+        sys.exit(1)
 
 
 main.command()(convert)
