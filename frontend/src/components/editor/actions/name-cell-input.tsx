@@ -19,12 +19,14 @@ interface Props
   value: string;
   onChange: (newName: string) => void;
   placeholder?: string;
+  onEnterKey?: () => void;
 }
 
 export const NameCellInput: React.FC<Props> = ({
   value,
   onChange,
   placeholder,
+  onEnterKey,
   ...props
 }) => {
   const ref = useRef<HTMLInputElement>(null);
@@ -53,7 +55,10 @@ export const NameCellInput: React.FC<Props> = ({
       ref={ref}
       placeholder={placeholder}
       className="shadow-none! hover:shadow-none focus:shadow-none focus-visible:shadow-none"
-      onKeyDown={Events.onEnter(Events.stopPropagation())}
+      onKeyDown={Events.onEnter((e) => {
+        Events.stopPropagation()(e);
+        onEnterKey?.();
+      })}
       {...props}
     />
   );
