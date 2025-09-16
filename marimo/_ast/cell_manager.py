@@ -233,7 +233,9 @@ class CellManager:
         )
 
         try:
-            cell = ir_cell_factory(cell_def, cell_id=cell_id, filename=filename)
+            cell = ir_cell_factory(
+                cell_def, cell_id=cell_id, filename=filename
+            )
         except SyntaxError:
             self.unparsable = True
             self.register_cell(

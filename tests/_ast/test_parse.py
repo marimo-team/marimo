@@ -111,7 +111,9 @@ class TestParser:
 
     @staticmethod
     def test_parse_syntax_errors() -> None:
-        notebook = parse_notebook(get_filepath("test_syntax_errors").read_text())
+        notebook = parse_notebook(
+            get_filepath("test_syntax_errors").read_text()
+        )
         assert notebook
         # Valid currently
         # TODO: Propagate decorators violations.
