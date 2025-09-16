@@ -19,7 +19,7 @@ from marimo._messaging.ops import (
     CellOp,
     CompletedRun,
     MessageOperation,
-    deserialize_kernel_operation_name,
+    deserialize_kernel_message,
 )
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
@@ -250,7 +250,7 @@ async def run_app_until_completion(
             self,
         ) -> Callable[[KernelMessage], None]:
             def listener(message: KernelMessage) -> None:
-                data = deserialize_kernel_operation_name(message)
+                data = deserialize_kernel_message(message)
                 # Print errors to stderr
                 if isinstance(data, CellOp):
                     output = data.output
