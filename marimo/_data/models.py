@@ -39,6 +39,12 @@ class DataTableColumn(msgspec.Struct):
     external_type: ExternalDataType
     sample_values: list[Any]
 
+    def __post_init__(self) -> None:
+        # Sometimes like pandas, sqlalchemy or ibis may return column names as objects
+        # instead of strings, although their type hints are str
+        # Instead of trying to track this down each time, just convert to string
+        self.name = str(self.name)
+
 
 # Local -> Python dataframes
 # DuckDB -> DuckDB tables using the global in-memory DuckDB instance
