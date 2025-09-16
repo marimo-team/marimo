@@ -17,8 +17,6 @@ from marimo._schemas.serialization import (
     CellDef,
     NotebookSerializationV1,
 )
-
-
 from tests._lint.utils import lint_notebook
 
 

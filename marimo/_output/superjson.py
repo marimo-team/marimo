@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 # This data serializes
 from typing import Any
 
