@@ -22,7 +22,11 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     MultipleDefinitionError,
 )
-from marimo._messaging.ops import CellOp, deserialize_kernel_message
+from marimo._messaging.ops import (
+    CellOp,
+    Variables,
+    deserialize_kernel_message,
+)
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -2799,11 +2803,8 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
 
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
         assert n_queued == 1
@@ -2824,11 +2825,7 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        cell_ops = mocked_kernel.stream.cell_ops
 
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
         assert n_queued == 1
@@ -2851,11 +2848,8 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
 
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
         assert n_queued == 1
@@ -2876,11 +2870,8 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
 
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
         assert n_queued == 1
@@ -2902,11 +2893,8 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
 
         # er_1 and er_2
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
@@ -2941,11 +2929,8 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
 
         # er_1 and er_2
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
@@ -2973,36 +2958,46 @@ class TestStateTransitions:
         er = exec_req.get("x = 1")
         await k.run([er])
         initial_messages = len(
-            [m for m in stream.messages if m[0] == "variables"]
+            [m for m in stream.operations if isinstance(m, Variables)]
         )
         assert initial_messages == 1
 
         # Re-running same cell should now broadcast Variables
         stream.messages.clear()
         await k.run([er])
-        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+        assert (
+            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+        )
 
         # Adding a new variable should broadcast Variables
         stream.messages.clear()
         er_2 = exec_req.get("y = 1")
         await k.run([er_2])
-        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+        assert (
+            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+        )
 
         # Adding a new edge should broadcast Variables
         stream.messages.clear()
         await k.run([exec_req.get("z = y")])
-        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+        assert (
+            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+        )
 
         # Modifying value without changing edges/defs should now broadcast
         stream.messages.clear()
         er_2.code = "y = 2"
         await k.run([exec_req.get_with_id(er_2.cell_id, er_2.code)])
-        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+        assert (
+            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+        )
 
         # Deleting a cell should broadcast Variables
         stream.messages.clear()
         await k.delete_cell(DeleteCellRequest(cell_id=er_2.cell_id))
-        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+        assert (
+            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+        )
 
     @staticmethod
     async def test_variables_broadcast_on_usage_change(
