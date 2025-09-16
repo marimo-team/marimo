@@ -127,7 +127,7 @@ class PyodideSession:
 
         self.consumers: list[Callable[[KernelMessage], None]] = [
             lambda msg: self.session_consumer(msg),
-            lambda msg: self.session_view.add_raw_operation(msg[1]),
+            lambda msg: self.session_view.add_raw_operation(msg),
         ]
 
     def _on_message(self, msg: KernelMessage) -> None:

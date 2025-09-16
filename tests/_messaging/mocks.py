@@ -13,8 +13,8 @@ class MockStream(Stream):
         if stream is not None and hasattr(stream, "messages"):
             self.messages = stream.messages
 
-    def write(self, op: str, data: bytes) -> None:
-        self.messages.append((op, data))
+    def write(self, data: KernelMessage) -> None:
+        self.messages.append(data)
 
     @property
     def operations(self) -> list[dict[str, Any]]:

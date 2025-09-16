@@ -22,7 +22,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     MultipleDefinitionError,
 )
-from marimo._messaging.ops import CellOp
+from marimo._messaging.ops import CellOp, deserialize_kernel_message
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -41,7 +41,6 @@ from marimo._runtime.requests import (
 from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.model import SessionMode
-from marimo._utils import parse_dataclass
 from marimo._utils.parse_dataclass import parse_raw
 from tests._messaging.mocks import MockStderr, MockStream
 from tests.conftest import ExecReqProvider, MockedKernel
@@ -458,11 +457,9 @@ class TestExecution:
         assert len(k._uninstantiated_execution_requests) == 3
 
         await k.run([er1])
-        cell_ops = [
-            parse_dataclass.parse_raw(msg[1], CellOp)
-            for msg in k.stream.messages
-            if msg[0] == "cell-op"
-        ]
+        stream = MockStream(k.stream)
+        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
         er1_set_not_stale_before_run = False
         for op in cell_ops:
             if op.cell_id == er1.cell_id and op.status == "running":

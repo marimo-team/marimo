@@ -12,7 +12,6 @@ from marimo._ast.cell import CellConfig
 from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._messaging.ops import (
     Alert,
     Banner,
@@ -22,6 +21,7 @@ from marimo._messaging.ops import (
     KernelReady,
     MessageOperation,
     Reconnected,
+    deserialize_kernel_operation_name,
 )
 from marimo._messaging.types import KernelMessage, NoopStream
 from marimo._plugins.core.web_component import JSONType
@@ -338,24 +338,21 @@ class WebsocketHandler(SessionConsumer):
 
         self.message_queue.put_nowait(
             (
-                KernelReady.name,
-                encode_json_bytes(
-                    KernelReady(
-                        codes=codes,
-                        names=names,
-                        configs=configs,
-                        layout=file_manager.read_layout_config(),
-                        cell_ids=cell_ids,
-                        resumed=resumed,
-                        ui_values=ui_values,
-                        last_executed_code=last_executed_code,
-                        last_execution_time=last_execution_time,
-                        app_config=app.config,
-                        kiosk=kiosk,
-                        capabilities=KernelCapabilities(),
-                    )
-                ),
-            )
+                KernelReady(
+                    codes=codes,
+                    names=names,
+                    configs=configs,
+                    layout=file_manager.read_layout_config(),
+                    cell_ids=cell_ids,
+                    resumed=resumed,
+                    ui_values=ui_values,
+                    last_executed_code=last_executed_code,
+                    last_execution_time=last_execution_time,
+                    app_config=app.config,
+                    kiosk=kiosk,
+                    capabilities=KernelCapabilities(),
+                )
+            ).serialize(),
         )
 
     def _reconnect_session(self, session: Session, replay: bool) -> None:
@@ -618,7 +615,8 @@ class WebsocketHandler(SessionConsumer):
 
         async def listen_for_messages() -> None:
             while True:
-                (op, data) = await self.message_queue.get()
+                data = await self.message_queue.get()
+                op = deserialize_kernel_operation_name(data)
 
                 if op in KIOSK_ONLY_OPERATIONS and not self.kiosk:
                     LOGGER.debug(
@@ -697,7 +695,7 @@ class WebsocketHandler(SessionConsumer):
         return listener
 
     def write_operation(self, op: MessageOperation) -> None:
-        self.message_queue.put_nowait((op.name, encode_json_bytes(op)))
+        self.message_queue.put_nowait(op.serialize())
 
     def on_stop(self) -> None:
         # Cancel the heartbeat task, reader

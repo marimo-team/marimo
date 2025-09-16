@@ -42,8 +42,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.msgspec_encoder import encode_json_bytes
-from marimo._messaging.streams import output_max_bytes
-from marimo._messaging.types import Stream
+from marimo._messaging.types import KernelMessage, Stream
 from marimo._messaging.variables import get_variable_preview
 from marimo._output.hypertext import Html
 from marimo._plugins.core.web_component import JSONType
@@ -57,6 +56,32 @@ from marimo._types.ids import CellId_t, RequestId, WidgetModelId
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
+
+
+def serialize_kernel_message(message: Op) -> KernelMessage:
+    """
+    Serialize a MessageOperation to a KernelMessage.
+    """
+    return KernelMessage(encode_json_bytes(message))
+
+
+def deserialize_kernel_message(message: KernelMessage) -> MessageOperation:
+    """
+    Deserialize a KernelMessage to a MessageOperation.
+    """
+    return msgspec.json.decode(message, strict=True, type=MessageOperation)  # type: ignore[no-any-return]
+
+
+class _OpName(msgspec.Struct):
+    op: str
+
+
+def deserialize_kernel_operation_name(message: KernelMessage) -> str:
+    """
+    Deserialize a KernelMessage to a MessageOperation name.
+    """
+    # We use the Op type to deserialize the message because it is slimmer than MessageOperation
+    return msgspec.json.decode(message, strict=True, type=_OpName).op
 
 
 class Op(msgspec.Struct, tag_field="op"):
@@ -73,7 +98,7 @@ class Op(msgspec.Struct, tag_field="op"):
                 stream = ctx.stream
 
         try:
-            stream.write(op=self.name, data=self.serialize())
+            stream.write(self.serialize())
         except Exception as e:
             LOGGER.exception(
                 "Error serializing op %s: %s",
@@ -82,8 +107,8 @@ class Op(msgspec.Struct, tag_field="op"):
             )
             return
 
-    def serialize(self) -> bytes:
-        return encode_json_bytes(self)
+    def serialize(self) -> KernelMessage:
+        return serialize_kernel_message(self)
 
 
 class CellOp(Op, tag="cell-op"):
@@ -139,6 +164,8 @@ class CellOp(Op, tag="cell-op"):
     def maybe_truncate_output(
         mimetype: KnownMimeType, data: str
     ) -> tuple[KnownMimeType, str]:
+        from marimo._messaging.streams import output_max_bytes
+
         if (size := sys.getsizeof(data)) > output_max_bytes():
             from marimo._output.md import md
             from marimo._plugins.stateless.callout import callout
@@ -322,16 +349,16 @@ class FunctionCallResult(Op, tag="function-call-result"):
     return_value: JSONType
     status: HumanReadableStatus
 
-    def serialize(self) -> bytes:
+    def serialize(self) -> KernelMessage:
         try:
-            return encode_json_bytes(self)
+            return serialize_kernel_message(self)
         except Exception as e:
             LOGGER.exception(
                 "Error serializing function call result %s: %s",
                 self.__class__.__name__,
                 e,
             )
-            return encode_json_bytes(
+            return serialize_kernel_message(
                 FunctionCallResult(
                     function_call_id=self.function_call_id,
                     return_value=None,

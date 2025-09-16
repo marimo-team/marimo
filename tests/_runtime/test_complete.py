@@ -365,8 +365,8 @@ class CaptureStream(Stream):
     def __init__(self):
         self.messages: list[KernelMessage] = []
 
-    def write(self, op: str, data: bytes) -> None:
-        self.messages.append((op, data))
+    def write(self, data: KernelMessage) -> None:
+        self.messages.append(data)
 
     @property
     def operations(self) -> list[dict[str, Any]]:

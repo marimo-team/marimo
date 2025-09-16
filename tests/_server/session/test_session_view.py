@@ -7,7 +7,6 @@ from unittest.mock import patch
 from marimo._ast.cell import RuntimeStateType
 from marimo._data.models import DataTable, DataTableColumn
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.ops import (
     CellOp,
     Datasets,
@@ -22,6 +21,7 @@ from marimo._messaging.ops import (
     Variables,
     VariableValue,
     VariableValues,
+    serialize_kernel_message as serialize,
 )
 from marimo._runtime.requests import (
     CreationRequest,
