@@ -113,3 +113,4 @@ def _get_known_hints(message: str) -> str | None:
             "marimo cells are not normal Python functions; treat cell bodies"
             " as top-level code, or use `@app.function` to define a pure function."
         )
+    return None
