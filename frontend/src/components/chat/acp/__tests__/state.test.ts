@@ -604,17 +604,13 @@ describe("state utility functions", () => {
   describe("getAgentConnectionCommand", () => {
     it("should return correct command for claude", () => {
       expect(getAgentConnectionCommand("claude")).toMatchInlineSnapshot(`
-        "npx supergateway --stdio\\
-          "npx @zed-industries/claude-code-acp" \\
-           --outputTransport ws --port 3017 "
+        "npx stdio-to-ws "npx @zed-industries/claude-code-acp" --port 3017"
       `);
     });
 
     it("should return correct command for gemini", () => {
       expect(getAgentConnectionCommand("gemini")).toMatchInlineSnapshot(`
-        "npx supergateway --stdio\\
-          "npx @google/gemini-cli --experimental-acp" \\
-           --outputTransport ws --port 3019 "
+        "npx stdio-to-ws "npx @google/gemini-cli --experimental-acp" --port 3019"
       `);
     });
   });

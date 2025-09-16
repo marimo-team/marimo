@@ -259,5 +259,5 @@ export function getAgentSessionSupport(
 export function getAgentConnectionCommand(agentId: ExternalAgentId): string {
   const port = AGENT_CONFIG[agentId].port;
   const command = AGENT_CONFIG[agentId].command;
-  return `npx supergateway --stdio\\\n  "${command}" \\\n   --outputTransport ws --port ${port} `;
+  return `npx stdio-to-ws "${command}" --port ${port}`;
 }

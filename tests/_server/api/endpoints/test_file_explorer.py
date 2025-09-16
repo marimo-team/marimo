@@ -6,7 +6,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
-from tests._server.mocks import token_header
+from tests._server.mocks import get_session_manager, token_header
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -89,6 +89,29 @@ def test_update_file(client: TestClient) -> None:
         assert f.read() == "new content"
     with open(test_file_path, "w") as f:
         f.write(test_content)
+
+
+def test_update_file_with_session(client: TestClient) -> None:
+    sm = get_session_manager(client)
+    file_path = sm.file_router.get_unique_file_key()
+    assert file_path
+    file_path = Path(file_path)
+    assert file_path.exists()
+    response = client.post(
+        "/api/files/update",
+        headers=HEADERS,
+        json={
+            "path": str(file_path),
+            "contents": "@app.cell\ndef _(): x=10; x\n",
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/json"
+    assert response.json()["success"] is True
+    file_contents = file_path.read_text()
+    assert "@app.cell" in file_contents
+    assert "x=10; x" in file_contents
+    assert len(sm.file_change_handler._file_change_locks) == 1
 
 
 def test_move_file_or_directory(client: TestClient) -> None:

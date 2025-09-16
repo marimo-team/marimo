@@ -32,7 +32,7 @@ const AgentDocItem = memo<AgentDocItemProps>(
         <div className="bg-muted/50 rounded-md p-2 border">
           <div className="flex items-start gap-2 text-xs">
             <TerminalIcon className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
-            <code className="text-xs font-mono break-all flex-1 whitespace-pre-wrap">
+            <code className="text-xs font-mono break-words flex-1 whitespace-pre-wrap">
               {command}
             </code>
             {showCopy && (
@@ -48,7 +48,7 @@ AgentDocItem.displayName = "AgentDocItem";
 
 interface AgentDocsProps {
   title?: string;
-  description?: string;
+  description?: React.ReactNode;
   agents?: ExternalAgentId[];
   showCopy?: boolean;
   className?: string;
