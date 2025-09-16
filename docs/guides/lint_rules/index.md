@@ -31,6 +31,7 @@ These errors prevent notebook execution.
 | [MB002](rules/multiple_definitions.md) | multiple-definitions | Multiple cells define the same variable | ❌ |
 | [MB003](rules/cycle_dependencies.md) | cycle-dependencies | Cells have circular dependencies | ❌ |
 | [MB004](rules/setup_cell_dependencies.md) | setup-cell-dependencies | Setup cell cannot have dependencies | ❌ |
+| [MB005](rules/invalid_syntax.md) | invalid-syntax | Cell contains code that throws a SyntaxError on compilation | ❌ |
 
 ### ✨ Formatting Rules
 
