@@ -25,15 +25,16 @@ class UnparsableRule(LintRule):
 
     ## Why is this bad?
 
-    Unparsable cells make the notebook unusable in script mode, and will create
-    a syntax error on notebook load.
+    Unparsable cells prevent the notebook from running as a script and will throw
+    errors when executed in notebook mode. While marimo can still open the notebook,
+    these cells cannot be run until the parsing issues are resolved.
 
     ## Examples
 
     **Problematic:**
     ```python
     # Cell with encoding issues or corrupt data
-    x = 1 \x00\x01\x02  # Binary data in source
+    x = 1 \\x00\\x01\\x02  # Binary data in source
     ```
 
     **Problematic:**

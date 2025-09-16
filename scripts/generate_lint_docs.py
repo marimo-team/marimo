@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 import re
+import textwrap
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -199,8 +200,10 @@ def validate_rule_info(rule: RuleInfo) -> list[str]:
     if not isinstance(rule.fixable, bool):
         issues.append(f"Fixable must be a boolean, got {type(rule.fixable)}")
 
-    # Validate docstring code matches class code
-    if rule.docstring:
+    # Validate docstring exists and is properly formatted
+    if not rule.docstring:
+        issues.append("Missing docstring")
+    else:
         lines = rule.docstring.split('\n')
         first_line = lines[0].strip() if lines else ""
         if first_line and ':' in first_line:
@@ -224,16 +227,24 @@ def validate_rule_info(rule: RuleInfo) -> list[str]:
 
 def get_rule_details(rule: RuleInfo) -> dict[str, Any]:
     """Extract detailed information about a rule."""
-    # Parse docstring for sections
-    lines = rule.docstring.split('\n') if rule.docstring else []
+    if not rule.docstring:
+        raise ValueError(f"Rule {rule.code} ({rule.class_name}) must have a docstring")
+
+    # Remove the first line (rule code/description) and dedent the rest
+    lines = rule.docstring.split('\n')
     full_description = lines[0] if lines else rule.description
 
-    # Parse structured sections from docstring
+    # Join everything after the first line and dedent it
+    remaining_content = '\n'.join(lines[1:]) if len(lines) > 1 else ""
+    dedented_content = textwrap.dedent(remaining_content)
+    dedented_lines = dedented_content.split('\n')
+
+    # Parse structured sections from dedented content
     sections = {}
     current_section = None
     current_content = []
 
-    for line in lines[1:]:
+    for line in dedented_lines:
         stripped = line.strip()
 
         # Check for section headers
@@ -246,7 +257,7 @@ def get_rule_details(rule: RuleInfo) -> dict[str, Any]:
             current_section = stripped[3:].strip()
             current_content = []
         elif current_section:
-            # Add content to current section (preserve original indentation)
+            # Add content to current section
             current_content.append(line)
 
     # Save last section
