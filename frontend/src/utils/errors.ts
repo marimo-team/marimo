@@ -61,3 +61,10 @@ function safeJSONParse(message: string): unknown {
     return message;
   }
 }
+
+export class CellNotInitializedError extends Error {
+  constructor(message: string = "The cell containing this UI element has not been run yet. Please run the cell first.") {
+    super(message);
+    this.name = "CellNotInitializedError";
+  }
+}
