@@ -408,6 +408,33 @@ def _get_github_link(rule_details: dict[str, Any]) -> str:
     return f"https://github.com/marimo-team/marimo/blob/main/{file_path}"
 
 
+def validate_mkdocs_integration(all_rules: dict[str, RuleInfo]) -> list[str]:
+    """Validate that all generated rule pages are included in mkdocs.yml."""
+    issues = []
+
+    # Read mkdocs.yml
+    mkdocs_path = MARIMO_ROOT / "mkdocs.yml"
+    if not mkdocs_path.exists():
+        issues.append("mkdocs.yml not found")
+        return issues
+
+    mkdocs_content = mkdocs_path.read_text()
+
+    # Check if main lint rules index is in mkdocs
+    if "guides/lint_rules/index.md" not in mkdocs_content:
+        issues.append("Main lint rules page (guides/lint_rules/index.md) not found in mkdocs.yml")
+
+    # Check if each rule page is in mkdocs
+    for code, rule in all_rules.items():
+        filename = rule.name.replace("-", "_") + ".md"
+        rule_path = f"guides/lint_rules/rules/{filename}"
+
+        if rule_path not in mkdocs_content:
+            issues.append(f"Rule page {rule_path} not found in mkdocs.yml")
+
+    return issues
+
+
 def main() -> None:
     """Generate all lint rule documentation."""
     print("Generating marimo lint rules documentation...")
@@ -437,11 +464,18 @@ def main() -> None:
             global_issues.append(f"Duplicate rule name: {rule.name}")
         names_seen.add(rule.name)
 
-    if validation_issues or global_issues:
+    # Check mkdocs integration
+    mkdocs_issues = validate_mkdocs_integration(all_rules)
+
+    if validation_issues or global_issues or mkdocs_issues:
         print("❌ Validation issues found:")
         if global_issues:
             print("  Global issues:")
             for issue in global_issues:
+                print(f"    - {issue}")
+        if mkdocs_issues:
+            print("  mkdocs.yml issues:")
+            for issue in mkdocs_issues:
                 print(f"    - {issue}")
         for code, issues in validation_issues.items():
             print(f"  {code}:")
@@ -449,7 +483,7 @@ def main() -> None:
                 print(f"    - {issue}")
         return
 
-    print(f"✅ Validated {len(all_rules)} rules")
+    print(f"✅ Validated {len(all_rules)} rules and mkdocs.yml integration")
 
     # Organize rules by severity
     rules_by_severity: dict[Severity, list[dict[str, Any]]] = {}
