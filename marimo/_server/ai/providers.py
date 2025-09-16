@@ -36,6 +36,8 @@ from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
 from marimo._server.api.status import HTTPStatus
 
+TIMEOUT = 30
+
 if TYPE_CHECKING:
     from anthropic import (  # type: ignore[import-not-found]
         AsyncClient,
@@ -489,7 +491,7 @@ class OpenAIProvider(
                 ),
             ),
             "stream": True,
-            "timeout": 15,
+            "timeout": TIMEOUT,
         }
         if tools:
             create_params["tools"] = convert_to_openai_tools(tools)
@@ -907,7 +909,7 @@ class BedrockProvider(
             ),
             "max_completion_tokens": max_tokens,
             "stream": True,
-            "timeout": 15,
+            "timeout": TIMEOUT,
         }
         if tools:
             config["tools"] = convert_to_openai_tools(tools)

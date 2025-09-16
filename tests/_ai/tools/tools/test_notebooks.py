@@ -120,3 +120,27 @@ def test_get_active_sessions_internal_multiple_sessions():
     assert "s3" in session_ids
     assert "s1" in session_ids
     assert "s2" not in session_ids
+
+
+def test_get_active_notebooks_handle():
+    """Test GetActiveNotebooks.handle() end-to-end."""
+    tool = GetActiveNotebooks(ToolContext())
+    session = MockSession(
+        ConnectionState.OPEN, "/test/notebook.py", "session1"
+    )
+    session_manager = MockSessionManager({"session1": session})
+    session_manager.get_active_connection_count = Mock(return_value=1)
+
+    context = Mock(spec=ToolContext)
+    context.session_manager = session_manager
+    tool.context = context
+
+    from marimo._ai._tools.types import EmptyArgs
+
+    result = tool.handle(EmptyArgs())
+
+    assert result.status == "success"
+    assert result.data.summary.total_notebooks == 1
+    assert result.data.summary.total_sessions == 1
+    assert result.data.summary.active_connections == 1
+    assert len(result.data.notebooks) == 1
