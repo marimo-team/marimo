@@ -84,7 +84,7 @@ export async function buildCompletionRequestBody(
     }
     return {
       role: message.role,
-      content: stringifyTextParts(message.parts),
+      content: stringifyTextParts(message.parts), // This is no longer used
       parts,
     };
   }
