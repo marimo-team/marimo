@@ -7,27 +7,10 @@ from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.linter import FileStatus, Linter
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
 from marimo._lint.rules.base import LintRule
-from marimo._schemas.serialization import NotebookSerialization
 from marimo._utils.files import expand_file_patterns
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-    pass
-
-
-def lint_notebook(notebook: NotebookSerialization) -> list[Diagnostic]:
-    """Lint a notebook and return all diagnostics found.
-
-    Args:
-        notebook: The notebook serialization to lint (should include filename)
-
-    Returns:
-        List of diagnostics found in the notebook
-    """
-    # Create a temporary rule engine just for this notebook
-    rule_engine = RuleEngine.create_default()
-    return rule_engine.check_notebook_sync(notebook)
 
 
 def run_check(
@@ -65,7 +48,6 @@ __all__ = [
     "Severity",
     "EarlyStoppingConfig",
     "RuleEngine",
-    "lint_notebook",
     "run_check",
     "Linter",
     "FileStatus",

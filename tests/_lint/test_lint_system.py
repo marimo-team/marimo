@@ -2,22 +2,27 @@
 """Unit tests for the marimo lint system."""
 
 from marimo._ast.parse import parse_notebook
-from marimo._lint import lint_notebook
 from marimo._lint.context import LintContext, RuleContext
 from marimo._lint.rule_engine import RuleEngine
 from marimo._lint.rules.base import Severity
-from marimo._lint.rules.breaking import UnparsableRule
-from marimo._lint.rules.formatting import GeneralFormattingRule
-from marimo._lint.rules.runtime import (
+from marimo._lint.rules.breaking import (
     CycleDependenciesRule,
     MultipleDefinitionsRule,
     SetupCellDependenciesRule,
+    UnparsableRule,
 )
+from marimo._lint.rules.formatting import GeneralFormattingRule
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
     NotebookSerializationV1,
 )
+
+
+def lint_notebook(notebook):
+    """Lint a notebook and return all diagnostics found."""
+    rule_engine = RuleEngine.create_default()
+    return rule_engine.check_notebook_sync(notebook)
 
 
 class TestLintSystem:

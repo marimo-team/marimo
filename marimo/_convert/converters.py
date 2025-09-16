@@ -20,8 +20,15 @@ class MarimoConverterIntermediate:
 
         return convert_from_ir_to_notebook_v1(self.ir)
 
-    def to_markdown(self) -> str:
-        raise NotImplementedError("Not implemented")
+    def to_markdown(self, filename: str | None = None) -> str:
+        """Convert to markdown format."""
+        from marimo._server.export.exporter import Exporter
+
+        exporter = Exporter()
+        generated_contents, _ = exporter.export_as_md(
+            self.ir, filename
+        )
+        return generated_contents
 
     def to_py(self) -> str:
         """Convert to python format."""

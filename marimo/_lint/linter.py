@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 
 from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
+from marimo._cli.print import red
+from marimo._convert.converters import MarimoConvert
 from marimo._lint.diagnostic import Diagnostic
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
 from marimo._schemas.serialization import NotebookSerialization
@@ -49,10 +51,9 @@ class Linter:
         self.rule_engine = RuleEngine.create_default(early_stopping)
         self.pipe = pipe
         self.fix_files = fix_files
+        self.files: list[FileStatus] = []
 
         # File processing state
-        self.files: list[FileStatus] = []
-        self.fix_queue: list[FileStatus] = []
         self.errored: bool = False
 
         # Counters for summary
@@ -162,9 +163,6 @@ class Linter:
             # Don't output skipped files unless they failed
             return
         elif file_status.failed:
-            # Import colors from CLI module
-            from marimo._cli.print import red
-
             self.pipe(red(file_status.message))
             for detail in file_status.details:
                 self.pipe(red(f"{detail}"))
@@ -175,52 +173,17 @@ class Linter:
                 self.pipe("")  # Empty line for spacing
 
     @staticmethod
-    async def _check_and_maybe_fix(file_status: FileStatus) -> bool:
-        """Check if file needs fixing and fix it if requested. Returns True if file needed fixing."""
-        if file_status.notebook is None or file_status.contents is None:
-            return False
+    def _generate_file_contents(file_status: FileStatus) -> str:
+        """Generate file contents from notebook serialization."""
+        if file_status.notebook is None:
+            raise ValueError("Cannot generate contents for file without notebook")
 
-        is_markdown = file_status.file.endswith((".md", ".qmd"))
+        converter = MarimoConvert.from_ir(file_status.notebook)
 
-        if is_markdown:
-            from marimo._server.export.exporter import Exporter
-
-            exporter = Exporter()
-            generated_contents, _ = exporter.export_as_md(
-                file_status.notebook, file_status.file
-            )
+        if file_status.file.endswith((".md", ".qmd")):
+            return converter.to_markdown(file_status.file)
         else:
-            from marimo._ast import codegen
-            from marimo._ast.app_config import _AppConfig as AppConfig
-            from marimo._ast.cell import CellConfig
-
-            generated_contents = codegen.generate_filecontents(
-                codes=[cell.code for cell in file_status.notebook.cells],
-                names=[cell.name for cell in file_status.notebook.cells],
-                cell_configs=[
-                    CellConfig.from_dict(cell.options, warn=False)
-                    for cell in file_status.notebook.cells
-                ],
-                config=AppConfig.from_untrusted_dict(
-                    file_status.notebook.app.options, silent=True
-                ),
-                header_comments=file_status.notebook.header.value
-                if file_status.notebook.header
-                else None,
-            )
-
-        fixed = file_status.contents != generated_contents
-
-        if fixed:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None,
-                lambda: Path(file_status.file).write_text(
-                    generated_contents, encoding="utf-8"
-                ),
-            )
-
-        return fixed
+            return converter.to_py()
 
     async def _run_async(self, files_to_check: list[Path]) -> list[FileStatus]:
         """Internal async implementation of run."""
@@ -239,8 +202,8 @@ class Linter:
             List of FileStatus objects with per-file results
         """
         # Run the async operation and collect results
-        files = asyncio.run(self._run_async(files_to_check))
-        return list(files)
+        self.files = list(asyncio.run(self._run_async(files_to_check)))
+        return self.files
 
     def run_streaming(self, files_to_check: list[Path]) -> None:
         """Run linting checks with real-time streaming output."""
@@ -263,51 +226,11 @@ class Linter:
                 or file_status.failed
                 or file_status.notebook is None
             ):
-                if await self._check_and_maybe_fix(file_status):
+                if await self.fix(file_status):
                     fixed_count += 1
                     if self.pipe:
                         self.pipe(f"Updated: {file_status.file}")
         self.fixed_count = fixed_count
-
-    def fix_all(self) -> int:
-        """Fix all files that can be fixed concurrently.
-
-        Returns:
-            Number of files that were actually fixed
-        """
-        # Run the async fix operation
-        return asyncio.run(self._fix_all_async())
-
-    async def _fix_all_async(self) -> int:
-        """Internal async implementation of fix_all."""
-        # Create tasks for all eligible files
-        fixable_files = [
-            fs
-            for fs in self.files
-            if not (fs.skipped or fs.failed or fs.notebook is None)
-        ]
-        tasks = [asyncio.create_task(self.fix(fs)) for fs in fixable_files]
-
-        # Wait for all fixes to complete
-        results = await asyncio.gather(*tasks)
-
-        return sum(results)
-
-    async def process_fix_queue(self) -> int:
-        """Process the fix queue concurrently and return number of fixes."""
-        if not self.fix_queue:
-            return 0
-
-        tasks = [asyncio.create_task(self.fix(fs)) for fs in self.fix_queue]
-        results = await asyncio.gather(*tasks)
-
-        fixed_count = sum(results)
-        if self.pipe and fixed_count > 0:
-            self.pipe(
-                f"Fixed {fixed_count} file{'s' if fixed_count > 1 else ''}"
-            )
-
-        return fixed_count
 
     @staticmethod
     async def fix(file_status: FileStatus) -> bool:
@@ -319,43 +242,14 @@ class Linter:
         if file_status.notebook is None or file_status.contents is None:
             return False
 
-        is_markdown = file_status.file.endswith((".md", ".qmd"))
-
-        if is_markdown:
-            from marimo._server.export.exporter import Exporter
-
-            exporter = Exporter()
-            generated_contents, _ = exporter.export_as_md(
-                file_status.notebook, file_status.file
-            )
-        else:
-            from marimo._ast import codegen
-            from marimo._ast.app_config import _AppConfig as AppConfig
-            from marimo._ast.cell import CellConfig
-
-            generated_contents = codegen.generate_filecontents(
-                codes=[cell.code for cell in file_status.notebook.cells],
-                names=[cell.name for cell in file_status.notebook.cells],
-                cell_configs=[
-                    CellConfig.from_dict(cell.options, warn=False)
-                    for cell in file_status.notebook.cells
-                ],
-                config=AppConfig.from_untrusted_dict(
-                    file_status.notebook.app.options, silent=True
-                ),
-                header_comments=file_status.notebook.header.value
-                if file_status.notebook.header
-                else None,
-            )
+        generated_contents = Linter._generate_file_contents(file_status)
 
         # Only write if content changed
         if file_status.contents != generated_contents:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None,
-                lambda: Path(file_status.file).write_text(
-                    generated_contents, encoding="utf-8"
-                ),
+            await asyncio.to_thread(
+                Path(file_status.file).write_text,
+                generated_contents,
+                encoding="utf-8"
             )
             return True
 

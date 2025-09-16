@@ -2,10 +2,16 @@
 """Snapshot tests for runtime lint errors."""
 
 from marimo._ast.parse import parse_notebook
-from marimo._lint import lint_notebook
+from marimo._lint.rule_engine import RuleEngine
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
+
+
+def lint_notebook(notebook):
+    """Lint a notebook and return all diagnostics found."""
+    rule_engine = RuleEngine.create_default()
+    return rule_engine.check_notebook_sync(notebook)
 
 
 def test_multiple_definitions_snapshot():
