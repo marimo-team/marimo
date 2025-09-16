@@ -784,7 +784,7 @@ class SessionManager:
         self.ttl_seconds = ttl_seconds
         self.lsp_server = lsp_server
         self.file_change_handler = SessionFileChangeHandler(
-            mode, config_manager
+            self, config_manager
         )
         self.watcher_manager = FileWatcherManager()
         self.watch = watch
@@ -1123,9 +1123,11 @@ class SessionManager:
 
 class SessionFileChangeHandler:
     def __init__(
-        self, mode: SessionMode, config_manager: MarimoConfigManager
+        self,
+        session_manager: SessionManager,
+        config_manager: MarimoConfigManager,
     ) -> None:
-        self.mode = mode
+        self.session_manager = session_manager
         self.config_manager = config_manager
         # Track ongoing file change operations to prevent duplicates
         self._file_change_locks: dict[str, asyncio.Lock] = {}
@@ -1182,7 +1184,7 @@ class SessionFileChangeHandler:
             return
 
         # In run mode, we just call Reload()
-        if self.mode == SessionMode.RUN:
+        if self.session_manager.mode == SessionMode.RUN:
             session.write_operation(Reload(), from_consumer_id=None)
             return
 
