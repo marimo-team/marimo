@@ -40,21 +40,17 @@ export type SQLTableListPreview =
   OperationMessageData<"sql-table-list-preview">;
 export type SecretKeysResult = OperationMessageData<"secret-keys-result">;
 export type StartupLogs = OperationMessageData<"startup-logs">;
-export type MessageOperation = schemas["KnownUnions"]["operation"];
-
-export type OperationMessageType = MessageOperation["op"];
-export type OperationMessage = {
-  [Type in OperationMessageType]: {
-    op: Type;
-    data: Omit<Extract<MessageOperation, { op: Type }>, "op">;
-  };
-}[OperationMessageType];
-
 export type CellMessage = OperationMessageData<"cell-op">;
+export type Capabilities = OperationMessageData<"kernel-ready">["capabilities"];
+
+export type MessageOperationUnion = schemas["KnownUnions"]["operation"];
+
+export type OperationMessageType = MessageOperationUnion["op"];
+export type OperationMessage = {
+  data: MessageOperationUnion;
+};
 
 export type OperationMessageData<T extends OperationMessageType> = Omit<
-  Extract<MessageOperation, { op: T }>,
+  Extract<MessageOperationUnion, { op: T }>,
   "op"
 >;
-
-export type Capabilities = OperationMessageData<"kernel-ready">["capabilities"];
