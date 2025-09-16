@@ -56,7 +56,8 @@ const CellActionsDropdownInternal = (
   ref: React.Ref<CellActionsDropdownHandle>,
 ) => {
   const [open, setOpen] = useState(false);
-  const actions = useCellActionButtons({ cell: props });
+  const closePopover = () => setOpen(false);
+  const actions = useCellActionButtons({ cell: props, closePopover });
 
   // store the last focused element so we can restore it when the popover closes
   const restoreFocus = useRestoreFocus();
