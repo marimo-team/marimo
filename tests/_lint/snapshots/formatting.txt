@@ -1,0 +1,27 @@
+warning[general-formatting]: `marimo` is typically not imported with an alias. 
+ --> tests/_lint/test_files/formatting.py:2:1
+   2 | 
+   3 | import marimo as mo  # intentional to test import aliasing
+     |     ^
+   4 | 
+warning[general-formatting]: Expected `__generated_with` assignment for marimo version number.
+ --> tests/_lint/test_files/formatting.py:4:1
+   4 | 
+   5 | statement = "not in a cell, so unexpected"
+     |     ^
+   6 | 
+warning[general-formatting]: Unexpected statement, expected App initialization.
+ --> tests/_lint/test_files/formatting.py:4:1
+   4 | 
+   5 | statement = "not in a cell, so unexpected"
+     |     ^
+   6 | 
+warning[general-formatting]: Unexpected statement, expected cell definitions.
+ --> tests/_lint/test_files/formatting.py:9:1
+   9 | 
+  10 | statement = "not in a cell, so unexpected"
+     |     ^
+  11 | 
+warning[general-formatting]: Expected run guard statement
+ --> tests/_lint/test_files/formatting.py
+   1 | """Example to test formatting issues."""
