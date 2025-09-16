@@ -390,6 +390,4 @@ Before submitting your rule:
 
 ## Example: Simple Rule Implementation
 
-Here's a complete example of a simple rule that detects empty cells:
-
-TODO: Add example code here
+Here's a complete example of a simple rule that checks for syntax errors: https://github.com/marimo-team/marimo/pull/6384
