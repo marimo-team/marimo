@@ -787,6 +787,7 @@ def __():
             }
         )
         session_manager._config_manager = config_reader_lazy
+        session_manager.file_change_handler.config_manager = config_reader_lazy
 
         # Reset the mock
         session_consumer.put_control_request.reset_mock()
