@@ -326,11 +326,11 @@ Immediately start with the following format. Do NOT comment on the code, just ou
 ```
 
 ```sql
-df_name = mo.sql("""{SQL_QUERY}""")
+df_name = mo.sql(f"""{SQL_QUERY}""")
 ```
 
 ```markdown
-mo.md("""{MARKDOWN_CONTENT}""")
+mo.md(f"""{MARKDOWN_CONTENT}""")
 ```
 
 You can have multiple cells of any type. Each cell is wrapped in backticks with the appropriate language identifier.

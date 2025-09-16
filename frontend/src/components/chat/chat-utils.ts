@@ -84,7 +84,7 @@ export async function buildCompletionRequestBody(
     }
     return {
       role: message.role,
-      content: stringifyTextParts(message.parts), // This is no longer used
+      content: stringifyTextParts(message.parts), // This is no longer used in the backend
       parts,
     };
   }
