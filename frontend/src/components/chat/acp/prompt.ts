@@ -297,7 +297,7 @@ function formatCells(cells: string[]) {
   const formatCell = (cell: string) => {
     return `
   @app.cell
-  def __():
+  def _():
   ${indentCode(cell)}
       return
   `;
