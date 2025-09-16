@@ -31,7 +31,7 @@ Stderr output during parsing often indicates:
     **Result:** Creates a diagnostic pointing to line 68 about the invalid escape sequence.
 
     **Common issues:**
-    - Raw strings needed: `r"\path	oile"` instead of `"\path	oile"`
+    - Raw strings needed: `r"\path\to\file"` instead of `"\path\to\file"`
     - Deprecated library usage
     - Missing import dependencies
 

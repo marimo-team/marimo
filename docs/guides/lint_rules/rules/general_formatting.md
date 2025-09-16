@@ -16,8 +16,8 @@ Examines the notebook serialization for structural violations such as:
 
 Format violations can prevent marimo from properly loading or executing
     notebooks. While these don't affect the Python code logic, formatting errors
-    mark a deviation in the expected script structure, which can lead unexpected
-    behavior when run as a script, or when loading the notebook.
+    mark a deviation in the expected script structure, which can lead to
+    unexpected behavior when run as a script, or when loading the notebook.
 
 ## Examples
 

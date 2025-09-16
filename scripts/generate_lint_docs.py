@@ -475,9 +475,6 @@ def main() -> None:
 
     print(f"✅ Generated documentation for {len(all_rules)} rules")
     print(f"📁 Documentation written to: {docs_dir}")
-    print("\nNext steps:")
-    print("1. Update mkdocs.yml to include the new documentation")
-    print("2. Review and customize the generated content as needed")
 
 
 if __name__ == "__main__":

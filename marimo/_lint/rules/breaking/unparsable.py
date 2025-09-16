@@ -25,9 +25,8 @@ class UnparsableRule(LintRule):
 
     ## Why is this bad?
 
-    Unparsable cells make the entire notebook unusable. marimo cannot execute, analyze,
-    or even display cells that contain unparsable code. This prevents the notebook from
-    running and makes it impossible to recover the intended functionality.
+    Unparsable cells make the notebook unusable in script mode, and will create
+    a syntax error on notebook load.
 
     ## Examples
 
