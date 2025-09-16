@@ -165,7 +165,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
             <SparklesIcon className="text-(--blue-10) shrink-0" size={16} />
             <PromptInput
               inputRef={inputRef}
-              className="h-full my-0 py-2"
+              className="h-full my-0 py-2 flex items-center"
               onClose={() => {
                 declineChange();
                 setCompletion("");
@@ -187,7 +187,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 handleAcceptCompletion,
                 handleDeclineCompletion,
                 isLoading,
-                completion,
+                hasCompletion: completion.trim().length > 0,
               })}
             />
             {isLoading && (
@@ -202,30 +202,33 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 Stop
               </Button>
             )}
-            {completion && (
-              <CompletionActions
-                isLoading={isLoading}
-                onAccept={handleAcceptCompletion}
-                onDecline={handleDeclineCompletion}
-                size="xs"
-              />
-            )}
-            <div className="flex flex-row items-center gap-0.5 -ml-1.5 -mr-2">
-              <Tooltip content="Add context">
-                <Button
-                  variant="text"
-                  size="icon"
-                  onClick={() => addContextCompletion(inputRef)}
-                >
-                  <AtSignIcon className="h-3 w-3" />
-                </Button>
-              </Tooltip>
-              <AIModelDropdown
-                triggerClassName="h-7"
-                iconSize="small"
-                displayIconOnly={true}
-                forRole="edit"
-              />
+            <div className="-mr-1.5 py-1.5">
+              <div className="flex flex-row items-center justify-end gap-0.5">
+                <Tooltip content="Add context">
+                  <Button
+                    variant="text"
+                    size="icon"
+                    onClick={() => addContextCompletion(inputRef)}
+                  >
+                    <AtSignIcon className="h-3 w-3" />
+                  </Button>
+                </Tooltip>
+                <AIModelDropdown
+                  triggerClassName="h-7 text-xs w-24"
+                  iconSize="small"
+                  forRole="edit"
+                />
+              </div>
+              {completion && (
+                <div className="-mb-1.5">
+                  <CompletionActions
+                    isLoading={isLoading}
+                    onAccept={handleAcceptCompletion}
+                    onDecline={handleDeclineCompletion}
+                    size="xs"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="h-full w-px bg-border mx-2" />

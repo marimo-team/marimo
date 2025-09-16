@@ -10,6 +10,7 @@ import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import type { FileUIPart } from "ai";
 import { getAIContextRegistry } from "@/core/ai/context/context";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
@@ -144,4 +145,95 @@ export function addContextCompletion(
     // Trigger completion
     startCompletion(inputRef.current.view);
   }
+}
+
+export interface AiCompletion {
+  language: LanguageAdapterType;
+  code: string;
+}
+
+/**
+ * Extracts code blocks (delimited by triple backticks) and their language ("python", "sql", "markdown").
+ * Defaults to "python" if no language is specified or no code blocks are found.
+ * Returns an array of AiCompletion objects.
+ */
+export function codeToCells(code: string): AiCompletion[] {
+  if (code.trim().length === 0) {
+    return [];
+  }
+
+  // If there are no backticks, assume code is in 1 cell and python
+  if (!code.includes("```")) {
+    return [{ language: "python", code: code }];
+  }
+
+  // If code has opening backticks, get the code after it
+  const cells: AiCompletion[] = [];
+  let start = 0;
+
+  let openIndex = code.indexOf("```", start);
+  while (openIndex !== -1) {
+    const newlineIndex = code.indexOf("\n", openIndex);
+    if (newlineIndex === -1) {
+      // If there's no newline after opening backticks, treat everything after as code
+      const remaining = code.slice(openIndex + 3);
+      const firstSpace = remaining.indexOf(" ");
+      const language =
+        firstSpace === -1 ? remaining : remaining.slice(0, firstSpace);
+      const finalLanguage =
+        language === "markdown"
+          ? "markdown"
+          : language === "sql"
+            ? "sql"
+            : "python";
+      // Extract code after the language identifier
+      const codeContent =
+        firstSpace === -1 ? "" : remaining.slice(firstSpace + 1);
+      if (codeContent.trim()) {
+        cells.push({ language: finalLanguage, code: codeContent.trim() });
+      }
+      break;
+    }
+
+    let language = code.slice(openIndex + 3, newlineIndex).trim() || "";
+    language =
+      language === "markdown"
+        ? "markdown"
+        : language === "sql"
+          ? "sql"
+          : "python";
+    const codeStart = newlineIndex + 1;
+
+    const closeIndex = code.indexOf("```", codeStart);
+    if (closeIndex === -1) {
+      // If there's no closing backticks, treat everything after the opening as code
+      const codeContent = code.slice(codeStart).replace(/\n+$/, "");
+      if (codeContent.trim()) {
+        cells.push({
+          language: language as LanguageAdapterType,
+          code: codeContent,
+        });
+      }
+      break;
+    }
+
+    // Remove trailing newlines
+    const codeContent = code.slice(codeStart, closeIndex).replace(/\n+$/, "");
+    if (codeContent.trim()) {
+      cells.push({
+        language: language as LanguageAdapterType,
+        code: codeContent,
+      });
+    }
+
+    start = closeIndex + 3;
+    openIndex = code.indexOf("```", start);
+  }
+
+  // If no cells found, assume code is in 1 cell and python
+  if (cells.length === 0) {
+    cells.push({ language: "python", code: code });
+  }
+
+  return cells;
 }

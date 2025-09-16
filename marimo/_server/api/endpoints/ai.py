@@ -55,6 +55,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from starlette.requests import Request
+    from starlette.responses import ContentStream
 
 
 LOGGER = _loggers.marimo_logger()
@@ -133,10 +134,12 @@ async def ai_completion(
     ai_config = get_ai_config(config)
 
     custom_rules = ai_config.get("rules", None)
+    use_messages = len(body.messages) >= 1
 
     system_prompt = get_refactor_or_insert_notebook_cell_system_prompt(
         language=body.language,
         is_insert=False,
+        support_multiple_cells=use_messages,
         custom_rules=custom_rules,
         cell_code=body.code,
         selected_text=body.selected_text,
@@ -150,21 +153,40 @@ async def ai_completion(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,
     )
+
+    messages = (
+        body.messages
+        if use_messages
+        else [ChatMessage(role="user", content=prompt)]
+    )
+
     response = await provider.stream_completion(
-        messages=[ChatMessage(role="user", content=prompt)],
+        messages=messages,
         system_prompt=system_prompt,
         max_tokens=get_max_tokens(config),
     )
 
-    return StreamingResponse(
-        content=safe_stream_wrapper(
+    # Pass back the entire SDK message if the frontend can handle it
+    content: ContentStream
+    if use_messages:
+        content = safe_stream_wrapper(
+            provider.as_stream_response(
+                response, StreamOptions(format_stream=True, text_only=False)
+            ),
+            text_only=False,
+        )
+    else:
+        content = safe_stream_wrapper(
             without_wrapping_backticks(
                 provider.as_stream_response(
                     response, StreamOptions(text_only=True)
                 )
             ),
             text_only=True,
-        ),
+        )
+
+    return StreamingResponse(
+        content=content,
         media_type="application/json",
         headers={"x-vercel-ai-data-stream": "v1"},
     )
