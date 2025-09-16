@@ -158,6 +158,10 @@ export const FileBrowser = ({
     return null;
   }
 
+  if (!data && error) {
+    return <Banner kind="danger">{error.message}</Banner>;
+  }
+
   let { files } = data || {};
   if (files === undefined) {
     files = [];

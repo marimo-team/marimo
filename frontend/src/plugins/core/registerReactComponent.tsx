@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 /* eslint-disable unicorn/prefer-spread */
 /**
  * WebComponent Factory for React Components
@@ -21,16 +22,21 @@ import React, {
 import ReactDOM, { type Root } from "react-dom/client";
 import useEvent from "react-use-event-hook";
 import type { ZodSchema } from "zod";
+import { notebookAtom } from "@/core/cells/cells.ts";
+import { findCellId } from "@/core/cells/ids.ts";
+import { isUninstantiated } from "@/core/cells/utils";
 import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
 import { getUIElementObjectId } from "@/core/dom/ui-element";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
+import { store } from "@/core/state/jotai";
 import {
   type HTMLElementNotDerivedFromRef,
   useEventListener,
 } from "@/hooks/useEventListener";
 import { StyleNamespace } from "@/theme/namespace";
 import { useTheme } from "@/theme/useTheme";
+import { CellNotInitializedError } from "@/utils/errors.ts";
 import { Functions } from "@/utils/functions";
 import { shallowCompare } from "@/utils/shallow-compare";
 import { defineCustomElement } from "../../core/dom/defineCustomElement";
@@ -78,6 +84,7 @@ interface PluginSlotProps<T> {
 }
 
 /* Handles synchronization of value on behalf of the component */
+
 // eslint-disable-next-line react/function-component-definition
 function PluginSlotInternal<T>(
   { hostElement, plugin, children, getInitialValue }: PluginSlotProps<T>,
@@ -172,6 +179,27 @@ function PluginSlotInternal<T>(
         );
         const objectId = getUIElementObjectId(hostElement);
         invariant(objectId, "Object ID should exist");
+
+        const cellId = findCellId(hostElement);
+        invariant(cellId, "Cell ID should exist");
+
+        const notebookState = store.get(notebookAtom);
+        const cellRuntime = notebookState.cellRuntime[cellId];
+        const cellData = notebookState.cellData[cellId];
+
+        const cellNotInitialized = isUninstantiated({
+          executionTime:
+            cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
+          status: cellRuntime.status,
+          errored: cellRuntime.errored,
+          interrupted: cellRuntime.interrupted,
+          stopped: cellRuntime.stopped,
+        });
+
+        if (cellNotInitialized) {
+          throw new CellNotInitializedError();
+        }
+
         const response = await FUNCTIONS_REGISTRY.request({
           args: prettyParse(input, args[0]),
           functionName: key,
