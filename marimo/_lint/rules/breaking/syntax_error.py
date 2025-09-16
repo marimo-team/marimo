@@ -86,7 +86,7 @@ class SyntaxErrorRule(LintRule):
     fixable = False
 
     async def check(self, ctx: RuleContext) -> None:
-        """Check for unparsable cells."""
+        """Check for syntax errors during compilation."""
         for cell in ctx.notebook.cells:
             if not isinstance(cell, UnparsableCell):
                 try:
