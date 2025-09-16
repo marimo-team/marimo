@@ -110,6 +110,14 @@ class TestParser:
         assert "run guard" in notebook.violations[2].description
 
     @staticmethod
+    def test_parse_syntax_errors() -> None:
+        notebook = parse_notebook(get_filepath("test_syntax_errors").read_text())
+        assert notebook
+        # Valid currently
+        # TODO: Propagate decorators violations.
+        assert len(notebook.violations) == 0
+
+    @staticmethod
     def test_parse_decorator_permutations() -> None:
         notebook = parse_notebook(get_filepath("test_decorators").read_text())
         assert notebook
