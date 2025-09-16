@@ -1,4 +1,4 @@
-error[cycle-dependencies]: Cell is part of a circular dependency
+critical[cycle-dependencies]: Cell is part of a circular dependency
  --> tests/_lint/test_files/cycle_dependencies.py:8:1
    8 | def _(z):
    9 |     x = 1 + z  # This should trigger MR002 - cycle dependency

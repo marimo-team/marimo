@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -12,7 +12,49 @@ if TYPE_CHECKING:
 
 
 class UnparsableRule(LintRule):
-    """MB001: Cell contains unparsable code."""
+    """MB001: Cell contains unparsable code.
+
+    This rule detects cells that contain code that cannot be parsed as valid Python.
+    Unparsable cells typically occur when a notebook file is corrupted, contains invalid
+    syntax, or has encoding issues that prevent proper parsing.
+
+    ## What it does
+
+    Identifies cells that cannot be parsed into valid Python AST nodes, indicating
+    fundamental syntax or encoding problems that prevent the notebook from being loaded.
+
+    ## Why is this bad?
+
+    Unparsable cells make the entire notebook unusable. marimo cannot execute, analyze,
+    or even display cells that contain unparsable code. This prevents the notebook from
+    running and makes it impossible to recover the intended functionality.
+
+    ## Examples
+
+    **Problematic:**
+    ```python
+    # Cell with encoding issues or corrupt data
+    x = 1 \x00\x01\x02  # Binary data in source
+    ```
+
+    **Problematic:**
+    ```python
+    # Cell with fundamental syntax errors
+    def func(
+        # Missing closing parenthesis and body
+    ```
+
+    **Solution:**
+    ```python
+    # Fix syntax errors and encoding issues
+    def func():
+        return 42
+    ```
+
+    ## References
+
+    - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
+    """
 
     code = "MB001"
     name = "unparsable-cells"

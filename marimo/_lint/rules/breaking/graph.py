@@ -137,7 +137,7 @@ class GraphRule(LintRule):
 
 
 class MultipleDefinitionsRule(GraphRule):
-    """MR001: Multiple cells define the same variable.
+    """MB002: Multiple cells define the same variable.
 
     marimo requires that each variable be defined in only one cell. This constraint
     ensures that notebooks are reproducible, executable as scripts, and shareable
@@ -146,24 +146,51 @@ class MultipleDefinitionsRule(GraphRule):
     When a variable is defined in multiple cells, marimo cannot determine which
     definition to use, leading to unpredictable behavior and hidden bugs.
 
-    See Also:
-        - https://docs.marimo.io/guides/understanding_errors/multiple_definitions/
-        - https://docs.marimo.io/guides/understanding_errors/ (Understanding errors)
+    ## What it does
 
-    Examples:
-        Violation:
-            Cell 1: x = 1
-            Cell 2: x = 2  # Error: x defined in multiple cells
+    Analyzes the dependency graph to detect variables that are defined in more
+    than one cell, which violates marimo's fundamental constraint for reactive execution.
 
-        Solution:
-            Cell 1: x = 1
-            Cell 2: y = 2  # Use different variable name
+    ## Why is this bad?
+
+    Multiple definitions prevent marimo from:
+    - Determining the correct execution order
+    - Creating a reliable dependency graph
+    - Running notebooks as scripts
+    - Providing consistent reactive updates
+
+    This is a breaking error because it makes the notebook non-executable.
+
+    ## Examples
+
+    **Problematic:**
+    ```python
+    # Cell 1
+    x = 1
+
+    # Cell 2
+    x = 2  # Error: x defined in multiple cells
+    ```
+
+    **Solution:**
+    ```python
+    # Cell 1
+    x = 1
+
+    # Cell 2
+    y = 2  # Use different variable name
+    ```
+
+    ## References
+
+    - [Multiple Definitions Guide](https://docs.marimo.io/guides/understanding_errors/multiple_definitions/)
+    - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
     """
 
-    code = "MR001"
+    code = "MB002"
     name = "multiple-definitions"
     description = "Multiple cells define the same variable"
-    severity = Severity.RUNTIME
+    severity = Severity.BREAKING
     fixable = False
 
     async def _validate_graph(
@@ -207,7 +234,7 @@ class MultipleDefinitionsRule(GraphRule):
 
 
 class CycleDependenciesRule(GraphRule):
-    """MR002: Cells have circular dependencies.
+    """MB003: Cells have circular dependencies.
 
     marimo prevents circular dependencies between cells to ensure a well-defined
     execution order. If cell A declares variable 'a' and reads variable 'b', then
@@ -216,24 +243,52 @@ class CycleDependenciesRule(GraphRule):
     Cycles make notebooks non-reproducible and prevent marimo from determining
     the correct execution order, leading to undefined behavior.
 
-    See Also:
-        - https://docs.marimo.io/guides/understanding_errors/cycles/
-        - https://docs.marimo.io/guides/understanding_errors/ (Understanding errors)
+    ## What it does
 
-    Examples:
-        Violation:
-            Cell 1: a = b + 1  # Reads b
-            Cell 2: b = a + 1  # Reads a -> Cycle!
+    Analyzes the dependency graph to detect circular references between cells,
+    where cells depend on each other in a way that creates an impossible
+    execution order.
 
-        Solution:
-            Cell 1: a = 1
-            Cell 2: b = a + 1  # Unidirectional dependency
+    ## Why is this bad?
+
+    Circular dependencies prevent marimo from:
+    - Determining a valid execution order
+    - Running notebooks reproducibly
+    - Executing notebooks as scripts
+    - Providing reliable reactive updates
+
+    This is a breaking error because it makes the notebook non-executable.
+
+    ## Examples
+
+    **Problematic:**
+    ```python
+    # Cell 1
+    a = b + 1  # Reads b
+
+    # Cell 2
+    b = a + 1  # Reads a -> Cycle!
+    ```
+
+    **Solution:**
+    ```python
+    # Cell 1
+    a = 1
+
+    # Cell 2
+    b = a + 1  # Unidirectional dependency
+    ```
+
+    ## References
+
+    - [Cycles Guide](https://docs.marimo.io/guides/understanding_errors/cycles/)
+    - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
     """
 
-    code = "MR002"
+    code = "MB003"
     name = "cycle-dependencies"
     description = "Cells have circular dependencies"
-    severity = Severity.RUNTIME
+    severity = Severity.BREAKING
     fixable = False
 
     async def _validate_graph(
@@ -277,7 +332,7 @@ class CycleDependenciesRule(GraphRule):
 
 
 class SetupCellDependenciesRule(GraphRule):
-    """MR003: Setup cell cannot have dependencies.
+    """MB004: Setup cell cannot have dependencies.
 
     The setup cell in marimo is special - it runs first and can define variables
     that are available to all other cells. However, the setup cell itself cannot
@@ -287,24 +342,50 @@ class SetupCellDependenciesRule(GraphRule):
     The setup cell is designed for imports, configuration, and other initialization
     code that should run before any other cells execute.
 
-    See Also:
-        - https://docs.marimo.io/guides/understanding_errors/setup/
-        - https://docs.marimo.io/guides/understanding_errors/ (Understanding errors)
+    ## What it does
 
-    Examples:
-        Violation:
-            Setup cell: y = x + 1  # Error: setup depends on other cells
-            Cell 1: x = 1
+    Validates that the setup cell (if present) does not depend on variables
+    defined in other cells, ensuring proper execution order.
 
-        Solution:
-            Setup cell: y = 1  # Setup defines its own variables
-            Cell 1: x = y + 1  # Other cells can use setup variables
+    ## Why is this bad?
+
+    Setup cell dependencies break marimo's execution model because:
+    - The setup cell must run first to initialize the notebook
+    - Dependencies on other cells would create impossible execution order
+    - It violates the setup cell's purpose as initialization code
+
+    This is a breaking error because it makes the notebook non-executable.
+
+    ## Examples
+
+    **Problematic:**
+    ```python
+    # Setup cell
+    y = x + 1  # Error: setup depends on other cells
+
+    # Cell 1
+    x = 1
+    ```
+
+    **Solution:**
+    ```python
+    # Setup cell
+    y = 1  # Setup defines its own variables
+
+    # Cell 1
+    x = y + 1  # Other cells can use setup variables
+    ```
+
+    ## References
+
+    - [Setup References Guide](https://docs.marimo.io/guides/understanding_errors/setup/)
+    - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
     """
 
-    code = "MR003"
+    code = "MB004"
     name = "setup-cell-dependencies"
     description = "Setup cell cannot have dependencies"
-    severity = Severity.RUNTIME
+    severity = Severity.BREAKING
     fixable = False
 
     async def _validate_graph(

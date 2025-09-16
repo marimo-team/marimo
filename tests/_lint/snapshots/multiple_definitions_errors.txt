@@ -1,4 +1,4 @@
-error[multiple-definitions]: Variable 'x' is defined in multiple cells
+critical[multiple-definitions]: Variable 'x' is defined in multiple cells
  --> tests/_lint/test_files/multiple_definitions.py:9:1
    9 |     print(1)
   10 |     x = 1

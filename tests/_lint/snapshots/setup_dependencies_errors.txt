@@ -1,4 +1,4 @@
-error[setup-cell-dependencies]: Setup cell cannot have dependencies
+critical[setup-cell-dependencies]: Setup cell cannot have dependencies
  --> tests/_lint/test_files/setup_dependencies.py:8:1
    8 | with app.setup:
    9 |     y = x + 1  # This should trigger MR003 - setup cell dependencies

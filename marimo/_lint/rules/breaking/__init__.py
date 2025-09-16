@@ -9,9 +9,9 @@ from marimo._lint.rules.breaking.unparsable import UnparsableRule
 
 BREAKING_RULE_CODES: dict[str, type[LintRule]] = {
     "MB001": UnparsableRule,
-    "MR002": MultipleDefinitionsRule,
-    "MR003": CycleDependenciesRule,
-    "MR004": SetupCellDependenciesRule,
+    "MB002": MultipleDefinitionsRule,
+    "MB003": CycleDependenciesRule,
+    "MB004": SetupCellDependenciesRule,
 }
 
 __all__ = [

@@ -324,25 +324,26 @@ line-length = 79
 target-version = "py39"
 include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
 exclude = [
+    "build",
+    "docs",
     "examples",
-    "scripts",
-    "marimo/_tutorials",
-    "marimo/_snippets/data",
+    "frontend",
     "marimo/_smoke_tests",
-    "marimo/_test_utils/codegen_data",
-    "marimo/_test_utils/_tutorials",
+    "marimo/_snippets/data",
     "marimo/_static/files/wasm-intro.py",
+    "marimo/_test_utils/_tutorials",
+    "marimo/_test_utils/codegen_data",
+    "marimo/_tutorials",
+    "scripts",
     "tests/_ast/app_data",
-    "tests/_ast/codegen_data",
     "tests/_ast/cell_data",
+    "tests/_ast/codegen_data",
+    "tests/_ast/test_app.py",
     "tests/_cli/cli_data",
     "tests/_cli/ipynb_data",
-    "tests/_runtime/runtime_data",
-    "tests/_ast/test_app.py",
     "tests/_convert/ipynb_data/*.ipynb",
-    "frontend",
-    "docs",
-    "build",
+    "tests/_lint/test_files",
+    "tests/_runtime/runtime_data",
 ]
 
 [tool.ruff.lint]
