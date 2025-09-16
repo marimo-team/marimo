@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from starlette.applications import (
@@ -15,7 +16,6 @@ from marimo._ai._tools.tools.cells import (
 )
 from marimo._ai._tools.tools.notebooks import GetActiveNotebooks
 from marimo._config.config import CopilotMode
-from marimo._config.manager import get_default_config_manager
 from marimo._server.ai.tools.types import (
     FunctionArgs,
     ToolCallResult,
@@ -23,6 +23,8 @@ from marimo._server.ai.tools.types import (
     ToolSource,
     ValidationFunction,
 )
+from marimo._server.api.deps import AppState
+from marimo._utils.once import once
 
 if TYPE_CHECKING:
     from mcp.types import (  # type: ignore[import-not-found]
@@ -43,28 +45,30 @@ class ToolManager:
         self._validation_functions: dict[str, ValidationFunction] = {}
         self.app: Starlette = app
 
-        # TODO: this may be stale if the config is updated after the tool manager is created
-        self._config = get_default_config_manager(
-            current_path=None
-        ).get_config()
-        self._enable_mcp_tools = self._config.get("experimental", {}).get(
-            "mcp_docs", False
-        )
+    @cached_property
+    def _enable_mcp_tools(self) -> bool:
+        # This may be stale but it is ok, since we want to enable MCP on startup
+        app_state = AppState.from_app(self.app)
+        config = app_state.config_manager.get_config()
+        return config.get("experimental", {}).get("mcp_docs", False)
+
+    @once
+    def _init_backend_tools(self) -> None:
+        """Initialize backend tools."""
+        context = ToolContext(app=self.app)
 
         # Add backend tools here
         # Backend tools MUST BE DEFINED in:
         # - marimo._ai._tools.tools.*
-        tool_context = ToolContext(app=self.app)
-
         backend_tools: list[ToolBase[Any, Any]] = [
-            GetActiveNotebooks(tool_context),
-            GetCellRuntimeData(tool_context),
-            GetLightweightCellMap(tool_context),
+            GetActiveNotebooks(context),
+            GetCellRuntimeData(context),
+            GetLightweightCellMap(context),
         ]
         for tool in backend_tools:
-            self.register_backend_tool(tool)
+            self._register_backend_tool(tool)
 
-    def register_backend_tool(self, tool: ToolBase[Any, Any]) -> None:
+    def _register_backend_tool(self, tool: ToolBase[Any, Any]) -> None:
         """Register a backend tool with its handler function and optional validator."""
         name = tool.name
         tool_definition, validation_function = tool.as_backend_tool(
@@ -76,7 +80,7 @@ class ToolManager:
 
         LOGGER.debug(f"Registered backend tool: {name}")
 
-    def register_frontend_tool(self, tool: ToolDefinition) -> None:
+    def _register_frontend_tool(self, tool: ToolDefinition) -> None:
         """Register a frontend tool (definition only - no handler or validator needed)."""
         if tool.source != "frontend":
             raise ValueError("Tool source must be 'frontend'")
@@ -84,22 +88,32 @@ class ToolManager:
         self._tools[tool.name] = tool
         LOGGER.debug(f"Registered frontend tool: {tool.name}")
 
-    def get_all_tools(self) -> list[ToolDefinition]:
+    def _get_all_tools(self) -> list[ToolDefinition]:
         """Get all available frontend, backend, and MCP tools."""
+        self._init_backend_tools()
+
         local_tools = list(self._tools.values())
-        mcp_tools = self.list_mcp_tools()
+        mcp_tools = self._list_mcp_tools()
         all_tools = local_tools + mcp_tools
         return all_tools
 
     def get_tools_for_mode(self, mode: CopilotMode) -> list[ToolDefinition]:
-        """Get all tools available for a specific mode."""
-        all_tools = self.get_all_tools()
+        """Get all tools available for a specific mode.
+
+        Args:
+            mode: The mode to get tools for.
+
+        Returns:
+            A list of tool definitions available for the given mode.
+        """
+        all_tools = self._get_all_tools()
         return [tool for tool in all_tools if mode in tool.mode]
 
-    def get_tool(
+    def _get_tool(
         self, name: str, source: Optional[ToolSource] = None
     ) -> Optional[ToolDefinition]:
         """Get tool definition by name."""
+
         if source:
             if source == "backend":
                 # Check if it's a backend tool
@@ -113,24 +127,24 @@ class ToolManager:
                     return tool
             elif source == "mcp":
                 # Check MCP tools
-                mcp_tools = self.list_mcp_tools()
+                mcp_tools = self._list_mcp_tools()
                 for mcp_tool in mcp_tools:
                     if mcp_tool.name == name:
                         return mcp_tool
             return None
         else:
             # No source specified, check all sources
-            all_tools = self.get_all_tools()
+            all_tools = self._get_all_tools()
             for tool in all_tools:
                 if tool.name == name:
                     return tool
             return None
 
-    def validate_backend_tool_arguments(
+    def _validate_backend_tool_arguments(
         self, tool_name: str, arguments: FunctionArgs
     ) -> tuple[bool, str]:
         """Validate tool arguments using tool-specific or basic validation."""
-        tool = self.get_tool(tool_name)
+        tool = self._get_tool(tool_name)
         if not tool:
             return False, f"Tool '{tool_name}' not found"
 
@@ -162,7 +176,7 @@ class ToolManager:
 
         return True, ""
 
-    def list_mcp_tools(self) -> list[ToolDefinition]:
+    def _list_mcp_tools(self) -> list[ToolDefinition]:
         """Get all MCP tools from the MCP client."""
         if not self._enable_mcp_tools:
             return []
@@ -172,13 +186,13 @@ class ToolManager:
 
             mcp_client = get_mcp_client()
             mcp_tools = mcp_client.get_all_tools()
-            return [self.convert_mcp_tool(tool) for tool in mcp_tools]
+            return [self._convert_mcp_tool(tool) for tool in mcp_tools]
 
         except Exception as e:
             LOGGER.error(f"Failed to get MCP tools: {str(e)}")
             return []
 
-    def convert_mcp_tool(self, mcp_tool: MCPRawTool) -> ToolDefinition:
+    def _convert_mcp_tool(self, mcp_tool: MCPRawTool) -> ToolDefinition:
         """Convert an MCP tool to marimo Tool format."""
         # Get namespaced name from meta field (meta is dict[str, Any] | None)
         meta = mcp_tool.meta or {}
@@ -199,8 +213,18 @@ class ToolManager:
     async def invoke_tool(
         self, tool_name: str, arguments: FunctionArgs
     ) -> ToolCallResult:
-        """Invoke a tool by name and return the result."""
-        tool = self.get_tool(tool_name)
+        """Invoke a tool by name and return the result.
+
+        Args:
+            tool_name: The name of the tool to invoke.
+            arguments: The arguments to pass to the tool.
+
+        Returns:
+            A ToolCallResult containing the result of the tool invocation.
+        """
+        self._init_backend_tools()
+
+        tool = self._get_tool(tool_name)
 
         if not tool:
             return ToolCallResult(
@@ -222,7 +246,7 @@ class ToolManager:
             if tool.source == "backend":
                 # Handle backend tools
                 is_valid, validation_error = (
-                    self.validate_backend_tool_arguments(tool_name, arguments)
+                    self._validate_backend_tool_arguments(tool_name, arguments)
                 )
                 if not is_valid:
                     return ToolCallResult(

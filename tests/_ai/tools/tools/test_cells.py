@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from unittest.mock import Mock
 
+import pytest
+
 from marimo._ai._tools.base import ToolContext
 from marimo._ai._tools.tools.cells import (
     CellErrors,
@@ -171,3 +173,45 @@ def test_get_cell_variables():
     }
     assert result == expected
     assert "z" not in result
+
+
+def test_get_cell_type_sql():
+    """Test _get_cell_type for SQL cells."""
+    tool = GetLightweightCellMap(ToolContext())
+
+    # Mock cell with SQL language
+    cell_mock = Mock()
+    cell_mock._cell = Mock()
+    cell_mock._cell.language = "sql"
+
+    cell_data = Mock()
+    cell_data.cell = cell_mock
+    cell_data.code = "SELECT * FROM table"
+
+    result = tool._get_cell_type(cell_data)
+    assert result == "sql"
+
+
+def test_get_cell_runtime_data_invalid_cell():
+    """Test GetCellRuntimeData with invalid cell ID."""
+    tool = GetCellRuntimeData(ToolContext())
+
+    # Mock cell manager that returns None
+    mock_cell_manager = Mock()
+    mock_cell_manager.get_cell_data.return_value = None
+
+    mock_session = Mock()
+    mock_session.app_file_manager.app.cell_manager = mock_cell_manager
+
+    context = Mock(spec=ToolContext)
+    context.get_session.return_value = mock_session
+    tool.context = context
+
+    from marimo._ai._tools.tools.cells import GetCellRuntimeDataArgs
+    from marimo._ai._tools.utils.exceptions import ToolExecutionError
+
+    args = GetCellRuntimeDataArgs(session_id="test", cell_id="invalid")
+
+    with pytest.raises(ToolExecutionError) as exc_info:
+        tool.handle(args)
+    assert exc_info.value.code == "CELL_NOT_FOUND"

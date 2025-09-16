@@ -17,10 +17,7 @@ from typing import (
     get_origin,
 )
 
-from starlette.applications import (
-    Starlette,  # noqa: TCH002 - required at runtime for MCP/Pydantic schema validation and isinstance checks
-)
-
+from marimo import _loggers
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._config.config import CopilotMode
 from marimo._server.ai.tools.types import (
@@ -34,6 +31,8 @@ from marimo._types.ids import SessionId
 from marimo._utils.dataclass_to_openapi import PythonTypeToOpenAPI
 from marimo._utils.parse_dataclass import parse_raw
 
+LOGGER = _loggers.marimo_logger()
+
 ArgsT = TypeVar("ArgsT")
 OutT = TypeVar("OutT")
 
@@ -42,6 +41,10 @@ OutC = TypeVar("OutC", covariant=True)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+
+    from starlette.applications import (
+        Starlette,
+    )
 
 
 @dataclass
@@ -154,6 +157,7 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
             raise
         except Exception as e:
             # Standardize unexpected failures
+            LOGGER.error(f"Unexpected error in tool {self.name}: {e}")
             raise ToolExecutionError(
                 self._default_error_message(),
                 code=self._default_error_code(),
