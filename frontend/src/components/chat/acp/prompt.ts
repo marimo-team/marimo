@@ -285,21 +285,15 @@ export function getAgentPrompt(filename: string) {
 }
 
 function formatCells(cells: string[]) {
-  // Option 1:
-  // return cells.map((cell) => {
-  //   return `# Cell ${cell}`;
-  // });
-
   const indent = "    ";
   const indentCode = (code: string) => {
     return code
       .trim()
       .split("\n")
-      .map((line) => indent + line)
+      .map((line) => (indent + line).trimEnd())
       .join("\n");
   };
 
-  // Option 2:
   const formatCell = (cell: string) => {
     return `
   @app.cell

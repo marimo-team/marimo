@@ -159,7 +159,7 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
   def __():
       x = np.random.rand(n_points.value)
       y = np.random.rand(n_points.value)
-    
+
       plt.figure(figsize=(8, 6))
       plt.scatter(x, y, alpha=0.7)
       plt.title(f"Scatter plot with {n_points.value} points")
@@ -225,7 +225,7 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
   @app.cell
   def __():
       filtered_data = iris if species_selector.value == "All" else iris[iris["species"] == species_selector.value]
-    
+
       plt.figure(figsize=(10, 6))
       sns.scatterplot(
           data=filtered_data,
@@ -244,7 +244,7 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
   @app.cell
   def __():
       mo.stop(not data.value, mo.md("No data to display"))
-    
+
       if mode.value == "scatter":
         mo.output.replace(render_scatter(data.value))
       else:
