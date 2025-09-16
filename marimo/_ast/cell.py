@@ -539,14 +539,14 @@ class Cell:
 
 
             @app.cell
-            def __():
+            def _():
                 import marimo as mo
 
                 return (mo,)
 
 
             @app.cell
-            def __():
+            def _():
                 x = 0
                 y = 1
                 return (x, y)

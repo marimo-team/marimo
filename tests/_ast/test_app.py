@@ -21,6 +21,7 @@ from marimo._ast.app import (
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.errors import (
     CycleError,
+    IncompleteRefsError,
     MultipleDefinitionError,
     SetupRootError,
     UnparsableError,
@@ -88,6 +89,111 @@ class TestApp:
         assert defs["x"] == 0
         assert (defs["y"], defs["z"]) == (1, 2)
         assert defs["a"] == 2
+
+    @staticmethod
+    def test_run_with_refs() -> None:
+        """Test that app.run() can override variables with provided defs."""
+        app = App()
+
+        @app.cell
+        def config() -> tuple[int, float]:
+            batch_size = 32
+            learning_rate = 0.01
+            return batch_size, learning_rate
+
+        @app.cell
+        def process_data(batch_size: int, learning_rate: float) -> tuple[float]:
+            result = batch_size * learning_rate
+            return (result,)
+
+        @app.cell
+        def other_cell() -> tuple[str]:
+            message = "independent"
+            return (message,)
+
+        # Test 1: Run with default values
+        outputs, defs = app.run()
+        assert defs["batch_size"] == 32
+        assert defs["learning_rate"] == 0.01
+        assert defs["result"] == 32 * 0.01
+        assert defs["message"] == "independent"
+
+        # Test 2: Run with overridden values
+        outputs, defs = app.run(defs={"batch_size": 64, "learning_rate": 0.001})
+        assert defs["batch_size"] == 64
+        assert defs["learning_rate"] == 0.001
+        assert defs["result"] == 64 * 0.001
+        assert defs["message"] == "independent"  # unaffected cell still runs
+
+        # Test 3: Partial override - this should fail with IncompleteRefsError
+        # because we're only providing batch_size but the config cell defines both
+        # batch_size and learning_rate
+        with pytest.raises(IncompleteRefsError) as exc_info:
+            app.run(defs={"batch_size": 128})
+        assert "learning_rate" in str(exc_info.value)
+        assert "Missing: ['learning_rate']" in str(exc_info.value)
+        assert "Provided refs: ['batch_size']" in str(exc_info.value)
+
+    @staticmethod
+    def test_run_with_refs_multiple_cells() -> None:
+        """Test defs override with multiple cells that define different variables."""
+        app = App()
+
+        @app.cell
+        def cell_a() -> tuple[int]:
+            x = 10
+            return (x,)
+
+        @app.cell
+        def cell_b() -> tuple[int]:
+            y = 20
+            return (y,)
+
+        @app.cell
+        def cell_c(x: int, y: int) -> tuple[int]:
+            z = x + y
+            return (z,)
+
+        # Test: Override both x and y - cells a and b should be pruned
+        outputs, defs = app.run(defs={"x": 100, "y": 200})
+        assert defs["x"] == 100
+        assert defs["y"] == 200
+        assert defs["z"] == 300
+
+        # Test: Override only x - cell a is pruned, cell b still runs
+        outputs, defs = app.run(defs={"x": 50})
+        assert defs["x"] == 50
+        assert defs["y"] == 20  # cell_b still ran
+        assert defs["z"] == 70
+
+    @staticmethod
+    def test_run_with_refs_setup_cell_protection() -> None:
+        """Test that overriding setup cell definitions raises IncompleteRefsError."""
+        app = App()
+
+        with app.setup:
+            import os
+            setup_var = "from_setup"
+
+        @app.cell
+        def use_setup(setup_var: str) -> tuple[str]:
+            result = f"Used {setup_var}"
+            return (result,)
+
+        # Test: Can still override non-setup variables
+        @app.cell
+        def normal_cell() -> tuple[int]:
+            normal_var = 42
+            return (normal_var,)
+
+        # Test: Trying to override setup cell variables should fail
+        with pytest.raises(TypeError) as exc_info:
+            app.run(defs={"setup_var": "overridden"})
+        assert "override" in str(exc_info.value)
+
+        outputs, defs = app.run(defs={"normal_var": 100})
+        assert defs["normal_var"] == 100
+        assert "setup_var" in defs  # setup still ran
 
     @staticmethod
     def test_setup() -> None:

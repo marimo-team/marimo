@@ -17,3 +17,7 @@ class MultipleDefinitionError(Exception):
 
 class UnparsableError(Exception):
     pass
+
+
+class IncompleteRefsError(Exception):
+    pass
