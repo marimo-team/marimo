@@ -156,7 +156,7 @@ class _DataclassParser:
         if issubclass(cls, msgspec.Struct):
             return _parse_msgspec(
                 value, strict=not self.allow_unknown_keys, cls=cls
-            )  # type: ignore[no-any-return]
+            )  # type: ignore[return-value]
 
         try:
             if isinstance(value, cls):
@@ -199,7 +199,9 @@ class _DataclassParser:
         return cls(**transformed)
 
 
-def _parse_msgspec(value: Any, *, strict: bool, cls: type[T]) -> T:
+def _parse_msgspec(
+    value: Union[bytes, str, dict[Any, Any]], *, strict: bool, cls: type[T]
+) -> T:
     # If it is a dict, it is already parsed and we can just build the dataclass.
     if isinstance(value, dict):
         return msgspec.convert(value, strict=strict, type=cls)
