@@ -22,6 +22,7 @@ from marimo._messaging.ops import (
     MessageOperation,
     Reconnected,
     deserialize_kernel_operation_name,
+    serialize_kernel_message,
 )
 from marimo._messaging.types import KernelMessage, NoopStream
 from marimo._plugins.core.web_component import JSONType
@@ -338,21 +339,23 @@ class WebsocketHandler(SessionConsumer):
 
         self.message_queue.put_nowait(
             (
-                KernelReady(
-                    codes=codes,
-                    names=names,
-                    configs=configs,
-                    layout=file_manager.read_layout_config(),
-                    cell_ids=cell_ids,
-                    resumed=resumed,
-                    ui_values=ui_values,
-                    last_executed_code=last_executed_code,
-                    last_execution_time=last_execution_time,
-                    app_config=app.config,
-                    kiosk=kiosk,
-                    capabilities=KernelCapabilities(),
+                serialize_kernel_message(
+                    KernelReady(
+                        codes=codes,
+                        names=names,
+                        configs=configs,
+                        layout=file_manager.read_layout_config(),
+                        cell_ids=cell_ids,
+                        resumed=resumed,
+                        ui_values=ui_values,
+                        last_executed_code=last_executed_code,
+                        last_execution_time=last_execution_time,
+                        app_config=app.config,
+                        kiosk=kiosk,
+                        capabilities=KernelCapabilities(),
+                    )
                 )
-            ).serialize(),
+            ),
         )
 
     def _reconnect_session(self, session: Session, replay: bool) -> None:
@@ -616,7 +619,7 @@ class WebsocketHandler(SessionConsumer):
         async def listen_for_messages() -> None:
             while True:
                 data = await self.message_queue.get()
-                op = deserialize_kernel_operation_name(data)
+                op: str = deserialize_kernel_operation_name(data)
 
                 if op in KIOSK_ONLY_OPERATIONS and not self.kiosk:
                     LOGGER.debug(
@@ -695,7 +698,7 @@ class WebsocketHandler(SessionConsumer):
         return listener
 
     def write_operation(self, op: MessageOperation) -> None:
-        self.message_queue.put_nowait(op.serialize())
+        self.message_queue.put_nowait(serialize_kernel_message(op))
 
     def on_stop(self) -> None:
         # Cancel the heartbeat task, reader

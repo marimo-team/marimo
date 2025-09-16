@@ -9,6 +9,7 @@ from marimo._messaging.ops import (
     KernelCapabilities,
     KernelReady,
     deserialize_kernel_message,
+    serialize_kernel_message,
 )
 from marimo._runtime.requests import (
     AppMetadata,
@@ -108,20 +109,22 @@ def create_session(
     # We want this message to be performant, so any expensive operations
     # should be after this message is sent
     write_kernel_message(
-        KernelReady(
-            codes=tuple(app.cell_manager.codes()),
-            names=tuple(app.cell_manager.names()),
-            configs=tuple(app.cell_manager.configs()),
-            cell_ids=tuple(app.cell_manager.cell_ids()),
-            layout=app_file_manager.read_layout_config(),
-            resumed=False,
-            ui_values={},
-            last_executed_code={},
-            last_execution_time={},
-            app_config=app.config,
-            kiosk=False,
-            capabilities=KernelCapabilities(),
-        ).serialize(),
+        serialize_kernel_message(
+            KernelReady(
+                codes=tuple(app.cell_manager.codes()),
+                names=tuple(app.cell_manager.names()),
+                configs=tuple(app.cell_manager.configs()),
+                cell_ids=tuple(app.cell_manager.cell_ids()),
+                layout=app_file_manager.read_layout_config(),
+                resumed=False,
+                ui_values={},
+                last_executed_code={},
+                last_execution_time={},
+                app_config=app.config,
+                kiosk=False,
+                capabilities=KernelCapabilities(),
+            )
+        ),
     )
 
     from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession

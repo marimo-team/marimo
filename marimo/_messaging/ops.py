@@ -99,7 +99,7 @@ class Op(msgspec.Struct, tag_field="op"):
                 stream = ctx.stream
 
         try:
-            stream.write(self.serialize())
+            stream.write(serialize_kernel_message(self))
         except Exception as e:
             LOGGER.exception(
                 "Error serializing op %s: %s",
@@ -107,9 +107,6 @@ class Op(msgspec.Struct, tag_field="op"):
                 e,
             )
             return
-
-    def serialize(self) -> KernelMessage:
-        return serialize_kernel_message(self)
 
 
 class CellOp(Op, tag="cell-op"):
