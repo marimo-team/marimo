@@ -29,7 +29,7 @@ from marimo._ai._types import (
     ToolInvocationPart,
 )
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
-from marimo._server.ai.tools.types import Tool
+from marimo._server.ai.tools.types import ToolDefinition
 
 
 @pytest.fixture
@@ -947,7 +947,7 @@ def test_from_chat_message_dict():
 @pytest.fixture
 def sample_tools():
     return [
-        Tool(
+        ToolDefinition(
             name="test_tool",
             description="A test tool",
             parameters={

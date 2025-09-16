@@ -24,7 +24,7 @@ from marimo._server.ai.config import (
     get_edit_model,
     get_max_tokens,
 )
-from marimo._server.ai.tools.types import Tool
+from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
 
 
@@ -286,7 +286,7 @@ class TestAnyProviderConfig:
     @patch("marimo._server.ai.config._get_tools")
     def test_tools_included_when_available(self, mock_get_tools: Any) -> None:
         """Test that tools are included when available."""
-        mock_tool = Tool(
+        mock_tool = ToolDefinition(
             name="test_tool",
             description="Test tool",
             parameters={},

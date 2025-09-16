@@ -19,7 +19,7 @@ from marimo._server.ai.providers import (
     OpenAIProvider,
     without_wrapping_backticks,
 )
-from marimo._server.ai.tools.types import ToolResult
+from marimo._server.ai.tools.types import ToolCallResult
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
@@ -1039,8 +1039,8 @@ class TestInvokeToolEndpoint:
         # Mock successful tool result as a coroutine
         async def mock_invoke_tool(
             _tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name="test_tool",
                 result={
                     "message": "Tool executed successfully",
@@ -1087,8 +1087,8 @@ class TestInvokeToolEndpoint:
         # Mock tool result with error as a coroutine
         async def mock_invoke_tool(
             _tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name="failing_tool",
                 result=None,
                 error="Tool execution failed: Invalid parameter",
@@ -1132,8 +1132,8 @@ class TestInvokeToolEndpoint:
         # Mock tool result for non-existent tool as a coroutine
         async def mock_invoke_tool(
             _tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name="nonexistent_tool",
                 result=None,
                 error="Tool 'nonexistent_tool' not found. Available tools: get_server_debug_info",
@@ -1171,8 +1171,8 @@ class TestInvokeToolEndpoint:
         # Mock tool result with validation error as a coroutine
         async def mock_invoke_tool(
             _tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name="test_tool",
                 result=None,
                 error="Invalid arguments for tool 'test_tool': Missing required parameter 'required_param'",
@@ -1214,8 +1214,8 @@ class TestInvokeToolEndpoint:
         # Mock successful tool result with complex data as a coroutine
         async def mock_invoke_tool(
             _tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name="complex_tool",
                 result={
                     "processed_data": [
@@ -1289,8 +1289,8 @@ class TestInvokeToolEndpoint:
         # Mock successful tool result with empty arguments
         async def mock_invoke_tool(
             tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name=tool_name,
                 result={"message": "Tool executed with empty args"},
                 error=None,

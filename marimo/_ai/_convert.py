@@ -17,7 +17,7 @@ from marimo._ai._types import (
     TextPart,
     ToolInvocationPart,
 )
-from marimo._server.ai.tools.types import Tool
+from marimo._server.ai.tools.types import ToolDefinition
 
 if TYPE_CHECKING:
     from anthropic.types import (  # type: ignore[import-not-found]
@@ -557,7 +557,9 @@ def convert_to_ai_sdk_messages(
 
 
 # Tool conversions
-def convert_to_openai_tools(tools: list[Tool]) -> list[dict[str, Any]]:
+def convert_to_openai_tools(
+    tools: list[ToolDefinition],
+) -> list[dict[str, Any]]:
     return [
         {
             "type": "function",
@@ -571,7 +573,9 @@ def convert_to_openai_tools(tools: list[Tool]) -> list[dict[str, Any]]:
     ]
 
 
-def convert_to_anthropic_tools(tools: list[Tool]) -> list[dict[str, Any]]:
+def convert_to_anthropic_tools(
+    tools: list[ToolDefinition],
+) -> list[dict[str, Any]]:
     return [
         {
             "name": tool.name,
@@ -582,7 +586,9 @@ def convert_to_anthropic_tools(tools: list[Tool]) -> list[dict[str, Any]]:
     ]
 
 
-def convert_to_google_tools(tools: list[Tool]) -> list[dict[str, Any]]:
+def convert_to_google_tools(
+    tools: list[ToolDefinition],
+) -> list[dict[str, Any]]:
     return [
         {
             "function_declarations": [

@@ -67,6 +67,20 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
+async def tool_manager(app: Starlette) -> AsyncIterator[None]:
+    try:
+        from marimo._server.ai.tools.tool_manager import setup_tool_manager
+
+        # Initialize and attach to app state
+        setup_tool_manager(app)
+
+    except Exception as e:  # pragma: no cover - defensive
+        LOGGER.warning("Failed to initialize ToolManager: %s", e)
+
+    yield
+
+
+@contextlib.asynccontextmanager
 async def mcp(app: Starlette) -> AsyncIterator[None]:
     if TYPE_CHECKING:
         from marimo._server.ai.mcp import MCPClient

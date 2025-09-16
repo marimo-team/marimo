@@ -20,7 +20,7 @@ from marimo._config.config import (
 from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
-from marimo._server.ai.tools.types import Tool
+from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
 
 
@@ -34,7 +34,7 @@ class AnyProviderConfig:
     ca_bundle_path: Optional[str] = None
     client_pem: Optional[str] = None
     extra_headers: Optional[dict[str, str]] = None
-    tools: Optional[list[Tool]] = None
+    tools: Optional[list[ToolDefinition]] = None
 
     def __post_init__(self) -> None:
         # Only include tools if they are available
@@ -186,8 +186,12 @@ class AnyProviderConfig:
         return os.environ.get(key)
 
 
-def _get_tools(mode: CopilotMode) -> list[Tool]:
-    tool_manager = get_tool_manager()
+def _get_tools(mode: CopilotMode) -> list[ToolDefinition]:
+    try:
+        tool_manager = get_tool_manager()
+    except ValueError:
+        # ToolManager may not be initialized in some tests or non-server contexts
+        return []
     return tool_manager.get_tools_for_mode(mode)
 
 
