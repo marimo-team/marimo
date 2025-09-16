@@ -180,16 +180,16 @@ class TestApp:
             result = f"Used {setup_var}"
             return (result,)
 
-        # Test: Trying to override setup cell variables should fail
-        with pytest.raises(IncompleteRefsError) as exc_info:
-            app.run(defs={"setup_var": "overridden"})
-        assert "Cannot override definitions from the setup cell" in str(exc_info.value)
-
         # Test: Can still override non-setup variables
         @app.cell
         def normal_cell() -> tuple[int]:
             normal_var = 42
             return (normal_var,)
+
+        # Test: Trying to override setup cell variables should fail
+        with pytest.raises(TypeError) as exc_info:
+            app.run(defs={"setup_var": "overridden"})
+        assert "override" in str(exc_info.value)
 
         outputs, defs = app.run(defs={"normal_var": 100})
         assert defs["normal_var"] == 100

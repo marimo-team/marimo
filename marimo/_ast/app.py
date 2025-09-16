@@ -698,8 +698,14 @@ class App:
         glbls: dict[str, Any] = {}
         if self._setup is not None:
             glbls = {**self._setup._glbls}
+
+        if set(glbls) & set(defs or {}):
+            # Type Error is convention for bad args.
+            raise TypeError("`defs` cannot override setup cell definitions.")
+
         if defs is not None:
             glbls.update(defs)
+
         outputs, glbls = AppScriptRunner(
             InternalApp(self),
             filename=self._filename,
