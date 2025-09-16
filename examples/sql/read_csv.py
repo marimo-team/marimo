@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.11.18"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -33,7 +33,7 @@ def _():
     import polars as pl
 
     pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]}).write_csv("data.csv")
-    return mo, pl
+    return (mo,)
 
 
 @app.cell(hide_code=True)
@@ -118,11 +118,11 @@ def _(mo):
         CREATE TABLE myTable AS SELECT * FROM "data.csv"
         """
     )
-    return (myTable,)
+    return
 
 
 @app.cell
-def _(mo, myTable):
+def _(mo):
     _df = mo.sql(
         f"""
         SELECT * FROM myTable

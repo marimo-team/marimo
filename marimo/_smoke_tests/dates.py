@@ -7,18 +7,18 @@
 
 import marimo
 
-__generated_with = "0.8.7"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     import datetime
 
     start_date = mo.ui.date(
@@ -35,7 +35,7 @@ def __(mo):
 
 
 @app.cell
-def __(end_date, mo, start_date):
+def _(end_date, mo, start_date):
     mo.hstack(
         [
             mo.hstack([start_date, "➡️", end_date]).left(),
@@ -46,7 +46,7 @@ def __(end_date, mo, start_date):
 
 
 @app.cell
-def __(datetime, mo):
+def _(datetime, mo):
     start_datetime = mo.ui.datetime(
         label="Start datetime",
         start=datetime.datetime(2021, 1, 1),
@@ -61,7 +61,7 @@ def __(datetime, mo):
 
 
 @app.cell
-def __(end_datetime, mo, start_datetime):
+def _(end_datetime, mo, start_datetime):
     mo.hstack(
         [
             mo.hstack([start_datetime, "➡️", end_datetime]).left(),
@@ -72,23 +72,23 @@ def __(end_datetime, mo, start_datetime):
 
 
 @app.cell
-def __(datetime, mo):
+def _(datetime, mo):
     date_range_input = mo.ui.date_range(
         label="Date_range",
         start=datetime.date(2021, 1, 1),
         stop=datetime.date(2021, 12, 31),
     )
-    return date_range_input,
+    return (date_range_input,)
 
 
 @app.cell
-def __(date_range_input, mo):
+def _(date_range_input, mo):
     mo.hstack([date_range_input, date_range_input.value])
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     _date = mo.ui.date(label="Input")
     _datetime = mo.ui.datetime(label="Input")
     _date_range = mo.ui.date_range(label="Input")

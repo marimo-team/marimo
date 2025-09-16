@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.12.10"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 with app.setup:
@@ -450,7 +450,7 @@ def _(mo):
 
 
 @app.cell
-def _(__file__):
+def _():
     with open(__file__, "r", encoding="utf-8") as f:
         contents = f.read()
     return (contents,)

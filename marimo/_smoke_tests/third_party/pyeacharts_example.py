@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.8.18"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import pyecharts.options as opts
     from pyecharts.charts import Bar
 
@@ -20,7 +20,7 @@ def __():
     )
 
     bar
-    return Bar, bar, opts
+    return
 
 
 if __name__ == "__main__":

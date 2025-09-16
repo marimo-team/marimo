@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import pygwalker
 
     from vega_datasets import data
@@ -13,10 +13,10 @@ def __():
 
 
 @app.cell
-def __(data, pygwalker):
+def _(data, pygwalker):
     df = data.iris()
     pygwalker.walk(df)
-    return (df,)
+    return
 
 
 if __name__ == "__main__":

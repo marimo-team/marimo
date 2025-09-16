@@ -11,12 +11,12 @@
 
 import marimo
 
-__generated_with = "0.9.6"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Seam Carving 
@@ -45,7 +45,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import requests
 
     input_image = "The_Persistence_of_Memory.jpg"
@@ -55,17 +55,17 @@ def __():
 
     with open(input_image, "wb") as handler:
         handler.write(img_data)
-    return handler, img_data, input_image, requests
+    return (input_image,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## Try it!""")
     return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
 
     slider = mo.ui.slider(
@@ -81,17 +81,17 @@ def __():
 
 
 @app.cell
-def __(efficient_seam_carve, input_image, mo, slider):
+def _(efficient_seam_carve, input_image, mo, slider):
     with mo.persistent_cache("seam_carves"):
         scale_factor = slider.value
         result = efficient_seam_carve(input_image, scale_factor)
 
     mo.hstack([mo.image(input_image), mo.image(result)], justify="start")
-    return result, scale_factor
+    return
 
 
 @app.cell
-def __():
+def _():
     import numpy as np
     from numba import jit
     from skimage import io, filters, transform
@@ -170,20 +170,7 @@ def __():
         print(f"Seam carving completed in {end_time - start_time:.2f} seconds")
 
         return carved_img
-    return (
-        compute_energy_map,
-        efficient_seam_carve,
-        filters,
-        find_seam,
-        io,
-        jit,
-        np,
-        remove_seam,
-        rgb2gray,
-        seam_carving,
-        time,
-        transform,
-    )
+    return (efficient_seam_carve,)
 
 
 if __name__ == "__main__":

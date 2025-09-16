@@ -1,17 +1,17 @@
 import marimo
 
-__generated_with = "0.1.4"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("# Data Labeler")
     return
 
 
 @app.cell
-def __(NUMBER_OF_EXAMPLES, mo):
+def _(NUMBER_OF_EXAMPLES, mo):
     get_index, set_index = mo.state(0)
 
 
@@ -25,7 +25,7 @@ def __(NUMBER_OF_EXAMPLES, mo):
 
 
 @app.cell
-def __(decrement_index, increment_index, mo):
+def _(decrement_index, increment_index, mo):
     next_button = mo.ui.button(label="next", on_change=lambda _: increment_index())
 
     previous_button = mo.ui.button(
@@ -35,13 +35,13 @@ def __(decrement_index, increment_index, mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(f"**Choose an example to label.**")
     return
 
 
 @app.cell
-def __(NUMBER_OF_EXAMPLES, get_index, mo, set_index):
+def _(NUMBER_OF_EXAMPLES, get_index, mo, set_index):
     index = mo.ui.number(
         0,
         NUMBER_OF_EXAMPLES - 1,
@@ -51,51 +51,51 @@ def __(NUMBER_OF_EXAMPLES, get_index, mo, set_index):
         label="example number",
         on_change=set_index,
     )
-    return index,
+    return (index,)
 
 
 @app.cell
-def __(index, mo, next_button, previous_button):
+def _(index, mo, next_button, previous_button):
     mo.hstack([index, previous_button, next_button], justify="start")
     return
 
 
 @app.cell
-def __(index, mo):
+def _(index, mo):
     mo.md(f"![img](https://picsum.photos/id/{index.value}/700/400)").center()
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("### Real or AI generated?").center()
     return
 
 
 @app.cell
-def __(LABELS_PATH, NUMBER_OF_EXAMPLES, load_labels):
+def _(LABELS_PATH, NUMBER_OF_EXAMPLES, load_labels):
     labels = load_labels(LABELS_PATH, NUMBER_OF_EXAMPLES)
-    return labels,
+    return (labels,)
 
 
 @app.cell
-def __(LABELS_PATH, labels, write_labels):
+def _(LABELS_PATH, labels, write_labels):
     def update_label(value, index):
         labels[index]["label"] = value
         write_labels(labels, LABELS_PATH)
-    return update_label,
+    return (update_label,)
 
 
 @app.cell
-def __(LABELS_PATH, labels, write_labels):
+def _(LABELS_PATH, labels, write_labels):
     def update_notes(value, index):
         labels[index]["notes"] = value
         write_labels(labels, LABELS_PATH)
-    return update_notes,
+    return (update_notes,)
 
 
 @app.cell
-def __(mo, notes):
+def _(mo, notes):
     mo.stop(len(notes.value) <= 100)
 
     _character_count = mo.md(f"`{len(notes.value)}/100` characters used").right()
@@ -109,7 +109,7 @@ def __(mo, notes):
 
 
 @app.cell
-def __(index, labels, mo, update_label, update_notes):
+def _(index, labels, mo, update_label, update_notes):
     data = labels[index.value]
 
     label_picker = mo.ui.radio(
@@ -126,11 +126,11 @@ def __(index, labels, mo, update_label, update_notes):
     )
 
     mo.hstack([label_picker, notes], justify="space-around")
-    return data, label_picker, notes
+    return (notes,)
 
 
 @app.cell
-def __(json, os):
+def _(json, os):
     def load_labels(path, number_of_examples):
         if not os.path.exists(path):
             return [
@@ -156,25 +156,25 @@ def __(json, os):
 
 
 @app.cell
-def __():
+def _():
     NUMBER_OF_EXAMPLES = 100
-    return NUMBER_OF_EXAMPLES,
+    return (NUMBER_OF_EXAMPLES,)
 
 
 @app.cell
-def __():
+def _():
     LABELS_PATH = "labels.json"
-    return LABELS_PATH,
+    return (LABELS_PATH,)
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __():
+def _():
     import json
     import os
     return json, os

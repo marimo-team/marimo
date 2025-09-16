@@ -1,17 +1,17 @@
 import marimo
 
-__generated_with = "0.8.4"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""
         Importa recordar as seguintes regras de diferenciação de matrizes:
 
@@ -27,7 +27,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         !!! tip ""
@@ -47,7 +47,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip": mo.md(r"""

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.11"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -35,9 +35,8 @@ def _(sqlite3):
     return (conn,)
 
 
-
 @app.cell
-def _(conn, mo, test):
+def _(conn, mo):
     _df = mo.sql(
         f"""
         select * FROM test

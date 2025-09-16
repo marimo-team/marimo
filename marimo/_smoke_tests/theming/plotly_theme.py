@@ -8,22 +8,22 @@
 
 import marimo
 
-__generated_with = "0.8.3"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import plotly.io as pio
     import plotly.graph_objects as go
 
     print("default theme:", pio.templates.default)
-    return go, mo, pio
+    return go, pio
 
 
 @app.cell
-def __(go, pio):
+def _(go, pio):
     pio.templates.default = "plotly_white"
 
     go.Figure(
@@ -33,7 +33,7 @@ def __(go, pio):
 
 
 @app.cell
-def __(go, pio):
+def _(go, pio):
     pio.templates.default = "plotly"
 
     go.Figure(
@@ -43,7 +43,7 @@ def __(go, pio):
 
 
 @app.cell
-def __(go, pio):
+def _(go, pio):
     pio.templates.default = "plotly_dark"
 
     go.Figure(

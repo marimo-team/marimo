@@ -1,23 +1,23 @@
 import marimo
 
-__generated_with = "0.8.22"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __(__file__):
+def _():
     print("__file__", __file__)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     print("mo.notebook_dir()", mo.notebook_dir())
     return
 

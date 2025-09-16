@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.39"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __(mo, os):
+def _(mo, os):
     env_api_key = os.environ.get("COINBASE_API_KEY")
     env_api_secret = os.environ.get("COINBASE_API_SECRET")
 
@@ -28,11 +29,11 @@ def __(mo, os):
             )
         }
     )
-    return api_key_input, api_secret_input, env_api_key, env_api_secret
+    return api_key_input, api_secret_input
 
 
 @app.cell
-def __(mo, pd):
+def _(mo, pd):
     get_df, set_df = mo.state(
         pd.DataFrame(
             columns=[
@@ -53,7 +54,7 @@ def __(mo, pd):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def output_stats(df):
         if len(df) == 0:
             return mo.callout("Waiting for data...")
@@ -111,11 +112,11 @@ def __(mo):
             widths=[1, 1, 1, 1, 1, 1],
             gap=2,
         )
-    return output_stats,
+    return (output_stats,)
 
 
 @app.cell
-def __(alt, mo):
+def _(alt, mo):
     def output_chart(df):
         _chart = (
             alt.Chart(df)
@@ -128,23 +129,22 @@ def __(alt, mo):
             )
         )
         return mo.ui.altair_chart(_chart)
-    return output_chart,
+    return (output_chart,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def output_table(df):
         return mo.ui.table(df[::-1], selection=None)
-    return output_table,
+    return (output_table,)
 
 
 @app.cell
-def __(
+def _(
     WebSocketConnectionClosedException,
     api_key_input,
     api_secret_input,
     create_connection,
-    e,
     get_df,
     hashlib,
     hmac,
@@ -276,20 +276,11 @@ def __(
     # thread_keepalive = Thread(target=websocket_keepalive)
     # thread.start()
     websocket_thread()
-    return (
-        add_signature_ws,
-        handle_new_ticker,
-        thread,
-        thread_keepalive,
-        thread_running,
-        websocket_keepalive,
-        websocket_thread,
-        ws,
-    )
+    return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import pandas as pd
     import altair as alt
@@ -298,7 +289,7 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     import json
     import time
     import hmac
@@ -306,7 +297,6 @@ def __():
     from threading import Thread
     from websocket import create_connection, WebSocketConnectionClosedException
     return (
-        Thread,
         WebSocketConnectionClosedException,
         create_connection,
         hashlib,

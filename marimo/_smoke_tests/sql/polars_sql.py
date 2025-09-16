@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.10.16"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -22,7 +22,7 @@ def _():
     import connectorx
 
     uri = os.environ.get("DATABASE_URL")
-    return connectorx, os, pl, pyarrow, uri
+    return pl, uri
 
 
 @app.cell
@@ -32,7 +32,7 @@ def _(mo, pl, uri):
 
     df = pl.read_database_uri(query=query, uri=uri)
     df
-    return df, query
+    return
 
 
 @app.cell

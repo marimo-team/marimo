@@ -1,26 +1,25 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
-@app.cell
-def __():
-    class Mischief:
-        def _mime_(self):
-            raise ValueError("error!")
-    return Mischief,
+@app.class_definition
+class Mischief:
+    def _mime_(self):
+        raise ValueError("error!")
 
 
 @app.cell
-def __(Mischief):
+def _():
     mischief = Mischief()
-    return mischief,
+    return (mischief,)
 
 
 @app.cell
-def __(mischief):
+def _(mischief):
     mischief
     return
 

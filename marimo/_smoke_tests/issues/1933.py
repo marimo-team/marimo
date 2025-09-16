@@ -1,39 +1,40 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __():
+def _():
     from vega_datasets import data
-    return data,
+    return (data,)
 
 
 @app.cell
-def __(data, mo):
+def _(data, mo):
     t = mo.ui.table(data.cars())
-    return t,
+    return (t,)
 
 
 @app.cell
-def __(mo, t):
+def _(mo, t):
     dictionary = mo.ui.dictionary({
         "cars": t
     })
     id(dictionary["cars"]), dictionary
-    return dictionary,
+    return (dictionary,)
 
 
 @app.cell
-def __(dictionary):
+def _(dictionary):
     dictionary.value["cars"]
     return
 

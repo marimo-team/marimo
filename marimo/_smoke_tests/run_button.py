@@ -8,26 +8,26 @@
 
 import marimo
 
-__generated_with = "0.6.11"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _(mo):
     b = mo.ui.run_button()
     b
-    return b,
+    return (b,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     s = mo.ui.slider(1, 10)
     s
-    return s,
+    return (s,)
 
 
 @app.cell
-def __(b, mo, s):
+def _(b, mo, s):
     mo.stop(not b.value, "Click `run` to submit the slider's value")
 
     s.value
@@ -35,18 +35,18 @@ def __(b, mo, s):
 
 
 @app.cell
-def __(b, mo):
+def _(b, mo):
     mo.stop(not b.value)
 
     import random
     random.randint(0, 1000)
-    return random,
+    return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

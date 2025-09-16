@@ -7,18 +7,18 @@
 
 import marimo
 
-__generated_with = "0.8.22"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Custom chatbot
@@ -32,7 +32,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def simple_echo_model(messages, config):
         """This chatbot echoes what the user says."""
         # messages is a list of chatbot messages
@@ -48,17 +48,17 @@ def __(mo):
         show_configuration_controls=False
     )
     chatbot
-    return chatbot, simple_echo_model
+    return (chatbot,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""Access the chatbot's historical messages with `chatbot.value`.""")
     return
 
 
 @app.cell
-def __(chatbot):
+def _(chatbot):
     # chatbot.value is the list of chat messages
     chatbot.value
     return

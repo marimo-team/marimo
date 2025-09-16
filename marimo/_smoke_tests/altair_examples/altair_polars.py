@@ -6,34 +6,34 @@
 #     "polars",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.8.2"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
 
     import marimo as mo
-
     return alt, mo
 
 
 @app.cell
-def __():
+def _():
     import polars as pl
 
     df = pl.DataFrame(
         {"year": [2020, 2021, 2022], "population": [1000, 2000, 3000]}
     )
     df
-    return df, pl
+    return (df,)
 
 
 @app.cell
-def __(alt, df, mo):
+def _(alt, df, mo):
     chart = mo.ui.altair_chart(
         alt.Chart(df)
         .mark_bar()
@@ -47,7 +47,7 @@ def __(alt, df, mo):
 
 
 @app.cell
-def __(chart):
+def _(chart):
     chart.value
     return
 

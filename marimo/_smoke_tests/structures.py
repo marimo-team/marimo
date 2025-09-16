@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.12.4"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -31,7 +31,7 @@ def _(mo, x):
             "time": datetime.time(1, 2, 3),
         }
     ]
-    return (datetime,)
+    return
 
 
 @app.cell
@@ -48,7 +48,7 @@ def _():
         random_data[f"key_{i}"].extend(random.sample(range(100), 5))
 
     random_data
-    return defaultdict, format_structure, i, random, random_data
+    return
 
 
 @app.cell
@@ -59,7 +59,7 @@ def _():
 
 
     CustomList(1)
-    return (CustomList,)
+    return
 
 
 @app.cell

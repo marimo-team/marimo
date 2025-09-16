@@ -8,12 +8,12 @@
 
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import os
     from huggingface_hub import InferenceClient
@@ -21,13 +21,13 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
     return (MODEL_NAME,)
 
 
 @app.cell(hide_code=True)
-def __(MODEL_NAME, mo):
+def _(MODEL_NAME, mo):
     mo.md(f"""
     # Chat with **{MODEL_NAME}**
     """)
@@ -35,7 +35,7 @@ def __(MODEL_NAME, mo):
 
 
 @app.cell
-def __(max_tokens, mo, system_message, temperature, top_p):
+def _(max_tokens, mo, system_message, temperature, top_p):
     mo.hstack(
         [
             system_message,
@@ -46,17 +46,17 @@ def __(max_tokens, mo, system_message, temperature, top_p):
 
 
 @app.cell
-def __(mo, respond):
+def _(mo, respond):
     chat = mo.ui.chat(
         model=respond,
         prompts=["Tell me a joke.", "What is the square root of {{number}}?"],
     )
     chat
-    return (chat,)
+    return
 
 
 @app.cell
-def __(InferenceClient, MODEL_NAME, os):
+def _(InferenceClient, MODEL_NAME, os):
     """
     For more information on `huggingface_hub` Inference API support, please check the docs: https://huggingface.co/docs/huggingface_hub/v0.26.2/en/guides/inference
     """
@@ -69,11 +69,11 @@ def __(InferenceClient, MODEL_NAME, os):
         MODEL_NAME,
         token=hf_token,
     )
-    return client, hf_token
+    return (client,)
 
 
 @app.cell
-def __(client, mo):
+def _(client, mo):
     # Create UI controls
     system_message = mo.ui.text_area(
         value="You are a friendly Chatbot.",
@@ -149,7 +149,7 @@ def __(client, mo):
 
 
 @app.cell
-def __():
+def _():
     # If you need to do anything _reactively_ to the chat messages,
     # you can access the chat messages using the `chat.value` attribute.
     # chat.value

@@ -10,24 +10,24 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""# Mortgage Calculator""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## Income""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     income = mo.ui.number(1, 1e8, step=50, value=100, label="income (thousands)")
     retirement_contribution = mo.ui.number(10, 40, step=10, value=19.5)
 
@@ -42,7 +42,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.callout(
         mo.md(
             """
@@ -62,7 +62,7 @@ def __(mo):
 
 
 @app.cell
-def __(income, mo, np, retirement_contribution):
+def _(income, mo, np, retirement_contribution):
     standard_deduction = 25100
     taxable_income = (
         income.value * 1000
@@ -102,19 +102,11 @@ def __(income, mo, np, retirement_contribution):
         **\${net_cash_per_month:,.02f}** every month.
         """
     )
-    return (
-        ca_tax,
-        calculate_federal_tax,
-        fed_tax,
-        net_cash,
-        net_cash_per_month,
-        standard_deduction,
-        taxable_income,
-    )
+    return net_cash, net_cash_per_month
 
 
 @app.cell
-def __(mo):
+def _(mo):
     home_price = mo.ui.number(
         100, 5000, step=100, value=500, label="home price (thousands)"
     )
@@ -160,24 +152,24 @@ def __(mo):
 
 
 @app.cell
-def __(home_expense_parameters, home_purchase_parameters, mo):
+def _(home_expense_parameters, home_purchase_parameters, mo):
     mo.hstack([home_purchase_parameters, home_expense_parameters])
     return
 
 
 @app.cell
-def __(down_payment_pct, home_price, mortgage, rate, years):
+def _(down_payment_pct, home_price, mortgage, rate, years):
     down_payment = down_payment_pct.value / 100 * home_price.value
     principal = home_price.value - down_payment
 
     loan = mortgage.Loan(
         principal=principal * 1e3, interest=rate.value / 100, term=years.value
     )
-    return down_payment, loan, principal
+    return down_payment, loan
 
 
 @app.cell
-def __(
+def _(
     down_payment,
     home_insurance,
     home_price,
@@ -221,25 +213,17 @@ def __(
         month for expenses and saving.
           """
     ).callout()
-    return (
-        annual_home_payment,
-        cash_less_housing,
-        home_insurance_monthly,
-        monthly_home_payment,
-        mortgage_monthly,
-        property_tax_monthly,
-        utilities_monthly,
-    )
+    return (cash_less_housing,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""## Monthly Expenses""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         In addition to paying for your home, you'll have monthly expenses on
@@ -251,7 +235,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     vacation = mo.ui.number(0, 100000, step=100, value=100)
     groceries = mo.ui.number(0, 100000, step=100, value=100)
     dining_out = mo.ui.number(0, 100000, step=100, value=100)
@@ -273,7 +257,7 @@ def __(mo):
 
 
 @app.cell
-def __(
+def _(
     car_payment,
     clothing,
     dining_out,
@@ -304,7 +288,7 @@ def __(
 
 
 @app.cell
-def __(
+def _(
     car_payment,
     cash_less_housing,
     clothing,
@@ -337,17 +321,17 @@ def __(
         or **\${annual_cash_saved:,.02f}** annually.
         """
     )
-    return annual_cash_saved, monthly_expenses
+    return
 
 
 @app.cell
-def __(loan):
+def _(loan):
     schedule = loan.schedule()[1:]
     return (schedule,)
 
 
 @app.cell
-def __(np, schedule):
+def _(np, schedule):
     _interest, _principal = zip(
         *[(payment.interest, payment.principal) for payment in schedule]
     )
@@ -358,7 +342,7 @@ def __(np, schedule):
 
 
 @app.cell
-def __(interest_payments, mo, np, principal_payments, years):
+def _(interest_payments, mo, np, principal_payments, years):
     import matplotlib.pyplot as plt
 
     fig, axs = plt.subplots(1, 2)
@@ -399,11 +383,11 @@ def __(interest_payments, mo, np, principal_payments, years):
         {mo.as_html(fig)}
         """
     )
-    return axs, fig, plt
+    return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import mortgage
     import numpy as np

@@ -9,12 +9,12 @@
 
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         f"""
     # Using `Ibis` in `marimo`
@@ -26,7 +26,7 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import ibis
     import altair as alt
@@ -34,7 +34,7 @@ def __():
 
 
 @app.cell
-def __(ibis):
+def _(ibis):
     df = ibis.read_csv(
         "https://gist.githubusercontent.com/ritchie46/cac6b337ea52281aa23c049250a4ff03/raw/89a957ff3919d90e6ef2d34235e6bf22304f3366/pokemon.csv"
     )
@@ -42,7 +42,7 @@ def __(ibis):
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     # get all unique values
     values_1 = df["Type 1"].execute().tolist()
     values_2 = df["Type 2"].execute().tolist()
@@ -59,11 +59,11 @@ def __(df, mo):
     )
 
     mo.hstack([type_1_filter, type_2_filter])
-    return type_1_filter, type_2_filter, values_1, values_2
+    return type_1_filter, type_2_filter
 
 
 @app.cell
-def __(alt, filtered, mo):
+def _(alt, filtered, mo):
     # Convert Ibis table to pandas for Altair
     filtered_df = filtered.execute()
 
@@ -83,11 +83,11 @@ def __(alt, filtered, mo):
         _chart, legend_selection=True, label="Attack vs Defense"
     )
     chart
-    return chart, filtered_df
+    return (chart,)
 
 
 @app.cell
-def __(df, type_1_filter, type_2_filter):
+def _(df, type_1_filter, type_2_filter):
     filtered = df
     if type_1_filter.value:
         filtered = filtered.filter(df["Type 1"] == type_1_filter.value)
@@ -97,7 +97,7 @@ def __(df, type_1_filter, type_2_filter):
 
 
 @app.cell
-def __(chart, mo):
+def _(chart, mo):
     mo.ui.table(chart.value, selection=None)
     return
 

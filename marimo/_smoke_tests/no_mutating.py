@@ -1,36 +1,37 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.17"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     text = mo.ui.text(on_change=print)
-    return text,
+    return (text,)
 
 
 @app.cell
-def __(text):
+def _(text):
     text.on_change
     return
 
 
 @app.cell
-def __(text):
+def _(text):
     text.value = ""
     return
 
 
 @app.cell
-def __(text):
+def _(text):
     text.on_change = ""
     return
 

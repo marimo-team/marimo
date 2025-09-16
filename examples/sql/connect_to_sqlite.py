@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.10.7"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -51,7 +51,7 @@ def _():
 
 
     download_sample_data()
-    return download_sample_data, mo
+    return (mo,)
 
 
 @app.cell(hide_code=True)
@@ -75,7 +75,7 @@ def _(mo):
 
 
 @app.cell
-def _(INFORMATION_SCHEMA, TABLES, mo):
+def _(mo):
     _df = mo.sql(
         f"""
         -- Boilerplate: detach the database so this cell works when you re-run it
@@ -88,7 +88,7 @@ def _(INFORMATION_SCHEMA, TABLES, mo):
         SELECT table_name FROM INFORMATION_SCHEMA.TABLES where table_catalog == 'chinook';
         """
     )
-    return (chinook,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -98,7 +98,7 @@ def _(mo):
 
 
 @app.cell
-def _(chinook, mo, track):
+def _(mo):
     _df = mo.sql(
         f"""
         SELECT composer, MEAN(Milliseconds) as avg_track_ms from chinook.track GROUP BY composer ORDER BY avg_track_ms DESC;

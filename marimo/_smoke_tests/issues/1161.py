@@ -1,30 +1,31 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.4.0"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __():
+def _():
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     slider = mo.ui.slider(1, 5)
     slider
-    return slider,
+    return (slider,)
 
 
 @app.cell
-def __(mo, slider):
+def _(mo, slider):
     import plotly.express as px
     x_data = [1,2,3,4,5,6][:slider.value]
     y_data = [1,2,3,2,3,4][:slider.value]
@@ -32,11 +33,11 @@ def __(mo, slider):
 
     p = mo.ui.plotly(fig)
     p
-    return fig, p, px, x_data, y_data
+    return (p,)
 
 
 @app.cell
-def __(p):
+def _(p):
     p.value
     return
 

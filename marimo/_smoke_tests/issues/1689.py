@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.23"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import pandas as pd
 
@@ -16,11 +17,11 @@ def __():
     df_with_index = pd.DataFrame(data, index=[0, 1, 2])
     df_with_named_index = pd.DataFrame(data)
     df_with_named_index.index.names = ["idx"]
-    return data, df, df_with_index, df_with_named_index, mo, pd
+    return df, df_with_index, df_with_named_index, mo, pd
 
 
 @app.cell
-def __(pd):
+def _(pd):
     _data = pd.DataFrame(
         {
             "Animal": ["Falcon", "Falcon", "Parrot", "Parrot"],
@@ -28,11 +29,11 @@ def __(pd):
         }
     )
     agg_df = _data.groupby(["Animal"]).mean()
-    return agg_df,
+    return (agg_df,)
 
 
 @app.cell
-def __(df, df_with_index, df_with_named_index):
+def _(df, df_with_index, df_with_named_index):
     [
         df.index,
         df_with_index.index,
@@ -42,25 +43,25 @@ def __(df, df_with_index, df_with_named_index):
 
 
 @app.cell
-def __(agg_df, mo):
+def _(agg_df, mo):
     mo.ui.table(agg_df)
     return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.ui.table(df)
     return
 
 
 @app.cell
-def __(df_with_index, mo):
+def _(df_with_index, mo):
     mo.ui.table(df_with_index)
     return
 
 
 @app.cell
-def __(df_with_named_index, mo):
+def _(df_with_named_index, mo):
     mo.ui.table(df_with_named_index)
     return
 

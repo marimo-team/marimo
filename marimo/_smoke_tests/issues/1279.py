@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.4.7"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
     import polars as pl
     alt.data_transformers.enable("marimo_csv")
@@ -28,7 +29,7 @@ def __():
         )
         .mark_bar()
     )
-    return alt, counts, pl
+    return
 
 
 if __name__ == "__main__":

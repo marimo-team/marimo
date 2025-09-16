@@ -1,58 +1,58 @@
 import marimo
 
-__generated_with = "0.8.20"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Basic""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.number()
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.number(-10, 10)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Edge cases""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     # Above max safe int
     BAD_INT = 999999999999999990
     v = mo.ui.number(
         value=BAD_INT, start=BAD_INT - 5, stop=BAD_INT + 5, full_width=True
     )
     v
-    return BAD_INT, v
+    return (v,)
 
 
 @app.cell
-def __(v):
+def _(v):
     v.value
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def on_change(new_value):
         print(new_value)
 
@@ -62,12 +62,12 @@ def __(mo):
 
 
 @app.cell
-def __(mo, on_change):
+def _(mo, on_change):
     import numpy as np
 
     # Cannot set infinity as range
     mo.ui.number(start=-np.inf, stop=np.inf, value=5, on_change=on_change)
-    return (np,)
+    return
 
 
 if __name__ == "__main__":

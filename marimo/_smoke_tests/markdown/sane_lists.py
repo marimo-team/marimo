@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.27"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         2. hey
@@ -17,7 +17,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         1. hey
@@ -29,7 +29,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         1. hey
@@ -41,7 +41,7 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

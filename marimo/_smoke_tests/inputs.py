@@ -2,25 +2,25 @@
 
 import marimo
 
-__generated_with = "0.2.8"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     disabled = mo.ui.switch(label="Disabled")
     mo.hstack([disabled])
-    return disabled,
+    return (disabled,)
 
 
 @app.cell
-def __(disabled, mo):
+def _(disabled, mo):
     mo.vstack(
         [
             mo.ui.text(label="Your name", disabled=disabled.value),
@@ -36,7 +36,7 @@ def __(disabled, mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     options = ["red", "green", "blue"]
 
     mo.vstack(
@@ -45,31 +45,31 @@ def __(mo):
             mo.ui.multiselect(options, label="Multi-select"),
         ]
     )
-    return options,
+    return (options,)
 
 
 @app.cell
-def __(mo, options):
+def _(mo, options):
     mo.ui.radio(options, label="Radio buttons")
     return
 
 
 @app.cell
-def __(mo, options):
+def _(mo, options):
     mo.ui.radio(options, label="Radio buttons", inline=True)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     slider = mo.ui.slider(0, 10, label="Horizontal slider")
     vslider = mo.ui.slider(0, 10, orientation="vertical", label="Vertical slider")
     mo.hstack([slider, vslider])
-    return slider, vslider
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     _slider = mo.ui.slider(0, 100, label="Horizontal slider", show_value=True)
     _vslider = mo.ui.slider(
         0, 100, orientation="vertical", label="Vertical slider", show_value=True

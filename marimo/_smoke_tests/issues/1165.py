@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.4.0"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(css):
+def _(css):
     import anywidget
     import marimo as mo
 
@@ -35,11 +36,11 @@ def __(css):
 
 
     IGVWidget()
-    return IGVWidget, anywidget, mo
+    return
 
 
 @app.cell
-def __():
+def _():
     css = """
     .igv-navbar {
       display: flex;
@@ -1646,7 +1647,7 @@ def __():
       color: #444;
     }
     """
-    return css,
+    return (css,)
 
 
 if __name__ == "__main__":

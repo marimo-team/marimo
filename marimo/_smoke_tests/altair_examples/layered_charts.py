@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.21"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
     import pandas as pd
 
@@ -19,17 +19,17 @@ def __():
             {"Level1": "c", "count": 3, "stage": "england"},
         ]
     )
-    return alt, mo, pd, test_counts
+    return alt, mo, test_counts
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Layered""")
     return
 
 
 @app.cell
-def __(alt, mo, test_counts):
+def _(alt, mo, test_counts):
     # Base
     _base = alt.Chart(test_counts)
 
@@ -60,19 +60,19 @@ def __(alt, mo, test_counts):
 
 
 @app.cell
-def __(layered_chart):
+def _(layered_chart):
     layered_chart.value
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Warnings""")
     return
 
 
 @app.cell
-def __(alt, chart, mo, rule):
+def _(alt, chart, mo, rule):
     mo.ui.altair_chart(alt.layer(chart, rule), chart_selection="point")
     None
     return

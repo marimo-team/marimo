@@ -1,18 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.3"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     slider = mo.ui.slider(1, 10, label="Slider")
     debounced_slider = mo.ui.slider(1, 10, debounce=True, label="Debounced Slider")
 
@@ -22,7 +23,7 @@ def __(mo):
 
 
 @app.cell
-def __(debounced_number, debounced_slider, mo, number, slider):
+def _(debounced_number, debounced_slider, mo, number, slider):
     mo.md(f"""
         Controls:
 
@@ -38,7 +39,7 @@ def __(debounced_number, debounced_slider, mo, number, slider):
 
 
 @app.cell
-def __(debounced_number, debounced_slider, mo, number, slider):
+def _(debounced_number, debounced_slider, mo, number, slider):
     # Values
     mo.md(f"""    
         slider: {slider.value}
@@ -53,7 +54,7 @@ def __(debounced_number, debounced_slider, mo, number, slider):
 
 
 @app.cell
-def __(debounced_number, debounced_slider, mo, number, slider):
+def _(debounced_number, debounced_slider, mo, number, slider):
     mo.md(f"""
         Controls and Values:
 

@@ -1,51 +1,54 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(y):
+def _(y):
     x = y
-    return x,
+    return (x,)
 
 
 @app.cell
-def __(z):
+def _(z):
     y = z
-    return y,
+    return (y,)
 
 
 @app.cell
-def __(x):
+def _(x):
     z = x
     c = 0
-    return c, z
+    return (z,)
 
 
 @app.cell
-def __(b):
+def _(b):
     a = 0
     del b
     c = 0
-    return a, c
+    return
 
 
 app._unparsable_cell(
     r"""
-    a =
+
+        a =
+    
     """,
-    name="__"
+    name="_"
 )
 
 
 @app.cell
-def __():
+def _():
     a = 1
     b = 0
     c = 0
-    return a, b, c
+    return (b,)
 
 
 if __name__ == "__main__":

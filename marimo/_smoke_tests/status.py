@@ -8,41 +8,41 @@
 
 import marimo
 
-__generated_with = "0.8.11"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import time
     return mo, time
 
 
 @app.cell
-def __(mo):
+def _(mo):
     sleep_time_radio = mo.ui.radio(
         [".01", ".1", "1"], label="Sleep time", value=".01"
     )
     sleep_time_radio
-    return sleep_time_radio,
+    return (sleep_time_radio,)
 
 
 @app.cell
-def __(sleep_time_radio):
+def _(sleep_time_radio):
     sleep_time = float(sleep_time_radio.value)
-    return sleep_time,
+    return (sleep_time,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     disabled_switch = mo.ui.switch(label="Disable progress bar")
     disabled_switch
-    return disabled_switch,
+    return (disabled_switch,)
 
 
 @app.cell
-def __(disabled_switch, mo, sleep_time, time):
+def _(disabled_switch, mo, sleep_time, time):
     for _ in mo.status.progress_bar(
         range(10),
         title="Loading",
@@ -54,7 +54,7 @@ def __(disabled_switch, mo, sleep_time, time):
 
 
 @app.cell
-def __(disabled_switch, mo, sleep_time, time):
+def _(disabled_switch, mo, sleep_time, time):
     for _ in mo.status.progress_bar(
         range(10),
         title="Loading",
@@ -68,7 +68,7 @@ def __(disabled_switch, mo, sleep_time, time):
 
 
 @app.cell
-def __(disabled_switch, mo, sleep_time, time):
+def _(disabled_switch, mo, sleep_time, time):
     with mo.status.progress_bar(
         title="Loading",
         subtitle="Please wait",
@@ -78,11 +78,11 @@ def __(disabled_switch, mo, sleep_time, time):
         for _ in range(10):
             time.sleep(sleep_time)
             bar.update()
-    return bar,
+    return
 
 
 @app.cell
-def __(mo, sleep_time, time):
+def _(mo, sleep_time, time):
     with mo.status.spinner(title="Loading...", remove_on_exit=True) as _spinner:
         time.sleep(0.1)
         _spinner.update("Almost done")
@@ -91,7 +91,7 @@ def __(mo, sleep_time, time):
 
 
 @app.cell
-def __(mo, sleep_time, time):
+def _(mo, sleep_time, time):
     with mo.status.spinner(title="Loading...", remove_on_exit=True) as _spinner:
         time.sleep(sleep_time)
         _spinner.update("Almost done")
@@ -101,14 +101,14 @@ def __(mo, sleep_time, time):
 
 
 @app.cell
-def __(disabled_switch, mo, sleep_time, time):
+def _(disabled_switch, mo, sleep_time, time):
     # Fast updates should be debounced for performance
     for i in mo.status.progress_bar(
         range(1000),
         disabled=disabled_switch.value,
     ):
         time.sleep(sleep_time / 10)
-    return i,
+    return
 
 
 if __name__ == "__main__":

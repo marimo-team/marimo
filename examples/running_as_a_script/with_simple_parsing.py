@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.11.31"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -21,7 +21,7 @@ def _():
 @app.cell
 def _():
     import simple_parsing
-    return (simple_parsing,)
+    return
 
 
 @app.cell
@@ -41,7 +41,7 @@ def _():
         learning_rate: float = 1e-4  # Help string for a float argument
 
     parser.add_arguments(Options, dest="options")
-    return ArgumentParser, Options, dataclass, parser
+    return Options, parser
 
 
 @app.cell
@@ -55,14 +55,14 @@ def _(Options, mo, parser):
         else:
             args = parser.parse_args()
             return args.foo, args.options
-    return fields, parse_args
+    return (parse_args,)
 
 
 @app.cell
 def _(parse_args):
     foo, options = parse_args()
     print(foo, options)
-    return foo, options
+    return
 
 
 if __name__ == "__main__":

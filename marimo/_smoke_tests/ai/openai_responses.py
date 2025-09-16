@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.2"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -60,7 +60,7 @@ def _(api_token):
         stream=True,
     )
     response
-    return OpenAI, client, response
+    return (client,)
 
 
 @app.cell(hide_code=True)

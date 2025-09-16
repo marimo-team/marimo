@@ -8,12 +8,12 @@
 
 import marimo
 
-__generated_with = "0.9.17"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import seaborn as sns
 
     penguins = sns.load_dataset("penguins")
@@ -22,13 +22,13 @@ def __():
 
 
 @app.cell
-def __(sns):
+def _(sns):
     sns.color_palette("pastel")
     return
 
 
 @app.cell
-def __(penguins, sns):
+def _(penguins, sns):
     sns.jointplot(
         data=penguins,
         x="flipper_length_mm",
@@ -39,13 +39,13 @@ def __(penguins, sns):
 
 
 @app.cell
-def __(penguins, sns):
+def _(penguins, sns):
     sns.pairplot(data=penguins, hue="species")
     return
 
 
 @app.cell
-def __(sns, tips):
+def _(sns, tips):
     sns.relplot(
         data=tips,
         x="total_bill",

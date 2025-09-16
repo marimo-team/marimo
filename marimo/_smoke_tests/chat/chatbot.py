@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.11.0"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -103,7 +103,7 @@ def _(mo):
     os_key = os.environ.get("OPENAI_API_KEY")
     input_key = mo.ui.text(label="OpenAI API key", kind="password")
     input_key if not os_key else None
-    return input_key, os, os_key
+    return input_key, os_key
 
 
 @app.cell
@@ -125,7 +125,7 @@ def _(mo, openai_key):
 
     # Create an openai client
     client = openai.Client(api_key=openai_key)
-    return client, ell, openai
+    return client, ell
 
 
 @app.cell(hide_code=True)
@@ -159,7 +159,7 @@ def _():
     from vega_datasets import data
 
     cars = data.cars()
-    return cars, data
+    return (cars,)
 
 
 @app.cell
@@ -227,13 +227,7 @@ def _(cars, client, ell):
                 del as_dict["datasets"]
             return alt.Chart.from_dict(as_dict)
         return response
-    return (
-        BaseModel,
-        Field,
-        PromptsResponse,
-        get_sample_prompts,
-        my_complex_model,
-    )
+    return get_sample_prompts, my_complex_model
 
 
 @app.cell
@@ -243,7 +237,7 @@ def _(cars, get_sample_prompts, mo, my_complex_model):
         my_complex_model,
         prompts=prompts,
     )
-    return (prompts,)
+    return
 
 
 @app.cell

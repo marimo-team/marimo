@@ -12,12 +12,12 @@
 
 import marimo
 
-__generated_with = "0.8.15"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __(az):
+def _(az):
     _data = az.load_arviz_data('centered_eight')
     az.plot_autocorr(_data)
     # [az.plot_autocorr(_data), 
@@ -26,7 +26,7 @@ def __(az):
 
 
 @app.cell
-def __(az, np):
+def _(az, np):
     _idata = az.from_dict(posterior={"a":np.random.normal(1, 0.5, 5000)},
         prior={"a":np.random.normal(0, 1, 5000)})
     az.plot_bf(_idata, var_name="a", ref_val=0)
@@ -36,7 +36,7 @@ def __(az, np):
 
 
 @app.cell
-def __(az, np):
+def _(az, np):
     _data = az.load_arviz_data("regression1d")
     # [az.plot_bpv(_data, kind="t_stat", t_stat=lambda x:np.percentile(x, q=50, axis=-1)), type(az.plot_bpv(_data, kind="t_stat", t_stat=lambda x:np.percentile(x, q=50, axis=-1)))]
     az.plot_bpv(_data, kind="t_stat", t_stat=lambda x:np.percentile(x, q=50, axis=-1))
@@ -44,7 +44,7 @@ def __(az, np):
 
 
 @app.cell
-def __(az):
+def _(az):
     _model_compare = az.compare({'Centered 8 schools': az.load_arviz_data('centered_eight'),
                      'Non-centered 8 schools': az.load_arviz_data('non_centered_eight')})
     # [az.plot_compare(_model_compare), type(az.plot_compare(_model_compare))]
@@ -53,7 +53,7 @@ def __(az):
 
 
 @app.cell
-def __(az):
+def _(az):
     _centered = az.load_arviz_data('centered_eight')
     _non_centered = az.load_arviz_data('non_centered_eight')
     # [az.plot_density([_centered, _non_centered]), type(az.plot_density([_centered, _non_centered]))]
@@ -62,7 +62,7 @@ def __(az):
 
 
 @app.cell
-def __():
+def _():
     # az.clear_data_home()
     # _data = az.load_arviz_data('rugby')
     # [az.plot_dist_comparison(_data, var_names=["defs"], coords={"team" : ["Italy"]}), type(az.plot_dist_comparison(_data, var_names=["defs"], coords={"team" : ["Italy"]}))]
@@ -70,7 +70,7 @@ def __():
 
 
 @app.cell
-def __(az, np):
+def _(az, np):
     _values = np.random.normal(0, 1, 500)
     # [az.plot_dot(_values), type(az.plot_dot(_values))]
     az.plot_dot(_values)
@@ -78,7 +78,7 @@ def __(az, np):
 
 
 @app.cell
-def __(az, norm, np):
+def _(az, norm, np):
     _sample = norm(0,1).rvs(1000)
     _npoints = 100
     # [az.plot_ecdf(_sample, eval_points=np.linspace(_sample.min(), _sample.max(), _npoints)), type(az.plot_ecdf(_sample, eval_points=np.linspace(_sample.min(), _sample.max(), _npoints)))]
@@ -87,7 +87,7 @@ def __(az, norm, np):
 
 
 @app.cell
-def __(az):
+def _(az):
     _idata1 = az.load_arviz_data("centered_eight")
     _idata2 = az.load_arviz_data("non_centered_eight")
     # [az.plot_elpd(
@@ -105,7 +105,7 @@ def __(az):
 
 
 @app.cell
-def __(az):
+def _(az):
     _data = az.load_arviz_data('centered_eight')
     # [az.plot_energy(_data), type(az.plot_energy(_data))]
     az.plot_energy(_data)
@@ -113,7 +113,7 @@ def __(az):
 
 
 @app.cell
-def __(az):
+def _(az):
     _idata = az.load_arviz_data("centered_eight")
     _coords = {"school": ["Choate", "Lawrenceville"]}
     az.plot_ess(
@@ -128,7 +128,7 @@ def __(az):
 
 
 @app.cell
-def __(az):
+def _(az):
     _non_centered_data = az.load_arviz_data('non_centered_eight')
     _axes = az.plot_forest(_non_centered_data,
                                kind='forestplot',
@@ -142,7 +142,7 @@ def __(az):
 
 
 @app.cell
-def __(az, np):
+def _(az, np):
     # time-steps random walk
     _x_data =np.arange(0,100)
     # Mean random walk
@@ -152,11 +152,11 @@ def __(az, np):
     _y_data = np.random.normal(2 + _mu * 0.5, 0.5, size = (2, 50, 100))
     # [az.plot_hdi(_x_data, _y_data), type(az.plot_hdi(_x_data, _y_data))]
     az.plot_hdi(_x_data, _y_data)
-    return i,
+    return
 
 
 @app.cell
-def __(az, np):
+def _(az, np):
     _non_centered = az.load_arviz_data('non_centered_eight')
     _mu_posterior = np.concatenate(_non_centered.posterior["mu"].values)
     _tau_posterior = np.concatenate(_non_centered.posterior["tau"].values)
@@ -166,7 +166,7 @@ def __(az, np):
 
 
 @app.cell
-def __(az):
+def _(az):
     _radon = az.load_arviz_data("radon")
     _loo_radon = az.loo(_radon, pointwise=True)
     # [az.plot_khat(_loo_radon, show_bins=True), type(az.plot_khat(_loo_radon, show_bins=True))]
@@ -175,7 +175,7 @@ def __(az):
 
 
 @app.cell
-def __(az):
+def _(az):
     _idata = az.load_arviz_data("radon")
     # [az.plot_loo_pit(idata=_idata, y="y"), type(az.plot_loo_pit(idata=_idata, y="y"))]
     az.plot_loo_pit(idata=_idata, y="y")
@@ -183,7 +183,7 @@ def __(az):
 
 
 @app.cell
-def __(az, np, xr):
+def _(az, np, xr):
     _idata = az.load_arviz_data('regression1d')
     _x = xr.DataArray(np.linspace(0, 1, 100))
     _idata.posterior["y_model"] = _idata.posterior["intercept"] + _idata.posterior["slope"]*_x
@@ -194,7 +194,7 @@ def __(az, np, xr):
 
 
 @app.cell
-def __(az):
+def _(az):
     _idata = az.load_arviz_data("centered_eight")
     _coords = {"school": ["Deerfield", "Lawrenceville"]}
     # [az.plot_mcse(
@@ -209,7 +209,7 @@ def __(az):
 
 
 @app.cell
-def __(az):
+def _(az):
     _centered = az.load_arviz_data('centered_eight')
     _coords = {'school': ['Choate', 'Deerfield']}
     # [az.plot_pair(_centered,
@@ -233,7 +233,7 @@ def __(az):
 
 
 @app.cell
-def __(az):
+def _(az):
     _data = az.load_arviz_data('centered_eight')
     # [az.plot_parallel(_data, var_names=["mu", "tau"]), type(az.plot_parallel(_data, var_names=["mu", "tau"]))]
     az.plot_parallel(_data, var_names=["mu", "tau"])
@@ -242,7 +242,7 @@ def __(az):
 
 
 @app.cell
-def __(az):
+def _(az):
     _data = az.load_arviz_data('centered_eight')
     # [az.plot_posterior(_data), type(az.plot_posterior(_data))]
     az.plot_posterior(_data)
@@ -250,7 +250,7 @@ def __(az):
 
 
 @app.cell
-def __(az):
+def _(az):
     _data = az.load_arviz_data('radon')
     # [az.plot_ppc(_data, data_pairs={"y":"y"}), type(az.plot_ppc(_data, data_pairs={"y":"y"}))]
     az.plot_ppc(_data, data_pairs={"y":"y"})
@@ -259,7 +259,7 @@ def __(az):
 
 
 @app.cell
-def __(az, plt):
+def _(az, plt):
     _data = az.load_arviz_data('centered_eight')
     # [az.plot_rank(_data), type(az.plot_rank(_data))]
     az.plot_rank(_data)
@@ -268,7 +268,7 @@ def __(az, plt):
 
 
 @app.cell
-def __(az):
+def _(az):
     _idata = az.load_arviz_data('classification10d')
     # [az.plot_separation(idata=_idata, y='outcome', y_hat='outcome', figsize=(8, 1)), type(az.plot_separation(idata=_idata, y='outcome', y_hat='outcome', figsize=(8, 1)))]
     az.plot_separation(idata=_idata, y='outcome', y_hat='outcome', figsize=(8, 1))
@@ -276,7 +276,7 @@ def __(az):
 
 
 @app.cell
-def __(az):
+def _(az):
     _data = az.load_arviz_data('non_centered_eight')
     _coords = {'school': ['Choate', 'Lawrenceville']}
     # [az.plot_trace(_data, var_names=('theta'), filter_vars="like", coords=_coords), type(az.plot_trace(_data, var_names=('theta'), filter_vars="like", coords=_coords))]
@@ -285,7 +285,7 @@ def __(az):
 
 
 @app.cell
-def __(az, np):
+def _(az, np):
     _nchains, _ndraws = (4, 500)
     _obs_data = {
         "y": 2 * np.arange(1, 9) + 3,
@@ -308,18 +308,18 @@ def __(az, np):
     ax = az.plot_ts(idata=_idata, y="y", y_holdout="z")
     # [ax, type(ax)]
     ax
-    return ax,
+    return
 
 
 @app.cell
-def __(az):
+def _(az):
     _data = az.load_arviz_data('centered_eight')
     az.plot_violin(_data)
     return
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     # import libraries
     import marimo as mo
     import numpy as np
@@ -327,7 +327,7 @@ def __():
     import matplotlib.pyplot as plt
     import xarray as xr
     from scipy.stats import uniform, norm
-    return az, mo, norm, np, plt, uniform, xr
+    return az, norm, np, plt, xr
 
 
 if __name__ == "__main__":

@@ -1,25 +1,26 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.3.2"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
     # Scrollbar issue with iframed altair
 
     There should be no vertical scrollbar within the iframed container.
-          
+
     """
     )
     return
 
 
 @app.cell
-def __():
+def _():
     import micropip
     import altair as alt
 
@@ -44,7 +45,7 @@ def __():
         .properties(width=1820, height=780)
     )
     graph
-    return N, alt, df, graph, micropip, mo, np, pd, x, y
+    return (mo,)
 
 
 if __name__ == "__main__":

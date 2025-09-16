@@ -9,24 +9,24 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""# Surfaces""")
     return
 
 
 @app.cell
-def __(plot_3d_surface, selected_function):
+def _(plot_3d_surface, selected_function):
     ax = plot_3d_surface(selected_function)
     return (ax,)
 
 
 @app.cell
-def __(ax, xlim, ylim, zlim):
+def _(ax, xlim, ylim, zlim):
     ax.set_xlim(xlim.value)
     ax.set_ylim(ylim.value)
     ax.set_zlim(zlim.value)
@@ -35,7 +35,7 @@ def __(ax, xlim, ylim, zlim):
 
 
 @app.cell(hide_code=True)
-def __(
+def _(
     a,
     b,
     function,
@@ -103,13 +103,13 @@ def __(
 
 
 @app.cell
-def __(function, function_options):
+def _(function, function_options):
     selected_function = function_options[function.value]
     return (selected_function,)
 
 
 @app.cell
-def __(paraboloid, saddle, sphere, torus):
+def _(paraboloid, saddle, sphere, torus):
     function_options = {
         "paraboloid": paraboloid,
         "saddle": saddle,
@@ -120,7 +120,7 @@ def __(paraboloid, saddle, sphere, torus):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     function = mo.ui.dropdown(
         options=[
             "paraboloid",
@@ -133,7 +133,7 @@ def __(mo):
 
 
 @app.cell
-def __(plt):
+def _(plt):
     def plot_3d_surface(surface_function):
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
@@ -152,13 +152,13 @@ def __(plt):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""### Controls""")
     return
 
 
 @app.cell
-def __(function, mo):
+def _(function, mo):
     if function.value == "paraboloid":
         _xlim, _ylim, _zlim = (-1, 1), (-1, 1), (0, 2)
     elif function.value == "saddle":
@@ -195,7 +195,7 @@ def __(function, mo):
 
 
 @app.cell
-def __(function, mo):
+def _(function, mo):
     if function.value == "paraboloid":
         a = mo.ui.slider(1, 10)
         b = mo.ui.slider(1, 10)
@@ -238,7 +238,7 @@ def __(function, mo):
 
 
 @app.cell
-def __(grid, saddle_param_a, saddle_param_b):
+def _(grid, saddle_param_a, saddle_param_b):
     def saddle():
         x, y = grid(xlim=(-1, 1), ylim=(-1, 1))
         return x, y, saddle_param_a.value*x**2 - saddle_param_b.value*y**4
@@ -246,7 +246,7 @@ def __(grid, saddle_param_a, saddle_param_b):
 
 
 @app.cell
-def __(a, b, grid):
+def _(a, b, grid):
     def paraboloid():
         x, y = grid(xlim=(-1, 1), ylim=(-1, 1))
         return x, y, a.value*x**2 / 2 + b.value*y**2/ 2
@@ -254,7 +254,7 @@ def __(a, b, grid):
 
 
 @app.cell
-def __(grid, np, sphere_param_r):
+def _(grid, np, sphere_param_r):
     def sphere():
         theta, phi = grid(xlim=(0, 2*np.pi), ylim=(0, np.pi))
         x = np.cos(theta)*np.sin(phi)
@@ -265,7 +265,7 @@ def __(grid, np, sphere_param_r):
 
 
 @app.cell
-def __(grid, np, torus_param_a, torus_param_c):
+def _(grid, np, torus_param_a, torus_param_c):
     def torus():
         theta, phi = grid((0, 2 * np.pi), (0, 2 * np.pi))
         center_radius = torus_param_c.value
@@ -279,7 +279,7 @@ def __(grid, np, torus_param_a, torus_param_c):
 
 
 @app.cell
-def __(np):
+def _(np):
     def grid(xlim, ylim):
         xmin, xmax = xlim
         ymin, ymax = ylim
@@ -290,15 +290,15 @@ def __(np):
 
 
 @app.cell
-def __():
+def _():
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
     import numpy as np
-    return Axes3D, np, plt
+    return np, plt
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

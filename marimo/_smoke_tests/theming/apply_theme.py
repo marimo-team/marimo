@@ -13,42 +13,43 @@
 #     "numpy",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.8.3"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.app_meta().theme
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""# Seaborn""")
     return
 
 
 @app.cell
-def __(df, plt):
+def _(df, plt):
     import seaborn as sns
 
     plt.figure(figsize=(10, 6))
     sns.lineplot(x="x", y="y", data=df)
     plt.title("Seaborn: Sine Wave")
-    return (sns,)
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""# Matplotlib""")
     return
 
 
 @app.cell
-def __(x, y):
+def _(x, y):
     import matplotlib.pyplot as plt
 
     plt.figure(figsize=(10, 6))
@@ -58,29 +59,29 @@ def __(x, y):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""# Holoviews""")
     return
 
 
 @app.cell
-def __(df):
+def _(df):
     import holoviews as hv
 
     hv.extension("bokeh")
     curve = hv.Curve(df, "x", "y")
     hv.render(curve.opts(title="Holoviews: Sine Wave", width=800, height=400))
-    return curve, hv
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""# Bokeh""")
     return
 
 
 @app.cell
-def __(x, y):
+def _(x, y):
     # Bokeh
     from bokeh.plotting import figure, show
 
@@ -93,17 +94,17 @@ def __(x, y):
     )
     p.line(x, y, line_width=2)
     p
-    return figure, p, show
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""# Altair""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     import altair as alt
     from vega_datasets import data
 
@@ -119,26 +120,26 @@ def __(mo):
 
     chart = mo.ui.altair_chart(chart)
     chart
-    return alt, chart, data
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""# Plotly""")
     return
 
 
 @app.cell(hide_code=True)
-def __(df):
+def _(df):
     # Plotly
     import plotly.express as px
 
     px.line(df, x="x", y="y", title="Plotly: Sine Wave")
-    return (px,)
+    return
 
 
 @app.cell
-def __(np, pd):
+def _(np, pd):
     # Sample data
     x = np.linspace(0, 10, 100)
     y = np.sin(x)
@@ -147,17 +148,15 @@ def __(np, pd):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-
     return (mo,)
 
 
 @app.cell
-def __():
+def _():
     import numpy as np
     import pandas as pd
-
     return np, pd
 
 

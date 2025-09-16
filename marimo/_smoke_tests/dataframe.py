@@ -14,7 +14,7 @@
 
 import marimo
 
-__generated_with = "0.11.5"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
@@ -255,7 +255,7 @@ def _():
         "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv"
     )
     dask_df
-    return dask_df, dd, requests
+    return
 
 
 @app.cell
@@ -269,7 +269,7 @@ def _():
         table_name="penguins",
     )
     ibis_data
-    return ibis, ibis_data
+    return (ibis_data,)
 
 
 @app.cell
@@ -319,11 +319,11 @@ def _():
     import altair as alt
 
     cars = vega_datasets.data.cars()
-    return alt, cars, mo, pa, pd, pl, vega_datasets
+    return cars, mo, pa, pl
 
 
 @app.cell
-def _(cars, mo):
+def _(mo):
     _df = mo.sql(
         f"""
         SELECT * FROM cars WHERE Cylinders > 6;

@@ -8,18 +8,18 @@
 
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # Using Groq
@@ -31,7 +31,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     # Hyperlinking the groq as it is mentioned here - https://console.groq.com/docs/badge
     mo.md(
         r"""
@@ -48,17 +48,17 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     import os
 
     os_key = os.environ.get("GROQ_AI_API_KEY")
     input_key = mo.ui.text(label="Groq AI API key", kind="password")
     input_key if not os_key else None
-    return input_key, os, os_key
+    return input_key, os_key
 
 
 @app.cell
-def __(input_key, mo, os_key):
+def _(input_key, mo, os_key):
     key = os_key or input_key.value
 
     mo.stop(
@@ -69,7 +69,7 @@ def __(input_key, mo, os_key):
 
 
 @app.cell
-def __(key, mo):
+def _(key, mo):
     chatbot = mo.ui.chat(
        mo.ai.llm.groq(
            model="llama-3.1-70b-versatile",
@@ -87,13 +87,13 @@ def __(key, mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""Access the chatbot's historical messages with [`chatbot.value`](https://docs.marimo.io/api/inputs/chat.html#accessing-chat-history).""")
     return
 
 
 @app.cell
-def __(chatbot):
+def _(chatbot):
     # chatbot.value is the list of chat messages
     chatbot.value
     return

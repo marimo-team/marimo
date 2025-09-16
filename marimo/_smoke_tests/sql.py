@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.11.18"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -36,11 +36,11 @@ def _(data, mo):
     cars = data.cars()
     cylinders = mo.ui.slider.from_series(cars["Cylinders"])
     cylinders
-    return cars, cylinders
+    return (cylinders,)
 
 
 @app.cell
-def _(cars, cylinders, mo):
+def _(cylinders, mo):
     df = mo.sql(
         f"""
         SELECT "Name", "Miles_per_Gallon", "Cylinders", "Horsepower"
@@ -72,11 +72,11 @@ def _(mo):
 @app.cell
 def _(data):
     airports = data.airports()
-    return (airports,)
+    return
 
 
 @app.cell
-def _(airports, mo):
+def _(mo):
     less_airports = mo.sql(
         f"""
         select * from airports limit 2
@@ -163,7 +163,7 @@ def _(duckdb, job_title, sheet):
 
 
 @app.cell
-def _(cars, mo):
+def _(mo):
     grouped_cars_by_origin = mo.sql(
         f"""
         SELECT "Origin", COUNT(*) AS "Count"
@@ -172,7 +172,7 @@ def _(cars, mo):
         LIMIT 100
         """
     )
-    return (grouped_cars_by_origin,)
+    return
 
 
 if __name__ == "__main__":

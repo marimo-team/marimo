@@ -2,20 +2,20 @@
 
 import marimo
 
-__generated_with = "0.8.0"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _(mo):
     themes = ["dark_minimal", "light_minimal", "contrast", "night_sky", "caliber"]
     selected_theme = mo.ui.radio(themes, label="Theme", value="dark_minimal")
     selected_theme
-    return selected_theme, themes
+    return (selected_theme,)
 
 
 @app.cell
-def __(selected_theme):
+def _(selected_theme):
     import polars as pl
     import holoviews as hv
     import hvplot.polars
@@ -23,21 +23,21 @@ def __(selected_theme):
     hv.extension("bokeh")
     hvplot.extension("bokeh")
     hv.renderer("bokeh").theme = selected_theme.value
-    return hv, hvplot, pl
+    return (pl,)
 
 
 @app.cell
-def __(pl):
+def _(pl):
     df = pl.DataFrame({"a": range(1, 10), "b": range(1, 10)})
     df.plot.line(
         x="a",
         y="b",
     )
-    return df,
+    return
 
 
 @app.cell
-def __(selected_theme):
+def _(selected_theme):
     from bokeh.plotting import curdoc, figure
 
     x = [1, 2, 3, 4, 5]
@@ -49,13 +49,13 @@ def __(selected_theme):
     p.line(x, y)
 
     p
-    return curdoc, figure, p, x, y
+    return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

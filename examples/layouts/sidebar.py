@@ -9,12 +9,12 @@
 
 import marimo
 
-__generated_with = "0.8.20"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         !!! tip "This notebook is best viewed as an app."
@@ -25,7 +25,7 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import altair as alt
     from vega_datasets import data
@@ -33,13 +33,13 @@ def __():
 
 
 @app.cell
-def __(data):
+def _(data):
     gapminder = data.gapminder()
     return (gapminder,)
 
 
 @app.cell
-def __(gapminder, mo):
+def _(gapminder, mo):
     # Filters
     year = mo.ui.slider.from_series(
         gapminder["year"], full_width=True, label="Year", step=5
@@ -51,7 +51,7 @@ def __(gapminder, mo):
 
 
 @app.cell
-def __(gapminder, population, year):
+def _(gapminder, population, year):
     # Filter the dataset
     filtered_data = gapminder[
         (gapminder["year"] == year.value)
@@ -62,7 +62,7 @@ def __(gapminder, population, year):
 
 
 @app.cell
-def __(alt, filtered_data, mo):
+def _(alt, filtered_data, mo):
     chart = mo.ui.altair_chart(
         alt.Chart(filtered_data)
         .mark_circle(opacity=0.7)
@@ -86,14 +86,14 @@ def __(alt, filtered_data, mo):
 
 
 @app.cell
-def __(chart):
+def _(chart):
     # Show the chart selection
     chart.value if not chart.value.empty else None
     return
 
 
 @app.cell
-def __(mo, population, year):
+def _(mo, population, year):
     mo.sidebar(
         [
             mo.md("# Gap Minder"),

@@ -11,29 +11,30 @@
 #     "xformers",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.8.13"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __():
+def _():
     from unsloth import FastLanguageModel
     from transformers import TextStreamer
 
     import torch
-    return FastLanguageModel, TextStreamer, torch
+    return FastLanguageModel, torch
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         <span class="align-center" style="display:flex; flex-direction:row; gap: 16px">
@@ -59,7 +60,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         * We support Llama, Mistral, Phi-3, Gemma, Yi, DeepSeek, Qwen, TinyLlama, Vicuna, Open Hermes etc
@@ -74,19 +75,19 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("### Load the model")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""Start by choosing a couple of parameters:""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     max_seq_length = mo.ui.number(
         value=2048, start=1, stop=4096, label="Max sequence length"
     )
@@ -98,19 +99,19 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     dtype = None  # None for auto detection. Float16 for Tesla T4, V100, Bfloat16 for Ampere+
-    return dtype,
+    return (dtype,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""We now add LoRA adapters so we only need to update 1 to 10% of all parameters!""")
     return
 
 
 @app.cell
-def __(FastLanguageModel, dtype, load_in_4bit, max_seq_length):
+def _(FastLanguageModel, dtype, load_in_4bit, max_seq_length):
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name="unsloth/Meta-Llama-3.1-8B",
         max_seq_length=max_seq_length.value,
@@ -143,7 +144,7 @@ def __(FastLanguageModel, dtype, load_in_4bit, max_seq_length):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         <a name="Data"></a>
@@ -163,7 +164,7 @@ def __(mo):
 
 
 @app.cell
-def __(tokenizer):
+def _(tokenizer):
     alpaca_prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
     ### Instruction:
@@ -201,17 +202,11 @@ def __(tokenizer):
         formatting_prompts_func,
         batched=True,
     )
-    return (
-        EOS_TOKEN,
-        alpaca_prompt,
-        dataset,
-        formatting_prompts_func,
-        load_dataset,
-    )
+    return alpaca_prompt, dataset
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ### Train the model
@@ -222,7 +217,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(dataset, max_seq_length, model, tokenizer):
+def _(dataset, max_seq_length, model, tokenizer):
     from trl import SFTTrainer
     from transformers import TrainingArguments
     from unsloth import is_bfloat16_supported
@@ -252,11 +247,11 @@ def __(dataset, max_seq_length, model, tokenizer):
             output_dir="outputs",
         ),
     )
-    return SFTTrainer, TrainingArguments, is_bfloat16_supported, trainer
+    return (trainer,)
 
 
 @app.cell(hide_code=True)
-def __(torch):
+def _(torch):
     # @title Show current memory stats
     gpu_stats = torch.cuda.get_device_properties(0)
     start_gpu_memory = round(
@@ -265,26 +260,26 @@ def __(torch):
     max_memory = round(gpu_stats.total_memory / 1024 / 1024 / 1024, 3)
     print(f"GPU = {gpu_stats.name}. Max memory = {max_memory} GB.")
     print(f"{start_gpu_memory} GB of memory reserved.")
-    return gpu_stats, max_memory, start_gpu_memory
+    return max_memory, start_gpu_memory
 
 
 @app.cell
-def __(mo):
+def _(mo):
     train_button = mo.ui.run_button(label="Click to train!", kind="danger"); train_button.center()
-    return train_button,
+    return (train_button,)
 
 
 @app.cell
-def __(train_button, trainer):
+def _(train_button, trainer):
     if train_button.value:
         trainer_stats = trainer.train()
     else:
         trainer_stats = None
-    return trainer_stats,
+    return (trainer_stats,)
 
 
 @app.cell
-def __(max_memory, mo, start_gpu_memory, torch, trainer_stats):
+def _(max_memory, mo, start_gpu_memory, torch, trainer_stats):
     mo.stop(trainer_stats is None, mo.md("Train the model 👆"))
 
     # Show final memory and time stats
@@ -302,16 +297,11 @@ def __(max_memory, mo, start_gpu_memory, torch, trainer_stats):
     print(
         f"Peak reserved memory for training % of max memory = {lora_percentage} %."
     )
-    return (
-        lora_percentage,
-        used_memory,
-        used_memory_for_lora,
-        used_percentage,
-    )
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         <a name="Inference"></a>
@@ -325,7 +315,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     inf_instr_inp = mo.md(
         """
         {instr}
@@ -339,18 +329,11 @@ def __(mo):
 
 
     inf_instr_inp
-    return inf_instr_inp,
+    return (inf_instr_inp,)
 
 
 @app.cell
-def __(
-    FastLanguageModel,
-    alpaca_prompt,
-    inf_instr_inp,
-    mo,
-    model,
-    tokenizer,
-):
+def _(FastLanguageModel, alpaca_prompt, inf_instr_inp, mo, model, tokenizer):
     mo.stop(inf_instr_inp.value is None)
 
     FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
@@ -367,11 +350,11 @@ def __(
 
     outputs = model.generate(**_inputs, max_new_tokens=64, use_cache=True)
     tokenizer.batch_decode(outputs)
-    return outputs,
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         And we're done! If you have any questions on Unsloth, we have a [Discord](https://discord.gg/u54VK8m8tk) channel! If you find any bugs or want to keep updated with the latest LLM stuff, or need help, join projects etc, feel free to join our Discord!

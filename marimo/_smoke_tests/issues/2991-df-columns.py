@@ -1,4 +1,3 @@
-
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
@@ -10,12 +9,12 @@
 
 import marimo
 
-__generated_with = "0.9.27"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import pandas as pd
     import marimo as mo
     import numpy as np
@@ -23,19 +22,19 @@ def __():
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Lots of columns""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""Set cols to 10000 to crash the frontend. Number of rows appears to have no effect.""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     rows = mo.ui.number(start=1, value=10, label="rows")
     columns = mo.ui.number(start=1, value=50, label="cols")
 
@@ -44,25 +43,25 @@ def __(mo):
 
 
 @app.cell
-def __(columns, np, rows):
+def _(columns, np, rows):
     data = np.zeros((rows.value, columns.value))
     return (data,)
 
 
 @app.cell
-def __(data, pd):
+def _(data, pd):
     df = pd.DataFrame(data, columns=[str(i) for i in range(1, data.shape[1] + 1)])
     return (df,)
 
 
 @app.cell
-def __(df):
+def _(df):
     df
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## 20k rows, 40 columns 
@@ -74,18 +73,18 @@ def __(mo):
 
 
 @app.cell
-def __(np, pd):
+def _(np, pd):
     _data = np.random.rand(20000, 40)
     column_names = [f"col{i}" for i in range(40)]
     large_df = pd.DataFrame(
         {col: _data[:, i] for i, col in enumerate(column_names)}
     )
     large_df
-    return column_names, large_df
+    return
 
 
 @app.cell
-def __():
+def _():
     # mo.ui.table(df, max_columns=None)
     return
 

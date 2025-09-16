@@ -8,12 +8,12 @@
 
 import marimo
 
-__generated_with = "0.9.10"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # Bayes' Theorem
@@ -54,7 +54,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(
+def _(
     bayes_result,
     construct_probability_plot,
     mo,
@@ -104,7 +104,7 @@ def __(
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     p_h = mo.ui.slider(0.0, 1, label="$P(H)$", value=0.1, step=0.1)
     p_e_given_h = mo.ui.slider(0.0, 1, label="$P(E \mid H)$", value=0.3, step=0.1)
     p_e_given_not_h = mo.ui.slider(
@@ -114,14 +114,14 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(p_e_given_h, p_e_given_not_h, p_h):
+def _(p_e_given_h, p_e_given_not_h, p_h):
     p_e = p_h.value*p_e_given_h.value + (1 - p_h.value)*p_e_given_not_h.value
     bayes_result = p_h.value * p_e_given_h.value / p_e
     return bayes_result, p_e
 
 
 @app.cell
-def __(p_e_given_h, p_e_given_not_h, p_h):
+def _(p_e_given_h, p_e_given_not_h, p_h):
     def construct_probability_plot():
         import matplotlib.pyplot as plt
 
@@ -153,7 +153,7 @@ def __(p_e_given_h, p_e_given_not_h, p_h):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

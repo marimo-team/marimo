@@ -12,12 +12,12 @@
 
 import marimo
 
-__generated_with = "0.9.4"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # SQL Histograms
@@ -29,29 +29,29 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import duckdb
     import polars
     import pyarrow
     import altair as alt
-    return alt, duckdb, mo, polars, pyarrow
+    return alt, mo
 
 
 @app.cell
-def __():
+def _():
     URL = "hf://datasets/scikit-learn/Fish/Fish.csv"
     return (URL,)
 
 
 @app.cell(hide_code=True)
-def __(URL, mo):
+def _(URL, mo):
     mo.md(rf"""First we read the dataset at: **{URL}**""")
     return
 
 
 @app.cell
-def __(URL, dataset, mo):
+def _(URL, mo):
     dataset = mo.sql(
         f"""
         CREATE OR REPLACE VIEW dataset AS
@@ -64,7 +64,7 @@ def __(URL, dataset, mo):
 
 
 @app.cell
-def __(dataset, mo):
+def _(dataset, mo):
     column = mo.ui.dropdown(
         dataset.columns, value=dataset.columns[0], label="Choose a column"
     )
@@ -73,7 +73,7 @@ def __(dataset, mo):
 
 
 @app.cell
-def __(column, mo):
+def _(column, mo):
     histogram = mo.sql(
         f"""
         -- Use the duckdb histogram function
@@ -84,13 +84,13 @@ def __(column, mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""Now we will take the histogram result and plot it using [Altair](https://altair-viz.github.io/).""")
     return
 
 
 @app.cell
-def __(alt, histogram):
+def _(alt, histogram):
     (
         alt.Chart(histogram)
         .mark_bar()

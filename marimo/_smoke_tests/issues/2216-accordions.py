@@ -7,18 +7,18 @@
 
 import marimo
 
-__generated_with = "0.8.13"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             """**e)** Would you say that work, education, and age explain much of the variation in sleep? What other factors could affect the time spent sleeping? Are these factors likely to be correlated with work?""": """
@@ -35,7 +35,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             r"""**a)** Estimate the coefficients of the regression of $Y$ on $X_1$, as well as the standard error of the regression and $R^2$. What do you think of the estimate of $\beta_1$?""": mo.md(
@@ -50,13 +50,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""**b)** If the expected value of $X$ is the average of its two values mentioned in the previous part, what do you think the expected value of $Y$ will be? Confirm your answer using the law of iterated expectations.""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             """**b)** If the expected value of $X$ is the average of its two values mentioned in the previous part, what do you think the expected value of $Y$ will be? Confirm your answer using the law of iterated expectations.""": mo.md("""

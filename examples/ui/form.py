@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -17,9 +17,9 @@ def _(mo):
         mo.md(
             """
             **Your form.**
-        
+
             {name}
-        
+
             {date}
             """
         )

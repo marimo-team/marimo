@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import polars as pl
     import altair as alt
@@ -30,11 +31,11 @@ def __():
         .mark_point(color="red")
     )
     chart
-    return alt, chart, mo, pl, test_data
+    return chart, mo
 
 
 @app.cell
-def __(chart, mo):
+def _(chart, mo):
     mo.ui.altair_chart(chart)
     return
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.31"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -66,7 +66,7 @@ def _(argparse, default):
     parser.add_argument("-iterations", default=default.value)
     args = parser.parse_args()
     print(args.iterations)
-    return args, parser
+    return
 
 
 if __name__ == "__main__":

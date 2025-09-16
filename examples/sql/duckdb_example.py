@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.12.8"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium", sql_output="polars")
 
 
@@ -40,7 +40,7 @@ def _(digits, mo):
         SELECT * FROM random_data;
         """
     )
-    return random_data, result
+    return (result,)
 
 
 @app.cell

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -61,7 +61,7 @@ def _(mo):
     mo.md(
         f"""
         Here's a list of numbers:
-        
+
         {mo.as_html([1, 2, 3])}
         """
     )

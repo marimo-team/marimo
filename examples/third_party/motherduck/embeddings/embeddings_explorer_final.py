@@ -16,12 +16,12 @@
 
 import marimo
 
-__generated_with = "0.9.20"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     # Data manipulation and database connections
     import polars as pl
     import duckdb
@@ -37,22 +37,21 @@ def __():
     import hdbscan  # For clustering similar embeddings
     import numpy as np
     from sklearn.decomposition import PCA
-
-    return PCA, alt, duckdb, hdbscan, mo, np, numba, pl, pyarrow, umap
+    return PCA, alt, hdbscan, mo, np, pl, umap
 
 
 @app.cell
-def __(mo):
+def _(mo):
     _df = mo.sql(
         """
         ATTACH IF NOT EXISTS 'md:my_db'
         """
     )
-    return (my_db,)
+    return
 
 
 @app.cell
-def __(mo, my_db):
+def _(mo):
     _df = mo.sql(
         """
         CREATE OR REPLACE TABLE my_db.demo_embedding AS
@@ -63,11 +62,11 @@ def __(mo, my_db):
         LIMIT 50000;
         """
     )
-    return (demo_embedding,)
+    return
 
 
 @app.cell
-def __(demo_embedding, mo, my_db):
+def _(mo):
     embeddings = mo.sql(
         """
         SELECT *, embedding(title) as text_embedding
@@ -79,7 +78,7 @@ def __(demo_embedding, mo, my_db):
 
 
 @app.cell
-def __(PCA, hdbscan, np, umap):
+def _(PCA, hdbscan, np, umap):
     def umap_reduce(np_array):
         """
         Reduce the dimensionality of the embeddings to 2D using
@@ -112,22 +111,21 @@ def __(PCA, hdbscan, np, umap):
         return np.where(
             hdb.labels_ == -1, "outlier", "cluster_" + hdb.labels_.astype(str)
         )
-
     return cluster_points, umap_reduce
 
 
 @app.cell
-def __(cluster_points, embeddings, mo, umap_reduce):
+def _(cluster_points, embeddings, mo, umap_reduce):
     with mo.status.spinner("Clustering points...") as _s:
         embeddings_array = embeddings["text_embedding"].to_numpy()
         hdb_labels = cluster_points(embeddings_array)
         _s.update("Reducing dimensionality...")
         embeddings_2d = umap_reduce(embeddings_array)
-    return embeddings_2d, embeddings_array, hdb_labels
+    return embeddings_2d, hdb_labels
 
 
 @app.cell
-def __(embeddings, embeddings_2d, hdb_labels, pl):
+def _(embeddings, embeddings_2d, hdb_labels, pl):
     data = embeddings.lazy()  # Lazy evaluation for performance
     data = data.with_columns(
         text_embedding_2d_1=embeddings_2d[:, 0],
@@ -145,7 +143,7 @@ def __(embeddings, embeddings_2d, hdb_labels, pl):
 
 
 @app.cell
-def __(alt, data, mo):
+def _(alt, data, mo):
     chart = (
         alt.Chart(data)
         .mark_point()
@@ -162,7 +160,7 @@ def __(alt, data, mo):
 
 
 @app.cell
-def __(chart):
+def _(chart):
     chart.value
     return
 

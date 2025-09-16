@@ -8,24 +8,24 @@
 
 import marimo
 
-__generated_with = "0.9.7"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""::lucide:alarm-clock::""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.hstack(
         [
             mo.md("Color"),
@@ -41,7 +41,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.hstack(
         [
             mo.md("Flip"),
@@ -56,7 +56,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.hstack(
         [
             mo.md("Rotate"),
@@ -71,7 +71,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.hstack(
         [
             mo.md("In buttons"),
@@ -91,7 +91,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         f"""
     ## {mo.icon('material-symbols:edit')} Icons in markdown
@@ -101,7 +101,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.tabs(
         {
             f"{mo.icon('material-symbols:group')} Overview": mo.md("Tab 1"),

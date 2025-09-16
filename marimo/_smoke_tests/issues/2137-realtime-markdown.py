@@ -1,24 +1,24 @@
 import marimo
 
-__generated_with = "0.8.3"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import time
     return mo, time
 
 
 @app.cell
-def __(time):
+def _(time):
     time.sleep(10)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ### Realtime Markdown Editing

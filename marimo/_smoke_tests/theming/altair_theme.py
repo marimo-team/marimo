@@ -8,21 +8,21 @@
 
 import marimo
 
-__generated_with = "0.8.3"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import altair as alt
 
     alt.themes
-    return alt, mo
+    return
 
 
 @app.cell
-def __():
+def _():
     return
 
 

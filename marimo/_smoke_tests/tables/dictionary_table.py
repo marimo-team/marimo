@@ -5,28 +5,29 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.8.2"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import os
     import marimo as mo
     return mo, os
 
 
 @app.cell
-def __(mo, os):
+def _(mo, os):
     v = mo.ui.table(dict(os.environ))
     v
-    return v,
+    return (v,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.table(
         {
             "a": 1,
@@ -40,7 +41,7 @@ def __(mo):
 
 
 @app.cell
-def __(v):
+def _(v):
     v.value
     return
 

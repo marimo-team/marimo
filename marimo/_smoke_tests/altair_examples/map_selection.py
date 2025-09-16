@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.8"
+__generated_with = "0.15.5"
 app = marimo.App(width="columns")
 
 
@@ -15,7 +15,6 @@ def _():
     import altair as alt
     import geopandas as gpd
     from vega_datasets import data
-
     return alt, data, gpd
 
 
@@ -96,7 +95,6 @@ def _(alt, us_population, us_states):
         )
 
         return (choropleth & bars).add_params(click_state)
-
     return (population_map,)
 
 
@@ -145,7 +143,6 @@ def _():
 @app.cell
 def _():
     import marimo as mo
-
     return (mo,)
 
 
@@ -221,7 +218,6 @@ def _(alt, gdf_quakies, gdf_world):
             type="orthographic", rotate=alt.expr(f"[{rotate0.name}, 0, 0]")
         )
         return comb
-
     return (world_map,)
 
 

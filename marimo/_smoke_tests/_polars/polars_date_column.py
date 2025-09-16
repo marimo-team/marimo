@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.15"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import polars as pl
     from datetime import date
 
@@ -19,7 +19,7 @@ def __():
         pl.col("date").dt.timestamp("ms").alias("timestamp_ms"),
         pl.lit(None).cast(pl.Datetime).alias("test"),
     )
-    return date, df, pl
+    return
 
 
 if __name__ == "__main__":

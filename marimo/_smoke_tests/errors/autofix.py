@@ -1,26 +1,26 @@
 import marimo
 
-__generated_with = "0.10.9"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     x = 1
-    return (x,)
+    return
 
 
 @app.cell
 def _():
     x = 2
     x
-    return (x,)
+    return
 
 
 @app.cell
 def _():
     x = 3
-    return (x,)
+    return
 
 
 @app.cell

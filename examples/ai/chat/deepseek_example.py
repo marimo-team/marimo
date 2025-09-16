@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -53,7 +53,7 @@ def _(mo):
     os_key = os.environ.get("DEEPSEEK_API_KEY")
     input_key = mo.ui.text(label="Deepseek API key", kind="password")
     input_key if not os_key else None
-    return input_key, os, os_key
+    return input_key, os_key
 
 
 @app.cell

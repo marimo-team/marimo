@@ -1,26 +1,27 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.4.11"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(pd):
+def _(pd):
     df = pd.DataFrame({"a": [1, 2, 3], "b": [1, 2, 3], "c": [1, 2, 3]})
     renamed = df.rename({"b": "a"}, axis=1)
     renamed
-    return df, renamed
+    return (renamed,)
 
 
 @app.cell
-def __(mo, renamed):
+def _(mo, renamed):
     mo.ui.table(renamed)
     return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import pandas as pd
     return mo, pd

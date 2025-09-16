@@ -11,20 +11,20 @@
 
 import marimo
 
-__generated_with = "0.9.20"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import marimo as mo
     import ell
     import textwrap
-    return ell, mo, textwrap
+    return ell, mo
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Chatbot code-interpreter with [Dagger](https://dagger.io/)
@@ -38,14 +38,14 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     backend = mo.ui.dropdown(["ollama", "openai"], label="Backend", value="openai")
     backend
     return (backend,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     # OpenAI config
     import os
     import openai
@@ -56,11 +56,11 @@ def __(mo):
         value=os.environ.get("OPENAI_API_KEY", ""),
     )
     input_key
-    return input_key, openai, os
+    return (input_key,)
 
 
 @app.cell(hide_code=True)
-def __(backend, input_key, mo):
+def _(backend, input_key, mo):
     def _get_open_ai_client():
         openai_key = input_key.value
 
@@ -95,33 +95,33 @@ def __(backend, input_key, mo):
 
 
 @app.cell
-def __():
+def _():
     import dagger
     return (dagger,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     files = mo.ui.file(kind="area")
     files
     return (files,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     packages = mo.ui.text_area(label="Packages", value="pandas")
     packages
     return (packages,)
 
 
 @app.cell
-def __(files):
+def _(files):
     [file.name for file in files.value]
     return
 
 
 @app.cell
-def __(dagger, ell, files, mo, packages):
+def _(dagger, ell, files, mo, packages):
     @ell.tool()
     async def execute_code(code: str):
         """
@@ -156,30 +156,19 @@ def __(dagger, ell, files, mo, packages):
     return (execute_code,)
 
 
-@app.cell(hide_code=True)
-def __():
-    def describe_file(file):
-        if file.name.endswith(".py"):
-            return f"Python file: {file.name}"
-        if file.name.endswith(".txt"):
-            return f"Text file: {file.name}"
-        if file.name.endswith(".csv"):
-            return f"CSV file: {file.name}. Headers: {file.contents.decode('utf-8').splitlines()[0]}"
-        return f"File: {file.name}"
-    return (describe_file,)
+@app.function(hide_code=True)
+def describe_file(file):
+    if file.name.endswith(".py"):
+        return f"Python file: {file.name}"
+    if file.name.endswith(".txt"):
+        return f"Text file: {file.name}"
+    if file.name.endswith(".csv"):
+        return f"CSV file: {file.name}. Headers: {file.contents.decode('utf-8').splitlines()[0]}"
+    return f"File: {file.name}"
 
 
 @app.cell
-def __(
-    client,
-    describe_file,
-    ell,
-    execute_code,
-    files,
-    mo,
-    model,
-    packages,
-):
+def _(client, ell, execute_code, files, mo, model, packages):
     files_instructions = ""
     packages_instructions = ""
     if files.value:
@@ -222,11 +211,11 @@ def __(
         if response.tool_calls:
             return response.tool_calls[0]()
         return mo.md(response.text)
-    return custom_chatbot, files_instructions, my_model, packages_instructions
+    return (my_model,)
 
 
 @app.cell
-def __(mo, my_model):
+def _(mo, my_model):
     mo.ui.chat(
         my_model,
         prompts=[

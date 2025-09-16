@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.34"
-app = marimo.App(width="full", auto_download=["html"])
+__generated_with = "0.15.5"
+app = marimo.App(width="full")
 
 
 @app.cell
-def __(alt, df, mo):
+def _(alt, df, mo):
     tmc = mo.ui.altair_chart(
         alt.Chart(df.reset_index())
         .mark_bar()
@@ -19,19 +19,19 @@ def __(alt, df, mo):
 
 
 @app.cell
-def __(tmc):
+def _(tmc):
     tmc.value
     return
 
 
 @app.cell
-def __(build_df, d):
+def _(build_df, d):
     df = build_df(d)
     return (df,)
 
 
 @app.cell
-def __(StringIO, date_format, pd):
+def _(StringIO, date_format, pd):
     def build_df(data: str):
         res = pd.read_csv(StringIO(data))
         res["timestamp"] = pd.to_datetime(
@@ -48,18 +48,17 @@ def __(StringIO, date_format, pd):
         ]
 
         return res
-
     return (build_df,)
 
 
 @app.cell
-def __():
+def _():
     date_format = "%b %d, %Y @ %H:%M:%S.%f"
     return (date_format,)
 
 
 @app.cell
-def __():
+def _():
     d = '''"@timestamp",message,severity,"kubernetes.pod_name"
     "Nov 26, 2024 @ 00:29:59.795","time=""2024-11-26T00:29:59Z"" level=info msg=""app_disconn(device-ap-c8a608174aa0)(ap)(209766850)(1)(1)(Client Closed)(thirdparty-nats-3)"" @service=benthos label="""" path=root.pipeline.processors.0.workflow.processors.1 stream=sys_evts_acct_conn_disconn",,"thirdparty-benthos-fbfb4884d-wf775"
     "Nov 26, 2024 @ 00:29:59.794","time=""2024-11-26T00:29:59Z"" level=info msg=""app_conn(device-ap-58fb961a30d0)(ap)(thirdparty-nats-4)"" @service=benthos label="""" path=root.pipeline.processors.0.workflow.processors.1 stream=sys_evts_acct_conn_disconn",,"thirdparty-benthos-fbfb4884d-wf775"
@@ -75,7 +74,7 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     from io import StringIO
 
     import altair as alt
@@ -83,8 +82,7 @@ def __():
     import pandas as pd
 
     import marimo as mo
-
-    return StringIO, alt, mo, np, pd
+    return StringIO, alt, mo, pd
 
 
 if __name__ == "__main__":

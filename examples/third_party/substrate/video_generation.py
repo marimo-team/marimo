@@ -8,18 +8,18 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     API_KEY = mo.ui.text(
         label="Enter your [substrate.run](https://substrate.run) API Key:",
         kind="password",
@@ -29,7 +29,7 @@ def __(mo):
 
 
 @app.cell
-def __(substrate):
+def _(substrate):
     from substrate import GenerateImage, UpscaleImage, StableVideoDiffusion
 
     prompt = "aerial shot of rainforest at sunset clouds sun rays"
@@ -47,33 +47,24 @@ def __(substrate):
     )
 
     res = substrate.run(video_node)
-    return (
-        GenerateImage,
-        StableVideoDiffusion,
-        UpscaleImage,
-        image_node,
-        prompt,
-        res,
-        upscale_node,
-        video_node,
-    )
+    return res, video_node
 
 
 @app.cell
-def __(mo, res, video_node):
+def _(mo, res, video_node):
     video = res.get(video_node)
     mo.image(video.video_uri)
-    return (video,)
+    return
 
 
 @app.cell
-def __(API_KEY, mo):
+def _(API_KEY, mo):
     mo.stop(API_KEY.value is None)
 
     from substrate import Substrate, ComputeText, sb
 
     substrate = Substrate(api_key=API_KEY.value)
-    return ComputeText, Substrate, sb, substrate
+    return (substrate,)
 
 
 if __name__ == "__main__":

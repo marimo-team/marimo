@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.0"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -56,7 +56,7 @@ def _(api_token):
     from google import genai
 
     client = genai.Client(api_key=api_token.value)
-    return genai, client
+    return (client,)
 
 
 @app.cell(hide_code=True)

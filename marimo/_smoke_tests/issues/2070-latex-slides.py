@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.8.0"
+__generated_with = "0.15.5"
 app = marimo.App(
     width="medium",
     layout_file="layouts/2070-latex-slides.slides.json",
@@ -9,7 +10,7 @@ app = marimo.App(
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
 
     mo.md("""
@@ -26,22 +27,22 @@ def __():
 
       em que $R^2_j$ é o $R^2$ da regressão da variável explicativa $j$ nas outras variáveis
     """)
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# 2""")
     return
 
 
 @app.cell
-def __():
+def _():
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# 3""")
     return
 

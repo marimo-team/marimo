@@ -4,14 +4,15 @@
 #     "pymde==0.1.18",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.1.68"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Sanity-Checking Embeddings
@@ -24,7 +25,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         We'll start by making a simple neighborhood-preserving embedding. This
@@ -37,19 +38,19 @@ def __(mo):
 
 
 @app.cell
-def __(n_neighbors):
+def _(n_neighbors):
     n_neighbors
     return
 
 
 @app.cell
-def __(n_neighbors):
+def _(n_neighbors):
     ready = n_neighbors.value is not None
-    return ready,
+    return (ready,)
 
 
 @app.cell
-def __(mo, ready):
+def _(mo, ready):
     mo.md(
         """
         Below, we've plotted an embedding along with a CDF of the distortions
@@ -62,7 +63,7 @@ def __(mo, ready):
 
 
 @app.cell
-def __(mnist, plt, quadratic_mde, ready):
+def _(mnist, plt, quadratic_mde, ready):
     def compute_embedding():
         _ = quadratic_mde.embed(verbose=True)
         quadratic_mde.plot(color_by=mnist.attributes["digits"])
@@ -78,36 +79,35 @@ def __(mnist, plt, quadratic_mde, ready):
         compute_embedding() if ready else (None, None, None)
     )
     plots
-    return compute_embedding, distortions, pairs, plots
+    return (pairs,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     n_neighbors = mo.ui.slider(
         3, 30, step=1, value=15, label="Number of neighbors in $k$-NN graph"
     ).form()
-    return n_neighbors,
+    return (n_neighbors,)
 
 
 @app.cell
-def __(knn, n_neighbors, ready):
+def _(knn, n_neighbors, ready):
     knn_graph = knn(n_neighbors.value) if ready else None
-    return knn_graph,
+    return (knn_graph,)
 
 
 @app.cell
-def __(functools, mnist, pymde):
+def _(functools, mnist, pymde):
     @functools.cache
     def knn(n_neighbors):
         return pymde.preprocess.k_nearest_neighbors(
             mnist.data, k=n_neighbors, verbose=True
         )
-
-    return knn,
+    return (knn,)
 
 
 @app.cell
-def __(knn_graph, mnist, pymde, ready, torch):
+def _(knn_graph, mnist, pymde, ready, torch):
     def construct_mde_problem():
         if torch.cuda.is_available():
             device = "cuda"
@@ -124,11 +124,11 @@ def __(knn_graph, mnist, pymde, ready, torch):
         )
 
     quadratic_mde = construct_mde_problem() if ready else None
-    return construct_mde_problem, quadratic_mde
+    return (quadratic_mde,)
 
 
 @app.cell
-def __(mo, ready):
+def _(mo, ready):
     mo.md(
         """
         ## Pairs with highest and lowest distortion
@@ -143,14 +143,14 @@ def __(mo, ready):
 
 
 @app.cell
-def __(mo, ready):
+def _(mo, ready):
     n_pairs = mo.ui.slider(5, 10, label="number of pairs")
     n_pairs if ready else None
-    return n_pairs,
+    return (n_pairs,)
 
 
 @app.cell
-def __(mo, ready):
+def _(mo, ready):
     mo.md(
         """### Low distortion pairs
 
@@ -162,13 +162,13 @@ def __(mo, ready):
 
 
 @app.cell
-def __(n_pairs, pairs, plot_pairs, ready):
+def _(n_pairs, pairs, plot_pairs, ready):
     plot_pairs(pairs[-n_pairs.value :]) if ready else None
     return
 
 
 @app.cell
-def __(mo, ready):
+def _(mo, ready):
     mo.md(
         """
         ### High distortion pairs
@@ -185,13 +185,13 @@ def __(mo, ready):
 
 
 @app.cell
-def __(n_pairs, pairs, plot_pairs, ready):
+def _(n_pairs, pairs, plot_pairs, ready):
     plot_pairs(pairs[: n_pairs.value]) if ready else None
     return
 
 
 @app.cell
-def __(mnist, plt):
+def _(mnist, plt):
     def plot_pairs(pairs):
         fig, axs = plt.subplots(2, pairs.shape[0], figsize=(15.0, 3.0))
         for pair_index in range(pairs.shape[0]):
@@ -207,17 +207,17 @@ def __(mnist, plt):
             axs[1][pair_index].set_yticks([])
         plt.tight_layout()
         return plt.gca()
-    return plot_pairs,
+    return (plot_pairs,)
 
 
 @app.cell
-def __(pymde):
+def _(pymde):
     mnist = pymde.datasets.MNIST()
-    return mnist,
+    return (mnist,)
 
 
 @app.cell
-def __():
+def _():
     import functools
 
     import matplotlib.pyplot as plt

@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.13"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     from tqdm.notebook import tqdm
 
     import time
@@ -14,10 +15,10 @@ def __():
 
 
 @app.cell
-def __(time, tqdm):
+def _(time, tqdm):
     for i in tqdm(range(10)):
         time.sleep(0.1)
-    return i,
+    return
 
 
 if __name__ == "__main__":

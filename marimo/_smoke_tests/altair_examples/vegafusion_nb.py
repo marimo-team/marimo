@@ -12,14 +12,13 @@
 
 import marimo
 
-__generated_with = "0.11.18"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
-
     return (mo,)
 
 
@@ -145,7 +144,6 @@ def _(alt):
             .transform_calculate("time", "hours(datum.date)")
             .repeat(column=["distance", "delay", "time"])
         )
-
     return (make_cross_filter_chart,)
 
 
@@ -156,7 +154,7 @@ def _(alt, make_cross_filter_chart, pd):
         "https://vegafusion-datasets.s3.amazonaws.com/vega/flights_200k.parquet"
     )
     make_cross_filter_chart(source_data)
-    return (source_data,)
+    return
 
 
 @app.cell
@@ -191,7 +189,6 @@ def _(alt):
         )
 
         return alt.layer(bars, line, data=source).properties(height=200)
-
     return (make_average_chart,)
 
 
@@ -260,7 +257,6 @@ def _(alt):
             bar,
             rect + circ,
         ).resolve_legend(color="independent", size="independent")
-
     return (make_movie_chart,)
 
 

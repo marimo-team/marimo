@@ -8,25 +8,25 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""# Filterable DataFrame""")
     return
 
 
 @app.cell
-def __(data_url, pd):
+def _(pd):
     # Read the csv
     df = pd.read_json(data_url("cars.json"))
     return (df,)
 
 
 @app.cell
-def __(df):
+def _(df):
     # Create options for select widgets
     manufacturer_options = df["Name"].str.split().str[0].unique()
     manufacturer_options.sort()
@@ -36,7 +36,7 @@ def __(df):
 
 
 @app.cell
-def __(cylinder_options, df, manufacturer_options, mo):
+def _(cylinder_options, df, manufacturer_options, mo):
     # Create the filters
     manufacturer = mo.ui.dropdown(manufacturer_options, label="Manufacturer")
     cylinders = mo.ui.dropdown(cylinder_options, label="Cylinders")
@@ -51,13 +51,13 @@ def __(cylinder_options, df, manufacturer_options, mo):
 
 
 @app.cell
-def __(df, filter_df):
+def _(df, filter_df):
     filter_df(df)
     return
 
 
 @app.cell
-def __(cylinders, horse_power, manufacturer):
+def _(cylinders, horse_power, manufacturer):
     def filter_df(df):
         filtered_df = df
         if manufacturer.value:
@@ -76,15 +76,13 @@ def __(cylinders, horse_power, manufacturer):
     return (filter_df,)
 
 
-@app.cell
-def __():
-    def data_url(file):
-        return f"https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/{file}"
-    return (data_url,)
+@app.function
+def data_url(file):
+    return f"https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/{file}"
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import pandas as pd
     return mo, pd

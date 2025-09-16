@@ -9,12 +9,12 @@
 
 import marimo
 
-__generated_with = "0.8.11"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import pandas as pd
     import numpy as np
@@ -22,7 +22,7 @@ def __():
     # This shouldn't print a runtime warning
     df = pd.DataFrame({"a": [1,2,3], "b": [np.nan, np.nan, np.nan]})
     df
-    return df, mo, np, pd
+    return
 
 
 if __name__ == "__main__":

@@ -8,41 +8,41 @@
 
 import marimo
 
-__generated_with = "0.9.3"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""## Using <https://llm.datasette.io> with `mo.ui.chat()`""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""To set a key, run: `llm keys set openai` in your terminal""")
     return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import llm
     return llm, mo
 
 
 @app.cell
-def __(llm, mo):
+def _(llm, mo):
     model = llm.get_model("gpt-4o-mini")
     conversation = model.conversation()
 
     chat = mo.ui.chat(lambda messages: conversation.prompt(messages[-1].content))
     chat
-    return chat, conversation, model
+    return (chat,)
 
 
 @app.cell
-def __(chat):
+def _(chat):
     chat.value
     return
 

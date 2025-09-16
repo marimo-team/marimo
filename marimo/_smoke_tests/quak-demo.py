@@ -11,35 +11,35 @@
 
 import marimo
 
-__generated_with = "0.8.2"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import polars as pl
     import quak
     from vega_datasets import data
-    return data, mo, pl, quak
+    return data, mo, quak
 
 
 @app.cell
-def __(data):
+def _(data):
     df = data.cars()
-    return df,
+    return (df,)
 
 
 @app.cell
-def __(df, mo, quak):
+def _(df, mo, quak):
     qwidget = quak.Widget(df)
     w = mo.ui.anywidget(qwidget)
     w
-    return qwidget, w
+    return
 
 
 @app.cell
-def __():
+def _():
     # w.value
     return
 

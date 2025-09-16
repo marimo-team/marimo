@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.18"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -19,7 +19,7 @@ def _():
         tz_america=pl.col("no_tz").dt.replace_time_zone("America/New_York"),
         tz_asia=pl.col("no_tz").dt.replace_time_zone("Asia/Tokyo"),
     )
-    return datetime, df, pl, pytz
+    return (df,)
 
 
 @app.cell

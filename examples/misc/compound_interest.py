@@ -8,18 +8,18 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""# Compound Interest""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         This notebook illustrates exponential growth, using compound interest
@@ -30,7 +30,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     initial_investment = mo.ui.slider(0, 1000000, step=1e4, value=10000)
     monthly_investment = mo.ui.slider(0, 50000, value=1000, step=1e3)
     annual_return = mo.ui.slider(0, 0.15, value=0.07, step=0.01)
@@ -73,7 +73,6 @@ def __(mo):
         capital_gains_tax_rate,
         initial_investment,
         monthly_investment,
-        table,
         years,
     )
 
@@ -142,24 +141,17 @@ def simulate(
 
     ax = plt.gca()
     mo.md(_prose)
-    return (
-        Portfolio,
-        ax,
-        investment_principals,
-        portfolio,
-        values,
-        values_less_taxes,
-    )
+    return (ax,)
 
 
 @app.cell
-def __(ax):
+def _(ax):
     ax
     return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import matplotlib.pyplot as plt
     return mo, plt

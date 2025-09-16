@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.17"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -38,7 +38,7 @@ def _():
     )
 
     boxplot
-    return alt, boxplot, data, data_pd, pl
+    return boxplot, pl
 
 
 @app.cell
@@ -66,7 +66,7 @@ def _(pl):
 
     boxplot2 = df.plot.boxplot(y="grp", x="val", color="grp")
     boxplot2
-    return boxplot2, df, random
+    return (boxplot2,)
 
 
 @app.cell
@@ -78,7 +78,6 @@ def _(boxplot2, mo):
 @app.cell
 def _():
     import marimo as mo
-
     return (mo,)
 
 
