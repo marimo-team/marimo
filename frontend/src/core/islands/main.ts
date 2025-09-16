@@ -103,7 +103,7 @@ export async function initialize() {
   // Consume messages from the kernel
   IslandsPyodideBridge.INSTANCE.consumeMessages((message) => {
     const msg = jsonParseWithSpecialChar(message);
-    switch (msg.op) {
+    switch (msg.data.op) {
       case "banner":
       case "missing-package-alert":
       case "installing-package-alert":
@@ -185,7 +185,7 @@ export async function initialize() {
       case "reconnected":
         return;
       default:
-        logNever(msg);
+        logNever(msg.data);
     }
   });
 

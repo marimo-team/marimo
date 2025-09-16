@@ -86,7 +86,7 @@ export function useMarimoWebSocket(opts: {
 
   const handleMessage = (e: MessageEvent<JsonString<OperationMessage>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
-    switch (msg.op) {
+    switch (msg.data.op) {
       case "reload":
         reloadSafe();
         return;
@@ -267,7 +267,7 @@ export function useMarimoWebSocket(opts: {
         setCellIds({ cellIds: msg.data.cell_ids as CellId[] });
         return;
       default:
-        logNever(msg);
+        logNever(msg.data);
     }
   };
 
