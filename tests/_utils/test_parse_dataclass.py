@@ -17,6 +17,7 @@ from typing import (
     Union,
 )
 
+import msgspec
 import pytest
 
 from marimo._config.config import ExperimentalConfigType
@@ -899,3 +900,29 @@ def test_date_and_datetime_types() -> None:
     assert nested_parsed.datetimes["evening"] == dt.datetime(
         2023, 1, 15, 18, 0, 0
     )
+
+
+class StructClass(msgspec.Struct):
+    limit: int
+
+
+@dataclass
+class Nested:
+    config: StructClass
+
+
+def test_dataclass_with_nested_msgspec_struct() -> None:
+    data = {"config": {"limit": 10}}
+
+    # Test as bytes
+    serialized: bytes = serialize(data)
+    parsed = parse_raw(serialized, Nested)
+    assert parsed == Nested(config=StructClass(limit=10))
+
+    # Test as str
+    parsed = parse_raw(json.dumps(data), Nested)
+    assert parsed == Nested(config=StructClass(limit=10))
+
+    # Test as dict
+    parsed = parse_raw(data, Nested, allow_unknown_keys=True)
+    assert parsed == Nested(config=StructClass(limit=10))
