@@ -322,7 +322,7 @@ You can reference variables from other cells, but you cannot redefine a variable
 Immediately start with the following format. Do NOT comment on the code, just output the code itself: 
 
 ```python
-{CELL_CODE}
+{PYTHON_CODE}
 ```
 
 ```sql

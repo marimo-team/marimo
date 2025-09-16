@@ -103,7 +103,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             "The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
             "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
-            "```python\n{CELL_CODE}\n```\n\n"
+            "```python\n{PYTHON_CODE}\n```\n\n"
             '```sql\ndf_name = mo.sql("""{SQL_QUERY}""")\n```\n\n'
             '```markdown\nmo.md("""{MARKDOWN_CONTENT}""")\n```\n\n'
             "You can have multiple cells of any type. Each cell is wrapped in backticks with the appropriate language identifier.\n"

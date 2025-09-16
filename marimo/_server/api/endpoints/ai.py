@@ -134,12 +134,12 @@ async def ai_completion(
     ai_config = get_ai_config(config)
 
     custom_rules = ai_config.get("rules", None)
-    use_chat_sdk = len(body.messages) >= 1
+    use_messages = len(body.messages) >= 1
 
     system_prompt = get_refactor_or_insert_notebook_cell_system_prompt(
         language=body.language,
         is_insert=False,
-        support_multiple_cells=use_chat_sdk,
+        support_multiple_cells=use_messages,
         custom_rules=custom_rules,
         cell_code=body.code,
         selected_text=body.selected_text,
@@ -156,7 +156,7 @@ async def ai_completion(
 
     messages = (
         body.messages
-        if use_chat_sdk
+        if use_messages
         else [ChatMessage(role="user", content=prompt)]
     )
 
@@ -168,7 +168,7 @@ async def ai_completion(
 
     # Pass back the entire SDK message if the frontend can handle it
     content: ContentStream
-    if use_chat_sdk:
+    if use_messages:
         content = safe_stream_wrapper(
             provider.as_stream_response(
                 response, StreamOptions(format_stream=True, text_only=False)
