@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { Table, TableCell, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
@@ -156,6 +156,10 @@ export const FileBrowser = ({
 
   if (isPending) {
     return null;
+  }
+
+  if (!data && error) {
+    return <Banner kind="danger">{error.message}</Banner>;
   }
 
   let { files } = data || {};
@@ -458,7 +462,9 @@ export const FileBrowser = ({
         className="mt-3 overflow-y-auto w-full border"
         style={{ height: "14rem" }}
       >
-        <Table className="cursor-pointer table-fixed">{fileRows}</Table>
+        <Table className="cursor-pointer table-fixed">
+          <TableBody>{fileRows}</TableBody>
+        </Table>
       </div>
       <div className="mt-4">
         {value.length > 0 && (

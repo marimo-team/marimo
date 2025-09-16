@@ -228,10 +228,24 @@ class CellManager:
         else:
             cell_id = self.create_cell_id()
         filename = app.filename if app is not None else None
-        cell = ir_cell_factory(cell_def, cell_id=cell_id, filename=filename)
         cell_config = CellConfig.from_dict(
             cell_def.options,
         )
+
+        try:
+            cell = ir_cell_factory(
+                cell_def, cell_id=cell_id, filename=filename
+            )
+        except SyntaxError:
+            self.unparsable = True
+            self.register_cell(
+                cell_id=cell_id,
+                code=cell_def.code,
+                config=cell_config,
+                name=cell_def.name,
+                cell=None,
+            )
+            return
         cell._cell.configure(cell_config)
         self._register_cell(cell, app=app)
 

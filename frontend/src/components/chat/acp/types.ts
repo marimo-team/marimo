@@ -2,9 +2,15 @@
 import type { ContentBlock } from "@zed-industries/agent-client-protocol";
 import type { groupNotifications, useAcpClient } from "use-acp";
 
+export type SessionMode = ReturnType<typeof useAcpClient>["sessionMode"];
+
 export type NotificationEvent = Awaited<
   ReturnType<typeof groupNotifications>
 >[number][number];
+
+export type AvailableCommands = ReturnType<
+  typeof useAcpClient
+>["availableCommands"];
 
 export type AgentConnectionState = ReturnType<
   typeof useAcpClient
@@ -49,6 +55,8 @@ export type ToolCallNotificationEvent = NotificationDataOf<"tool_call">;
 export type ToolCallUpdateNotificationEvent =
   NotificationDataOf<"tool_call_update">;
 export type PlanNotificationEvent = NotificationDataOf<"plan">;
+export type CurrentModeUpdateNotificationEvent =
+  NotificationDataOf<"current_mode_update">;
 
 export type ContentBlockType = ContentBlock["type"];
 export type ContentBlockOf<T extends ContentBlockType> = Extract<

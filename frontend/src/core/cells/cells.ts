@@ -1623,7 +1623,7 @@ const cellDataAtom = atomFamily((cellId: CellId) =>
 const cellRuntimeAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellRuntime[cellId]),
 );
-const cellHandleAtom = atomFamily((cellId: CellId) =>
+export const cellHandleAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellHandles[cellId]),
 );
 /**

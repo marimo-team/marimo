@@ -9,7 +9,7 @@ import { defaultUserConfig, parseAppConfig } from "@/core/config/config-schema";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
-import { resolveRequestClient } from "@/core/network/resolve.ts";
+import { resolveRequestClient } from "@/core/network/resolve";
 import { WebSocketState } from "@/core/websocket/types";
 import { MultiColumn } from "@/utils/id-tree";
 import type { Milliseconds, Seconds } from "@/utils/time";

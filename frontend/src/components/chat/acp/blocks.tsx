@@ -39,6 +39,7 @@ import type {
   AgentThoughtNotificationEvent,
   ConnectionChangeNotificationEvent,
   ContentBlockOf,
+  CurrentModeUpdateNotificationEvent,
   ErrorNotificationEvent,
   PlanNotificationEvent,
   SessionNotificationEventData,
@@ -495,6 +496,18 @@ export const SessionNotificationsBlock = <
       return <PlansBlock data={items} />;
     }
 
+    if (kind === "available_commands_update") {
+      return null; // nothing to show
+    }
+    if (kind === "current_mode_update") {
+      const lastItem = items.at(-1);
+      if (lastItem?.sessionUpdate !== "current_mode_update") {
+        return null;
+      } else {
+        return <CurrentModeBlock data={lastItem} />;
+      }
+    }
+
     return (
       <SimpleAccordion title={items[0].sessionUpdate}>
         <JsonOutput data={items} format="tree" className="max-h-64" />
@@ -507,6 +520,13 @@ export const SessionNotificationsBlock = <
       {renderItems(props.data)}
     </div>
   );
+};
+
+export const CurrentModeBlock = (props: {
+  data: CurrentModeUpdateNotificationEvent;
+}) => {
+  const { currentModeId } = props.data;
+  return <div>Mode: {currentModeId}</div>;
 };
 
 export const ToolNotificationsBlock = (props: {
