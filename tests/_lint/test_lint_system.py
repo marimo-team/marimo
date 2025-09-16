@@ -19,10 +19,7 @@ from marimo._schemas.serialization import (
 )
 
 
-def lint_notebook(notebook):
-    """Lint a notebook and return all diagnostics found."""
-    rule_engine = RuleEngine.create_default()
-    return rule_engine.check_notebook_sync(notebook)
+from tests._lint.utils import lint_notebook
 
 
 class TestLintSystem:

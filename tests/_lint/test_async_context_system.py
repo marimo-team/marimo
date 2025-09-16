@@ -8,6 +8,7 @@ from marimo._lint.rule_engine import RuleEngine
 from marimo._lint.rules.base import LintRule
 from marimo._lint.rules.breaking import MultipleDefinitionsRule, UnparsableRule
 from marimo._lint.rules.formatting import GeneralFormattingRule
+from tests._lint.utils import lint_notebook
 
 
 class MockRule(LintRule):
@@ -341,13 +342,6 @@ def _():
     x = 2  # Multiple definitions
     return
 """
-
-        from marimo._lint.rule_engine import RuleEngine
-
-        def lint_notebook(notebook):
-            """Lint a notebook and return all diagnostics found."""
-            rule_engine = RuleEngine.create_default()
-            return rule_engine.check_notebook_sync(notebook)
 
         notebook = parse_notebook(code)
         diagnostics = lint_notebook(notebook)

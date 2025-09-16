@@ -8,10 +8,7 @@ from tests.mocks import snapshotter
 snapshot = snapshotter(__file__)
 
 
-def lint_notebook(notebook):
-    """Lint a notebook and return all diagnostics found."""
-    rule_engine = RuleEngine.create_default()
-    return rule_engine.check_notebook_sync(notebook)
+from tests._lint.utils import lint_notebook
 
 
 def test_multiple_definitions_snapshot():
