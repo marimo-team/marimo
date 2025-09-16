@@ -93,6 +93,16 @@ nav:
           - Import star: guides/understanding_errors/import_star.md
           - Cycles: guides/understanding_errors/cycles.md
           - Setup References: guides/understanding_errors/setup.md
+      - Lint Rules:
+          - Lint Rules: guides/lint_rules/index.md
+          - Rules:
+              - Unparsable cells: guides/lint_rules/rules/unparsable_cells.md
+              - Multiple definitions: guides/lint_rules/rules/multiple_definitions.md
+              - Cycle dependencies: guides/lint_rules/rules/cycle_dependencies.md
+              - Setup cell dependencies: guides/lint_rules/rules/setup_cell_dependencies.md
+              - General formatting: guides/lint_rules/rules/general_formatting.md
+              - Parse stdout: guides/lint_rules/rules/parse_stdout.md
+              - Parse stderr: guides/lint_rules/rules/parse_stderr.md
       - SQL, dataframes, and plots:
           - SQL, dataframes, and plots: guides/working_with_data/index.md
           - DataFrames: guides/working_with_data/dataframes.md

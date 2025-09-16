@@ -359,8 +359,8 @@ def _():
         from marimo._lint.rules.breaking import MultipleDefinitionsRule
         from marimo._lint.rules.formatting import GeneralFormattingRule
 
-        # Stop on first runtime error
-        config = EarlyStoppingConfig(stop_on_runtime=True)
+        # Stop on first breaking error
+        config = EarlyStoppingConfig(stop_on_breaking=True)
         checker = RuleEngine(
             [MultipleDefinitionsRule(), GeneralFormattingRule()],
             early_stopping=config,
@@ -371,12 +371,12 @@ def _():
             self.notebook
         ):
             diagnostics.append(diagnostic)
-            # Should stop after first runtime error
-            if diagnostic.severity == Severity.RUNTIME:
+            # Should stop after first breaking error
+            if diagnostic.severity == Severity.BREAKING:
                 break
 
-        # Should have at least one runtime diagnostic (multiple definitions)
-        runtime_diagnostics = [
-            d for d in diagnostics if d.severity == Severity.RUNTIME
+        # Should have at least one breaking diagnostic (multiple definitions)
+        breaking_diagnostics = [
+            d for d in diagnostics if d.severity == Severity.BREAKING
         ]
-        assert len(runtime_diagnostics) > 0
+        assert len(breaking_diagnostics) > 0

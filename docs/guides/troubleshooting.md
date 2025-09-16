@@ -127,6 +127,22 @@ If you find yourself needing to force execution order often, it might be a sign 
 
 ## General debugging tips
 
+### Check for common issues with the linter
+
+Before diving into manual debugging, try running marimo's built-in linter to catch common issues:
+
+```bash
+marimo check my_notebook.py
+```
+
+The linter can identify problems like:
+- Multiple variable definitions across cells
+- Circular dependencies between cells
+- Unparsable code that prevents execution
+- Other code quality issues
+
+See the [Lint Rules](lint_rules/index.md) guide for a complete list of checks.
+
 ### Understanding dependencies
 
 - Use the Variables Panel to inspect variable values and see where they're defined and used.

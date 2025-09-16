@@ -12,9 +12,39 @@ if TYPE_CHECKING:
 
 
 class StdoutRule(LintRule):
-    """MF002: Parse stdout captured during notebook loading.
+    """MF002: Parse captured stdout during notebook loading.
 
-    When marimo parses a notebook file, any output to stdout.
+    This rule processes any output that was captured from stdout while marimo
+    was parsing and loading a notebook file. Stdout output during parsing
+    typically indicates warnings or informational messages from the Python
+    interpreter or imported modules.
+
+    ## What it does
+
+    Captures and parses stdout output during notebook loading, looking for
+    structured warning messages that include file and line number references.
+    Creates diagnostics from any warnings or messages found.
+
+    ## Why is this bad?
+
+    While stdout output doesn't prevent execution, it often indicates:
+    - Deprecation warnings from imported libraries
+    - Configuration issues
+    - Potential compatibility problems
+    - Code that produces unexpected side effects during import
+
+    ## Examples
+
+    **Captured stdout:**
+    ```
+    notebook.py:15: DeprecationWarning: 'imp' module is deprecated
+    ```
+
+    **Result:** Creates a diagnostic pointing to line 15 with the deprecation warning.
+
+    ## References
+
+    - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
     """
 
     code = "MF002"
@@ -64,19 +94,48 @@ class StdoutRule(LintRule):
 
 
 class StderrRule(LintRule):
-    """MF003: Parse stderr captured during notebook loading.
+    """MF003: Parse captured stderr during notebook loading.
 
-    When marimo parses a notebook file, any output to stderr (such as syntax
-    warnings) is captured and converted to formatting diagnostics. This rule
-    processes that captured output and extracts useful information like line
-    numbers.
+    This rule processes any output that was captured from stderr while marimo
+    was parsing and loading a notebook file. Stderr output typically contains
+    warnings and error messages from the Python interpreter, such as syntax
+    warnings, deprecation notices, and import errors.
 
-    Examples:
-        Stderr: "file.py:68: SyntaxWarning: invalid escape sequence '\\l'"
-        -> Creates diagnostic pointing to line 68
+    ## What it does
 
-        Stdout: General parsing information
-        -> Creates diagnostic at line 1
+    Captures stderr output during notebook loading and creates diagnostics
+    from any error messages or warnings. This helps identify potential
+    issues that don't prevent parsing but may affect runtime behavior.
+
+    ## Why is this bad?
+
+    Stderr output during parsing often indicates:
+    - Syntax warnings (like invalid escape sequences)
+    - Import warnings or errors
+    - Deprecation notices from libraries
+    - Configuration issues that might affect execution
+
+    While these don't break the notebook, they can lead to unexpected
+    behavior or indicate code that needs updating.
+
+    ## Examples
+
+    **Captured stderr:**
+    ```
+    notebook.py:68: SyntaxWarning: invalid escape sequence '\\l'
+    ```
+
+    **Result:** Creates a diagnostic pointing to line 68 about the invalid escape sequence.
+
+    **Common issues:**
+    - Raw strings needed: `r"\\path\\to\\file"` instead of `"\\path\\to\\file"`
+    - Deprecated library usage
+    - Missing import dependencies
+
+    ## References
+
+    - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
+    - [Python Warning Categories](https://docs.python.org/3/library/warnings.html#warning-categories)
     """
 
     code = "MF003"

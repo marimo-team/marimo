@@ -24,6 +24,17 @@ how to work around them.
 These errors might be surprising at first, but spend just a
 bit of time with marimo and adhering to these constraints will become second nature — and you'll get used to writing error-free code by default.
 
+## Lint Rules
+
+marimo includes a comprehensive linting system that automatically detects these constraints and other code quality issues. The linter can help you identify and fix problems before they cause runtime errors.
+
+Run the linter using:
+```bash
+marimo check .
+```
+
+See the [Lint Rules](../lint_rules/index.md) guide for a complete list of rules and detailed explanations.
+
 | Guide | Description |
 |-------|-------------|
 | [Multiple definitions](multiple_definitions.md) | How to deal with variables defined in multiple cells |

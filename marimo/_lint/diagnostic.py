@@ -26,9 +26,9 @@ class Diagnostic:
     """Represents a diagnostic found in a notebook."""
 
     message: str
-    cell_id: None | list[CellId_t]
     line: int | list[int]
     column: int | list[int]
+    cell_id: None | list[CellId_t] = None
     code: Optional[str] = None
     name: Optional[str] = None
     severity: Optional[Severity] = None

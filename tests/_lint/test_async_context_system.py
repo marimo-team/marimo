@@ -305,7 +305,7 @@ def _():
 
         diagnostics = await ctx.get_diagnostics()
         assert len(diagnostics) > 0
-        assert diagnostics[0].severity == Severity.RUNTIME
+        assert diagnostics[0].severity == Severity.BREAKING
         assert "multiple cells" in diagnostics[0].message
 
     async def test_unparsable_rule(self):
@@ -366,6 +366,14 @@ def _():
 
         # Should include all the standard rules
         rule_codes = {rule.code for rule in checker.rules}
-        expected_codes = {"MF001", "MR001", "MR002", "MR003", "MB001"}
+        expected_codes = {
+            "MF001",
+            "MF002",
+            "MF003",
+            "MB001",
+            "MB002",
+            "MB003",
+            "MB004",
+        }
 
         assert expected_codes.issubset(rule_codes)

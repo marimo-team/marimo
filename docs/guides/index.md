@@ -15,6 +15,7 @@ These guides cover marimo's core concepts.
 | [Migrating from Jupyter](coming_from/jupyter.md)      | Tips for transitioning from Jupyter                        |
 | [Expensive notebooks](expensive_notebooks.md)         | Tips for working with expensive notebooks                  |
 | [Understanding errors](understanding_errors/index.md) | Understanding marimo's constraints on notebook code        |
+| [Lint rules](lint_rules/index.md)                    | Comprehensive linting system and rule reference           |
 | [Working with data](working_with_data/index.md)       | Using SQL cells, no-code dataframe, and reactive plots     |
 | [Package management](package_management/index.md)     | Inlining dependencies in notebook files and other package management guides |
 | [Generate with AI](generate_with_ai/index.md)         | Generate notebooks with AI                                 |
