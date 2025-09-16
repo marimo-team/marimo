@@ -93,11 +93,11 @@ x = 42"""
 
     while True:
         try:
-            op, encoded = queue_manager.stream_queue.get(timeout=0.01)
+            encoded = queue_manager.stream_queue.get(timeout=0.01)
             decoded = json.loads(encoded)
             messages.append(decoded)
 
-            if op == "completed-run":
+            if decoded["op"] == "completed-run":
                 seen_completed = True
                 extra_collection_start = time.time()
 
