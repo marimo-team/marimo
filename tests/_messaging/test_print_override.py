@@ -73,7 +73,7 @@ class TestPrintOverride:
 
                     # Message should be sent to the stream
                     assert len(stream.messages) == 1
-                    assert stream.messages[0][0] == "cell-op"  # op
+                    assert stream.operations[0]["op"] == "cell-op"
                     assert stream.operations[0]["cell_id"] == "cell1"
                     assert (
                         stream.operations[0]["console"]["channel"] == "stdout"

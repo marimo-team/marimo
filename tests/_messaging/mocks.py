@@ -20,7 +20,7 @@ class MockStream(Stream):
     def operations(self) -> list[dict[str, Any]]:
         import json
 
-        return [json.loads(op_data) for _op_name, op_data in self.messages]
+        return [json.loads(op_data) for op_data in self.messages]
 
 
 class MockStderr(Stderr):
