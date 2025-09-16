@@ -42,6 +42,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.msgspec_encoder import encode_json_bytes
+from marimo._messaging.streams import output_max_bytes
 from marimo._messaging.types import KernelMessage, Stream
 from marimo._messaging.variables import get_variable_preview
 from marimo._output.hypertext import Html
@@ -164,8 +165,6 @@ class CellOp(Op, tag="cell-op"):
     def maybe_truncate_output(
         mimetype: KnownMimeType, data: str
     ) -> tuple[KnownMimeType, str]:
-        from marimo._messaging.streams import output_max_bytes
-
         if (size := sys.getsizeof(data)) > output_max_bytes():
             from marimo._output.md import md
             from marimo._plugins.stateless.callout import callout
