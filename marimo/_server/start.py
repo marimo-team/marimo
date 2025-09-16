@@ -247,6 +247,7 @@ def start(
         lifespans.signal_handler,
         lifespans.logging,
         lifespans.open_browser,
+        lifespans.tool_manager,
         *LIFESPAN_REGISTRY.get_all(),
     ]
 

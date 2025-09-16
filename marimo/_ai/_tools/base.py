@@ -22,9 +22,16 @@ from starlette.applications import (
 )
 
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
+from marimo._config.config import CopilotMode
+from marimo._server.ai.tools.types import (
+    FunctionArgs,
+    ToolDefinition,
+    ValidationFunction,
+)
 from marimo._server.api.deps import AppStateBase
 from marimo._server.sessions import Session, SessionManager
 from marimo._types.ids import SessionId
+from marimo._utils.dataclass_to_openapi import PythonTypeToOpenAPI
 from marimo._utils.parse_dataclass import parse_raw
 
 ArgsT = TypeVar("ArgsT")
@@ -85,8 +92,8 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
     """
 
     # Override in subclass, or rely on fallbacks below
-    name: str | None = None
-    description: str | None = None
+    name: str = ""
+    description: str = ""
     Args: type[ArgsT]
     Output: type[OutT]
     context: ToolContext
@@ -114,11 +121,11 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
         self.context = context
 
         # get name from class name
-        if self.name is None:
+        if self.name == "":
             self.name = self._to_snake_case(self.__class__.__name__)
 
         # get description from class docstring
-        if self.description is None:
+        if self.description == "":
             self.description = (self.__class__.__doc__ or "").strip()
 
     async def __call__(self, args: ArgsT) -> OutT:
@@ -201,13 +208,30 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
 
         return handler
 
-    def as_backend_tool(self) -> None:
-        """Convert the tool to a backend tool."""
-        # TODO: implement
-        ...
+    def as_backend_tool(
+        self, mode: list[CopilotMode]
+    ) -> tuple[ToolDefinition, ValidationFunction]:
+        """Convert the tool to a ToolDefinition for backend use."""
+
+        # convert the args to python dict
+        converter = PythonTypeToOpenAPI(name_overrides={}, camel_case=False)
+        converted_args = converter.convert(self.Args, processed_classes={})
+
+        # get tool_definition
+        tool_definition = ToolDefinition(
+            name=self.name,
+            description=self.description,
+            parameters=converted_args,
+            source="backend",
+            mode=mode,
+        )
+
+        # get validation_function
+        validation_function = self._create_validation_function(self.Args)
+
+        return tool_definition, validation_function
 
     # helpers
-
     def _coerce_args(self, args: Any) -> ArgsT:  # type: ignore[override]
         """If Args is a dataclass and args is a dict, construct it; else pass through."""
         if dataclasses.is_dataclass(args):
@@ -241,3 +265,20 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
 
     def _error_context(self, _args: Any) -> dict[str, Any]:
         return {}
+
+    def _create_validation_function(
+        self, args_type: type[Any]
+    ) -> ValidationFunction:
+        """Create a validator using parse_raw against the tool's Args type."""
+
+        def validation_function(
+            arguments: FunctionArgs,
+        ) -> Optional[tuple[bool, str]]:
+            try:
+                # Will raise on bad types/required fields
+                parse_raw(arguments, args_type)
+                return True, ""
+            except Exception as e:
+                return False, f"Invalid arguments: {e}"
+
+        return validation_function

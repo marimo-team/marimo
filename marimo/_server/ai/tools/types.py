@@ -1,8 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, Literal, Optional, TypeVar
+from typing import Any, Callable, Literal, Optional, TypeVar
 
 from marimo._config.config import CopilotMode
 
@@ -14,7 +13,7 @@ ToolSource = Literal["mcp", "backend", "frontend"]
 
 
 @dataclass
-class Tool:
+class ToolDefinition:
     """Tool definition compatible with ai-sdk-ui format."""
 
     name: str
@@ -28,7 +27,7 @@ class Tool:
 
 
 @dataclass
-class ToolResult:
+class ToolCallResult:
     """Represents the result of a tool invocation."""
 
     tool_name: str
@@ -37,26 +36,3 @@ class ToolResult:
 
 
 T = TypeVar("T")
-
-
-class BackendTool(ABC, Generic[T]):
-    """Base class for all backend tools."""
-
-    @property
-    @abstractmethod
-    def tool(self) -> Tool:
-        """The tool definition."""
-
-    @abstractmethod
-    def handler(self, arguments: T) -> dict[str, Any]:
-        """The handler function for the tool."""
-
-    @abstractmethod
-    def validator(self, arguments: T) -> Optional[tuple[bool, str]]:
-        """The validator function for the tool parameters.
-        Strongly recommended to return a tuple of (is_valid, error_message).
-
-        If None is returned, the tool will be validated against the parameters schema.
-        """
-        del arguments
-        return None
