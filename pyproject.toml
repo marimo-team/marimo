@@ -175,7 +175,7 @@ dependencies = [
     "leafmap~=0.39.2",
     "panel~=1.5.3",
     "polars~=1.9.0",
-    "duckdb==1.3.0",
+    "duckdb<=1.3.0", # 1.4.0 does not typecheck
     # Types in 2.2.0 don't work great with mypy
     "narwhals>=1.34.1, <2.2.0",
     "matplotlib>=3.8.0",
@@ -271,6 +271,7 @@ extra-dependencies = [
     # Causes issues installing `shapely` (v2.0.7)
     # "geopandas~=1.0.1; python_version > '3.9'",
     # FOr testing sql
+    "duckdb<=1.3.0", # 1.4.0 does pass
     "ibis-framework[duckdb]>=10.3.0; python_version > '3.9'",
     # For testing mo.image
     "pillow~=10.4.0",
