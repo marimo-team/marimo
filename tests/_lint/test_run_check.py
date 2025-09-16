@@ -4,8 +4,11 @@
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from marimo._lint import FileStatus, Linter, run_check
 from marimo._lint.diagnostic import Diagnostic, Severity
+from marimo._utils.platform import is_windows
 
 
 class TestRunCheck:
@@ -82,6 +85,9 @@ def __():
             assert "Failed to parse" in result.files[0].message
             assert len(result.files[0].details) > 0
 
+    @pytest.mark.skipif(
+        is_windows(), reason=r"Skip glob patterns due to path issues"
+    )
     def test_run_check_with_glob_patterns(self):
         """Test run_check with glob patterns."""
         with tempfile.TemporaryDirectory() as tmpdir:
