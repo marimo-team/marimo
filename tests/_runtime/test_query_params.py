@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock
 
 import pytest
 
-from marimo._messaging.types import Stream
 from marimo._runtime.params import CLIArgs, QueryParams
+from tests._messaging.mocks import MockStream
 
 
 class TestQueryParams(unittest.TestCase):
     def setUp(self) -> None:
-        self.mock_stream = MagicMock(spec=Stream)
+        self.mock_stream = MockStream()
         self.params = QueryParams(
             {"key1": "value1", "key2": ["value2", "value3"]},
             stream=self.mock_stream,
@@ -60,60 +59,66 @@ class TestQueryParams(unittest.TestCase):
         self.params["key3"] = "value4"
         assert self.params.get("key3") == "value4"
 
-        assert self.mock_stream.write.call_count == 1
-        assert self.mock_stream.write.call_args[1] == {
+        assert len(self.mock_stream.messages) == 1
+        assert self.mock_stream.operations[0] == {
             "op": "query-params-set",
-            "data": b'{"op":"query-params-set","key":"key3","value":"value4"}',
+            "key": "key3",
+            "value": "value4",
         }
 
     def test_setitem_null(self) -> None:
         self.params["key1"] = None  # type: ignore
         assert self.params.get("key1") is None
 
-        assert self.mock_stream.write.call_count == 1
-        assert self.mock_stream.write.call_args[1] == {
+        assert len(self.mock_stream.messages) == 1
+        assert self.mock_stream.operations[0] == {
             "op": "query-params-delete",
-            "data": b'{"op":"query-params-delete","key":"key1","value":null}',
+            "key": "key1",
+            "value": None,
         }
 
     def test_setitem_empty(self) -> None:
         self.params["key1"] = []
         assert self.params.get("key1") is None
 
-        assert self.mock_stream.write.call_count == 1
-        assert self.mock_stream.write.call_args[1] == {
+        assert len(self.mock_stream.messages) == 1
+        assert self.mock_stream.operations[0] == {
             "op": "query-params-delete",
-            "data": b'{"op":"query-params-delete","key":"key1","value":null}',
+            "key": "key1",
+            "value": None,
         }
 
     def test_set(self) -> None:
         self.params.set("key1", "value5")
         assert self.params.get("key1") == "value5"
 
-        assert self.mock_stream.write.call_count == 1
-        assert self.mock_stream.write.call_args[1] == {
+        assert len(self.mock_stream.messages) == 1
+        assert self.mock_stream.operations[0] == {
             "op": "query-params-set",
-            "data": b'{"op":"query-params-set","key":"key1","value":"value5"}',
+            "key": "key1",
+            "value": "value5",
         }
 
     def test_set_null(self) -> None:
         self.params.set("key1", None)  # type: ignore
         assert self.params.get("key1") is None
 
-        assert self.mock_stream.write.call_count == 1
-        assert self.mock_stream.write.call_args[1] == {
+        assert len(self.mock_stream.messages) == 1
+        assert self.mock_stream.operations[0] == {
             "op": "query-params-delete",
-            "data": b'{"op":"query-params-delete","key":"key1","value":null}',
+            "key": "key1",
+            "value": None,
         }
 
     def test_set_empty(self) -> None:
         self.params.set("key1", [])
         assert self.params.get("key1") is None
 
-        assert self.mock_stream.write.call_count == 1
-        assert self.mock_stream.write.call_args[1] == {
+        assert len(self.mock_stream.messages) == 1
+        assert self.mock_stream.operations[0] == {
             "op": "query-params-delete",
-            "data": b'{"op":"query-params-delete","key":"key1","value":null}',
+            "key": "key1",
+            "value": None,
         }
 
     def test_append(self) -> None:
@@ -122,14 +127,16 @@ class TestQueryParams(unittest.TestCase):
         self.params.append("key4", "value6")
         assert self.params.get("key4") == "value6"
 
-        assert self.mock_stream.write.call_count == 2
-        assert self.mock_stream.write.call_args_list[0][1] == {
+        assert len(self.mock_stream.messages) == 2
+        assert self.mock_stream.operations[0] == {
             "op": "query-params-append",
-            "data": b'{"op":"query-params-append","key":"key1","value":"value5"}',
+            "key": "key1",
+            "value": "value5",
         }
-        assert self.mock_stream.write.call_args_list[1][1] == {
+        assert self.mock_stream.operations[1] == {
             "op": "query-params-append",
-            "data": b'{"op":"query-params-append","key":"key4","value":"value6"}',
+            "key": "key4",
+            "value": "value6",
         }
 
     def test_delete(self) -> None:
@@ -148,18 +155,21 @@ class TestQueryParams(unittest.TestCase):
         assert str(self.params) == "{}"
         assert repr(self.params) == "QueryParams({})"
 
-        assert self.mock_stream.write.call_count == 3
-        assert self.mock_stream.write.call_args_list[0][1] == {
+        assert len(self.mock_stream.messages) == 3
+        assert self.mock_stream.operations[0] == {
             "op": "query-params-delete",
-            "data": b'{"op":"query-params-delete","key":"key1","value":null}',
+            "key": "key1",
+            "value": None,
         }
-        assert self.mock_stream.write.call_args_list[1][1] == {
+        assert self.mock_stream.operations[1] == {
             "op": "query-params-append",
-            "data": b'{"op":"query-params-append","key":"key2","value":"value4"}',
+            "key": "key2",
+            "value": "value4",
         }
-        assert self.mock_stream.write.call_args_list[2][1] == {
+        assert self.mock_stream.operations[2] == {
             "op": "query-params-delete",
-            "data": b'{"op":"query-params-delete","key":"key2","value":null}',
+            "key": "key2",
+            "value": None,
         }
 
     def test_remove(self) -> None:
@@ -170,14 +180,16 @@ class TestQueryParams(unittest.TestCase):
         self.params.remove("key2")
         assert self.params.get("key2") is None
 
-        assert self.mock_stream.write.call_count == 2
-        assert self.mock_stream.write.call_args_list[0][1] == {
+        assert len(self.mock_stream.messages) == 2
+        assert self.mock_stream.operations[0] == {
             "op": "query-params-delete",
-            "data": b'{"op":"query-params-delete","key":"key2","value":"value2"}',
+            "key": "key2",
+            "value": "value2",
         }
-        assert self.mock_stream.write.call_args_list[1][1] == {
+        assert self.mock_stream.operations[1] == {
             "op": "query-params-delete",
-            "data": b'{"op":"query-params-delete","key":"key2","value":null}',
+            "key": "key2",
+            "value": None,
         }
 
     def test_clear(self) -> None:
@@ -186,11 +198,8 @@ class TestQueryParams(unittest.TestCase):
         assert str(self.params) == "{}"
         assert repr(self.params) == "QueryParams({})"
 
-        assert self.mock_stream.write.call_count == 1
-        assert self.mock_stream.write.call_args_list[0][1] == {
-            "op": "query-params-clear",
-            "data": b'{"op":"query-params-clear"}',
-        }
+        assert len(self.mock_stream.messages) == 1
+        assert self.mock_stream.operations[0] == {"op": "query-params-clear"}
 
 
 class TestCLIArgs(unittest.TestCase):

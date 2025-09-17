@@ -21,7 +21,9 @@ from marimo._messaging.ops import (
     Variables,
     VariableValue,
     VariableValues,
+    deserialize_kernel_message,
 )
+from marimo._messaging.types import KernelMessage
 from marimo._runtime.requests import (
     ControlRequest,
     CreationRequest,
@@ -32,7 +34,6 @@ from marimo._runtime.requests import (
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, WidgetModelId
 from marimo._utils.lists import as_list
-from marimo._utils.parse_dataclass import parse_raw
 
 ExportType = Literal["html", "md", "ipynb", "session"]
 
@@ -114,10 +115,10 @@ class SessionView:
     def _add_last_run_code(self, req: ExecutionRequest) -> None:
         self.last_executed_code[req.cell_id] = req.code
 
-    def add_raw_operation(self, raw_operation: Any) -> None:
+    def add_raw_operation(self, raw_operation: KernelMessage) -> None:
         self._touch()
         # Type ignore because MessageOperation is a Union, not a class
-        self.add_operation(parse_raw(raw_operation, cls=MessageOperation))  # type: ignore[arg-type]
+        self.add_operation(deserialize_kernel_message(raw_operation))  # type: ignore[arg-type]
 
     def add_control_request(self, request: ControlRequest) -> None:
         self._touch()

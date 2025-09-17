@@ -365,14 +365,14 @@ class CaptureStream(Stream):
     def __init__(self):
         self.messages: list[KernelMessage] = []
 
-    def write(self, op: str, data: bytes) -> None:
-        self.messages.append((op, data))
+    def write(self, data: KernelMessage) -> None:
+        self.messages.append(data)
 
     @property
     def operations(self) -> list[dict[str, Any]]:
         import json
 
-        return [json.loads(op_data) for _op_name, op_data in self.messages]
+        return [json.loads(op_data) for op_data in self.messages]
 
 
 # TODO add test cases for all other completion modalities
@@ -480,14 +480,14 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
         stream=local_stream,
     )
 
-    message_name = local_stream.messages[0]
+    message_name = local_stream.operations[0]["op"]
     content = local_stream.operations[0]
     prefix_length = content["prefix_length"]
     options = content["options"]
     options_values = [option["name"] for option in options]
 
     assert len(local_stream.messages) == 1
-    assert message_name[0] == CompletionResult.name
+    assert message_name == CompletionResult.name
     # TODO if `expects_completions=False`, something else than `_maybe_get_key_options()`
     # could be returning values
     if expects_key_completion is False:

@@ -9,7 +9,6 @@ import threading
 from collections import deque
 from typing import (
     TYPE_CHECKING,
-    Any,
     Optional,
     Protocol,
 )
@@ -73,7 +72,7 @@ def std_stream_max_bytes() -> int:
 
 
 class PipeProtocol(Protocol):
-    def send(self, obj: Any) -> None:
+    def send(self, obj: KernelMessage) -> None:
         pass
 
 
@@ -81,7 +80,7 @@ class QueuePipe:
     def __init__(self, queue: QueueType[KernelMessage]):
         self._queue = queue
 
-    def send(self, obj: Any) -> None:
+    def send(self, obj: KernelMessage) -> None:
         self._queue.put_nowait(obj)
 
 
@@ -118,14 +117,22 @@ class ThreadSafeStream(Stream):
         # stdin messages are pulled from this queue
         self.input_queue = input_queue
 
-    def write(self, op: str, data: bytes) -> None:
+    def write(self, data: KernelMessage) -> None:
         with self.stream_lock:
             try:
-                self.pipe.send((op, data))
+                self.pipe.send(data)
             except OSError as e:
+                from marimo._messaging.ops import (
+                    deserialize_kernel_operation_name,
+                )
+
                 # Most likely a BrokenPipeError, caused by the
                 # server process shutting down
-                LOGGER.debug("Error when writing (op: %s) to pipe: %s", op, e)
+                LOGGER.debug(
+                    "Error when writing (op: %s) to pipe: %s",
+                    deserialize_kernel_operation_name(data),
+                    e,
+                )
 
     def stop(self) -> None:
         """Teardown resources created by the stream."""

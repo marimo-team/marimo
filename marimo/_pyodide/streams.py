@@ -38,8 +38,8 @@ class PyodideStream(Stream):
         self.cell_id = cell_id
         self.input_queue = input_queue
 
-    def write(self, op: str, data: bytes) -> None:
-        self.pipe((op, data))
+    def write(self, data: KernelMessage) -> None:
+        self.pipe(data)
 
 
 class PyodideStdout(Stdout):

@@ -15,7 +15,12 @@ from marimo._config.manager import (
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error, is_unexpected_error
-from marimo._messaging.ops import CellOp, MessageOperation
+from marimo._messaging.ops import (
+    CellOp,
+    CompletedRun,
+    MessageOperation,
+    deserialize_kernel_message,
+)
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
@@ -28,7 +33,6 @@ from marimo._server.models.models import InstantiateRequest
 from marimo._server.session.session_view import SessionView
 from marimo._types.ids import ConsumerId
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
 
@@ -246,12 +250,11 @@ async def run_app_until_completion(
             self,
         ) -> Callable[[KernelMessage], None]:
             def listener(message: KernelMessage) -> None:
-                op, data = message
+                data = deserialize_kernel_message(message)
                 # Print errors to stderr
-                if op == "cell-op":
-                    op_data = parse_raw(data, CellOp)
-                    output = op_data.output
-                    console_output = op_data.console
+                if isinstance(data, CellOp):
+                    output = data.output
+                    console_output = data.console
                     if output and output.channel == CellChannel.MARIMO_ERROR:
                         errors = cast(list[Error], output.data)
                         for err in errors:
@@ -280,7 +283,7 @@ async def run_app_until_completion(
                             LOGGER.warning("Error printing console output")
                             pass
 
-                if message[0] == "completed-run":
+                if isinstance(data, CompletedRun):
                     instantiated_event.set()
 
             return listener

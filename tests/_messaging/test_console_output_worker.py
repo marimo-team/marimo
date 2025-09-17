@@ -130,7 +130,7 @@ class TestConsoleOutputWorker:
         )
 
         assert len(stream.operations) == 1
-        assert stream.messages[0][0] == "cell-op"  # op
+        assert stream.operations[0]["op"] == "cell-op"
         assert stream.operations[0]["cell_id"] == "cell1"
         assert stream.operations[0]["console"]["channel"] == "stdout"
         assert stream.operations[0]["console"]["mimetype"] == "text/plain"

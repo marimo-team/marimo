@@ -1,17 +1,9 @@
 import time
-from typing import Any, cast
 
-from marimo._messaging.types import KernelMessage
 from marimo._runtime.requests import DeleteCellRequest
 from marimo._runtime.runtime import Kernel
 from tests._messaging.mocks import MockStream
 from tests.conftest import ExecReqProvider
-
-
-def _msg_as_dict(msg: KernelMessage) -> dict[str, Any]:
-    import json
-
-    return json.loads(msg[1].decode("utf-8"))
 
 
 # Doesn't work with strict kernel ...
@@ -98,17 +90,14 @@ async def test_thread_output_append(
     assert not k.errors
     time.sleep(0.01)  # noqa: ASYNC251
     # The main thread should not have any output, but the new thread should
-    messages = cast(list[KernelMessage], k.globals["stream"].messages)
-    for m in messages:
-        if m[0] == "cell-op" and _msg_as_dict(m)["output"] is not None:
-            assert "hello" not in _msg_as_dict(m)["output"]["data"]
-            assert "world" not in _msg_as_dict(m)["output"]["data"]
-    thread_stream_messages = cast(
-        list[KernelMessage], k.globals["thread_stream"].messages
-    )
-    assert len(thread_stream_messages) == 2
-    assert "hello" in _msg_as_dict(thread_stream_messages[0])["output"]["data"]
-    assert "world" in _msg_as_dict(thread_stream_messages[1])["output"]["data"]
+    cell_ops = MockStream(k.globals["stream"]).cell_ops
+    for m in cell_ops:
+        if m.output is not None:
+            assert "hello" not in m.output.data
+            assert "world" not in m.output.data
+    thread_stream_cell_ops = MockStream(k.globals["thread_stream"]).cell_ops
+    assert "hello" in thread_stream_cell_ops[0].output.data
+    assert "world" in thread_stream_cell_ops[1].output.data
 
 
 async def test_thread_print(k: Kernel, exec_req: ExecReqProvider) -> None:

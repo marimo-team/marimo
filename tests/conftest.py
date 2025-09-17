@@ -17,7 +17,11 @@ from marimo._ast.app import App, CellManager
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import ConsoleMimeType
-from marimo._messaging.ops import CellOp, MessageOperation
+from marimo._messaging.ops import (
+    CellOp,
+    MessageOperation,
+    deserialize_kernel_message,
+)
 from marimo._messaging.print_override import print_override
 from marimo._messaging.streams import (
     ThreadSafeStderr,
@@ -37,7 +41,6 @@ from marimo._runtime.runtime import Kernel
 from marimo._save.cache import ModuleStub
 from marimo._server.model import SessionMode
 from marimo._types.ids import CellId_t
-from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -69,14 +72,13 @@ class _MockStream(ThreadSafeStream):
 
     messages: list[KernelMessage] = dataclasses.field(default_factory=list)
 
-    def write(self, op: str, data: bytes) -> None:
-        self.messages.append((op, data))
+    def write(self, data: KernelMessage) -> None:
+        self.messages.append(data)
 
     @property
     def operations(self) -> list[MessageOperation]:
         return [
-            parse_raw(op_data, cls=MessageOperation)
-            for _op_name, op_data in self.messages
+            deserialize_kernel_message(op_data) for op_data in self.messages
         ]
 
     @property

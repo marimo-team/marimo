@@ -22,6 +22,7 @@ from marimo._messaging.ops import (
     Variables,
     VariableValue,
     VariableValues,
+    serialize_kernel_message,
 )
 from marimo._runtime.requests import (
     CreationRequest,
@@ -268,7 +269,7 @@ def test_add_variables() -> None:
     session_view = SessionView()
 
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             Variables(
                 variables=[
                     VariableDeclaration(
@@ -282,7 +283,7 @@ def test_add_variables() -> None:
         )
     )
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             VariableValues(
                 variables=[
                     VariableValue.create(name="var1", value=1),
@@ -304,7 +305,7 @@ def test_add_datasets() -> None:
     session_view = SessionView()
 
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             Datasets(
                 tables=[
                     DataTable(
@@ -352,7 +353,7 @@ def test_add_datasets() -> None:
     # Can add a new table and overwrite an existing table
 
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             Datasets(
                 tables=[
                     DataTable(
@@ -396,7 +397,7 @@ def test_add_datasets() -> None:
 
     # Can filter out tables from new variables
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             Variables(
                 variables=[
                     VariableDeclaration(
@@ -414,7 +415,7 @@ def test_add_datasets() -> None:
 def test_add_datasets_clear_channel() -> None:
     session_view = SessionView()
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             Datasets(
                 tables=[
                     DataTable(
@@ -447,7 +448,7 @@ def test_add_datasets_clear_channel() -> None:
     assert "df1" in names
 
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             Datasets(
                 tables=[
                     DataTable(
@@ -477,7 +478,7 @@ def test_add_data_source_connections() -> None:
 
     # Add initial connections
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             DataSourceConnections(
                 connections=[
                     DataSourceConnection(
@@ -514,7 +515,7 @@ def test_add_data_source_connections() -> None:
 
     # Add new connection and update existing
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             DataSourceConnections(
                 connections=[
                     DataSourceConnection(
@@ -555,7 +556,7 @@ def test_add_data_source_connections() -> None:
 
     # Filter out connections from variables
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             Variables(
                 variables=[
                     VariableDeclaration(
@@ -576,7 +577,7 @@ def test_add_data_source_connections() -> None:
 def test_add_cell_op() -> None:
     session_view = SessionView()
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             CellOp(
                 cell_id=cell_id, output=initial_output, status=initial_status
             )
@@ -859,7 +860,7 @@ def test_dataset_filter_by_engine_and_variable() -> None:
 
     # Initially add three tables: one with an engine, one with a variable name, and one with neither
     session_view.add_raw_operation(
-        serialize(
+        serialize_kernel_message(
             Datasets(
                 tables=[
                     DataTable(

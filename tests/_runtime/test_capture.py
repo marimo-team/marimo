@@ -9,10 +9,10 @@ from tests.conftest import ExecReqProvider, MockedKernel
 
 
 def _has_output(messages: list[KernelMessage], pattern: str) -> bool:
-    for op, data in messages:
+    for data in messages:
         data = json.loads(data)
         if (
-            op == "cell-op"
+            data["op"] == "cell-op"
             and data["output"] is not None
             and re.match(pattern, data["output"]["data"])
         ):

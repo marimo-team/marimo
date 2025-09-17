@@ -12,7 +12,6 @@ from marimo._ast.cell import CellConfig
 from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._messaging.ops import (
     Alert,
     Banner,
@@ -22,6 +21,8 @@ from marimo._messaging.ops import (
     KernelReady,
     MessageOperation,
     Reconnected,
+    deserialize_kernel_operation_name,
+    serialize_kernel_message,
 )
 from marimo._messaging.types import KernelMessage, NoopStream
 from marimo._plugins.core.web_component import JSONType
@@ -338,8 +339,7 @@ class WebsocketHandler(SessionConsumer):
 
         self.message_queue.put_nowait(
             (
-                KernelReady.name,
-                encode_json_bytes(
+                serialize_kernel_message(
                     KernelReady(
                         codes=codes,
                         names=names,
@@ -354,8 +354,8 @@ class WebsocketHandler(SessionConsumer):
                         kiosk=kiosk,
                         capabilities=KernelCapabilities(),
                     )
-                ),
-            )
+                )
+            ),
         )
 
     def _reconnect_session(self, session: Session, replay: bool) -> None:
@@ -618,7 +618,8 @@ class WebsocketHandler(SessionConsumer):
 
         async def listen_for_messages() -> None:
             while True:
-                (op, data) = await self.message_queue.get()
+                data = await self.message_queue.get()
+                op: str = deserialize_kernel_operation_name(data)
 
                 if op in KIOSK_ONLY_OPERATIONS and not self.kiosk:
                     LOGGER.debug(
@@ -697,7 +698,7 @@ class WebsocketHandler(SessionConsumer):
         return listener
 
     def write_operation(self, op: MessageOperation) -> None:
-        self.message_queue.put_nowait((op.name, encode_json_bytes(op)))
+        self.message_queue.put_nowait(serialize_kernel_message(op))
 
     def on_stop(self) -> None:
         # Cancel the heartbeat task, reader
