@@ -1321,13 +1321,14 @@ def test_download_as_ignores_cell_selection() -> None:
     table = ui.table(data, selection="multi-cell")
     table._search(SearchTableArgs(query="2", page_size=10, page_number=0))
     # Make a cell selection; download should still include the filtered view
-    table._convert_value([{"rowId": "1", "columnName": "a"}])
-    for fmt in DOWNLOAD_FORMATS:
-        url = table._download_as(DownloadAsArgs(format=fmt))
-        if fmt == "csv":
-            df = _convert_data_bytes_to_pandas_df(url, fmt)
-            assert len(df) == 1
-            assert int(df["a"].iloc[0]) == 2
+    table._convert_value([{"rowId": "0", "columnName": "a"}])
+    # Use JSON format to avoid optional dependencies
+    url = table._download_as(DownloadAsArgs(format="json"))
+    data_bytes = from_data_uri(url)[1]
+    rows = json.loads(data_bytes)
+    assert isinstance(rows, list)
+    assert len(rows) == 1
+    assert int(rows[0]["a"]) == 2
 
 
 @pytest.mark.skipif(
