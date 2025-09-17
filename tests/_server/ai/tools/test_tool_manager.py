@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from starlette.applications import Starlette
 
+from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
 from marimo._config.manager import get_default_config_manager
 from marimo._server.ai.tools.tool_manager import ToolManager
 from marimo._server.ai.tools.types import ToolCallResult
@@ -24,7 +25,9 @@ def test_get_tools_for_mode(manager: ToolManager):
 
     # Mock the config to disable MCP
     tools = manager.get_tools_for_mode("ask")
-    assert len(tools) > 0
+
+    # Should have backend tools
+    assert len(tools) == len(SUPPORTED_BACKEND_AND_MCP_TOOLS)
 
     # All should be backend tools for ask mode
     for tool in tools:
