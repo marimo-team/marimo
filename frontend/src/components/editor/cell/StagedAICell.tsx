@@ -16,16 +16,7 @@ export const StagedAICellBackground: React.FC<{
     return null;
   }
 
-  return (
-    <div
-      className={cn(
-        "absolute h-full w-full pointer-events-none rounded-lg",
-        "shadow-[inset_0_0_0_1px_rgba(59,130,246,0.15),inset_0_0_12px_rgba(59,130,246,0.2),inset_0_0_24px_rgba(59,130,246,0.1)]",
-        "dark:shadow-[inset_0_0_0_1px_rgba(59,130,246,0.15),inset_0_0_12px_rgba(59,130,246,0.2),inset_0_0_24px_rgba(59,130,246,0.1)]",
-        className,
-      )}
-    />
-  );
+  return <div className={cn("mo-ai-generated-cell", className)} />;
 };
 
 export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({

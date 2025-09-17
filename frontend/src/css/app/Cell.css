@@ -23,6 +23,17 @@
     outline: none;
   }
 
+  &:has(.mo-ai-generated-cell)::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    pointer-events: none;
+    opacity: 0.5;
+    box-shadow: 0px 0px 10px 0px var(--cyan-9);
+    z-index: 1;
+  }
+
   &:focus-within {
     z-index: 20;
   }
