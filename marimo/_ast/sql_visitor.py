@@ -250,6 +250,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                         LOGGER.warning(
                             "Unexpected number of parts in CREATE TABLE: %s",
                             parts,
+                            extra={"lint_rule": "MF005", "parts": parts},
                         )
 
                     if is_table:
@@ -470,7 +471,9 @@ class SQLRef:
         return False
 
 
-def find_sql_refs(sql_statement: str) -> set[SQLRef]:
+# TODO: This should return a result with missing tables etc...
+# No logging should happen in this file
+def find_sql_refs(sql_statement: str) -> tuple[set[SQLRef], set[str]]:
     """
     Find table and schema references in a SQL statement.
 
@@ -497,8 +500,9 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     DependencyManager.sqlglot.require(why="SQL parsing")
 
     from sqlglot import exp, parse
-    from sqlglot.errors import ParseError
     from sqlglot.optimizer.scope import build_scope
+
+    missing_tables: set[str] = set()
 
     def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
         # The variables might be empty strings, if they are, we set them to None
@@ -507,7 +511,7 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
         catalog_name = table.catalog or None
 
         if table_name is None:
-            LOGGER.warning("Table name cannot be found in the SQL statement")
+            missing_tables.add(table.name)
             return None
 
         # Check if the table name looks like a URL or has a file extension.
@@ -520,12 +524,9 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
             table=table_name, schema=schema_name, catalog=catalog_name
         )
 
-    try:
-        with _loggers.suppress_warnings_logs("sqlglot"):
-            expression_list = parse(sql_statement, dialect="duckdb")
-    except ParseError as e:
-        LOGGER.error(f"Unable to parse SQL. Error: {e}")
-        return set()
+    # May raise a ParseError
+    with _loggers.suppress_warnings_logs("sqlglot"):
+        expression_list = parse(sql_statement, dialect="duckdb")
 
     refs: set[SQLRef] = set()
 
@@ -546,4 +547,4 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
                         if ref := get_ref_from_table(source):
                             refs.add(ref)
 
-    return refs
+    return refs, missing_tables

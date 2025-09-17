@@ -1,13 +1,15 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
 import heapq
+import logging
 import threading
 from typing import TYPE_CHECKING
 
 from marimo._ast.load import load_notebook_ir
 from marimo._lint.diagnostic import Diagnostic, Severity
+from marimo._loggers import capture_output
 from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
@@ -30,6 +32,7 @@ class LintContext:
         notebook: NotebookSerialization,
         stderr: str = "",
         stdout: str = "",
+        logs: list[logging.LogRecord] | None = None,
     ):
         self.notebook = notebook
         self._diagnostics: list[tuple[int, int, Diagnostic]] = []
@@ -43,6 +46,8 @@ class LintContext:
 
         self.stderr = stderr
         self.stdout = stdout
+        self._log_records = logs or []
+        self._logs_by_rule: dict[str, list[logging.LogRecord]] = {}
 
     def _get_diagnostics_lock(self) -> asyncio.Lock:
         """Get the diagnostics lock, creating it if needed."""
@@ -105,6 +110,21 @@ class LintContext:
 
             return new_diagnostics
 
+    def _group_initial_logs(self) -> None:
+        """Group initial log records by rule code."""
+        for record in self._log_records:
+            # Check if record has lint_rule metadata
+            lint_rule = getattr(record, "lint_rule", None)
+            if hasattr(record, "__dict__") and "lint_rule" in record.__dict__:
+                lint_rule = record.__dict__["lint_rule"]
+
+            # Default to MF007 (misc) if no specific rule
+            rule_code = lint_rule if lint_rule else "MF007"
+
+            if rule_code not in self._logs_by_rule:
+                self._logs_by_rule[rule_code] = []
+            self._logs_by_rule[rule_code].append(record)
+
     def get_graph(self) -> DirectedGraph:
         """Get the dependency graph, constructing it once and caching."""
         if self._graph is not None:
@@ -115,9 +135,29 @@ class LintContext:
             if self._graph is not None:
                 return self._graph
 
+            # Group any initial logs
+            self._group_initial_logs()
+
             # Construct the graph
-            app = load_notebook_ir(self.notebook)
+            with capture_output() as (stdout, stderr, logs):
+                app = load_notebook_ir(self.notebook)
             self._graph = app._graph
+
+            # Group new logs as they come in
+            for record in logs:
+                # Check if record has lint_rule metadata
+                lint_rule = getattr(record, "lint_rule", None)
+                if hasattr(record, "__dict__") and "lint_rule" in record.__dict__:
+                    lint_rule = record.__dict__["lint_rule"]
+
+                # Default to MF007 (misc) if no specific rule
+                rule_code = lint_rule if lint_rule else "MF007"
+
+                if rule_code not in self._logs_by_rule:
+                    self._logs_by_rule[rule_code] = []
+                self._logs_by_rule[rule_code].append(record)
+
+            self._log_records.extend(logs)
 
             # Initialize the app to register cells in the graph
             for cell_id, cell in app._cell_manager.valid_cells():
@@ -169,3 +209,11 @@ class RuleContext:
     def stderr(self) -> str:
         """Access to the captured stderr."""
         return self.global_context.stderr
+
+    def get_logs(self, rule_code: str | None = None) -> list[logging.LogRecord]:
+        """Get log records for a specific rule or all logs if no rule specified."""
+        if rule_code is None:
+            return self.global_context._log_records
+
+        return self.global_context._logs_by_rule.get(rule_code, [])
+

@@ -42,7 +42,7 @@ class RuleInfo:
     name: str
     description: str
     severity: Severity
-    fixable: bool
+    fixable: bool | str
     docstring: str
     file_path: Path
     class_name: str
@@ -61,7 +61,9 @@ def extract_rule_info_from_file(file_path: Path) -> list[RuleInfo]:
 
     for node in ast.walk(tree):
         if (isinstance(node, ast.ClassDef) and
-            any(isinstance(base, ast.Name) and base.id in ["LintRule", "GraphRule"] for base in node.bases)):
+            any(isinstance(base, ast.Name) and base.id in ["LintRule",
+                                                           "GraphRule",
+                                                           "UnsafeFixRule"] for base in node.bases)):
 
             # Extract class attributes
             rule_data = {}
@@ -197,8 +199,8 @@ def validate_rule_info(rule: RuleInfo) -> list[str]:
     if not isinstance(rule.severity, Severity):
         issues.append(f"Invalid severity: {rule.severity}")
 
-    if not isinstance(rule.fixable, bool):
-        issues.append(f"Fixable must be a boolean, got {type(rule.fixable)}")
+    if not isinstance(rule.fixable, (bool, str)) or (isinstance(rule.fixable, str) and rule.fixable != "unsafe"):
+        issues.append(f"Fixable must be a boolean or 'unsafe', got {rule.fixable}")
 
     # Validate docstring exists and is properly formatted
     if not rule.docstring:
@@ -320,7 +322,12 @@ marimo's lint rules are organized into three main categories based on their seve
         content += "|------|------|-------------|----------|\n"
 
         for rule in sorted(rules, key=lambda r: r['code']):
-            fixable_icon = "🛠️" if rule['fixable'] else "❌"
+            if rule['fixable'] is True:
+                fixable_icon = "🛠️"
+            elif rule['fixable'] == "unsafe":
+                fixable_icon = "⚠️"
+            else:
+                fixable_icon = "❌"
             filename = rule['name'].replace("-", "_") + ".md"
             rule_link = f"[{rule['code']}](rules/{filename})"
             content += f"| {rule_link} | {rule['name']} | {rule['description']} | {fixable_icon} |\n"
@@ -330,6 +337,7 @@ marimo's lint rules are organized into three main categories based on their seve
     content += """## Legend
 
 - 🛠️ = Automatically fixable with `marimo check --fix`
+- ⚠️ = Fixable with `marimo check --fix --unsafe-fixes` (may change code behavior)
 - ❌ = Not automatically fixable
 
 ## Configuration
@@ -350,9 +358,17 @@ def generate_rule_page(rule_details: dict[str, Any]) -> str:
     rule = rule_details
     icon, severity_name, _ = get_severity_info(rule['severity'])
 
+    # Determine fixable status
+    if rule['fixable'] is True:
+        fixable_status = '🛠️ Fixable'
+    elif rule['fixable'] == "unsafe":
+        fixable_status = '⚠️ Unsafe Fixable'
+    else:
+        fixable_status = '❌ Not Fixable'
+
     content = f"""# {rule['code']}: {rule['name']}
 
-{icon} **{severity_name}** {'🛠️ Fixable' if rule['fixable'] else '❌ Not Fixable'}
+{icon} **{severity_name}** {fixable_status}
 
 """
 

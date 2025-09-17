@@ -100,10 +100,11 @@ nav:
               - Multiple definitions: guides/lint_rules/rules/multiple_definitions.md
               - Cycle dependencies: guides/lint_rules/rules/cycle_dependencies.md
               - Setup cell dependencies: guides/lint_rules/rules/setup_cell_dependencies.md
-              - Syntax Error: guides/lint_rules/rules/invalid_syntax.md
+              - Syntax error: guides/lint_rules/rules/invalid_syntax.md
               - General formatting: guides/lint_rules/rules/general_formatting.md
               - Parse stdout: guides/lint_rules/rules/parse_stdout.md
               - Parse stderr: guides/lint_rules/rules/parse_stderr.md
+              - Empty cells: guides/lint_rules/rules/empty_cells.md
       - SQL, dataframes, and plots:
           - SQL, dataframes, and plots: guides/working_with_data/index.md
           - DataFrames: guides/working_with_data/dataframes.md

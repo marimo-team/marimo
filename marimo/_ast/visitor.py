@@ -7,7 +7,7 @@ from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Callable, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
@@ -26,6 +26,61 @@ from marimo._dependencies.dependencies import DependencyManager
 LOGGER = _loggers.marimo_logger()
 
 Name = str
+
+
+def _log_sql_error(
+    logger,
+    message: str,
+    exception: Exception,
+    node: ast.AST,
+    rule_code: str,
+    sql_content: str = "",
+    context: str = "",
+) -> None:
+    """Utility to log SQL-related errors with consistent metadata."""
+    extra_data = {
+        "lint_rule": rule_code,
+        "error_type": type(exception).__name__,
+        "node_lineno": node.lineno,
+        "node_col_offset": node.col_offset,
+    }
+
+    # Truncate long SQL content
+    if sql_content:
+        if len(sql_content) > 200:
+            sql_content = sql_content[:200] + "..."
+
+        if rule_code == "MF005":
+            extra_data["sql_statement"] = sql_content
+        else:
+            extra_data["sql_query"] = sql_content
+
+    if context:
+        extra_data["context"] = context
+
+    logger(message, exception, extra=extra_data)
+
+
+def _log_sql_warning(
+    message: str,
+    node: ast.AST,
+    rule_code: str,
+    sql_content: str = "",
+    **extra_fields: Any,
+) -> None:
+    """Utility to log SQL-related warnings with consistent metadata."""
+    extra_data = {
+        "lint_rule": rule_code,
+        "node_lineno": node.lineno,
+        "node_col_offset": node.col_offset,
+    }
+
+    if sql_content:
+        extra_data["sql_statement"] = sql_content
+
+    extra_data.update(extra_fields)
+    LOGGER.warning(message, extra=extra_data)
+
 
 Language = Literal["python", "sql"]
 
@@ -166,7 +221,7 @@ NamedNode = Union[
 # Cache SQL refs to avoid parsing the same SQL statement multiple times
 # since this can be called for each SQL cell on save.
 @lru_cache(maxsize=200)
-def find_sql_refs_cached(sql_statement: str) -> set[SQLRef]:
+def find_sql_refs_cached(sql_statement: str) -> tuple[set[SQLRef], set[str]]:
     return find_sql_refs(sql_statement)
 
 
@@ -625,6 +680,12 @@ class ScopedVisitor(ast.NodeVisitor):
                 and sql
             ):
                 import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+                # Import ParseError outside try block so we can except it
+                if DependencyManager.sqlglot.has():
+                    from sqlglot.errors import ParseError
+                else:
+                    ParseError = Exception  # Fallback
+
                 # TODO: Handle other SQL languages
                 # TODO: Get the engine so we can differentiate tables in diff engines
 
@@ -648,7 +709,14 @@ class ScopedVisitor(ast.NodeVisitor):
                     # We catch base exceptions because we don't want to
                     # fail due to bugs in duckdb -- users code should
                     # be saveable no matter what
-                    LOGGER.warning("Unexpected duckdb error %s", e)
+                    _log_sql_error(
+                        LOGGER.warning,
+                        "Unexpected duckdb error %s",
+                        e,
+                        node,
+                        "MF006",
+                        sql,
+                    )
                     self.generic_visit(node)
                     return node
 
@@ -660,7 +728,15 @@ class ScopedVisitor(ast.NodeVisitor):
                     except duckdb.ProgrammingError:
                         sql_defs = SQLDefs()
                     except BaseException as e:
-                        LOGGER.warning("Unexpected duckdb error %s", e)
+                        _log_sql_error(
+                            LOGGER.warning,
+                            "Unexpected duckdb error %s",
+                            e,
+                            node,
+                            "MF006",
+                            sql,
+                            "sql_defs_extraction",
+                        )
                         sql_defs = SQLDefs()
 
                     defined_names = set()
@@ -691,14 +767,44 @@ class ScopedVisitor(ast.NodeVisitor):
                         defined_names.add(_catalog)
 
                     sql_refs: set[SQLRef] = set()
+                    missing_tables: set[str] = set()
                     try:
-                        sql_refs = find_sql_refs_cached(statement.query)
-                    except (duckdb.ProgrammingError, duckdb.IOException):
-                        LOGGER.debug(
-                            "Error parsing SQL statement: %s", statement.query
+                        # Take results
+                        sql_refs, missing_tables = find_sql_refs_cached(
+                            statement.query
+                        )
+                    except (
+                        duckdb.ProgrammingError,
+                        duckdb.IOException,
+                        ParseError,
+                    ) as e:
+                        _log_sql_error(
+                            LOGGER.error,
+                            "Error parsing SQL statement: %s",
+                            e,
+                            node,
+                            "MF005",
+                            statement.query,
                         )
                     except BaseException as e:
-                        LOGGER.warning("Unexpected duckdb error %s", e)
+                        _log_sql_error(
+                            LOGGER.warning,
+                            "Unexpected duckdb error %s",
+                            e,
+                            node,
+                            "MF006",
+                            statement.query,
+                            "sql_refs_extraction",
+                        )
+                    # For create a warning for missing tables if the exist
+                    if missing_tables:
+                        _log_sql_warning(
+                            f"SQL statement references missing tables: {missing_tables}",
+                            node,
+                            "MF007",
+                            statement.query,
+                            missing=missing_tables,
+                        )
 
                     for ref in sql_refs:
                         name = ref.qualified_name

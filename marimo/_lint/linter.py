@@ -1,9 +1,7 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
-import contextlib
-import io
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -12,8 +10,10 @@ from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
 from marimo._cli.print import red
 from marimo._convert.converters import MarimoConvert
+from marimo._lint.context import LintContext
 from marimo._lint.diagnostic import Diagnostic
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
+from marimo._loggers import capture_output
 from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
@@ -47,11 +47,16 @@ class Linter:
         early_stopping: EarlyStoppingConfig | None = None,
         pipe: Callable[[str], None] | None = None,
         fix_files: bool = False,
+        unsafe_fixes: bool = False,
     ):
         self.rule_engine = RuleEngine.create_default(early_stopping)
         self.pipe = pipe
         self.fix_files = fix_files
+        self.unsafe_fixes = unsafe_fixes
         self.files: list[FileStatus] = []
+
+        # Create rule lookup for unsafe fixes
+        self.rule_lookup = {rule.code: rule for rule in self.rule_engine.rules}
 
         # File processing state
         self.errored: bool = False
@@ -78,14 +83,8 @@ class Linter:
                 )
                 return file_status
 
-            captured_stdout = io.StringIO()
-            captured_stderr = io.StringIO()
-
             try:
-                with (
-                    contextlib.redirect_stdout(captured_stdout),
-                    contextlib.redirect_stderr(captured_stderr),
-                ):
+                with capture_output() as (stdout, stderr, logs):
                     load_result = get_notebook_status(file_path)
             except SyntaxError as e:
                 # Handle syntax errors in notebooks
@@ -122,8 +121,9 @@ class Linter:
                         await self.rule_engine.check_notebook(
                             load_result.notebook,
                             # Add parsing rule if there's captured output
-                            stdout=captured_stdout.getvalue().strip(),
-                            stderr=captured_stderr.getvalue().strip(),
+                            stdout=stdout.getvalue().strip(),
+                            stderr=stderr.getvalue().strip(),
+                            logs=logs,
                         )
                     )
                 except Exception as e:
@@ -159,7 +159,11 @@ class Linter:
     def _pipe_file_status(self, file_status: FileStatus) -> None:
         """Send file status through pipe for real-time output."""
         for diagnostic in file_status.diagnostics:
-            if not (self.fix_files and diagnostic.fixable):
+            will_fix = self.fix_files and (
+                diagnostic.fixable is True
+                or (diagnostic.fixable == "unsafe" and self.unsafe_fixes)
+            )
+            if not will_fix:
                 self.issues_count += 1
 
         if not self.pipe:
@@ -179,6 +183,18 @@ class Linter:
                 self.pipe("")  # Empty line for spacing
 
     @staticmethod
+    def _generate_file_contents_from_notebook(
+        notebook: NotebookSerialization, filename: str
+    ) -> str:
+        """Generate file contents from notebook serialization."""
+        converter = MarimoConvert.from_ir(notebook)
+
+        if filename.endswith((".md", ".qmd")):
+            return converter.to_markdown(filename)
+        else:
+            return converter.to_py()
+
+    @staticmethod
     def _generate_file_contents(file_status: FileStatus) -> str:
         """Generate file contents from notebook serialization."""
         if file_status.notebook is None:
@@ -186,12 +202,9 @@ class Linter:
                 "Cannot generate contents for file without notebook"
             )
 
-        converter = MarimoConvert.from_ir(file_status.notebook)
-
-        if file_status.file.endswith((".md", ".qmd")):
-            return converter.to_markdown(file_status.file)
-        else:
-            return converter.to_py()
+        return Linter._generate_file_contents_from_notebook(
+            file_status.notebook, file_status.file
+        )
 
     def run_streaming(self, files_to_check: list[Path]) -> None:
         """Run linting checks with real-time streaming output."""
@@ -220,8 +233,7 @@ class Linter:
                         self.pipe(f"Updated: {file_status.file}")
         self.fixed_count = fixed_count
 
-    @staticmethod
-    async def fix(file_status: FileStatus) -> bool:
+    async def fix(self, file_status: FileStatus) -> bool:
         """Fix a single file and write to disk.
 
         Returns:
@@ -230,7 +242,35 @@ class Linter:
         if file_status.notebook is None or file_status.contents is None:
             return False
 
-        generated_contents = Linter._generate_file_contents(file_status)
+        # Apply unsafe fixes if enabled
+        modified_notebook = file_status.notebook
+        if self.unsafe_fixes:
+            # Collect diagnostics by rule code
+            from collections import defaultdict
+
+            from marimo._lint.rules.base import UnsafeFixRule
+
+            diagnostics_by_rule = defaultdict(list)
+            for diagnostic in file_status.diagnostics:
+                if (
+                    diagnostic.fixable == "unsafe"
+                    and diagnostic.code in self.rule_lookup
+                ):
+                    diagnostics_by_rule[diagnostic.code].append(diagnostic)
+
+            # Apply unsafe fixes once per rule
+            for rule_code, diagnostics in diagnostics_by_rule.items():
+                rule = self.rule_lookup[rule_code]
+                if isinstance(rule, UnsafeFixRule):
+                    # Apply fix once per rule with all its diagnostics
+                    modified_notebook = rule.apply_unsafe_fix(
+                        modified_notebook, diagnostics
+                    )
+
+        # Generate file contents from (possibly modified) notebook
+        generated_contents = Linter._generate_file_contents_from_notebook(
+            modified_notebook, file_status.file
+        )
 
         # Only write if content changed
         if file_status.contents != generated_contents:

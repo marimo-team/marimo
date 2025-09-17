@@ -1,0 +1,30 @@
+warning[empty-cells]: Empty cell can be removed (contains only whitespace, comments, or pass)
+ --> tests/_lint/test_files/empty_cells.py:8:0
+   8 | def _():
+   9 |     return
+     |     ^
+  10 | 
+warning[empty-cells]: Empty cell can be removed (contains only whitespace, comments, or pass)
+ --> tests/_lint/test_files/empty_cells.py:12:0
+  12 | @app.cell
+  13 | def has_pass():
+     |     ^
+  14 |     # This is just a comment
+warning[empty-cells]: Empty cell can be removed (contains only whitespace, comments, or pass)
+ --> tests/_lint/test_files/empty_cells.py:19:0
+  19 | @app.cell
+  20 | def has_comment():
+     |     ^
+  21 |     # Only comment
+warning[empty-cells]: Empty cell can be removed (contains only whitespace, comments, or pass)
+ --> tests/_lint/test_files/empty_cells.py:26:0
+  26 | @app.cell
+  27 | def has_mix():
+     |     ^
+  28 | 
+warning[empty-cells]: Empty cell can be removed (contains only whitespace, comments, or pass)
+ --> tests/_lint/test_files/empty_cells.py:34:0
+  34 | @app.cell
+  35 | def _empty_cell_with_just_whitespace():
+     |     ^
+  36 | 

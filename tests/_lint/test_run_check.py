@@ -181,7 +181,8 @@ class TestFileStatus:
             )
 
             # Since no notebook, fix should return False (no changes)
-            result = await Linter.fix(status)
+            linter = Linter()
+            result = await linter.fix(status)
             assert result is False
 
             # File should remain unchanged
@@ -214,7 +215,8 @@ class TestFileStatus:
             )
 
             # Since no notebook, fix should return False (no changes)
-            result = await Linter.fix(status)
+            linter = Linter()
+            result = await linter.fix(status)
             assert result is False
 
             # File should remain unchanged
@@ -269,7 +271,8 @@ class TestFileStatus:
             )
 
             # Since no notebook, fix should return False (no changes)
-            result = await Linter.fix(status)
+            linter = Linter()
+            result = await linter.fix(status)
             assert result is False
 
             # File should remain unchanged
@@ -340,10 +343,11 @@ def __():
 
             # Test fixing (if notebook is available)
             if file_status.notebook is not None:
-                # Use Linter.fix() static method
+                # Use Linter.fix() method
                 import asyncio
 
-                result = asyncio.run(Linter.fix(file_status))
+                linter = Linter()
+                result = asyncio.run(linter.fix(file_status))
                 assert isinstance(result, bool)
 
     def test_error_handling_in_run_check(self):
