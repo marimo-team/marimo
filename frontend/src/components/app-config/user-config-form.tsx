@@ -1283,6 +1283,38 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.external_agents"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      External Agents
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="external-agents-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.external_agents"
+                  />
+                  <FormDescription>
+                    Enable experimental external agents such as Claude Code and
+                    Gemini CLI. Learn more in the{" "}
+                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/agents/">
+                      docs
+                    </ExternalLink>
+                    .
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }

@@ -127,6 +127,7 @@ nav:
           - Editor overview: guides/editor_features/overview.md
           - Understanding dataflow: guides/editor_features/dataflow.md
           - AI completion: guides/editor_features/ai_completion.md
+          - Agents: guides/editor_features/agents.md
           - Language Server: guides/editor_features/language_server.md
           - Package management: guides/editor_features/package_management.md
           - Module autoreloading: guides/editor_features/module_autoreloading.md
