@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import select
 import signal
+import struct
 import sys
+import termios
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Literal, TypedDict
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
@@ -32,6 +35,29 @@ KEEP_COMMAND_CHARS = 512
 HEALTH_CHECK_INTERVAL = 5.0
 READ_TIMEOUT = 0.05
 IDLE_SLEEP = 0.01
+
+
+def _resize_pty(fd: int, rows: int, cols: int) -> None:
+    """Resize the PTY to the specified dimensions."""
+    try:
+        # Use TIOCSWINSZ ioctl to set window size
+        import fcntl
+
+        # Format: struct winsize { unsigned short ws_row, ws_col, ws_xpixel, ws_ypixel }
+        winsize = struct.pack("HHHH", rows, cols, 0, 0)
+        fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
+        LOGGER.debug(f"PTY resized to {cols}x{rows}")
+    except Exception as e:
+        LOGGER.warning(f"Failed to resize PTY: {e}")
+
+
+def _send_sigwinch(pid: int) -> None:
+    """Send SIGWINCH signal to the child process to notify of terminal resize."""
+    try:
+        os.kill(pid, signal.SIGWINCH)
+        LOGGER.debug(f"Sent SIGWINCH to process {pid}")
+    except (OSError, ProcessLookupError) as e:
+        LOGGER.debug(f"Failed to send SIGWINCH to {pid}: {e}")
 
 
 def _create_shell_environment(
@@ -195,8 +221,45 @@ async def _read_from_pty(master: int, websocket: WebSocket) -> None:
         raise  # Re-raise other OSErrors
 
 
-async def _write_to_pty(master: int, websocket: WebSocket) -> None:
-    """Write data from websocket to PTY with command monitoring."""
+class ResizeMessage(TypedDict):
+    type: Literal["resize"]
+    cols: int
+    rows: int
+
+
+async def _maybe_handle_resize(
+    *, master: int, child_pid: int, message: str
+) -> bool:
+    """Handle resize messages from websocket."""
+
+    try:
+        message: ResizeMessage = json.loads(message)
+        if isinstance(message, dict) and message.get("type") == "resize":
+            cols = message.get("cols")
+            rows = message.get("rows")
+            if (
+                isinstance(cols, int)
+                and isinstance(rows, int)
+                and cols > 0
+                and rows > 0
+            ):
+                _resize_pty(master, rows, cols)
+                _send_sigwinch(child_pid)
+                return True
+            else:
+                LOGGER.warning("Invalid resize message")
+                return False
+    except (json.JSONDecodeError, TypeError):
+        # Not a JSON message, treat as regular terminal input
+        pass
+
+    return False
+
+
+async def _write_to_pty(
+    master: int, websocket: WebSocket, child_pid: int
+) -> None:
+    """Write data from websocket to PTY with command monitoring and resize handling."""
     try:
         command_buffer = ""
         with os.fdopen(master, "wb", buffering=0) as master_file:
@@ -204,6 +267,12 @@ async def _write_to_pty(master: int, websocket: WebSocket) -> None:
                 try:
                     data = await websocket.receive_text()
                     LOGGER.debug("Received: %s", repr(data))
+
+                    # Check if this is a resize message
+                    if await _maybe_handle_resize(
+                        master=master, child_pid=child_pid, message=data
+                    ):
+                        continue
 
                     # Handle special key combinations and commands
                     command_buffer = _manage_command_buffer(
@@ -280,7 +349,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     cleanup_child = _create_process_cleanup_handler(child_pid, fd)
 
     reader_task = asyncio.create_task(_read_from_pty(fd, websocket))
-    writer_task = asyncio.create_task(_write_to_pty(fd, websocket))
+    writer_task = asyncio.create_task(_write_to_pty(fd, websocket, child_pid))
 
     try:
         _done, pending = await asyncio.wait(

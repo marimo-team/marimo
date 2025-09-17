@@ -19,6 +19,7 @@ import {
 import useEvent from "react-use-event-hook";
 import { waitForConnectionOpen } from "@/core/network/connection";
 import { useRuntimeManager } from "@/core/runtime/config";
+import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
@@ -131,11 +132,15 @@ function createContextMenuActions(
   };
 }
 
+const RESIZE_DEBOUNCE_TIME = 100;
+
 const TerminalComponent: React.FC<TerminalComponentProps> = ({
   visible,
   onClose,
 }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+
   // eslint-disable-next-line react/hook-use-state
   const [{ terminal, fitAddon, searchAddon }] = useState(() => {
     // Create a new terminal instance
@@ -197,8 +202,19 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
     }
   });
 
+  const handleBackendResizeDebounced = useDebouncedCallback(
+    ({ cols, rows }: { cols: number; rows: number }) => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        Logger.debug("Sending resize to backend terminal", { cols, rows });
+        wsRef.current.send(JSON.stringify({ type: "resize", cols, rows }));
+      }
+    },
+    RESIZE_DEBOUNCE_TIME,
+  );
+
   const handleResize = useEvent(() => {
-    // fitAddon.fit();
+    if (!terminal || !fitAddon) return;
+    fitAddon.fit();
   });
 
   // Context menu actions
@@ -220,11 +236,13 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         const socket = new WebSocket(runtimeManager.getTerminalWsURL());
         const attachAddon = new AttachAddon(socket);
         terminal.loadAddon(attachAddon);
+        wsRef.current = socket;
 
         const handleDisconnect = () => {
           onClose();
           // Reset
           attachAddon.dispose();
+          wsRef.current = null;
           terminal.clear();
           setInitialized(false);
         };
@@ -248,7 +266,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
   // When visible
   useEffect(() => {
     if (visible) {
-      // fitAddon.fit();
+      fitAddon.fit();
       terminal.focus();
     }
 
@@ -263,7 +281,12 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
     }
 
     terminal.open(terminalRef.current);
-    // fitAddon.fit();
+
+    // Initial fit with delay to ensure DOM is ready
+    setTimeout(() => {
+      fitAddon.fit();
+    }, RESIZE_DEBOUNCE_TIME);
+
     terminal.focus();
 
     const abortController = new AbortController();
@@ -278,6 +301,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
     terminalRef.current.addEventListener("contextmenu", handleContextMenu, {
       signal: abortController.signal,
     });
+    terminal.onResize(handleBackendResizeDebounced);
     document.addEventListener("click", handleClickOutside, {
       signal: abortController.signal,
     });
@@ -286,7 +310,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
       abortController.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleKeyDown, handleContextMenu, handleClickOutside, handleResize]);
+  }, []);
 
   return (
     <div className={"relative w-full h-[calc(100%-4px)] bg-popover"}>
