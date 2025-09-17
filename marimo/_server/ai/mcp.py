@@ -946,11 +946,9 @@ def get_mcp_client(config: Optional[MCPConfig] = None) -> MCPClient:
     """Get the global MCP client instance, initializing it if needed."""
     global _MCP_CLIENT
     if _MCP_CLIENT is None:
-        try:
-            DependencyManager.mcp.require(why="for MCP server connections")
-        except ModuleNotFoundError as e:
-            LOGGER.info(f"MCP SDK not available: {str(e)}")
-            raise
+        if not DependencyManager.mcp.has():
+            LOGGER.info("MCP SDK not available")
+            raise ModuleNotFoundError("MCP SDK not available")
 
         _MCP_CLIENT = MCPClient(config or _get_default_config())
         LOGGER.info("MCP client initialized")
