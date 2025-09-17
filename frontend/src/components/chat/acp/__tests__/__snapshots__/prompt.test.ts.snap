@@ -47,6 +47,7 @@ exports[`getAgentPrompt > should generate complete agent prompt with default fil
   - UI elements trigger updates when their values change without explicit callbacks
   - UI element values are accessed through \`.value\` attribute
   - You cannot access a UI element's value in the same cell where it's defined
+  - Cells prefixed with an underscore (e.g. _my_var) are local to the cell and cannot be accessed by other cells
 
   ## Best Practices
 
