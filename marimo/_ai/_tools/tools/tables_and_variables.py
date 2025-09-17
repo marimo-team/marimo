@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from marimo._ai._tools.base import ToolBase
-from marimo._ai._tools.tools.shared_types import CellVariableValue
+from marimo._ai._tools.tools.cells import CellVariableValue
 from marimo._ai._tools.types import SuccessResult
 from marimo._server.sessions import Session
 from marimo._types.ids import SessionId

@@ -3,10 +3,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ai._tools.base import ToolBase
-from marimo._ai._tools.tools.shared_types import CellVariableValue
 from marimo._ai._tools.types import SuccessResult
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ast.models import CellData
@@ -66,6 +65,15 @@ class CellRuntimeMetadata:
     # validation issues in models.
     runtime_state: Optional[str] = None
     execution_time: Optional[float] = None
+
+
+@dataclass
+class CellVariableValue:
+    name: str
+    # Cell variables can be arbitrary Python values (int, str, list, dict, ...),
+    # so we keep this as Any to reflect actual runtime.
+    value: Optional[Any] = None
+    data_type: Optional[str] = None
 
 
 CellVariables = dict[str, CellVariableValue]

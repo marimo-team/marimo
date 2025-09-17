@@ -12,9 +12,7 @@ from mcp.server.fastmcp import FastMCP
 from starlette.routing import Mount
 
 from marimo._ai._tools.base import ToolContext
-from marimo._ai._tools.tools.tools_registry import (
-    SUPPORTED_BACKEND_AND_MCP_TOOLS,
-)
+from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
 from marimo._loggers import marimo_logger
 
 LOGGER = marimo_logger()

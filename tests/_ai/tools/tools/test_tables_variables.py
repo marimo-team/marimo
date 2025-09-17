@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import pytest
 
 from marimo._ai._tools.base import ToolContext
-from marimo._ai._tools.tools.shared_types import CellVariableValue
+from marimo._ai._tools.tools.cells import CellVariableValue
 from marimo._ai._tools.tools.tables_and_variables import (
     ColumnInfo,
     DataTableMetadata,
