@@ -225,6 +225,7 @@ class TestManageCommandBuffer:
         assert new_buffer == buffer + "y"
 
 
+@pytest.mark.skipif(is_windows, reason="Skip on Windows")
 class TestCreateProcessCleanupHandler:
     def test_create_process_cleanup_handler_normal_cleanup(self) -> None:
         """Test process cleanup handler creation and execution."""
