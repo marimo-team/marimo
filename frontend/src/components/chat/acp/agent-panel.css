@@ -1,5 +1,3 @@
-@source "../node_modules/streamdown/dist/index.js";
-
 .mo-agent-panel {
   /* Make headers a bit smaller */
   --text-2xl: 1rem;
