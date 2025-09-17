@@ -7,21 +7,22 @@ import pytest
 from marimo._ai._tools.base import ToolContext
 from marimo._ai._tools.tools.cells import CellVariableValue
 from marimo._ai._tools.tools.tables_and_variables import (
-    ColumnInfo,
     DataTableMetadata,
     GetTablesAndVariables,
     TablesAndVariablesOutput,
 )
+from marimo._data.models import DataTableColumn
 from marimo._messaging.ops import VariableValue
 
 
 @dataclass
 class MockDataset:
     name: str
-    source_type: str
+    source: str
     num_rows: int
     num_columns: int
-    columns: list[ColumnInfo]
+    columns: list[DataTableColumn]
+    engine: str | None = None
     primary_keys: list[str] | None = None
     indexes: list[str] | None = None
 
@@ -49,22 +50,22 @@ def tool() -> GetTablesAndVariables:
 
 
 @pytest.fixture
-def sample_columns() -> list[ColumnInfo]:
+def sample_columns() -> list[DataTableColumn]:
     """Sample column information for testing."""
     return [
-        ColumnInfo("id", "int", "INTEGER", [1, 2, 3]),
-        ColumnInfo("name", "str", "VARCHAR", ["Alice", "Bob"]),
-        ColumnInfo("email", "str", "VARCHAR", ["alice@example.com"]),
+        DataTableColumn("id", "int", "INTEGER", [1, 2, 3]),
+        DataTableColumn("name", "str", "VARCHAR", ["Alice", "Bob"]),
+        DataTableColumn("email", "str", "VARCHAR", ["alice@example.com"]),
     ]
 
 
 @pytest.fixture
-def sample_tables(sample_columns: list[ColumnInfo]) -> list[MockDataset]:
+def sample_tables(sample_columns: list[DataTableColumn]) -> list[MockDataset]:
     """Sample table data for testing."""
     return [
         MockDataset(
             name="users",
-            source_type="database",
+            source="database",
             num_rows=100,
             num_columns=3,
             columns=sample_columns,
@@ -73,12 +74,12 @@ def sample_tables(sample_columns: list[ColumnInfo]) -> list[MockDataset]:
         ),
         MockDataset(
             name="orders",
-            source_type="csv",
+            source="csv",
             num_rows=50,
             num_columns=2,
             columns=[
-                ColumnInfo("order_id", "int", "INTEGER", [1, 2]),
-                ColumnInfo("user_id", "int", "INTEGER", [1, 2]),
+                DataTableColumn("order_id", "int", "INTEGER", [1, 2]),
+                DataTableColumn("user_id", "int", "INTEGER", [1, 2]),
             ],
         ),
     ]
@@ -211,9 +212,9 @@ def test_data_table_metadata_structure(
     # Check column structure
     assert len(users_table.columns) == 3
     id_column = users_table.columns[0]
-    assert isinstance(id_column, ColumnInfo)
+    assert isinstance(id_column, DataTableColumn)
     assert id_column.name == "id"
-    assert id_column.data_type == "int"
+    assert id_column.type == "int"
     assert id_column.external_type == "INTEGER"
     assert id_column.sample_values == [1, 2, 3]
 
@@ -253,12 +254,12 @@ def test_table_with_no_primary_keys_or_indexes(tool: GetTablesAndVariables):
     """Test table with no primary keys or indexes."""
     table_without_keys = MockDataset(
         name="simple_table",
-        source_type="json",
+        source="json",
         num_rows=10,
         num_columns=2,
         columns=[
-            ColumnInfo("col1", "str", "TEXT", ["a", "b"]),
-            ColumnInfo("col2", "int", "INTEGER", [1, 2]),
+            DataTableColumn("col1", "str", "TEXT", ["a", "b"]),
+            DataTableColumn("col2", "int", "INTEGER", [1, 2]),
         ],
         primary_keys=None,
         indexes=None,

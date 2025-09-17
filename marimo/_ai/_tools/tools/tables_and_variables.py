@@ -1,10 +1,11 @@
 # Copyright 2025 Marimo. All rights reserved.
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Optional
 
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.tools.cells import CellVariableValue
 from marimo._ai._tools.types import SuccessResult
+from marimo._data.models import DataTableColumn
 from marimo._server.sessions import Session
 from marimo._types.ids import SessionId
 
@@ -16,14 +17,6 @@ class TablesAndVariablesArgs:
 
 
 @dataclass
-class ColumnInfo:
-    name: str
-    data_type: str
-    external_type: str
-    sample_values: list[Any]
-
-
-@dataclass
 class DataTableMetadata:
     """
     Metadata about a data table.
@@ -32,15 +25,15 @@ class DataTableMetadata:
     engine: str - The engine or connection handler of the data table.
     num_rows: int - The number of rows in the data table.
     num_columns: int - The number of columns in the data table.
-    columns: list[ColumnInfo] - The columns in the data table.
+    columns: list[DataTableColumn] - The columns in the data table.
     primary_keys: Optional[list[str]] - The primary keys of the data table.
     indexes: Optional[list[str]] - The indexes of the data table.
     """
 
     source: str
-    num_rows: int
-    num_columns: int
-    columns: list[ColumnInfo]
+    num_rows: Optional[int]
+    num_columns: Optional[int]
+    columns: list[DataTableColumn]
     engine: Optional[str]
     primary_keys: Optional[list[str]]
     indexes: Optional[list[str]]
@@ -74,8 +67,8 @@ class GetTablesAndVariables(
     ) -> TablesAndVariablesOutput:
         session_view = session.session_view
         # convert to set for O(1) lookup
-        variable_names = set(variable_names)
-        return_all_vars = variable_names == set()
+        variable_names_set = set(variable_names)
+        return_all_vars = variable_names_set == set()
 
         tables = session_view.datasets.tables
         variables = session_view.variable_values
@@ -83,12 +76,14 @@ class GetTablesAndVariables(
         filtered_tables = (
             tables
             if return_all_vars
-            else filter(lambda table: table.name in variable_names, tables)
+            else filter(lambda table: table.name in variable_names_set, tables)
         )
         filtered_variables = (
             variables
             if return_all_vars
-            else filter(lambda variable: variable in variable_names, variables)
+            else filter(
+                lambda variable: variable in variable_names_set, variables
+            )
         )
 
         data_tables: dict[str, DataTableMetadata] = {}

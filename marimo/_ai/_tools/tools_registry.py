@@ -1,4 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
+from typing import Any
+
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.tools.cells import (
     GetCellRuntimeData,
@@ -7,7 +9,7 @@ from marimo._ai._tools.tools.cells import (
 from marimo._ai._tools.tools.notebooks import GetActiveNotebooks
 from marimo._ai._tools.tools.tables_and_variables import GetTablesAndVariables
 
-SUPPORTED_BACKEND_AND_MCP_TOOLS: list[type[ToolBase]] = [
+SUPPORTED_BACKEND_AND_MCP_TOOLS: list[type[ToolBase[Any, Any]]] = [
     GetActiveNotebooks,
     GetCellRuntimeData,
     GetLightweightCellMap,
