@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass, is_dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Generic,
     Optional,
     TypeVar,
@@ -40,11 +41,9 @@ ArgsP = TypeVar("ArgsP", contravariant=True)
 OutC = TypeVar("OutC", covariant=True)
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from collections.abc import Awaitable
 
-    from starlette.applications import (
-        Starlette,
-    )
+    from starlette.applications import Starlette
 
 
 @dataclass

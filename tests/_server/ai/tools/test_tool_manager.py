@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from starlette.applications import Starlette
 
+from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
 from marimo._config.manager import get_default_config_manager
 from marimo._server.ai.tools.tool_manager import ToolManager
 from marimo._server.ai.tools.types import ToolCallResult
@@ -25,12 +26,8 @@ def test_get_tools_for_mode(manager: ToolManager):
     # Mock the config to disable MCP
     tools = manager.get_tools_for_mode("ask")
 
-    # Should have backend tools (GetActiveNotebooks, GetCellRuntimeData, GetLightweightCellMap)
-    assert len(tools) == 3
-    tool_names = {tool.name for tool in tools}
-    assert "get_active_notebooks" in tool_names
-    assert "get_cell_runtime_data" in tool_names
-    assert "get_lightweight_cell_map" in tool_names
+    # Should have backend tools
+    assert len(tools) == len(SUPPORTED_BACKEND_AND_MCP_TOOLS)
 
     # All should be backend tools for ask mode
     for tool in tools:

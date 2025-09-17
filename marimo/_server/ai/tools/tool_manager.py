@@ -10,12 +10,9 @@ from starlette.applications import (
 
 from marimo import _loggers
 from marimo._ai._tools.base import ToolBase, ToolContext
-from marimo._ai._tools.tools.cells import (
-    GetCellRuntimeData,
-    GetLightweightCellMap,
-)
-from marimo._ai._tools.tools.notebooks import GetActiveNotebooks
+from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
 from marimo._config.config import CopilotMode
+from marimo._server.ai.mcp import get_mcp_client
 from marimo._server.ai.tools.types import (
     FunctionArgs,
     ToolCallResult,
@@ -54,19 +51,12 @@ class ToolManager:
 
     @once
     def _init_backend_tools(self) -> None:
-        """Initialize backend tools."""
+        """Initialize backend tools. We lazily register tools here instead of in the constructor for performance"""
         context = ToolContext(app=self.app)
 
-        # Add backend tools here
-        # Backend tools MUST BE DEFINED in:
-        # - marimo._ai._tools.tools.*
-        backend_tools: list[ToolBase[Any, Any]] = [
-            GetActiveNotebooks(context),
-            GetCellRuntimeData(context),
-            GetLightweightCellMap(context),
-        ]
-        for tool in backend_tools:
-            self._register_backend_tool(tool)
+        for tool in SUPPORTED_BACKEND_AND_MCP_TOOLS:
+            tool_with_context = tool(context)
+            self._register_backend_tool(tool_with_context)
 
     def _register_backend_tool(self, tool: ToolBase[Any, Any]) -> None:
         """Register a backend tool with its handler function and optional validator."""
@@ -182,8 +172,6 @@ class ToolManager:
             return []
 
         try:
-            from marimo._server.ai.mcp import get_mcp_client
-
             mcp_client = get_mcp_client()
             mcp_tools = mcp_client.get_all_tools()
             return [self._convert_mcp_tool(tool) for tool in mcp_tools]
@@ -275,8 +263,6 @@ class ToolManager:
                 call_result = await self._invoke_mcp_tool(tool_name, arguments)
 
                 # Check if the result indicates an error using the MCP client
-                from marimo._server.ai.mcp import get_mcp_client
-
                 mcp_client = get_mcp_client()
 
                 if mcp_client.is_error_result(call_result):
@@ -345,8 +331,6 @@ class ToolManager:
         self, tool_name: str, arguments: FunctionArgs
     ) -> CallToolResult:
         """Invoke an MCP tool via the MCP client."""
-        from marimo._server.ai.mcp import get_mcp_client
-
         mcp_client = get_mcp_client()
 
         # Create properly typed parameters for the MCP tool

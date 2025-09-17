@@ -73,7 +73,7 @@ class CellVariableValue:
     # Cell variables can be arbitrary Python values (int, str, list, dict, ...),
     # so we keep this as Any to reflect actual runtime.
     value: Optional[Any] = None
-    datatype: Optional[str] = None
+    data_type: Optional[str] = None
 
 
 CellVariables = dict[str, CellVariableValue]
@@ -384,7 +384,7 @@ class GetCellRuntimeData(
                 cell_variables[var_name] = CellVariableValue(
                     name=var_name,
                     value=var_value.value,
-                    datatype=var_value.datatype,
+                    data_type=var_value.datatype,
                 )
 
         return cell_variables
