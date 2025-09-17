@@ -148,5 +148,5 @@ EDGE_CASE_FILENAMES = [
     "café notebook.py",
     "测试 file.py",
     # Injection attempts
-    *(NON_WINDOWS_EDGE_CASE_FILENAMES if is_windows() else []),
+    *(NON_WINDOWS_EDGE_CASE_FILENAMES if not is_windows() else []),
 ]
