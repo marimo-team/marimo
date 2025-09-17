@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from starlette.applications import Starlette
 
 from marimo._loggers import marimo_logger
+from marimo._mcp.server.main import setup_mcp_server
 
 LOGGER = marimo_logger()
 
@@ -14,9 +15,6 @@ async def mcp_server_lifespan(app: Starlette) -> AsyncIterator[None]:
     """Lifespan for MCP server functionality (exposing marimo as MCP server)."""
 
     try:
-        # Import here to avoid circular imports and optional dependency issues
-        from marimo._mcp.server.main import setup_mcp_server
-
         session_manager = setup_mcp_server(app)
 
         async with session_manager.run():

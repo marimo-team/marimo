@@ -4,11 +4,11 @@ from __future__ import annotations
 import ast
 from typing import TYPE_CHECKING
 
+from marimo._ast.parse import ast_parse
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import UnsafeFixRule
 from marimo._schemas.serialization import NotebookSerialization
 from marimo._types.ids import CellId_t
-from marimo._ast.parse import ast_parse
 
 if TYPE_CHECKING:
     from marimo._lint.context import RuleContext
@@ -72,7 +72,6 @@ class EmptyCellRule(UnsafeFixRule):
 
     **Note:** This fix requires `--unsafe-fixes` because removing cells changes
     the notebook structure, and potentially removes user-intended content.
- 
 
     ## References
 
@@ -115,12 +114,11 @@ class EmptyCellRule(UnsafeFixRule):
             Modified notebook with empty cells removed
         """
         # Collect all cell IDs to remove from all diagnostics
-        cells_to_remove = set()
+        cells_to_remove: set[CellId_t] = set()
         for diagnostic in diagnostics:
             if diagnostic.cell_id is not None:
                 (cell_id,) = diagnostic.cell_id
-                if isinstance(cell_id, str):
-                    cells_to_remove.update(cell_id)
+                cells_to_remove.add(cell_id)
 
         # Remove cells with matching IDs
         cells = [
