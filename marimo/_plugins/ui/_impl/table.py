@@ -787,7 +787,7 @@ class table(
         manager_candidate: Union[TableManager[Any], list[TableCell]]
         if self._selection in ["single-cell", "multi-cell"]:
             LOGGER.info(
-                "Download of cell selections not supported, downloading everything."
+                "Cell selection downloads aren't supported; downloading all data."
             )
             manager_candidate = self._searched_manager
         else:
