@@ -65,6 +65,7 @@ interface TerminalComponentProps {
 interface Position {
   x: number;
   y: number;
+  placement: "bottom" | "top";
 }
 
 // Keyboard shortcut handlers
@@ -103,7 +104,7 @@ function createKeyboardHandler(terminal: Terminal, _searchAddon: SearchAddon) {
 // Context menu actions
 function createContextMenuActions(
   terminal: Terminal,
-  setContextMenu: (menu: { x: number; y: number } | null) => void,
+  setContextMenu: (menu: Position | null) => void,
 ) {
   const closeMenu = () => setContextMenu(null);
 
@@ -148,7 +149,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
       fontFamily:
         "Menlo, DejaVu Sans Mono, Consolas, Lucida Console, monospace",
       fontSize: 14,
-      scrollback: 10000,
+      scrollback: 10_000,
       cursorBlink: true,
       cursorStyle: "block",
       allowTransparency: false,
@@ -187,7 +188,20 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
   // Context menu handler
   const handleContextMenu = useEvent((event: MouseEvent) => {
     event.preventDefault();
-    setContextMenu({ x: event.clientX, y: event.clientY });
+
+    const menuHeight = 200; // Approximate height of the context menu
+    const viewportHeight = window.innerHeight;
+    const cursorY = event.clientY;
+
+    // Check if there's enough space below the cursor
+    const spaceBelow = viewportHeight - cursorY;
+    const shouldPlaceAbove = spaceBelow < menuHeight;
+
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      placement: shouldPlaceAbove ? "top" : "bottom",
+    });
   });
 
   // Close context menu on click outside
@@ -213,7 +227,9 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
   );
 
   const handleResize = useEvent(() => {
-    if (!terminal || !fitAddon) return;
+    if (!terminal || !fitAddon) {
+      return;
+    }
     fitAddon.fit();
   });
 
@@ -322,7 +338,10 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
           }
           style={{
             left: contextMenu.x,
-            top: contextMenu.y,
+            [contextMenu.placement === "top" ? "bottom" : "top"]:
+              contextMenu.placement === "top"
+                ? window.innerHeight - contextMenu.y
+                : contextMenu.y,
           }}
         >
           <TerminalButton
