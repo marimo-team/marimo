@@ -38,7 +38,7 @@ def to_snake(string: str) -> str:
     ).lstrip("_")
 
 
-class DataclassParser:
+class _DataclassParser:
     def __init__(self, allow_unknown_keys: bool = False):
         self.allow_unknown_keys = allow_unknown_keys
 
@@ -153,6 +153,11 @@ class DataclassParser:
         elif dataclasses.is_dataclass(cls):
             return self.build_dataclass(value, cls)  # type: ignore[return-value]
 
+        if issubclass(cls, msgspec.Struct):
+            return _parse_msgspec(
+                value, strict=not self.allow_unknown_keys, cls=cls
+            )  # type: ignore[return-value]
+
         try:
             if isinstance(value, cls):
                 return value  # type: ignore[no-any-return]
@@ -194,6 +199,16 @@ class DataclassParser:
         return cls(**transformed)
 
 
+def _parse_msgspec(
+    value: Union[bytes, str, dict[Any, Any]], *, strict: bool, cls: type[T]
+) -> T:
+    # If it is a dict, it is already parsed and we can just build the dataclass.
+    if isinstance(value, dict):
+        return msgspec.convert(value, strict=strict, type=cls)
+
+    return msgspec.json.decode(value, strict=strict, type=cls)
+
+
 def parse_raw(
     message: Union[bytes, str, dict[Any, Any]],
     cls: type[T],
@@ -222,23 +237,13 @@ def parse_raw(
     # union types. We could move off if we changed the over-the-wire types to have
     # a tag, but that would require updating the front end.
     if dataclasses.is_dataclass(cls):
-        if isinstance(message, dict):
-            return cast(
-                "T",
-                DataclassParser(allow_unknown_keys).build_dataclass(
-                    message, cls
-                ),
-            )
-        parsed = json.loads(message)
+        as_dict = (
+            json.loads(message) if not isinstance(message, dict) else message
+        )
+        parser = _DataclassParser(allow_unknown_keys)
         return cast(
             "T",
-            DataclassParser(allow_unknown_keys).build_dataclass(parsed, cls),
+            parser.build_dataclass(as_dict, cls),
         )
 
-    # If it is a dict, it is already parsed and we can just build the dataclass.
-    if isinstance(message, dict):
-        return msgspec.convert(message, type=cls)
-
-    return msgspec.json.decode(
-        message, strict=not allow_unknown_keys, type=cls
-    )
+    return _parse_msgspec(message, strict=not allow_unknown_keys, cls=cls)
