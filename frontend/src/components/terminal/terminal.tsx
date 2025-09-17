@@ -298,8 +298,8 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         Logger.debug("Sending programmatic command to terminal", {
           command: command.text,
         });
-        terminal.paste(command.text);
-        // Remove the processed command
+        terminal.input(command.text);
+        terminal.focus();
         removeCommand(command.id);
       }
     }
