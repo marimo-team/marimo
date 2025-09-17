@@ -765,8 +765,11 @@ class table(
     def _download_as(self, args: DownloadAsArgs) -> str:
         """Download the table data in the specified format.
 
-        Downloads selected rows if there are any, otherwise downloads all rows.
-        Raw data is downloaded without any formatting applied.
+        For cell-selection modes ("single-cell"/"multi-cell"), selection is
+        ignored and the current searched/filtered view is downloaded. For
+        row-selection modes, downloads selected rows if any, otherwise the
+        current searched/filtered view. Raw data is downloaded without any
+        formatting applied.
 
         Args:
             args (DownloadAsArgs): Arguments specifying the download format.
@@ -777,22 +780,23 @@ class table(
 
         Raises:
             ValueError: If format is not 'csv' or 'json'.
-            NotImplementedError: If download is not supported for cell selection.
         """
+        # For cell-selection modes, ignore selection and download from the
+        # searched/filtered view. For row-selection modes, preserve existing
+        # behavior: download selected rows if any, otherwise the searched view.
+        manager_candidate: Union[TableManager[Any], list[TableCell]]
         if self._selection in ["single-cell", "multi-cell"]:
-            raise NotImplementedError(
-                "Download is not supported for cell selection."
+            manager_candidate = self._searched_manager
+        else:
+            manager_candidate = (
+                self._selected_manager
+                if self._selected_manager and self._has_any_selection
+                else self._searched_manager
             )
 
-        manager = (
-            self._selected_manager
-            if self._selected_manager and self._has_any_selection
-            else self._searched_manager
-        )
-
         # Remove the selection column before downloading
-        if isinstance(manager, TableManager):
-            manager = manager.drop_columns([INDEX_COLUMN_NAME])
+        if isinstance(manager_candidate, TableManager):
+            manager = manager_candidate.drop_columns([INDEX_COLUMN_NAME])
 
             ext = args.format
             if ext == "csv":
