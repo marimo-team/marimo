@@ -1257,10 +1257,11 @@ def test_download_as_pandas() -> None:
         assert len(filtered_df) == 2
         assert all(filtered_df["cities"].isin(["Newark", "New York"]))
 
-    # Test downloads with selection (includes search from before)
-    table._convert_value(["1"])
+    # Test downloads with row selection (includes search from before)
+    table._convert_value(["1"])  # select one row of the filtered view
     for format_type in DOWNLOAD_FORMATS:
         selected_df = download_and_convert(format_type, table)
+        # For row selection, selection is respected (single row)
         assert len(selected_df) == 1
         assert selected_df["cities"].iloc[0] == "New York"
 
@@ -1305,19 +1306,29 @@ def test_download_as_polars() -> None:
         assert len(filtered_df) == 2
         assert all(filtered_df["cities"].is_in(["Newark", "New York"]))
 
-    # Test downloads with selection (includes search from before)
-    table._convert_value(["1"])
+    # Test downloads with row selection (includes search from before)
+    table._convert_value(["1"])  # select one row of the filtered view
     for format_type in DOWNLOAD_FORMATS:
         selected_df = download_and_convert(format_type, table)
+        # For row selection, selection is respected (single row)
         assert len(selected_df) == 1
         assert selected_df["cities"][0] == "New York"
 
 
-def test_download_as_for_unsupported_cell_selection() -> None:
-    for selection in ["single-cell", "multi-cell"]:
-        table = ui.table(data=[], selection=selection)
-        with pytest.raises(NotImplementedError):
-            table._download_as(DownloadAsArgs(format="csv"))
+def test_download_as_ignores_cell_selection() -> None:
+    # Download should ignore selection when in cell selection modes
+    data = {"a": [1, 2, 3]}
+    table = ui.table(data, selection="multi-cell")
+    table._search(SearchTableArgs(query="2", page_size=10, page_number=0))
+    # Make a cell selection; download should still include the filtered view
+    table._convert_value([{"rowId": "0", "columnName": "a"}])
+    # Use JSON format to avoid optional dependencies
+    url = table._download_as(DownloadAsArgs(format="json"))
+    data_bytes = from_data_uri(url)[1]
+    rows = json.loads(data_bytes)
+    assert isinstance(rows, list)
+    assert len(rows) == 1
+    assert int(rows[0]["a"]) == 2
 
 
 @pytest.mark.skipif(
