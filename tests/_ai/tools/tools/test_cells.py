@@ -165,10 +165,10 @@ def test_get_cell_variables():
     result = tool._get_cell_variables(session, cell_data)
     expected: CellVariables = {
         "x": CellVariableValue(
-            name="x", value=var_x.value, datatype=var_x.datatype
+            name="x", value=var_x.value, data_type=var_x.datatype
         ),
         "y": CellVariableValue(
-            name="y", value=var_y.value, datatype=var_y.datatype
+            name="y", value=var_y.value, data_type=var_y.datatype
         ),
     }
     assert result == expected

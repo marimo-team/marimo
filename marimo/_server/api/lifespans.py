@@ -7,6 +7,7 @@ import socket
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo import _loggers
+from marimo._server.ai.tools.tool_manager import setup_tool_manager
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.api.interrupt import InterruptHandler
 from marimo._server.api.utils import open_url_in_browser
@@ -69,8 +70,6 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 @contextlib.asynccontextmanager
 async def tool_manager(app: Starlette) -> AsyncIterator[None]:
     try:
-        from marimo._server.ai.tools.tool_manager import setup_tool_manager
-
         # Initialize and attach to app state
         setup_tool_manager(app)
 
