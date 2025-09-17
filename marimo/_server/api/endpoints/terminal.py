@@ -233,10 +233,13 @@ async def _maybe_handle_resize(
     """Handle resize messages from websocket."""
 
     try:
-        message: ResizeMessage = json.loads(message)
-        if isinstance(message, dict) and message.get("type") == "resize":
-            cols = message.get("cols")
-            rows = message.get("rows")
+        parsed_message: ResizeMessage = json.loads(message)
+        if (
+            isinstance(parsed_message, dict)
+            and parsed_message.get("type") == "resize"
+        ):
+            cols = parsed_message.get("cols")
+            rows = parsed_message.get("rows")
             if (
                 isinstance(cols, int)
                 and isinstance(rows, int)
