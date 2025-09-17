@@ -11,6 +11,7 @@ import pytest
 
 from marimo import __version__
 from marimo._utils.paths import maybe_make_dirs
+from marimo._utils.platform import is_windows
 
 
 class ToText(HTMLParser):
@@ -129,6 +130,12 @@ def _sanitize_version(output: str) -> str:
     )
 
 
+NON_WINDOWS_EDGE_CASE_FILENAMES = [
+    "test<script>.py",
+    'test"quotes".py',
+]
+
+
 EDGE_CASE_FILENAMES = [
     # Unicode characters
     "tést.py",
@@ -141,6 +148,5 @@ EDGE_CASE_FILENAMES = [
     "café notebook.py",
     "测试 file.py",
     # Injection attempts
-    r"test<script>.py",
-    r'test"quotes".py',
+    *(NON_WINDOWS_EDGE_CASE_FILENAMES if is_windows() else []),
 ]
