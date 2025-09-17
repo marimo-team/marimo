@@ -430,7 +430,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
               </>
             )}
 
-            <Tooltip content="Submit">
+            <Tooltip content={isLoading ? "Stop" : "Submit"}>
               <Button
                 variant="text"
                 size="sm"
