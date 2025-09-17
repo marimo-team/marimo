@@ -3,7 +3,6 @@ from marimo._lint.rules.base import LintRule, UnsafeFixRule
 from marimo._lint.rules.formatting.empty_cells import EmptyCellRule
 from marimo._lint.rules.formatting.general import GeneralFormattingRule
 from marimo._lint.rules.formatting.parsing import (
-    DuckdbRule,
     MiscLogRule,
     SqlParseRule,
     StderrRule,
@@ -16,8 +15,7 @@ FORMATTING_RULE_CODES: dict[str, type[LintRule]] = {
     "MF003": StderrRule,
     "MF004": EmptyCellRule,
     "MF005": SqlParseRule,
-    "MF006": DuckdbRule,
-    "MF007": MiscLogRule,
+    "MF006": MiscLogRule,
 }
 
 __all__ = [
@@ -27,7 +25,6 @@ __all__ = [
     "StderrRule",
     "EmptyCellRule",
     "SqlParseRule",
-    "DuckdbRule",
     "MiscLogRule",
     "UnsafeFixRule",
 ]

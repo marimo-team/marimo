@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
 import logging
@@ -242,96 +242,8 @@ class SqlParseRule(LintRule):
             )
 
 
-class DuckdbRule(LintRule):
-    """MF006: DuckDB connection and query issues.
-
-    This rule processes log messages captured when marimo encounters issues
-    with DuckDB connections or queries during dependency analysis. DuckDB
-    is used for analyzing SQL dependencies and dataframe operations.
-
-    ## What it does
-
-    Captures DuckDB-related error logs and creates diagnostics to help
-    identify connection or query issues.
-
-    ## Why is this bad?
-
-    DuckDB issues can lead to:
-    - Failed dependency analysis for SQL cells
-    - Incomplete dataframe tracking
-    - Reduced accuracy of reactive execution
-    - Runtime errors when SQL operations are performed
-
-    ## Examples
-
-    **Triggered by:**
-    - DuckDB connection failures
-    - Resource exhaustion during analysis
-    - Incompatible DuckDB operations
-
-    ## References
-
-    - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
-    - [SQL Support](https://docs.marimo.io/guides/sql/)
-    """
-
-    code = "MF006"
-    name = "duckdb-error"
-    description = "DuckDB connection and query issues"
-    severity = Severity.FORMATTING
-    fixable = False
-
-    async def check(self, ctx: RuleContext) -> None:
-        """Process DuckDB error logs."""
-        logs = ctx.get_logs(self.code)
-
-        for record in logs:
-            # Extract rich context from record extra data
-            extra_data = getattr(record, '__dict__', {})
-            sql_query = extra_data.get('sql_query', '')
-            sql_statement = extra_data.get('sql_statement', '')
-            error_type = extra_data.get('error_type', '')
-            context = extra_data.get('context', '')
-            node_lineno = extra_data.get('node_lineno')
-            node_col_offset = extra_data.get('node_col_offset', 0)
-
-            # Build enhanced message with context
-            base_message = record.getMessage()
-            message_parts = [base_message]
-
-            if error_type:
-                message_parts.append(f"Error type: {error_type}")
-
-            if context:
-                message_parts.append(f"Context: {context}")
-
-            if sql_statement:
-                message_parts.append(f"SQL statement: {sql_statement}")
-            elif sql_query:
-                message_parts.append(f"SQL query: {sql_query}")
-
-            enhanced_message = " | ".join(message_parts)
-
-            # Calculate line position from node context
-            calculated_line = 0
-            calculated_col = 0
-            if node_lineno is not None:
-                calculated_line = node_lineno - 1  # Convert to 0-based
-            if node_col_offset is not None:
-                calculated_col = node_col_offset
-
-            await ctx.add_diagnostic(
-                Diagnostic(
-                    message=enhanced_message,
-                    line=calculated_line,
-                    cell_id=None,
-                    column=calculated_col,
-                )
-            )
-
-
 class MiscLogRule(LintRule):
-    """MF007: Miscellaneous log messages during processing.
+    """MF006: Miscellaneous log messages during processing.
 
     This rule processes log messages that don't have a specific rule assigned
     but may still be relevant for understanding notebook health and potential
@@ -362,7 +274,7 @@ class MiscLogRule(LintRule):
     - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
     """
 
-    code = "MF007"
+    code = "MF006"
     name = "misc-log-capture"
     description = "Miscellaneous log messages during processing"
     severity = Severity.FORMATTING

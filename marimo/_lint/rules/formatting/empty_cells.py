@@ -71,8 +71,8 @@ class EmptyCellRule(UnsafeFixRule):
     ```
 
     **Note:** This fix requires `--unsafe-fixes` because removing cells changes
-    the notebook structure, which could potentially affect cell execution order
-    or references in rare edge cases.
+    the notebook structure, and potentially removes user-intended content.
+ 
 
     ## References
 
