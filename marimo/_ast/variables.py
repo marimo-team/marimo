@@ -23,6 +23,13 @@ BUILTINS = set(
         "__builtin__",
         "__file__",
         "__builtins__",
+        # Only resolved in a class function, i.e.:
+        #   class A:
+        #       @staticmethod
+        #       def f():
+        #           (set(locals().keys()) - BUILTINS) == {'__class__'}
+        # but promote to a global builtin for simplicity
+        "__class__",
     }
 )
 
