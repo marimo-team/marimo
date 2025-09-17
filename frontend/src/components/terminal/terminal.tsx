@@ -65,7 +65,7 @@ interface TerminalComponentProps {
 interface Position {
   x: number;
   y: number;
-  placement: "bottom" | "top";
+  placement: "bottom" | "top"; // Whether to place the menu above or below the cursor
 }
 
 // Keyboard shortcut handlers
