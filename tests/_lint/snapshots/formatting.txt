@@ -25,3 +25,9 @@ warning[general-formatting]: Unexpected statement, expected cell definitions.
 warning[general-formatting]: Expected run guard statement
  --> tests/_lint/test_files/formatting.py
    1 | """Example to test formatting issues."""
+warning[empty-cells]: Empty cell can be removed (contains only whitespace, comments, or pass)
+ --> tests/_lint/test_files/formatting.py:13:0
+  13 | @app.cell
+  14 | def _():
+     |     ^
+  15 |     pass

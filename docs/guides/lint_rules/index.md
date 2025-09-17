@@ -42,10 +42,12 @@ These are style and formatting issues.
 | [MF001](rules/general_formatting.md) | general-formatting | General formatting issues with the notebook format. | 🛠️ |
 | [MF002](rules/parse_stdout.md) | parse-stdout | Parse captured stdout during notebook loading | ❌ |
 | [MF003](rules/parse_stderr.md) | parse-stderr | Parse captured stderr during notebook loading | ❌ |
+| [MF004](rules/empty_cells.md) | empty-cells | Empty cells that can be safely removed. | ⚠️ |
 
 ## Legend
 
 - 🛠️ = Automatically fixable with `marimo check --fix`
+- ⚠️ = Fixable with `marimo check --fix --unsafe-fixes` (may change code behavior)
 - ❌ = Not automatically fixable
 
 ## Configuration

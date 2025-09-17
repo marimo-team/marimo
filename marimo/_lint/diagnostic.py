@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, cast
+from typing import Literal, Optional, cast
 
 from marimo._types.ids import CellId_t
 
@@ -32,7 +32,7 @@ class Diagnostic:
     code: Optional[str] = None
     name: Optional[str] = None
     severity: Optional[Severity] = None
-    fixable: Optional[bool] = None
+    fixable: bool | Literal["unsafe"] | None = None
     fix: Optional[str] = None
     filename: Optional[str] = None
 
