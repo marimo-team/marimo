@@ -9,6 +9,7 @@ from unittest.mock import patch
 import click
 import pytest
 
+from docs.blocks import uri_encode_component
 from marimo._cli.file_path import (
     FileContentReader,
     GenericURLReader,
@@ -20,6 +21,7 @@ from marimo._cli.file_path import (
     validate_name,
 )
 from marimo._utils.requests import Response
+from tests.mocks import EDGE_CASE_FILENAMES
 
 temp_dir = tempfile.TemporaryDirectory()
 
@@ -383,3 +385,77 @@ def test_validate_name_with_relative_and_absolute_paths():
     finally:
         Path.unlink(rel_file)
         Path.unlink(abs_file)
+
+
+@pytest.mark.parametrize(
+    "filename",
+    EDGE_CASE_FILENAMES,
+)
+def test_validate_name_with_edge_case_filenames(tmp_path: Path, filename: str):
+    """Test file path validation with unicode, spaces, and special characters."""
+    file_path = tmp_path / filename
+    file_path.write_text("# test content")
+
+    # Should validate existing files correctly
+    result_path, temp_dir = validate_name(
+        str(file_path), allow_new_file=False, allow_directory=False
+    )
+    assert result_path == str(file_path)
+    assert temp_dir is None  # Local file, no temp dir needed
+
+    # Should allow new files with problematic names
+    new_filename = f"new_{filename}"
+    new_path = tmp_path / new_filename
+    result_path, temp_dir = validate_name(
+        str(new_path), allow_new_file=True, allow_directory=False
+    )
+    assert result_path == str(new_path)
+    assert temp_dir is None
+
+
+@pytest.mark.parametrize(
+    "filename",
+    EDGE_CASE_FILENAMES,
+)
+def test_local_file_reader_with_edge_case_filenames(
+    tmp_path: Path, filename: str
+):
+    """Test LocalFileReader with unicode and spaces in filenames."""
+    reader = LocalFileReader()
+    file_path = tmp_path / filename
+    test_content = f"# Test content for {filename}\nprint('hello')"
+    file_path.write_text(test_content, encoding="utf-8")
+
+    assert reader.can_read(str(file_path)) is True
+
+    content, read_filename = reader.read(str(file_path))
+    assert content == test_content
+    assert read_filename == filename
+
+
+@pytest.mark.parametrize(
+    ("url", "expected_filename"),
+    [
+        (
+            f"https://example.com/{uri_encode_component(name)}",
+            uri_encode_component(name),
+        )
+        for name in EDGE_CASE_FILENAMES
+    ],
+)
+def test_generic_url_reader_with_edge_case_filenames(
+    url: str, expected_filename: str
+):
+    """Test GenericURLReader with unicode and spaces in URLs."""
+    reader = GenericURLReader()
+    assert reader.can_read(url) is True
+
+    with patch("marimo._utils.requests.get") as mock_get:
+        mock_get.return_value = Response(
+            200,
+            b"print('Hello, world!')",
+            {},
+        )
+        content, filename = reader.read(url)
+        assert content == "print('Hello, world!')"
+        assert filename == expected_filename

@@ -127,3 +127,20 @@ def _sanitize_version(output: str) -> str:
     return output.replace(f"{__version__} (editable)", "0.0.0").replace(
         f"{__version__}", "0.0.0"
     )
+
+
+EDGE_CASE_FILENAMES = [
+    # Unicode characters
+    "tést.py",
+    "café.py",
+    "测试.py",
+    "🚀notebook.py",
+    # Spaces
+    "test file with spaces.py",
+    # Mixed unicode and spaces
+    "café notebook.py",
+    "测试 file.py",
+    # Injection attempts
+    "test<script>.py",
+    'test"quotes".py',
+]

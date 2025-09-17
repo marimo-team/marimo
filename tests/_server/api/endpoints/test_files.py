@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import random
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
@@ -463,3 +464,41 @@ def test_endpoints_without_authentication(client: TestClient) -> None:
         )
         # Should require authentication
         assert response.status_code in [401, 403, 422]
+
+
+FILENAMES = [
+    "tést_file.py",
+    "café_notebook.py",
+    "测试_file.py",
+    "test file with spaces.py",
+    "café notebook with spaces.py",
+]
+
+
+@with_session(SESSION_ID)
+def test_rename_with_edge_case_filenames(client: TestClient) -> None:
+    """Test rename endpoint with unicode and spaces in filenames."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for filename in FILENAMES:
+            current_filename = get_session_manager(
+                client
+            ).file_router.get_unique_file_key()
+            assert current_filename
+
+            new_path = Path(tmpdir) / filename
+            response = client.post(
+                "/api/kernel/rename",
+                headers=HEADERS,
+                json={
+                    "filename": str(new_path),
+                },
+            )
+            assert response.json() == {"success": True}
+
+            def _new_path_exists():
+                assert new_path.exists()  # noqa: B023
+                # Ensure content is preserved and readable
+                content = new_path.read_text(encoding="utf-8")  # noqa: B023
+                assert "import marimo" in content
+
+            try_assert_n_times(5, _new_path_exists)
