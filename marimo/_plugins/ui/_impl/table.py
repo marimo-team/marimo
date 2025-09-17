@@ -786,6 +786,9 @@ class table(
         # behavior: download selected rows if any, otherwise the searched view.
         manager_candidate: Union[TableManager[Any], list[TableCell]]
         if self._selection in ["single-cell", "multi-cell"]:
+            LOGGER.info(
+                "Download of cell selections not supported, downloading everything."
+            )
             manager_candidate = self._searched_manager
         else:
             manager_candidate = (
