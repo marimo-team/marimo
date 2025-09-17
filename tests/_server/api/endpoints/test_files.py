@@ -11,12 +11,14 @@ from unittest.mock import Mock, patch
 import msgspec
 import pytest
 
+from marimo._utils.platform import is_windows
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
     token_header,
     with_session,
     with_websocket_session,
 )
+from tests.mocks import EDGE_CASE_FILENAMES
 from tests.utils import try_assert_n_times
 
 if TYPE_CHECKING:
@@ -466,20 +468,14 @@ def test_endpoints_without_authentication(client: TestClient) -> None:
         assert response.status_code in [401, 403, 422]
 
 
-FILENAMES = [
-    "tést_file.py",
-    "café_notebook.py",
-    "测试_file.py",
-    "test file with spaces.py",
-    "café notebook with spaces.py",
-]
-
-
+@pytest.mark.skipif(
+    is_windows(), reason="Windows doesn't support these edge case filenames"
+)
 @with_session(SESSION_ID)
 def test_rename_with_edge_case_filenames(client: TestClient) -> None:
     """Test rename endpoint with unicode and spaces in filenames."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        for filename in FILENAMES:
+        for filename in EDGE_CASE_FILENAMES:
             current_filename = get_session_manager(
                 client
             ).file_router.get_unique_file_key()
