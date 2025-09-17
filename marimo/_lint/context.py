@@ -147,7 +147,10 @@ class LintContext:
             for record in logs:
                 # Check if record has lint_rule metadata
                 lint_rule = getattr(record, "lint_rule", None)
-                if hasattr(record, "__dict__") and "lint_rule" in record.__dict__:
+                if (
+                    hasattr(record, "__dict__")
+                    and "lint_rule" in record.__dict__
+                ):
                     lint_rule = record.__dict__["lint_rule"]
 
                 # Default to MF007 (misc) if no specific rule
@@ -210,10 +213,11 @@ class RuleContext:
         """Access to the captured stderr."""
         return self.global_context.stderr
 
-    def get_logs(self, rule_code: str | None = None) -> list[logging.LogRecord]:
+    def get_logs(
+        self, rule_code: str | None = None
+    ) -> list[logging.LogRecord]:
         """Get log records for a specific rule or all logs if no rule specified."""
         if rule_code is None:
             return self.global_context._log_records
 
         return self.global_context._logs_by_rule.get(rule_code, [])
-

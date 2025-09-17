@@ -680,6 +680,7 @@ class ScopedVisitor(ast.NodeVisitor):
                 and sql
             ):
                 import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+
                 # Import ParseError outside try block so we can except it
                 if DependencyManager.sqlglot.has():
                     from sqlglot.errors import ParseError

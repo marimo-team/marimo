@@ -203,9 +203,9 @@ class SqlParseRule(LintRule):
 
         for record in logs:
             # Extract positioning information from the log record
-            extra_data = getattr(record, '__dict__', {})
-            node_lineno = extra_data.get('node_lineno')
-            node_col_offset = extra_data.get('node_col_offset', 0)
+            extra_data = getattr(record, "__dict__", {})
+            node_lineno = extra_data.get("node_lineno")
+            node_col_offset = extra_data.get("node_col_offset", 0)
 
             # Parse SQL position from error message (e.g. "Line 23, Col: 32")
             message = record.getMessage()
@@ -213,10 +213,14 @@ class SqlParseRule(LintRule):
             sql_col = None
 
             # Look for "Line X, Col: Y" pattern in the error message
-            line_col_match = re.search(r'Line (\d+), Col: (\d+)', message)
+            line_col_match = re.search(r"Line (\d+), Col: (\d+)", message)
             if line_col_match:
-                sql_line = int(line_col_match.group(1)) - 1  # Convert to 0-based
-                sql_col = int(line_col_match.group(2)) - 1   # Convert to 0-based
+                sql_line = (
+                    int(line_col_match.group(1)) - 1
+                )  # Convert to 0-based
+                sql_col = (
+                    int(line_col_match.group(2)) - 1
+                )  # Convert to 0-based
 
             # Calculate actual line position
             calculated_line = 0
