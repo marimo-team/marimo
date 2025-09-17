@@ -131,6 +131,53 @@ def test_copilot_server():
     assert "GitHub Copilot" in alert.title
 
 
+def test_copilot_server_command_quotes_path():
+    """Test that paths with spaces are properly quoted in the copilot command."""
+    import tempfile
+    from pathlib import Path
+    from unittest import mock
+
+    server = CopilotLspServer(port=8000)
+
+    # Mock the LSP directory to contain spaces
+    temp_dir = Path(tempfile.mkdtemp())
+    lsp_dir_with_spaces = temp_dir / "my folder with spaces"
+    lsp_dir_with_spaces.mkdir(parents=True)
+
+    # Create the required files
+    lsp_bin = lsp_dir_with_spaces / "index.cjs"
+    lsp_bin.touch()
+
+    copilot_dir = lsp_dir_with_spaces / "copilot"
+    copilot_dir.mkdir()
+    copilot_bin = copilot_dir / "language-server.js"
+    copilot_bin.touch()
+
+    # Mock the _lsp_dir method to return our test directory
+    with mock.patch.object(
+        server, "_lsp_dir", return_value=lsp_dir_with_spaces
+    ):
+        command = server.get_command()
+
+        # Find the --lsp argument
+        lsp_arg_index = command.index("--lsp")
+        lsp_command = command[lsp_arg_index + 1]
+
+        # The command should contain the quoted path
+        assert "node" in lsp_command
+        assert (
+            str(copilot_bin) in lsp_command
+            or f"'{copilot_bin}'" in lsp_command
+            or f'"{copilot_bin}"' in lsp_command
+        )
+        assert "--stdio" in lsp_command
+
+    # Clean up
+    import shutil
+
+    shutil.rmtree(temp_dir)
+
+
 def test_copilot_server_node_version_validation():
     server = CopilotLspServer(port=8000)
 
