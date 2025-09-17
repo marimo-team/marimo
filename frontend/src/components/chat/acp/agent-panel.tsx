@@ -3,8 +3,12 @@
 import { useAtom, useAtomValue } from "jotai";
 import { capitalize } from "lodash-es";
 import {
+  AtSignIcon,
   BotMessageSquareIcon,
+  PaperclipIcon,
   RefreshCwIcon,
+  SendIcon,
+  SquareIcon,
   StopCircleIcon,
 } from "lucide-react";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -21,6 +25,8 @@ import {
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { AgentDocs } from "./agent-docs";
@@ -38,10 +44,15 @@ import {
 import { AgentThread } from "./thread";
 import "./agent-panel.css";
 import type { Completion } from "@codemirror/autocomplete";
+import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import type {
   ContentBlock,
   RequestPermissionResponse,
 } from "@zed-industries/agent-client-protocol";
+import {
+  addContextCompletion,
+  CONTEXT_TRIGGER,
+} from "@/components/editor/ai/completion-utils";
 import {
   Select,
   SelectContent,
@@ -56,6 +67,11 @@ import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { Functions } from "@/utils/functions";
 import { Paths } from "@/utils/paths";
+import { FileAttachmentPill } from "../chat-components";
+import {
+  convertFilesToResourceLinks,
+  parseContextFromPrompt,
+} from "./context-utils";
 import { getAgentPrompt } from "./prompt";
 import type {
   AgentConnectionState,
@@ -67,6 +83,9 @@ import type {
 } from "./types";
 
 const logger = Logger.get("agents");
+
+// File attachment constants
+const SUPPORTED_ATTACHMENT_TYPES = ["image/*", "text/*"];
 
 interface AgentTitleProps {
   currentAgentId?: ExternalAgentId;
@@ -274,6 +293,11 @@ interface PromptAreaProps {
   commands: AvailableCommands | undefined;
   onPromptValueChange: (value: string) => void;
   onPromptSubmit: (e: KeyboardEvent | undefined, prompt: string) => void;
+  onAddFiles: (files: File[]) => void;
+  onStop: () => void;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  sessionMode?: SessionMode;
+  onModeChange?: (mode: string) => void;
 }
 
 const PromptArea = memo<PromptAreaProps>(
@@ -284,7 +308,13 @@ const PromptArea = memo<PromptAreaProps>(
     commands,
     onPromptValueChange,
     onPromptSubmit,
+    onAddFiles,
+    onStop,
+    fileInputRef,
+    sessionMode,
+    onModeChange,
   }) => {
+    const inputRef = useRef<ReactCodeMirrorRef | null>(null);
     const promptCompletions: AdditionalCompletions | undefined = useMemo(() => {
       if (!commands) {
         return undefined;
@@ -301,23 +331,101 @@ const PromptArea = memo<PromptAreaProps>(
       };
     }, [commands]);
 
+    const handleSendClick = useEvent(() => {
+      if (promptValue.trim()) {
+        onPromptSubmit(undefined, promptValue);
+      }
+    });
+
+    const handleAddContext = useEvent(() => {
+      // For now, just append @ to the current value
+      addContextCompletion(inputRef);
+    });
+
     return (
-      <div
-        className={cn(
-          "px-3 py-2 border-t bg-background flex-shrink-0 min-h-[80px]",
-          (isLoading || !activeSessionId) && "opacity-50 pointer-events-none",
-        )}
-      >
-        <PromptInput
-          value={promptValue}
-          onChange={isLoading ? Functions.NOOP : onPromptValueChange}
-          onSubmit={onPromptSubmit}
-          additionalCompletions={promptCompletions}
-          onClose={Functions.NOOP}
-          placeholder={isLoading ? "Processing..." : "Ask your AI agent..."}
-          className={isLoading ? "opacity-50 pointer-events-none" : ""}
-          maxHeight="120px"
-        />
+      <div className="border-t bg-background flex-shrink-0">
+        <div
+          className={cn(
+            "px-3 py-2 min-h-[80px]",
+            (isLoading || !activeSessionId) && "opacity-50 pointer-events-none",
+          )}
+        >
+          <PromptInput
+            inputRef={inputRef}
+            value={promptValue}
+            onChange={isLoading ? Functions.NOOP : onPromptValueChange}
+            onSubmit={onPromptSubmit}
+            additionalCompletions={promptCompletions}
+            onClose={Functions.NOOP}
+            onAddFiles={onAddFiles}
+            placeholder={
+              isLoading
+                ? "Processing..."
+                : `Ask anything, ${CONTEXT_TRIGGER} to include context about tables or dataframes`
+            }
+            className={isLoading ? "opacity-50 pointer-events-none" : ""}
+            maxHeight="120px"
+          />
+        </div>
+        <TooltipProvider>
+          <div className="px-3 py-2 border-t border-border/20 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              {sessionMode && onModeChange && (
+                <ModeSelector
+                  sessionMode={sessionMode}
+                  onModeChange={onModeChange}
+                />
+              )}
+            </div>
+            <div className="flex flex-row">
+              <Tooltip content="Add context">
+                <Button variant="text" size="icon" onClick={handleAddContext}>
+                  <AtSignIcon className="h-3.5 w-3.5" />
+                </Button>
+              </Tooltip>
+              <>
+                <Tooltip content="Attach a file">
+                  <Button
+                    variant="text"
+                    size="icon"
+                    className="cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Attach a file"
+                  >
+                    <PaperclipIcon className="h-3.5 w-3.5" />
+                  </Button>
+                </Tooltip>
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple={true}
+                  hidden={true}
+                  onChange={(event) => {
+                    if (event.target.files) {
+                      onAddFiles([...event.target.files]);
+                    }
+                  }}
+                  accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
+                />
+              </>
+              <Tooltip content={isLoading ? "Stop" : "Submit"}>
+                <Button
+                  variant="text"
+                  size="sm"
+                  className="h-6 w-6 p-0 hover:bg-muted/30 cursor-pointer"
+                  onClick={isLoading ? onStop : handleSendClick}
+                  disabled={isLoading ? false : !promptValue.trim()}
+                >
+                  {isLoading ? (
+                    <SquareIcon className="h-3 w-3 fill-current" />
+                  ) : (
+                    <SendIcon className="h-3 w-3" />
+                  )}
+                </Button>
+              </Tooltip>
+            </div>
+          </div>
+        </TooltipProvider>
       </div>
     );
   },
@@ -378,6 +486,7 @@ ModeSelector.displayName = "ModeSelector";
 
 interface ChatContentProps {
   hasNotifications: boolean;
+  agentId: ExternalAgentId | undefined;
   connectionState: AgentConnectionState;
   sessionId: ExternalAgentSessionId | null;
   notifications: NotificationEvent[];
@@ -391,6 +500,7 @@ interface ChatContentProps {
 const ChatContent = memo<ChatContentProps>(
   ({
     hasNotifications,
+    agentId,
     connectionState,
     notifications,
     pendingPermission,
@@ -402,6 +512,7 @@ const ChatContent = memo<ChatContentProps>(
   }) => {
     const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const isDisconnected = connectionState.status === "disconnected";
 
     // Scroll handler to determine if we're at the bottom of the chat
     const handleScroll = useEvent(() => {
@@ -471,12 +582,30 @@ const ChatContent = memo<ChatContentProps>(
               />
             </div>
           ) : (
-            <div className="flex items-center justify-center h-full min-h-[200px]">
+            <div className="flex items-center justify-center h-full min-h-[200px] flex-col">
               <PanelEmptyState
                 title="Waiting for agent"
                 description="Your AI agent will appear here when active"
                 icon={<BotMessageSquareIcon />}
               />
+              {isDisconnected && agentId && (
+                <AgentDocs
+                  className="border-t pt-6 px-5"
+                  title="Make sure you're connected to an agent"
+                  description="Run this command in your terminal:"
+                  agents={[agentId]}
+                />
+              )}
+              {isDisconnected && (
+                <Button
+                  variant="outline"
+                  onClick={onRetryConnection}
+                  type="button"
+                  className="mt-4"
+                >
+                  Retry
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -504,6 +633,8 @@ function getCwd() {
 const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [promptValue, setPromptValue] = useState("");
+  const [files, setFiles] = useState<File[]>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedTab] = useAtom(selectedTabAtom);
   const [sessionState, setSessionState] = useAtom(agentSessionStateAtom);
@@ -691,6 +822,7 @@ const AgentPanel: React.FC = () => {
       });
       setIsLoading(true);
       setPromptValue("");
+      setFiles(undefined);
 
       // Update session title with first message if it's still the default
       if (selectedTab?.title.startsWith("New ")) {
@@ -708,6 +840,19 @@ const AgentPanel: React.FC = () => {
       }
 
       const promptBlocks: ContentBlock[] = [{ type: "text", text: prompt }];
+
+      // Parse context from the prompt
+      const { contextBlocks, attachmentBlocks } =
+        await parseContextFromPrompt(prompt);
+      promptBlocks.push(...contextBlocks);
+      promptBlocks.push(...attachmentBlocks);
+
+      // Add manually uploaded files as resource links
+      if (files && files.length > 0) {
+        const fileResourceLinks = await convertFilesToResourceLinks(files);
+        promptBlocks.push(...fileResourceLinks);
+      }
+
       const hasGivenRules = notifications.some(
         (notification) =>
           notification.type === "session_notification" &&
@@ -752,6 +897,21 @@ const AgentPanel: React.FC = () => {
     }
     await agent.cancel({ sessionId: activeSessionId });
     setIsLoading(false);
+  });
+
+  // Handler for adding files
+  const handleAddFiles = useEvent((newFiles: File[]) => {
+    if (newFiles.length === 0) {
+      return;
+    }
+    setFiles((prev) => [...(prev ?? []), ...newFiles]);
+  });
+
+  // Handler for removing files
+  const handleRemoveFile = useEvent((fileToRemove: File) => {
+    if (files) {
+      setFiles(files.filter((f) => f !== fileToRemove));
+    }
   });
 
   // Handler for manual connect
@@ -826,6 +986,7 @@ const AgentPanel: React.FC = () => {
       <SessionTabs />
 
       <ChatContent
+        agentId={selectedTab?.agentId}
         sessionId={activeSessionId}
         hasNotifications={hasNotifications}
         connectionState={connectionState}
@@ -847,23 +1008,31 @@ const AgentPanel: React.FC = () => {
         onStop={handleStop}
       />
 
+      {files && files.length > 0 && (
+        <div className="flex flex-row gap-1 flex-wrap p-3 border-t">
+          {files.map((file) => (
+            <FileAttachmentPill
+              file={file}
+              key={file.name}
+              onRemove={() => handleRemoveFile(file)}
+            />
+          ))}
+        </div>
+      )}
+
       <PromptArea
         isLoading={isLoading}
         activeSessionId={activeSessionId}
         promptValue={promptValue}
         onPromptValueChange={setPromptValue}
         onPromptSubmit={handlePromptSubmit}
+        onAddFiles={handleAddFiles}
+        onStop={handleStop}
+        fileInputRef={fileInputRef}
         commands={availableCommands}
+        sessionMode={sessionMode}
+        onModeChange={handleModeChange}
       />
-
-      {sessionMode && (
-        <div className="px-3 py-2 border-t flex-shrink-0 h-10">
-          <ModeSelector
-            sessionMode={sessionMode}
-            onModeChange={handleModeChange}
-          />
-        </div>
-      )}
     </div>
   );
 };
