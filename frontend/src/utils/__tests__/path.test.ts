@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import { EDGE_CASE_FILENAMES } from "../../__tests__/mocks";
 import { type FilePath, PathBuilder, Paths } from "../paths";
 
 describe("Paths", () => {
@@ -166,5 +167,42 @@ describe("PathBuilder", () => {
       expect(Paths.extension("file")).toBe("");
       expect(Paths.extension("file.tar.gz")).toBe("gz");
     });
+  });
+
+  describe("edge case filenames", () => {
+    it.each(EDGE_CASE_FILENAMES)(
+      "should handle unicode and spaces in basename: %s",
+      (filename) => {
+        const basename = Paths.basename(filename);
+        expect(basename).toBe(filename);
+        expect(typeof basename).toBe("string");
+        expect(basename).not.toBe("");
+      },
+    );
+
+    it.each(EDGE_CASE_FILENAMES)(
+      "should handle unicode and spaces in dirname: %s",
+      (filename) => {
+        const fullPath = `/path/to/${filename}`;
+        const dirname = Paths.dirname(fullPath);
+        expect(dirname).toBe("/path/to");
+      },
+    );
+
+    it.each(EDGE_CASE_FILENAMES)(
+      "should handle unicode and spaces in path operations: %s",
+      (filename) => {
+        const baseName = Paths.basename(filename);
+        const extension = Paths.extension(filename);
+
+        // Should preserve unicode characters in basename
+        expect(baseName).toContain(filename.split(".")[0]);
+
+        // Should correctly extract extension
+        if (filename.includes(".")) {
+          expect(extension).toBe(filename.split(".").pop());
+        }
+      },
+    );
   });
 });
