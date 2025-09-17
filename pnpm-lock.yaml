@@ -280,9 +280,21 @@ importers:
       '@xterm/addon-attach':
         specifier: ^0.11.0
         version: 0.11.0(@xterm/xterm@5.5.0)
+      '@xterm/addon-canvas':
+        specifier: ^0.7.0
+        version: 0.7.0(@xterm/xterm@5.5.0)
       '@xterm/addon-fit':
         specifier: ^0.10.0
         version: 0.10.0(@xterm/xterm@5.5.0)
+      '@xterm/addon-search':
+        specifier: ^0.15.0
+        version: 0.15.0(@xterm/xterm@5.5.0)
+      '@xterm/addon-unicode11':
+        specifier: ^0.8.0
+        version: 0.8.0(@xterm/xterm@5.5.0)
+      '@xterm/addon-web-links':
+        specifier: ^0.11.0
+        version: 0.11.0(@xterm/xterm@5.5.0)
       '@xterm/xterm':
         specifier: ^5.5.0
         version: 5.5.0
@@ -4220,8 +4232,28 @@ packages:
     peerDependencies:
       '@xterm/xterm': ^5.0.0
 
+  '@xterm/addon-canvas@0.7.0':
+    resolution: {integrity: sha512-LF5LYcfvefJuJ7QotNRdRSPc9YASAVDeoT5uyXS/nZshZXjYplGXRECBGiznwvhNL2I8bq1Lf5MzRwstsYQ2Iw==}
+    peerDependencies:
+      '@xterm/xterm': ^5.0.0
+
   '@xterm/addon-fit@0.10.0':
     resolution: {integrity: sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ==}
+    peerDependencies:
+      '@xterm/xterm': ^5.0.0
+
+  '@xterm/addon-search@0.15.0':
+    resolution: {integrity: sha512-ZBZKLQ+EuKE83CqCmSSz5y1tx+aNOCUaA7dm6emgOX+8J9H1FWXZyrKfzjwzV+V14TV3xToz1goIeRhXBS5qjg==}
+    peerDependencies:
+      '@xterm/xterm': ^5.0.0
+
+  '@xterm/addon-unicode11@0.8.0':
+    resolution: {integrity: sha512-LxinXu8SC4OmVa6FhgwsVCBZbr8WoSGzBl2+vqe8WcQ6hb1r6Gj9P99qTNdPiFPh4Ceiu2pC8xukZ6+2nnh49Q==}
+    peerDependencies:
+      '@xterm/xterm': ^5.0.0
+
+  '@xterm/addon-web-links@0.11.0':
+    resolution: {integrity: sha512-nIHQ38pQI+a5kXnRaTgwqSHnX7KE6+4SVoceompgHL26unAxdfP6IPqUTSYPQgSwM56hsElfoNrrW5V7BUED/Q==}
     peerDependencies:
       '@xterm/xterm': ^5.0.0
 
@@ -14445,7 +14477,23 @@ snapshots:
     dependencies:
       '@xterm/xterm': 5.5.0
 
+  '@xterm/addon-canvas@0.7.0(@xterm/xterm@5.5.0)':
+    dependencies:
+      '@xterm/xterm': 5.5.0
+
   '@xterm/addon-fit@0.10.0(@xterm/xterm@5.5.0)':
+    dependencies:
+      '@xterm/xterm': 5.5.0
+
+  '@xterm/addon-search@0.15.0(@xterm/xterm@5.5.0)':
+    dependencies:
+      '@xterm/xterm': 5.5.0
+
+  '@xterm/addon-unicode11@0.8.0(@xterm/xterm@5.5.0)':
+    dependencies:
+      '@xterm/xterm': 5.5.0
+
+  '@xterm/addon-web-links@0.11.0(@xterm/xterm@5.5.0)':
     dependencies:
       '@xterm/xterm': 5.5.0
 
