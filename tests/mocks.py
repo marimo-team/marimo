@@ -141,6 +141,6 @@ EDGE_CASE_FILENAMES = [
     "café notebook.py",
     "测试 file.py",
     # Injection attempts
-    "test<script>.py",
-    'test"quotes".py',
+    r"test<script>.py",
+    r'test"quotes".py',
 ]
