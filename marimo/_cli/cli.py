@@ -1247,9 +1247,21 @@ def shell_completion() -> None:
     type=bool,
     help="Whether to print detailed messages.",
 )
+@click.option(
+    "--unsafe-fixes",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Enable fixes that may change code behavior (e.g., removing empty cells).",
+)
 @click.argument("files", nargs=-1, type=click.UNPROCESSED)
 def check(
-    fix: bool, strict: bool, verbose: bool, files: tuple[str, ...]
+    fix: bool,
+    strict: bool,
+    verbose: bool,
+    unsafe_fixes: bool,
+    files: tuple[str, ...],
 ) -> None:
     if not files:
         # If no files are provided, we lint the current directory
@@ -1257,7 +1269,7 @@ def check(
 
     # Pass click.echo directly as pipe for streaming output, or None
     pipe = click.echo if verbose else None
-    linter = run_check(files, pipe=pipe, fix=fix)
+    linter = run_check(files, pipe=pipe, fix=fix, unsafe_fixes=unsafe_fixes)
 
     # Get counts from linter (fix happens automatically during streaming)
     fixed = linter.fixed_count

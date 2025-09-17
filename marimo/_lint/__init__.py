@@ -17,6 +17,7 @@ def run_check(
     file_patterns: tuple[str, ...],
     pipe: Callable[[str], None] | None = None,
     fix: bool = False,
+    unsafe_fixes: bool = False,
 ) -> Linter:
     """Run linting checks on files matching patterns (CLI entry point).
 
@@ -27,6 +28,7 @@ def run_check(
         file_patterns: Glob patterns for file discovery
         pipe: Optional function to call for streaming output
         fix: Whether to fix files automatically
+        unsafe_fixes: Whether to enable unsafe fixes that may change behavior
 
     Returns:
         Linter with per-file status and diagnostics
@@ -34,7 +36,7 @@ def run_check(
     # Expand patterns to actual files
     files_to_check = expand_file_patterns(file_patterns)
 
-    linter = Linter(pipe=pipe, fix_files=fix)
+    linter = Linter(pipe=pipe, fix_files=fix, unsafe_fixes=unsafe_fixes)
     linter.run_streaming(files_to_check)
     return linter
 
