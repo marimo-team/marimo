@@ -8,7 +8,6 @@ import select
 import signal
 import struct
 import sys
-import termios
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal, TypedDict
 
@@ -42,6 +41,7 @@ def _resize_pty(fd: int, rows: int, cols: int) -> None:
     try:
         # Use TIOCSWINSZ ioctl to set window size
         import fcntl
+        import termios
 
         # Format: struct winsize { unsigned short ws_row, ws_col, ws_xpixel, ws_ypixel }
         winsize = struct.pack("HHHH", rows, cols, 0, 0)
