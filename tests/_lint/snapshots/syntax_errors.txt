@@ -1,0 +1,13 @@
+critical[invalid-syntax]: name 'tickers' is assigned to before global declaration
+ --> tests/_lint/test_files/syntax_errors.py:9:1
+   9 |     tickers = ["AAPL", "GOOGL"]
+  10 |     global tickers  # 
+     |     ^
+  11 | 
+critical[invalid-syntax]: 'return' outside function
+ --> tests/_lint/test_files/syntax_errors.py:15:5
+  15 |     if tickers is not None:
+  16 |         return tickers
+     |        ^
+  17 |     return
+info: marimo cells are not normal Python functions; treat cell bodies as top-level code, or use `@app.function` to define a pure function.

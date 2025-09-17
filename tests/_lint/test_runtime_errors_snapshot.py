@@ -91,3 +91,20 @@ def test_formatting_snapshot():
         error_output.append(error.format())
 
     snapshot("formatting.txt", "\n".join(error_output))
+
+
+def test_syntax_errors_snapshot():
+    """Test snapshot for syntax errors."""
+    file = "tests/_lint/test_files/syntax_errors.py"
+    with open(file) as f:
+        code = f.read()
+
+    notebook = parse_notebook(code, filepath=file)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format())
+
+    snapshot("syntax_errors.txt", "\n".join(error_output))
