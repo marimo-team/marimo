@@ -130,3 +130,11 @@ class TestParser:
         # Valid currently
         # TODO: Propagate decorators violations.
         assert len(notebook.violations) == 0
+
+    @staticmethod
+    def test_parse_non_marimo() -> None:
+        notebook = parse_notebook(get_filepath("test_non_marimo").read_text())
+        assert notebook
+        # Should handle non-marimo files without crashing
+        # Expect violations since this isn't a proper marimo notebook
+        assert len(notebook.violations) > 0

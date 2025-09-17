@@ -694,7 +694,21 @@ class App:
             edit.invoke(ctx)
             return ((), {})
 
-        self._maybe_initialize()
+        try:
+            self._maybe_initialize()
+        except (CycleError, MultipleDefinitionError, UnparsableError) as e:
+            from marimo._lint import run_check
+            if self._filename is not None:
+                # Run linting checks to provide better error messages.
+                pipe = lambda msg: print(msg, file=sys.stderr)
+                run_check((self._filename,), pipe=pipe)
+                # Raise a clean exception without the original error message
+                # since run_check already provided detailed error information
+                marimo_error = type(e)()
+                raise marimo_error from None
+            else:
+                raise
+
         glbls: dict[str, Any] = {}
         if self._setup is not None:
             glbls = {**self._setup._glbls}
