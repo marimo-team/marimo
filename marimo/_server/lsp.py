@@ -326,10 +326,15 @@ class TyServer(BaseLspServer):
         return True
 
     def get_command(self) -> list[str]:
+        import shlex
+
         from ty.__main__ import find_ty_bin  # type: ignore
 
         lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
         log_file = _loggers.get_log_directory() / "ty-lsp.log"
+
+        # Properly quote the ty binary path to handle spaces and special characters
+        ty_command = f"{shlex.quote(find_ty_bin())} server"
 
         return [
             "node",
@@ -337,7 +342,7 @@ class TyServer(BaseLspServer):
             "--port",
             str(self.port),
             "--lsp",
-            f"{find_ty_bin()} server",
+            ty_command,
             "--log-file",
             str(log_file),
         ]

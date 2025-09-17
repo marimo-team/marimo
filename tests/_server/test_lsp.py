@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Union, cast
 from unittest import mock
 
@@ -131,17 +132,14 @@ def test_copilot_server():
     assert "GitHub Copilot" in alert.title
 
 
-def test_copilot_server_command_quotes_path():
+def test_copilot_server_command_quotes_path(tmp_path: Path) -> None:
     """Test that paths with spaces are properly quoted in the copilot command."""
-    import tempfile
-    from pathlib import Path
     from unittest import mock
 
     server = CopilotLspServer(port=8000)
 
-    # Mock the LSP directory to contain spaces
-    temp_dir = Path(tempfile.mkdtemp())
-    lsp_dir_with_spaces = temp_dir / "my folder with spaces"
+    # Create LSP directory with spaces
+    lsp_dir_with_spaces = tmp_path / "my folder with spaces"
     lsp_dir_with_spaces.mkdir(parents=True)
 
     # Create the required files
@@ -171,11 +169,6 @@ def test_copilot_server_command_quotes_path():
             or f'"{copilot_bin}"' in lsp_command
         )
         assert "--stdio" in lsp_command
-
-    # Clean up
-    import shutil
-
-    shutil.rmtree(temp_dir)
 
 
 def test_copilot_server_node_version_validation():
