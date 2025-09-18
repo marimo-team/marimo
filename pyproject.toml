@@ -559,6 +559,9 @@ manager = "uv"
 [tool.marimo.keymap]
 vimrc = "configs/.vimrc"
 
+[tool.basedpyright]
+reportUnusedCallResult = false
+
 [tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64"]
