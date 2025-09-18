@@ -256,17 +256,22 @@ class SessionView:
         elif isinstance(operation, SQLTablePreview):
             sql_table_preview = operation
             sql_metadata = sql_table_preview.metadata
-            connections = self.data_connectors.connections
-            update_table_in_connection(
-                connections, sql_metadata, sql_table_preview.table
-            )
+            table_preview_connections = self.data_connectors.connections
+            if sql_table_preview.table is not None:
+                update_table_in_connection(
+                    table_preview_connections,
+                    sql_metadata,
+                    sql_table_preview.table,
+                )
 
         elif isinstance(operation, SQLTableListPreview):
             sql_table_list_preview = operation
             sql_metadata = sql_table_list_preview.metadata
-            connections = self.data_connectors.connections
+            table_list_connections = self.data_connectors.connections
             update_table_list_in_connection(
-                connections, sql_metadata, sql_table_list_preview.tables
+                table_list_connections,
+                sql_metadata,
+                sql_table_list_preview.tables,
             )
 
         elif isinstance(operation, UpdateCellIdsRequest):
