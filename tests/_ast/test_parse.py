@@ -184,3 +184,15 @@ class TestParser:
         assert kwargs["test_arg"] == [
             "valid"
         ]  # Should still include valid elements
+
+    def test_parse_non_marimo() -> None:
+        import pytest
+
+        from marimo._ast.parse import MarimoFileError
+
+        # Non-marimo files that have marimo imports but no App definition
+        # should raise MarimoFileError with the expected message
+        with pytest.raises(
+            MarimoFileError, match="`marimo.App` definition expected."
+        ):
+            parse_notebook(get_filepath("test_non_marimo").read_text())

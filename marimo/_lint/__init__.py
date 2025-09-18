@@ -13,6 +13,14 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
+# Define severity ordering (lower index = higher priority)
+SEVERITY_ORDER = {
+    Severity.BREAKING: 0,
+    Severity.RUNTIME: 1,
+    Severity.FORMATTING: 2,
+}
+
+
 def run_check(
     file_patterns: tuple[str, ...],
     pipe: Callable[[str], None] | None = None,
@@ -41,6 +49,56 @@ def run_check(
     return linter
 
 
+def collect_messages(
+    file_patterns: str | tuple[str, ...],
+    min_severity: Severity = Severity.BREAKING,
+) -> tuple[Linter, str]:
+    """Run linting checks and collect all messages as a string.
+
+    Simple interface for collecting linting messages without streaming output.
+    Used when you need to capture all linting output for error reporting.
+    Never performs fixes - only collects messages.
+
+    Args:
+        file_patterns: File pattern(s) for file discovery
+        min_severity: Minimum severity level to include (defaults to BREAKING)
+
+    Returns:
+        Tuple of (Linter with per-file status and diagnostics, collected messages)
+    """
+    messages = []
+
+    def message_pipe(msg: str) -> None:
+        messages.append(msg)
+
+    # Normalize to tuple
+    if isinstance(file_patterns, str):
+        file_patterns = (file_patterns,)
+
+    # Create filtered rules based on severity
+    from marimo._lint.rules import RULE_CODES
+
+    min_severity_level = SEVERITY_ORDER[min_severity]
+    filtered_rules = [
+        rule()
+        for rule in RULE_CODES.values()
+        if SEVERITY_ORDER[rule().severity] <= min_severity_level
+    ]
+
+    # Create linter with filtered rules
+    linter = Linter(
+        pipe=message_pipe,
+        fix_files=False,
+        unsafe_fixes=False,
+        rules=filtered_rules,
+    )
+
+    files_to_check = expand_file_patterns(file_patterns)
+    linter.run_streaming(files_to_check)
+
+    return linter, "\n".join(messages)
+
+
 __all__ = [
     "Diagnostic",
     "LintRule",
@@ -48,6 +106,7 @@ __all__ = [
     "EarlyStoppingConfig",
     "RuleEngine",
     "run_check",
+    "collect_messages",
     "Linter",
     "FileStatus",
 ]
