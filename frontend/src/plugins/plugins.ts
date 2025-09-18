@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { NavigationMenuPlugin } from "@/plugins/layout/NavigationMenuPlugin";
+import { OutlinePlugin } from "./layout/OutlinePlugin";
 import { initializeUIElement } from "../core/dom/ui-element";
 import { registerReactComponent } from "./core/registerReactComponent";
 import { initializeSidebarElement } from "./core/sidebar-element";
@@ -99,6 +100,7 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new MimeRendererPlugin(),
   new MermaidPlugin(),
   new NavigationMenuPlugin(),
+  new OutlinePlugin(),
   new ProgressPlugin(),
   new RoutesPlugin(),
   new StatPlugin(),
