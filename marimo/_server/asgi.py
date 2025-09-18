@@ -297,6 +297,7 @@ def create_asgi_app(
     include_code: bool = False,
     token: Optional[str] = None,
     skew_protection: bool = False,
+    session_ttl: Optional[int] = None,
 ) -> ASGIAppBuilder:
     """Public API to create an ASGI app that can serve multiple notebooks.
     This only works for application that are in Run mode.
@@ -308,6 +309,7 @@ def create_asgi_app(
             If not provided, an empty token is used.
         skew_protection (bool, optional): Enable skew protection middleware to prevent version mismatch issues.
             e.g. if the server is updated, the client will be prompted to reload.
+        session_ttl (int, optional): Time-to-live in seconds for sessions. If not provided, uses default TTL (2 minutes).
 
     Returns:
         ASGIAppBuilder: A builder object to create multiple ASGI apps
@@ -466,7 +468,7 @@ def create_asgi_app(
                 argv=None,
                 auth_token=auth_token,
                 redirect_console_to_browser=False,
-                ttl_seconds=None,
+                ttl_seconds=session_ttl,
             )
             enable_auth = not AuthToken.is_empty(auth_token)
             app = create_starlette_app(
