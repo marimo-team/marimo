@@ -8,6 +8,7 @@ from typing import Optional
 from marimo import _loggers
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult
+from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._data.models import DataTable
 from marimo._server.sessions import Session
 from marimo._types.ids import SessionId
@@ -63,11 +64,10 @@ class GetDatabaseTables(
         data_connectors = session_view.data_connectors
 
         if len(data_connectors.connections) == 0:
-            return GetDatabaseTablesOutput(
-                tables=[],
-                next_steps=[
-                    "No databases found. Please create a connection first."
-                ],
+            raise ToolExecutionError(
+                message="No databases found. Please create a connection first.",
+                code="NO_DATABASES_FOUND",
+                is_retryable=False,
             )
 
         tables: list[TableDetails] = []

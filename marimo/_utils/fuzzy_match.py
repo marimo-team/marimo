@@ -22,7 +22,7 @@ def is_fuzzy_match(
     is_regex: bool,
 ) -> bool:
     """
-    Fuzzy match using pre-compiled regex.
+    Fuzzy match using pre-compiled regex. If is not regex, fallback to substring match.
 
     Args:
         query: The query to match.
