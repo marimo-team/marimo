@@ -5,7 +5,7 @@ import { createStore, Provider } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userConfigAtom } from "@/core/config/config";
 import { parseUserConfig } from "@/core/config/config-schema";
-import { LocaleProvider } from "../LocaleProvider";
+import { LocaleProvider } from "../local-provider";
 
 // Mock react-aria-components I18nProvider
 vi.mock("react-aria-components", () => ({

@@ -30,7 +30,7 @@ import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
 import { getUIElementObjectId } from "@/core/dom/ui-element";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
-import { LocaleProvider } from "@/core/i18n/LocaleProvider";
+import { LocaleProvider } from "@/core/i18n/local-provider";
 import { store } from "@/core/state/jotai";
 import {
   type HTMLElementNotDerivedFromRef,
