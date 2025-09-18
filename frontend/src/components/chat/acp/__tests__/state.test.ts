@@ -1,4 +1,4 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -100,8 +100,8 @@ describe("state utility functions", () => {
         agentId: "gemini",
         tabId: "tab_existing" as TabId,
         title: "Existing gemini session",
-        createdAt: 1735689600000,
-        lastUsedAt: 1735689600000,
+        createdAt: 1_735_689_600_000,
+        lastUsedAt: 1_735_689_600_000,
         externalAgentSessionId: null,
       };
       const initialState: AgentSessionState = {
@@ -139,8 +139,8 @@ describe("state utility functions", () => {
         agentId: "claude",
         tabId: "tab_existing" as TabId,
         title: "Existing claude session",
-        createdAt: 1735689600000,
-        lastUsedAt: 1735689600000,
+        createdAt: 1_735_689_600_000,
+        lastUsedAt: 1_735_689_600_000,
         externalAgentSessionId: null,
       };
       const initialState: AgentSessionState = {
@@ -194,24 +194,24 @@ describe("state utility functions", () => {
           agentId: "claude",
           tabId: "tab_1" as TabId,
           title: "Claude session 1",
-          createdAt: 1735689600000,
-          lastUsedAt: 1735689600000,
+          createdAt: 1_735_689_600_000,
+          lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
         },
         {
           agentId: "gemini",
           tabId: "tab_2" as TabId,
           title: "Gemini session",
-          createdAt: 1735689600000,
-          lastUsedAt: 1735689600000,
+          createdAt: 1_735_689_600_000,
+          lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
         },
         {
           agentId: "claude",
           tabId: "tab_3" as TabId,
           title: "Claude session 2",
-          createdAt: 1735689600000,
-          lastUsedAt: 1735689600000,
+          createdAt: 1_735_689_600_000,
+          lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
         },
       ];
@@ -264,8 +264,8 @@ describe("state utility functions", () => {
         agentId: "claude",
         tabId: "tab_single" as TabId,
         title: "Single session",
-        createdAt: 1735689600000,
-        lastUsedAt: 1735689600000,
+        createdAt: 1_735_689_600_000,
+        lastUsedAt: 1_735_689_600_000,
         externalAgentSessionId: null,
       };
       const singleSessionState: AgentSessionState = {
@@ -297,16 +297,16 @@ describe("state utility functions", () => {
           agentId: "claude",
           tabId: "tab_1" as TabId,
           title: "Original title",
-          createdAt: 1735689600000,
-          lastUsedAt: 1735689600000,
+          createdAt: 1_735_689_600_000,
+          lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
         },
         {
           agentId: "gemini",
           tabId: "tab_2" as TabId,
           title: "Another title",
-          createdAt: 1735689600000,
-          lastUsedAt: 1735689600000,
+          createdAt: 1_735_689_600_000,
+          lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
         },
       ];
@@ -361,16 +361,16 @@ describe("state utility functions", () => {
           agentId: "claude",
           tabId: "tab_1" as TabId,
           title: "Claude session",
-          createdAt: 1735689600000,
-          lastUsedAt: 1735689600000,
+          createdAt: 1_735_689_600_000,
+          lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
         },
         {
           agentId: "gemini",
           tabId: "tab_2" as TabId,
           title: "Gemini session",
-          createdAt: 1735689600000,
-          lastUsedAt: 1735689600000,
+          createdAt: 1_735_689_600_000,
+          lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
         },
       ];
@@ -384,7 +384,7 @@ describe("state utility functions", () => {
       const originalTimestamp = sessions[0].lastUsedAt;
 
       // Advance time by 1 hour
-      vi.advanceTimersByTime(3600000);
+      vi.advanceTimersByTime(3_600_000);
 
       const newState = updateSessionLastUsed(state, sessions[0].tabId);
 
@@ -405,7 +405,7 @@ describe("state utility functions", () => {
       const fakeId = "fake_session_id" as TabId;
       const originalTimestamp = sessions[0].lastUsedAt;
 
-      vi.advanceTimersByTime(3600000);
+      vi.advanceTimersByTime(3_600_000);
 
       const newState = updateSessionLastUsed(state, fakeId);
 
@@ -424,16 +424,16 @@ describe("state utility functions", () => {
           agentId: "claude",
           tabId: "tab_1" as TabId,
           title: "Claude session",
-          createdAt: 1735689600000,
-          lastUsedAt: 1735689600000,
+          createdAt: 1_735_689_600_000,
+          lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
         },
         {
           agentId: "gemini",
           tabId: "tab_2" as TabId,
           title: "Gemini session",
-          createdAt: 1735689600000,
-          lastUsedAt: 1735689600000,
+          createdAt: 1_735_689_600_000,
+          lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
         },
       ];
@@ -448,7 +448,7 @@ describe("state utility functions", () => {
       const agentSessionId = "agent_session_123" as ExternalAgentSessionId;
 
       // Advance time by 1 hour
-      vi.advanceTimersByTime(3600000);
+      vi.advanceTimersByTime(3_600_000);
 
       const newState = updateSessionExternalAgentSessionId(
         state,
@@ -498,32 +498,32 @@ describe("state utility functions", () => {
           agentId: "claude",
           tabId: "tab_1" as TabId,
           title: "First claude",
-          createdAt: 1735689600000, // 2025-01-01T00:00:00Z
-          lastUsedAt: 1735689600000,
+          createdAt: 1_735_689_600_000, // 2025-01-01T00:00:00Z
+          lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
         },
         {
           agentId: "gemini",
           tabId: "tab_2" as TabId,
           title: "First gemini",
-          createdAt: 1735693200000, // 2025-01-01T01:00:00Z
-          lastUsedAt: 1735693200000,
+          createdAt: 1_735_693_200_000, // 2025-01-01T01:00:00Z
+          lastUsedAt: 1_735_693_200_000,
           externalAgentSessionId: null,
         },
         {
           agentId: "claude",
           tabId: "tab_3" as TabId,
           title: "Second claude",
-          createdAt: 1735696800000, // 2025-01-01T02:00:00Z
-          lastUsedAt: 1735696800000,
+          createdAt: 1_735_696_800_000, // 2025-01-01T02:00:00Z
+          lastUsedAt: 1_735_696_800_000,
           externalAgentSessionId: null,
         },
         {
           agentId: "claude",
           tabId: "tab_4" as TabId,
           title: "Third claude",
-          createdAt: 1735700400000, // 2025-01-01T03:00:00Z
-          lastUsedAt: 1735700400000,
+          createdAt: 1_735_700_400_000, // 2025-01-01T03:00:00Z
+          lastUsedAt: 1_735_700_400_000,
           externalAgentSessionId: null,
         },
       ];

@@ -174,6 +174,7 @@ class DisplayConfig(TypedDict):
     - `default_table_page_size`: default number of rows to display in tables
     - `default_table_max_columns`: default maximum number of columns to display in tables
     - `reference_highlighting`: if `True`, highlight reactive variable references
+    - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
     """
 
     theme: Theme
@@ -185,6 +186,7 @@ class DisplayConfig(TypedDict):
     default_table_page_size: int
     default_table_max_columns: int
     reference_highlighting: NotRequired[bool]
+    locale: NotRequired[Optional[str]]
 
 
 @mddoc
@@ -623,6 +625,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "default_table_page_size": 10,
         "default_table_max_columns": 50,
         "reference_highlighting": False,
+        "locale": None,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},

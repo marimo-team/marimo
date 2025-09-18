@@ -144,6 +144,7 @@ export const UserConfigSchema = z
             }
             return width;
           }),
+        locale: z.string().nullable().optional(),
         reference_highlighting: z.boolean().default(false),
       })
       .passthrough()
