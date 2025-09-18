@@ -12,6 +12,7 @@ from marimo._ai._tools.tools.datasource import (
     GetDatabaseTablesArgs,
     TableDetails,
 )
+from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._messaging.ops import DataSourceConnections
 
@@ -280,11 +281,9 @@ def test_get_tables_empty_connections(tool: GetDatabaseTables):
         query=None,
     )
 
-    result = tool.handle(args)
-
-    assert isinstance(result, tool.Output)
-    assert len(result.tables) == 0
-    assert "No databases found" in result.next_steps[0]
+    with pytest.raises(ToolExecutionError) as e:
+        tool.handle(args)
+    assert e.value.code == "NO_DATABASES_FOUND"
 
 
 def test_get_tables_no_matches(
