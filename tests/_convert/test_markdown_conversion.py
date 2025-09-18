@@ -572,11 +572,16 @@ print("Hello, World!")
 
     # All should produce the same result
     for app in [app1, app2, app3]:
-        assert len(list(app.cell_manager.cell_ids())) == len(list(app_normal.cell_manager.cell_ids()))
+        assert len(list(app.cell_manager.cell_ids())) == len(
+            list(app_normal.cell_manager.cell_ids())
+        )
         ids = list(app.cell_manager.cell_ids())
         normal_ids = list(app_normal.cell_manager.cell_ids())
         for i, cell_id in enumerate(ids):
-            assert app.cell_manager.cell_data_at(cell_id).code == app_normal.cell_manager.cell_data_at(normal_ids[i]).code
+            assert (
+                app.cell_manager.cell_data_at(cell_id).code
+                == app_normal.cell_manager.cell_data_at(normal_ids[i]).code
+            )
 
 
 def test_whitespace_stripping_convert_from_md_to_marimo_ir() -> None:
@@ -638,10 +643,16 @@ print("Hello, World!")
     frontmatter3, content3 = extract_frontmatter(both_whitespace)
 
     # Test normal case
-    frontmatter_normal, content_normal = extract_frontmatter(md_with_frontmatter)
+    frontmatter_normal, content_normal = extract_frontmatter(
+        md_with_frontmatter
+    )
 
     # All should produce the same result
-    for frontmatter, content in [(frontmatter1, content1), (frontmatter2, content2), (frontmatter3, content3)]:
+    for frontmatter, content in [
+        (frontmatter1, content1),
+        (frontmatter2, content2),
+        (frontmatter3, content3),
+    ]:
         assert frontmatter == frontmatter_normal
         assert content == content_normal
 
