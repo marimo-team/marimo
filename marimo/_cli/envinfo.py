@@ -46,6 +46,16 @@ def get_experimental_flags() -> dict[str, Union[str, bool, dict[str, Any]]]:
         return {}
 
 
+def get_default_locale() -> str:
+    try:
+        import locale
+
+        default_locale, _ = locale.getdefaultlocale()
+        return default_locale or "--"
+    except Exception:
+        return "--"
+
+
 def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:
     os_version = platform.release()
     if platform.system() == "Windows" and is_win11():
@@ -61,6 +71,7 @@ def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:
         # e.g., x86 or arm
         "Processor": platform.processor(),
         "Python Version": platform.python_version(),
+        "Locale": get_default_locale(),
     }
 
     binaries = {

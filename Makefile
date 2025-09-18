@@ -58,7 +58,13 @@ dev:
 	@echo "Starting development servers..."
 	@# Start both processes, with marimo in background
 	@(trap 'kill %1; exit' INT; \
-	marimo edit --no-token --headless /tmp & \
+	uv run marimo edit --no-token --headless /tmp & \
+	pnpm dev)
+dev-sandbox:
+	@echo "Starting development servers..."
+	@# Start both processes, with marimo in background
+	@(trap 'kill %1; exit' INT; \
+	uv run marimo edit /tmp/notebook.py --no-token --headless --sandbox & \
 	pnpm dev)
 
 #############
