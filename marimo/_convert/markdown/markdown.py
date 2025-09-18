@@ -514,7 +514,8 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 
 
 def convert_from_md_to_app(text: str) -> App:
-    if not text.strip():
+    text = text.strip()
+    if not text:
         app = App()
     else:
         app = cast(
@@ -526,6 +527,7 @@ def convert_from_md_to_app(text: str) -> App:
 
 
 def convert_from_md_to_marimo_ir(text: str) -> NotebookSerializationV1:
+    text = text.strip()
     notebook = MarimoMdParser(output_format="marimo-ir").convert(text)
     assert isinstance(notebook, NotebookSerializationV1)
     return notebook
@@ -534,6 +536,7 @@ def convert_from_md_to_marimo_ir(text: str) -> NotebookSerializationV1:
 def extract_frontmatter(text: str) -> tuple[dict[str, str], str]:
     from marimo._utils import yaml
 
+    text = text.strip()
     result = yaml.YAML_FRONT_MATTER_REGEX.match(text)
 
     if result:
