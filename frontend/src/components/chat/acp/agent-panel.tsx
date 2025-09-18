@@ -384,28 +384,28 @@ const PromptArea = memo<PromptAreaProps>(
                 </Button>
               </Tooltip>
               <Tooltip content="Attach a file">
-                  <Button
-                    variant="text"
-                    size="icon"
-                    className="cursor-pointer"
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Attach a file"
-                  >
-                    <PaperclipIcon className="h-3.5 w-3.5" />
-                  </Button>
-                </Tooltip>
-                <Input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple={true}
-                  hidden={true}
-                  onChange={(event) => {
-                    if (event.target.files) {
-                      onAddFiles([...event.target.files]);
-                    }
-                  }}
-                  accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
-                />
+                <Button
+                  variant="text"
+                  size="icon"
+                  className="cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Attach a file"
+                >
+                  <PaperclipIcon className="h-3.5 w-3.5" />
+                </Button>
+              </Tooltip>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                multiple={true}
+                hidden={true}
+                onChange={(event) => {
+                  if (event.target.files) {
+                    onAddFiles([...event.target.files]);
+                  }
+                }}
+                accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
+              />
               <Tooltip content={isLoading ? "Stop" : "Submit"}>
                 <Button
                   variant="text"
