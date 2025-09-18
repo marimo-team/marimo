@@ -1,9 +1,10 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
-from marimo._ast.parse import Parser, parse_notebook
+from marimo._ast.parse import Parser, _eval_kwargs, parse_notebook
 
 DIR_PATH = Path(__file__).parent
 
@@ -130,3 +131,56 @@ class TestParser:
         # Valid currently
         # TODO: Propagate decorators violations.
         assert len(notebook.violations) == 0
+
+    @staticmethod
+    def test_eval_kwargs_with_list_constants() -> None:
+        """Test that _eval_kwargs correctly handles list constants in kwargs."""
+        # Test case: marimo.App(width="medium", auto_download=["html"])
+
+        # Create AST nodes for the keyword arguments
+        width_kw = ast.keyword(arg="width", value=ast.Constant(value="medium"))
+
+        auto_download_kw = ast.keyword(
+            arg="auto_download",
+            value=ast.List(elts=[ast.Constant(value="html")], ctx=ast.Load()),
+        )
+
+        keywords = [width_kw, auto_download_kw]
+
+        # Test the function
+        kwargs, violations = _eval_kwargs(keywords)
+
+        # Verify results
+        assert len(violations) == 0
+        assert kwargs["width"] == "medium"
+        assert kwargs["auto_download"] == ["html"]
+
+    @staticmethod
+    def test_eval_kwargs_with_invalid_list_elements() -> None:
+        """Test that _eval_kwargs handles invalid elements in list kwargs."""
+        # Create a list with both valid and invalid elements
+        invalid_name_node = ast.Name(id="invalid_var", ctx=ast.Load())
+        invalid_name_node.lineno = 1
+        invalid_name_node.col_offset = 0
+
+        invalid_list_kw = ast.keyword(
+            arg="test_arg",
+            value=ast.List(
+                elts=[
+                    ast.Constant(value="valid"),
+                    invalid_name_node,  # Invalid: not a constant
+                ],
+                ctx=ast.Load(),
+            ),
+        )
+
+        keywords = [invalid_list_kw]
+
+        # Test the function
+        kwargs, violations = _eval_kwargs(keywords)
+
+        # Should have one violation for the invalid element
+        assert len(violations) == 1
+        assert kwargs["test_arg"] == [
+            "valid"
+        ]  # Should still include valid elements
