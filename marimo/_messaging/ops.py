@@ -585,10 +585,19 @@ class Datasets(Op, tag="datasets"):
     clear_channel: Optional[DataTableSource] = None
 
 
+class SQLMetadata(msgspec.Struct):
+    """Metadata for a SQL database."""
+
+    connection: str
+    database: str
+    schema: str
+
+
 class SQLTablePreview(Op, tag="sql-table-preview"):
     """Preview of a table in a SQL database."""
 
     name: ClassVar[str] = "sql-table-preview"
+    metadata: SQLMetadata
     request_id: RequestId
     table: Optional[DataTable]
     error: Optional[str] = None
@@ -598,6 +607,7 @@ class SQLTableListPreview(Op, tag="sql-table-list-preview"):
     """Preview of a list of tables in a schema."""
 
     name: ClassVar[str] = "sql-table-list-preview"
+    metadata: SQLMetadata
     request_id: RequestId
     tables: list[DataTable] = msgspec.field(default_factory=list)
     error: Optional[str] = None
