@@ -697,14 +697,15 @@ class App:
         try:
             self._maybe_initialize()
         except (CycleError, MultipleDefinitionError, UnparsableError) as e:
-            from marimo._lint import run_check
+            from marimo._lint import collect_messages
+
             if self._filename is not None:
-                # Run linting checks to provide better error messages.
-                pipe = lambda msg: print(msg, file=sys.stderr)
-                run_check((self._filename,), pipe=pipe)
-                # Raise a clean exception without the original error message
-                # since run_check already provided detailed error information
-                marimo_error = type(e)()
+                # Run linting checks to provide better error messages for breaking errors.
+                linter, messages = collect_messages(self._filename)
+                if messages:
+                    sys.stderr.write(messages)
+                # Re-raise the original exception but without trace
+                marimo_error = type(e)(str(e))
                 raise marimo_error from None
             else:
                 raise

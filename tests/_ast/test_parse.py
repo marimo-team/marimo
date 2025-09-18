@@ -133,8 +133,13 @@ class TestParser:
 
     @staticmethod
     def test_parse_non_marimo() -> None:
-        notebook = parse_notebook(get_filepath("test_non_marimo").read_text())
-        assert notebook
-        # Should handle non-marimo files without crashing
-        # Expect violations since this isn't a proper marimo notebook
-        assert len(notebook.violations) > 0
+        import pytest
+
+        from marimo._ast.parse import MarimoFileError
+
+        # Non-marimo files that have marimo imports but no App definition
+        # should raise MarimoFileError with the expected message
+        with pytest.raises(
+            MarimoFileError, match="`marimo.App` definition expected."
+        ):
+            parse_notebook(get_filepath("test_non_marimo").read_text())

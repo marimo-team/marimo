@@ -19,6 +19,8 @@ from marimo._schemas.serialization import NotebookSerialization
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
 
+    from marimo._lint.rules.base import LintRule
+
 
 @dataclass
 class FileStatus:
@@ -48,8 +50,12 @@ class Linter:
         pipe: Callable[[str], None] | None = None,
         fix_files: bool = False,
         unsafe_fixes: bool = False,
+        rules: list[LintRule] | None = None,
     ):
-        self.rule_engine = RuleEngine.create_default(early_stopping)
+        if rules is not None:
+            self.rule_engine = RuleEngine(rules, early_stopping)
+        else:
+            self.rule_engine = RuleEngine.create_default(early_stopping)
         self.pipe = pipe
         self.fix_files = fix_files
         self.unsafe_fixes = unsafe_fixes

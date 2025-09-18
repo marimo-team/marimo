@@ -72,12 +72,9 @@ def check_app_correctness(filename: str, noninteractive: bool = True) -> None:
         #     x.
         #     ^
         # SyntaxError: invalid syntax
-        message = ""
+        from marimo._lint import collect_messages
 
-        def pipe(msg: str) -> None:
-            nonlocal message
-            message += msg + "\n"
-        run_check((filename,), pipe=pipe, fix=False)
+        _, message = collect_messages(filename)
         raise click.ClickException(message.strip()) from None
 
     if status == "invalid" and filename.endswith(".py"):
@@ -232,9 +229,7 @@ sandbox_message = (
     "install automatically. Requires uv."
 )
 
-check_message = (
-    "Disable a static check of the notebook before running."
-)
+check_message = "Disable a static check of the notebook before running."
 
 
 @click.group(
@@ -1048,16 +1043,15 @@ def run(
     check_app_correctness(name)
     file = MarimoPath(name)
     if check:
-        message = ""
+        from marimo._lint import collect_messages
 
-        def pipe(msg: str) -> None:
-            nonlocal message
-            message += msg + "\n"
-        linter = run_check((file.absolute_name,), pipe=pipe)
+        linter, message = collect_messages(file.absolute_name)
         if linter.errored:
             raise click.ClickException(
-                red("Failure") + ": The notebook has errors, fix them before running.\n"
-                 + message.strip())
+                red("Failure")
+                + ": The notebook has errors, fix them before running.\n"
+                + message.strip()
+            )
 
     start(
         file_router=AppFileRouter.from_filename(file),
