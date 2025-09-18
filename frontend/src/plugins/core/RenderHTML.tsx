@@ -32,7 +32,7 @@ const removeWrappingBodyTags: TransformFn = (
     if (isValidElement(reactNode) && "props" in reactNode) {
       const props = reactNode.props as { children?: ReactNode };
       const children = props.children;
-      return <>{children}</>;
+      return <>{children}</>; // eslint-disable-line react/jsx-no-useless-fragment
     }
     return;
   }
@@ -47,7 +47,7 @@ const removeWrappingHtmlTags: TransformFn = (
     if (isValidElement(reactNode) && "props" in reactNode) {
       const props = reactNode.props as { children?: ReactNode };
       const children = props.children;
-      return <>{children}</>;
+      return <>{children}</>; // eslint-disable-line react/jsx-no-useless-fragment
     }
     return;
   }
