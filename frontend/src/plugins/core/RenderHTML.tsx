@@ -5,7 +5,7 @@ import parse, {
   Element,
   type HTMLReactParserOptions,
 } from "html-react-parser";
-import React, { type JSX, type ReactNode, useId } from "react";
+import React, { isValidElement, type JSX, type ReactNode, useId } from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
@@ -20,6 +20,21 @@ const replaceValidTags = (domNode: DOMNode) => {
   // Don't render invalid tags
   if (domNode instanceof Element && !/^[A-Za-z][\w-]*$/.test(domNode.name)) {
     return React.createElement(React.Fragment);
+  }
+};
+
+const removeWrappingBodyTags: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+) => {
+  // Remove body tags and just render their children
+  if (domNode instanceof Element && domNode.name === "body") {
+    if (isValidElement(reactNode) && "props" in reactNode) {
+      const props = reactNode.props as { children?: ReactNode };
+      const children = props.children;
+      return <>{children}</>;
+    }
+    return;
   }
 };
 
@@ -110,7 +125,10 @@ export const renderHTML = ({ html, additionalReplacements = [] }: Options) => {
     ...additionalReplacements,
   ];
 
-  const transformFunctions: TransformFn[] = [addCopyButtonToCodehilite];
+  const transformFunctions: TransformFn[] = [
+    addCopyButtonToCodehilite,
+    removeWrappingBodyTags,
+  ];
 
   return parse(html, {
     replace: (domNode: DOMNode, index: number) => {

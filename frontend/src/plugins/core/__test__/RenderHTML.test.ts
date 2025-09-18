@@ -121,6 +121,33 @@ describe("RenderHTML", () => {
       </p>
     `);
   });
+
+  test("removes body tags but preserves children", () => {
+    const html = "<body><h1>Hello</h1><p>World</p></body>";
+    expect(renderHTML({ html })).toMatchInlineSnapshot(`
+      <React.Fragment>
+        <h1>
+          Hello
+        </h1>
+        <p>
+          World
+        </p>
+      </React.Fragment>
+    `);
+  });
+
+  test("removes nested body tags", () => {
+    const html = "<div><body><span>Content</span></body></div>";
+    expect(renderHTML({ html })).toMatchInlineSnapshot(`
+      <div>
+        <React.Fragment>
+          <span>
+            Content
+          </span>
+        </React.Fragment>
+      </div>
+    `);
+  });
 });
 
 describe("RenderHTML with < nad >", () => {
