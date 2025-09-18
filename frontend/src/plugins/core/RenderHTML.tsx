@@ -38,6 +38,21 @@ const removeWrappingBodyTags: TransformFn = (
   }
 };
 
+const removeWrappingHtmlTags: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+) => {
+  // Remove html tags and just render their children
+  if (domNode instanceof Element && domNode.name === "html") {
+    if (isValidElement(reactNode) && "props" in reactNode) {
+      const props = reactNode.props as { children?: ReactNode };
+      const children = props.children;
+      return <>{children}</>;
+    }
+    return;
+  }
+};
+
 const replaceValidIframes = (domNode: DOMNode) => {
   // For iframe, we just want to use dangerouslySetInnerHTML so:
   // 1) we can remount the iframe when the src changes
@@ -128,6 +143,7 @@ export const renderHTML = ({ html, additionalReplacements = [] }: Options) => {
   const transformFunctions: TransformFn[] = [
     addCopyButtonToCodehilite,
     removeWrappingBodyTags,
+    removeWrappingHtmlTags,
   ];
 
   return parse(html, {
