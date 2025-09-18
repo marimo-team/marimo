@@ -962,7 +962,7 @@ Example:
 @click.option(
     "--check/--no-check",
     is_flag=True,
-    default=False,
+    default=True,
     show_default=False,
     type=bool,
     help=check_message,
