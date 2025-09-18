@@ -1213,3 +1213,54 @@ class TestPandasTableManager(unittest.TestCase):
         assert json_data[0]["name"] == "test1"
         assert json_data[1]["name"] == "test2"
         assert json_data[2]["name"] == "test3"
+
+    def test_to_json_series_name_conflict(self) -> None:
+        import pandas as pd
+
+        # Test case from GitHub issue #6385: Series with same name as index
+        # This should not raise "ValueError: cannot insert x, already exists"
+        series = pd.Series(
+            data=[1, 2, 3], name="x", index=pd.Index([1, 2, 3], name="x")
+        )
+
+        # Convert to DataFrame (mimics what _show_marimo_series does)
+        df = series.to_frame()
+        manager = self.factory.create()(df)
+
+        # This should not raise any errors
+        json_data = json.loads(manager.to_json())
+
+        # Verify the data structure - index should be renamed to avoid conflict
+        assert len(json_data) == 3
+        # The conflicting index name should be renamed with "_index" suffix
+        assert "x_index" in json_data[0]
+        assert "x" in json_data[0]
+        # Check data values
+        assert json_data[0]["x_index"] == 1
+        assert json_data[0]["x"] == 1
+        assert json_data[1]["x_index"] == 2
+        assert json_data[1]["x"] == 2
+        assert json_data[2]["x_index"] == 3
+        assert json_data[2]["x"] == 3
+
+    def test_to_json_multi_index_name_conflict(self) -> None:
+        import pandas as pd
+
+        # Test case with MultiIndex where one level conflicts with column
+        df = pd.DataFrame(
+            {"x": [1, 2, 3], "y": [4, 5, 6]},
+            index=pd.MultiIndex.from_tuples(
+                [(1, 4), (2, 5), (3, 6)], names=["x", "z"]
+            ),
+        )
+        manager = self.factory.create()(df)
+
+        # This should not raise any errors
+        json_data = json.loads(manager.to_json())
+
+        # Verify the data structure - conflicting index name should be renamed
+        assert len(json_data) == 3
+        assert "x_index" in json_data[0]  # Renamed index level
+        assert "z" in json_data[0]  # Non-conflicting index level
+        assert "x" in json_data[0]  # Original column
+        assert "y" in json_data[0]  # Original column
