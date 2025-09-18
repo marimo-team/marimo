@@ -17,5 +17,5 @@ export const LocaleProvider = ({ children }: LocaleProviderProps) => {
     return <I18nProvider>{children}</I18nProvider>;
   }
 
-  return <I18nProvider locale={"fr-FR"}>{children}</I18nProvider>;
+  return <I18nProvider locale={locale}>{children}</I18nProvider>;
 };
