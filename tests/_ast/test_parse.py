@@ -130,3 +130,16 @@ class TestParser:
         # Valid currently
         # TODO: Propagate decorators violations.
         assert len(notebook.violations) == 0
+
+    @staticmethod
+    def test_parse_non_marimo() -> None:
+        import pytest
+
+        from marimo._ast.parse import MarimoFileError
+
+        # Non-marimo files that have marimo imports but no App definition
+        # should raise MarimoFileError with the expected message
+        with pytest.raises(
+            MarimoFileError, match="`marimo.App` definition expected."
+        ):
+            parse_notebook(get_filepath("test_non_marimo").read_text())

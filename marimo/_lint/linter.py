@@ -12,12 +12,14 @@ from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
 from marimo._cli.print import red
 from marimo._convert.converters import MarimoConvert
-from marimo._lint.diagnostic import Diagnostic
+from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
 from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
+
+    from marimo._lint.rules.base import LintRule
 
 
 @dataclass
@@ -48,8 +50,12 @@ class Linter:
         pipe: Callable[[str], None] | None = None,
         fix_files: bool = False,
         unsafe_fixes: bool = False,
+        rules: list[LintRule] | None = None,
     ):
-        self.rule_engine = RuleEngine.create_default(early_stopping)
+        if rules is not None:
+            self.rule_engine = RuleEngine(rules, early_stopping)
+        else:
+            self.rule_engine = RuleEngine.create_default(early_stopping)
         self.pipe = pipe
         self.fix_files = fix_files
         self.unsafe_fixes = unsafe_fixes
@@ -170,6 +176,11 @@ class Linter:
             )
             if not will_fix:
                 self.issues_count += 1
+            if diagnostic.severity == Severity.BREAKING:
+                self.errored = True
+
+        if file_status.failed:
+            self.errored = True
 
         if not self.pipe:
             return
@@ -223,8 +234,7 @@ class Linter:
             self.files.append(file_status)
 
             # Stream output via pipe if available
-            if self.pipe:
-                self._pipe_file_status(file_status)
+            self._pipe_file_status(file_status)
 
             # Add to fix queue and potentially fix if requested
             if self.fix_files and not (
