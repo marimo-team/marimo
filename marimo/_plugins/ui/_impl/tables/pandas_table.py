@@ -145,6 +145,28 @@ class PandasTableManagerFactory(TableManagerFactory):
                     )
 
                     index_levels = result.index.nlevels
+
+                    # Check for name conflicts between index names and column names
+                    # to avoid "cannot insert x, already exists" error
+                    conflicting_names = set(index_names) & set(result.columns)
+                    if conflicting_names:
+                        # Create new names, handling None values
+                        new_names = []
+                        for name in result.index.names:
+                            if name in conflicting_names:
+                                new_names.append(f"{name}_index")
+                            else:
+                                new_names.append(name)
+
+                        # Rename the index to avoid conflict
+                        if isinstance(result.index, pd.MultiIndex):
+                            result.index = result.index.set_names(new_names)
+                        else:
+                            result.index = result.index.rename(new_names[0])
+
+                        # Update index_names to reflect the rename
+                        index_names = result.index.names
+
                     result = result.reset_index()
 
                     if unnamed_indexes:

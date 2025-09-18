@@ -88,3 +88,29 @@ def test_pandas_formatters_with_truncate() -> None:
         mime, content = formatter(df.dtypes)
         assert mime == "text/html"
         assert content.startswith("<table")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_pandas_series_name_conflict_opinionated() -> None:
+    """Test that Series with same name as index works with opinionated formatter."""
+    register_formatters()
+
+    import pandas as pd
+
+    # Create a Series with the same name as its index (GitHub issue #6385)
+    series = pd.Series(
+        data=[1, 2, 3],
+        name="x",
+        index=pd.Index([1, 2, 3], name="x")
+    )
+
+    # This should not raise "ValueError: cannot insert x, already exists"
+    formatter = get_formatter(series, include_opinionated=True)
+    assert formatter
+    mime, content = formatter(series)
+    # The key test is that it doesn't raise an exception
+    # The mime type might be either application/json or text/html depending on the formatter
+    assert mime in ("application/json", "text/html")
+    # Should successfully format without errors
+    assert content is not None
+    assert len(content) > 0
