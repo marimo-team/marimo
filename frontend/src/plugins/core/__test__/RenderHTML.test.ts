@@ -121,6 +121,78 @@ describe("RenderHTML", () => {
       </p>
     `);
   });
+
+  test("removes body tags but preserves children", () => {
+    const html = "<body><h1>Hello</h1><p>World</p></body>";
+    expect(renderHTML({ html })).toMatchInlineSnapshot(`
+      <React.Fragment>
+        <h1>
+          Hello
+        </h1>
+        <p>
+          World
+        </p>
+      </React.Fragment>
+    `);
+  });
+
+  test("removes nested body tags", () => {
+    const html = "<div><body><span>Content</span></body></div>";
+    expect(renderHTML({ html })).toMatchInlineSnapshot(`
+      <div>
+        <React.Fragment>
+          <span>
+            Content
+          </span>
+        </React.Fragment>
+      </div>
+    `);
+  });
+
+  test("removes html tags but preserves children", () => {
+    const html =
+      "<html><head><title>Test</title></head><body><p>Content</p></body></html>";
+    expect(renderHTML({ html })).toMatchInlineSnapshot(`
+      <React.Fragment>
+        <head>
+          <title>
+            Test
+          </title>
+        </head>
+        <React.Fragment>
+          <p>
+            Content
+          </p>
+        </React.Fragment>
+      </React.Fragment>
+    `);
+  });
+
+  test("removes nested html tags", () => {
+    const html = "<div><html><span>Content</span></html></div>";
+    expect(renderHTML({ html })).toMatchInlineSnapshot(`
+      <div>
+        <React.Fragment>
+          <span>
+            Content
+          </span>
+        </React.Fragment>
+      </div>
+    `);
+  });
+
+  test("remove nested body in html", () => {
+    const html = "<html><body><span>Content</span></body></html>";
+    expect(renderHTML({ html })).toMatchInlineSnapshot(`
+      <React.Fragment>
+        <React.Fragment>
+          <span>
+            Content
+          </span>
+        </React.Fragment>
+      </React.Fragment>
+    `);
+  });
 });
 
 describe("RenderHTML with < nad >", () => {
