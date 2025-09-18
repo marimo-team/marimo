@@ -635,9 +635,23 @@ def _eval_kwargs(
     kwargs = {}
     violations = []
     for kw in keywords:
-        # Only accept Constants
+        # Only accept Constants, or lists of constants
         if kw.arg and isinstance(kw.value, ast.Constant):
             kwargs[kw.arg] = kw.value.value
+        elif kw.arg and isinstance(kw.value, ast.List):
+            list_values = []
+            for elt in kw.value.elts:
+                if isinstance(elt, ast.Constant):
+                    list_values.append(elt.value)
+                else:
+                    violations.append(
+                        Violation(
+                            UNEXPECTED_KEYWORD_VALUE_VIOLATION,
+                            lineno=elt.lineno,
+                            col_offset=elt.col_offset,
+                        )
+                    )
+            kwargs[kw.arg] = list_values
         else:
             violations.append(
                 Violation(
