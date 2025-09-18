@@ -185,6 +185,7 @@ class TestParser:
             "valid"
         ]  # Should still include valid elements
 
+    @staticmethod
     def test_parse_non_marimo() -> None:
         import pytest
 
