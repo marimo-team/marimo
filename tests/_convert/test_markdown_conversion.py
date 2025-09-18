@@ -12,7 +12,11 @@ import pytest
 from marimo import __version__
 from marimo._ast.app import InternalApp
 from marimo._convert.converters import MarimoConvert
-from marimo._convert.markdown.markdown import convert_from_md_to_app
+from marimo._convert.markdown.markdown import (
+    convert_from_md_to_app,
+    convert_from_md_to_marimo_ir,
+    extract_frontmatter,
+)
 from marimo._server.export import export_as_md
 from marimo._server.export.utils import format_filename_title
 
@@ -539,6 +543,140 @@ def test_md_to_python_code_injection() -> None:
 
     snapshot("unsafe-doc.py.txt", maybe_unsafe_py)
     snapshot("unsafe-doc.md.txt", maybe_unsafe_md)
+
+
+def test_whitespace_stripping_convert_from_md_to_app() -> None:
+    """Test that convert_from_md_to_app strips whitespace from input."""
+    basic_md = """
+# My Notebook
+
+```python {.marimo}
+print("Hello, World!")
+```
+"""
+
+    # Test with leading whitespace
+    leading_whitespace = "   " + basic_md
+    app1 = InternalApp(convert_from_md_to_app(leading_whitespace))
+
+    # Test with trailing whitespace
+    trailing_whitespace = basic_md + "   "
+    app2 = InternalApp(convert_from_md_to_app(trailing_whitespace))
+
+    # Test with both leading and trailing whitespace
+    both_whitespace = "   " + basic_md + "   "
+    app3 = InternalApp(convert_from_md_to_app(both_whitespace))
+
+    # Test normal case
+    app_normal = InternalApp(convert_from_md_to_app(basic_md))
+
+    # All should produce the same result
+    for app in [app1, app2, app3]:
+        assert len(list(app.cell_manager.cell_ids())) == len(list(app_normal.cell_manager.cell_ids()))
+        ids = list(app.cell_manager.cell_ids())
+        normal_ids = list(app_normal.cell_manager.cell_ids())
+        for i, cell_id in enumerate(ids):
+            assert app.cell_manager.cell_data_at(cell_id).code == app_normal.cell_manager.cell_data_at(normal_ids[i]).code
+
+
+def test_whitespace_stripping_convert_from_md_to_marimo_ir() -> None:
+    """Test that convert_from_md_to_marimo_ir strips whitespace from input."""
+    basic_md = """
+# My Notebook
+
+```python {.marimo}
+print("Hello, World!")
+```
+"""
+
+    # Test with leading whitespace
+    leading_whitespace = "   " + basic_md
+    ir1 = convert_from_md_to_marimo_ir(leading_whitespace)
+
+    # Test with trailing whitespace
+    trailing_whitespace = basic_md + "   "
+    ir2 = convert_from_md_to_marimo_ir(trailing_whitespace)
+
+    # Test with both leading and trailing whitespace
+    both_whitespace = "   " + basic_md + "   "
+    ir3 = convert_from_md_to_marimo_ir(both_whitespace)
+
+    # Test normal case
+    ir_normal = convert_from_md_to_marimo_ir(basic_md)
+
+    # All should produce the same result
+    for ir in [ir1, ir2, ir3]:
+        assert len(ir.cells) == len(ir_normal.cells)
+        for i, cell in enumerate(ir.cells):
+            assert cell.code == ir_normal.cells[i].code
+
+
+def test_whitespace_stripping_extract_frontmatter() -> None:
+    """Test that extract_frontmatter strips whitespace from input."""
+    md_with_frontmatter = """---
+title: "My Title"
+description: "My Description"
+---
+
+# My Notebook
+
+```python {.marimo}
+print("Hello, World!")
+```
+"""
+
+    # Test with leading whitespace
+    leading_whitespace = "   " + md_with_frontmatter
+    frontmatter1, content1 = extract_frontmatter(leading_whitespace)
+
+    # Test with trailing whitespace
+    trailing_whitespace = md_with_frontmatter + "   "
+    frontmatter2, content2 = extract_frontmatter(trailing_whitespace)
+
+    # Test with both leading and trailing whitespace
+    both_whitespace = "   " + md_with_frontmatter + "   "
+    frontmatter3, content3 = extract_frontmatter(both_whitespace)
+
+    # Test normal case
+    frontmatter_normal, content_normal = extract_frontmatter(md_with_frontmatter)
+
+    # All should produce the same result
+    for frontmatter, content in [(frontmatter1, content1), (frontmatter2, content2), (frontmatter3, content3)]:
+        assert frontmatter == frontmatter_normal
+        assert content == content_normal
+
+    # Verify frontmatter was extracted correctly
+    assert frontmatter_normal["title"] == "My Title"
+    assert frontmatter_normal["description"] == "My Description"
+
+
+def test_whitespace_stripping_edge_cases() -> None:
+    """Test edge cases for whitespace stripping."""
+    # Test empty strings and whitespace-only strings
+    empty_app = InternalApp(convert_from_md_to_app(""))
+    whitespace_only_app = InternalApp(convert_from_md_to_app("   \n\t  \n  "))
+
+    # Both should produce empty apps with one empty cell
+    for app in [empty_app, whitespace_only_app]:
+        ids = list(app.cell_manager.cell_ids())
+        assert len(ids) == 1
+        assert app.cell_manager.cell_data_at(ids[0]).code == ""
+
+    # Test newlines and tabs
+    md_with_various_whitespace = "\n\t   \n# Notebook\n\n```python {.marimo}\nprint('test')\n```\n\t   \n"
+    app = InternalApp(convert_from_md_to_app(md_with_various_whitespace))
+    ids = list(app.cell_manager.cell_ids())
+    assert len(ids) == 2  # One for title, one for code
+
+    # Test that content is preserved correctly
+    code_cell = None
+    for cell_id in ids:
+        code = app.cell_manager.cell_data_at(cell_id).code
+        if "print('test')" in code:
+            code_cell = code
+            break
+    assert code_cell is not None
+    assert "print('test')" in code_cell
 
 
 def remove_empty_lines(s: str) -> str:
