@@ -59,7 +59,7 @@ class GetDatabaseTables(
 
     def _get_tables(
         self, session: Session, query: Optional[str]
-    ) -> list[TableDetails]:
+    ) -> GetDatabaseTablesOutput:
         session_view = session.session_view
         data_connectors = session_view.data_connectors
 
