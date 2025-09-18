@@ -267,6 +267,20 @@ class TestASGIAppBuilder(unittest.TestCase):
         assert response.headers["x-middleware-1"] == "applied"
         assert response.headers["x-middleware-2"] == "applied"
 
+    def test_session_ttl_parameter(self):
+        """Test that session_ttl parameter is passed to SessionManager."""
+        builder = create_asgi_app(
+            quiet=True, include_code=True, session_ttl=300
+        )
+        builder = builder.with_app(path="/app1", root=self.app1)
+        builder.build()
+
+        # Access the app state to verify session_ttl was set
+        # We need to get the Starlette app inside the builder
+        starlette_app = builder._app_cache[self.app1]
+        session_manager = starlette_app.state.session_manager
+        assert session_manager.ttl_seconds == 300
+
 
 class TestDynamicDirectoryMiddleware(unittest.TestCase):
     def setUp(self):
