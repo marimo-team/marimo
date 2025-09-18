@@ -1,9 +1,7 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
-import contextlib
-import io
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -12,8 +10,10 @@ from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
 from marimo._cli.print import red
 from marimo._convert.converters import MarimoConvert
+from marimo._lint.context import LintContext
 from marimo._lint.diagnostic import Diagnostic
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
+from marimo._loggers import capture_output
 from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
@@ -83,14 +83,8 @@ class Linter:
                 )
                 return file_status
 
-            captured_stdout = io.StringIO()
-            captured_stderr = io.StringIO()
-
             try:
-                with (
-                    contextlib.redirect_stdout(captured_stdout),
-                    contextlib.redirect_stderr(captured_stderr),
-                ):
+                with capture_output() as (stdout, stderr, logs):
                     load_result = get_notebook_status(file_path)
             except SyntaxError as e:
                 # Handle syntax errors in notebooks
@@ -127,8 +121,9 @@ class Linter:
                         await self.rule_engine.check_notebook(
                             load_result.notebook,
                             # Add parsing rule if there's captured output
-                            stdout=captured_stdout.getvalue().strip(),
-                            stderr=captured_stderr.getvalue().strip(),
+                            stdout=stdout.getvalue().strip(),
+                            stderr=stderr.getvalue().strip(),
+                            logs=logs,
                         )
                     )
                 except Exception as e:

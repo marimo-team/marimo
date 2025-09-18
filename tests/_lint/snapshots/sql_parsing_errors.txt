@@ -1,0 +1,21 @@
+warning[sql-parse-error]: Error parsing SQL statement: Expecting ). Line 19, Col: 21.
+  
+            AND
+            MONTH(timestamp) in (null)
+            AND
+            descendants NOT [4mNULl[0m
+
+    )
+
+    SELECT
+        month,
+        score,
+        type,
+        title,
+        hn_url,
+     
+ --> tests/_lint/test_files/sql_parsing_errors.py:19:20
+  19 |     result = mo.sql(f"""
+  20 |         WITH ranked_stories AS (
+     |                       ^
+  21 |             SELECT

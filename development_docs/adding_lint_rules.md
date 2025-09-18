@@ -309,7 +309,11 @@ Bad: `"Multiple definition error"`
 
 ### Fixability
 
-TODO: Right now, the only fixable errors are via re-serialization.
+Safely fixable errors are applied by default via re-serialization. However,
+rules may implement unsafe fixes (mutating the notebook structure) that require
+the `--unsafe-fixes` flag. To do this, implement an `async def
+apply_unsafe_fixes(self, notebook, diagnostics) -> Notebook` method in your
+rule class, and inherit from `UnsafeFixRule` instead of `LintRule`.
 
 ## Common Patterns
 
@@ -388,6 +392,22 @@ Before submitting your rule:
 - [ ] Error messages are clear and actionable
 - [ ] Performance is reasonable for large notebooks
 
-## Example: Simple Rule Implementation
+## Examples
 
-Here's a complete example of a simple rule that checks for syntax errors: https://github.com/marimo-team/marimo/pull/6384
+### Simple Rule Implementation
+
+Example of a simple rule that checks for syntax errors: https://github.com/marimo-team/marimo/pull/6384
+
+### Rule Implementation with `--unsafe-fixes`
+
+Some rules may have "fixes" that mutate the notebook structure.
+An example of a rule that mutates the notebook structure (i.e. an unsafe fix) by removing empty cells: https://github.com/marimo-team/marimo/pull/6398
+
+### Rule Implementation with Log Context
+
+Some parsing issues result in log warnings or errors.
+An example of a rule that hooks into issued logs can be found here:
+
+**Note**: Resist intentionally adding log statements such that they trigger
+lint rules. Log statements should be added only when they provide useful
+context, on notebook startup.

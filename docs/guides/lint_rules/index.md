@@ -43,6 +43,8 @@ These are style and formatting issues.
 | [MF002](rules/parse_stdout.md) | parse-stdout | Parse captured stdout during notebook loading | ❌ |
 | [MF003](rules/parse_stderr.md) | parse-stderr | Parse captured stderr during notebook loading | ❌ |
 | [MF004](rules/empty_cells.md) | empty-cells | Empty cells that can be safely removed. | ⚠️ |
+| [MF005](rules/sql_parse_error.md) | sql-parse-error | SQL parsing errors during dependency analysis | ❌ |
+| [MF006](rules/misc_log_capture.md) | misc-log-capture | Miscellaneous log messages during processing | ❌ |
 
 ## Legend
 

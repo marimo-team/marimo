@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 import logging
 from contextlib import contextmanager
 from logging.handlers import TimedRotatingFileHandler
@@ -9,7 +10,7 @@ from typing import TYPE_CHECKING, Optional
 from marimo._utils.log_formatter import LogFormatter
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Generator, Iterator
     from pathlib import Path
 
 # This file manages and creates loggers used throughout marimo.
@@ -180,6 +181,49 @@ def _file_handler() -> logging.FileHandler:
     file_handler.setLevel(min(_LOG_LEVEL, logging.INFO))
 
     return file_handler
+
+
+class ListHandler(logging.Handler):
+    """Log handler that captures records in a list for processing."""
+
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
+@contextmanager
+def capture_output(
+    *, log_level: int = logging.DEBUG
+) -> Iterator[tuple[io.StringIO, io.StringIO, list[logging.LogRecord]]]:
+    """
+    Capture stdout, stderr, and log records during execution.
+
+    Yields: (stdout_buf, stderr_buf, log_records)
+    - log_records are raw LogRecord objects with full metadata (name, level, pathname, lineno, created, etc.).
+    - Log emission to existing handlers is silenced inside the context.
+    """
+    import contextlib
+
+    logger = marimo_logger()
+    out, err = io.StringIO(), io.StringIO()
+    h = ListHandler(log_level)
+
+    # Snapshot and suppress existing handlers
+    old_handlers, old_propagate = logger.handlers[:], logger.propagate
+    logger.addHandler(h)
+    logger.handlers = [h]
+    logger.propagate = False
+
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            yield out, err, h.records
+    finally:
+        logger.removeHandler(h)
+        logger.handlers = old_handlers
+        logger.propagate = old_propagate
 
 
 @contextmanager
