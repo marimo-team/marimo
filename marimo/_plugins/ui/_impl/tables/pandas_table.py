@@ -151,12 +151,12 @@ class PandasTableManagerFactory(TableManagerFactory):
                     conflicting_names = set(index_names) & set(result.columns)
                     if conflicting_names:
                         # Create new names, handling None values
-                        new_names = []
+                        new_names: list[str] = []
                         for name in result.index.names:
                             if name in conflicting_names:
                                 new_names.append(f"{name}_index")
                             else:
-                                new_names.append(name)
+                                new_names.append(str(name))
 
                         # Rename the index to avoid conflict
                         if isinstance(result.index, pd.MultiIndex):
