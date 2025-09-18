@@ -655,19 +655,29 @@ export const ToolBodyBlock = (props: {
     | Omit<ToolCallNotificationEvent, "sessionUpdate">
     | Omit<ToolCallUpdateNotificationEvent, "sessionUpdate">;
 }) => {
-  const content = props.data.content
+  const { content, locations, status, kind, rawInput } = props.data;
+  const textContent = content
     ?.filter((item) => item.type === "content")
     .map((item) => item.content);
-  const diffs = props.data.content?.filter((item) => item.type === "diff");
-  const locations = props.data.locations;
-  const isFailed = props.data.status === "failed";
+  const diffs = content?.filter((item) => item.type === "diff");
+  const isFailed = status === "failed";
   const hasLocations = locations && locations.length > 0;
 
-  if (content?.length === 0 && diffs?.length === 0 && hasLocations) {
+  // Completely empty
+  if (!content && !hasLocations && rawInput) {
+    // Show rawInput
+    return (
+      <pre className="bg-[var(--slate-2)] p-1 text-muted-foreground border border-[var(--slate-4)] rounded text-xs overflow-auto scrollbar-thin max-h-64">
+        <JsonOutput data={rawInput} format="tree" />
+      </pre>
+    );
+  }
+
+  if (content?.length && hasLocations) {
     return (
       <div className="flex flex-col gap-2 pr-2">
         <span className="text-xs text-muted-foreground">
-          {capitalize(props.data.kind || "")}{" "}
+          {capitalize(kind || "")}{" "}
           {locations?.map((item) => item.path).join(", ")}
         </span>
       </div>
@@ -677,7 +687,7 @@ export const ToolBodyBlock = (props: {
   return (
     <div className="flex flex-col gap-2 pr-2">
       {locations && <LocationsBlock data={locations} />}
-      {content && <ContentBlocks data={content} />}
+      {textContent && <ContentBlocks data={textContent} />}
       {diffs && !isFailed && <DiffBlocks data={diffs} />}
     </div>
   );
