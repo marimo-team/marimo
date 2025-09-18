@@ -1220,9 +1220,7 @@ class TestPandasTableManager(unittest.TestCase):
         # Test case from GitHub issue #6385: Series with same name as index
         # This should not raise "ValueError: cannot insert x, already exists"
         series = pd.Series(
-            data=[1, 2, 3],
-            name="x",
-            index=pd.Index([1, 2, 3], name="x")
+            data=[1, 2, 3], name="x", index=pd.Index([1, 2, 3], name="x")
         )
 
         # Convert to DataFrame (mimics what _show_marimo_series does)
@@ -1253,7 +1251,7 @@ class TestPandasTableManager(unittest.TestCase):
             {"x": [1, 2, 3], "y": [4, 5, 6]},
             index=pd.MultiIndex.from_tuples(
                 [(1, 4), (2, 5), (3, 6)], names=["x", "z"]
-            )
+            ),
         )
         manager = self.factory.create()(df)
 
@@ -1263,6 +1261,6 @@ class TestPandasTableManager(unittest.TestCase):
         # Verify the data structure - conflicting index name should be renamed
         assert len(json_data) == 3
         assert "x_index" in json_data[0]  # Renamed index level
-        assert "z" in json_data[0]        # Non-conflicting index level
-        assert "x" in json_data[0]        # Original column
-        assert "y" in json_data[0]        # Original column
+        assert "z" in json_data[0]  # Non-conflicting index level
+        assert "x" in json_data[0]  # Original column
+        assert "y" in json_data[0]  # Original column

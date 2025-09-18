@@ -99,9 +99,7 @@ def test_pandas_series_name_conflict_opinionated() -> None:
 
     # Create a Series with the same name as its index (GitHub issue #6385)
     series = pd.Series(
-        data=[1, 2, 3],
-        name="x",
-        index=pd.Index([1, 2, 3], name="x")
+        data=[1, 2, 3], name="x", index=pd.Index([1, 2, 3], name="x")
     )
 
     # This should not raise "ValueError: cannot insert x, already exists"
