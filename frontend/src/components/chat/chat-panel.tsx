@@ -234,6 +234,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
                   index={i}
                   toolName={part.type}
                   result={part.output}
+                  className="my-2"
                   state={part.state}
                 />
               );
@@ -266,6 +267,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
                     toolName={part.type}
                     result={part.output}
                     state={part.state}
+                    className="my-2"
                   />
                 );
 
@@ -283,10 +285,11 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
                 Logger.error("Unhandled part type:", part.type);
                 try {
                   return (
-                    <MarkdownRenderer
-                      key={i}
-                      content={JSON.stringify(part, null, 2)}
-                    />
+                    <div className="text-xs text-muted-foreground" key={i}>
+                      <MarkdownRenderer
+                        content={JSON.stringify(part, null, 2)}
+                      />
+                    </div>
                   );
                 } catch (error) {
                   Logger.error("Error rendering part:", part.type, error);

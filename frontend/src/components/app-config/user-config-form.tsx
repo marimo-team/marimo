@@ -13,6 +13,7 @@ import {
   PackageIcon,
 } from "lucide-react";
 import React, { useId, useRef } from "react";
+import { useLocale } from "react-aria";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -118,6 +119,7 @@ export const UserConfigForm: React.FC = () => {
   );
   const capabilities = useAtomValue(capabilitiesAtom);
   const marimoVersion = useAtomValue(marimoVersionAtom);
+  const { locale } = useLocale();
   const { saveUserConfig } = useRequestClient();
 
   // Create form
@@ -1283,6 +1285,38 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.external_agents"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      External Agents
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="external-agents-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.external_agents"
+                  />
+                  <FormDescription>
+                    Enable experimental external agents such as Claude Code and
+                    Gemini CLI. Learn more in the{" "}
+                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/agents/">
+                      docs
+                    </ExternalLink>
+                    .
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }
@@ -1333,8 +1367,9 @@ export const UserConfigForm: React.FC = () => {
               </TabsTrigger>
             ))}
 
-            <div className="p-2 text-xs text-muted-foreground self-start">
+            <div className="p-2 text-xs text-muted-foreground self-start flex flex-col gap-1">
               <span>Version: {marimoVersion}</span>
+              <span>Locale: {locale}</span>
             </div>
 
             <div className="flex-1" />

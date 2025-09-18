@@ -10,4 +10,4 @@ critical[invalid-syntax]: 'return' outside function
   16 |         return tickers
      |        ^
   17 |     return
-info: marimo cells are not normal Python functions; treat cell bodies as top-level code, or use `@app.function` to define a pure function.
+hint: marimo cells are not normal Python functions; treat cell bodies as top-level code, or use `@app.function` to define a pure function.

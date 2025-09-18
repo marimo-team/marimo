@@ -26,7 +26,7 @@ import {
   parseConfigOverrides,
   parseUserConfig,
 } from "./core/config/config-schema";
-import { LocaleProvider } from "./core/i18n/LocaleProvider";
+import { LocaleProvider } from "./core/i18n/local-provider";
 import { MarimoApp, preloadPage } from "./core/MarimoApp";
 import { type AppMode, initialModeAtom, viewStateAtom } from "./core/mode";
 import { cleanupAuthQueryParams } from "./core/network/auth";

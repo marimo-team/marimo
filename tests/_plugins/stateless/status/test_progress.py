@@ -129,6 +129,9 @@ def test_progress_without_context():
             assert bar
             bar.update()
 
+    # iterator (no len()) with total
+    assert progress_bar(iter(range(1000)), total=1000)
+
     with pytest.raises(RuntimeError):
         for _ in progress_bar(total=10):
             pass

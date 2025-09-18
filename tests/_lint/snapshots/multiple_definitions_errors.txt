@@ -9,4 +9,4 @@ critical[multiple-definitions]: Variable 'x' is defined in multiple cells
   16 |     x = 2  # This should trigger MR001 - multiple definitions
      |     ^
   17 |     return
-info: Variables must be unique across cells. Alternatively, they can be private with an underscore prefix (i.e. `_x`.)
+hint: Variables must be unique across cells. Alternatively, they can be private with an underscore prefix (i.e. `_x`.)

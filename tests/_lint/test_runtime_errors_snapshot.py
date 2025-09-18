@@ -108,3 +108,20 @@ def test_syntax_errors_snapshot():
         error_output.append(error.format())
 
     snapshot("syntax_errors.txt", "\n".join(error_output))
+
+
+def test_star_import_snapshot():
+    """Test snapshot for star import syntax errors with enhanced hints."""
+    file = "tests/_lint/test_files/star_import.py"
+    with open(file) as f:
+        code = f.read()
+
+    notebook = parse_notebook(code, filepath=file)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format())
+
+    snapshot("star_import_errors.txt", "\n".join(error_output))

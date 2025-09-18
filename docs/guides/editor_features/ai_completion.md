@@ -368,7 +368,7 @@ marimo supports OpenAI's API by default. Many providers offer OpenAI API-compati
         2. Navigate to the AI section
         3. Enter your provider's API key in the "OpenAI API Key" field
         4. Under AI Assist settings:
-        
+
            - Set Base URL to your provider's endpoint (e.g., `https://api.deepseek.com`)
            - Set Model to your chosen model (e.g., `deepseek-chat` or `deepseek-reasoner`)
 
@@ -388,6 +388,13 @@ marimo supports OpenAI's API by default. Many providers offer OpenAI API-compati
 For a comprehensive list of compatible providers and their configurations, please refer to the [liteLLM Providers documentation](https://litellm.vercel.app/docs/providers).
 
 For providers not compatible with OpenAI's API, please submit a [feature request](https://github.com/marimo-team/marimo/issues/new?template=feature_request.yaml) or "thumbs up" an existing one.
+
+## Agents
+
+!!! example "Experimental: Agents"
+
+    marimo also supports external AI agents like Claude Code and Gemini CLI that can interact with your notebooks.
+    Learn more in the [agents](agents.md) guide.
 
 ## Copilots
 

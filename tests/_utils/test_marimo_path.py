@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from marimo._utils.marimo_path import MarimoPath
+from tests.mocks import EDGE_CASE_FILENAMES
 
 
 def test_init():
@@ -92,3 +93,66 @@ def test_properties():
 
     # Test last_modified
     assert mp.last_modified == os.path.getmtime(__file__)
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        *EDGE_CASE_FILENAMES,
+        "café.qmd",
+        "🚀 my notebook.md",
+    ],
+)
+def test_marimo_path_with_edge_case_filenames(tmp_path: Path, filename: str):
+    """Test MarimoPath with unicode, spaces, and special characters."""
+    file_path = tmp_path / filename
+    file_path.write_text("# test content", encoding="utf-8")
+
+    # Should be able to create MarimoPath
+    mp = MarimoPath(file_path)
+    assert mp.path == file_path
+    assert mp.is_valid()
+
+    # Should handle file operations correctly
+    content = mp.read_text()
+    assert content == "# test content"
+
+    # Should handle properties correctly
+    assert mp.short_name == filename
+    assert filename in mp.absolute_name
+
+    # Should handle rename correctly
+    new_filename = f"new_{filename}"
+    new_path = tmp_path / new_filename
+    mp.rename(new_path)
+    assert not file_path.exists()
+    assert new_path.exists()
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        # Valid files
+        "café.md",
+        "测试.qmd",
+        "café notebook.markdown",
+        *EDGE_CASE_FILENAMES,
+    ],
+)
+def test_is_valid_path_with_edge_case_filenames(filename: str):
+    """Test MarimoPath.is_valid_path with unicode and spaces."""
+    assert MarimoPath.is_valid_path(filename)
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "tést.txt",
+        "café.doc",
+        "测试.xyz",
+        "test file.pdf",
+        "test.py.txt",
+    ],
+)
+def test_is_valid_path_with_invalid_filenames(filename: str):
+    assert not MarimoPath.is_valid_path(filename)

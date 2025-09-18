@@ -24,6 +24,7 @@ import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
 import { MinimalHotkeys } from "../shortcuts/renderShortcut";
+import { useTerminalActions, useTerminalState } from "./state";
 import { createTerminalTheme } from "./theme";
 
 interface TerminalButtonProps {
@@ -182,6 +183,10 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
   const [contextMenu, setContextMenu] = useState<Position | null>(null);
   const runtimeManager = useRuntimeManager();
 
+  // Terminal command state management
+  const terminalState = useTerminalState();
+  const { removeCommand, setReady } = useTerminalActions();
+
   // Keyboard shortcuts handler
   const handleKeyDown = useEvent(createKeyboardHandler(terminal, searchAddon));
 
@@ -254,6 +259,19 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         terminal.loadAddon(attachAddon);
         wsRef.current = socket;
 
+        // Terminal is ready when the websocket is open
+        const updateReadyState = () => {
+          setReady(socket.readyState === WebSocket.OPEN);
+        };
+
+        const handleError = () => {
+          updateReadyState();
+        };
+
+        const handleOpen = () => {
+          updateReadyState();
+        };
+
         const handleDisconnect = () => {
           onClose();
           // Reset
@@ -261,9 +279,15 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
           wsRef.current = null;
           terminal.clear();
           setInitialized(false);
+          setReady(false);
         };
 
+        socket.addEventListener("open", handleOpen);
         socket.addEventListener("close", handleDisconnect);
+        socket.addEventListener("error", handleError);
+
+        // Set initial ready state
+        updateReadyState();
         setInitialized(true);
       } catch (error) {
         Logger.error("Runtime health check failed for terminal", error);
@@ -278,6 +302,30 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized]);
+
+  // Process pending commands when terminal is ready
+  useEffect(() => {
+    if (!terminalState.isReady || terminalState.pendingCommands.length === 0) {
+      return;
+    }
+
+    // Process all pending commands
+    for (const command of terminalState.pendingCommands) {
+      if (terminal && wsRef.current?.readyState === WebSocket.OPEN) {
+        Logger.debug("Sending programmatic command to terminal", {
+          command: command.text,
+        });
+        terminal.input(command.text);
+        terminal.focus();
+        removeCommand(command.id);
+      }
+    }
+  }, [
+    terminal,
+    terminalState.isReady,
+    terminalState.pendingCommands,
+    removeCommand,
+  ]);
 
   // When visible
   useEffect(() => {

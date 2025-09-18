@@ -20,7 +20,6 @@ import {
   XIcon,
 } from "lucide-react";
 import React from "react";
-import { Streamdown } from "streamdown";
 import { mergeToolCalls } from "use-acp";
 import { JsonOutput } from "@/components/editor/output/JsonOutput";
 import { Button } from "@/components/ui/button";
@@ -33,6 +32,7 @@ import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { Strings } from "@/utils/strings";
+import { MarkdownRenderer } from "../markdown-renderer";
 import { SimpleAccordion } from "./common";
 import type {
   AgentNotificationEvent,
@@ -308,7 +308,7 @@ export const AgentMessagesBlock = (props: {
 export const ContentBlocks = (props: { data: ContentBlock[] }) => {
   const renderBlock = (block: ContentBlock) => {
     if (block.type === "text") {
-      return <Streamdown>{block.text}</Streamdown>;
+      return <MarkdownRenderer content={block.text} />;
     }
     if (block.type === "image") {
       return <ImageBlock data={block} />;
@@ -372,7 +372,7 @@ export const ResourceBlock = (props: { data: ContentBlockOf<"resource"> }) => {
           </span>
         </PopoverTrigger>
         <PopoverContent className="max-h-96 overflow-y-auto scrollbar-thin">
-          <Streamdown>{props.data.resource.text}</Streamdown>
+          <MarkdownRenderer content={props.data.resource.text} />
         </PopoverContent>
       </Popover>
     );
@@ -501,7 +501,9 @@ export const SessionNotificationsBlock = <
     }
     if (kind === "current_mode_update") {
       const lastItem = items.at(-1);
-      return lastItem?.sessionUpdate === "current_mode_update" ? <CurrentModeBlock data={lastItem} /> : null;
+      return lastItem?.sessionUpdate === "current_mode_update" ? (
+        <CurrentModeBlock data={lastItem} />
+      ) : null;
     }
 
     return (
@@ -651,19 +653,29 @@ export const ToolBodyBlock = (props: {
     | Omit<ToolCallNotificationEvent, "sessionUpdate">
     | Omit<ToolCallUpdateNotificationEvent, "sessionUpdate">;
 }) => {
-  const content = props.data.content
+  const { content, locations, status, kind, rawInput } = props.data;
+  const textContent = content
     ?.filter((item) => item.type === "content")
     .map((item) => item.content);
-  const diffs = props.data.content?.filter((item) => item.type === "diff");
-  const locations = props.data.locations;
-  const isFailed = props.data.status === "failed";
+  const diffs = content?.filter((item) => item.type === "diff");
+  const isFailed = status === "failed";
   const hasLocations = locations && locations.length > 0;
 
-  if (content?.length === 0 && diffs?.length === 0 && hasLocations) {
+  // Completely empty
+  if (!content && !hasLocations && rawInput) {
+    // Show rawInput
+    return (
+      <pre className="bg-[var(--slate-2)] p-1 text-muted-foreground border border-[var(--slate-4)] rounded text-xs overflow-auto scrollbar-thin max-h-64">
+        <JsonOutput data={rawInput} format="tree" />
+      </pre>
+    );
+  }
+
+  if (content?.length && hasLocations) {
     return (
       <div className="flex flex-col gap-2 pr-2">
         <span className="text-xs text-muted-foreground">
-          {capitalize(props.data.kind || "")}{" "}
+          {capitalize(kind || "")}{" "}
           {locations?.map((item) => item.path).join(", ")}
         </span>
       </div>
@@ -673,7 +685,7 @@ export const ToolBodyBlock = (props: {
   return (
     <div className="flex flex-col gap-2 pr-2">
       {locations && <LocationsBlock data={locations} />}
-      {content && <ContentBlocks data={content} />}
+      {textContent && <ContentBlocks data={textContent} />}
       {diffs && !isFailed && <DiffBlocks data={diffs} />}
     </div>
   );

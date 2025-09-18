@@ -1,9 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { TerminalIcon } from "lucide-react";
+import { useAtomValue } from "jotai";
+import { TerminalIcon, TerminalSquareIcon } from "lucide-react";
 import { memo } from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import { useTerminalCommands } from "@/components/terminal/hooks";
+import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { capabilitiesAtom } from "@/core/config/capabilities";
 import { cn } from "@/utils/cn";
 import {
   type ExternalAgentId,
@@ -22,6 +27,12 @@ const AgentDocItem = memo<AgentDocItemProps>(
   ({ agentId, showCopy = true, className }) => {
     const command = getAgentConnectionCommand(agentId);
     const displayName = getAgentDisplayName(agentId);
+    const capabilities = useAtomValue(capabilitiesAtom);
+    const { sendCommand } = useTerminalCommands();
+
+    const handleSendToTerminal = () => {
+      sendCommand(command);
+    };
 
     return (
       <div className={cn("space-y-2", className)}>
@@ -35,9 +46,25 @@ const AgentDocItem = memo<AgentDocItemProps>(
             <code className="text-xs font-mono break-words flex-1 whitespace-pre-wrap">
               {command}
             </code>
-            {showCopy && (
-              <CopyClipboardIcon value={command} className="h-3 w-3" />
-            )}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {showCopy && (
+                <Button size="xs" variant="outline" className="border">
+                  <CopyClipboardIcon value={command} className="h-3 w-3" />
+                </Button>
+              )}
+              {capabilities.terminal && (
+                <Tooltip content="Run in terminal" delayDuration={100}>
+                  <Button
+                    onClick={handleSendToTerminal}
+                    title="Send to terminal"
+                    size="xs"
+                    variant="outline"
+                  >
+                    <TerminalSquareIcon className="h-3 w-3" />
+                  </Button>
+                </Tooltip>
+              )}
+            </div>
           </div>
         </div>
       </div>

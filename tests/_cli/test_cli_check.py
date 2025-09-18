@@ -174,3 +174,28 @@ if __name__ == "__main__":
 
             # Should succeed
             assert result.exit_code == 0, result.output
+
+    def test_check_command_with_message_collection(self):
+        """Test that CLI check command uses message collection properly."""
+        runner = CliRunner()
+        import os
+
+        # Use existing test file with syntax errors
+        test_file = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "_lint",
+            "test_files",
+            "syntax_errors.py",
+        )
+
+        # Test the check command
+        result = runner.invoke(check, [test_file])
+
+        # Should return non-zero exit code for files with errors
+        assert result.exit_code != 0
+        # Should contain linting output
+        assert len(result.output) > 0
+        assert (
+            "invalid-syntax" in result.output
+            or "error" in result.output.lower()
+        )
