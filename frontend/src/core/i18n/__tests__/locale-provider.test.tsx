@@ -1,5 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+/* eslint-disable */
+
 import { cleanup, render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
