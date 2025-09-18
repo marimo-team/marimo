@@ -102,7 +102,7 @@ export function formatLogTimestamp(timestamp: number): string {
   try {
     // parse from UTC
     const date = fromUnixTime(timestamp);
-    return date.toLocaleTimeString("en-US", {
+    return date.toLocaleTimeString(undefined, {
       hour12: true,
       hour: "numeric",
       minute: "numeric",

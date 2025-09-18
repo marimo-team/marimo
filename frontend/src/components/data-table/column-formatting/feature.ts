@@ -16,6 +16,7 @@ import {
   prettyNumber,
   prettyScientificNumber,
 } from "@/utils/numbers";
+import { memoizeLastValue } from "@/utils/once";
 import type {
   ColumnFormattingOptions,
   ColumnFormattingState,
@@ -39,6 +40,7 @@ export const ColumnFormattingFeature: TableFeature = {
     return {
       enableColumnFormatting: true,
       onColumnFormattingChange: makeStateUpdater("columnFormatting", table),
+      locale: undefined,
     } as ColumnFormattingOptions;
   },
 
@@ -74,36 +76,50 @@ export const ColumnFormattingFeature: TableFeature = {
       const dataType = column.columnDef.meta?.dataType;
       const format = column.getColumnFormatting?.();
       if (format) {
-        return applyFormat(value, { format, dataType });
+        return applyFormat(value, {
+          format,
+          dataType,
+          locale: table.options.locale,
+        });
       }
       return value;
     };
   },
 };
 
-const percentFormatter = new Intl.NumberFormat(undefined, {
-  style: "percent",
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
+export const getFormatters = memoizeLastValue((locale: string | undefined) => {
+  const percentFormatter = new Intl.NumberFormat(locale, {
+    style: "percent",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "short", // 3/4/2024
-});
+  const dateFormatter = new Intl.DateTimeFormat(locale, {
+    dateStyle: "short", // 3/4/2024
+  });
 
-const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "short", // 3/4/2024
-  timeStyle: "long", // 3:04:05 PM
-  timeZone: "UTC",
-});
+  const dateTimeFormatter = new Intl.DateTimeFormat(locale, {
+    dateStyle: "short", // 3/4/2024
+    timeStyle: "long", // 3:04:05 PM
+    timeZone: "UTC",
+  });
 
-const timeFormatter = new Intl.DateTimeFormat(undefined, {
-  timeStyle: "long", // 3:04:05 PM
-  timeZone: "UTC",
-});
+  const timeFormatter = new Intl.DateTimeFormat(locale, {
+    timeStyle: "long", // 3:04:05 PM
+    timeZone: "UTC",
+  });
 
-const integerFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 0, // 1,000,000
+  const integerFormatter = new Intl.NumberFormat(locale, {
+    maximumFractionDigits: 0, // 1,000,000
+  });
+
+  return {
+    percentFormatter,
+    dateFormatter,
+    dateTimeFormatter,
+    timeFormatter,
+    integerFormatter,
+  };
 });
 
 // Apply formatting to a value given a format and data type
@@ -112,9 +128,18 @@ export const applyFormat = (
   options: {
     format: FormatOption;
     dataType: DataType | undefined;
+    locale: string | undefined;
   },
 ) => {
-  const { format, dataType } = options;
+  const { format, dataType, locale } = options;
+  const {
+    percentFormatter,
+    dateFormatter,
+    dateTimeFormatter,
+    timeFormatter,
+    integerFormatter,
+  } = getFormatters(locale);
+
   // If the value is null, return an empty string
   if (value === null || value === undefined || value === "") {
     return "";
@@ -143,13 +168,13 @@ export const applyFormat = (
       const num = Number.parseFloat(value as string);
       switch (format) {
         case "Auto":
-          return prettyNumber(num);
+          return prettyNumber(num, locale);
         case "Percent":
           return percentFormatter.format(num);
         case "Scientific":
           return prettyScientificNumber(num, { shouldRound: true });
         case "Engineering":
-          return prettyEngineeringNumber(num);
+          return prettyEngineeringNumber(num, locale);
         case "Integer":
           return integerFormatter.format(num);
         default:
@@ -198,32 +223,35 @@ export const applyFormat = (
 
 export function formattingExample(
   format: FormatOption,
+  locale: string | undefined,
 ): string | number | undefined | null {
   switch (format) {
     case "Date":
       return String(
-        applyFormat(new Date(), { format: "Date", dataType: "date" }),
+        applyFormat(new Date(), { format: "Date", dataType: "date", locale }),
       );
     case "Datetime":
       return String(
         applyFormat(new Date(), {
           format: "Datetime",
           dataType: "date",
+          locale,
         }),
       );
     case "Time":
       return String(
-        applyFormat(new Date(), { format: "Time", dataType: "date" }),
+        applyFormat(new Date(), { format: "Time", dataType: "date", locale }),
       );
     case "Percent":
       return String(
-        applyFormat(0.1234, { format: "Percent", dataType: "number" }),
+        applyFormat(0.1234, { format: "Percent", dataType: "number", locale }),
       );
     case "Scientific":
       return String(
         applyFormat(12_345_678_910, {
           format: "Scientific",
           dataType: "number",
+          locale,
         }),
       );
     case "Engineering":
@@ -231,15 +259,20 @@ export function formattingExample(
         applyFormat(12_345_678_910, {
           format: "Engineering",
           dataType: "number",
+          locale,
         }),
       );
     case "Integer":
       return String(
-        applyFormat(1234.567, { format: "Integer", dataType: "number" }),
+        applyFormat(1234.567, {
+          format: "Integer",
+          dataType: "number",
+          locale,
+        }),
       );
     case "Auto":
       return String(
-        applyFormat(1234.567, { format: "Auto", dataType: "number" }),
+        applyFormat(1234.567, { format: "Auto", dataType: "number", locale }),
       );
     default:
       return null;

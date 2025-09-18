@@ -18,6 +18,7 @@ import {
   SquareIcon,
 } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { useLocale } from "react-aria";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import {
@@ -103,6 +104,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 }) => {
   const { handleClick } = useOpenSettingsToTab();
   const chatState = useAtomValue(chatStateAtom);
+  const { locale } = useLocale();
   const chats = useMemo(() => {
     return [...chatState.chats.values()].sort(
       (a, b) => b.updatedAt - a.updatedAt,
@@ -159,7 +161,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                   >
                     <div className="font-medium">{chat.title}</div>
                     <div className="text-sm text-muted-foreground">
-                      {timeAgo(chat.updatedAt)}
+                      {timeAgo(chat.updatedAt, locale)}
                     </div>
                   </button>
                 ))}
