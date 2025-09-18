@@ -20,7 +20,6 @@ import {
   XIcon,
 } from "lucide-react";
 import React from "react";
-import { Streamdown } from "streamdown";
 import { mergeToolCalls } from "use-acp";
 import { JsonOutput } from "@/components/editor/output/JsonOutput";
 import { Button } from "@/components/ui/button";
@@ -33,6 +32,7 @@ import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { Strings } from "@/utils/strings";
+import { MarkdownRenderer } from "../markdown-renderer";
 import { SimpleAccordion } from "./common";
 import type {
   AgentNotificationEvent,
@@ -308,7 +308,7 @@ export const AgentMessagesBlock = (props: {
 export const ContentBlocks = (props: { data: ContentBlock[] }) => {
   const renderBlock = (block: ContentBlock) => {
     if (block.type === "text") {
-      return <Streamdown>{block.text}</Streamdown>;
+      return <MarkdownRenderer content={block.text} />;
     }
     if (block.type === "image") {
       return <ImageBlock data={block} />;
@@ -372,7 +372,7 @@ export const ResourceBlock = (props: { data: ContentBlockOf<"resource"> }) => {
           </span>
         </PopoverTrigger>
         <PopoverContent className="max-h-96 overflow-y-auto scrollbar-thin">
-          <Streamdown>{props.data.resource.text}</Streamdown>
+          <MarkdownRenderer content={props.data.resource.text} />
         </PopoverContent>
       </Popover>
     );

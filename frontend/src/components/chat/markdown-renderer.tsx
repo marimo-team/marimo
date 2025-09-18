@@ -3,10 +3,8 @@
 import { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
 import { BetweenHorizontalStartIcon } from "lucide-react";
-import { marked } from "marked";
-import { memo, Suspense, useEffect, useMemo, useState } from "react";
-import Markdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { memo, Suspense, useEffect, useState } from "react";
+import { Streamdown, type StreamdownProps } from "streamdown";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
@@ -171,6 +169,8 @@ const CopyButton: React.FC<ButtonProps> = ({ onClick, ...props }) => {
   );
 };
 
+type Components = StreamdownProps["components"];
+
 const COMPONENTS: Components = {
   code: ({ children, className }) => {
     const language = className?.replace("language-", "");
@@ -186,42 +186,11 @@ const COMPONENTS: Components = {
   },
 };
 
-function parseMarkdownIntoBlocks(markdown: string): string[] {
-  const tokens = marked.lexer(markdown);
-  return tokens.map((token) => token.raw);
-}
-
-const PLUGINS = [remarkGfm];
-
-const MemoizedMarkdownBlock = memo(
-  ({ content }: { content: string }) => {
-    return (
-      <Markdown
-        components={COMPONENTS}
-        remarkPlugins={PLUGINS}
-        className="mo-markdown-renderer prose dark:prose-invert max-w-none prose-pre:pl-0"
-      >
-        {content}
-      </Markdown>
-    );
-  },
-  (prevProps, nextProps) => prevProps.content === nextProps.content,
-);
-
-MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock";
-
 export const MarkdownRenderer = memo(({ content }: { content: string }) => {
-  const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
-
   return (
-    <>
-      {blocks.map((block, index) => (
-        <MemoizedMarkdownBlock
-          content={block}
-          key={`markdown-block-${index}`}
-        />
-      ))}
-    </>
+    <Streamdown components={COMPONENTS} className="mo-markdown-renderer">
+      {content}
+    </Streamdown>
   );
 });
 MarkdownRenderer.displayName = "MarkdownRenderer";
