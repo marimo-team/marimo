@@ -259,6 +259,19 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         terminal.loadAddon(attachAddon);
         wsRef.current = socket;
 
+        // Terminal is ready when the websocket is open
+        const updateReadyState = () => {
+          setReady(socket.readyState === WebSocket.OPEN);
+        };
+
+        const handleError = () => {
+          updateReadyState();
+        };
+
+        const handleOpen = () => {
+          updateReadyState();
+        };
+
         const handleDisconnect = () => {
           onClose();
           // Reset
@@ -269,9 +282,13 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
           setReady(false);
         };
 
+        socket.addEventListener("open", handleOpen);
         socket.addEventListener("close", handleDisconnect);
+        socket.addEventListener("error", handleError);
+
+        // Set initial ready state
+        updateReadyState();
         setInitialized(true);
-        setReady(true);
       } catch (error) {
         Logger.error("Runtime health check failed for terminal", error);
         onClose();
