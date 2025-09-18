@@ -9,8 +9,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
+import { useLocale } from "react-aria";
 import { Button } from "@/components/ui/button";
 import { Events } from "@/utils/events";
+import { prettyNumber } from "@/utils/numbers";
 import { PluralWord } from "@/utils/pluralize";
 import {
   Select,
@@ -40,6 +42,8 @@ export const DataTablePagination = <TData,>({
   tableLoading,
   showPageSizeSelector,
 }: DataTablePaginationProps<TData>) => {
+  const { locale } = useLocale();
+
   const renderTotal = () => {
     const { rowSelection, cellSelection } = table.getState();
     let selected = Object.keys(rowSelection).length;
@@ -58,7 +62,7 @@ export const DataTablePagination = <TData,>({
     if (isAllPageSelected && !isAllSelected) {
       return (
         <>
-          <span>{prettyNumber(selected)} selected</span>
+          <span>{prettyNumber(selected, locale)} selected</span>
           <Button
             size="xs"
             data-testid="select-all-button"
@@ -73,7 +77,7 @@ export const DataTablePagination = <TData,>({
               }
             }}
           >
-            Select all {prettyNumber(numRows)}
+            Select all {prettyNumber(numRows, locale)}
           </Button>
         </>
       );
@@ -82,7 +86,7 @@ export const DataTablePagination = <TData,>({
     if (selected) {
       return (
         <>
-          <span>{prettyNumber(selected)} selected</span>
+          <span>{prettyNumber(selected, locale)} selected</span>
           <Button
             size="xs"
             data-testid="clear-selection-button"
@@ -107,7 +111,11 @@ export const DataTablePagination = <TData,>({
       );
     }
 
-    const rowColumnCount = prettifyRowColumnCount(numRows, totalColumns);
+    const rowColumnCount = prettifyRowColumnCount(
+      numRows,
+      totalColumns,
+      locale,
+    );
     return <span>{rowColumnCount}</span>;
   };
   const currentPage = Math.min(
@@ -199,7 +207,9 @@ export const DataTablePagination = <TData,>({
               handlePageChange(() => table.setPageIndex(page))
             }
           />
-          <span className="shrink-0">of {prettyNumber(totalPages)}</span>
+          <span className="shrink-0">
+            of {prettyNumber(totalPages, locale)}
+          </span>
         </div>
         <Button
           size="xs"
@@ -231,10 +241,6 @@ export const DataTablePagination = <TData,>({
     </div>
   );
 };
-
-function prettyNumber(value: number): string {
-  return new Intl.NumberFormat().format(value);
-}
 
 export const PageSelector = ({
   currentPage,
@@ -313,17 +319,21 @@ export const PageSelector = ({
   );
 };
 
-export function prettifyRowCount(rowCount: number): string {
-  return `${prettyNumber(rowCount)} ${new PluralWord("row").pluralize(rowCount)}`;
+export function prettifyRowCount(
+  rowCount: number,
+  locale: string | undefined,
+): string {
+  return `${prettyNumber(rowCount, locale)} ${new PluralWord("row").pluralize(rowCount)}`;
 }
 
 export const prettifyRowColumnCount = (
   numRows: number | "too_many",
   totalColumns: number,
+  locale: string | undefined,
 ): string => {
   const rowsLabel =
-    numRows === "too_many" ? "Unknown" : prettifyRowCount(numRows);
-  const columnsLabel = `${prettyNumber(totalColumns)} ${new PluralWord("column").pluralize(totalColumns)}`;
+    numRows === "too_many" ? "Unknown" : prettifyRowCount(numRows, locale);
+  const columnsLabel = `${prettyNumber(totalColumns, locale)} ${new PluralWord("column").pluralize(totalColumns)}`;
 
   return [rowsLabel, columnsLabel].join(", ");
 };

@@ -15,6 +15,7 @@ import {
   PinOffIcon,
   WrapTextIcon,
 } from "lucide-react";
+import { useLocale } from "react-aria";
 import {
   DropdownMenuItem,
   DropdownMenuPortal,
@@ -35,6 +36,7 @@ import { NAMELESS_COLUMN_PREFIX } from "./columns";
 export function renderFormatOptions<TData, TValue>(
   column: Column<TData, TValue>,
 ) {
+  const { locale } = useLocale();
   const dataType: DataType | undefined = column.columnDef.meta?.dataType;
   const columnFormatOptions = dataType ? formatOptions[dataType] : [];
 
@@ -51,6 +53,9 @@ export function renderFormatOptions<TData, TValue>(
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
         <DropdownMenuSubContent>
+          <div className="text-xs text-muted-foreground p-2">
+            Locale: {locale}
+          </div>
           {Boolean(currentFormat) && (
             <>
               <DropdownMenuItem
@@ -72,7 +77,7 @@ export function renderFormatOptions<TData, TValue>(
                 {option}
               </span>
               <span className="ml-auto pl-5 text-xs text-muted-foreground">
-                {formattingExample(option)}
+                {formattingExample(option, locale)}
               </span>
             </DropdownMenuItem>
           ))}

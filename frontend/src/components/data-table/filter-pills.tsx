@@ -7,6 +7,7 @@ import type {
   Table,
 } from "@tanstack/react-table";
 import { XIcon } from "lucide-react";
+import { type DateFormatter, useDateFormatter } from "react-aria";
 import { logNever } from "@/utils/assertNever";
 import { Badge } from "../ui/badge";
 import type { ColumnFilterValue } from "./filters";
@@ -18,12 +19,21 @@ interface Props<TData> {
 }
 
 export const FilterPills = <TData,>({ filters, table }: Props<TData>) => {
+  const timeFormatter = useDateFormatter({
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
   if (!filters || filters.length === 0) {
     return null;
   }
 
   function renderFilterPill(filter: ColumnFilter) {
-    const formattedValue = formatValue(filter.value as ColumnFilterValue);
+    const formattedValue = formatValue(
+      filter.value as ColumnFilterValue,
+      timeFormatter,
+    );
     if (!formattedValue) {
       return null;
     }
@@ -52,7 +62,7 @@ export const FilterPills = <TData,>({ filters, table }: Props<TData>) => {
   );
 };
 
-function formatValue(value: ColumnFilterValue) {
+function formatValue(value: ColumnFilterValue, timeFormatter: DateFormatter) {
   if (!("type" in value)) {
     return;
   }
@@ -71,14 +81,9 @@ function formatValue(value: ColumnFilterValue) {
     return formatMinMax(value.min?.toISOString(), value.max?.toISOString());
   }
   if (value.type === "time") {
-    const formatTime = new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
     return formatMinMax(
-      value.min ? formatTime.format(value.min) : undefined,
-      value.max ? formatTime.format(value.max) : undefined,
+      value.min ? timeFormatter.format(value.min) : undefined,
+      value.max ? timeFormatter.format(value.max) : undefined,
     );
   }
   if (value.type === "datetime") {

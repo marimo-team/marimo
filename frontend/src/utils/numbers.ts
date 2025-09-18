@@ -1,6 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-export function prettyNumber(value: unknown): string {
+export function prettyNumber(
+  value: unknown,
+  locale: string | undefined,
+): string {
   if (value === undefined || value === null) {
     return "";
   }
@@ -18,7 +21,7 @@ export function prettyNumber(value: unknown): string {
   }
 
   if (typeof value === "number" || typeof value === "bigint") {
-    return value.toLocaleString(undefined, {
+    return value.toLocaleString(locale, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     });
@@ -47,6 +50,7 @@ export function prettyScientificNumber(
   opts: {
     // Default to false
     shouldRound?: boolean;
+    locale?: string;
   } = {},
 ): string {
   // Handle special cases first
@@ -58,7 +62,7 @@ export function prettyScientificNumber(
   // Determine if the number should be in scientific notation
   const absValue = Math.abs(value);
   if (absValue < 1e-2 || absValue >= 1e6) {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(opts.locale, {
       minimumFractionDigits: 1,
       maximumFractionDigits: 1,
       notation: "scientific",
@@ -67,18 +71,18 @@ export function prettyScientificNumber(
       .toLowerCase();
   }
 
-  const { shouldRound } = opts;
+  const { shouldRound, locale } = opts;
 
   if (shouldRound) {
     // Number has an integer part, format with 2 decimal places
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(locale, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(value);
   }
 
   // Don't round
-  return value.toLocaleString(undefined, {
+  return value.toLocaleString(locale, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 100,
   });
@@ -104,14 +108,17 @@ const prefixes = {
   "-24": "y",
 };
 
-export function prettyEngineeringNumber(value: number): string {
+export function prettyEngineeringNumber(
+  value: number,
+  locale: string | undefined,
+): string {
   // Handle special cases first
   const specialCase = scientificSpecialCase(value);
   if (specialCase !== null) {
     return specialCase;
   }
 
-  const [mant, exp] = new Intl.NumberFormat("en-us", {
+  const [mant, exp] = new Intl.NumberFormat(locale || "en-US", {
     notation: "engineering",
     maximumSignificantDigits: 3,
   })

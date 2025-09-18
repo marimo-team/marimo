@@ -2,6 +2,7 @@
 
 import { TriangleIcon } from "lucide-react";
 import type { JSX } from "react";
+import { useLocale } from "react-aria";
 import { z } from "zod";
 import { cn } from "@/utils/cn";
 import { prettyNumber } from "@/utils/numbers";
@@ -41,6 +42,8 @@ export const StatComponent: React.FC<Data> = ({
   bordered,
   direction,
 }) => {
+  const { locale } = useLocale();
+
   const renderPrettyValue = () => {
     if (value == null) {
       return <i>No value</i>;
@@ -51,7 +54,7 @@ export const StatComponent: React.FC<Data> = ({
     }
 
     if (typeof value === "number") {
-      return prettyNumber(value);
+      return prettyNumber(value, locale);
     }
 
     if (typeof value === "boolean") {

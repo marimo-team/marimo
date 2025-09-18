@@ -7,6 +7,7 @@ import { Logger } from "./Logger";
 export function prettyDate(
   value: string | number | null | undefined,
   type: "date" | "datetime",
+  locale: string | undefined,
 ): string {
   if (value == null) {
     return "";
@@ -16,7 +17,7 @@ export function prettyDate(
     // If type is date, drop the timezone by rendering in UTC
     // since dates are absolute
     if (type === "date") {
-      return new Date(value).toLocaleDateString(undefined, {
+      return new Date(value).toLocaleDateString(locale, {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -25,7 +26,7 @@ export function prettyDate(
     }
 
     // For datetime, we keep the original timezone
-    return new Date(value).toLocaleDateString(undefined, {
+    return new Date(value).toLocaleDateString(locale, {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -43,12 +44,13 @@ export function prettyDate(
 export function exactDateTime(
   value: Date,
   timezone: string | undefined,
+  locale: string | undefined,
 ): string {
   const hasSubSeconds = value.getUTCMilliseconds() !== 0;
   try {
     if (timezone) {
       const valueWithTimezone = new TZDate(value, timezone);
-      const shortTimeZone = getShortTimeZone(timezone);
+      const shortTimeZone = getShortTimeZone(timezone, locale);
       if (hasSubSeconds) {
         return `${formatDate(valueWithTimezone, "yyyy-MM-dd HH:mm:ss.SSS")} ${shortTimeZone}`;
       }
@@ -66,9 +68,12 @@ export function exactDateTime(
   }
 }
 
-export function getShortTimeZone(timezone: string): string {
+export function getShortTimeZone(
+  timezone: string,
+  locale: string | undefined,
+): string {
   try {
-    const abbrev = new Intl.DateTimeFormat("en-US", {
+    const abbrev = new Intl.DateTimeFormat(locale, {
       timeZone: timezone,
       timeZoneName: "short",
     })
@@ -88,7 +93,10 @@ export function getShortTimeZone(timezone: string): string {
  *
  * If a date in the past, it should say "<date> at 8:00 AM".
  */
-export function timeAgo(value: string | number | null | undefined): string {
+export function timeAgo(
+  value: string | number | null | undefined,
+  locale: string | undefined,
+): string {
   if (value == null) {
     return "";
   }
@@ -103,22 +111,22 @@ export function timeAgo(value: string | number | null | undefined): string {
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return `Today at ${date.toLocaleTimeString(undefined, {
+      return `Today at ${date.toLocaleTimeString(locale, {
         hour: "numeric",
         minute: "numeric",
       })}`;
     }
     if (date.toDateString() === yesterday.toDateString()) {
-      return `Yesterday at ${date.toLocaleTimeString(undefined, {
+      return `Yesterday at ${date.toLocaleTimeString(locale, {
         hour: "numeric",
         minute: "numeric",
       })}`;
     }
-    return `${date.toLocaleDateString(undefined, {
+    return `${date.toLocaleDateString(locale, {
       year: "numeric",
       month: "short",
       day: "numeric",
-    })} at ${date.toLocaleTimeString(undefined, {
+    })} at ${date.toLocaleTimeString(locale, {
       hour: "numeric",
       minute: "numeric",
     })}`;
