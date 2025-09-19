@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { NavigationMenuPlugin } from "@/plugins/layout/NavigationMenuPlugin";
-import { OutlinePlugin } from "./layout/OutlinePlugin";
 import { initializeUIElement } from "../core/dom/ui-element";
 import { registerReactComponent } from "./core/registerReactComponent";
 import { initializeSidebarElement } from "./core/sidebar-element";
@@ -46,6 +45,7 @@ import { JsonOutputPlugin } from "./layout/JsonOutputPlugin";
 import { LazyPlugin } from "./layout/LazyPlugin";
 import { MimeRendererPlugin } from "./layout/MimeRenderPlugin";
 import { MermaidPlugin } from "./layout/mermaid/MermaidPlugin";
+import { OutlinePlugin } from "./layout/OutlinePlugin";
 import { ProgressPlugin } from "./layout/ProgressPlugin";
 import { RoutesPlugin } from "./layout/RoutesPlugin";
 import { StatPlugin } from "./layout/StatPlugin";

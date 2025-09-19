@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Provider } from "jotai";
-import { useAtomValue } from "jotai";
+import { Provider, useAtomValue } from "jotai";
 import type { JSX } from "react";
 import { z } from "zod";
 import { notebookOutline } from "@/core/cells/cells";
@@ -10,7 +9,10 @@ import {
   findOutlineElements,
   useActiveOutline,
 } from "../../components/editor/chrome/panels/outline/useActiveOutline";
-import type { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
+import type {
+  IStatelessPlugin,
+  IStatelessPluginProps,
+} from "../stateless-plugin";
 
 interface Data {
   label?: string;
@@ -19,12 +21,14 @@ interface Data {
 const OutlineContent: React.FC<{ label?: string }> = ({ label }) => {
   const { items } = useAtomValue(notebookOutline);
   const headerElements = findOutlineElements(items);
-  const { activeHeaderId, activeOccurrences } = useActiveOutline(headerElements);
+  const { activeHeaderId, activeOccurrences } =
+    useActiveOutline(headerElements);
 
   if (items.length === 0) {
     return (
       <div className="text-muted-foreground text-sm p-4 border border-dashed border-border rounded-lg">
-        No outline found. Add markdown headings to your notebook to create an outline.
+        No outline found. Add markdown headings to your notebook to create an
+        outline.
       </div>
     );
   }
