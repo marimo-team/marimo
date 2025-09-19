@@ -132,7 +132,7 @@ chart
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair.
+3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair (e.g., alt.Chart(df)).
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -275,7 +275,7 @@ chart
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair.
+3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair (e.g., alt.Chart(df)).
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -421,7 +421,7 @@ chart
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair.
+3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair (e.g., alt.Chart(df)).
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -567,7 +567,7 @@ chart
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair.
+3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair (e.g., alt.Chart(df)).
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -719,7 +719,7 @@ chart
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair.
+3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair (e.g., alt.Chart(df)).
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -879,7 +879,7 @@ chart
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair.
+3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair (e.g., alt.Chart(df)).
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -1027,7 +1027,7 @@ chart
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair.
+3. For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair (e.g., alt.Chart(df)).
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.

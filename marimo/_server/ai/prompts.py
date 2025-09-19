@@ -19,7 +19,7 @@ language_rules = {
     "python": [
         "For matplotlib: use plt.gca() as the last expression instead of plt.show().",
         "For plotly: return the figure object directly.",
-        "For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair.",
+        "For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair (e.g., alt.Chart(df)).",
         "Include proper labels, titles, and color schemes.",
         "Make visualizations interactive where appropriate.",
         "If an import already exists, do not import it again.",
