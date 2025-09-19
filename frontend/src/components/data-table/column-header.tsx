@@ -5,6 +5,7 @@ import type { Column } from "@tanstack/react-table";
 import { capitalize } from "lodash-es";
 import { FilterIcon, MinusIcon, TextIcon, XIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { useLocale } from "react-aria";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,6 +77,7 @@ export const DataTableColumnHeader = <TData, TValue>({
   calculateTopKRows,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
   const [isFilterValueOpen, setIsFilterValueOpen] = useState(false);
+  const { locale } = useLocale();
 
   // No header
   if (!header) {
@@ -119,7 +121,7 @@ export const DataTableColumnHeader = <TData, TValue>({
           {renderCopyColumn(column)}
           {renderColumnPinning(column)}
           {renderColumnWrapping(column)}
-          {renderFormatOptions(column)}
+          {renderFormatOptions(column, locale)}
           <DropdownMenuSeparator />
           {renderMenuItemFilter(column)}
           {renderFilterByValues(column, setIsFilterValueOpen)}

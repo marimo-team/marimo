@@ -15,7 +15,6 @@ import {
   PinOffIcon,
   WrapTextIcon,
 } from "lucide-react";
-import { useLocale } from "react-aria";
 import {
   DropdownMenuItem,
   DropdownMenuPortal,
@@ -35,8 +34,8 @@ import { NAMELESS_COLUMN_PREFIX } from "./columns";
 
 export function renderFormatOptions<TData, TValue>(
   column: Column<TData, TValue>,
+  locale: string,
 ) {
-  const { locale } = useLocale();
   const dataType: DataType | undefined = column.columnDef.meta?.dataType;
   const columnFormatOptions = dataType ? formatOptions[dataType] : [];
 
