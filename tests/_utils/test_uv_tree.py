@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import pathlib
-import shutil
 import subprocess
 
 import pytest
@@ -13,7 +12,7 @@ from marimo._server.models.packages import DependencyTreeNode
 from marimo._utils.uv_tree import parse_uv_tree
 from tests.mocks import snapshotter
 
-UV_BIN = os.environ.get("UV") or shutil.which("uv")
+UV_BIN = os.environ.get("UV")
 SELF_DIR = pathlib.Path(__file__).parent
 snapshot_test = snapshotter(__file__)
 
