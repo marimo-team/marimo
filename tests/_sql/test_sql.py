@@ -393,7 +393,7 @@ class TestExplainQueries:
         )  # Comment, not actual query
 
     @pytest.fixture
-    def explain_df_result(self) -> dict[str, list[str]]:
+    def explain_df_data(self) -> dict[str, list[str]]:
         return {
             "explain_key": ["physical_plan", "logical_plan"],
             "explain_value": [
@@ -404,16 +404,15 @@ class TestExplainQueries:
 
     @pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
     def test_extract_explain_content_polars(
-        self,
-        explain_df_result: dict[str, list[str]],
+        self, explain_df_data: dict[str, list[str]]
     ):
         """Test extract_explain_content with polars DataFrames."""
         import polars as pl
 
         # Test with regular DataFrame
-        df = pl.DataFrame(explain_df_result)
+        df = pl.DataFrame(explain_df_data)
 
-        polars_result = """shape: (2, 2)
+        expected_rendering = """shape: (2, 2)
 ┌───────────────┬───────────────────────────────────────────┐
 │ explain_key   ┆ explain_value                             │
 │ ---           ┆ ---                                       │
@@ -428,22 +427,21 @@ class TestExplainQueries:
 └───────────────┴───────────────────────────────────────────┘"""
 
         result = extract_explain_content(df)
-        assert result == polars_result
+        assert result == expected_rendering
 
         # Test with LazyFrame
         lazy_df = df.lazy()
         result = extract_explain_content(lazy_df)
-        assert result == polars_result
+        assert result == expected_rendering
 
     @pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
     def test_extract_explain_content_pandas(
-        self,
-        explain_df_result: dict[str, list[str]],
+        self, explain_df_data: dict[str, list[str]]
     ):
         """Test extract_explain_content with pandas DataFrames."""
         import pandas as pd
 
-        df = pd.DataFrame(explain_df_result)
+        df = pd.DataFrame(explain_df_data)
 
         result = extract_explain_content(df)
         assert (
