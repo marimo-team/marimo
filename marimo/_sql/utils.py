@@ -176,3 +176,44 @@ def sql_type_to_data_type(type_str: str) -> DataType:
         return "string"
     else:
         return "string"
+
+
+def is_explain_query(query: str) -> bool:
+    """Check if a SQL query is an EXPLAIN query."""
+    return query.lstrip().lower().startswith("explain ")
+
+
+def extract_explain_content(df: Any) -> str:
+    """Extract all content from a DataFrame for EXPLAIN queries.
+
+    Args:
+        df: DataFrame (pandas or polars). If not pandas / polars, return repr(df).
+
+    Returns:
+        String containing content of dataframe
+    """
+    try:
+        if DependencyManager.polars.has():
+            import polars as pl
+
+            if isinstance(df, pl.LazyFrame):
+                df = df.collect()
+            if isinstance(df, pl.DataFrame):
+                # Display full strings without truncation
+                with pl.Config(fmt_str_lengths=1000):
+                    return str(df)
+
+        if DependencyManager.pandas.has():
+            import pandas as pd
+
+            if isinstance(df, pd.DataFrame):
+                # Preserve newlines in the data
+                all_values = df.values.flatten().tolist()
+                return "\n".join(str(val) for val in all_values)
+
+        # Fallback to repr for other types
+        return repr(df)
+
+    except Exception as e:
+        LOGGER.debug("Failed to extract explain content: %s", e)
+        return repr(df)
