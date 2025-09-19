@@ -416,7 +416,7 @@ class TestGeneration:
         assert fndef == expected
 
         # Test nested quotes that should remain single due to containing double quotes
-        referring = 'x: Literal[\'say "hello"\'] = \'say "hello"\''
+        referring = "x: Literal['say \"hello\"'] = 'say \"hello\"'"
         ref_vars = compile_cell(referring).init_variable_data
 
         code = "z = x"
@@ -427,7 +427,7 @@ class TestGeneration:
         expected = "\n".join(
             [
                 "@app.cell",
-                'def foo(x: Literal[\'say "hello"\']):',
+                "def foo(x: Literal['say \"hello\"']):",
                 "    z = x",
                 "    return (z,)",
             ]

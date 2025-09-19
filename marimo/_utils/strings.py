@@ -1,7 +1,7 @@
-# Copyright 2024 Marimo. All rights reserved.
-"""String manipulation utilities."""
-
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
+
+import re
 
 
 def standardize_annotation_quotes(annotation: str) -> str:
@@ -24,7 +24,6 @@ def standardize_annotation_quotes(annotation: str) -> str:
         >>> standardize_annotation_quotes("int")
         'int'  # No quotes to standardize
     """
-    import re
 
     # Regex pattern to match string literals within the annotation:
     #
@@ -43,9 +42,11 @@ def standardize_annotation_quotes(annotation: str) -> str:
     #   - )"                      - Closing double quote and end capture group
     #
     # This pattern correctly handles escaped quotes within strings like 'it\'s' or "say \"hello\""
-    string_pattern = r"'([^'\\]*(?:\\.[^'\\]*)*)'|\"([^\"\\]*(?:\\.[^\"\\]*)*)\""
+    string_pattern = (
+        r"'([^'\\]*(?:\\.[^'\\]*)*)'|\"([^\"\\]*(?:\\.[^\"\\]*)*)\""
+    )
 
-    def replace_quotes(match):
+    def replace_quotes(match: re.Match[str]) -> str:
         if match.group(1) is not None:  # Single quoted string matched
             content = match.group(1)
             # Check if the content contains unescaped double quotes
@@ -55,7 +56,9 @@ def standardize_annotation_quotes(annotation: str) -> str:
             else:
                 # Convert to double quotes, handling escaped characters properly
                 content = content.replace("\\'", "'")  # Unescape single quotes
-                content = content.replace('"', '\\"')  # Escape any double quotes
+                content = content.replace(
+                    '"', '\\"'
+                )  # Escape any double quotes
                 return f'"{content}"'
         else:  # Double quoted string matched (group 2)
             return match.group(0)  # Keep as is - already using double quotes
