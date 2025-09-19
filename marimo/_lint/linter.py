@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import io
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -20,6 +21,24 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
 
     from marimo._lint.rules.base import LintRule
+
+
+def _contents_differ_excluding_generated_with(
+    original: str, generated: str
+) -> bool:
+    """Compare file contents while ignoring __generated_with differences.
+
+    This prevents unnecessary file writes when only the __generated_with
+    version metadata differs between the original and generated content.
+    """
+    # Regex to match the __generated_with line
+    pattern = r"^__generated_with = .*$"
+
+    # Remove __generated_with lines from both contents
+    orig_cleaned = re.sub(pattern, "", original, flags=re.MULTILINE).strip()
+    gen_cleaned = re.sub(pattern, "", generated, flags=re.MULTILINE).strip()
+
+    return orig_cleaned != gen_cleaned
 
 
 @dataclass
@@ -51,6 +70,7 @@ class Linter:
         fix_files: bool = False,
         unsafe_fixes: bool = False,
         rules: list[LintRule] | None = None,
+        ignore_scripts: bool = False,
     ):
         if rules is not None:
             self.rule_engine = RuleEngine(rules, early_stopping)
@@ -59,6 +79,7 @@ class Linter:
         self.pipe = pipe
         self.fix_files = fix_files
         self.unsafe_fixes = unsafe_fixes
+        self.ignore_scripts = ignore_scripts
         self.files: list[FileStatus] = []
 
         # Create rule lookup for unsafe fixes
@@ -107,13 +128,21 @@ class Linter:
                 return file_status
             except MarimoFileError as e:
                 # Handle syntax errors in notebooks
-                self.errored = True
-                file_status.failed = True
-                file_status.message = (
-                    f"Not recognizable as a marimo notebook: {file_path}"
-                )
-                file_status.details = [f"MarimoFileError: {str(e)}"]
-                return file_status
+                if self.ignore_scripts:
+                    # Skip this file silently when ignore_scripts is enabled
+                    file_status.skipped = True
+                    file_status.message = (
+                        f"Skipped: {file_path} (not a marimo notebook)"
+                    )
+                    return file_status
+                else:
+                    self.errored = True
+                    file_status.failed = True
+                    file_status.message = (
+                        f"Not recognizable as a marimo notebook: {file_path}"
+                    )
+                    file_status.details = [f"MarimoFileError: {str(e)}"]
+                    return file_status
 
             file_status.notebook = load_result.notebook
             file_status.contents = load_result.contents
@@ -122,10 +151,18 @@ class Linter:
                 file_status.skipped = True
                 file_status.message = f"Skipped: {file_path} (empty file)"
             elif load_result.status == "invalid":
-                file_status.failed = True
-                file_status.message = (
-                    f"Failed to parse: {file_path} (not a valid notebook)"
-                )
+                if self.ignore_scripts:
+                    # Skip this file silently when ignore_scripts is enabled
+                    file_status.skipped = True
+                    file_status.message = (
+                        f"Skipped: {file_path} (not a marimo notebook)"
+                    )
+                    return file_status
+                else:
+                    file_status.failed = True
+                    file_status.message = (
+                        f"Failed to parse: {file_path} (not a valid notebook)"
+                    )
             elif load_result.notebook is not None:
                 try:
                     # Check notebook with all rules including parsing
@@ -287,8 +324,10 @@ class Linter:
             modified_notebook, file_status.file
         )
 
-        # Only write if content changed
-        if file_status.contents != generated_contents:
+        # Only write if content changed (excluding __generated_with differences)
+        if _contents_differ_excluding_generated_with(
+            file_status.contents, generated_contents
+        ):
             await asyncio.to_thread(
                 Path(file_status.file).write_text,
                 generated_contents,

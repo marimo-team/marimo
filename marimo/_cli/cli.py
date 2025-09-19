@@ -1281,12 +1281,21 @@ def shell_completion() -> None:
     type=bool,
     help="Enable fixes that may change code behavior (e.g., removing empty cells).",
 )
+@click.option(
+    "--ignore-scripts",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Ignore files that are not recognizable as marimo notebooks.",
+)
 @click.argument("files", nargs=-1, type=click.UNPROCESSED)
 def check(
     fix: bool,
     strict: bool,
     verbose: bool,
     unsafe_fixes: bool,
+    ignore_scripts: bool,
     files: tuple[str, ...],
 ) -> None:
     if not files:
@@ -1295,7 +1304,13 @@ def check(
 
     # Pass click.echo directly as pipe for streaming output, or None
     pipe = click.echo if verbose else None
-    linter = run_check(files, pipe=pipe, fix=fix, unsafe_fixes=unsafe_fixes)
+    linter = run_check(
+        files,
+        pipe=pipe,
+        fix=fix,
+        unsafe_fixes=unsafe_fixes,
+        ignore_scripts=ignore_scripts,
+    )
 
     # Get counts from linter (fix happens automatically during streaming)
     fixed = linter.fixed_count
