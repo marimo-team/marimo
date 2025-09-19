@@ -44,7 +44,8 @@ export const DatePopover: React.FC<DatePopoverProps> = ({
 };
 
 const TimezoneDisplay = ({ date }: { date: Date }) => {
-  const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { locale } = useLocale();
+  const localTimezone = Intl.DateTimeFormat(locale).resolvedOptions().timeZone;
   const hasSubSeconds = date.getUTCMilliseconds() !== 0;
 
   const utcFormatter = useDateFormatter(

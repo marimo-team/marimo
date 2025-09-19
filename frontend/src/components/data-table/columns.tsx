@@ -415,7 +415,7 @@ function renderDate({
   dataType?: DataType;
   dtype?: string;
   format?: DateFormat | null;
-  locale: string | undefined;
+  locale: string;
 }): React.ReactNode {
   const type = dataType === "date" ? "date" : "datetime";
   const timezone = extractTimezone(dtype);

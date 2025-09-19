@@ -1,9 +1,11 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+
 import { useLocale } from "react-aria";
 
 export const WithLocale = ({
   children,
 }: {
-  children: (locale: string | undefined) => React.ReactNode;
+  children: (locale: string) => React.ReactNode;
 }) => {
   const { locale } = useLocale();
   return children(locale);

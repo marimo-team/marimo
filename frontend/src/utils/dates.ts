@@ -7,7 +7,7 @@ import { Logger } from "./Logger";
 export function prettyDate(
   value: string | number | null | undefined,
   type: "date" | "datetime",
-  locale: string | undefined,
+  locale: string,
 ): string {
   if (value == null) {
     return "";
@@ -44,7 +44,7 @@ export function prettyDate(
 export function exactDateTime(
   value: Date,
   timezone: string | undefined,
-  locale: string | undefined,
+  locale: string,
 ): string {
   const hasSubSeconds = value.getUTCMilliseconds() !== 0;
   try {
@@ -68,10 +68,7 @@ export function exactDateTime(
   }
 }
 
-export function getShortTimeZone(
-  timezone: string,
-  locale: string | undefined,
-): string {
+export function getShortTimeZone(timezone: string, locale: string): string {
   try {
     const abbrev = new Intl.DateTimeFormat(locale, {
       timeZone: timezone,
@@ -95,7 +92,7 @@ export function getShortTimeZone(
  */
 export function timeAgo(
   value: string | number | null | undefined,
-  locale: string | undefined,
+  locale: string,
 ): string {
   if (value == null) {
     return "";
