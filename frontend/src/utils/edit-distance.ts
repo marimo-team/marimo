@@ -1,11 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-export enum OperationType {
-  INSERT = "insert",
-  DELETE = "delete",
-  SUBSTITUTE = "substitute",
-  MATCH = "match",
-}
+export const Operation = {
+  INSERT: "insert",
+  DELETE: "delete",
+  SUBSTITUTE: "substitute",
+  MATCH: "match",
+};
+
+type OperationType = (typeof Operation)[keyof typeof Operation];
 
 export interface EditOperation {
   type: OperationType;
@@ -52,27 +54,27 @@ export function editDistanceGeneral<T, U>(
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && equals(arr1[i - 1], arr2[j - 1])) {
       operations.unshift({
-        type: OperationType.MATCH,
+        type: Operation.MATCH,
         position: i - 1,
       });
       i--;
       j--;
     } else if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + 1) {
       operations.unshift({
-        type: OperationType.SUBSTITUTE,
+        type: Operation.SUBSTITUTE,
         position: i - 1,
       });
       i--;
       j--;
     } else if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) {
       operations.unshift({
-        type: OperationType.DELETE,
+        type: Operation.DELETE,
         position: i - 1,
       });
       i--;
     } else if (j > 0 && dp[i][j] === dp[i][j - 1] + 1) {
       operations.unshift({
-        type: OperationType.INSERT,
+        type: Operation.INSERT,
         position: i,
       });
       j--;
@@ -99,23 +101,23 @@ export function applyOperationsWithStub<T>(
 
   for (const op of operations) {
     switch (op.type) {
-      case OperationType.MATCH:
+      case Operation.MATCH:
         // Copy the original element
         result.push(originalArray[originalIndex]);
         originalIndex++;
         break;
 
-      case OperationType.DELETE:
+      case Operation.DELETE:
         // Skip the original element (don't add to result)
         originalIndex++;
         break;
 
-      case OperationType.INSERT:
+      case Operation.INSERT:
         // Add stub for inserted element
         result.push(stub);
         break;
 
-      case OperationType.SUBSTITUTE:
+      case Operation.SUBSTITUTE:
         // Add stub for substituted element
         result.push(stub);
         originalIndex++;

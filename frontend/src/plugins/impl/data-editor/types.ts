@@ -10,11 +10,13 @@ export interface PositionalEdit {
   value: unknown;
 }
 
-export enum BulkEdit {
-  Insert = "insert",
-  Remove = "remove",
-  Rename = "rename",
-}
+export const BulkEdit = {
+  Insert: "insert",
+  Remove: "remove",
+  Rename: "rename",
+} as const;
+
+type BulkEdit = (typeof BulkEdit)[keyof typeof BulkEdit];
 
 export interface RowEdit {
   rowIdx: number;
