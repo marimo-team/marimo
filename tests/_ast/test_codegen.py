@@ -370,6 +370,70 @@ class TestGeneration:
         )
         assert fndef == expected
 
+    def test_literal_quote_standardization(self) -> None:
+        """Test that Literal type annotations are standardized to double quotes.
+
+        Regression test for https://github.com/marimo-team/marimo/issues/6446
+        """
+        # Test that single quotes in Literal are standardized to double quotes
+        referring = "x: Literal['foo', 'bar'] = 'foo'"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(
+            cell, "foo", allowed_refs={"Literal"}, variable_data=ref_vars
+        )
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: Literal["foo", "bar"]):',
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_quote_standardization_edge_cases(self) -> None:
+        """Test edge cases for quote standardization in type annotations."""
+        # Test mixed quotes where double quotes are preserved
+        referring = 'x: Literal["foo", \'bar\'] = "foo"'
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(
+            cell, "foo", allowed_refs={"Literal"}, variable_data=ref_vars
+        )
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: Literal["foo", "bar"]):',
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+        # Test nested quotes that should remain single due to containing double quotes
+        referring = 'x: Literal[\'say "hello"\'] = \'say "hello"\''
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(
+            cell, "foo", allowed_refs={"Literal"}, variable_data=ref_vars
+        )
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: Literal[\'say "hello"\']):',
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
     @staticmethod
     def test_generate_app_constructor_with_auto_download() -> None:
         config = _AppConfig(
