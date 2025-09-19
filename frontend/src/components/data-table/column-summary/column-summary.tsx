@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { Suspense } from "react";
+import { useLocale } from "react-aria";
 import { createBatchedLoader } from "@/plugins/impl/vega/batched";
 import { useTheme } from "@/theme/useTheme";
 import { logNever } from "@/utils/assertNever";
@@ -29,6 +30,8 @@ const batchedLoader = createBatchedLoader();
 export const TableColumnSummary = <TData, TValue>({
   columnId,
 }: Props<TData, TValue>) => {
+  const { locale } = useLocale();
+
   const chartSpecModel = React.use(ColumnChartContext);
   const { theme } = useTheme();
   const { spec, type, stats } = chartSpecModel.getHeaderSummary(columnId);
@@ -65,7 +68,7 @@ export const TableColumnSummary = <TData, TValue>({
   ) => {
     return (
       <DatePopover date={date} type={type}>
-        {prettyDate(date, type)}
+        {prettyDate(date, type, locale)}
       </DatePopover>
     );
   };
@@ -84,7 +87,7 @@ export const TableColumnSummary = <TData, TValue>({
             <div className="flex flex-col whitespace-pre">
               <span>min: {renderDate(stats.min, type)}</span>
               <span>max: {renderDate(stats.max, type)}</span>
-              <span>unique: {prettyNumber(stats.unique)}</span>
+              <span>unique: {prettyNumber(stats.unique, locale)}</span>
             </div>
           );
         }
@@ -106,16 +109,22 @@ export const TableColumnSummary = <TData, TValue>({
               <span>
                 min:{" "}
                 {typeof stats.min === "number"
-                  ? prettyScientificNumber(stats.min, { shouldRound: true })
+                  ? prettyScientificNumber(stats.min, {
+                      shouldRound: true,
+                      locale,
+                    })
                   : stats.min}
               </span>
               <span>
                 max:{" "}
                 {typeof stats.max === "number"
-                  ? prettyScientificNumber(stats.max, { shouldRound: true })
+                  ? prettyScientificNumber(stats.max, {
+                      shouldRound: true,
+                      locale,
+                    })
                   : stats.max}
               </span>
-              <span>unique: {prettyNumber(stats.unique)}</span>
+              <span>unique: {prettyNumber(stats.unique, locale)}</span>
             </div>
           );
         }
@@ -127,8 +136,8 @@ export const TableColumnSummary = <TData, TValue>({
         if (!spec) {
           return (
             <div className="flex flex-col whitespace-pre">
-              <span>true: {prettyNumber(stats.true)}</span>
-              <span>false: {prettyNumber(stats.false)}</span>
+              <span>true: {prettyNumber(stats.true, locale)}</span>
+              <span>false: {prettyNumber(stats.false, locale)}</span>
             </div>
           );
         }
@@ -140,7 +149,7 @@ export const TableColumnSummary = <TData, TValue>({
         if (!spec) {
           return (
             <div className="flex flex-col whitespace-pre">
-              <span>unique: {prettyNumber(stats.unique)}</span>
+              <span>unique: {prettyNumber(stats.unique, locale)}</span>
             </div>
           );
         }
@@ -148,7 +157,7 @@ export const TableColumnSummary = <TData, TValue>({
       case "unknown":
         return (
           <div className="flex flex-col whitespace-pre">
-            <span>nulls: {prettyNumber(stats.nulls)}</span>
+            <span>nulls: {prettyNumber(stats.nulls, locale)}</span>
           </div>
         );
       default:

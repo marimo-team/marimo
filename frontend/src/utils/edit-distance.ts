@@ -1,11 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-export enum OperationType {
-  INSERT = "insert",
-  DELETE = "delete",
-  SUBSTITUTE = "substitute",
-  MATCH = "match",
-}
+export const OperationType = {
+  INSERT: "insert",
+  DELETE: "delete",
+  SUBSTITUTE: "substitute",
+  MATCH: "match",
+};
+
+type OperationType = (typeof OperationType)[keyof typeof OperationType];
 
 export interface EditOperation {
   type: OperationType;

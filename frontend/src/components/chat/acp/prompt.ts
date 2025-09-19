@@ -52,7 +52,7 @@ export function getAgentPrompt(filename: string) {
   ## Best Practices
 
   <data_handling>
-  - Use pandas for data manipulation
+  - Use polars for data manipulation
   - Implement proper data validation
   - Handle missing values appropriately
   - Use efficient data structures
@@ -62,7 +62,7 @@ export function getAgentPrompt(filename: string) {
   <visualization>
   - For matplotlib: use plt.gca() as the last expression instead of plt.show()
   - For plotly: return the figure object directly
-  - For altair: return the chart object directly
+  - For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair.
   - Include proper labels, titles, and color schemes
   - Make visualizations interactive where appropriate
   </visualization>
@@ -76,7 +76,7 @@ export function getAgentPrompt(filename: string) {
   </ui_elements>
 
   <sql>
-  - When writing duckdb, prefer using marimo's SQL cells, which start with _df = mo.sql(query)
+  - When writing duckdb, prefer using marimo's SQL cells, which start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
   - See the SQL with duckdb example for an example on how to do this
   - Don't add comments in cells that use mo.sql()
   - Consider using \`vega_datasets\` for common example datasets
@@ -144,7 +144,8 @@ export function getAgentPrompt(filename: string) {
   ${formatCells([
     `
   import marimo as mo
-  import matplotlib.pyplot as plt
+  import altair as alt
+  import polars as pl
   import numpy as np
     `,
     `
@@ -155,12 +156,18 @@ export function getAgentPrompt(filename: string) {
   x = np.random.rand(n_points.value)
   y = np.random.rand(n_points.value)
 
-  plt.figure(figsize=(8, 6))
-  plt.scatter(x, y, alpha=0.7)
-  plt.title(f"Scatter plot with {n_points.value} points")
-  plt.xlabel("X axis")
-  plt.ylabel("Y axis")
-  plt.gca()
+  df = pl.DataFrame({"x": x, "y": y})
+
+  chart = alt.Chart(df).mark_circle(opacity=0.7).encode(
+      x=alt.X('x', title='X axis'),
+      y=alt.Y('y', title='Y axis')
+  ).properties(
+      title=f"Scatter plot with {n_points.value} points",
+      width=400,
+      height=300
+  )
+
+  chart
     `,
   ])}
   </example>
@@ -169,11 +176,11 @@ export function getAgentPrompt(filename: string) {
   ${formatCells([
     `
   import marimo as mo
-  import pandas as pd
+  import polars as pl
   from vega_datasets import data
     `,
     `
-  cars_df = data.cars()
+  cars_df = pl.DataFrame(data.cars())
   mo.ui.data_explorer(cars_df)
     `,
   ])}
@@ -183,43 +190,44 @@ export function getAgentPrompt(filename: string) {
   ${formatCells([
     `
   import marimo as mo
-  import pandas as pd
-  import matplotlib.pyplot as plt
-  import seaborn as sns
+  import polars as pl
+  import altair as alt
     `,
     `
-  iris = sns.load_dataset('iris')
+  iris = pl.read_csv("hf://datasets/scikit-learn/iris/Iris.csv")
     `,
     `
   species_selector = mo.ui.dropdown(
-      options=["All"] + iris["species"].unique().tolist(),
+      options=["All"] + iris["Species"].unique().to_list(),
       value="All",
-      label="Species"
+      label="Species",
   )
   x_feature = mo.ui.dropdown(
-      options=iris.select_dtypes('number').columns.tolist(),
-      value="sepal_length",
-      label="X Feature"
+      options=iris.select(pl.col(pl.Float64, pl.Int64)).columns,
+      value="SepalLengthCm",
+      label="X Feature",
   )
   y_feature = mo.ui.dropdown(
-      options=iris.select_dtypes('number').columns.tolist(),
-      value="sepal_width",
-      label="Y Feature"
+      options=iris.select(pl.col(pl.Float64, pl.Int64)).columns,
+      value="SepalWidthCm",
+      label="Y Feature",
   )
   mo.hstack([species_selector, x_feature, y_feature])
     `,
     `
-  filtered_data = iris if species_selector.value == "All" else iris[iris["species"] == species_selector.value]
+  filtered_data = iris if species_selector.value == "All" else iris.filter(pl.col("Species") == species_selector.value)
 
-  plt.figure(figsize=(10, 6))
-  sns.scatterplot(
-      data=filtered_data,
-      x=x_feature.value,
-      y=y_feature.value,
-      hue="species"
+  chart = alt.Chart(filtered_data).mark_circle().encode(
+      x=alt.X(x_feature.value, title=x_feature.value),
+      y=alt.Y(y_feature.value, title=y_feature.value),
+      color='Species'
+  ).properties(
+      title=f"{y_feature.value} vs {x_feature.value}",
+      width=500,
+      height=400
   )
-  plt.title(f"{y_feature.value} vs {x_feature.value}")
-  plt.gca()
+
+  chart
     `,
   ])}
   </example>
@@ -242,14 +250,21 @@ export function getAgentPrompt(filename: string) {
     `
   import marimo as mo
   import altair as alt
-  import pandas as pd
+  import polars as pl
     `,
     `# Load dataset
-  cars_df = pd.read_csv('<https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json>')
-  _chart = alt.Chart(cars_df).mark_point().encode(
-      x='Horsepower',
-      y='Miles_per_Gallon',
-      color='Origin',
+  weather = pl.read_csv("https://raw.githubusercontent.com/vega/vega-datasets/refs/heads/main/data/weather.csv")
+  weather_dates = weather.with_columns(
+      pl.col("date").str.strptime(pl.Date, format="%Y-%m-%d")
+  )
+  _chart = (
+      alt.Chart(weather_dates)
+      .mark_point()
+      .encode(
+          x="date:T",
+          y="temp_max",
+          color="location",
+      )
   )
   `,
     "chart = mo.ui.altair_chart(_chart)\nchart",
@@ -278,9 +293,13 @@ export function getAgentPrompt(filename: string) {
 
   <example title="SQL with duckdb">
   ${formatCells([
-    "import marimo as mo\nimport pandas as pd",
-    `cars_df = pd.read_csv('<https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json>')`,
-    `_df = mo.sql("SELECT * from cars_df WHERE Miles_per_Gallon > 20")`,
+    "import marimo as mo\n  import polars as pl",
+    `weather = pl.read_csv('https://raw.githubusercontent.com/vega/vega-datasets/refs/heads/main/data/weather.csv')`,
+    `seattle_weather_df = mo.sql(
+      f"""
+      SELECT * FROM weather WHERE location = 'Seattle';
+      """
+  )`,
   ])}
   </example>`;
 }

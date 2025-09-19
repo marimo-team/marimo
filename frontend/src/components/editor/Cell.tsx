@@ -573,9 +573,9 @@ const EditableCellComponent = ({
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}
           >
-            <StagedAICellBackground cellId={cellId} className="z-5" />
             {cellOutput === "above" && outputArea}
             <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
+              <StagedAICellBackground cellId={cellId} />
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
                   edited={cellData.edited}

@@ -9,7 +9,7 @@ import { connectionAtom } from "../../../network/connection";
 import { dynamicReadonly, isEditorReadonly } from "../extension";
 
 function makeStoreWithConnection(
-  state: WebSocketState.CONNECTING | WebSocketState.OPEN,
+  state: typeof WebSocketState.CONNECTING | typeof WebSocketState.OPEN,
 ) {
   const store = createStore();
   store.set(connectionAtom, { state });

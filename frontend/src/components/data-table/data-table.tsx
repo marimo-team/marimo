@@ -19,6 +19,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import React, { memo } from "react";
+import { useLocale } from "react-aria";
 
 import { Table } from "@/components/ui/table";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
@@ -131,6 +132,7 @@ const DataTableInternal = <TData,>({
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
   const [showLoadingBar, setShowLoadingBar] = React.useState<boolean>(false);
+  const { locale } = useLocale();
 
   const { columnPinning, setColumnPinning } = useColumnPinning(
     freezeColumnsLeft,
@@ -199,6 +201,7 @@ const DataTableInternal = <TData,>({
           },
         }
       : {}),
+    locale: locale,
     manualPagination: manualPagination,
     getPaginationRowModel: getPaginationRowModel(),
     // sorting

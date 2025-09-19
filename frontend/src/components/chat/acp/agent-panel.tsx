@@ -383,31 +383,29 @@ const PromptArea = memo<PromptAreaProps>(
                   <AtSignIcon className="h-3.5 w-3.5" />
                 </Button>
               </Tooltip>
-              <>
-                <Tooltip content="Attach a file">
-                  <Button
-                    variant="text"
-                    size="icon"
-                    className="cursor-pointer"
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Attach a file"
-                  >
-                    <PaperclipIcon className="h-3.5 w-3.5" />
-                  </Button>
-                </Tooltip>
-                <Input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple={true}
-                  hidden={true}
-                  onChange={(event) => {
-                    if (event.target.files) {
-                      onAddFiles([...event.target.files]);
-                    }
-                  }}
-                  accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
-                />
-              </>
+              <Tooltip content="Attach a file">
+                <Button
+                  variant="text"
+                  size="icon"
+                  className="cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Attach a file"
+                >
+                  <PaperclipIcon className="h-3.5 w-3.5" />
+                </Button>
+              </Tooltip>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                multiple={true}
+                hidden={true}
+                onChange={(event) => {
+                  if (event.target.files) {
+                    onAddFiles([...event.target.files]);
+                  }
+                }}
+                accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
+              />
               <Tooltip content={isLoading ? "Stop" : "Submit"}>
                 <Button
                   variant="text"
@@ -844,8 +842,7 @@ const AgentPanel: React.FC = () => {
       // Parse context from the prompt
       const { contextBlocks, attachmentBlocks } =
         await parseContextFromPrompt(prompt);
-      promptBlocks.push(...contextBlocks);
-      promptBlocks.push(...attachmentBlocks);
+      promptBlocks.push(...contextBlocks, ...attachmentBlocks);
 
       // Add manually uploaded files as resource links
       if (files && files.length > 0) {

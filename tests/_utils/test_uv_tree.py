@@ -46,6 +46,7 @@ def test_complex_project_tree(tmp_path: pathlib.Path) -> None:
     uv(["add", "--optional", "bar", "pandas"], cwd=str(project_dir))
     raw = uv(["tree", "--no-dedupe"], cwd=str(project_dir))
     tree = parse_uv_tree(raw)
+    assert tree is not None
     snapshot_test("complex_project_tree.json", serialize(tree))
 
 

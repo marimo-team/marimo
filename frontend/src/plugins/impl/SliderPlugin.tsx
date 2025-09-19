@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { type JSX, useEffect, useId, useState } from "react";
+import { useLocale } from "react-aria";
 import { z } from "zod";
 import { NumberField } from "@/components/ui/number-field";
 import { cn } from "@/utils/cn";
@@ -85,6 +86,7 @@ const SliderComponent = ({
   disabled,
 }: SliderProps): JSX.Element => {
   const id = useId();
+  const { locale } = useLocale();
 
   // Hold internal value
   const [internalValue, setInternalValue] = useState(value);
@@ -138,7 +140,7 @@ const SliderComponent = ({
         />
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
-            {prettyScientificNumber(valueMap(internalValue))}
+            {prettyScientificNumber(valueMap(internalValue), { locale })}
           </div>
         )}
         {includeInput && (

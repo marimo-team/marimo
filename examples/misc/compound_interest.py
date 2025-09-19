@@ -129,14 +129,14 @@ def simulate(
     _prose = f"""
     ## Net Worth
 
-    With an initial investment of **\${initial_investment.value :,.02f}**, an annual
+    With an initial investment of **${{initial_investment.value :,.02f}}**, an annual
     return of **{annual_return.value * 100:.02f}%** with
-    **\${monthly_investment.value:,.02f}** invested monthly, in {years.value} years
-    you will have approximately **\${values[-1]:,.02f}** accumulated in
+    **${{monthly_investment.value:,.02f}}** invested monthly, in {years.value} years
+    you will have approximately **${{values[-1]:,.02f}}** accumulated in
     equities. Assuming a long-term capitals gain tax of
     **{capital_gains_tax_rate.value*100:.02f}%**, the net portfolio value is
-    **\${values_less_taxes[-1]:,.02f}**. Compare that to the
-    **\${investment_principals[-1]:,.02f}** that you contributed in total.
+    **${{values_less_taxes[-1]:,.02f}}**. Compare that to the
+    **${{investment_principals[-1]:,.02f}}** that you contributed in total.
     """
 
     ax = plt.gca()

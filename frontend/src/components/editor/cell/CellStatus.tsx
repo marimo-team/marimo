@@ -5,6 +5,7 @@ import {
   RefreshCwIcon,
   WorkflowIcon,
 } from "lucide-react";
+import { useDateFormatter } from "react-aria";
 import { MultiIcon } from "@/components/icons/multi-icon";
 import { Logger } from "@/utils/Logger";
 import type { CellRuntimeState } from "../../../core/cells/types";
@@ -27,26 +28,6 @@ export interface CellStatusComponentProps
   elapsedTime: number | null;
   uninstantiated: boolean;
 }
-
-// Looks like HH:MM:SS.SSS AM/PM
-const timeFormatter = new Intl.DateTimeFormat("en-US", {
-  hour: "numeric",
-  minute: "numeric",
-  second: "numeric",
-  fractionalSecondDigits: 3,
-  hour12: true,
-});
-
-// Looks like MM/DD HH:MM:SS.SSS AM/PM
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "numeric",
-  day: "numeric",
-  hour: "numeric",
-  minute: "numeric",
-  second: "numeric",
-  fractionalSecondDigits: 3,
-  hour12: true,
-});
 
 export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   editing,
@@ -329,10 +310,32 @@ export const ElapsedTime = (props: { elapsedTime: string }) => {
 const LastRanTime = (props: { lastRanTime: number }) => {
   const date = new Date(props.lastRanTime * 1000);
   const today = new Date();
+
+  // Looks like HH:MM:SS.SSS AM/PM
+  const timeFormatter = useDateFormatter({
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    fractionalSecondDigits: 3,
+    hour12: true,
+  });
+
+  // Looks like MM/DD HH:MM:SS.SSS AM/PM
+  const dateTimeFormatter = useDateFormatter({
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    fractionalSecondDigits: 3,
+    hour12: true,
+  });
+
   const formatter =
     date.toDateString() === today.toDateString()
       ? timeFormatter
       : dateTimeFormatter;
+
   return (
     <span>
       Ran at{" "}

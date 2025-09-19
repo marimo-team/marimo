@@ -10,6 +10,7 @@ from marimo._server.models.completion import (
     SchemaTable,
     VariableContext,
 )
+from marimo._types.ids import SessionId
 
 FIM_PREFIX_TAG = "<|fim_prefix|>"
 FIM_SUFFIX_TAG = "<|fim_suffix|>"
@@ -19,7 +20,7 @@ language_rules = {
     "python": [
         "For matplotlib: use plt.gca() as the last expression instead of plt.show().",
         "For plotly: return the figure object directly.",
-        "For altair: return the chart object directly. Add tooltips where appropriate.",
+        "For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair (e.g., alt.Chart(df)).",
         "Include proper labels, titles, and color schemes.",
         "Make visualizations interactive where appropriate.",
         "If an import already exists, do not import it again.",
@@ -28,6 +29,8 @@ language_rules = {
     "markdown": [],
     "sql": [
         "The SQL must use duckdb syntax.",
+        'SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.',
+        "This will automatically display the result in the UI. You do not need to return the dataframe in the cell.",
     ],
 }
 
@@ -232,15 +235,24 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
         )
 
 
+def _get_session_info(session_id: SessionId) -> str:
+    return (
+        f"Current notebook session ID: {session_id}. "
+        "Use this session_id with tools that require it."
+    )
+
+
 def get_chat_system_prompt(
     *,
     custom_rules: Optional[str],
     context: Optional[AiCompletionContext],
     include_other_code: str,
     mode: CopilotMode,
+    session_id: SessionId,
 ) -> str:
     system_prompt: str = f"""
 {_get_mode_intro_message(mode)}
+{_get_session_info(session_id)}
 
 Your goal is to do one of the following two things:
 
@@ -275,6 +287,14 @@ Marimo's reactivity means:
 - You cannot access a UI element's value in the same cell where it's defined
 
 ## Best Practices
+
+<data_handling>
+- Use polars for data manipulation
+- Implement proper data validation
+- Handle missing values appropriately
+- Use efficient data structures
+- A variable in the last expression of a cell is automatically displayed as a table
+</data_handling>
 
 <ui_elements>
 - Access UI element values with .value attribute (e.g., slider.value)
@@ -323,7 +343,8 @@ Marimo's reactivity means:
 
 <example title="Basic UI with reactivity">
 import marimo as mo
-import matplotlib.pyplot as plt
+import altair as alt
+import polars as pl
 import numpy as np
 
 # Create a slider and display it
@@ -335,12 +356,18 @@ n_points  # Display the slider
 x = np.random.rand(n_points.value)
 y = np.random.rand(n_points.value)
 
-plt.figure(figsize=(8, 6))
-plt.scatter(x, y, alpha=0.7)
-plt.title(f"Scatter plot with {{n_points.value}} points")
-plt.xlabel("X axis")
-plt.ylabel("Y axis")
-plt.gca()  # Return the current axes to display the plot
+df = pl.DataFrame({{"x": x, "y": y}})
+
+chart = alt.Chart(df).mark_circle(opacity=0.7).encode(
+    x=alt.X('x', title='X axis'),
+    y=alt.Y('y', title='Y axis')
+).properties(
+    title=f"Scatter plot with {{n_points.value}} points",
+    width=400,
+    height=300
+)
+
+chart
 </example>"""
 
     for language in language_rules:

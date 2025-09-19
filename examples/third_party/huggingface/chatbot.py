@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.0"
 app = marimo.App(width="medium")
 
 
@@ -146,14 +146,6 @@ def _(client, mo):
         # You can return strings, markdown, charts, tables, dataframes, and more.
         return response.choices[0].message.content
     return max_tokens, respond, system_message, temperature, top_p
-
-
-@app.cell
-def _():
-    # If you need to do anything _reactively_ to the chat messages,
-    # you can access the chat messages using the `chat.value` attribute.
-    # chat.value
-    return
 
 
 if __name__ == "__main__":

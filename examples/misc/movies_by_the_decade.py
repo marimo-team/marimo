@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.0"
 app = marimo.App(width="full")
 
 
@@ -396,11 +396,6 @@ def _(end_date, get_previous_date_range, movies, pd, start_date):
         previous_movies,
         previous_start_date,
     )
-
-
-@app.cell
-def _():
-    return
 
 
 if __name__ == "__main__":

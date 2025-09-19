@@ -471,9 +471,7 @@ class SQLRef:
         return False
 
 
-# TODO: This should return a result with missing tables etc...
-# No logging should happen in this file
-def find_sql_refs(sql_statement: str) -> tuple[set[SQLRef], set[str]]:
+def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     """
     Find table and schema references in a SQL statement.
 
@@ -502,8 +500,6 @@ def find_sql_refs(sql_statement: str) -> tuple[set[SQLRef], set[str]]:
     from sqlglot import exp, parse
     from sqlglot.optimizer.scope import build_scope
 
-    missing_tables: set[str] = set()
-
     def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
         # The variables might be empty strings, if they are, we set them to None
         table_name = table.name or None
@@ -511,7 +507,6 @@ def find_sql_refs(sql_statement: str) -> tuple[set[SQLRef], set[str]]:
         catalog_name = table.catalog or None
 
         if table_name is None:
-            missing_tables.add(table.name)
             return None
 
         # Check if the table name looks like a URL or has a file extension.
@@ -547,4 +542,4 @@ def find_sql_refs(sql_statement: str) -> tuple[set[SQLRef], set[str]]:
                         if ref := get_ref_from_table(source):
                             refs.add(ref)
 
-    return refs, missing_tables
+    return refs

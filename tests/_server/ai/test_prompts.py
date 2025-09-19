@@ -18,6 +18,7 @@ from marimo._server.models.completion import (
     SchemaTable,
     VariableContext,
 )
+from marimo._types.ids import SessionId
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -216,7 +217,11 @@ def test_chat_system_prompts():
     result: str = ""
     result += _header("no custom rules")
     result += get_chat_system_prompt(
-        custom_rules=None, include_other_code="", context=None, mode="manual"
+        custom_rules=None,
+        include_other_code="",
+        context=None,
+        mode="manual",
+        session_id=SessionId("s_test"),  # stable fake session id for snapshot
     )
 
     result += _header("with custom rules")
@@ -225,6 +230,7 @@ def test_chat_system_prompts():
         include_other_code="",
         context=None,
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     result += _header("with variables")
@@ -235,6 +241,7 @@ def test_chat_system_prompts():
             variables=["var1", "var2"],
         ),
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     result += _header("with VariableContext objects")
@@ -256,6 +263,7 @@ def test_chat_system_prompts():
             ]
         ),
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     result += _header("with context")
@@ -291,6 +299,7 @@ def test_chat_system_prompts():
             ],
         ),
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     result += _header("with other code")
@@ -299,6 +308,7 @@ def test_chat_system_prompts():
         include_other_code="import pandas as pd\nimport numpy as np\n",
         context=None,
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     result += _header("kitchen sink")
@@ -324,6 +334,7 @@ def test_chat_system_prompts():
             ],
         ),
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     snapshot("chat_system_prompts.txt", result)

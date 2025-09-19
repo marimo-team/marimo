@@ -1,4 +1,10 @@
+@source "../../../node_modules/streamdown/dist/index.js";
+
 .mo-markdown-renderer {
+  /* Make headers a bit smaller */
+  --text-2xl: 1rem;
+  --text-3xl: 1.2rem;
+
   h1,
   h2,
   h3,
@@ -11,5 +17,38 @@
   hr {
     margin-top: 8px;
     margin-bottom: 12px;
+  }
+
+  pre {
+    width: 100%;
+  }
+
+  [data-code-block-container="true"] {
+    margin-top: 0 !important;
+  }
+
+  [data-code-block-header="true"] {
+    padding: 4px !important;
+  }
+
+  code {
+    font-size: inherit !important;
+  }
+
+  li.task-list-item {
+    list-style-type: none;
+  }
+
+  li {
+    padding-left: 6px;
+
+    > input {
+      margin-right: 6px;
+    }
+  }
+
+  ul,
+  ol {
+    padding-left: 10px;
   }
 }

@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import io
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -10,14 +13,33 @@ from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
 from marimo._cli.print import red
 from marimo._convert.converters import MarimoConvert
-from marimo._lint.context import LintContext
-from marimo._lint.diagnostic import Diagnostic
+from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
 from marimo._loggers import capture_output
 from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
+
+    from marimo._lint.rules.base import LintRule
+
+
+def _contents_differ_excluding_generated_with(
+    original: str, generated: str
+) -> bool:
+    """Compare file contents while ignoring __generated_with differences.
+
+    This prevents unnecessary file writes when only the __generated_with
+    version metadata differs between the original and generated content.
+    """
+    # Regex to match the __generated_with line
+    pattern = r"^__generated_with = .*$"
+
+    # Remove __generated_with lines from both contents
+    orig_cleaned = re.sub(pattern, "", original, flags=re.MULTILINE).strip()
+    gen_cleaned = re.sub(pattern, "", generated, flags=re.MULTILINE).strip()
+
+    return orig_cleaned != gen_cleaned
 
 
 @dataclass
@@ -48,11 +70,17 @@ class Linter:
         pipe: Callable[[str], None] | None = None,
         fix_files: bool = False,
         unsafe_fixes: bool = False,
+        rules: list[LintRule] | None = None,
+        ignore_scripts: bool = False,
     ):
-        self.rule_engine = RuleEngine.create_default(early_stopping)
+        if rules is not None:
+            self.rule_engine = RuleEngine(rules, early_stopping)
+        else:
+            self.rule_engine = RuleEngine.create_default(early_stopping)
         self.pipe = pipe
         self.fix_files = fix_files
         self.unsafe_fixes = unsafe_fixes
+        self.ignore_scripts = ignore_scripts
         self.files: list[FileStatus] = []
 
         # Create rule lookup for unsafe fixes
@@ -95,13 +123,21 @@ class Linter:
                 return file_status
             except MarimoFileError as e:
                 # Handle syntax errors in notebooks
-                self.errored = True
-                file_status.failed = True
-                file_status.message = (
-                    f"Not recognizable as a marimo notebook: {file_path}"
-                )
-                file_status.details = [f"MarimoFileError: {str(e)}"]
-                return file_status
+                if self.ignore_scripts:
+                    # Skip this file silently when ignore_scripts is enabled
+                    file_status.skipped = True
+                    file_status.message = (
+                        f"Skipped: {file_path} (not a marimo notebook)"
+                    )
+                    return file_status
+                else:
+                    self.errored = True
+                    file_status.failed = True
+                    file_status.message = (
+                        f"Not recognizable as a marimo notebook: {file_path}"
+                    )
+                    file_status.details = [f"MarimoFileError: {str(e)}"]
+                    return file_status
 
             file_status.notebook = load_result.notebook
             file_status.contents = load_result.contents
@@ -110,10 +146,18 @@ class Linter:
                 file_status.skipped = True
                 file_status.message = f"Skipped: {file_path} (empty file)"
             elif load_result.status == "invalid":
-                file_status.failed = True
-                file_status.message = (
-                    f"Failed to parse: {file_path} (not a valid notebook)"
-                )
+                if self.ignore_scripts:
+                    # Skip this file silently when ignore_scripts is enabled
+                    file_status.skipped = True
+                    file_status.message = (
+                        f"Skipped: {file_path} (not a marimo notebook)"
+                    )
+                    return file_status
+                else:
+                    file_status.failed = True
+                    file_status.message = (
+                        f"Failed to parse: {file_path} (not a valid notebook)"
+                    )
             elif load_result.notebook is not None:
                 try:
                     # Check notebook with all rules including parsing
@@ -165,6 +209,11 @@ class Linter:
             )
             if not will_fix:
                 self.issues_count += 1
+            if diagnostic.severity == Severity.BREAKING:
+                self.errored = True
+
+        if file_status.failed:
+            self.errored = True
 
         if not self.pipe:
             return
@@ -218,8 +267,7 @@ class Linter:
             self.files.append(file_status)
 
             # Stream output via pipe if available
-            if self.pipe:
-                self._pipe_file_status(file_status)
+            self._pipe_file_status(file_status)
 
             # Add to fix queue and potentially fix if requested
             if self.fix_files and not (
@@ -272,8 +320,10 @@ class Linter:
             modified_notebook, file_status.file
         )
 
-        # Only write if content changed
-        if file_status.contents != generated_contents:
+        # Only write if content changed (excluding __generated_with differences)
+        if _contents_differ_excluding_generated_with(
+            file_status.contents, generated_contents
+        ):
             await asyncio.to_thread(
                 Path(file_status.file).write_text,
                 generated_contents,

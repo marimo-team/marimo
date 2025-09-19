@@ -259,8 +259,7 @@ def _(hn_type_select, mo, month_list):
                 AND
                 MONTH(timestamp) in ({month_list})
                 AND
-                descendants NOT NULl
-
+                descendants NOT NULL
         )
 
         SELECT

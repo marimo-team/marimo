@@ -65,8 +65,8 @@ def _(mo, reset, submitted_values, variables):
         submitted_values["x"].add(variables.value["x"])
         submitted_values["y"].add(variables.value["y"])
 
-    x = variables.value["x"] if variables.value else "\ldots"
-    y = variables.value["y"] if variables.value else "\ldots"
+    x = variables.value["x"] if variables.value else r"\ldots"
+    y = variables.value["y"] if variables.value else r"\ldots"
 
 
     mo.md(

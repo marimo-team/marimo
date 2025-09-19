@@ -11,6 +11,7 @@ import pytest
 
 from marimo import __version__
 from marimo._utils.paths import maybe_make_dirs
+from marimo._utils.platform import is_windows
 
 
 class ToText(HTMLParser):
@@ -127,3 +128,25 @@ def _sanitize_version(output: str) -> str:
     return output.replace(f"{__version__} (editable)", "0.0.0").replace(
         f"{__version__}", "0.0.0"
     )
+
+
+NON_WINDOWS_EDGE_CASE_FILENAMES = [
+    "test<script>.py",
+    'test"quotes".py',
+]
+
+
+EDGE_CASE_FILENAMES = [
+    # Unicode characters
+    "tést.py",
+    "café.py",
+    "测试.py",
+    "🚀notebook.py",
+    # Spaces
+    "test file with spaces.py",
+    # Mixed unicode and spaces
+    "café notebook.py",
+    "测试 file.py",
+    # Injection attempts
+    *(NON_WINDOWS_EDGE_CASE_FILENAMES if not is_windows() else []),
+]

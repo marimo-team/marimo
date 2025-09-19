@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useState } from "react";
+import { useLocale } from "react-aria";
 import {
   AddDataframeChart,
   renderChart,
@@ -53,6 +54,7 @@ export const ColumnExplorerPanel = ({
   tableId,
 }: ColumnExplorerPanelProps) => {
   const [searchValue, setSearchValue] = useState("");
+  const { locale } = useLocale();
   const columns = fieldTypes?.filter(([columnName]) => {
     if (
       columnName === SELECT_COLUMN_ID ||
@@ -71,7 +73,7 @@ export const ColumnExplorerPanel = ({
   return (
     <div className="mt-5 mb-3">
       <span className="text-xs font-semibold ml-2 flex">
-        {prettifyRowColumnCount(totalRows, totalColumns)}
+        {prettifyRowColumnCount(totalRows, totalColumns, locale)}
         <CopyClipboardIcon
           tooltip="Copy column names"
           value={columns?.map(([columnName]) => columnName).join(",\n") || ""}
@@ -169,6 +171,7 @@ const ColumnPreview = ({
   dataType: DataType;
 }) => {
   const { theme } = useTheme();
+  const { locale } = useLocale();
 
   const {
     data,
@@ -208,7 +211,7 @@ const ColumnPreview = ({
       refetchPreview,
     });
 
-  const previewStats = stats && renderStats(stats, dataType);
+  const previewStats = stats && renderStats(stats, dataType, locale);
 
   const chart = chart_spec && renderChart(chart_spec, theme);
 

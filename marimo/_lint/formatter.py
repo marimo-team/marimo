@@ -5,7 +5,7 @@ import os
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from marimo._cli.print import bold, cyan, red, yellow
+from marimo._cli.print import bold, cyan, light_blue, red, yellow
 from marimo._lint.diagnostic import Severity
 
 if TYPE_CHECKING:
@@ -109,5 +109,5 @@ class FullFormatter(DiagnosticFormatter):
             previous_line = end_line
 
         if diagnostic.fix:
-            context_lines.append(cyan("info: ") + bold(diagnostic.fix))
+            context_lines.append(light_blue("hint: ") + bold(diagnostic.fix))
         return f"{header}\n" + "\n".join(context_lines)

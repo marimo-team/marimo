@@ -221,7 +221,7 @@ NamedNode = Union[
 # Cache SQL refs to avoid parsing the same SQL statement multiple times
 # since this can be called for each SQL cell on save.
 @lru_cache(maxsize=200)
-def find_sql_refs_cached(sql_statement: str) -> tuple[set[SQLRef], set[str]]:
+def find_sql_refs_cached(sql_statement: str) -> set[SQLRef]:
     return find_sql_refs(sql_statement)
 
 
@@ -318,7 +318,9 @@ class ScopedVisitor(ast.NodeVisitor):
         else:
             return name
 
-    def _get_alias_name(self, node: ast.alias) -> str:
+    def _get_alias_name(
+        self, node: ast.alias, import_node: ast.ImportFrom | None = None
+    ) -> str:
         """Get the string name of an imported alias.
 
         Mangles the "as" name if it's a local variable.
@@ -336,11 +338,15 @@ class ScopedVisitor(ast.NodeVisitor):
             # Don't mangle - user has no control over package name
             basename = node.name.split(".")[0]
             if basename == "*":
-                line = (
-                    f"line {node.lineno}"
+                # Use the ImportFrom node's line number for consistency
+                line_num = (
+                    import_node.lineno
+                    if import_node and hasattr(import_node, "lineno")
+                    else node.lineno
                     if hasattr(node, "lineno")
-                    else "line ..."
+                    else None
                 )
+                line = f"line {line_num}" if line_num else "line ..."
                 raise ImportStarError(
                     f"{line} SyntaxError: Importing symbols with `import *` "
                     "is not allowed in marimo."
@@ -770,7 +776,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     missing_tables: set[str] = set()
                     try:
                         # Take results
-                        sql_refs, missing_tables = find_sql_refs_cached(
+                        sql_refs = find_sql_refs_cached(
                             statement.query
                         )
                     except (
@@ -795,15 +801,6 @@ class ScopedVisitor(ast.NodeVisitor):
                             "MF006",
                             statement.query,
                             "sql_refs_extraction",
-                        )
-                    # For create a warning for missing tables if the exist
-                    if missing_tables:
-                        _log_sql_warning(
-                            f"SQL statement references missing tables: {missing_tables}",
-                            node,
-                            "MF007",
-                            statement.query,
-                            missing=missing_tables,
                         )
 
                     for ref in sql_refs:
@@ -1079,7 +1076,7 @@ class ScopedVisitor(ast.NodeVisitor):
         # we don't recurse into the alias nodes, since we define the
         # aliases here
         for alias_node in node.names:
-            variable_name = self._get_alias_name(alias_node)
+            variable_name = self._get_alias_name(alias_node, import_node=node)
             original_name = alias_node.name
             self._define(
                 None,

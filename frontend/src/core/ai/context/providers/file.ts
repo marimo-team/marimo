@@ -43,11 +43,16 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
   readonly mentionPrefix = "#";
   readonly contextType = "file";
 
+  private apiRequests: EditRequests & RunRequests;
+  private config: FileSearchConfig;
+
   constructor(
-    private apiRequests: EditRequests & RunRequests,
-    private config: FileSearchConfig = DEFAULT_FILE_SEARCH_CONFIG,
+    apiRequests: EditRequests & RunRequests,
+    config: FileSearchConfig = DEFAULT_FILE_SEARCH_CONFIG,
   ) {
     super();
+    this.apiRequests = apiRequests;
+    this.config = config;
   }
 
   /**

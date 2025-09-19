@@ -135,13 +135,14 @@ class LintContext:
             if self._graph is not None:
                 return self._graph
 
-            # Group any initial logs
-            self._group_initial_logs()
 
             # Construct the graph
             with capture_output() as (stdout, stderr, logs):
                 app = load_notebook_ir(self.notebook)
             self._graph = app._graph
+
+            # Group any initial logs
+            self._group_initial_logs()
 
             # Group new logs as they come in
             for record in logs:

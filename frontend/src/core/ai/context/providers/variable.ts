@@ -20,11 +20,13 @@ export class VariableContextProvider extends AIContextProvider<VariableContextIt
   readonly mentionPrefix = "@";
   readonly contextType = "variable";
 
-  constructor(
-    private variables: Variables,
-    private tablesMap: DatasetTablesMap,
-  ) {
+  private variables: Variables;
+  private tablesMap: DatasetTablesMap;
+
+  constructor(variables: Variables, tablesMap: DatasetTablesMap) {
     super();
+    this.variables = variables;
+    this.tablesMap = tablesMap;
   }
 
   getItems(): VariableContextItem[] {

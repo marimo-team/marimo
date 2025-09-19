@@ -104,8 +104,10 @@ export const CompletionActionsCellFooter: React.FC<{
         size="xs"
         disabled={isLoading}
         onClick={onAccept}
-        className="h-6 text-(--grass-11) border-(--grass-7) bg-(--grass-3)/60 
-        hover:bg-(--grass-4) dark:bg-(--grass-4)/80 dark:hover:bg-(--grass-3) rounded px-3 font-semibold"
+        className="h-6 text-(--grass-11) border-(--grass-7) bg-(--grass-3)/60
+        hover:bg-(--grass-3) dark:bg-(--grass-4)/80 dark:hover:bg-(--grass-3) rounded px-3 font-semibold
+        active:bg-(--grass-5) dark:active:bg-(--grass-4)
+        border-(--green-6) border hover:shadow-xs"
       >
         Accept
       </Button>
@@ -113,8 +115,10 @@ export const CompletionActionsCellFooter: React.FC<{
         variant="text"
         size="xs"
         onClick={onDecline}
-        className="h-6 text-(--red-10) border-(--red-7) bg-(--red-3)/60 hover:bg-(--red-4) 
-        dark:bg-(--red-4)/80 dark:hover:bg-(--red-3) rounded px-3 font-semibold"
+        className="h-6 text-(--red-10) border-(--red-7) bg-(--red-3)/60 hover:bg-(--red-3)
+        dark:bg-(--red-4)/80 dark:hover:bg-(--red-3) rounded px-3 font-semibold
+        active:bg-(--red-5) dark:active:bg-(--red-4)
+        border-(--red-6) border hover:shadow-xs"
       >
         Reject
       </Button>

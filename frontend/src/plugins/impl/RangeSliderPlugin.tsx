@@ -2,6 +2,7 @@
 
 import { isEqual } from "lodash-es";
 import { type JSX, useEffect, useId, useState } from "react";
+import { useLocale } from "react-aria";
 import { z } from "zod";
 import { cn } from "@/utils/cn";
 import { prettyScientificNumber } from "@/utils/numbers";
@@ -82,6 +83,7 @@ const RangeSliderComponent = ({
   valueMap,
 }: RangeSliderProps): JSX.Element => {
   const id = useId();
+  const { locale } = useLocale();
 
   // Hold internal value
   const [internalValue, setInternalValue] = useState(value);
@@ -150,9 +152,9 @@ const RangeSliderComponent = ({
         />
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
-            {`${prettyScientificNumber(
-              valueMap(internalValue[0]),
-            )}, ${prettyScientificNumber(valueMap(internalValue[1]))}`}
+            {`${prettyScientificNumber(valueMap(internalValue[0]), {
+              locale,
+            })}, ${prettyScientificNumber(valueMap(internalValue[1]), { locale })}`}
           </div>
         )}
       </div>

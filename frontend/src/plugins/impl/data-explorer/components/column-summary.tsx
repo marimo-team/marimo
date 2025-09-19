@@ -3,6 +3,7 @@
 import type { Schema } from "compassql/build/src/schema";
 import { BarChartBigIcon } from "lucide-react";
 import React, { useState } from "react";
+import { useDateFormatter, useNumberFormatter } from "react-aria";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -131,7 +132,9 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
           {STAT_KEYS.map((key) => (
             <div key={key} className="flex flex-row gap-2 min-w-[100px]">
               <span className="font-semibold">{key}</span>
-              <span>{formatStat(stats?.[key])}</span>
+              <span>
+                <FormatStat value={stats?.[key]} />
+              </span>
             </div>
           ))}
         </div>
@@ -151,24 +154,28 @@ const STAT_KEYS = [
   "stdev",
 ];
 
-function formatStat(value: unknown) {
+const FormatStat = ({ value }: { value: unknown }) => {
+  // Decimal .2
+  const numberFormatter = useNumberFormatter({
+    maximumFractionDigits: 2,
+  });
+
+  // Just day, month, year
+  const dateFormatter = useDateFormatter({
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
   if (typeof value === "number") {
-    // Decimal .2
-    return new Intl.NumberFormat("en-US", {
-      maximumFractionDigits: 2,
-    }).format(value);
+    return numberFormatter.format(value);
   }
   if (typeof value === "string") {
     return value;
   }
   if (typeof value === "object" && value instanceof Date) {
-    // Just day, month, year
-    return new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    }).format(value);
+    return dateFormatter.format(value);
   }
 
   return String(value);
-}
+};

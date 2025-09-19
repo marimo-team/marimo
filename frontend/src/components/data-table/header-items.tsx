@@ -34,6 +34,7 @@ import { NAMELESS_COLUMN_PREFIX } from "./columns";
 
 export function renderFormatOptions<TData, TValue>(
   column: Column<TData, TValue>,
+  locale: string,
 ) {
   const dataType: DataType | undefined = column.columnDef.meta?.dataType;
   const columnFormatOptions = dataType ? formatOptions[dataType] : [];
@@ -51,6 +52,9 @@ export function renderFormatOptions<TData, TValue>(
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
         <DropdownMenuSubContent>
+          <div className="text-xs text-muted-foreground px-2 py-1">
+            Locale: {locale}
+          </div>
           {Boolean(currentFormat) && (
             <>
               <DropdownMenuItem
@@ -72,7 +76,7 @@ export function renderFormatOptions<TData, TValue>(
                 {option}
               </span>
               <span className="ml-auto pl-5 text-xs text-muted-foreground">
-                {formattingExample(option)}
+                {formattingExample(option, locale)}
               </span>
             </DropdownMenuItem>
           ))}

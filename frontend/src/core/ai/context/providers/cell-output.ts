@@ -86,9 +86,10 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
   readonly title = "Cell Outputs";
   readonly mentionPrefix = "@";
   readonly contextType = "cell-output";
-
-  constructor(private store: JotaiStore) {
+  private store: JotaiStore;
+  constructor(store: JotaiStore) {
     super();
+    this.store = store;
   }
 
   getItems(): CellOutputContextItem[] {

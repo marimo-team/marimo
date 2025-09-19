@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.0"
 app = marimo.App()
 
 
@@ -139,7 +139,7 @@ class Block:
         self.velocity = new_v1
         other.velocity = new_v2
 
-        return 1  # Return 1 collision
+        return 1
 
 
 @app.function

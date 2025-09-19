@@ -28,6 +28,7 @@ export interface ColumnFormattingTableState {
 
 // define types for column formatting's table options
 export interface ColumnFormattingOptions {
+  locale: string;
   enableColumnFormatting?: boolean;
   onColumnFormattingChange?: OnChangeFn<ColumnFormattingState>;
 }

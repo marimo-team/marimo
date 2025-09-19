@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.0"
 app = marimo.App(width="medium")
 
 
@@ -36,7 +36,7 @@ def _(mo):
         select * from evs
         """
     )
-    return
+    return (evs,)
 
 
 @app.cell
@@ -111,7 +111,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(evs, mo):
     years = mo.sql(
         f"""
         SELECT DISTINCT CAST(evs."Model Year" AS VARCHAR) AS "Model Year" FROM evs;
@@ -121,7 +121,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(evs, mo):
     cities = mo.sql(
         f"""
         SELECT DISTINCT CAST(evs."City" AS VARCHAR) AS "City" FROM evs WHERE "City" != 'null';
@@ -131,7 +131,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(evs, mo):
     makes = mo.sql(
         f"""
         SELECT DISTINCT CAST(evs."Make" AS VARCHAR) AS "Make" FROM evs;
@@ -141,7 +141,7 @@ def _(mo):
 
 
 @app.cell
-def _(cast_to_ints, city_select, make_select, mo, sql_list, year_select):
+def _(cast_to_ints, city_select, evs, make_select, mo, sql_list, year_select):
     grouped_by_city = mo.sql(
         f"""
         SELECT COUNT(*) AS "count", "City", "Model Year"
@@ -161,7 +161,7 @@ def _(cast_to_ints, city_select, make_select, mo, sql_list, year_select):
 
 
 @app.cell
-def _(cast_to_ints, city_select, make_select, mo, sql_list, year_select):
+def _(cast_to_ints, city_select, evs, make_select, mo, sql_list, year_select):
     grouped_by_make = mo.sql(
         f"""
         SELECT COUNT(*) AS "count", "Make", "Model Year" 

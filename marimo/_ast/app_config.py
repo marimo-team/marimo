@@ -18,6 +18,9 @@ class _AppConfig:
     a single marimo program.
     """
 
+    # NB. The addition of non-constant types here maybe have to be reflected in
+    # marimo._ast.parse since these values are read statically.
+
     width: WidthType = "compact"
 
     app_title: Optional[str] = None

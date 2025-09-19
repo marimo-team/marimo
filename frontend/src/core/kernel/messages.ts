@@ -46,9 +46,9 @@ export type Capabilities = OperationMessageData<"kernel-ready">["capabilities"];
 export type MessageOperationUnion = schemas["KnownUnions"]["operation"];
 
 export type OperationMessageType = MessageOperationUnion["op"];
-export type OperationMessage = {
+export interface OperationMessage {
   data: MessageOperationUnion;
-};
+}
 
 export type OperationMessageData<T extends OperationMessageType> = Omit<
   Extract<MessageOperationUnion, { op: T }>,

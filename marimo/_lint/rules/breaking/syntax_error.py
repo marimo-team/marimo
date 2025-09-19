@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from marimo._ast.compiler import (
     ir_cell_factory,
 )
+from marimo._ast.errors import ImportStarError
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import LintRule
 from marimo._schemas.serialization import UnparsableCell
@@ -13,6 +14,16 @@ from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._lint.context import RuleContext
+    from marimo._schemas.serialization import CellDef
+
+IMPORT_STAR_ERROR_MESSAGE = (
+    "Importing symbols with `import *` is not allowed in marimo."
+)
+IMPORT_STAR_HINT = (
+    "Star imports are incompatible with marimo's reactive execution. Use "
+    "'import module' and access members with dot notation instead. See: "
+    "https://docs.marimo.io/guides/understanding_errors/import_star/"
+)
 
 
 class SyntaxErrorRule(LintRule):
@@ -87,13 +98,25 @@ class SyntaxErrorRule(LintRule):
 
     async def check(self, ctx: RuleContext) -> None:
         """Check for syntax errors during compilation."""
+        valid_cells = {cell.code for cell in ctx.get_graph().cells.values()}
         for cell in ctx.notebook.cells:
-            if not isinstance(cell, UnparsableCell):
+            if not isinstance(cell, UnparsableCell) and cell.code not in valid_cells:
                 try:
                     ir_cell_factory(
                         cell,
                         cell_id=CellId_t("Hbol"),
                         filename=ctx.notebook.filename,
+                    )
+                # Technically a SyntaxError subclass
+                except ImportStarError as e:
+                    line, column = _handle_import_star_error(e, cell)
+                    await ctx.add_diagnostic(
+                        Diagnostic(
+                            message=IMPORT_STAR_ERROR_MESSAGE,
+                            line=line,
+                            column=column,
+                            fix=IMPORT_STAR_HINT,
+                        )
                     )
                 except SyntaxError as e:
                     message = f"{e.msg}"
@@ -107,10 +130,40 @@ class SyntaxErrorRule(LintRule):
                     )
 
 
+def _handle_import_star_error(
+    e: ImportStarError, cell: CellDef
+) -> tuple[int, int]:
+    """Handle ImportStarError and extract correct line number and clean message."""
+    import re
+
+    message_str = str(e)
+    # The message format is "line {lineno} SyntaxError: ..." Extract the
+    # relative line number and compute actual line
+    actual_line = None
+    if "..." not in message_str:
+        line_match = re.match(r"line (\d+)", message_str)
+        if line_match:
+            relative_line = int(line_match.group(1))
+            actual_line = cell.lineno + relative_line - 1
+    if actual_line is None:
+        actual_line = cell.lineno
+        # Find the * in the cell source
+        star_index = cell.code.find("*")
+        if star_index != -1:
+            # Count newlines before the star to get the line number
+            actual_line += cell.code[:star_index].count("\n")
+
+    # Clean message without "SyntaxError:" prefix
+    column = getattr(e, "offset", 1) or 1
+
+    return actual_line, column
+
+
 def _get_known_hints(message: str) -> str | None:
     if message == "'return' outside function":
         return (
-            "marimo cells are not normal Python functions; treat cell bodies"
-            " as top-level code, or use `@app.function` to define a pure function."
+            "marimo cells are not normal Python functions; treat cell bodies "
+            "as top-level code, or use `@app.function` to define a pure "
+            "function."
         )
     return None
