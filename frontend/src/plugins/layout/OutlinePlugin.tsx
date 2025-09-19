@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { Provider } from "jotai";
+import { useAtomValue } from "jotai";
 import type { JSX } from "react";
 import { z } from "zod";
 import { notebookOutline } from "@/core/cells/cells";
@@ -14,6 +16,36 @@ interface Data {
   label?: string;
 }
 
+const OutlineContent: React.FC<{ label?: string }> = ({ label }) => {
+  const { items } = useAtomValue(notebookOutline);
+  const headerElements = findOutlineElements(items);
+  const { activeHeaderId, activeOccurrences } = useActiveOutline(headerElements);
+
+  if (items.length === 0) {
+    return (
+      <div className="text-muted-foreground text-sm p-4 border border-dashed border-border rounded-lg">
+        No outline found. Add markdown headings to your notebook to create an outline.
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-border rounded-lg">
+      {label && (
+        <div className="px-4 py-2 border-b border-border font-medium text-sm">
+          {label}
+        </div>
+      )}
+      <OutlineList
+        className="max-h-[400px]"
+        items={items}
+        activeHeaderId={activeHeaderId}
+        activeOccurrences={activeOccurrences}
+      />
+    </div>
+  );
+};
+
 export class OutlinePlugin implements IStatelessPlugin<Data> {
   tagName = "marimo-outline";
 
@@ -23,33 +55,11 @@ export class OutlinePlugin implements IStatelessPlugin<Data> {
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {
     const { label } = props.data;
-    const { items } = store.get(notebookOutline);
-    const headerElements = findOutlineElements(items);
-
-    const { activeHeaderId, activeOccurrences } = useActiveOutline(headerElements);
-
-    if (items.length === 0) {
-      return (
-        <div className="text-muted-foreground text-sm p-4 border border-dashed border-border rounded-lg">
-          No outline found. Add markdown headings to your notebook to create an outline.
-        </div>
-      );
-    }
 
     return (
-      <div className="border border-border rounded-lg">
-        {label && (
-          <div className="px-4 py-2 border-b border-border font-medium text-sm">
-            {label}
-          </div>
-        )}
-        <OutlineList
-          className="max-h-[400px]"
-          items={items}
-          activeHeaderId={activeHeaderId}
-          activeOccurrences={activeOccurrences}
-        />
-      </div>
+      <Provider store={store}>
+        <OutlineContent label={label} />
+      </Provider>
     );
   }
 }
