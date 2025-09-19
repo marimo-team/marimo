@@ -82,6 +82,7 @@ class GetDatabaseTables(
             for database in connection.databases:
                 for schema in database.schemas:
                     # If query is None, match all schemas
+                    # If matching, add all tables to the list
                     if query is None or is_fuzzy_match(
                         query, schema.name, compiled_pattern, is_regex
                     ):

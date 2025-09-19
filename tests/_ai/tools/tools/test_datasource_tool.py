@@ -464,3 +464,88 @@ def test_query_matches_multiple_levels(tool: GetDatabaseTables):
     # The "orders" table is in the "public" schema, not the "user" schema
     # So it won't be included when query matches "user"
     assert "orders" not in table_names
+
+
+def test_query_no_duplicates(tool: GetDatabaseTables):
+    """Test that schema-level matching doesn't create duplicates with table-level matching."""
+    # Create a schema that matches the query AND has tables that also match
+    schema1 = Schema(
+        name="users",  # This will match query "user"
+        tables=[
+            DataTable(
+                source_type="connection",
+                source="postgresql",
+                name="user_profiles",  # This would also match "user"
+                num_rows=10,
+                num_columns=0,
+                variable_name=None,
+                columns=[],
+            ),
+            DataTable(
+                source_type="connection",
+                source="postgresql",
+                name="user_settings",  # This would also match "user"
+                num_rows=20,
+                num_columns=0,
+                variable_name=None,
+                columns=[],
+            ),
+        ],
+    )
+
+    # Create another schema that doesn't match but has tables that do
+    schema2 = Schema(
+        name="products",  # This won't match "user"
+        tables=[
+            DataTable(
+                source_type="connection",
+                source="postgresql",
+                name="user_reviews",  # This would match "user"
+                num_rows=5,
+                num_columns=0,
+                variable_name=None,
+                columns=[],
+            ),
+        ],
+    )
+
+    database = Database(
+        name="test_db",
+        dialect="postgresql",
+        schemas=[schema1, schema2],
+    )
+
+    connection = MockDataSourceConnection(
+        name="test_conn",
+        dialect="postgresql",
+        databases=[database],
+    )
+
+    session = MockSession(
+        session_view=MockSessionView(
+            data_connectors=DataSourceConnections(connections=[connection])
+        )
+    )
+
+    # Query that matches both schema name and individual table names
+    result = tool._get_tables(session, query="user")
+
+    # Should get all tables from the matching schema (2 tables)
+    # plus the matching table from the non-matching schema (1 table)
+    # Total: 3 tables, no duplicates
+    assert len(result.tables) == 3
+
+    # Verify no duplicates by checking unique combinations
+    table_identifiers = [
+        (t.connection, t.database, t.schema, t.table.name)
+        for t in result.tables
+    ]
+    assert len(table_identifiers) == len(set(table_identifiers)), (
+        "Found duplicate tables"
+    )
+
+    # Verify we got the expected tables
+    table_names = [t.table.name for t in result.tables]
+    assert "user_profiles" in table_names
+    assert "user_settings" in table_names
+    assert "user_reviews" in table_names
