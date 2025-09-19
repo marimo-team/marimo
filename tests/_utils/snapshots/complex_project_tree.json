@@ -182,7 +182,7 @@
         },
         {
           "name": "marimo",
-          "version": "0.0.0",
+          "version": "0.14.0",
           "tags": [],
           "dependencies": [
             {
@@ -322,7 +322,7 @@
                 },
                 {
                   "name": "h11",
-                  "version": "0.16.0",
+                  "version": "0.0.0",
                   "tags": [],
                   "dependencies": []
                 }
