@@ -40,13 +40,21 @@ export const loroSyncAnnotation = Annotation.define();
 export class LoroSyncPluginValue implements PluginValue {
   sub?: Subscription;
   private isInitDispatch = false;
+  private view: EditorView;
+  private doc: LoroDoc;
+  private docPath: string[];
+  private getTextFromDoc: (doc: LoroDoc) => LoroText;
 
   constructor(
-    private view: EditorView,
-    private doc: LoroDoc,
-    private docPath: string[],
-    private getTextFromDoc: (doc: LoroDoc) => LoroText,
+    view: EditorView,
+    doc: LoroDoc,
+    docPath: string[],
+    getTextFromDoc: (doc: LoroDoc) => LoroText,
   ) {
+    this.view = view;
+    this.doc = doc;
+    this.docPath = docPath;
+    this.getTextFromDoc = getTextFromDoc;
     this.sub = doc.subscribe(this.onRemoteUpdate);
     Promise.resolve().then(() => {
       this.isInitDispatch = true;

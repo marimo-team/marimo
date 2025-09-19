@@ -17,8 +17,10 @@ export type EventHandler = (...args: any[]) => void;
 
 class ModelManager {
   private models = new Map<string, Deferred<Model<any>>>();
-
-  constructor(private timeout = 10_000) {}
+  private timeout: number;
+  constructor(timeout = 10_000) {
+    this.timeout = timeout;
+  }
 
   get(key: string): Promise<Model<any>> {
     let deferred = this.models.get(key);
@@ -64,16 +66,25 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
   private ANY_CHANGE_EVENT = "change";
   private dirtyFields;
   public static _modelManager: ModelManager = MODEL_MANAGER;
+  private data: T;
+  private onChange: (value: Partial<T>) => void;
+  private sendToWidget: (req: {
+    content?: any;
+    buffers?: ArrayBuffer[] | ArrayBufferView[];
+  }) => Promise<null | undefined>;
 
   constructor(
-    private data: T,
-    private onChange: (value: Partial<T>) => void,
-    private sendToWidget: (req: {
+    data: T,
+    onChange: (value: Partial<T>) => void,
+    sendToWidget: (req: {
       content?: any;
       buffers?: ArrayBuffer[] | ArrayBufferView[];
     }) => Promise<null | undefined>,
     initialDirtyFields: Set<keyof T>,
   ) {
+    this.data = data;
+    this.onChange = onChange;
+    this.sendToWidget = sendToWidget;
     this.dirtyFields = new Set(initialDirtyFields);
   }
 

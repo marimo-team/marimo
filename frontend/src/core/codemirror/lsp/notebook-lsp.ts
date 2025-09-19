@@ -18,13 +18,19 @@ import { getLSPDocument } from "./utils";
 
 class Snapshotter {
   private documentVersion = 0;
+  private readonly getNotebookCode: () => {
+    cellIds: CellId[];
+    codes: Record<CellId, string>;
+  };
 
   constructor(
-    private readonly getNotebookCode: () => {
+    getNotebookCode: () => {
       cellIds: CellId[];
       codes: Record<CellId, string>;
     },
-  ) {}
+  ) {
+    this.getNotebookCode = getNotebookCode;
+  }
 
   /**
    * Map from the global document version to the cell id and version.

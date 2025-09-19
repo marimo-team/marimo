@@ -576,7 +576,11 @@ export class PyodideWebsocket implements IReconnectingWebSocket {
   messageSubscriptions = new Set<(event: MessageEvent) => void>();
   errorSubscriptions = new Set<(event: Event) => void>();
 
-  constructor(private bridge: Pick<PyodideBridge, "consumeMessages">) {}
+  private bridge: Pick<PyodideBridge, "consumeMessages">;
+
+  constructor(bridge: Pick<PyodideBridge, "consumeMessages">) {
+    this.bridge = bridge;
+  }
 
   private consumeMessages() {
     this.bridge.consumeMessages((message) => {

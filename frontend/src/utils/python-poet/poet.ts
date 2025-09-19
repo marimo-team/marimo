@@ -25,7 +25,10 @@ function asString(value: string | PythonCode): string {
 }
 
 export class Variable implements PythonCode {
-  constructor(public name: string) {}
+  name: string;
+  constructor(name: string) {
+    this.name = name;
+  }
 
   toCode(): string {
     return this.name;
@@ -38,10 +41,12 @@ interface LiteralOptions {
 }
 
 export class Literal implements PythonCode {
-  constructor(
-    public readonly value: unknown,
-    public readonly opts: LiteralOptions = {},
-  ) {}
+  public readonly value: unknown;
+  public readonly opts: LiteralOptions;
+  constructor(value: unknown, opts: LiteralOptions = {}) {
+    this.value = value;
+    this.opts = opts;
+  }
 
   static from(value: unknown, opts: LiteralOptions = {}): Literal {
     return new Literal(value, opts);
@@ -114,10 +119,13 @@ export class Literal implements PythonCode {
 }
 
 export class VariableDeclaration implements PythonCode {
-  constructor(
-    public name: string,
-    public value: string | PythonCode,
-  ) {}
+  public name: string;
+  public value: string | PythonCode;
+
+  constructor(name: string, value: string | PythonCode) {
+    this.name = name;
+    this.value = value;
+  }
 
   toCode(): string {
     const right = asString(this.value);
@@ -129,10 +137,13 @@ export class VariableDeclaration implements PythonCode {
 }
 
 export class FunctionArg implements PythonCode {
-  constructor(
-    public name: string,
-    public value: string | PythonCode,
-  ) {}
+  public name: string;
+  public value: string | PythonCode;
+
+  constructor(name: string, value: string | PythonCode) {
+    this.name = name;
+    this.value = value;
+  }
 
   toCode(): string {
     return `${this.name}=${asString(this.value)}`;
@@ -141,12 +152,16 @@ export class FunctionArg implements PythonCode {
 
 export class FunctionCall implements PythonCode {
   private args: PythonCode[];
+  public name: string;
+  public multiLine: boolean;
 
   constructor(
-    public name: string,
+    name: string,
     args: PythonCode[] | Record<string, PythonCode>,
-    public multiLine = false,
+    multiLine = false,
   ) {
+    this.name = name;
+    this.multiLine = multiLine;
     this.args = objectToArgs(args);
   }
 

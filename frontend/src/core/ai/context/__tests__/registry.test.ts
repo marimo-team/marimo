@@ -101,11 +101,13 @@ class AttachmentContextProvider extends AIContextProvider<MockContextItem> {
   readonly mentionPrefix = "@";
   readonly contextType = "attachment";
 
-  constructor(
-    private items: MockContextItem[] = [],
-    private attachments: FileUIPart[] = [],
-  ) {
+  private items: MockContextItem[];
+  private attachments: FileUIPart[];
+
+  constructor(items: MockContextItem[] = [], attachments: FileUIPart[] = []) {
     super();
+    this.items = items;
+    this.attachments = attachments;
   }
 
   getItems(): MockContextItem[] {
