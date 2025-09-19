@@ -125,7 +125,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             if self._connection.url.database is not None and isinstance(
                 self._connection.url.database, str
             ):
-                return self._connection.url.database
+                return str(self._connection.url.database)
         except Exception:
             LOGGER.warning("Connection URL is invalid", exc_info=True)
             return None
