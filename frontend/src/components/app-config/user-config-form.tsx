@@ -109,6 +109,7 @@ export const activeUserConfigCategoryAtom = atom<SettingCategoryId>(
 );
 
 const FORM_DEBOUNCE = 100; // ms;
+const LOCALE_SYSTEM_VALUE = "__system__";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -746,6 +747,47 @@ export const UserConfigForm: React.FC = () => {
                       name="display.code_editor_font_size"
                     />
                   </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="display.locale"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Locale</FormLabel>
+                      <FormControl>
+                        <NativeSelect
+                          data-testid="locale-select"
+                          onChange={(e) => {
+                            if (e.target.value === LOCALE_SYSTEM_VALUE) {
+                              field.onChange(undefined);
+                            } else {
+                              field.onChange(e.target.value);
+                            }
+                          }}
+                          value={field.value || LOCALE_SYSTEM_VALUE}
+                          disabled={field.disabled}
+                          className="inline-flex mr-2"
+                        >
+                          <option value={LOCALE_SYSTEM_VALUE}>System</option>
+                          {navigator.languages.map((option) => (
+                            <option value={option} key={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden userConfig={config} name="display.locale" />
+                    </FormItem>
+
+                    <FormDescription>
+                      The locale to use for the notebook. If your desired locale
+                      is not listed, you can change it manually via{" "}
+                      <Kbd className="inline">marimo config show</Kbd>.
+                    </FormDescription>
+                  </div>
                 )}
               />
               <FormField
