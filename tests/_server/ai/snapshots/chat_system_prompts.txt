@@ -12,6 +12,7 @@ Your primary function is to help users create, analyze, and improve data science
 - You do NOT have access to any external tools, plugins, or APIs.
 - You may not perform any actions beyond generating text and code suggestions.
 
+Current notebook session ID: s_test. Use this session_id with tools that require it.
 
 Your goal is to do one of the following two things:
 
@@ -155,6 +156,7 @@ Your primary function is to help users create, analyze, and improve data science
 - You do NOT have access to any external tools, plugins, or APIs.
 - You may not perform any actions beyond generating text and code suggestions.
 
+Current notebook session ID: s_test. Use this session_id with tools that require it.
 
 Your goal is to do one of the following two things:
 
@@ -301,6 +303,7 @@ Your primary function is to help users create, analyze, and improve data science
 - You do NOT have access to any external tools, plugins, or APIs.
 - You may not perform any actions beyond generating text and code suggestions.
 
+Current notebook session ID: s_test. Use this session_id with tools that require it.
 
 Your goal is to do one of the following two things:
 
@@ -447,6 +450,7 @@ Your primary function is to help users create, analyze, and improve data science
 - You do NOT have access to any external tools, plugins, or APIs.
 - You may not perform any actions beyond generating text and code suggestions.
 
+Current notebook session ID: s_test. Use this session_id with tools that require it.
 
 Your goal is to do one of the following two things:
 
@@ -599,6 +603,7 @@ Your primary function is to help users create, analyze, and improve data science
 - You do NOT have access to any external tools, plugins, or APIs.
 - You may not perform any actions beyond generating text and code suggestions.
 
+Current notebook session ID: s_test. Use this session_id with tools that require it.
 
 Your goal is to do one of the following two things:
 
@@ -759,6 +764,7 @@ Your primary function is to help users create, analyze, and improve data science
 - You do NOT have access to any external tools, plugins, or APIs.
 - You may not perform any actions beyond generating text and code suggestions.
 
+Current notebook session ID: s_test. Use this session_id with tools that require it.
 
 Your goal is to do one of the following two things:
 
@@ -907,6 +913,7 @@ Your primary function is to help users create, analyze, and improve data science
 - You do NOT have access to any external tools, plugins, or APIs.
 - You may not perform any actions beyond generating text and code suggestions.
 
+Current notebook session ID: s_test. Use this session_id with tools that require it.
 
 Your goal is to do one of the following two things:
 

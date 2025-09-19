@@ -209,6 +209,7 @@ async def ai_chat(
     """
     app_state = AppState(request)
     app_state.require_current_session()
+    session_id = app_state.require_current_session_id()
     config = app_state.app_config_manager.get_config(hide_secrets=False)
     body = await parse_request(
         request, cls=ChatRequest, allow_unknown_keys=True
@@ -223,6 +224,7 @@ async def ai_chat(
         context=body.context,
         include_other_code=body.include_other_code,
         mode=ai_config.get("mode", "manual"),
+        session_id=session_id,
     )
 
     max_tokens = get_max_tokens(config)
