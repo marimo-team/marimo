@@ -103,7 +103,7 @@ def _(mo):
     sparsity_parameter = mo.ui.slider(0, 10, step=0.1)
     mo.md(
         f"""
-        Choose the regularization strength $\lambda$: {sparsity_parameter}
+        Choose the regularization strength $\\lambda$: {sparsity_parameter}
         """)
     return (sparsity_parameter,)
 
@@ -113,7 +113,7 @@ def _(mo, n, number_of_zeros, sparsity_parameter, x_l1, x_l2):
     (
         mo.md(
             """
-            **$\lambda$ = 0.**
+            **$\\lambda$ = 0.**
 
             No regularization is applied. The solutions are the same.
             """
@@ -121,15 +121,15 @@ def _(mo, n, number_of_zeros, sparsity_parameter, x_l1, x_l2):
         if sparsity_parameter.value == 0 else
         mo.md(
             f"""
-            **$\lambda$ = {sparsity_parameter.value}.**
+            **$\\lambda$ = {sparsity_parameter.value}.**
 
-            Watch how the fraction of entries of $x$ near $0$ changes as $\lambda$ 
+            Watch how the fraction of entries of $x$ near $0$ changes as $\\lambda$
             increases.
 
-            **$p=1$**: {number_of_zeros(x_l1) / n * 100:.02f}% of the entries of 
+            **$p=1$**: {number_of_zeros(x_l1) / n * 100:.02f}% of the entries of
             $x$ are extremely close to $0$.
 
-            **$p=2$**: {number_of_zeros(x_l2) / n * 100:.02f}% of the entries of 
+            **$p=2$**: {number_of_zeros(x_l2) / n * 100:.02f}% of the entries of
             $x$ are extremely close to $0$.
             """
         )
@@ -150,7 +150,7 @@ def _(cdf, plt, x_l1, x_l2):
 @app.cell
 def _(mo):
     mo.md(
-        """
+        r"""
         ## Sparsity
 
         The $\ell_1$ norm, when used as a regularizer, encourages solutions

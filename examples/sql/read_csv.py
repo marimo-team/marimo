@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.0"
 app = marimo.App(width="medium")
 
 
@@ -118,11 +118,11 @@ def _(mo):
         CREATE TABLE myTable AS SELECT * FROM "data.csv"
         """
     )
-    return
+    return (mytable,)
 
 
 @app.cell
-def _(mo):
+def _(mo, mytable):
     _df = mo.sql(
         f"""
         SELECT * FROM myTable

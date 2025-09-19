@@ -106,7 +106,7 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     p_h = mo.ui.slider(0.0, 1, label="$P(H)$", value=0.1, step=0.1)
-    p_e_given_h = mo.ui.slider(0.0, 1, label="$P(E \mid H)$", value=0.3, step=0.1)
+    p_e_given_h = mo.ui.slider(0.0, 1, label=r"$P(E \mid H)$", value=0.3, step=0.1)
     p_e_given_not_h = mo.ui.slider(
         0.0, 1, label=r"$P(E \mid \neg H)$", value=0.3, step=0.1
     )

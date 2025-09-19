@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.0"
 app = marimo.App()
 
 
@@ -268,11 +268,6 @@ def _(mo):
         },
     ]
     return (office_characters,)
-
-
-@app.cell
-def _():
-    return
 
 
 if __name__ == "__main__":

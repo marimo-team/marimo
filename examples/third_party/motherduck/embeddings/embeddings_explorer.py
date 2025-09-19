@@ -19,11 +19,10 @@ import marimo
 __generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
-
-@app.cell
-def _():
-    return
-
+with app.setup:
+    # Use this notebook to follow along with the tutorial at
+    # https://motherduck.com/blog/MotherDuck-Visualize-Embeddings-Marimo/
+    import marimo as mo
 
 if __name__ == "__main__":
     app.run()

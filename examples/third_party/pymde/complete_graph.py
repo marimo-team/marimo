@@ -53,14 +53,14 @@ def _(complete_graph, mo, n_items, penalty_function):
 
     mo.md(
         f"""
-        Here is a plot of $K_n$ with $n={n_items.value}$, i.e., a complete graph on 
+        Here is a plot of $K_n$ with $n={n_items.value}$, i.e., a complete graph on
         ${n_items.value}$ nodes. This graph has
 
-        \[
+        \\[
         (n)(n-1)/2 = {n_items.value*(n_items.value-1)//2}
-        \]
+        \\]
 
-        edges. The plot was obtained using a 
+        edges. The plot was obtained using a
         {penalty_function.value.__name__.lower()} penalty function.
 
         {mo.as_html(plot)}
