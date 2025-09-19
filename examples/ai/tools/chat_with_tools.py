@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.0"
 app = marimo.App(width="medium")
 
 
@@ -86,12 +86,6 @@ def _(input_key, mo, os_key):
 def _(mo):
     get_dataset, set_dataset = mo.state("cars")
     return get_dataset, set_dataset
-
-
-@app.cell
-def _():
-    # data.list_datasets()
-    return
 
 
 @app.cell

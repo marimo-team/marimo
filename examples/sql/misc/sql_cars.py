@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.0"
 app = marimo.App(width="medium")
 
 
@@ -25,13 +25,13 @@ def _(data):
 
 
 @app.cell
-def _(mo):
+def _(cars_df, mo):
     _df = mo.sql(
         f"""
         CREATE OR REPLACE TABLE cars AS SELECT * FROM cars_df;
         """
     )
-    return
+    return (cars,)
 
 
 @app.cell
@@ -82,7 +82,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, year_range):
+def _(cars, mo, year_range):
     _df = mo.sql(
         f"""
         WITH ranked_cars AS (
@@ -173,7 +173,7 @@ def _(alt, duckdb, mo, year_range):
 def _(chart, mo):
     mo.stop(chart.value.empty, mo.callout("Select cars from the chart above."))
     selected_cars = chart.value
-    return
+    return (selected_cars,)
 
 
 @app.cell(hide_code=True)
@@ -205,7 +205,7 @@ def _(aggs, aggs_selected, mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _(cars, mo, selected_cars):
     aggs_selected = mo.sql("""
     SELECT 
         COUNT(*) as count,
