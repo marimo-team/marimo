@@ -332,6 +332,7 @@ class table(
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
             Optional callback to run when this element's value changes.
         style_cell (Callable[[str, str, Any], Dict[str, Any]], optional): A function that takes the row id, column name and value and returns a dictionary of CSS styles.
+        hover_template (str, optional): A template for the hover text of the table.
         max_columns (int, optional): Maximum number of columns to display. Defaults to the
             configured default_table_max_columns (50 by default). Set to None to show all columns.
         label (str, optional): A descriptive name for the table. Defaults to "".
@@ -439,6 +440,7 @@ class table(
             ]
         ] = None,
         style_cell: Optional[Callable[[str, str, Any], dict[str, Any]]] = None,
+        hover_template: Optional[str] = None,
         # The _internal_* arguments are for overriding and unit tests
         # table should take the value unconditionally
         _internal_column_charts_row_limit: Optional[int] = None,
@@ -666,6 +668,7 @@ class table(
                 "wrapped-columns": wrapped_columns,
                 "has-stable-row-id": self._has_stable_row_id,
                 "cell-styles": search_result_styles,
+                "hover-template": hover_template,
                 "lazy": _internal_lazy,
                 "preload": _internal_preload,
             },
