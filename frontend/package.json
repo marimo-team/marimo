@@ -180,7 +180,7 @@
     "build:watch": "vite build --watch --outDir ../marimo/_static",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build",
     "test": "vitest",
-    "typecheck": "tsc",
+    "typecheck": "tsgo",
     "lint": "run-s lint:biome lint:eslint lint:stylelint",
     "lint:biome": "biome lint --diagnostic-level=warn --write .",
     "lint:eslint": "cross-env TIMING=1 eslint src e2e-tests --fix",
