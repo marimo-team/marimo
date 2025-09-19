@@ -501,11 +501,9 @@ export const SessionNotificationsBlock = <
     }
     if (kind === "current_mode_update") {
       const lastItem = items.at(-1);
-      if (lastItem?.sessionUpdate !== "current_mode_update") {
-        return null;
-      } else {
-        return <CurrentModeBlock data={lastItem} />;
-      }
+      return lastItem?.sessionUpdate === "current_mode_update" ? (
+        <CurrentModeBlock data={lastItem} />
+      ) : null;
     }
 
     return (

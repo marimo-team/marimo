@@ -7,7 +7,7 @@ import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notebookAtom } from "@/core/cells/cells";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
-import { LocaleProvider } from "@/core/i18n/local-provider";
+import { LocaleProvider } from "@/core/i18n/locale-provider";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { invariant } from "@/utils/invariant";
 import type { CellId } from "../../cells/ids";

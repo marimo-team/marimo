@@ -1067,7 +1067,9 @@ components:
         \ of paths to custom CSS files\n    - `default_table_page_size`: default number\
         \ of rows to display in tables\n    - `default_table_max_columns`: default\
         \ maximum number of columns to display in tables\n    - `reference_highlighting`:\
-        \ if `True`, highlight reactive variable references"
+        \ if `True`, highlight reactive variable references\n    - `locale`: locale\
+        \ for date formatting and internationalization (e.g., \"en-US\", \"en-GB\"\
+        , \"de-DE\")"
       properties:
         cell_output:
           enum:
@@ -1094,6 +1096,10 @@ components:
           - full
           - medium
           - normal
+        locale:
+          anyOf:
+          - type: string
+          - type: 'null'
         reference_highlighting:
           type: boolean
         theme:
@@ -3387,7 +3393,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.15.3
+  version: 0.15.5
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
