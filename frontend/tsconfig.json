@@ -28,6 +28,7 @@
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": true,
     "experimentalDecorators": true,
+    "erasableSyntaxOnly": true,
 
     /* Perf */
     "incremental": true,
