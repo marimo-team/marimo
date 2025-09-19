@@ -118,7 +118,7 @@ export function prettyEngineeringNumber(
     return specialCase;
   }
 
-  const [mant, exp] = new Intl.NumberFormat(locale || "en-US", {
+  const [mant, exp] = new Intl.NumberFormat(locale, {
     notation: "engineering",
     maximumSignificantDigits: 3,
   })
