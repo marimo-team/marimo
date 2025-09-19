@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Final, Literal, Optional, Union
 
 import msgspec
 
 from marimo._types.ids import VariableName
+from marimo._utils.keyed_list import KeyedList
 
 DataType = Literal[
     "string",
@@ -84,10 +85,16 @@ class DataTable(msgspec.Struct):
     primary_keys: Optional[list[str]] = None
     indexes: Optional[list[str]] = None
 
+    def __post_init__(self) -> None:
+        self.columns = KeyedList(self.columns, to_key=lambda x: x.name)  # type: ignore[assignment]
+
 
 class Schema(msgspec.Struct):
     name: str
     tables: list[DataTable]
+
+    def __post_init__(self) -> None:
+        self.tables = KeyedList(self.tables, to_key=lambda x: x.name)  # type: ignore[assignment]
 
 
 class Database(msgspec.Struct):
@@ -105,6 +112,9 @@ class Database(msgspec.Struct):
     dialect: str
     schemas: list[Schema]
     engine: Optional[VariableName] = None
+
+    def __post_init__(self) -> None:
+        self.schemas = KeyedList(self.schemas, to_key=lambda x: x.name)  # type: ignore[assignment]
 
 
 if TYPE_CHECKING:
