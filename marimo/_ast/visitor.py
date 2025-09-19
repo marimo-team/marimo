@@ -20,6 +20,7 @@ from marimo._ast.sql_visitor import (
     find_sql_refs,
     normalize_sql_f_string,
 )
+from marimo._ast.sql_error_metadata import create_sql_error_metadata
 from marimo._ast.variables import is_local
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -38,27 +39,14 @@ def _log_sql_error(
     context: str = "",
 ) -> None:
     """Utility to log SQL-related errors with consistent metadata."""
-    extra_data = {
-        "lint_rule": rule_code,
-        "error_type": type(exception).__name__,
-        "node_lineno": node.lineno,
-        "node_col_offset": node.col_offset,
-    }
-
-    # Truncate long SQL content
-    if sql_content:
-        if len(sql_content) > 200:
-            sql_content = sql_content[:200] + "..."
-
-        if rule_code == "MF005":
-            extra_data["sql_statement"] = sql_content
-        else:
-            extra_data["sql_query"] = sql_content
-
-    if context:
-        extra_data["context"] = context
-
-    logger(message, exception, extra=extra_data)
+    metadata = create_sql_error_metadata(
+        exception=exception,
+        node=node,
+        rule_code=rule_code,
+        sql_content=sql_content,
+        context=context,
+    )
+    logger(message, exception, extra=metadata.to_dict())
 
 
 def _log_sql_warning(
@@ -784,11 +772,12 @@ class ScopedVisitor(ast.NodeVisitor):
                         duckdb.IOException,
                         ParseError,
                     ) as e:
+                        # Use first_arg (SQL string node) for accurate positioning
                         _log_sql_error(
                             LOGGER.error,
                             "Error parsing SQL statement: %s",
                             e,
-                            node,
+                            first_arg,
                             "MF005",
                             statement.query,
                         )
@@ -797,7 +786,7 @@ class ScopedVisitor(ast.NodeVisitor):
                             LOGGER.warning,
                             "Unexpected duckdb error %s",
                             e,
-                            node,
+                            first_arg,
                             "MF006",
                             statement.query,
                             "sql_refs_extraction",

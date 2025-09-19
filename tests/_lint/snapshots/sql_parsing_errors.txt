@@ -1,4 +1,4 @@
-warning[sql-parse-error]: Error parsing SQL statement: Expecting ). Line 19, Col: 21.
+warning[sql-parse-error]: Expecting ). Line 19, Col: 32.
   
             AND
             MONTH(timestamp) in (null)
@@ -13,9 +13,8 @@ warning[sql-parse-error]: Error parsing SQL statement: Expecting ). Line 19, Col
         type,
         title,
         hn_url,
-     
- --> tests/_lint/test_files/sql_parsing_errors.py:19:20
-  19 |     result = mo.sql(f"""
-  20 |         WITH ranked_stories AS (
-     |                       ^
-  21 |             SELECT
+ --> tests/_lint/test_files/sql_parsing_errors.py:35:31
+  35 |                 MONTH(timestamp) in (null)
+  36 |                 AND
+     |                                  ^
+  37 |                 descendants NOT NULl

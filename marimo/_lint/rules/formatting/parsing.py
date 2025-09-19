@@ -202,42 +202,37 @@ class SqlParseRule(LintRule):
         logs = ctx.get_logs(self.code)
 
         for record in logs:
-            # Extract positioning information from the log record
+            # Extract metadata from log record
             extra_data = getattr(record, '__dict__', {})
-            node_lineno = extra_data.get('node_lineno')
+
+            # Get error type and create clean message
+            error_type = extra_data.get('error_type', 'ParseError')
+            clean_message = f"SQL parsing error: {error_type}"
+
+            # Get node position (should be SQL string constant)
+            node_lineno = extra_data.get('node_lineno', 1)
             node_col_offset = extra_data.get('node_col_offset', 0)
 
-            # Parse SQL position from error message (e.g. "Line 23, Col: 32")
-            message = record.getMessage()
-            sql_line = None
-            sql_col = None
+            # Get SQL position within the SQL string (from our metadata utility)
+            sql_line = extra_data.get('sql_line')
+            sql_col = extra_data.get('sql_col')
 
-            # Look for "Line X, Col: Y" pattern in the error message
-            line_col_match = re.search(r'Line (\d+), Col: (\d+)', message)
-            if line_col_match:
-                sql_line = int(line_col_match.group(1)) - 1  # Convert to 0-based
-                sql_col = int(line_col_match.group(2)) - 1   # Convert to 0-based
+            # Calculate position: node position + SQL offset
+            line = node_lineno - 1  # Convert to 0-based
+            col = node_col_offset
 
-            # Calculate actual line position
-            calculated_line = 0
-            calculated_col = 0
-
-            if node_lineno is not None:
-                calculated_line = node_lineno - 1  # Convert to 0-based
-                if sql_line is not None:
-                    # For multiline SQL, add the SQL line offset
-                    calculated_line += sql_line
-                if sql_col is not None:
-                    calculated_col = sql_col
-                elif node_col_offset is not None:
-                    calculated_col = node_col_offset
+            # Add SQL offset if available
+            if sql_line is not None:
+                line += sql_line + 1  # +1 to skip opening quote line
+            if sql_col is not None:
+                col = sql_col
 
             await ctx.add_diagnostic(
                 Diagnostic(
-                    message=message,
-                    line=calculated_line,
+                    message=clean_message,
+                    line=line,
                     cell_id=None,
-                    column=calculated_col,
+                    column=col,
                 )
             )
 
