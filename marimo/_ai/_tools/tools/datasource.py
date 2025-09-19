@@ -109,4 +109,9 @@ class GetDatabaseTables(
                                 )
                             )
 
-        return GetDatabaseTablesOutput(tables=tables)
+        return GetDatabaseTablesOutput(
+            tables=tables,
+            next_steps=[
+                'Example of an SQL query: _df = mo.sql(f"""SELECT * FROM database.schema.name LIMIT 100""")',
+            ],
+        )
