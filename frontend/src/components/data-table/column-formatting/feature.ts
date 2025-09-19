@@ -40,7 +40,7 @@ export const ColumnFormattingFeature: TableFeature = {
     return {
       enableColumnFormatting: true,
       onColumnFormattingChange: makeStateUpdater("columnFormatting", table),
-      locale: table.options.locale,
+      locale: navigator.language,
     } as ColumnFormattingOptions;
   },
 
