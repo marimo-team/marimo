@@ -192,36 +192,35 @@ export function getAgentPrompt(filename: string) {
   import marimo as mo
   import polars as pl
   import altair as alt
-  from vega_datasets import data
     `,
     `
-  iris = pl.DataFrame(data.iris())
+  iris = pl.read_csv("hf://datasets/scikit-learn/iris/Iris.csv")
     `,
     `
   species_selector = mo.ui.dropdown(
-      options=["All"] + iris["species"].unique().to_list(),
+      options=["All"] + iris["Species"].unique().to_list(),
       value="All",
-      label="Species"
+      label="Species",
   )
   x_feature = mo.ui.dropdown(
       options=iris.select(pl.col(pl.Float64, pl.Int64)).columns,
-      value="sepalLength",
-      label="X Feature"
+      value="SepalLengthCm",
+      label="X Feature",
   )
   y_feature = mo.ui.dropdown(
       options=iris.select(pl.col(pl.Float64, pl.Int64)).columns,
-      value="sepalWidth",
-      label="Y Feature"
+      value="SepalWidthCm",
+      label="Y Feature",
   )
   mo.hstack([species_selector, x_feature, y_feature])
     `,
     `
-  filtered_data = iris if species_selector.value == "All" else iris.filter(pl.col("species") == species_selector.value)
+  filtered_data = iris if species_selector.value == "All" else iris.filter(pl.col("Species") == species_selector.value)
 
   chart = alt.Chart(filtered_data).mark_circle().encode(
       x=alt.X(x_feature.value, title=x_feature.value),
       y=alt.Y(y_feature.value, title=y_feature.value),
-      color='species'
+      color='Species'
   ).properties(
       title=f"{y_feature.value} vs {x_feature.value}",
       width=500,
