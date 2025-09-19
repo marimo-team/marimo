@@ -90,7 +90,7 @@ Common issues and solutions:
 - Visualization not showing: Ensure the visualization object is the last expression
 
 After generating a notebook, run \`marimo check --fix\` to catch and
-automatically resolve common formatting issues, and determine common pitfalls.
+automatically resolve common formatting issues, and detect common pitfalls.
 
 ## Available UI elements
 
