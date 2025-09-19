@@ -10,6 +10,7 @@ from marimo._server.models.completion import (
     SchemaTable,
     VariableContext,
 )
+from marimo._types.ids import SessionId
 
 FIM_PREFIX_TAG = "<|fim_prefix|>"
 FIM_SUFFIX_TAG = "<|fim_suffix|>"
@@ -234,15 +235,24 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
         )
 
 
+def _get_session_info(session_id: SessionId) -> str:
+    return (
+        f"Current notebook session ID: {session_id}. "
+        "Use this session_id with tools that require it."
+    )
+
+
 def get_chat_system_prompt(
     *,
     custom_rules: Optional[str],
     context: Optional[AiCompletionContext],
     include_other_code: str,
     mode: CopilotMode,
+    session_id: SessionId,
 ) -> str:
     system_prompt: str = f"""
 {_get_mode_intro_message(mode)}
+{_get_session_info(session_id)}
 
 Your goal is to do one of the following two things:
 
