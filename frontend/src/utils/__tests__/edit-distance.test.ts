@@ -7,7 +7,7 @@ import {
   editDistance,
   editDistanceGeneral,
   mergeArray,
-  Operation,
+  OperationType,
 } from "../edit-distance";
 
 describe("editDistance", () => {
@@ -18,9 +18,9 @@ describe("editDistance", () => {
 
     expect(result.distance).toBe(0);
     expect(result.operations).toHaveLength(3);
-    expect(result.operations.every((op) => op.type === Operation.MATCH)).toBe(
-      true,
-    );
+    expect(
+      result.operations.every((op) => op.type === OperationType.MATCH),
+    ).toBe(true);
   });
 
   it("should handle empty arrays", () => {
@@ -31,12 +31,12 @@ describe("editDistance", () => {
     const result2 = editDistance(["a"], []);
     expect(result2.distance).toBe(1);
     expect(result2.operations).toHaveLength(1);
-    expect(result2.operations[0].type).toBe(Operation.DELETE);
+    expect(result2.operations[0].type).toBe(OperationType.DELETE);
 
     const result3 = editDistance([], ["a"]);
     expect(result3.distance).toBe(1);
     expect(result3.operations).toHaveLength(1);
-    expect(result3.operations[0].type).toBe(Operation.INSERT);
+    expect(result3.operations[0].type).toBe(OperationType.INSERT);
   });
 
   it("should handle single element differences", () => {
@@ -46,9 +46,9 @@ describe("editDistance", () => {
 
     expect(result.distance).toBe(1);
     expect(result.operations).toHaveLength(3);
-    expect(result.operations[0].type).toBe(Operation.MATCH);
-    expect(result.operations[1].type).toBe(Operation.MATCH);
-    expect(result.operations[2].type).toBe(Operation.SUBSTITUTE);
+    expect(result.operations[0].type).toBe(OperationType.MATCH);
+    expect(result.operations[1].type).toBe(OperationType.MATCH);
+    expect(result.operations[2].type).toBe(OperationType.SUBSTITUTE);
   });
 
   it("should handle insertions and deletions", () => {
@@ -58,10 +58,10 @@ describe("editDistance", () => {
 
     expect(result.distance).toBe(1);
     expect(result.operations).toHaveLength(4);
-    expect(result.operations[0].type).toBe(Operation.MATCH);
-    expect(result.operations[1].type).toBe(Operation.INSERT);
-    expect(result.operations[2].type).toBe(Operation.MATCH);
-    expect(result.operations[3].type).toBe(Operation.MATCH);
+    expect(result.operations[0].type).toBe(OperationType.MATCH);
+    expect(result.operations[1].type).toBe(OperationType.INSERT);
+    expect(result.operations[2].type).toBe(OperationType.MATCH);
+    expect(result.operations[3].type).toBe(OperationType.MATCH);
   });
 
   it("should work with custom equality function", () => {
@@ -78,8 +78,8 @@ describe("editDistance", () => {
 
     expect(result.distance).toBe(1);
     expect(result.operations).toHaveLength(2);
-    expect(result.operations[0].type).toBe(Operation.MATCH);
-    expect(result.operations[1].type).toBe(Operation.SUBSTITUTE);
+    expect(result.operations[0].type).toBe(OperationType.MATCH);
+    expect(result.operations[1].type).toBe(OperationType.SUBSTITUTE);
   });
 
   // Test the specific example mentioned by the user
@@ -92,12 +92,12 @@ describe("editDistance", () => {
     expect(result.operations).toHaveLength(6);
 
     // Expected operations: match, delete, match, sub, match, insert
-    expect(result.operations[0].type).toBe(Operation.MATCH); // 'a'
-    expect(result.operations[1].type).toBe(Operation.DELETE); // 'b'
-    expect(result.operations[2].type).toBe(Operation.MATCH); // 'c'
-    expect(result.operations[3].type).toBe(Operation.SUBSTITUTE); // 'd' -> 'z'
-    expect(result.operations[4].type).toBe(Operation.MATCH); // 'e'
-    expect(result.operations[5].type).toBe(Operation.INSERT); // 'g'
+    expect(result.operations[0].type).toBe(OperationType.MATCH); // 'a'
+    expect(result.operations[1].type).toBe(OperationType.DELETE); // 'b'
+    expect(result.operations[2].type).toBe(OperationType.MATCH); // 'c'
+    expect(result.operations[3].type).toBe(OperationType.SUBSTITUTE); // 'd' -> 'z'
+    expect(result.operations[4].type).toBe(OperationType.MATCH); // 'e'
+    expect(result.operations[5].type).toBe(OperationType.INSERT); // 'g'
   });
 });
 
@@ -105,9 +105,9 @@ describe("applyOperationsWithStub", () => {
   it("should apply match operations correctly", () => {
     const original = ["a", "b", "c"];
     const operations: EditOperation[] = [
-      { type: Operation.MATCH, position: 0 },
-      { type: Operation.MATCH, position: 1 },
-      { type: Operation.MATCH, position: 2 },
+      { type: OperationType.MATCH, position: 0 },
+      { type: OperationType.MATCH, position: 1 },
+      { type: OperationType.MATCH, position: 2 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -117,9 +117,9 @@ describe("applyOperationsWithStub", () => {
   it("should apply delete operations correctly", () => {
     const original = ["a", "b", "c"];
     const operations: EditOperation[] = [
-      { type: Operation.MATCH, position: 0 },
-      { type: Operation.DELETE, position: 1 },
-      { type: Operation.MATCH, position: 2 },
+      { type: OperationType.MATCH, position: 0 },
+      { type: OperationType.DELETE, position: 1 },
+      { type: OperationType.MATCH, position: 2 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -129,9 +129,9 @@ describe("applyOperationsWithStub", () => {
   it("should apply insert operations correctly", () => {
     const original = ["a", "c"];
     const operations: EditOperation[] = [
-      { type: Operation.MATCH, position: 0 },
-      { type: Operation.INSERT, position: 1 },
-      { type: Operation.MATCH, position: 1 },
+      { type: OperationType.MATCH, position: 0 },
+      { type: OperationType.INSERT, position: 1 },
+      { type: OperationType.MATCH, position: 1 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -141,12 +141,12 @@ describe("applyOperationsWithStub", () => {
   it("should apply substitute operations correctly", () => {
     const original = ["a", "b", "c"];
     const operations: EditOperation[] = [
-      { type: Operation.MATCH, position: 0 },
+      { type: OperationType.MATCH, position: 0 },
       {
-        type: Operation.SUBSTITUTE,
+        type: OperationType.SUBSTITUTE,
         position: 1,
       },
-      { type: Operation.MATCH, position: 2 },
+      { type: OperationType.MATCH, position: 2 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -156,11 +156,11 @@ describe("applyOperationsWithStub", () => {
   it("should handle complex operations with position offsets", () => {
     const original = ["a", "b", "c", "d"];
     const operations: EditOperation[] = [
-      { type: Operation.MATCH, position: 0 },
-      { type: Operation.DELETE, position: 1 },
-      { type: Operation.INSERT, position: 1 },
-      { type: Operation.MATCH, position: 2 },
-      { type: Operation.DELETE, position: 3 },
+      { type: OperationType.MATCH, position: 0 },
+      { type: OperationType.DELETE, position: 1 },
+      { type: OperationType.INSERT, position: 1 },
+      { type: OperationType.MATCH, position: 2 },
+      { type: OperationType.DELETE, position: 3 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -171,15 +171,15 @@ describe("applyOperationsWithStub", () => {
   it("should handle the specific example: abcde -> ac_e_ (with stub)", () => {
     const original = ["a", "b", "c", "d", "e"];
     const operations: EditOperation[] = [
-      { type: Operation.MATCH, position: 0 },
-      { type: Operation.DELETE, position: 1 },
-      { type: Operation.MATCH, position: 2 },
+      { type: OperationType.MATCH, position: 0 },
+      { type: OperationType.DELETE, position: 1 },
+      { type: OperationType.MATCH, position: 2 },
       {
-        type: Operation.SUBSTITUTE,
+        type: OperationType.SUBSTITUTE,
         position: 3,
       },
-      { type: Operation.MATCH, position: 4 },
-      { type: Operation.INSERT, position: 5 },
+      { type: OperationType.MATCH, position: 4 },
+      { type: OperationType.INSERT, position: 5 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "_");
@@ -189,13 +189,13 @@ describe("applyOperationsWithStub", () => {
   it("should handle multiple consecutive operations correctly", () => {
     const original = ["a", "b", "c"];
     const operations: EditOperation[] = [
-      { type: Operation.DELETE, position: 0 },
-      { type: Operation.INSERT, position: 0 },
+      { type: OperationType.DELETE, position: 0 },
+      { type: OperationType.INSERT, position: 0 },
       {
-        type: Operation.SUBSTITUTE,
+        type: OperationType.SUBSTITUTE,
         position: 1,
       },
-      { type: Operation.DELETE, position: 2 },
+      { type: OperationType.DELETE, position: 2 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -209,11 +209,11 @@ describe("applyOperationsWithStub", () => {
   it("should handle operations that affect array length", () => {
     const original = ["a", "b"];
     const operations: EditOperation[] = [
-      { type: Operation.INSERT, position: 0 },
-      { type: Operation.INSERT, position: 1 },
-      { type: Operation.MATCH, position: 2 },
-      { type: Operation.MATCH, position: 3 },
-      { type: Operation.INSERT, position: 4 },
+      { type: OperationType.INSERT, position: 0 },
+      { type: OperationType.INSERT, position: 1 },
+      { type: OperationType.MATCH, position: 2 },
+      { type: OperationType.MATCH, position: 3 },
+      { type: OperationType.INSERT, position: 4 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
