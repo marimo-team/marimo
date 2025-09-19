@@ -6,6 +6,7 @@ from marimo._ai._tools.tools.cells import (
     GetCellRuntimeData,
     GetLightweightCellMap,
 )
+from marimo._ai._tools.tools.datasource import GetDatabaseTables
 from marimo._ai._tools.tools.notebooks import GetActiveNotebooks
 from marimo._ai._tools.tools.tables_and_variables import GetTablesAndVariables
 
@@ -14,4 +15,5 @@ SUPPORTED_BACKEND_AND_MCP_TOOLS: list[type[ToolBase[Any, Any]]] = [
     GetCellRuntimeData,
     GetLightweightCellMap,
     GetTablesAndVariables,
+    GetDatabaseTables,
 ]
