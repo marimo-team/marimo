@@ -487,7 +487,7 @@ logical_plan
 
     @patch("marimo._sql.sql.replace")
     @pytest.mark.skipif(
-        not HAS_POLARS and not HAS_DUCKDB, reason="polars and duckdb required"
+        not HAS_POLARS or not HAS_DUCKDB, reason="polars and duckdb required"
     )
     def test_sql_explain_query_display(self, mock_replace):
         """Test that EXPLAIN queries are displayed as plain text."""
