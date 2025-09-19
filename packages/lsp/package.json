@@ -6,7 +6,7 @@
   "scripts": {
     "build:ts": "tsup index.ts --format cjs --minify",
     "build:deps": "cp -LR node_modules/@github/copilot-language-server/dist/ dist/",
-    "typecheck": "tsc",
+    "typecheck": "tsgo",
     "build": "pnpm run build:ts && pnpm run build:deps",
     "test": "vitest"
   },

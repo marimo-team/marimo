@@ -82,6 +82,10 @@ export const editorFontSizeAtom = atom<number>((get) => {
   return get(resolvedMarimoConfigAtom).display.code_editor_font_size;
 });
 
+export const localeAtom = atom<string | null | undefined>((get) => {
+  return get(resolvedMarimoConfigAtom).display.locale;
+});
+
 export function isAiEnabled(config: UserConfig) {
   return (
     Boolean(config.ai?.models?.chat_model) ||

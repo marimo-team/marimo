@@ -11,8 +11,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.2.2",
     "@testing-library/jest-dom": "^6.8.0",
+    "@typescript/native-preview": "7.0.0-dev.20250919.1",
     "turbo": "^2.5.6",
-    "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   },
   "engines": {

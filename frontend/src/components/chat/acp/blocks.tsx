@@ -501,11 +501,9 @@ export const SessionNotificationsBlock = <
     }
     if (kind === "current_mode_update") {
       const lastItem = items.at(-1);
-      if (lastItem?.sessionUpdate !== "current_mode_update") {
-        return null;
-      } else {
-        return <CurrentModeBlock data={lastItem} />;
-      }
+      return lastItem?.sessionUpdate === "current_mode_update" ? (
+        <CurrentModeBlock data={lastItem} />
+      ) : null;
     }
 
     return (
@@ -673,7 +671,9 @@ export const ToolBodyBlock = (props: {
     );
   }
 
-  if (content?.length && hasLocations) {
+  const noContent = !textContent || textContent.length === 0;
+  const noDiffs = !diffs || diffs.length === 0;
+  if (noContent && noDiffs && hasLocations) {
     return (
       <div className="flex flex-col gap-2 pr-2">
         <span className="text-xs text-muted-foreground">

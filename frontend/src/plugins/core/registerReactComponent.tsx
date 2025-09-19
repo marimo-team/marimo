@@ -8,6 +8,7 @@
  * component. The factory handles the logic of communicating UI element values
  * to and from the rest of marimo.
  */
+import { Provider } from "jotai";
 import React, {
   createRef,
   type JSX,
@@ -29,7 +30,7 @@ import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
 import { getUIElementObjectId } from "@/core/dom/ui-element";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
-import { LocaleProvider } from "@/core/i18n/local-provider";
+import { LocaleProvider } from "@/core/i18n/locale-provider";
 import { store } from "@/core/state/jotai";
 import {
   type HTMLElementNotDerivedFromRef,
@@ -364,18 +365,20 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
 
       invariant(this.root, "Root must be defined");
       this.root.render(
-        <LocaleProvider>
-          <PluginSlot
-            hostElement={this}
-            plugin={plugin}
-            ref={this.pluginRef}
-            getInitialValue={() => {
-              return parseInitialValue(this, UIElementRegistry.INSTANCE);
-            }}
-          >
-            {this.getChildren()}
-          </PluginSlot>
-        </LocaleProvider>,
+        <Provider store={store}>
+          <LocaleProvider>
+            <PluginSlot
+              hostElement={this}
+              plugin={plugin}
+              ref={this.pluginRef}
+              getInitialValue={() => {
+                return parseInitialValue(this, UIElementRegistry.INSTANCE);
+              }}
+            >
+              {this.getChildren()}
+            </PluginSlot>
+          </LocaleProvider>
+        </Provider>,
       );
     }
 

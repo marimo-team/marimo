@@ -93,9 +93,9 @@ export class ColumnChartSpecModel<T> {
         const decoded = typedAtob(base64);
 
         if (decoded.startsWith(ARROW_MAGIC_NUMBER)) {
+          // @ts-expect-error vega-typings does not include arrow format
           this.dataSpec = {
             values: byteStringToBinary(decoded),
-            // @ts-expect-error vega-typings does not include arrow format
             format: { type: "arrow" },
           };
         } else {

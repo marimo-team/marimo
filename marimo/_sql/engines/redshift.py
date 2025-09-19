@@ -157,7 +157,10 @@ class RedshiftEngine(SQLConnection["Connection"]):
         with self._connection.cursor() as cursor:
             try:
                 result = cursor.execute("SELECT current_schema()")
-                return str(result.fetchone()[0])
+                row = result.fetchone()
+                if row is None or row[0] is None:
+                    return None
+                return str(row[0])
             except Exception as e:
                 LOGGER.debug("Failed to get default schema. Reason: %s.", e)
                 return None
@@ -337,7 +340,10 @@ class RedshiftEngine(SQLConnection["Connection"]):
             row_count = cursor.execute(
                 f"SELECT COUNT(*) FROM {database_name}.{schema_name}.{table_name}"
             )
-            num_rows = row_count.fetchone()[0]
+            row = row_count.fetchone()
+            if row is None or row[0] is None:
+                return None
+            num_rows = row[0]
 
             try:
                 # [[catalog, schema, table_name, column_name, ordinal_position, column_default, is_nullable, data_type, character_maximum_length, numeric_precision, numeric_scale, remarks]]

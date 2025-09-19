@@ -122,8 +122,10 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         from sqlalchemy import text
 
         try:
-            if self._connection.url.database is not None:
-                return self._connection.url.database
+            if self._connection.url.database is not None and isinstance(
+                self._connection.url.database, str
+            ):
+                return str(self._connection.url.database)
         except Exception:
             LOGGER.warning("Connection URL is invalid", exc_info=True)
             return None
@@ -166,7 +168,14 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             return None
 
         try:
-            return self.inspector.default_schema_name
+            default_schema_name = self.inspector.default_schema_name
+            # https://github.com/marimo-team/marimo/issues/6436.
+            # Upstream bug where default schema name is not a string.
+            if default_schema_name is None or not isinstance(
+                default_schema_name, str
+            ):
+                return None
+            return str(default_schema_name)
         except Exception:
             LOGGER.warning("Failed to get default schema name", exc_info=True)
             return None
@@ -270,9 +279,12 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         except Exception:
             LOGGER.warning("Failed to get tables in schema", exc_info=True)
             return []
-        tables: list[tuple[DataTableType, str]] = [
-            ("table", name) for name in table_names
-        ] + [("view", name) for name in view_names]
+
+        tables: list[tuple[DataTableType, str]] = []
+        for name in table_names:
+            tables.append(("table", name))
+        for name in view_names:
+            tables.append(("view", name))
 
         if not include_table_details:
             return [
