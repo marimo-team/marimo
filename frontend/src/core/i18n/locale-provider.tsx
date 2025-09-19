@@ -12,10 +12,9 @@ interface LocaleProviderProps {
 export const LocaleProvider = ({ children }: LocaleProviderProps) => {
   const locale = useAtomValue(localeAtom);
 
-  // If locale is null or undefined, let React Aria auto-detect
-  if (!locale) {
-    return <I18nProvider>{children}</I18nProvider>;
-  }
-
-  return <I18nProvider locale={locale}>{children}</I18nProvider>;
+  return (
+    <I18nProvider locale={locale ?? navigator.language}>
+      {children}
+    </I18nProvider>
+  );
 };

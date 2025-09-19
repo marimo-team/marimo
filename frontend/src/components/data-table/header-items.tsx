@@ -53,7 +53,7 @@ export function renderFormatOptions<TData, TValue>(
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
         <DropdownMenuSubContent>
-          <div className="text-xs text-muted-foreground p-2">
+          <div className="text-xs text-muted-foreground px-2 py-1">
             Locale: {locale}
           </div>
           {Boolean(currentFormat) && (

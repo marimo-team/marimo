@@ -15,6 +15,7 @@ import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
 import { ModalProvider } from "../components/modal/ImperativeModal";
 import { Toaster } from "../components/ui/toaster";
 import { TooltipProvider } from "../components/ui/tooltip";
+import { LocaleProvider } from "./i18n/locale-provider";
 import { slotsController } from "./slots/slots";
 
 // Force tailwind classnames
@@ -69,7 +70,7 @@ export const MarimoApp: React.FC = memo(() => {
       <CssVariables
         variables={{ "--marimo-code-editor-font-size": editorFontSize }}
       >
-        {renderBody()}
+        <LocaleProvider>{renderBody()}</LocaleProvider>
       </CssVariables>
     </Providers>
   );
@@ -85,11 +86,13 @@ const Providers = memo(({ children }: PropsWithChildren) => {
       <Suspense>
         <TooltipProvider>
           <SlotzProvider controller={slotsController}>
-            <ModalProvider>
-              {children}
-              <Toaster />
-              <TailwindIndicator />
-            </ModalProvider>
+            <LocaleProvider>
+              <ModalProvider>
+                {children}
+                <Toaster />
+                <TailwindIndicator />
+              </ModalProvider>
+            </LocaleProvider>
           </SlotzProvider>
         </TooltipProvider>
       </Suspense>

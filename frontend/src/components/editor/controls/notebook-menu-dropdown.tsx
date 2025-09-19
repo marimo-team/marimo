@@ -2,6 +2,7 @@
 
 import { MenuIcon } from "lucide-react";
 import React from "react";
+import { useLocale } from "react-aria";
 import { Button } from "@/components/editor/inputs/Inputs";
 import {
   DropdownMenu,
@@ -33,7 +34,7 @@ export const NotebookMenuDropdown: React.FC<Props> = ({
   tooltip = "Actions",
 }) => {
   const actions = useNotebookActions();
-
+  const { locale } = useLocale();
   // Create tooltip content with keyboard shortcut decoration
   const tooltipContent = (
     <div className="flex flex-col gap-2">
@@ -148,7 +149,8 @@ export const NotebookMenuDropdown: React.FC<Props> = ({
           );
         })}
         <DropdownMenuSeparator />
-        <div className="flex-1 px-2 text-xs text-muted-foreground">
+        <div className="flex-1 px-2 text-xs text-muted-foreground flex flex-col gap-1">
+          <span>Locale: {locale}</span>
           <span>Version: {getMarimoVersion()}</span>
         </div>
       </DropdownMenuContent>
