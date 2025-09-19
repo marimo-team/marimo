@@ -16,16 +16,22 @@ describe("prettyNumber", () => {
   });
 });
 
+const options = { locale };
+
 describe("prettyScientificNumber", () => {
   it("should handle special cases", () => {
-    expect(prettyScientificNumber(0)).toBe("0");
-    expect(prettyScientificNumber(Number.NaN)).toBe("NaN");
-    expect(prettyScientificNumber(Number.POSITIVE_INFINITY)).toBe("Infinity");
-    expect(prettyScientificNumber(Number.NEGATIVE_INFINITY)).toBe("-Infinity");
+    expect(prettyScientificNumber(0, options)).toBe("0");
+    expect(prettyScientificNumber(Number.NaN, options)).toBe("NaN");
+    expect(prettyScientificNumber(Number.POSITIVE_INFINITY, options)).toBe(
+      "Infinity",
+    );
+    expect(prettyScientificNumber(Number.NEGATIVE_INFINITY, options)).toBe(
+      "-Infinity",
+    );
   });
 
   it("should format decimals with scientific notation, ignoring integer part rounding", () => {
-    const opts = { shouldRound: true };
+    const opts = { shouldRound: true, locale };
     expect(prettyScientificNumber(123_456, opts)).toBe("123,456");
     expect(prettyScientificNumber(123_456.7, opts)).toBe("123,456.7");
     expect(prettyScientificNumber(12_345.6789, opts)).toBe("12,345.68");
@@ -42,10 +48,10 @@ describe("prettyScientificNumber", () => {
   });
 
   it("should not round numbers when shouldRound is false", () => {
-    expect(prettyScientificNumber(123_456)).toBe("123,456");
-    expect(prettyScientificNumber(123_456.7)).toBe("123,456.7");
-    expect(prettyScientificNumber(12_345.6789)).toBe("12,345.6789");
-    expect(prettyScientificNumber(1.234_567_891_011_12)).toBe(
+    expect(prettyScientificNumber(123_456, options)).toBe("123,456");
+    expect(prettyScientificNumber(123_456.7, options)).toBe("123,456.7");
+    expect(prettyScientificNumber(12_345.6789, options)).toBe("12,345.6789");
+    expect(prettyScientificNumber(1.234_567_891_011_12, options)).toBe(
       "1.23456789101112",
     );
   });

@@ -51,7 +51,7 @@ export function prettyScientificNumber(
     // Default to false
     shouldRound?: boolean;
     locale?: string;
-  } = {},
+  },
 ): string {
   // Handle special cases first
   const specialCase = scientificSpecialCase(value);
