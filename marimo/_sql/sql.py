@@ -12,7 +12,11 @@ from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import QueryEngine
 from marimo._sql.get_engines import SUPPORTED_ENGINES
-from marimo._sql.utils import raise_df_import_error
+from marimo._sql.utils import (
+    extract_explain_content,
+    is_explain_query,
+    raise_df_import_error,
+)
 from marimo._types.ids import VariableName
 from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 
@@ -103,9 +107,14 @@ def sql(
             raise_df_import_error("polars[pyarrow]")
 
     if output:
+        from marimo._plugins.stateless.plain_text import plain_text
         from marimo._plugins.ui._impl import table
 
-        if can_narwhalify_lazyframe(df):
+        if isinstance(sql_engine, DuckDBEngine) and is_explain_query(query):
+            # For EXPLAIN queries in DuckDB, display plain output to preserve box drawings
+            text_output = extract_explain_content(df)
+            t = plain_text(text_output)
+        elif can_narwhalify_lazyframe(df):
             # For pl.LazyFrame and DuckDBRelation, we only show the first few rows
             # to avoid loading all the data into memory.
             # Also preload the first page of data without user confirmation.
