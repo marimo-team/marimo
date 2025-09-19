@@ -45,6 +45,7 @@ import { JsonOutputPlugin } from "./layout/JsonOutputPlugin";
 import { LazyPlugin } from "./layout/LazyPlugin";
 import { MimeRendererPlugin } from "./layout/MimeRenderPlugin";
 import { MermaidPlugin } from "./layout/mermaid/MermaidPlugin";
+import { OutlinePlugin } from "./layout/OutlinePlugin";
 import { ProgressPlugin } from "./layout/ProgressPlugin";
 import { RoutesPlugin } from "./layout/RoutesPlugin";
 import { StatPlugin } from "./layout/StatPlugin";
@@ -99,6 +100,7 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new MimeRendererPlugin(),
   new MermaidPlugin(),
   new NavigationMenuPlugin(),
+  new OutlinePlugin(),
   new ProgressPlugin(),
   new RoutesPlugin(),
   new StatPlugin(),
