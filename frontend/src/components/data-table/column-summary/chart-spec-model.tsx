@@ -64,17 +64,34 @@ export class ColumnChartSpecModel<T> {
   private dataSpec: TopLevelSpec["data"];
   private sourceName: "data_0" | "source_0";
 
+  private readonly data: T[] | string;
+  private readonly fieldTypes: FieldTypes;
+  readonly stats: Record<ColumnName, Partial<ColumnHeaderStats>>;
+  readonly binValues: Record<ColumnName, BinValues>;
+  readonly valueCounts: Record<ColumnName, ValueCounts>;
+  private readonly opts: {
+    includeCharts: boolean;
+    usePreComputedValues?: boolean;
+  };
+
   constructor(
-    private readonly data: T[] | string,
-    private readonly fieldTypes: FieldTypes,
-    readonly stats: Record<ColumnName, Partial<ColumnHeaderStats>>,
-    readonly binValues: Record<ColumnName, BinValues>,
-    readonly valueCounts: Record<ColumnName, ValueCounts>,
-    private readonly opts: {
+    data: T[] | string,
+    fieldTypes: FieldTypes,
+    stats: Record<ColumnName, Partial<ColumnHeaderStats>>,
+    binValues: Record<ColumnName, BinValues>,
+    valueCounts: Record<ColumnName, ValueCounts>,
+    opts: {
       includeCharts: boolean;
       usePreComputedValues?: boolean;
     },
   ) {
+    this.data = data;
+    this.fieldTypes = fieldTypes;
+    this.stats = stats;
+    this.binValues = binValues;
+    this.valueCounts = valueCounts;
+    this.opts = opts;
+
     // Data may come in from a few different sources:
     // - A URL
     // - A CSV data URI (e.g. "data:text/csv;base64,...")

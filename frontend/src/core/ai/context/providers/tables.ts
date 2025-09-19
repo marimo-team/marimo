@@ -17,9 +17,10 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
   readonly title = "Tables";
   readonly mentionPrefix = "@";
   readonly contextType = "data";
-
-  constructor(private tablesMap: DatasetTablesMap) {
+  private tablesMap: DatasetTablesMap;
+  constructor(tablesMap: DatasetTablesMap) {
     super();
+    this.tablesMap = tablesMap;
   }
 
   getItems(): TableContextItem[] {

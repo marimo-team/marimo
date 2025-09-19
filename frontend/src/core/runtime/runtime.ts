@@ -10,11 +10,12 @@ import type { RuntimeConfig } from "./types";
 
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
+  private config: RuntimeConfig;
+  private lazy: boolean;
 
-  constructor(
-    private config: RuntimeConfig,
-    private lazy = false,
-  ) {
+  constructor(config: RuntimeConfig, lazy = false) {
+    this.config = config;
+    this.lazy = lazy;
     // Validate the URL on construction
     try {
       new URL(this.config.url);

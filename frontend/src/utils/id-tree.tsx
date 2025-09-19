@@ -23,11 +23,15 @@ export type CellIndex = number & { __brand?: "CellIndex" };
  * Tree data structure for handling ids with nested children
  */
 export class TreeNode<T> {
-  constructor(
-    public value: T,
-    public isCollapsed: boolean,
-    public children: Array<TreeNode<T>>,
-  ) {}
+  public value: T;
+  public isCollapsed: boolean;
+  public children: Array<TreeNode<T>>;
+
+  constructor(value: T, isCollapsed: boolean, children: Array<TreeNode<T>>) {
+    this.value = value;
+    this.isCollapsed = isCollapsed;
+    this.children = children;
+  }
 
   /**
    * Recursively count the number of nodes in the tree
@@ -102,10 +106,13 @@ export class TreeNode<T> {
 let uniqueId = 0;
 
 export class CollapsibleTree<T> {
-  private constructor(
-    public readonly nodes: Array<TreeNode<T>>,
-    public readonly id: CellColumnId,
-  ) {}
+  public readonly nodes: Array<TreeNode<T>>;
+  public readonly id: CellColumnId;
+
+  private constructor(nodes: Array<TreeNode<T>>, id: CellColumnId) {
+    this.nodes = nodes;
+    this.id = id;
+  }
 
   static from<T>(ids: T[]): CollapsibleTree<T> {
     const id = `tree_${uniqueId++}` as CellColumnId;
@@ -592,7 +599,11 @@ export class CollapsibleTree<T> {
 }
 
 export class MultiColumn<T> {
-  constructor(private readonly columns: ReadonlyArray<CollapsibleTree<T>>) {
+  private readonly columns: ReadonlyArray<CollapsibleTree<T>>;
+
+  constructor(columns: ReadonlyArray<CollapsibleTree<T>>) {
+    this.columns = columns;
+
     // Ensure there is always at least one column
     if (columns.length === 0) {
       this.columns = [CollapsibleTree.from([])];

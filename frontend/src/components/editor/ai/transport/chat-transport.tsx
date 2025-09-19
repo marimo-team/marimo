@@ -13,11 +13,14 @@ import {
 export class StreamingChunkTransport<
   UI_MESSAGE extends UIMessage,
 > extends DefaultChatTransport<UI_MESSAGE> {
+  private onChunkReceived: (chunk: UIMessageChunk) => void;
+
   constructor(
     options: HttpChatTransportInitOptions<UI_MESSAGE> = {},
-    private onChunkReceived: (chunk: UIMessageChunk) => void,
+    onChunkReceived: (chunk: UIMessageChunk) => void,
   ) {
     super(options);
+    this.onChunkReceived = onChunkReceived;
   }
 
   protected override processResponseStream(

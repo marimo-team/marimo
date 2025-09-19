@@ -64,9 +64,11 @@ export class ErrorContextProvider extends AIContextProvider<ErrorContextItem> {
   readonly title = "Errors";
   readonly mentionPrefix = "@";
   readonly contextType = "error";
+  private store: JotaiStore;
 
-  constructor(private store: JotaiStore) {
+  constructor(store: JotaiStore) {
     super();
+    this.store = store;
   }
 
   getItems(): ErrorContextItem[] {

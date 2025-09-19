@@ -12,7 +12,10 @@ interface Storage<T> {
 }
 
 export class TypedLocalStorage<T> implements Storage<T> {
-  constructor(private defaultValue: T) {}
+  private defaultValue: T;
+  constructor(defaultValue: T) {
+    this.defaultValue = defaultValue;
+  }
 
   get(key: string): T {
     try {
@@ -33,10 +36,16 @@ export class TypedLocalStorage<T> implements Storage<T> {
 }
 
 export class ZodLocalStorage<T> implements Storage<T> {
+  private schema: ZodType<T, ZodTypeDef, unknown>;
+  private getDefaultValue: () => T;
+
   constructor(
-    private schema: ZodType<T, ZodTypeDef, unknown>,
-    private getDefaultValue: () => T,
-  ) {}
+    schema: ZodType<T, ZodTypeDef, unknown>,
+    getDefaultValue: () => T,
+  ) {
+    this.schema = schema;
+    this.getDefaultValue = getDefaultValue;
+  }
 
   get(key: string): T {
     try {

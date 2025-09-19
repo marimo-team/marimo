@@ -452,10 +452,13 @@ export class HotkeyProvider implements IHotkeyProvider {
     return new HotkeyProvider(DEFAULT_HOT_KEY, { platform });
   }
 
+  private hotkeys: Record<HotkeyAction, Hotkey>;
+
   constructor(
-    private hotkeys: Record<HotkeyAction, Hotkey>,
+    hotkeys: Record<HotkeyAction, Hotkey>,
     options: HotkeyProviderOptions = {},
   ) {
+    this.hotkeys = hotkeys;
     this.platform = options.platform ?? resolvePlatform();
     this.mod = this.platform === "mac" ? "Cmd" : "Ctrl";
   }
@@ -503,13 +506,14 @@ export class HotkeyProvider implements IHotkeyProvider {
 }
 
 export class OverridingHotkeyProvider extends HotkeyProvider {
+  private readonly overrides: Partial<Record<HotkeyAction, string | undefined>>;
+
   constructor(
-    private readonly overrides: Partial<
-      Record<HotkeyAction, string | undefined>
-    >,
+    overrides: Partial<Record<HotkeyAction, string | undefined>>,
     options: HotkeyProviderOptions = {},
   ) {
     super(DEFAULT_HOT_KEY, options);
+    this.overrides = overrides;
   }
 
   override getHotkey(action: HotkeyAction): ResolvedHotkey {
