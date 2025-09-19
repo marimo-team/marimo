@@ -163,3 +163,9 @@ jobs:
         run: |
           uv add pytest pytest-asyncio
           uv pip install marimo*whl
+
+      - name: Check notebook quality with marimo check
+        shell: bash
+        run: |
+          echo "Checking examples directory..."
+          uv run marimo check --ignore-scripts --strict examples/**.py
