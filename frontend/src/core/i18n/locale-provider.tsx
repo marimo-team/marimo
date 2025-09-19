@@ -12,10 +12,24 @@ interface LocaleProviderProps {
 export const LocaleProvider = ({ children }: LocaleProviderProps) => {
   const locale = useAtomValue(localeAtom);
 
-  // If locale is null or undefined, let React Aria auto-detect
-  if (!locale) {
-    return <I18nProvider>{children}</I18nProvider>;
-  }
-
-  return <I18nProvider locale={locale}>{children}</I18nProvider>;
+  return <I18nProvider locale={safeLocale(locale)}>{children}</I18nProvider>;
 };
+
+function safeLocale(locale: string | null | undefined) {
+  if (!locale) {
+    return navigator.language;
+  }
+  if (isValidLocale(locale)) {
+    return locale;
+  }
+  return navigator.language;
+}
+
+function isValidLocale(locale: string) {
+  try {
+    new Intl.NumberFormat(locale);
+    return true;
+  } catch {
+    return false;
+  }
+}

@@ -21,6 +21,7 @@ import {
   Tree,
   type TreeApi,
 } from "react-arborist";
+import { useLocale } from "react-aria";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
@@ -383,6 +384,8 @@ const NotebookList: React.FC<{
 };
 
 const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
+  const { locale } = useLocale();
+
   // If path is a sessionId, then it has not been saved yet
   // We want to keep the sessionId in this case
   const isNewNotebook = isSessionId(file.path);
@@ -427,7 +430,7 @@ const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
         </div>
         {!!file.lastModified && (
           <div className="text-xs text-muted-foreground opacity-80">
-            {timeAgo(file.lastModified * 1000)}
+            {timeAgo(file.lastModified * 1000, locale)}
           </div>
         )}
       </div>

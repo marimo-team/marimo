@@ -4,6 +4,7 @@ import { useAtomValue } from "jotai";
 import { CpuIcon, MemoryStickIcon, MicrochipIcon } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
+import { useNumberFormatter } from "react-aria";
 import { Tooltip } from "@/components/ui/tooltip";
 import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
@@ -56,23 +57,42 @@ const MemoryUsageBar: React.FC<{
 }> = ({ memory, kernel, server }) => {
   const { percent, total, available } = memory;
   const roundedPercent = Math.round(percent);
+
+  const gbFormatter = useNumberFormatter({
+    maximumFractionDigits: 2,
+  });
+  const mbFormatter = useNumberFormatter({
+    maximumFractionDigits: 0,
+  });
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes > 1024 * 1024 * 1024) {
+      return `${gbFormatter.format(bytes / (1024 * 1024 * 1024))} GB`;
+    }
+    return `${mbFormatter.format(bytes / (1024 * 1024))} MB`;
+  };
+
+  const formatGB = (bytes: number): string => {
+    return gbFormatter.format(bytes / (1024 * 1024 * 1024));
+  };
+
   return (
     <Tooltip
       delayDuration={200}
       content={
         <div className="flex flex-col gap-1">
           <span>
-            <b>computer memory:</b> {asGB(total - available)} / {asGB(total)} GB
-            ({roundedPercent}%)
+            <b>computer memory:</b> {formatGB(total - available)} /{" "}
+            {formatGB(total)} GB ({roundedPercent}%)
           </span>
           {server?.memory && (
             <span>
-              <b>marimo server:</b> {asGBorMB(server.memory)}
+              <b>marimo server:</b> {formatBytes(server.memory)}
             </span>
           )}
           {kernel?.memory && (
             <span>
-              <b>kernel:</b> {asGBorMB(kernel.memory)}
+              <b>kernel:</b> {formatBytes(kernel.memory)}
             </span>
           )}
         </div>
@@ -122,6 +142,20 @@ const GPUBar: React.FC<{ gpus: GPU[] }> = ({ gpus }) => {
       gpus.length,
   );
 
+  const gbFormatter = useNumberFormatter({
+    maximumFractionDigits: 2,
+  });
+  const mbFormatter = useNumberFormatter({
+    maximumFractionDigits: 0,
+  });
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes > 1024 * 1024 * 1024) {
+      return `${gbFormatter.format(bytes / (1024 * 1024 * 1024))} GB`;
+    }
+    return `${mbFormatter.format(bytes / (1024 * 1024))} MB`;
+  };
+
   return (
     <Tooltip
       delayDuration={200}
@@ -132,7 +166,7 @@ const GPUBar: React.FC<{ gpus: GPU[] }> = ({ gpus }) => {
               <b>
                 GPU {gpu.index} ({gpu.name}):
               </b>{" "}
-              {asGBorMB(gpu.memory.used)} / {asGBorMB(gpu.memory.total)} GB (
+              {formatBytes(gpu.memory.used)} / {formatBytes(gpu.memory.total)} (
               {Math.round(gpu.memory.percent)}%)
             </span>
           ))}
@@ -160,26 +194,3 @@ const Bar: React.FC<{ percent: number; colorClassName?: string }> = ({
     </div>
   );
 };
-
-function asGBorMB(bytes: number): string {
-  if (bytes > 1024 * 1024 * 1024) {
-    return `${asGB(bytes)} GB`;
-  }
-  return `${asMB(bytes)} MB`;
-}
-
-function asMB(bytes: number) {
-  // 0 decimal places
-  const format = new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 0,
-  });
-  return format.format(bytes / (1024 * 1024));
-}
-
-function asGB(bytes: number) {
-  // At most 2 decimal places
-  const format = new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 2,
-  });
-  return format.format(bytes / (1024 * 1024 * 1024));
-}

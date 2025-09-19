@@ -26,7 +26,6 @@ import {
   parseConfigOverrides,
   parseUserConfig,
 } from "./core/config/config-schema";
-import { LocaleProvider } from "./core/i18n/locale-provider";
 import { MarimoApp, preloadPage } from "./core/MarimoApp";
 import { type AppMode, initialModeAtom, viewStateAtom } from "./core/mode";
 import { cleanupAuthQueryParams } from "./core/network/auth";
@@ -83,11 +82,9 @@ export function mount(options: unknown, el: Element): Error | undefined {
 
     root.render(
       <Provider store={store}>
-        <LocaleProvider>
-          <ThemeProvider>
-            <MarimoApp />
-          </ThemeProvider>
-        </LocaleProvider>
+        <ThemeProvider>
+          <MarimoApp />
+        </ThemeProvider>
       </Provider>,
     );
   } catch (error) {
