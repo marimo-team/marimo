@@ -625,7 +625,6 @@ DEFAULT_CONFIG: MarimoConfig = {
         "default_table_page_size": 10,
         "default_table_max_columns": 50,
         "reference_highlighting": False,
-        "locale": None,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},

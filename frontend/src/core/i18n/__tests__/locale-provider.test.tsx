@@ -1,7 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-/* eslint-disable */
-
 import { cleanup, render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -44,7 +42,7 @@ describe("LocaleProvider", () => {
 
     const i18nProvider = getByTestId("i18n-provider");
     expect(i18nProvider).toBeInTheDocument();
-    expect(i18nProvider.getAttribute("data-locale")).toBe(null);
+    expect(i18nProvider.dataset.locale).toBe(undefined);
     expect(i18nProvider).toHaveTextContent("Test content");
   });
 
@@ -63,7 +61,7 @@ describe("LocaleProvider", () => {
 
     const i18nProvider = getByTestId("i18n-provider");
     expect(i18nProvider).toBeInTheDocument();
-    expect(i18nProvider.getAttribute("data-locale")).toBe(null);
+    expect(i18nProvider.dataset.locale).toBe(undefined);
     expect(i18nProvider).toHaveTextContent("Test content");
   });
 
@@ -83,7 +81,7 @@ describe("LocaleProvider", () => {
 
     const i18nProvider = getByTestId("i18n-provider");
     expect(i18nProvider).toBeInTheDocument();
-    expect(i18nProvider.getAttribute("data-locale")).toBe(testLocale);
+    expect(i18nProvider.dataset.locale).toBe(testLocale);
     expect(i18nProvider).toHaveTextContent("Test content");
   });
 
@@ -104,7 +102,7 @@ describe("LocaleProvider", () => {
       );
 
       const i18nProvider = getByTestId("i18n-provider");
-      expect(i18nProvider.getAttribute("data-locale")).toBe(locale);
+      expect(i18nProvider.dataset.locale).toBe(locale);
       expect(i18nProvider).toHaveTextContent(`Test content for ${locale}`);
 
       // Clean up after each iteration
@@ -150,7 +148,7 @@ describe("LocaleProvider", () => {
     const i18nProvider = getByTestId("i18n-provider");
     expect(i18nProvider).toBeInTheDocument();
     // When no locale is specified in config, it should default to undefined/null
-    expect(i18nProvider.getAttribute("data-locale")).toBe(null);
+    expect(i18nProvider.dataset.locale).toBe(undefined);
     expect(i18nProvider).toHaveTextContent("Test content");
   });
 });
