@@ -40,19 +40,6 @@ class MockSessionView:
 
 
 @dataclass
-class DummyCellData:
-    name: str
-
-
-class DummyCellManager:
-    def __init__(self, names: dict[str, str]) -> None:
-        self._names = names
-
-    def get_cell_data(self, cell_id: str) -> DummyCellData:
-        return DummyCellData(self._names.get(cell_id, cell_id))
-
-
-@dataclass
 class DummyAppFileManager:
     app: object
 
@@ -69,9 +56,7 @@ def test_collect_errors_none() -> None:
     # Empty session view
     session = MockSession(
         session_view=MockSessionView(),
-        app_file_manager=DummyAppFileManager(
-            app=Mock(cell_manager=DummyCellManager({}))
-        ),
+        app_file_manager=DummyAppFileManager(app=Mock()),
     )
 
     summaries = tool._collect_errors(session)  # type: ignore[arg-type]
@@ -89,12 +74,9 @@ def test_collect_errors_marimo_and_stderr() -> None:
     )
     c2 = MockCellOp(console=[MockConsoleOutput(CellChannel.STDERR, "oops")])
 
-    names = {"c1": "Cell 1", "c2": "Cell 2"}
     session = MockSession(
         session_view=MockSessionView(cell_operations={"c1": c1, "c2": c2}),
-        app_file_manager=DummyAppFileManager(
-            app=Mock(cell_manager=DummyCellManager(names))
-        ),
+        app_file_manager=DummyAppFileManager(app=Mock()),
     )
 
     summaries = tool._collect_errors(session)  # type: ignore[arg-type]
@@ -102,11 +84,9 @@ def test_collect_errors_marimo_and_stderr() -> None:
     # Sorted by cell_id: c1 then c2
     assert len(summaries) == 2
     assert summaries[0].cell_id == "c1"
-    assert summaries[0].cell_name == "Cell 1"
     assert len(summaries[0].errors) == 2  # one MARIMO_ERROR, one STDERR
     assert summaries[0].errors[0].type == "ValueError"
     assert summaries[1].cell_id == "c2"
-    assert summaries[1].cell_name == "Cell 2"
     assert len(summaries[1].errors) == 1
     assert summaries[1].errors[0].type == "STDERR"
 
@@ -117,9 +97,7 @@ def test_handle_integration_uses_context_get_session() -> None:
     c1 = MockCellOp(console=[MockConsoleOutput(CellChannel.STDERR, "warn")])
     session = MockSession(
         session_view=MockSessionView(cell_operations={"c1": c1}),
-        app_file_manager=DummyAppFileManager(
-            app=Mock(cell_manager=DummyCellManager({"c1": "Cell 1"}))
-        ),
+        app_file_manager=DummyAppFileManager(app=Mock()),
     )
 
     # Mock ToolContext.get_session

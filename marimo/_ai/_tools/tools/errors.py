@@ -9,7 +9,7 @@ from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.tools.cells import ErrorDetail
 from marimo._ai._tools.types import SuccessResult
 from marimo._server.sessions import Session
-from marimo._types.ids import SessionId
+from marimo._types.ids import CellId_t, SessionId
 
 LOGGER = _loggers.marimo_logger()
 
@@ -21,8 +21,7 @@ class GetNotebookErrorsArgs:
 
 @dataclass
 class CellErrorsSummary:
-    cell_id: str
-    cell_name: str
+    cell_id: CellId_t
     errors: list[ErrorDetail] = field(default_factory=list)
 
 
@@ -71,15 +70,10 @@ class GetNotebookErrors(
     def _collect_errors(self, session: Session) -> list[CellErrorsSummary]:
         from marimo._messaging.cell_output import CellChannel
 
-        cell_manager = session.app_file_manager.app.cell_manager
         session_view = session.session_view
 
         summaries: list[CellErrorsSummary] = []
         for cell_id, cell_op in session_view.cell_operations.items():
-            # Resolve cell name when possible
-            cell_data = cell_manager.get_cell_data(cell_id)
-            cell_name = cell_data.name if cell_data else str(cell_id)
-
             errors: list[ErrorDetail] = []
 
             # Collect structured marimo errors from output
@@ -141,8 +135,7 @@ class GetNotebookErrors(
             if errors:
                 summaries.append(
                     CellErrorsSummary(
-                        cell_id=str(cell_id),
-                        cell_name=cell_name,
+                        cell_id=cell_id,
                         errors=errors,
                     )
                 )
