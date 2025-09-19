@@ -3,6 +3,7 @@
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { TooltipPortal } from "@radix-ui/react-tooltip";
 import * as React from "react";
+import { useLocale } from "react-aria";
 import { cn } from "@/utils/cn";
 import { prettyScientificNumber } from "@/utils/numbers";
 import { useBoolean } from "../../hooks/useBoolean";
@@ -20,6 +21,7 @@ const RangeSlider = React.forwardRef<
   }
 >(({ className, valueMap, ...props }, ref) => {
   const [open, openActions] = useBoolean(false);
+  const { locale } = useLocale();
 
   return (
     <SliderPrimitive.Root
@@ -66,7 +68,7 @@ const RangeSlider = React.forwardRef<
           <TooltipPortal>
             {props.value != null && props.value.length === 2 && (
               <TooltipContent key={props.value[0]}>
-                {prettyScientificNumber(valueMap(props.value[0]))}
+                {prettyScientificNumber(valueMap(props.value[0]), { locale })}
               </TooltipContent>
             )}
           </TooltipPortal>
@@ -87,7 +89,7 @@ const RangeSlider = React.forwardRef<
           <TooltipPortal>
             {props.value != null && props.value.length === 2 && (
               <TooltipContent key={props.value[1]}>
-                {prettyScientificNumber(valueMap(props.value[1]))}
+                {prettyScientificNumber(valueMap(props.value[1]), { locale })}
               </TooltipContent>
             )}
           </TooltipPortal>
