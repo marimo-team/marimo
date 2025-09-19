@@ -101,7 +101,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         """
         database_name = None
         try:
-            database_name = self._connection.current_catalog
+            database_name = str(self._connection.current_catalog)
         except AttributeError:
             LOGGER.debug("Backend doesn't support current_catalog")
         except Exception:
@@ -109,7 +109,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
         if database_name is None:
             try:
-                database_name = self._connection.name
+                database_name = str(self._connection.name)
             except AttributeError:
                 LOGGER.debug("Backend doesn't have a connection name")
             except Exception:
@@ -121,7 +121,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         """Get the default schema name"""
         schema_name = None
         try:
-            schema_name = self._connection.current_database
+            schema_name = str(self._connection.current_database)
         except AttributeError:
             LOGGER.debug("Backend doesn't support current_database")
         except Exception:
@@ -165,9 +165,10 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             return []
 
         for database_name in database_names:
+            database_name_str = str(database_name)
             if self._resolve_should_auto_discover(include_schemas):
                 schemas = self._get_schemas(
-                    database=database_name,
+                    database=database_name_str,
                     include_tables=self._resolve_should_auto_discover(
                         include_tables
                     ),
@@ -179,7 +180,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
                 schemas = []
 
             database: Database = Database(
-                name=database_name,
+                name=database_name_str,
                 dialect=self.dialect,
                 schemas=schemas,
                 engine=self._engine_name,
