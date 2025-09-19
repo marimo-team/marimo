@@ -1,9 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-export function prettyNumber(
-  value: unknown,
-  locale: string | undefined,
-): string {
+export function prettyNumber(value: unknown, locale: string): string {
   if (value === undefined || value === null) {
     return "";
   }
@@ -48,9 +45,8 @@ function scientificSpecialCase(value: number): string | null {
 export function prettyScientificNumber(
   value: number,
   opts: {
-    // Default to false
-    shouldRound?: boolean;
-    locale?: string;
+    shouldRound?: boolean; // Default to false
+    locale: string;
   },
 ): string {
   // Handle special cases first
@@ -108,10 +104,7 @@ const prefixes = {
   "-24": "y",
 };
 
-export function prettyEngineeringNumber(
-  value: number,
-  locale: string | undefined,
-): string {
+export function prettyEngineeringNumber(value: number, locale: string): string {
   // Handle special cases first
   const specialCase = scientificSpecialCase(value);
   if (specialCase !== null) {

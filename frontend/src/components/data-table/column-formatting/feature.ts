@@ -40,7 +40,7 @@ export const ColumnFormattingFeature: TableFeature = {
     return {
       enableColumnFormatting: true,
       onColumnFormattingChange: makeStateUpdater("columnFormatting", table),
-      locale: undefined,
+      locale: table.options.locale,
     } as ColumnFormattingOptions;
   },
 
@@ -87,7 +87,7 @@ export const ColumnFormattingFeature: TableFeature = {
   },
 };
 
-export const getFormatters = memoizeLastValue((locale: string | undefined) => {
+export const getFormatters = memoizeLastValue((locale: string) => {
   const percentFormatter = new Intl.NumberFormat(locale, {
     style: "percent",
     minimumFractionDigits: 0,
@@ -128,7 +128,7 @@ export const applyFormat = (
   options: {
     format: FormatOption;
     dataType: DataType | undefined;
-    locale: string | undefined;
+    locale: string;
   },
 ) => {
   const { format, dataType, locale } = options;
@@ -172,7 +172,7 @@ export const applyFormat = (
         case "Percent":
           return percentFormatter.format(num);
         case "Scientific":
-          return prettyScientificNumber(num, { shouldRound: true });
+          return prettyScientificNumber(num, { shouldRound: true, locale });
         case "Engineering":
           return prettyEngineeringNumber(num, locale);
         case "Integer":
@@ -223,7 +223,7 @@ export const applyFormat = (
 
 export function formattingExample(
   format: FormatOption,
-  locale: string | undefined,
+  locale: string,
 ): string | number | undefined | null {
   switch (format) {
     case "Date":

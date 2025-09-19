@@ -178,7 +178,7 @@ export function renderPreviewError({
 export function renderStats(
   stats: Partial<Record<ColumnHeaderStatsKey, unknown>>,
   dataType: DataType,
-  locale: string | undefined,
+  locale: string,
 ) {
   return (
     <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 empty:hidden">

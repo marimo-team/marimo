@@ -319,17 +319,14 @@ export const PageSelector = ({
   );
 };
 
-export function prettifyRowCount(
-  rowCount: number,
-  locale: string | undefined,
-): string {
+export function prettifyRowCount(rowCount: number, locale: string): string {
   return `${prettyNumber(rowCount, locale)} ${new PluralWord("row").pluralize(rowCount)}`;
 }
 
 export const prettifyRowColumnCount = (
   numRows: number | "too_many",
   totalColumns: number,
-  locale: string | undefined,
+  locale: string,
 ): string => {
   const rowsLabel =
     numRows === "too_many" ? "Unknown" : prettifyRowCount(numRows, locale);

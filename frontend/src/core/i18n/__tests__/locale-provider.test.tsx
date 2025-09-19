@@ -2,10 +2,22 @@
 
 import { cleanup, render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { userConfigAtom } from "@/core/config/config";
 import { parseUserConfig } from "@/core/config/config-schema";
 import { LocaleProvider } from "../locale-provider";
+
+// Mock navigator.language with a getter
+let mockNavigatorLanguage: string | undefined;
+
+Object.defineProperty(window, "navigator", {
+  value: {
+    get language() {
+      return mockNavigatorLanguage;
+    },
+  },
+  writable: true,
+});
 
 // Mock react-aria-components I18nProvider
 vi.mock("react-aria-components", () => ({
@@ -14,7 +26,7 @@ vi.mock("react-aria-components", () => ({
     locale,
   }: {
     children: React.ReactNode;
-    locale?: string;
+    locale: string;
   }) => (
     <div data-testid="i18n-provider" data-locale={locale}>
       {children}
@@ -23,8 +35,16 @@ vi.mock("react-aria-components", () => ({
 }));
 
 describe("LocaleProvider", () => {
+  beforeEach(() => {
+    // Reset the mock before each test
+    mockNavigatorLanguage = undefined;
+  });
+
   afterEach(() => {
     cleanup();
+    // Clear all mocks after each test
+    mockNavigatorLanguage = undefined;
+    vi.clearAllMocks();
   });
 
   it("should render I18nProvider without locale when locale is null", () => {
@@ -133,6 +153,8 @@ describe("LocaleProvider", () => {
   });
 
   it("should auto-detect locale when no locale is set in config", () => {
+    mockNavigatorLanguage = "de-DE";
+
     const store = createStore();
     const config = parseUserConfig({});
     store.set(userConfigAtom, config);
@@ -147,8 +169,8 @@ describe("LocaleProvider", () => {
 
     const i18nProvider = getByTestId("i18n-provider");
     expect(i18nProvider).toBeInTheDocument();
-    // When no locale is specified in config, it should default to undefined/null
-    expect(i18nProvider.dataset.locale).toBe(undefined);
+    // When no locale is specified in config, it should use navigator.language
+    expect(i18nProvider.dataset.locale).toBe("de-DE");
     expect(i18nProvider).toHaveTextContent("Test content");
   });
 });
