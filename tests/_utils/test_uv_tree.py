@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 
 import pytest
@@ -12,7 +13,7 @@ from marimo._server.models.packages import DependencyTreeNode
 from marimo._utils.uv_tree import parse_uv_tree
 from tests.mocks import snapshotter
 
-UV_BIN = os.environ.get("UV")
+UV_BIN = os.environ.get("UV") or shutil.which("uv")
 SELF_DIR = pathlib.Path(__file__).parent
 snapshot_test = snapshotter(__file__)
 
@@ -47,8 +48,7 @@ def test_complex_project_tree(tmp_path: pathlib.Path) -> None:
     raw = uv(["tree", "--no-dedupe"], cwd=str(project_dir))
     tree = parse_uv_tree(raw)
     assert tree is not None
-    # TODO: this currently fails
-    # snapshot_test("complex_project_tree.json", serialize(tree))
+    snapshot_test("complex_project_tree.json", serialize(tree))
 
 
 @pytest.mark.skipif(UV_BIN is None, reason="requires uv executable.")
