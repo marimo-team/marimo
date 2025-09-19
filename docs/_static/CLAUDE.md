@@ -79,7 +79,7 @@ Marimo's reactivity means:
 </data_sources>
 
 <sql>
-- When writing duckdb, prefer using marimo's SQL cells, which start with _df = mo.sql(query)
+- When writing duckdb, prefer using marimo's SQL cells, which start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
 - See the SQL with duckdb example for an example on how to do this
 - Don't add comments in cells that use mo.sql()
 - Consider using \`vega_datasets\` for common example datasets
