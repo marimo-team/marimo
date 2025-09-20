@@ -125,9 +125,9 @@ const ToolArgsRenderer: React.FC<{ input: unknown }> = ({ input }) => {
 
   return (
     <div className="space-y-2">
-      <div className="text-xs font-semibold text-muted-foreground">
+      <h3 className="text-xs font-semibold text-muted-foreground">
         Tool Request
-      </div>
+      </h3>
       <pre className="bg-[var(--slate-2)] p-2 text-muted-foreground border border-[var(--slate-4)] rounded text-xs overflow-auto scrollbar-thin max-h-64">
         {isObject ? JSON.stringify(input, null, 2) : String(input)}
       </pre>
