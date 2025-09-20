@@ -5,7 +5,6 @@ import logging
 
 from marimo._lint.context import LintContext, RuleContext
 from marimo._lint.rules.formatting.parsing import (
-    DuckdbRule,
     MiscLogRule,
     SqlParseRule,
 )

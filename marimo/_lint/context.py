@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import heapq
-import logging
+import logging  # noqa: TC003
 import threading
 from typing import TYPE_CHECKING
 
-from marimo._ast.load import load_notebook_ir
+# Note: load_notebook_ir not used - we do manual compilation for per-cell log capture
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._loggers import capture_output
 from marimo._schemas.serialization import NotebookSerialization
@@ -48,6 +48,7 @@ class LintContext:
         self.stdout = stdout
         self._log_records = logs or []
         self._logs_by_rule: dict[str, list[logging.LogRecord]] = {}
+        self._logs_by_cell_and_rule: dict[str, dict[str, list[logging.LogRecord]]] = {}
 
     def _get_diagnostics_lock(self) -> asyncio.Lock:
         """Get the diagnostics lock, creating it if needed."""
@@ -135,30 +136,49 @@ class LintContext:
             if self._graph is not None:
                 return self._graph
 
-
-            # Construct the graph
-            with capture_output() as (stdout, stderr, logs):
-                app = load_notebook_ir(self.notebook)
-            self._graph = app._graph
-
             # Group any initial logs
             self._group_initial_logs()
 
-            # Group new logs as they come in
-            for record in logs:
-                # Check if record has lint_rule metadata
-                lint_rule = getattr(record, "lint_rule", None)
-                if hasattr(record, "__dict__") and "lint_rule" in record.__dict__:
-                    lint_rule = record.__dict__["lint_rule"]
+            # Manually compile the graph with per-cell log capture
+            from marimo._ast.app import App, InternalApp
+            from marimo._schemas.serialization import UnparsableCell
 
-                # Default to MF007 (misc) if no specific rule
-                rule_code = lint_rule if lint_rule else "MF007"
+            # Create the app
+            app = App(**self.notebook.app.options, _filename=self.notebook.filename)
+            self._graph = app._graph
 
-                if rule_code not in self._logs_by_rule:
-                    self._logs_by_rule[rule_code] = []
-                self._logs_by_rule[rule_code].append(record)
+            # Process each cell individually to capture logs per-cell
+            for i, cell in enumerate(self.notebook.cells):
+                if isinstance(cell, UnparsableCell):
+                    app._unparsable_cell(cell.code, **cell.options)
+                    continue
 
-            self._log_records.extend(logs)
+                # Capture logs during this specific cell's compilation
+                with capture_output() as (_, _, cell_logs):
+                    # TODO: Call ir_cell_factory direct
+                    # Copy the structure of register_ir_cell but 
+                    # with special handling for thrown exceptions
+                    app._cell_manager.register_ir_cell(cell, InternalApp(app))
+
+                # Enhance logs with cell information and store globally
+                # TODO: Could probably move this out to a function
+                cell_id = f"cell-{i}"
+                for record in cell_logs:
+                    # Add cell information to the log record
+                    if hasattr(record, "__dict__"):
+                        record.__dict__["cell_id"] = cell_id
+                        record.__dict__["cell_lineno"] = cell.lineno
+
+                    lint_rule = getattr(record, "lint_rule", None)
+                    if hasattr(record, "__dict__") and "lint_rule" in record.__dict__:
+                        lint_rule = record.__dict__["lint_rule"]
+
+                    rule_code = lint_rule if lint_rule else "MF007"
+                    if rule_code not in self._logs_by_rule:
+                        self._logs_by_rule[rule_code] = []
+                    self._logs_by_rule[rule_code].append(record)
+
+                self._log_records.extend(cell_logs)
 
             # Initialize the app to register cells in the graph
             for cell_id, cell in app._cell_manager.valid_cells():
@@ -217,4 +237,19 @@ class RuleContext:
             return self.global_context._log_records
 
         return self.global_context._logs_by_rule.get(rule_code, [])
+
+    def get_logs_for_cell(self, cell_id: str, rule_code: str | None = None) -> list[logging.LogRecord]:
+        """Get log records for a specific cell and rule."""
+        if cell_id not in self.global_context._logs_by_cell_and_rule:
+            return []
+
+        cell_logs = self.global_context._logs_by_cell_and_rule[cell_id]
+        if rule_code is None:
+            # Return all logs for this cell
+            all_logs = []
+            for logs in cell_logs.values():
+                all_logs.extend(logs)
+            return all_logs
+
+        return cell_logs.get(rule_code, [])
 

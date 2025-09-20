@@ -202,34 +202,31 @@ class SqlParseRule(LintRule):
         logs = ctx.get_logs(self.code)
 
         for record in logs:
-            # Extract metadata from log record
+            # Extract metadata from log record - ONLY use extra_data
             extra_data = getattr(record, '__dict__', {})
 
-            # Get error type and create clean message
-            error_type = extra_data.get('error_type', 'ParseError')
-            clean_message = f"SQL parsing error: {error_type}"
+            # Use original message format
+            message = extra_data.get('error_type', 'ParseError')
 
-            # Get node position (should be SQL string constant)
-            node_lineno = extra_data.get('node_lineno', 1)
-            node_col_offset = extra_data.get('node_col_offset', 0)
+            # Calculate line position using cell information
+            cell_lineno = extra_data.get('cell_lineno', 0)  # Cell start line in notebook
+            node_lineno = extra_data.get('node_lineno', 1)  # Node line within cell
+            sql_line = extra_data.get('sql_line')  # SQL line within SQL string
 
-            # Get SQL position within the SQL string (from our metadata utility)
-            sql_line = extra_data.get('sql_line')
-            sql_col = extra_data.get('sql_col')
+            # Start with cell position + node position within cell
+            line = cell_lineno + node_lineno - 1  # Convert to 0-based
 
-            # Calculate position: node position + SQL offset
-            line = node_lineno - 1  # Convert to 0-based
-            col = node_col_offset
-
-            # Add SQL offset if available
+            # Add SQL line offset if available
             if sql_line is not None:
-                line += sql_line + 1  # +1 to skip opening quote line
-            if sql_col is not None:
-                col = sql_col
+                line += sql_line
+
+            # Use SQL column if available, otherwise node column
+            sql_col = extra_data.get('sql_col')
+            col = sql_col if sql_col is not None else extra_data.get('node_col_offset', 0)
 
             await ctx.add_diagnostic(
                 Diagnostic(
-                    message=clean_message,
+                    message=message,
                     line=line,
                     cell_id=None,
                     column=col,
