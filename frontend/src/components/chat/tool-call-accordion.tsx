@@ -45,17 +45,21 @@ const PrettySuccessResult: React.FC<{ data: SuccessResult }> = ({ data }) => {
   } = data;
 
   return (
-    <div className="py-1 flex flex-col gap-1">
-      {/* Status */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-[var(--grass-11)] capitalize">
-          {status}
-        </span>
-        {auth_required && (
-          <span className="text-xs px-2 py-0.5 bg-[var(--amber-2)] text-[var(--amber-11)] rounded-full">
-            Auth Required
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-muted-foreground">
+          Tool Result
+        </h3>
+        <div className="flex items-center gap-2">
+          <span className="text-xs px-2 py-0.5 bg-[var(--grass-2)] text-[var(--grass-11)] rounded-full font-medium capitalize">
+            {status}
           </span>
-        )}
+          {auth_required && (
+            <span className="text-xs px-2 py-0.5 bg-[var(--amber-2)] text-[var(--amber-11)] rounded-full">
+              Auth Required
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Message */}
@@ -68,17 +72,18 @@ const PrettySuccessResult: React.FC<{ data: SuccessResult }> = ({ data }) => {
 
       {/* Data */}
       {rest && (
-        <div className="flex flex-col gap-1">
+        <div className="space-y-3">
           {Object.entries(rest).map(([key, value]) => {
             if (isEmpty(value)) {
               return null;
             }
             return (
-              <div key={key}>
-                <div className="text-xs font-medium text-muted-foreground mb-1 capitalize">
-                  {key}:
+              <div key={key} className="space-y-1.5">
+                <div className="text-xs font-medium text-muted-foreground capitalize flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-[var(--blue-9)] rounded-full" />
+                  {key}
                 </div>
-                <pre className="bg-[var(--slate-2)] p-1 text-muted-foreground border border-[var(--slate-4)] rounded text-xs overflow-auto scrollbar-thin max-h-64">
+                <pre className="bg-[var(--slate-2)] p-2 text-muted-foreground border border-[var(--slate-4)] rounded text-xs overflow-auto scrollbar-thin max-h-64">
                   {JSON.stringify(value, null, 2)}
                 </pre>
               </div>
@@ -107,6 +112,29 @@ const ResultRenderer: React.FC<{ result: unknown }> = ({ result }) => {
   );
 };
 
+const ToolArgsRenderer: React.FC<{ input: unknown }> = ({ input }) => {
+  const hasinput = input && input !== null;
+
+  if (!hasinput) {
+    return null;
+  }
+
+  const isObject =
+    typeof input === "object" &&
+    Object.keys(input as Record<string, unknown>).length > 0;
+
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-semibold text-muted-foreground">
+        Tool Request
+      </div>
+      <pre className="bg-[var(--slate-2)] p-2 text-muted-foreground border border-[var(--slate-4)] rounded text-xs overflow-auto scrollbar-thin max-h-64">
+        {isObject ? JSON.stringify(input, null, 2) : String(input)}
+      </pre>
+    </div>
+  );
+};
+
 interface ToolCallAccordionProps {
   toolName: string;
   result: unknown;
@@ -114,6 +142,7 @@ interface ToolCallAccordionProps {
   index?: number;
   state?: ToolUIPart["state"];
   className?: string;
+  input?: unknown;
 }
 
 export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
@@ -123,6 +152,7 @@ export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
   index = 0,
   state,
   className,
+  input,
 }) => {
   const hasResult = state === "output-available" && (result || error);
   const status = error ? "error" : hasResult ? "success" : "loading";
@@ -176,21 +206,23 @@ export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
             </code>
           </span>
         </AccordionTrigger>
-        <AccordionContent className="pb-2 px-2">
+        <AccordionContent className="py-2 px-2">
           {/* Only show content when tool is complete */}
           {hasResult && (
             <div className="space-y-3">
+              <ToolArgsRenderer input={input} />
               {result !== undefined && result !== null && (
                 <ResultRenderer result={result} />
               )}
 
               {/* Error */}
               {error && (
-                <div>
-                  <div className="text-xs font-medium text-[var(--red-11)] mb-1">
-                    Error:
+                <div className="bg-[var(--red-2)] border border-[var(--red-6)] rounded-lg p-3">
+                  <div className="text-xs font-semibold text-[var(--red-11)] mb-2 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-[var(--red-9)] rounded-full" />
+                    Error
                   </div>
-                  <div className="bg-[var(--red-2)] border border-[var(--red-6)] rounded-md p-3 text-sm text-[var(--red-11)]">
+                  <div className="text-sm text-[var(--red-11)] leading-relaxed">
                     {error}
                   </div>
                 </div>
