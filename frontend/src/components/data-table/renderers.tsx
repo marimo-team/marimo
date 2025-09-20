@@ -101,6 +101,25 @@ export const DataTableBody = <TData,>({
         cell.getUserStyling?.() || {},
         pinningstyle,
       );
+      const hoverTemplate = table.getState().cellHoverTemplate || undefined;
+      let title: string | undefined;
+      if (hoverTemplate) {
+        title = hoverTemplate;
+        const variableRegex = /{{(\w+)}}/g;
+        const matches = [...hoverTemplate.matchAll(variableRegex)];
+        for (const match of matches) {
+          // if match is in the row, replace it in the string
+          const matchTerm = match[1];
+          const currentCell = cells.find(
+            (cell) => cell.column.id === matchTerm,
+          );
+          if (currentCell) {
+            const cellValue = currentCell.getValue();
+            title = title.replace(match[0], cellValue as string);
+          }
+          console.log(matchTerm, columns);
+        }
+      }
       return (
         <TableCell
           tabIndex={0}
@@ -114,6 +133,7 @@ export const DataTableBody = <TData,>({
             className,
           )}
           style={style}
+          title={title}
           onMouseDown={(e) => handleCellMouseDown(e, cell)}
           onMouseUp={handleCellMouseUp}
           onMouseOver={(e) => handleCellMouseOver(e, cell)}

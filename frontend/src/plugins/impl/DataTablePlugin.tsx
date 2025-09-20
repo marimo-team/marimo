@@ -254,6 +254,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),
       cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
+      hoverTemplate: z.string().optional(),
       // Whether to load the data lazily.
       lazy: z.boolean().default(false),
       // If lazy, this will preload the first page of data
@@ -385,6 +386,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   // Filters
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
+  hoverTemplate?: string | null;
   toggleDisplayHeader?: () => void;
   host: HTMLElement;
   cellId?: CellId | null;
@@ -707,6 +709,7 @@ const DataTableComponent = ({
   totalColumns,
   get_row_ids,
   cellStyles,
+  hoverTemplate,
   toggleDisplayHeader,
   calculate_top_k_rows,
   preview_column,
@@ -904,6 +907,7 @@ const DataTableComponent = ({
             rowSelection={rowSelection}
             cellSelection={cellSelection}
             cellStyling={cellStyles}
+            hoverTemplate={hoverTemplate}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
             searchQuery={searchQuery}
