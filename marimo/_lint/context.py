@@ -126,6 +126,27 @@ class LintContext:
                 self._logs_by_rule[rule_code] = []
             self._logs_by_rule[rule_code].append(record)
 
+    def _enhance_cell_logs(
+        self, cell_logs: list[logging.LogRecord], cell_id: str, cell_lineno: int
+    ) -> None:
+        """Enhance log records with cell information and store globally."""
+        for record in cell_logs:
+            # Add cell information to the log record
+            if hasattr(record, "__dict__"):
+                record.__dict__["cell_id"] = cell_id
+                record.__dict__["cell_lineno"] = cell_lineno
+
+            lint_rule = getattr(record, "lint_rule", None)
+            if hasattr(record, "__dict__") and "lint_rule" in record.__dict__:
+                lint_rule = record.__dict__["lint_rule"]
+
+            rule_code = lint_rule if lint_rule else "MF007"
+            if rule_code not in self._logs_by_rule:
+                self._logs_by_rule[rule_code] = []
+            self._logs_by_rule[rule_code].append(record)
+
+        self._log_records.extend(cell_logs)
+
     def get_graph(self) -> DirectedGraph:
         """Get the dependency graph, constructing it once and caching."""
         if self._graph is not None:
@@ -141,6 +162,8 @@ class LintContext:
 
             # Manually compile the graph with per-cell log capture
             from marimo._ast.app import App, InternalApp
+            from marimo._ast.cell_manager import CellConfig
+            from marimo._ast.compiler import ir_cell_factory
             from marimo._schemas.serialization import UnparsableCell
 
             # Create the app
@@ -155,30 +178,32 @@ class LintContext:
 
                 # Capture logs during this specific cell's compilation
                 with capture_output() as (_, _, cell_logs):
-                    # TODO: Call ir_cell_factory direct
-                    # Copy the structure of register_ir_cell but 
-                    # with special handling for thrown exceptions
-                    app._cell_manager.register_ir_cell(cell, InternalApp(app))
+                    # Call ir_cell_factory directly with proper exception handling
+                    cell_id = app._cell_manager.create_cell_id()
+                    filename = self.notebook.filename
+                    cell_config = CellConfig.from_dict(cell.options)
+
+                    try:
+                        compiled_cell = ir_cell_factory(
+                            cell, cell_id=cell_id, filename=filename
+                        )
+                        compiled_cell._cell.configure(cell_config)
+                        # Register the successfully compiled cell
+                        app._cell_manager._register_cell(compiled_cell, InternalApp(app))
+                    except SyntaxError:
+                        # Handle syntax errors like register_ir_cell does
+                        app._cell_manager.unparsable = True
+                        app._cell_manager.register_cell(
+                            cell_id=cell_id,
+                            code=cell.code,
+                            config=cell_config,
+                            name=cell.name,
+                            cell=None,
+                        )
 
                 # Enhance logs with cell information and store globally
-                # TODO: Could probably move this out to a function
-                cell_id = f"cell-{i}"
-                for record in cell_logs:
-                    # Add cell information to the log record
-                    if hasattr(record, "__dict__"):
-                        record.__dict__["cell_id"] = cell_id
-                        record.__dict__["cell_lineno"] = cell.lineno
-
-                    lint_rule = getattr(record, "lint_rule", None)
-                    if hasattr(record, "__dict__") and "lint_rule" in record.__dict__:
-                        lint_rule = record.__dict__["lint_rule"]
-
-                    rule_code = lint_rule if lint_rule else "MF007"
-                    if rule_code not in self._logs_by_rule:
-                        self._logs_by_rule[rule_code] = []
-                    self._logs_by_rule[rule_code].append(record)
-
-                self._log_records.extend(cell_logs)
+                simplified_cell_id = f"cell-{i}"
+                self._enhance_cell_logs(cell_logs, simplified_cell_id, cell.lineno)
 
             # Initialize the app to register cells in the graph
             for cell_id, cell in app._cell_manager.valid_cells():
@@ -252,4 +277,3 @@ class RuleContext:
             return all_logs
 
         return cell_logs.get(rule_code, [])
-

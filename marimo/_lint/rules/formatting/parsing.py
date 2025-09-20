@@ -205,8 +205,8 @@ class SqlParseRule(LintRule):
             # Extract metadata from log record - ONLY use extra_data
             extra_data = getattr(record, '__dict__', {})
 
-            # Use original message format
-            message = extra_data.get('error_type', 'ParseError')
+            # Use clean message from metadata (without SQL trace)
+            message = extra_data.get('clean_message', 'SQL parsing error')
 
             # Calculate line position using cell information
             cell_lineno = extra_data.get('cell_lineno', 0)  # Cell start line in notebook

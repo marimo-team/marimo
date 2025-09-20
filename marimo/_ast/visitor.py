@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import re
 import sys
 from collections import defaultdict
 from copy import deepcopy
@@ -9,6 +10,8 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Callable, Literal, Optional, Union
 from uuid import uuid4
+
+from typing_extensions import TypedDict  # noqa: TID253
 
 from marimo import _loggers
 from marimo._ast.errors import ImportStarError
@@ -20,11 +23,26 @@ from marimo._ast.sql_visitor import (
     find_sql_refs,
     normalize_sql_f_string,
 )
-from marimo._ast.sql_error_metadata import create_sql_error_metadata
+
+# Note: sql_error_metadata.py not used - we do metadata creation inline
 from marimo._ast.variables import is_local
 from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
+
+
+class SQLErrorMetadata(TypedDict):
+    """Structured metadata for SQL parsing errors."""
+    lint_rule: str
+    error_type: str
+    clean_message: str  # Just the meaningful error without SQL trace
+    node_lineno: int
+    node_col_offset: int
+    sql_statement: str  # Truncated if needed
+    sql_line: Optional[int]  # 0-based line within SQL
+    sql_col: Optional[int]   # 0-based column within SQL
+    context: str
+
 
 Name = str
 
@@ -39,14 +57,39 @@ def _log_sql_error(
     context: str = "",
 ) -> None:
     """Utility to log SQL-related errors with consistent metadata."""
-    metadata = create_sql_error_metadata(
-        exception=exception,
-        node=node,
-        rule_code=rule_code,
-        sql_content=sql_content,
-        context=context,
-    )
-    logger(message, exception, extra=metadata.to_dict())
+    # Parse SQL position from exception message if available
+    sql_line = None
+    sql_col = None
+
+    exception_msg = str(exception)
+    line_col_match = re.search(r'Line (\d+), Col: (\d+)', exception_msg)
+    if line_col_match:
+        sql_line = int(line_col_match.group(1)) - 1  # Convert to 0-based
+        sql_col = int(line_col_match.group(2)) - 1   # Convert to 0-based
+
+    # Extract clean message without SQL trace
+    # The message format is: "Error parsing SQL statement: {actual_error}"
+    clean_message = message % exception  # Format the message template
+
+    # Truncate long SQL content
+    truncated_sql = sql_content
+    if sql_content and len(sql_content) > 200:
+        truncated_sql = sql_content[:200] + "..."
+
+    # Create metadata using TypedDict
+    metadata: SQLErrorMetadata = {
+        "lint_rule": rule_code,
+        "error_type": type(exception).__name__,
+        "clean_message": exception_msg.split('\n', 1)[0],
+        "node_lineno": node.lineno,
+        "node_col_offset": node.col_offset,
+        "sql_statement": truncated_sql,
+        "sql_line": sql_line,
+        "sql_col": sql_col,
+        "context": context,
+    }
+
+    logger(message, exception, extra=metadata)
 
 
 def _log_sql_warning(
@@ -761,7 +804,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         defined_names.add(_catalog)
 
                     sql_refs: set[SQLRef] = set()
-                    missing_tables: set[str] = set()
+                    _missing_tables: set[str] = set()  # Unused but keeping for consistency
                     try:
                         # Take results
                         sql_refs = find_sql_refs_cached(
