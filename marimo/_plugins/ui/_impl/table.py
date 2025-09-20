@@ -335,6 +335,7 @@ class table(
         max_columns (int, optional): Maximum number of columns to display. Defaults to the
             configured default_table_max_columns (50 by default). Set to None to show all columns.
         label (str, optional): A descriptive name for the table. Defaults to "".
+        sort (str, optional): Column name to sort by initially.
     """
 
     _name: Final[str] = "marimo-table"
@@ -446,6 +447,7 @@ class table(
         _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
         _internal_lazy: bool = False,
         _internal_preload: bool = False,
+        sort: Optional[str] = None,
     ) -> None:
         if page_size is None:
             page_size = self.default_page_size
@@ -609,14 +611,36 @@ class table(
         field_types: Optional[FieldTypes] = None
         num_columns = 0
 
+        # Sort support
+        initial_sort: Optional[SortArgs] = None
+        if sort:
+            # Expecting sort="ASC:column" or sort="DESC:column"
+            try:
+                # Splits the string
+                direction, column = sort.split(":")
+                # Cleans up any whitespaces in the string
+                direction = direction.strip().upper()
+                column = column.strip()
+                # Raise an error if these keywords don't pop up
+                if direction not in ("ASC", "DESC"):
+                    raise ValueError
+                descending = direction == "DESC"
+                colnames = set(self._manager.get_column_names())
+                if column in colnames:
+                    initial_sort = SortArgs(by=column, descending=descending)
+            except ValueError:
+                raise ValueError(
+                    "Sort must be a string in the format 'ASC:column' or 'DESC:column'"
+                )
+
         if not _internal_lazy:
-            # Search first page
+            # Search first page, with initial sort if specified
             search_result = self._search(
                 SearchTableArgs(
                     page_size=page_size,
                     page_number=0,
                     query=None,
-                    sort=None,
+                    sort=initial_sort,
                     filters=None,
                 )
             )
@@ -707,6 +731,10 @@ class table(
                     function=self._preview_column,
                 ),
             ),
+        )
+
+        self._input_format = (
+            "dict_of_lists" if isinstance(data, dict) else "other"
         )
 
     @property
