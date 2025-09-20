@@ -40,11 +40,11 @@ class GetDatabaseTables(
     ToolBase[GetDatabaseTablesArgs, GetDatabaseTablesOutput]
 ):
     """
-    Get information about tables in a database.
+    Get information about tables in a database. Use the query parameter to search by name. Use regex for complex searches.
 
     Args:
         session_id: The session id.
-        query (optional): The query to match the database, schemas, and tables. Regex is supported.
+        query (optional): The query to match the database, schemas, and tables.
 
     If a query is provided, it will fuzzy match the query to the database, schemas, and tables available. If no query is provided, all tables are returned. Don't provide a query if you need to see the entire schema view.
 

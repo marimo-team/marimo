@@ -238,6 +238,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
                   result={part.output}
                   className="my-2"
                   state={part.state}
+                  input={part.input}
                 />
               );
             }
@@ -269,6 +270,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
                     toolName={part.type}
                     result={part.output}
                     state={part.state}
+                    input={part.input}
                     className="my-2"
                   />
                 );

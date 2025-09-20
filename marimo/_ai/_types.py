@@ -215,6 +215,7 @@ class ChatMessage(msgspec.Struct):
             self.parts = parts
 
     def _convert_part(self, part: Any) -> Optional[ChatPart]:
+        PartType = None
         for PartType in PART_TYPES:
             try:
                 if dataclasses.is_dataclass(part):
