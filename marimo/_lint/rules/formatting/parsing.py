@@ -203,15 +203,19 @@ class SqlParseRule(LintRule):
 
         for record in logs:
             # Extract metadata from log record - ONLY use extra_data
-            extra_data = getattr(record, '__dict__', {})
+            extra_data = getattr(record, "__dict__", {})
 
             # Use clean message from metadata (without SQL trace)
-            message = extra_data.get('clean_message', 'SQL parsing error')
+            message = extra_data.get("clean_message", "SQL parsing error")
 
             # Calculate line position using cell information
-            cell_lineno = extra_data.get('cell_lineno', 0)  # Cell start line in notebook
-            node_lineno = extra_data.get('node_lineno', 1)  # Node line within cell
-            sql_line = extra_data.get('sql_line')  # SQL line within SQL string
+            cell_lineno = extra_data.get(
+                "cell_lineno", 0
+            )  # Cell start line in notebook
+            node_lineno = extra_data.get(
+                "node_lineno", 1
+            )  # Node line within cell
+            sql_line = extra_data.get("sql_line")  # SQL line within SQL string
 
             # Start with cell position + node position within cell
             line = cell_lineno + node_lineno - 1  # Convert to 0-based
@@ -221,8 +225,12 @@ class SqlParseRule(LintRule):
                 line += sql_line
 
             # Use SQL column if available, otherwise node column
-            sql_col = extra_data.get('sql_col')
-            col = sql_col if sql_col is not None else extra_data.get('node_col_offset', 0)
+            sql_col = extra_data.get("sql_col")
+            col = (
+                sql_col
+                if sql_col is not None
+                else extra_data.get("node_col_offset", 0)
+            )
 
             await ctx.add_diagnostic(
                 Diagnostic(

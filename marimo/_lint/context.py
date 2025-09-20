@@ -48,7 +48,13 @@ class LintContext:
         self.stdout = stdout
         self._log_records = logs or []
         self._logs_by_rule: dict[str, list[logging.LogRecord]] = {}
-        self._logs_by_cell_and_rule: dict[str, dict[str, list[logging.LogRecord]]] = {}
+        self._logs_by_cell_and_rule: dict[
+            str, dict[str, list[logging.LogRecord]]
+        ] = {}
+
+        self._errors: dict[
+            str, list[tuple[Exception, NotebookSerialization.CellDef]]
+        ] = {}
 
     def _get_diagnostics_lock(self) -> asyncio.Lock:
         """Get the diagnostics lock, creating it if needed."""
@@ -127,7 +133,10 @@ class LintContext:
             self._logs_by_rule[rule_code].append(record)
 
     def _enhance_cell_logs(
-        self, cell_logs: list[logging.LogRecord], cell_id: str, cell_lineno: int
+        self,
+        cell_logs: list[logging.LogRecord],
+        cell_id: str,
+        cell_lineno: int,
     ) -> None:
         """Enhance log records with cell information and store globally."""
         for record in cell_logs:
@@ -167,7 +176,9 @@ class LintContext:
             from marimo._schemas.serialization import UnparsableCell
 
             # Create the app
-            app = App(**self.notebook.app.options, _filename=self.notebook.filename)
+            app = App(
+                **self.notebook.app.options, _filename=self.notebook.filename
+            )
             self._graph = app._graph
 
             # Process each cell individually to capture logs per-cell
@@ -189,8 +200,10 @@ class LintContext:
                         )
                         compiled_cell._cell.configure(cell_config)
                         # Register the successfully compiled cell
-                        app._cell_manager._register_cell(compiled_cell, InternalApp(app))
-                    except SyntaxError:
+                        app._cell_manager._register_cell(
+                            compiled_cell, InternalApp(app)
+                        )
+                    except SyntaxError as e:
                         # Handle syntax errors like register_ir_cell does
                         app._cell_manager.unparsable = True
                         app._cell_manager.register_cell(
@@ -200,10 +213,19 @@ class LintContext:
                             name=cell.name,
                             cell=None,
                         )
+                        self._errors.setdefault("SyntaxError", []).append(
+                            (e, cell)
+                        )
+                    except Exception as e:
+                        self._errors.setdefault("unhandled", []).append(
+                            (e, cell)
+                        )
 
                 # Enhance logs with cell information and store globally
                 simplified_cell_id = f"cell-{i}"
-                self._enhance_cell_logs(cell_logs, simplified_cell_id, cell.lineno)
+                self._enhance_cell_logs(
+                    cell_logs, simplified_cell_id, cell.lineno
+                )
 
             # Initialize the app to register cells in the graph
             for cell_id, cell in app._cell_manager.valid_cells():
@@ -256,14 +278,23 @@ class RuleContext:
         """Access to the captured stderr."""
         return self.global_context.stderr
 
-    def get_logs(self, rule_code: str | None = None) -> list[logging.LogRecord]:
+    def get_errors(
+        self, key: str
+    ) -> list[tuple[Exception, NotebookSerialization.CellDef]]:
+        return self.global_context._errors.get(key, [])
+
+    def get_logs(
+        self, rule_code: str | None = None
+    ) -> list[logging.LogRecord]:
         """Get log records for a specific rule or all logs if no rule specified."""
         if rule_code is None:
             return self.global_context._log_records
 
         return self.global_context._logs_by_rule.get(rule_code, [])
 
-    def get_logs_for_cell(self, cell_id: str, rule_code: str | None = None) -> list[logging.LogRecord]:
+    def get_logs_for_cell(
+        self, cell_id: str, rule_code: str | None = None
+    ) -> list[logging.LogRecord]:
         """Get log records for a specific cell and rule."""
         if cell_id not in self.global_context._logs_by_cell_and_rule:
             return []

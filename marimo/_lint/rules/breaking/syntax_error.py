@@ -3,14 +3,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from marimo._ast.compiler import (
-    ir_cell_factory,
-)
 from marimo._ast.errors import ImportStarError
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import LintRule
-from marimo._schemas.serialization import UnparsableCell
-from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._lint.context import RuleContext
@@ -98,36 +93,27 @@ class SyntaxErrorRule(LintRule):
 
     async def check(self, ctx: RuleContext) -> None:
         """Check for syntax errors during compilation."""
-        valid_cells = {cell.code for cell in ctx.get_graph().cells.values()}
-        for cell in ctx.notebook.cells:
-            if not isinstance(cell, UnparsableCell) and cell.code not in valid_cells:
-                try:
-                    ir_cell_factory(
-                        cell,
-                        cell_id=CellId_t("Hbol"),
-                        filename=ctx.notebook.filename,
+        for e, cell in ctx.get_errors("SyntaxError"):
+            if isinstance(e, ImportStarError):
+                line, column = _handle_import_star_error(e, cell)
+                await ctx.add_diagnostic(
+                    Diagnostic(
+                        message=IMPORT_STAR_ERROR_MESSAGE,
+                        line=line,
+                        column=column,
+                        fix=IMPORT_STAR_HINT,
                     )
-                # Technically a SyntaxError subclass
-                except ImportStarError as e:
-                    line, column = _handle_import_star_error(e, cell)
-                    await ctx.add_diagnostic(
-                        Diagnostic(
-                            message=IMPORT_STAR_ERROR_MESSAGE,
-                            line=line,
-                            column=column,
-                            fix=IMPORT_STAR_HINT,
-                        )
+                )
+            else:
+                message = f"{e.msg}"
+                await ctx.add_diagnostic(
+                    Diagnostic(
+                        message=message,
+                        line=cell.lineno + (e.lineno or 1) - 1,
+                        column=(e.offset or 1),
+                        fix=_get_known_hints(message),
                     )
-                except SyntaxError as e:
-                    message = f"{e.msg}"
-                    await ctx.add_diagnostic(
-                        Diagnostic(
-                            message=message,
-                            line=cell.lineno + (e.lineno or 1) - 1,
-                            column=(e.offset or 1),
-                            fix=_get_known_hints(message),
-                        )
-                    )
+                )
 
 
 def _handle_import_star_error(

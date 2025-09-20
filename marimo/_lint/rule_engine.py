@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import TYPE_CHECKING, Optional
 
 from marimo._lint.context import LintContext, RuleContext
@@ -11,6 +10,7 @@ from marimo._lint.rules import RULE_CODES
 from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
+    import logging
     from collections.abc import AsyncIterator
 
     from marimo._lint.diagnostic import Diagnostic

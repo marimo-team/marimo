@@ -33,6 +33,7 @@ LOGGER = _loggers.marimo_logger()
 
 class SQLErrorMetadata(TypedDict):
     """Structured metadata for SQL parsing errors."""
+
     lint_rule: str
     error_type: str
     clean_message: str  # Just the meaningful error without SQL trace
@@ -40,7 +41,7 @@ class SQLErrorMetadata(TypedDict):
     node_col_offset: int
     sql_statement: str  # Truncated if needed
     sql_line: Optional[int]  # 0-based line within SQL
-    sql_col: Optional[int]   # 0-based column within SQL
+    sql_col: Optional[int]  # 0-based column within SQL
     context: str
 
 
@@ -62,14 +63,14 @@ def _log_sql_error(
     sql_col = None
 
     exception_msg = str(exception)
-    line_col_match = re.search(r'Line (\d+), Col: (\d+)', exception_msg)
+    line_col_match = re.search(r"Line (\d+), Col: (\d+)", exception_msg)
     if line_col_match:
         sql_line = int(line_col_match.group(1)) - 1  # Convert to 0-based
-        sql_col = int(line_col_match.group(2)) - 1   # Convert to 0-based
+        sql_col = int(line_col_match.group(2)) - 1  # Convert to 0-based
 
     # Extract clean message without SQL trace
     # The message format is: "Error parsing SQL statement: {actual_error}"
-    clean_message = message % exception  # Format the message template
+    message % exception  # Format the message template
 
     # Truncate long SQL content
     truncated_sql = sql_content
@@ -80,7 +81,7 @@ def _log_sql_error(
     metadata: SQLErrorMetadata = {
         "lint_rule": rule_code,
         "error_type": type(exception).__name__,
-        "clean_message": exception_msg.split('\n', 1)[0],
+        "clean_message": exception_msg.split("\n", 1)[0],
         "node_lineno": node.lineno,
         "node_col_offset": node.col_offset,
         "sql_statement": truncated_sql,
@@ -717,6 +718,7 @@ class ScopedVisitor(ast.NodeVisitor):
                 and sql
             ):
                 import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+
                 # Import ParseError outside try block so we can except it
                 if DependencyManager.sqlglot.has():
                     from sqlglot.errors import ParseError
@@ -804,12 +806,12 @@ class ScopedVisitor(ast.NodeVisitor):
                         defined_names.add(_catalog)
 
                     sql_refs: set[SQLRef] = set()
-                    _missing_tables: set[str] = set()  # Unused but keeping for consistency
+                    _missing_tables: set[str] = (
+                        set()
+                    )  # Unused but keeping for consistency
                     try:
                         # Take results
-                        sql_refs = find_sql_refs_cached(
-                            statement.query
-                        )
+                        sql_refs = find_sql_refs_cached(statement.query)
                     except (
                         duckdb.ProgrammingError,
                         duckdb.IOException,

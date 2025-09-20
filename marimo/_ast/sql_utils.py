@@ -33,7 +33,9 @@ def classify_sql_statement(
         with _loggers.suppress_warnings_logs("sqlglot"):
             expression_list = parse(sql_statement, dialect=dialect)
     except ParseError as e:
-        LOGGER.debug(f"Unable to parse SQL. Error: {e}", extra={"lint_rule": "MF005"})
+        LOGGER.debug(
+            f"Unable to parse SQL. Error: {e}", extra={"lint_rule": "MF005"}
+        )
         return "unknown"
 
     for expression in expression_list:
