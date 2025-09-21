@@ -304,10 +304,12 @@ const DatabaseItem: React.FC<{
 }> = ({ hasSearch, engineName, database, children }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isSelected, setIsSelected] = React.useState(false);
+  const [prevHasSearch, setPrevHasSearch] = React.useState(hasSearch);
 
-  React.useEffect(() => {
+  if (prevHasSearch !== hasSearch) {
+    setPrevHasSearch(hasSearch);
     setIsExpanded(hasSearch);
-  }, [hasSearch]);
+  }
 
   return (
     <>
@@ -399,13 +401,9 @@ const SchemaItem: React.FC<{
   children: React.ReactNode;
   hasSearch: boolean;
 }> = ({ databaseName, schema, children, hasSearch }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(hasSearch);
   const [isSelected, setIsSelected] = React.useState(false);
   const uniqueValue = `${databaseName}:${schema.name}`;
-
-  React.useEffect(() => {
-    setIsExpanded(hasSearch);
-  }, [hasSearch]);
 
   if (isSchemaless(schema.name)) {
     return children;
@@ -693,11 +691,9 @@ const DatasetColumnItem: React.FC<{
   const closeAllColumns = useAtomValue(closeAllColumnsAtom);
   const setExpandedColumns = useSetAtom(expandedColumnsAtom);
 
-  React.useEffect(() => {
-    if (closeAllColumns) {
-      setIsExpanded(false);
-    }
-  }, [closeAllColumns]);
+  if (closeAllColumns && isExpanded) {
+    setIsExpanded(false);
+  }
 
   if (isExpanded) {
     setExpandedColumns(

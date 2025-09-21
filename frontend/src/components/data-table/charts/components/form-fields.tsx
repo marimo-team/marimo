@@ -360,11 +360,6 @@ export const SliderField = ({
   const [internalValue, setInternalValue] = React.useState(value);
   const form = useFormContext();
 
-  // Update internal value on prop change
-  React.useEffect(() => {
-    setInternalValue(value);
-  }, [value]);
-
   return (
     <FormField
       control={form.control}

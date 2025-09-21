@@ -3,7 +3,7 @@
 import { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
 import { BetweenHorizontalStartIcon } from "lucide-react";
-import { memo, Suspense, useEffect, useState } from "react";
+import { memo, Suspense, useState } from "react";
 import { Streamdown, type StreamdownProps } from "streamdown";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
@@ -114,10 +114,6 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
   const { theme } = useTheme();
   const [value, setValue] = useState(code);
 
-  useEffect(() => {
-    setValue(code);
-  }, [code]);
-
   const handleCopyCode = async () => {
     await copyToClipboard(value);
   };
@@ -150,18 +146,13 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
 const CopyButton: React.FC<ButtonProps> = ({ onClick, ...props }) => {
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (copied) {
-      setTimeout(() => setCopied(false), 1000);
-    }
-  }, [copied]);
-
   return (
     <Button
       {...props}
       onClick={(e) => {
         onClick?.(e);
         setCopied(true);
+        setTimeout(() => setCopied(false), 1000);
       }}
     >
       {copied ? "Copied" : "Copy"}
@@ -175,10 +166,11 @@ const COMPONENTS: Components = {
   code: ({ children, className }) => {
     const language = className?.replace("language-", "");
     if (language && typeof children === "string") {
+      const code = children.trim();
       return (
         <div>
           <div className="text-xs text-muted-foreground pl-1">{language}</div>
-          <CodeBlock code={children.trim()} language={language} />
+          <CodeBlock key={code} code={code} language={language} />
         </div>
       );
     }
