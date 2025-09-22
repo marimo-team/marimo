@@ -47,24 +47,36 @@ export function maybeAddMissingImport({
   return true;
 }
 
+/**
+ * Adds a marimo import to the notebook if not already present.
+ * @param autoInstantiate Whether to automatically run the cell.
+ * @param createNewCell The function to create a new cell.
+ * @param fromCellId The cell to add the import to.
+ * @param before Whether to add the import before or after the cell.
+ *
+ * Returns the ID of the new cell if added, otherwise null.
+ */
 export function maybeAddMarimoImport({
   autoInstantiate,
   createNewCell,
   fromCellId,
+  before,
 }: {
   autoInstantiate: boolean;
   createNewCell: CellActions["createNewCell"];
   fromCellId?: CellId | null;
-}): boolean {
+  before?: boolean;
+}): CellId | null {
   const client = getRequestClient();
-  return maybeAddMissingImport({
+  let newCellId: CellId | null = null;
+  const added = maybeAddMissingImport({
     moduleName: "marimo",
     variableName: "mo",
     onAddImport: (importStatement) => {
-      const newCellId = CellId.create();
+      newCellId = CellId.create();
       createNewCell({
         cellId: fromCellId ?? "__end__",
-        before: false,
+        before: before ?? false,
         code: importStatement,
         lastCodeRun: autoInstantiate ? importStatement : undefined,
         newCellId: newCellId,
@@ -78,6 +90,7 @@ export function maybeAddMarimoImport({
       }
     },
   });
+  return added ? newCellId : null;
 }
 
 export function maybeAddAltairImport({

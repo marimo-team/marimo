@@ -10,7 +10,12 @@ import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import { CellId } from "@/core/cells/ids";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
-import { cellHandleAtom, useCellActions } from "../cells/cells";
+import { maybeAddMarimoImport } from "../cells/add-missing-import";
+import {
+  type CreateNewCellAction,
+  cellHandleAtom,
+  useCellActions,
+} from "../cells/cells";
 import type { LanguageAdapterType } from "../codemirror/language/types";
 import { updateEditorCodeFromPython } from "../codemirror/language/utils";
 import type { JotaiStore } from "../state/jotai";
@@ -113,6 +118,8 @@ export function useStagedCells(store: JotaiStore) {
         cellCreationStream.current = new CellCreationStream(
           createStagedCell,
           updateStagedCell,
+          addStagedCell,
+          createNewCell,
         );
         break;
       case "text-delta":
@@ -168,13 +175,20 @@ class CellCreationStream {
 
   private onCreateCell: (code: string) => CellId;
   private onUpdateCell: (opts: UpdateStagedCellAction) => void;
+  private addStagedCell: (payload: { cellId: CellId }) => void;
+  private createNewCell: (opts: CreateNewCellAction) => void;
+  private hasMarimoImport = false;
 
   constructor(
     onCreateCell: (code: string) => CellId,
     onUpdateCell: (opts: UpdateStagedCellAction) => void,
+    addStagedCell: (payload: { cellId: CellId }) => void,
+    createNewCell: (opts: CreateNewCellAction) => void,
   ) {
     this.onCreateCell = onCreateCell;
     this.onUpdateCell = onUpdateCell;
+    this.addStagedCell = addStagedCell;
+    this.createNewCell = createNewCell;
   }
 
   stream(chunk: TextDeltaChunk) {
@@ -187,6 +201,7 @@ class CellCreationStream {
     // For each parsed cell, we either update an existing staged cell or create a new one.
     for (const [idx, cell] of completionCells.entries()) {
       if (idx < this.createdCells.length) {
+        this.addMarimoImport(cell.language);
         const existingCell = this.createdCells[idx];
         this.createdCells[idx] = { ...existingCell, cell };
         this.onUpdateCell({
@@ -199,6 +214,24 @@ class CellCreationStream {
         this.createdCells.push({ cellId: newCellId, cell });
       }
     }
+  }
+
+  /** Add a marimo import if the cell is SQL or Markdown and we haven't added it yet. */
+  private addMarimoImport(language: LanguageAdapterType) {
+    if (this.hasMarimoImport || language === "python") {
+      return;
+    }
+
+    const cellId = maybeAddMarimoImport({
+      autoInstantiate: false,
+      createNewCell: this.createNewCell,
+      fromCellId: this.createdCells[0]?.cellId,
+      before: true,
+    });
+    if (cellId) {
+      this.addStagedCell({ cellId });
+    }
+    this.hasMarimoImport = true;
   }
 
   stop() {
