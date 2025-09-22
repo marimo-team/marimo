@@ -80,6 +80,7 @@ export function maybeAddMarimoImport({
         code: importStatement,
         lastCodeRun: autoInstantiate ? importStatement : undefined,
         newCellId: newCellId,
+        skipIfCodeExists: true,
         autoFocus: false,
       });
       if (autoInstantiate) {
@@ -101,19 +102,21 @@ export function maybeAddAltairImport({
   autoInstantiate: boolean;
   createNewCell: CellActions["createNewCell"];
   fromCellId?: CellId | null;
-}): boolean {
+}): CellId | null {
   const client = getRequestClient();
-  return maybeAddMissingImport({
+  let newCellId: CellId | null = null;
+  const added = maybeAddMissingImport({
     moduleName: "altair",
     variableName: "alt",
     onAddImport: (importStatement) => {
-      const newCellId = CellId.create();
+      newCellId = CellId.create();
       createNewCell({
         cellId: fromCellId ?? "__end__",
         before: false,
         code: importStatement,
         lastCodeRun: autoInstantiate ? importStatement : undefined,
         newCellId: newCellId,
+        skipIfCodeExists: true,
         autoFocus: false,
       });
       if (autoInstantiate) {
@@ -124,4 +127,5 @@ export function maybeAddAltairImport({
       }
     },
   });
+  return added ? newCellId : null;
 }
