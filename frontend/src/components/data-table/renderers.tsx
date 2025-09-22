@@ -26,6 +26,7 @@ import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
+  headerHoverText?: Record<string, string>,
 ): JSX.Element | null {
   if (!table.getRowModel().rows?.length) {
     return null;
@@ -35,6 +36,10 @@ export function renderTableHeader<TData>(
     return headerGroups.map((headerGroup) =>
       headerGroup.headers.map((header) => {
         const { className, style } = getPinningStyles(header.column);
+        const accessorKey = (header.column.columnDef as any)?.accessorKey;
+        const lookupKey = (accessorKey as string) ?? header.column.id;
+        const headerHoverTitle: string | undefined =
+          headerHoverText?.[lookupKey] || undefined;
         return (
           <TableHead
             key={header.id}
@@ -43,13 +48,19 @@ export function renderTableHeader<TData>(
               className,
             )}
             style={style}
+            title={headerHoverTitle}
             ref={(thead) => {
               columnSizingHandler(thead, table, header.column);
             }}
           >
-            {header.isPlaceholder
-              ? null
-              : flexRender(header.column.columnDef.header, header.getContext())}
+            {header.isPlaceholder ? null : (
+              <div title={headerHoverTitle} className="contents">
+                {flexRender(
+                  header.column.columnDef.header,
+                  header.getContext(),
+                )}
+              </div>
+            )}
           </TableHead>
         );
       }),
@@ -106,9 +117,9 @@ export const DataTableBody = <TData,>({
       const s = renderUnknownValue({ value: v, nullAsEmptyString: true });
       idToValue.set(c.column.id, s);
     }
-    return template.replace(variableRegex, (_substr, varName: string) => {
+    return template.replaceAll(variableRegex, (_substr, varName: string) => {
       const val = idToValue.get(varName);
-      return val !== undefined ? val : `{{${varName}}}`;
+      return val === undefined ? `{{${varName}}}` : val;
     });
   }
 
@@ -165,11 +176,15 @@ export const DataTableBody = <TData,>({
           const isRowViewedInPanel =
             rowViewerPanelOpen && viewedRowIdx === rowIndex;
 
-          // Compute hover title once per row using this row's cells (visible or hidden)
+          // Compute hover title once per row using all visible cells
           const hoverTemplate = table.getState().cellHoverTemplate || null;
-          const rowCells = row.getAllCells();
+          const visibleCells = row.getVisibleCells?.() ?? [
+            ...row.getLeftVisibleCells(),
+            ...row.getCenterVisibleCells(),
+            ...row.getRightVisibleCells(),
+          ];
           const rowTitle = hoverTemplate
-            ? applyHoverTemplate(hoverTemplate, rowCells)
+            ? applyHoverTemplate(hoverTemplate, visibleCells)
             : undefined;
 
           return (

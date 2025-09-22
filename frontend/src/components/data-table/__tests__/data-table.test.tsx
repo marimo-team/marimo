@@ -95,4 +95,42 @@ describe("DataTable", () => {
     expect(rows[1]).toHaveAttribute("title", "Michael Scott");
     expect(rows[2]).toHaveAttribute("title", "Jim Halpert");
   });
+
+  it("applies headerHoverText mapping to column header titles", () => {
+    interface RowData {
+      id: number;
+      first: string;
+      last: string;
+    }
+
+    const testData: RowData[] = [
+      { id: 1, first: "Michael", last: "Scott" },
+      { id: 2, first: "Jim", last: "Halpert" },
+    ];
+
+    const columns: Array<ColumnDef<RowData>> = [
+      { accessorKey: "first", header: "First" },
+      { accessorKey: "last", header: "Last" },
+    ];
+
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={testData}
+          columns={columns}
+          selection={null}
+          totalRows={2}
+          totalColumns={2}
+          pagination={false}
+          headerHoverText={{ first: "Given name", last: "Family name" }}
+        />
+      </TooltipProvider>,
+    );
+
+    // Header row is role="row" as well; get all headers by role="columnheader"
+    const headers = screen.getAllByRole("columnheader");
+    // Order should correspond to columns array
+    expect(headers[0]).toHaveAttribute("title", "Given name");
+    expect(headers[1]).toHaveAttribute("title", "Family name");
+  });
 });

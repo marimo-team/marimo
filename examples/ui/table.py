@@ -22,6 +22,11 @@ def _(mo):
         ],
         # Show full name on hover for each row using column placeholders
         hover_template="{{first_name}} {{last_name}}",
+        # Add hover text (titles) for column headers
+        header_hover_text={
+            "first_name": "Employee's first name",
+            "last_name": "Employee's last name",
+        },
     )
     table
     return (table,)

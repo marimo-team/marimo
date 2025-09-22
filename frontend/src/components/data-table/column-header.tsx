@@ -67,12 +67,14 @@ interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   header: React.ReactNode;
+  headerTitle?: string;
   calculateTopKRows?: CalculateTopKRows;
 }
 
 export const DataTableColumnHeader = <TData, TValue>({
   column,
   header,
+  headerTitle,
   className,
   calculateTopKRows,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
@@ -86,7 +88,11 @@ export const DataTableColumnHeader = <TData, TValue>({
 
   // No sorting or filtering
   if (!column.getCanSort() && !column.getCanFilter()) {
-    return <div className={cn(className)}>{header}</div>;
+    return (
+      <div className={cn(className)} title={headerTitle}>
+        {header}
+      </div>
+    );
   }
 
   const hasFilter = column.getFilterValue() !== undefined;
@@ -102,6 +108,7 @@ export const DataTableColumnHeader = <TData, TValue>({
               className,
             )}
             data-testid="data-table-sort-button"
+            title={headerTitle}
           >
             <span className="flex-1">{header}</span>
             <span
