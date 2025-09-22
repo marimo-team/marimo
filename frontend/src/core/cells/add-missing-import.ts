@@ -53,6 +53,8 @@ export function maybeAddMissingImport({
  * @param createNewCell The function to create a new cell.
  * @param fromCellId The cell to add the import to.
  * @param before Whether to add the import before or after the cell.
+ *
+ * Returns the ID of the new cell if added, otherwise null.
  */
 export function maybeAddMarimoImport({
   autoInstantiate,
