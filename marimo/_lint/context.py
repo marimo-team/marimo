@@ -7,10 +7,13 @@ import logging  # noqa: TC003
 import threading
 from typing import TYPE_CHECKING
 
+from marimo._ast.names import SETUP_CELL_NAME
+
 # Note: load_notebook_ir not used - we do manual compilation for per-cell log capture
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._loggers import capture_output
 from marimo._schemas.serialization import CellDef, NotebookSerialization
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._lint.rules.base import LintRule
@@ -189,7 +192,10 @@ class LintContext:
                 # Capture logs during this specific cell's compilation
                 with capture_output() as (_, _, cell_logs):
                     # Call ir_cell_factory directly with proper exception handling
-                    cell_id = app._cell_manager.create_cell_id()
+                    if cell.name == SETUP_CELL_NAME:
+                        cell_id = CellId_t(SETUP_CELL_NAME)
+                    else:
+                        cell_id = app._cell_manager.create_cell_id()
                     filename = self.notebook.filename
                     cell_config = CellConfig.from_dict(cell.options)
 
