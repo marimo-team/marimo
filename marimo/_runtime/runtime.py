@@ -2037,15 +2037,33 @@ class Kernel:
         4. Marks the cells as completed (not stale)
         5. Removes them from uninstantiated requests
 
+        If 'mo' is not available in the graph definitions, all cells are marked as stale.
         Regular cells are marked as stale as usual.
         """
+        # If 'mo' is not available in the graph, mark all cells as stale
+        if "mo" not in self.graph.definitions:
+            for cid in self._uninstantiated_execution_requests:
+                CellOp.broadcast_stale(cell_id=cid, stale=True)
+            return
+
         markdown_cells_to_remove = set()
         for cid, er in self._uninstantiated_execution_requests.items():
-            # Try to compile the cell to check if it has markdown
-            cell, error = self._try_compiling_cell(cid, er.code, [])
-            if error is None and cell is not None and cell.markdown is not None:
+            # Check if cell already exists in graph (to avoid recompilation)
+            cell = self.graph.cells.get(cid)
+
+            # If cell doesn't exist in graph, try to compile it
+            if cell is None:
+                cell, error = self._try_compiling_cell(cid, er.code, [])
+                if error is not None:
+                    # Compilation error - mark as stale
+                    CellOp.broadcast_stale(cell_id=cid, stale=True)
+                    continue
+
+            # Check if this is a markdown cell
+            if cell is not None and cell.markdown is not None:
                 # This is a markdown cell - render and send its output immediately
                 from marimo._output.md import md
+
                 html_obj = md(cell.markdown)
                 mimetype, html_content = html_obj._mime_()
 

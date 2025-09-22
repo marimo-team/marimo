@@ -3139,7 +3139,9 @@ class TestMarkdownHandling:
         stream = mocked_kernel.stream
 
         # Create execution requests with markdown and regular cells
-        markdown_cell_code = 'mo.md("# Hello World\\n\\nThis is **markdown**.")'
+        markdown_cell_code = (
+            'mo.md("# Hello World\\n\\nThis is **markdown**.")'
+        )
         regular_cell_code = "x = 1"
 
         execution_requests = [
@@ -3159,6 +3161,10 @@ class TestMarkdownHandling:
 
         # Clear stream before instantiate
         stream.messages.clear()
+
+        # First, manually add mo to the graph definitions to simulate it being available
+        # This simulates the scenario where mo has been imported in a previous cell
+        k.graph.definitions["mo"] = {"import_mo"}
 
         # Instantiate the kernel
         await k.instantiate(creation_request)
@@ -3195,8 +3201,12 @@ class TestMarkdownHandling:
         assert stale_ops[0].stale_inputs is False
 
         # Check that regular cell was marked as stale
-        regular_cell_ops = [op for op in cell_ops if op.cell_id == "regular_cell"]
-        regular_stale_ops = [op for op in regular_cell_ops if op.stale_inputs is not None]
+        regular_cell_ops = [
+            op for op in cell_ops if op.cell_id == "regular_cell"
+        ]
+        regular_stale_ops = [
+            op for op in regular_cell_ops if op.stale_inputs is not None
+        ]
         assert len(regular_stale_ops) == 1
         assert regular_stale_ops[0].stale_inputs is True
 
@@ -3235,7 +3245,9 @@ class TestMarkdownHandling:
 
         for cell_id in ["cell1", "cell2"]:
             cell_ops_for_id = [op for op in cell_ops if op.cell_id == cell_id]
-            stale_ops = [op for op in cell_ops_for_id if op.stale_inputs is not None]
+            stale_ops = [
+                op for op in cell_ops_for_id if op.stale_inputs is not None
+            ]
             assert len(stale_ops) == 1
             assert stale_ops[0].stale_inputs is True
 
@@ -3248,7 +3260,9 @@ class TestMarkdownHandling:
 
         # Create execution requests with malformed markdown cell
         execution_requests = [
-            ExecutionRequest(cell_id="bad_cell", code="mo.md("),  # Syntax error
+            ExecutionRequest(
+                cell_id="bad_cell", code="mo.md("
+            ),  # Syntax error
             ExecutionRequest(cell_id="good_md", code='mo.md("# Good")'),
         ]
 
@@ -3262,6 +3276,11 @@ class TestMarkdownHandling:
         )
 
         stream.messages.clear()
+
+        # First, manually add mo to the graph definitions to simulate it being available
+        # This simulates the scenario where mo has been imported in a previous cell
+        k.graph.definitions["mo"] = {"import_mo"}
+
         await k.instantiate(creation_request)
 
         # Bad cell should remain in uninstantiated requests
@@ -3275,7 +3294,9 @@ class TestMarkdownHandling:
 
         # Bad cell should be marked as stale
         bad_cell_ops = [op for op in cell_ops if op.cell_id == "bad_cell"]
-        bad_stale_ops = [op for op in bad_cell_ops if op.stale_inputs is not None]
+        bad_stale_ops = [
+            op for op in bad_cell_ops if op.stale_inputs is not None
+        ]
         assert len(bad_stale_ops) == 1
         assert bad_stale_ops[0].stale_inputs is True
 
@@ -3284,6 +3305,57 @@ class TestMarkdownHandling:
         good_output_ops = [op for op in good_cell_ops if op.output is not None]
         assert len(good_output_ops) == 1
         assert "Good" in good_output_ops[0].output.data
+
+    async def test_no_mo_available_all_cells_stale(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        """Test that when 'mo' is not available, all cells are marked as stale."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Create execution requests with markdown cells
+        execution_requests = [
+            ExecutionRequest(cell_id="md_cell1", code='mo.md("# Hello")'),
+            ExecutionRequest(cell_id="md_cell2", code='mo.md("## World")'),
+            ExecutionRequest(cell_id="regular_cell", code="x = 1"),
+        ]
+
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
+
+        stream.messages.clear()
+
+        # Ensure 'mo' is not in graph definitions by starting with empty graph
+        assert "mo" not in k.graph.definitions
+
+        await k.instantiate(creation_request)
+
+        # All cells should remain in uninstantiated requests since mo is not available
+        assert "md_cell1" in k._uninstantiated_execution_requests
+        assert "md_cell2" in k._uninstantiated_execution_requests
+        assert "regular_cell" in k._uninstantiated_execution_requests
+
+        # Check that all cells were marked as stale
+        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
+
+        for cell_id in ["md_cell1", "md_cell2", "regular_cell"]:
+            cell_ops_for_id = [op for op in cell_ops if op.cell_id == cell_id]
+            stale_ops = [
+                op for op in cell_ops_for_id if op.stale_inputs is not None
+            ]
+            assert len(stale_ops) == 1
+            assert stale_ops[0].stale_inputs is True
+
+        # No cells should have output operations
+        output_ops = [op for op in cell_ops if op.output is not None]
+        assert len(output_ops) == 0
 
 
 def _parse_error_output(cell_op: CellOp) -> list[Error]:
