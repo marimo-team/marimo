@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "setup": "make fe && make fe-codegen && make py"
+  }
+}
