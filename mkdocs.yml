@@ -231,6 +231,7 @@ nav:
           - Json: api/layouts/json.md
           - Justify: api/layouts/justify.md
           - Lazy: api/layouts/lazy.md
+          - Outline: api/layouts/outline.md
           - Plain: api/layouts/plain.md
           - Routes: api/layouts/routes.md
           - Sidebar: api/layouts/sidebar.md
