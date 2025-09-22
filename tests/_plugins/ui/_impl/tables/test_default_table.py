@@ -11,6 +11,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.hypertext import Html
+from marimo._plugins.ui._impl.table import _validate_header_tooltip
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
@@ -1010,3 +1011,16 @@ class TestDefaultTableWithComplexData(unittest.TestCase):
             self.manager.to_json_str()
             == '[{"inf":"Infinity","nan":"NaN","timedelta":"1 day, 2:03:00","path":"test.txt","complex":"(1+2j)","bytes":"hello","memoryview":"hello","range":[0,1,2,3,4,5,6,7,8,9],"html":{"mimetype":"text/html","data":"<h1>Hello World</h1>"}}]'
         )
+
+
+def test_validate_header_tooltip_valid() -> None:
+    columns = {"name", "age", "birth_year"}
+    mapping = {"name": "Name of person", "age": "Age in years"}
+    _validate_header_tooltip(mapping, columns)
+
+
+def test_validate_header_tooltip_invalid() -> None:
+    columns = {"name", "age", "birth_year"}
+    mapping = {"does_not_exist": "oops"}
+    with pytest.raises(ValueError):
+        _validate_header_tooltip(mapping, columns)
