@@ -2009,7 +2009,12 @@ class Kernel:
         if self.graph.cells:
             del request
             LOGGER.debug("App already instantiated.")
-        elif request.auto_run:
+            return
+        # Handle markdown cells specially during kernel-ready initialization
+        # Both auto_run and non-auto_run instantiation need this
+        self._handle_markdown_cells_on_instantiate()
+
+        if request.auto_run:
             self.reset_ui_initializers()
             for (
                 object_id,
@@ -2024,8 +2029,8 @@ class Kernel:
                 er.cell_id: er for er in request.execution_requests
             }
 
-            # Handle markdown cells specially during kernel-ready initialization
-            self._handle_markdown_cells_on_instantiate()
+            for cell_id in self._uninstantiated_execution_requests.keys():
+                CellOp.broadcast_stale(cell_id=cell_id, stale=True)
 
     def _handle_markdown_cells_on_instantiate(self) -> None:
         """Handle markdown cells during kernel-ready initialization.
@@ -2054,8 +2059,6 @@ class Kernel:
                 cell, error = self._try_compiling_cell(cid, er.code, [])
 
             if cell is None or error is not None:
-                # Compilation error - mark as stale
-                CellOp.broadcast_stale(cell_id=cid, stale=True)
                 continue
 
             # Check if this is a markdown cell
@@ -2066,8 +2069,9 @@ class Kernel:
                 # Regular cell - mark as stale
                 exports_mo |= "mo" in cell.defs
 
+        # Handle as default if no cells export 'mo'
         if not exports_mo:
-            markdown_cells.clear()
+            return
 
         # Remove markdown cells from uninstantiated requests
         for cell_id, content in markdown_cells.items():
@@ -2088,11 +2092,7 @@ class Kernel:
 
             # Mark the cell as not stale (already "run")
             CellOp.broadcast_stale(cell_id=cell_id, stale=False)
-
-        # If 'mo' is not exported by any cell, mark all cells as stale
-        for cid in self._uninstantiated_execution_requests.keys():
-            if cid not in markdown_cells:
-                CellOp.broadcast_stale(cell_id=cid, stale=True)
+            del self._uninstantiated_execution_requests[cell_id]
 
     def load_dotenv(self) -> None:
         dotenvs = self.user_config["runtime"].get("dotenv", [])
