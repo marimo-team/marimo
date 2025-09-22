@@ -66,7 +66,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   cellSelection?: CellSelectionState;
   cellStyling?: CellStyleState | null;
   hoverTemplate?: string | null;
-  headerHoverText?: Record<string, string> | undefined;
+  headerInfo?: Record<string, string> | undefined;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;
@@ -108,7 +108,7 @@ const DataTableInternal = <TData,>({
   cellSelection,
   cellStyling,
   hoverTemplate,
-  headerHoverText,
+  headerInfo,
   paginationState,
   setPaginationState,
   downloadAs,
@@ -269,7 +269,7 @@ const DataTableInternal = <TData,>({
           {showLoadingBar && (
             <div className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
           )}
-          {renderTableHeader(table, headerHoverText)}
+          {renderTableHeader(table, headerInfo)}
           <CellSelectionProvider>
             <DataTableBody
               table={table}

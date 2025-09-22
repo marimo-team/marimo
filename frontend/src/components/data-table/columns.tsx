@@ -103,7 +103,7 @@ export function generateColumns<T>({
   chartSpecModel,
   textJustifyColumns,
   wrappedColumns,
-  headerHoverText,
+  headerInfo,
   showDataTypes,
   calculateTopKRows,
 }: {
@@ -113,7 +113,7 @@ export function generateColumns<T>({
   chartSpecModel?: ColumnChartSpecModel<unknown>;
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
-  headerHoverText?: Record<string, string>;
+  headerInfo?: Record<string, string>;
   showDataTypes?: boolean;
   calculateTopKRows?: CalculateTopKRows;
 }): Array<ColumnDef<T>> {
@@ -167,7 +167,7 @@ export function generateColumns<T>({
       header: ({ column }) => {
         const stats = chartSpecModel?.getColumnStats(key);
         const dtype = column.columnDef.meta?.dtype;
-        const headerTitle = headerHoverText?.[key];
+        const headerTitle = headerInfo?.[key];
         const dtypeHeader =
           showDataTypes && dtype ? (
             <div className="flex flex-row gap-1">

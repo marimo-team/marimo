@@ -423,7 +423,7 @@ class table(
             dict[str, Literal["left", "center", "right"]]
         ] = None,
         wrapped_columns: Optional[list[str]] = None,
-        header_hover_text: Optional[dict[str, str]] = None,
+        header_info: Optional[dict[str, str]] = None,
         show_download: bool = True,
         max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
         *,
@@ -636,7 +636,7 @@ class table(
             _validate_column_formatting(
                 text_justify_columns, wrapped_columns, column_names_set
             )
-            _validate_header_hover_text(header_hover_text, column_names_set)
+            _validate_header_info(header_info, column_names_set)
 
             field_types = self._manager.get_field_types()
 
@@ -669,7 +669,7 @@ class table(
                 "freeze-columns-right": freeze_columns_right,
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
-                "header-hover-text": header_hover_text,
+                "header-info": header_info,
                 "has-stable-row-id": self._has_stable_row_id,
                 "cell-styles": search_result_styles,
                 "hover-template": hover_template,
@@ -1419,16 +1419,16 @@ def _validate_column_formatting(
             )
 
 
-def _validate_header_hover_text(
-    header_hover_text: Optional[dict[str, str]],
+def _validate_header_info(
+    header_info: Optional[dict[str, str]],
     column_names_set: set[str],
 ) -> None:
-    """Validate header hover text mapping.
+    """Validate header info mapping.
 
     Ensures all specified columns exist in the table.
     """
-    if header_hover_text:
-        invalid = set(header_hover_text.keys()) - column_names_set
+    if header_info:
+        invalid = set(header_info.keys()) - column_names_set
         if invalid:
             raise ValueError(
                 f"Column '{next(iter(invalid))}' not found in table."

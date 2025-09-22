@@ -182,7 +182,7 @@ interface Data<T> {
   freezeColumnsRight?: string[];
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
-  headerHoverText?: Record<string, string>;
+  headerInfo?: Record<string, string>;
   totalColumns: number;
   maxColumns: number | "all";
   hasStableRowId: boolean;
@@ -250,7 +250,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .record(z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
-      headerHoverText: z.record(z.string()).optional(),
+      headerInfo: z.record(z.string()).optional(),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
@@ -348,7 +348,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
-            headerHoverText={props.data.headerHoverText}
+            headerInfo={props.data.headerInfo}
           />
         </LazyDataTableComponent>
       </TableProviders>
@@ -390,6 +390,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
   hoverTemplate?: string | null;
+  headerInfo?: Record<string, string> | undefined;
   toggleDisplayHeader?: () => void;
   host: HTMLElement;
   cellId?: CellId | null;
@@ -709,7 +710,7 @@ const DataTableComponent = ({
   freezeColumnsRight,
   textJustifyColumns,
   wrappedColumns,
-  headerHoverText,
+  headerInfo,
   totalColumns,
   get_row_ids,
   cellStyles,
@@ -783,7 +784,7 @@ const DataTableComponent = ({
         fieldTypes: memoizedClampedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,
-        headerHoverText: headerHoverText,
+        headerInfo: headerInfo,
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
         calculateTopKRows: calculate_top_k_rows,
@@ -796,7 +797,7 @@ const DataTableComponent = ({
       memoizedClampedFieldTypes,
       memoizedTextJustifyColumns,
       memoizedWrappedColumns,
-      headerHoverText,
+      headerInfo,
       calculate_top_k_rows,
     ],
   );
@@ -914,7 +915,7 @@ const DataTableComponent = ({
             cellSelection={cellSelection}
             cellStyling={cellStyles}
             hoverTemplate={hoverTemplate}
-            headerHoverText={headerHoverText}
+            headerInfo={headerInfo}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
             searchQuery={searchQuery}

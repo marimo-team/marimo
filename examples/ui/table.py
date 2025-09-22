@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.0"
 app = marimo.App()
 
 
@@ -22,8 +22,8 @@ def _(mo):
         ],
         # Show full name on hover for each row using column placeholders
         hover_template="{{first_name}} {{last_name}}",
-        # Add hover text (titles) for column headers
-        header_hover_text={
+        # Add header info for column headers (shown via info icon + title)
+        header_info={
             "first_name": "Employee's first name",
             "last_name": "Employee's last name",
         },

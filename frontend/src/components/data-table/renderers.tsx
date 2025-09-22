@@ -26,7 +26,7 @@ import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
-  headerHoverText?: Record<string, string>,
+  headerInfo?: Record<string, string>,
 ): JSX.Element | null {
   if (!table.getRowModel().rows?.length) {
     return null;
@@ -39,7 +39,7 @@ export function renderTableHeader<TData>(
         const accessorKey = (header.column.columnDef as any)?.accessorKey;
         const lookupKey = (accessorKey as string) ?? header.column.id;
         const headerHoverTitle: string | undefined =
-          headerHoverText?.[lookupKey] || undefined;
+          headerInfo?.[lookupKey] || undefined;
         return (
           <TableHead
             key={header.id}
