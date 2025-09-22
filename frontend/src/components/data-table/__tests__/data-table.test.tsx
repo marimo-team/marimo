@@ -122,7 +122,7 @@ describe("DataTable", () => {
           totalRows={2}
           totalColumns={2}
           pagination={false}
-          headerHoverText={{ first: "Given name", last: "Family name" }}
+          headerTooltip={{ first: "Given name", last: "Family name" }}
         />
       </TooltipProvider>,
     );

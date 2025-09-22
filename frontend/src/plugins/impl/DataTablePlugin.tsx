@@ -348,7 +348,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
-            headerInfo={props.data.headerInfo}
+            headerInfo={props.data.headerTooltip}
           />
         </LazyDataTableComponent>
       </TableProviders>
@@ -710,7 +710,7 @@ const DataTableComponent = ({
   freezeColumnsRight,
   textJustifyColumns,
   wrappedColumns,
-  headerInfo,
+  headerTooltip,
   totalColumns,
   get_row_ids,
   cellStyles,

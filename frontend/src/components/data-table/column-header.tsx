@@ -93,10 +93,7 @@ export const DataTableColumnHeader = <TData, TValue>({
         <span className="flex items-center gap-1">
           {header}
           {headerTitle && (
-            <InfoIcon
-              className="h-3 w-3 text-muted-foreground"
-              title={headerTitle}
-            />
+            <InfoIcon className="h-3 w-3 text-muted-foreground" />
           )}
         </span>
       </div>
@@ -121,10 +118,7 @@ export const DataTableColumnHeader = <TData, TValue>({
             <span className="flex-1 flex items-center gap-1">
               {header}
               {headerTitle && (
-                <InfoIcon
-                  className="h-3 w-3 text-muted-foreground"
-                  title={headerTitle}
-                />
+                <InfoIcon className="h-3 w-3 text-muted-foreground" />
               )}
             </span>
             <span
