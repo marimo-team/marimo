@@ -6,6 +6,8 @@ import { useFragmentStore } from "./fragment-store";
 import { userConfigAtom } from "@/core/config/config";
 import { store } from "@/core/state/jotai";
 import { runtimeConfigAtom } from "@/core/runtime/config";
+import { setLatestEngineSelected, useDataSourceActions } from "@/core/datasets/data-source-connections";
+import type { ConnectionName } from "@/core/datasets/engines";
 
 const COMMAND_PREFIX = "oso_commands:";
 
@@ -18,6 +20,7 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
 
   const fragmentStore = useFragmentStore();
   const actions = useCellActions();
+  const dataSourceActions = useDataSourceActions();
   const createCellAtEnd = (code: string) => {
     actions.createNewCell({
       cellId: "__end__",
@@ -117,6 +120,28 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
       }
     };
     setTimeout(setupBridge, 0);
+
+    const setOSOWarehouseAsDefaultSQLConnection = async () => {
+      // We may want to change how we do this in the future. It feels a bit
+      // hacky but it works to set the default connection to OSO Warehouse at
+      // this time. We need to "add" the connection to the store because that
+      // doesn't happen if the setup_pyoso cell is the only cell available
+      const pyosoSQLConnection = "pyoso_db_conn" as ConnectionName;
+      dataSourceActions.addDataSourceConnection({
+        connections: [
+          {
+            name: pyosoSQLConnection,
+            dialect: "trino",
+            source: "trino",
+            display_name: "OSO Warehouse",
+            databases: [],
+          }
+        ]
+      })
+      setLatestEngineSelected(pyosoSQLConnection);
+    }
+
+    setTimeout(setOSOWarehouseAsDefaultSQLConnection, 0);
     return () => {
       window.removeEventListener("message", windowMessageCallback);
     };
