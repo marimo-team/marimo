@@ -95,7 +95,7 @@ const SlidesComponent = ({
               }}
               className={cn(
                 "h-full w-full flex box-border overflow-y-auto overflow-x-hidden",
-                isFullscreen ? "p-20" : "p-6",
+                isFullscreen ? "p-20" : "p-6 pb-12",
               )}
             >
               <div className="mo-slide-content">{child}</div>
