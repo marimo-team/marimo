@@ -22,7 +22,6 @@ from marimo._ast.sql_visitor import (
     normalize_sql_f_string,
 )
 
-# Note: sql_error_metadata.py not used - we do metadata creation inline
 from marimo._ast.variables import is_local
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -729,9 +728,6 @@ class ScopedVisitor(ast.NodeVisitor):
                         defined_names.add(_catalog)
 
                     sql_refs: set[SQLRef] = set()
-                    _missing_tables: set[str] = (
-                        set()
-                    )  # Unused but keeping for consistency
                     try:
                         # Take results
                         sql_refs = find_sql_refs_cached(statement.query)
