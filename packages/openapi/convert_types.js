@@ -1,49 +1,51 @@
 // @ts-check
 import * as fs from "node:fs";
-import * as path from "node:path";
+import * as process from "node:process";
 
-const target = process.argv[2];
-
-if (!target) {
-  console.error("Usage: node convert_types.js <file-or-directory>");
-  process.exit(1);
-}
-
-/** @param {string} filePath */
-function processFile(filePath) {
-  const content = fs.readFileSync(filePath, "utf8");
-  const newContent = content.replace(
-    /Record<string, never>/g,
-    "Record<string, any>",
-  );
-  if (content !== newContent) {
-    fs.writeFileSync(filePath, newContent);
-    console.log(`Updated: ${filePath}`);
+/**
+ * Make an assertion.
+ *
+ * @param {unknown} expression - The expression to test.
+ * @param {string=} msg - The optional message to display if the assertion fails.
+ * @returns {asserts expression}
+ * @throws an {@link Error} if `expression` is not truthy.
+ */
+function assert(expression, msg = "") {
+  if (!expression) {
+    console.error(msg);
+    process.exit(1);
   }
 }
 
-/** @param {string} dir */
-function processDirectory(dir) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      processDirectory(fullPath);
-    } else if (entry.isFile() && entry.name.endsWith(".ts")) {
-      processFile(fullPath);
+function main() {
+  const paths = process.argv.slice(2);
+
+  if (paths.length === 0) {
+    console.error("Usage: node convert_types.js file1.ts [file2.ts ...]");
+    process.exit(1);
+  }
+
+  for (let filePath of paths) {
+    assert(fs.existsSync(filePath), `Expected ${filePath} to exist`);
+    assert(
+      filePath.endsWith(".ts"),
+      `Expected ${filePath} to have .ts extension`,
+    );
+    const stats = fs.statSync(filePath);
+    assert(stats.isFile(), `Expected ${filePath} to be a file`);
+
+    const content = fs.readFileSync(filePath, "utf8");
+    const newContent = content.replace(
+      /Record<string, never>/g,
+      "Record<string, any>",
+    );
+    if (content !== newContent) {
+      fs.writeFileSync(filePath, newContent);
+      console.log(`Updated: ${filePath}`);
+    } else {
+      console.log(`No changes made to: ${filePath}`);
     }
   }
 }
 
-if (fs.existsSync(target)) {
-  const stats = fs.statSync(target);
-  if (stats.isDirectory()) {
-    processDirectory(target);
-  } else if (stats.isFile()) {
-    processFile(target);
-  }
-  console.log("Replacement complete.");
-} else {
-  console.error(`Error: ${target} is not a file or directory`);
-  process.exit(1);
-}
+main();
