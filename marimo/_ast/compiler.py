@@ -166,12 +166,6 @@ def const_or_id(args: ast.stmt) -> str:
 
 
 def extract_markdown(code: str) -> Optional[str]:
-    markdown_lines = [
-        line for line in code.strip().split("\n") if line.startswith("mo.md(")
-    ]
-    if len(markdown_lines) > 1:
-        return None
-
     code = code.strip()
     # Attribute Error handled by the outer try/except block.
     # Wish there was a more compact to ignore ignore[attr-defined] for all.
