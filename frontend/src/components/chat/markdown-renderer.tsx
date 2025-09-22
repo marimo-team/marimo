@@ -114,6 +114,10 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
   const { theme } = useTheme();
   const [value, setValue] = useState(code);
 
+  if (value !== code) {
+    setValue(code);
+  }
+
   const handleCopyCode = async () => {
     await copyToClipboard(value);
   };
@@ -170,7 +174,7 @@ const COMPONENTS: Components = {
       return (
         <div>
           <div className="text-xs text-muted-foreground pl-1">{language}</div>
-          <CodeBlock key={code} code={code} language={language} />
+          <CodeBlock code={code} language={language} />
         </div>
       );
     }

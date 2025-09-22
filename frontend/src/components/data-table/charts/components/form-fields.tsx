@@ -342,7 +342,7 @@ interface SliderFieldProps {
   fieldName: FieldName;
   label: string;
   className?: string;
-  value: number;
+  defaultValue: number;
   start: number;
   stop: number;
   step?: number;
@@ -351,48 +351,57 @@ interface SliderFieldProps {
 export const SliderField = ({
   fieldName,
   label,
-  value,
+  defaultValue,
   start,
   stop,
   step,
   className,
 }: SliderFieldProps) => {
-  const [internalValue, setInternalValue] = React.useState(value);
   const form = useFormContext();
 
   return (
     <FormField
       control={form.control}
       name={fieldName}
-      render={({ field }) => (
-        <FormItem
-          className={cn("flex flex-row items-center gap-2 w-1/2", className)}
-        >
-          <FormLabel>{label}</FormLabel>
-          <FormControl>
-            <Slider
-              {...field}
-              id={fieldName}
-              className="relative flex items-center select-none"
-              value={[internalValue]}
-              min={start}
-              max={stop}
-              step={step}
-              // Triggered on slider drag
-              onValueChange={([nextValue]) => {
-                setInternalValue(nextValue);
-                field.onChange(nextValue);
-              }}
-              // Triggered on mouse up
-              onValueCommit={([nextValue]) => {
-                field.onChange(nextValue);
-                form.setValue(fieldName, nextValue);
-              }}
-              valueMap={(value) => value}
-            />
-          </FormControl>
-        </FormItem>
-      )}
+      render={({ field }) => {
+        const currentValue = field.value ?? defaultValue;
+        const numericValue = Number(currentValue);
+
+        const saveValue = (value: number | string) => {
+          if (typeof value === "string") {
+            value = Number(value);
+          }
+          field.onChange(value);
+        };
+
+        return (
+          <FormItem
+            className={cn("flex flex-row items-center gap-2 w-1/2", className)}
+          >
+            <FormLabel>{label}</FormLabel>
+            <FormControl>
+              <Slider
+                {...field}
+                id={fieldName}
+                className="relative flex items-center select-none"
+                value={[numericValue]}
+                min={start}
+                max={stop}
+                step={step}
+                // Triggered on slider drag
+                onValueChange={([nextValue]) => {
+                  saveValue(nextValue);
+                }}
+                // Triggered on mouse up
+                onValueCommit={([nextValue]) => {
+                  saveValue(nextValue);
+                }}
+                valueMap={(value) => value}
+              />
+            </FormControl>
+          </FormItem>
+        );
+      }}
     />
   );
 };
