@@ -182,7 +182,7 @@ interface Data<T> {
   freezeColumnsRight?: string[];
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
-  headerInfo?: Record<string, string>;
+  headerTooltip?: Record<string, string>;
   totalColumns: number;
   maxColumns: number | "all";
   hasStableRowId: boolean;
@@ -250,7 +250,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .record(z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
-      headerInfo: z.record(z.string()).optional(),
+      headerTooltip: z.record(z.string()).optional(),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
@@ -784,7 +784,7 @@ const DataTableComponent = ({
         fieldTypes: memoizedClampedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,
-        headerInfo: headerInfo,
+        headerTooltip: headerTooltip,
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
         calculateTopKRows: calculate_top_k_rows,
@@ -797,7 +797,7 @@ const DataTableComponent = ({
       memoizedClampedFieldTypes,
       memoizedTextJustifyColumns,
       memoizedWrappedColumns,
-      headerInfo,
+      headerTooltip,
       calculate_top_k_rows,
     ],
   );
@@ -915,7 +915,7 @@ const DataTableComponent = ({
             cellSelection={cellSelection}
             cellStyling={cellStyles}
             hoverTemplate={hoverTemplate}
-            headerInfo={headerInfo}
+            headerTooltip={headerTooltip}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
             searchQuery={searchQuery}
