@@ -21,7 +21,6 @@ from marimo._ast.sql_visitor import (
     find_sql_refs,
     normalize_sql_f_string,
 )
-
 from marimo._ast.variables import is_local
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.strings import standardize_annotation_quotes
