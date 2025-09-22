@@ -32,40 +32,25 @@ class TestLogRules:
             name="marimo",
             level=logging.WARNING,
             pathname="/test.py",
-            lineno=20,
-            msg="DuckDB error",
-            args=(),
-            exc_info=None,
-        )
-        record2.__dict__["lint_rule"] = "MF006"
-
-        record3 = logging.LogRecord(
-            name="marimo",
-            level=logging.WARNING,
-            pathname="/test.py",
             lineno=30,
             msg="General warning",
             args=(),
             exc_info=None,
         )
-        # No lint_rule specified - should go to MF007
+        # No lint_rule specified - should go to MF006
 
         # Create minimal notebook
-        notebook = NotebookSerialization(
-            filename="test.py", cells=[], app=None
-        )
+        notebook = NotebookSerialization(filename="test.py", cells=[], app=None)
 
         # Test with initial logs
-        ctx = LintContext(notebook, logs=[record1, record2, record3])
+        ctx = LintContext(notebook, logs=[record1, record2])
         ctx._group_initial_logs()
 
         # Verify logs are correctly grouped
         assert len(ctx._logs_by_rule.get("MF005", [])) == 1
         assert len(ctx._logs_by_rule.get("MF006", [])) == 1
-        assert len(ctx._logs_by_rule.get("MF007", [])) == 1
         assert ctx._logs_by_rule["MF005"][0].getMessage() == "SQL parse error"
-        assert ctx._logs_by_rule["MF006"][0].getMessage() == "DuckDB error"
-        assert ctx._logs_by_rule["MF007"][0].getMessage() == "General warning"
+        assert ctx._logs_by_rule["MF006"][0].getMessage() == "General warning"
 
     async def test_sql_parse_rule(self):
         """Test SqlParseRule processes MF005 logs correctly."""
@@ -74,7 +59,7 @@ class TestLogRules:
             level=logging.ERROR,
             pathname="/test.py",
             lineno=20,
-            msg="Unable to parse SQL",
+            msg="SQL parsing error",
             args=(),
             exc_info=None,
         )
@@ -93,35 +78,7 @@ class TestLogRules:
         diagnostics = await ctx.get_diagnostics()
         assert len(diagnostics) == 1
         assert diagnostics[0].code == "MF005"
-        assert diagnostics[0].message == "Unable to parse SQL"
-
-    async def test_duckdb_rule(self):
-        """Test DuckdbRule processes MF006 logs correctly."""
-        record = logging.LogRecord(
-            name="marimo",
-            level=logging.WARNING,
-            pathname="/test.py",
-            lineno=30,
-            msg="Unexpected duckdb error",
-            args=(),
-            exc_info=None,
-        )
-        record.__dict__["lint_rule"] = "MF006"
-
-        notebook = NotebookSerialization(
-            filename="test.py", cells=[], app=None
-        )
-        ctx = LintContext(notebook, logs=[record])
-        ctx._group_initial_logs()
-
-        rule = DuckdbRule()
-        rule_ctx = RuleContext(ctx, rule)
-        await rule.check(rule_ctx)
-
-        diagnostics = await ctx.get_diagnostics()
-        assert len(diagnostics) == 1
-        assert diagnostics[0].code == "MF006"
-        assert diagnostics[0].message == "Unexpected duckdb error"
+        assert diagnostics[0].message == "SQL parsing error"
 
     async def test_misc_log_rule(self):
         """Test MiscLogRule processes unspecified logs correctly."""
@@ -160,7 +117,7 @@ class TestLogRules:
         diagnostics = await ctx.get_diagnostics()
         # Only WARNING should create a diagnostic
         assert len(diagnostics) == 1
-        assert diagnostics[0].code == "MF007"
+        assert diagnostics[0].code == "MF006"
         assert diagnostics[0].message == "General warning"
 
     def test_rule_context_get_logs(self):
@@ -176,21 +133,10 @@ class TestLogRules:
         )
         record1.__dict__["lint_rule"] = "MF005"
 
-        record2 = logging.LogRecord(
-            name="marimo",
-            level=logging.WARNING,
-            pathname="/test.py",
-            lineno=20,
-            msg="DuckDB error",
-            args=(),
-            exc_info=None,
-        )
-        record2.__dict__["lint_rule"] = "MF006"
-
         notebook = NotebookSerialization(
             filename="test.py", cells=[], app=None
         )
-        ctx = LintContext(notebook, logs=[record1, record2])
+        ctx = LintContext(notebook, logs=[record1])
         ctx._group_initial_logs()
 
         rule = SqlParseRule()
@@ -201,55 +147,10 @@ class TestLogRules:
         assert len(mf005_logs) == 1
         assert mf005_logs[0].getMessage() == "SQL parse error"
 
-        mf006_logs = rule_ctx.get_logs("MF006")
-        assert len(mf006_logs) == 1
-        assert mf006_logs[0].getMessage() == "DuckDB error"
-
         # Test getting non-existent rule logs
         empty_logs = rule_ctx.get_logs("MF999")
         assert len(empty_logs) == 0
 
         # Test getting all logs
         all_logs = rule_ctx.get_logs(None)
-        assert len(all_logs) == 2
-
-    async def test_duckdb_rule_with_rich_context(self):
-        """Test DuckdbRule processes logs with rich SQL context."""
-        record = logging.LogRecord(
-            name="marimo",
-            level=logging.WARNING,
-            pathname="/test.py",
-            lineno=30,
-            msg="Unexpected duckdb error ValueError",
-            args=(),
-            exc_info=None,
-        )
-        record.__dict__.update(
-            {
-                "lint_rule": "MF006",
-                "sql_statement": "SELECT * FROM nonexistent_table",
-                "error_type": "ValueError",
-                "context": "sql_refs_extraction",
-            }
-        )
-
-        notebook = NotebookSerialization(
-            filename="test.py", cells=[], app=None
-        )
-        ctx = LintContext(notebook, logs=[record])
-        ctx._group_initial_logs()
-
-        rule = DuckdbRule()
-        rule_ctx = RuleContext(ctx, rule)
-        await rule.check(rule_ctx)
-
-        diagnostics = await ctx.get_diagnostics()
-        assert len(diagnostics) == 1
-        assert diagnostics[0].code == "MF006"
-
-        # Check that the enhanced message includes SQL context
-        message = diagnostics[0].message
-        assert "Unexpected duckdb error ValueError" in message
-        assert "Error type: ValueError" in message
-        assert "Context: sql_refs_extraction" in message
-        assert "SQL statement: SELECT * FROM nonexistent_table" in message
+        assert len(all_logs) == 1

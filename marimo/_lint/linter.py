@@ -236,10 +236,11 @@ class Linter:
         """Generate file contents from notebook serialization."""
         converter = MarimoConvert.from_ir(notebook)
 
-        if filename.endswith((".md", ".qmd")):
-            return converter.to_markdown(filename)
-        else:
-            return converter.to_py()
+        with capture_output():
+            if filename.endswith((".md", ".qmd")):
+                return converter.to_markdown(filename)
+            else:
+                return converter.to_py()
 
     @staticmethod
     def _generate_file_contents(file_status: FileStatus) -> str:

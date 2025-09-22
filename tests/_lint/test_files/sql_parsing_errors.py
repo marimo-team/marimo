@@ -8,13 +8,13 @@ app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return mo,
 
 
 @app.cell
-def __(mo):
+def _(mo):
     # This should trigger an MF005 SQL parsing error due to trailing comma
     result = mo.sql(f"""
         WITH ranked_stories AS (
@@ -34,8 +34,7 @@ def __(mo):
                 AND
                 MONTH(timestamp) in (null)
                 AND
-                descendants NOT NULl
-
+                descendants NOT NULL
         )
 
         SELECT

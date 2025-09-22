@@ -1,21 +1,6 @@
-warning[sql-parse-error]: Error parsing SQL statement: Expecting ). Line 19, Col: 32.
-  
-            AND
-            MONTH(timestamp) in (null)
-            AND
-            descendants NOT [4mNULl[0m
-
-    )
-
-    SELECT
-        month,
-        score,
-        type,
-        title,
-        hn_url,
-     
- --> tests/_lint/test_files/sql_parsing_errors.py:36:31
+warning[sql-parse-error]: Expecting ). Line 19, Col: 21.
+ --> tests/_lint/test_files/sql_parsing_errors.py:36:20
   36 |                 AND
   37 |                 descendants NOT NULl
-     |                                  ^
+     |                       ^
   38 | 

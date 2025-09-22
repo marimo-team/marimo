@@ -250,7 +250,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                         LOGGER.warning(
                             "Unexpected number of parts in CREATE TABLE: %s",
                             parts,
-                            extra={"lint_rule": "MF005", "parts": parts},
+                            extra={"parts": parts},
                         )
 
                     if is_table:

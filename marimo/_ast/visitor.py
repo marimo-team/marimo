@@ -15,6 +15,7 @@ from typing_extensions import TypedDict  # noqa: TID253
 
 from marimo import _loggers
 from marimo._ast.errors import ImportStarError
+from marimo._ast.sql_utils import log_sql_error
 from marimo._ast.sql_visitor import (
     SQLDefs,
     SQLKind,
@@ -748,13 +749,13 @@ class ScopedVisitor(ast.NodeVisitor):
                     # We catch base exceptions because we don't want to
                     # fail due to bugs in duckdb -- users code should
                     # be saveable no matter what
-                    _log_sql_error(
+                    log_sql_error(
                         LOGGER.warning,
-                        "Unexpected duckdb error %s",
-                        e,
-                        node,
-                        "MF006",
-                        sql,
+                        message=f"Unexpected duckdb error {e}",
+                        exception=e,
+                        node=node,
+                        rule_code="MF005",
+                        sql_content=sql,
                     )
                     self.generic_visit(node)
                     return node
@@ -767,14 +768,14 @@ class ScopedVisitor(ast.NodeVisitor):
                     except duckdb.ProgrammingError:
                         sql_defs = SQLDefs()
                     except BaseException as e:
-                        _log_sql_error(
+                        log_sql_error(
                             LOGGER.warning,
-                            "Unexpected duckdb error %s",
-                            e,
-                            node,
-                            "MF006",
-                            sql,
-                            "sql_defs_extraction",
+                            message=f"Unexpected duckdb error {e}",
+                            exception=e,
+                            node=node,
+                            rule_code="MF005",
+                            sql_content=sql,
+                            context="sql_defs_extraction",
                         )
                         sql_defs = SQLDefs()
 
@@ -816,25 +817,16 @@ class ScopedVisitor(ast.NodeVisitor):
                         duckdb.ProgrammingError,
                         duckdb.IOException,
                         ParseError,
+                        BaseException,
                     ) as e:
                         # Use first_arg (SQL string node) for accurate positioning
-                        _log_sql_error(
+                        log_sql_error(
                             LOGGER.error,
-                            "Error parsing SQL statement: %s",
-                            e,
-                            first_arg,
-                            "MF005",
-                            statement.query,
-                        )
-                    except BaseException as e:
-                        _log_sql_error(
-                            LOGGER.warning,
-                            "Unexpected duckdb error %s",
-                            e,
-                            first_arg,
-                            "MF006",
-                            statement.query,
-                            "sql_refs_extraction",
+                            message=f"Error parsing SQL statement: {e}",
+                            exception=e,
+                            node=first_arg,
+                            rule_code="MF005",
+                            sql_content=statement.query,
                         )
 
                     for ref in sql_refs:
