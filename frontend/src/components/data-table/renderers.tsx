@@ -93,6 +93,25 @@ export const DataTableBody = <TData,>({
     handleCellsKeyDown,
   } = useCellRangeSelection({ table });
 
+  function applyHoverTemplate(
+    template: string,
+    cells: Array<Cell<TData, unknown>>,
+  ): string {
+    const variableRegex = /{{(\w+)}}/g;
+    // Map column id -> stringified value
+    const idToValue = new Map<string, string>();
+    for (const c of cells) {
+      const v = c.getValue();
+      // Prefer empty string for nulls to keep tooltip clean
+      const s = renderUnknownValue({ value: v, nullAsEmptyString: true });
+      idToValue.set(c.column.id, s);
+    }
+    return template.replace(variableRegex, (_substr, varName: string) => {
+      const val = idToValue.get(varName);
+      return val !== undefined ? val : `{{${varName}}}`;
+    });
+  }
+
   const renderCells = (cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
       const { className, style: pinningstyle } = getPinningStyles(cell.column);
@@ -101,25 +120,7 @@ export const DataTableBody = <TData,>({
         cell.getUserStyling?.() || {},
         pinningstyle,
       );
-      const hoverTemplate = table.getState().cellHoverTemplate || undefined;
-      let title: string | undefined;
-      if (hoverTemplate) {
-        title = hoverTemplate;
-        const variableRegex = /{{(\w+)}}/g;
-        const matches = [...hoverTemplate.matchAll(variableRegex)];
-        for (const match of matches) {
-          // if match is in the row, replace it in the string
-          const matchTerm = match[1];
-          const currentCell = cells.find(
-            (cell) => cell.column.id === matchTerm,
-          );
-          if (currentCell) {
-            const cellValue = currentCell.getValue();
-            title = title.replace(match[0], cellValue as string);
-          }
-          console.log(matchTerm, columns);
-        }
-      }
+
       return (
         <TableCell
           tabIndex={0}
@@ -133,7 +134,6 @@ export const DataTableBody = <TData,>({
             className,
           )}
           style={style}
-          title={title}
           onMouseDown={(e) => handleCellMouseDown(e, cell)}
           onMouseUp={handleCellMouseUp}
           onMouseOver={(e) => handleCellMouseOver(e, cell)}
@@ -165,10 +165,18 @@ export const DataTableBody = <TData,>({
           const isRowViewedInPanel =
             rowViewerPanelOpen && viewedRowIdx === rowIndex;
 
+          // Compute hover title once per row using this row's cells (visible or hidden)
+          const hoverTemplate = table.getState().cellHoverTemplate || null;
+          const rowCells = row.getAllCells();
+          const rowTitle = hoverTemplate
+            ? applyHoverTemplate(hoverTemplate, rowCells)
+            : undefined;
+
           return (
             <TableRow
               key={row.id}
               data-state={row.getIsSelected() && "selected"}
+              title={rowTitle}
               // These classes ensure that empty rows (nulls) still render
               className={cn(
                 "border-t h-6",

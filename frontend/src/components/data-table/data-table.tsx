@@ -237,8 +237,8 @@ const DataTableInternal = <TData,>({
           ? {}
           : // No pagination, show all rows
             { pagination: { pageIndex: 0, pageSize: data.length } }),
-      rowSelection,
-      cellSelection,
+      rowSelection: rowSelection ?? {},
+      cellSelection: cellSelection ?? [],
       cellStyling,
       columnPinning: columnPinning,
       cellHoverTemplate: hoverTemplate,
