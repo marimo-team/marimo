@@ -27,7 +27,7 @@ def _(mo):
 
 @app.cell
 def _(mo, size, sizes):
-    mo.md(f"{size} **{sizes[size.value]}**")
+    mo.md(f"""{size} **{sizes[size.value]}**""")
     return
 
 

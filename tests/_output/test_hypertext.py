@@ -249,3 +249,44 @@ def test_html_rich_elems():
         "mimetype": "text/html",
         "data": df,
     }
+
+
+def test_nested_md_preserves_multiline_code_blocks():
+    """Test that nested mo.md() calls preserve multiline code blocks."""
+    from marimo._output.md import _md
+
+    # Create a markdown object with a multiline code block
+    inner_md = _md("""
+        ```python
+        multiline
+        text
+        ```
+    """)
+
+    # Create a nested markdown object that includes the inner one
+    outer_md = _md(f"{inner_md}")
+
+    # The nested markdown should preserve the multiline formatting
+    # The HTML should contain the newlines in the code block
+    assert 'multiline</span>\n<span class="n">text' in outer_md.text
+    assert (
+        'multiline</span> <span class="n">text' not in outer_md.text
+    )  # Should not be flattened
+
+
+def test_nested_md_format_method():
+    """Test that the __format__ method of _md returns markdown text."""
+    from marimo._output.md import _md
+
+    # Create a markdown object
+    md_obj = _md("""
+        ```python
+        line1
+        line2
+        ```
+    """)
+
+    # When formatted (e.g., in f-strings), it should return the original markdown
+    formatted = f"{md_obj}"
+    assert "line1\nline2" in formatted
+    assert "line1 line2" not in formatted  # Should not be flattened

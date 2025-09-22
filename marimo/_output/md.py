@@ -248,6 +248,22 @@ class _md(Html):
     def _repr_markdown_(self) -> str:
         return self._markdown_text
 
+    def __format__(self, spec: str) -> str:
+        """
+        This overrides the default HTML formatting behavior to return the original
+        markdown text instead of the processed HTML. This prevents multiline code
+        blocks from being flattened when nested mo.md() calls are interpolated
+        into other mo.md() calls.
+
+        Args:
+            spec: Format specification (ignored)
+
+        Returns:
+            The original markdown text (self._markdown_text)
+        """
+        del spec
+        return self._markdown_text
+
 
 @mddoc
 def md(text: str) -> Html:
