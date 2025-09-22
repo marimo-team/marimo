@@ -165,19 +165,20 @@ def const_or_id(args: ast.stmt) -> str:
     return f"{args.id}"  # type: ignore[attr-defined]
 
 
-def extract_markdown(code: str) -> Optional[str]:
-    code = code.strip()
+def _extract_markdown(tree: ast.Module) -> Optional[str]:
     # Attribute Error handled by the outer try/except block.
     # Wish there was a more compact to ignore ignore[attr-defined] for all.
     try:
-        (body,) = ast.parse(code).body
-        if body.value.func.attr == "md":  # type: ignore[attr-defined]
-            value = body.value  # type: ignore[attr-defined]
+        (body,) = tree.body
+        if body.value.func.attr == "md":  # type: ignore[attr-defined, union-attr]
+            value = body.value  # type: ignore[attr-defined, union-attr]
         else:
             return None
         assert value.func.value.id == "mo"
+        if not value.args:  # Handle mo.md() with no arguments
+            return None
         md_lines = const_string(value.args).split("\n")
-    except (AssertionError, AttributeError, ValueError, SyntaxError):
+    except (AssertionError, AttributeError, ValueError):
         # No reason to explicitly catch exceptions if we can't parse out
         # markdown. Just handle it as a code block.
         return None
@@ -192,6 +193,24 @@ def extract_markdown(code: str) -> Optional[str]:
     )
     md = md.strip()
     return md
+
+
+def extract_markdown(code: str) -> Optional[str]:
+    code = code.strip()
+    count = 0
+    # Early quitting for markdown extraction.
+    for line in code.strip().split("\n"):
+        if line.startswith("mo.md("):
+            count += 1
+            if count > 1:
+                return None
+    if count == 0:
+        return None
+
+    try:
+        return _extract_markdown(ast.parse(code))
+    except SyntaxError:
+        return None
 
 
 def compile_cell(
@@ -333,6 +352,8 @@ def compile_cell(
                     if previous_import_data == import_data:
                         imported_defs.add(import_data.definition)
 
+    maybe_md = _extract_markdown(original_module)
+
     return CellImpl(
         # keyed by original (user) code, for cache lookups
         key=code_key(code),
@@ -352,7 +373,7 @@ def compile_cell(
         body=body,
         last_expr=last_expr,
         cell_id=cell_id,
-        markdown=extract_markdown(code),
+        markdown=maybe_md,
         _test=is_test,
     )
 
