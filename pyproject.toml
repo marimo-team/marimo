@@ -27,7 +27,8 @@ dependencies = [
     "pyyaml>=6.0",
     # web server
     # - 0.22.0 introduced timeout-graceful-shutdown, which we use
-    "uvicorn >= 0.22.0",
+    # - 0.36.0 fails to create new notebooks, see https://github.com/marimo-team/marimo/issues/6453
+    "uvicorn>=0.22.0,<0.36.0",
     # web framework
     # - 0.29.0 introduced Middleware kwargs, which we use
     # - starlette 0.36.0 introduced a bug
