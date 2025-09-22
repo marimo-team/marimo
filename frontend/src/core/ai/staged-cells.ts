@@ -11,7 +11,11 @@ import { CellId } from "@/core/cells/ids";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
 import { maybeAddMarimoImport } from "../cells/add-missing-import";
-import { cellHandleAtom, useCellActions } from "../cells/cells";
+import {
+  type CreateNewCellAction,
+  cellHandleAtom,
+  useCellActions,
+} from "../cells/cells";
 import type { LanguageAdapterType } from "../codemirror/language/types";
 import { updateEditorCodeFromPython } from "../codemirror/language/utils";
 import type { JotaiStore } from "../state/jotai";
@@ -172,14 +176,14 @@ class CellCreationStream {
   private onCreateCell: (code: string) => CellId;
   private onUpdateCell: (opts: UpdateStagedCellAction) => void;
   private addStagedCell: (payload: { cellId: CellId }) => void;
-  private createNewCell: any;
-  private hasMarimoImport: boolean = false;
+  private createNewCell: (opts: CreateNewCellAction) => void;
+  private hasMarimoImport = false;
 
   constructor(
     onCreateCell: (code: string) => CellId,
     onUpdateCell: (opts: UpdateStagedCellAction) => void,
     addStagedCell: (payload: { cellId: CellId }) => void,
-    createNewCell: any,
+    createNewCell: (opts: CreateNewCellAction) => void,
   ) {
     this.onCreateCell = onCreateCell;
     this.onUpdateCell = onUpdateCell;
