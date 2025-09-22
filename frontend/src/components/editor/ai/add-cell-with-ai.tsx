@@ -27,7 +27,7 @@ import {
   SparklesIcon,
   XIcon,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
@@ -77,6 +77,12 @@ const languageAtom = atomWithStorage<"python" | "sql">(
 const KEY = "marimo:ai-prompt-history";
 // Store the prompt history in local storage
 const promptHistoryStorage = new ZodLocalStorage(z.array(z.string()), () => []);
+
+export type AddCellWithAIHook = {
+  setInput: (value: string) => void;
+  submit: () => void;
+  close: () => void;
+}
 
 /**
  * Add a cell with AI.
@@ -236,6 +242,24 @@ export const AddCellWithAI: React.FC<{
       </Button>
     </div>
   );
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent<AddCellWithAIHook>("add-cell-with-ai-opened", {
+      detail: {
+        setInput: (value: string) => {
+          setInput(value);
+        },
+        submit: () => {
+          submit();
+        },
+        close: () => {
+          onClose();
+        },
+      }
+    }));
+    return () => {
+    }
+  }, []);
 
   return (
     <div className={cn("flex flex-col w-full gap-2 py-2")}>
