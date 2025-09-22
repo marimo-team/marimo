@@ -60,7 +60,7 @@ class MarimoEmbedBlock(BaseMarimoBlock):
     NAME: str = "marimo-embed"
     OPTIONS: Dict[str, List[Union[str, Any]]] = {
         **BaseMarimoBlock.OPTIONS,
-        "app_width": ["wide", type_string_in(["wide", "full", "compact"])],
+        "app_width": ["medium", type_string_in(["medium", "full", "compact"])],
     }
 
     def on_end(self, block: etree.Element) -> None:
@@ -137,7 +137,7 @@ def uri_encode_component(code: str) -> str:
 def create_marimo_app_code(
     *,
     code: str,
-    app_width: str = "wide",
+    app_width: str = "medium",
 ) -> str:
     header = "\n".join(
         [
