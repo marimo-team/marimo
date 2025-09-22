@@ -105,12 +105,21 @@ class SyntaxErrorRule(LintRule):
                     )
                 )
             else:
-                message = f"{e.msg}"
+                # Handle SyntaxError specifically
+                if isinstance(e, SyntaxError):
+                    message = f"{e.msg}"
+                    line = cell.lineno + (e.lineno or 1) - 1
+                    column = e.offset or 1
+                else:
+                    # For other exceptions, use string representation
+                    message = str(e)
+                    line = cell.lineno
+                    column = 1
                 await ctx.add_diagnostic(
                     Diagnostic(
                         message=message,
-                        line=cell.lineno + (e.lineno or 1) - 1,
-                        column=(e.offset or 1),
+                        line=line,
+                        column=column,
                         fix=_get_known_hints(message),
                     )
                 )

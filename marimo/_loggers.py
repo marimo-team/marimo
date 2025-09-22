@@ -186,7 +186,7 @@ def _file_handler() -> logging.FileHandler:
 class ListHandler(logging.Handler):
     """Log handler that captures records in a list for processing."""
 
-    def __init__(self, level=logging.NOTSET):
+    def __init__(self, level: int = logging.NOTSET) -> None:
         super().__init__(level)
         self.records: list[logging.LogRecord] = []
 
@@ -209,7 +209,7 @@ def capture_output(
 
     logger = marimo_logger()
     out, err = io.StringIO(), io.StringIO()
-    h = ListHandler(log_level)
+    h: ListHandler = ListHandler(log_level)
 
     # Snapshot and suppress existing handlers
     old_handlers, old_propagate = logger.handlers[:], logger.propagate

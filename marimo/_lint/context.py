@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 # Note: load_notebook_ir not used - we do manual compilation for per-cell log capture
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._loggers import capture_output
-from marimo._schemas.serialization import NotebookSerialization
+from marimo._schemas.serialization import CellDef, NotebookSerialization
 
 if TYPE_CHECKING:
     from marimo._lint.rules.base import LintRule
@@ -52,9 +52,7 @@ class LintContext:
             str, dict[str, list[logging.LogRecord]]
         ] = {}
 
-        self._errors: dict[
-            str, list[tuple[Exception, NotebookSerialization.CellDef]]
-        ] = {}
+        self._errors: dict[str, list[tuple[Exception, CellDef]]] = {}
 
     def _get_diagnostics_lock(self) -> asyncio.Lock:
         """Get the diagnostics lock, creating it if needed."""
@@ -171,7 +169,8 @@ class LintContext:
 
             # Manually compile the graph with per-cell log capture
             from marimo._ast.app import App, InternalApp
-            from marimo._ast.cell_manager import CellConfig
+            from marimo._ast.cell import CellConfig
+            from marimo._ast.cell_manager import CellManager
             from marimo._ast.compiler import ir_cell_factory
             from marimo._schemas.serialization import UnparsableCell
 
@@ -228,8 +227,9 @@ class LintContext:
                 )
 
             # Initialize the app to register cells in the graph
-            for cell_id, cell in app._cell_manager.valid_cells():
-                self._graph.register_cell(cell_id, cell._cell)
+            cell_manager: CellManager = app._cell_manager
+            for cell_id, cell_impl in cell_manager.valid_cells():
+                self._graph.register_cell(cell_id, cell_impl._cell)
 
             return self._graph
 
@@ -278,9 +278,7 @@ class RuleContext:
         """Access to the captured stderr."""
         return self.global_context.stderr
 
-    def get_errors(
-        self, key: str
-    ) -> list[tuple[Exception, NotebookSerialization.CellDef]]:
+    def get_errors(self, key: str) -> list[tuple[Exception, CellDef]]:
         return self.global_context._errors.get(key, [])
 
     def get_logs(

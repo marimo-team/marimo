@@ -2,16 +2,13 @@
 from __future__ import annotations
 
 import ast
-import re
 import sys
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Any, Callable, Literal, Optional, Union
+from typing import Callable, Literal, Optional, Union
 from uuid import uuid4
-
-from typing_extensions import TypedDict  # noqa: TID253
 
 from marimo import _loggers
 from marimo._ast.errors import ImportStarError
@@ -32,87 +29,7 @@ from marimo._dependencies.dependencies import DependencyManager
 LOGGER = _loggers.marimo_logger()
 
 
-class SQLErrorMetadata(TypedDict):
-    """Structured metadata for SQL parsing errors."""
-
-    lint_rule: str
-    error_type: str
-    clean_message: str  # Just the meaningful error without SQL trace
-    node_lineno: int
-    node_col_offset: int
-    sql_statement: str  # Truncated if needed
-    sql_line: Optional[int]  # 0-based line within SQL
-    sql_col: Optional[int]  # 0-based column within SQL
-    context: str
-
-
 Name = str
-
-
-def _log_sql_error(
-    logger,
-    message: str,
-    exception: Exception,
-    node: ast.AST,
-    rule_code: str,
-    sql_content: str = "",
-    context: str = "",
-) -> None:
-    """Utility to log SQL-related errors with consistent metadata."""
-    # Parse SQL position from exception message if available
-    sql_line = None
-    sql_col = None
-
-    exception_msg = str(exception)
-    line_col_match = re.search(r"Line (\d+), Col: (\d+)", exception_msg)
-    if line_col_match:
-        sql_line = int(line_col_match.group(1)) - 1  # Convert to 0-based
-        sql_col = int(line_col_match.group(2)) - 1  # Convert to 0-based
-
-    # Extract clean message without SQL trace
-    # The message format is: "Error parsing SQL statement: {actual_error}"
-    message % exception  # Format the message template
-
-    # Truncate long SQL content
-    truncated_sql = sql_content
-    if sql_content and len(sql_content) > 200:
-        truncated_sql = sql_content[:200] + "..."
-
-    # Create metadata using TypedDict
-    metadata: SQLErrorMetadata = {
-        "lint_rule": rule_code,
-        "error_type": type(exception).__name__,
-        "clean_message": exception_msg.split("\n", 1)[0],
-        "node_lineno": node.lineno,
-        "node_col_offset": node.col_offset,
-        "sql_statement": truncated_sql,
-        "sql_line": sql_line,
-        "sql_col": sql_col,
-        "context": context,
-    }
-
-    logger(message, exception, extra=metadata)
-
-
-def _log_sql_warning(
-    message: str,
-    node: ast.AST,
-    rule_code: str,
-    sql_content: str = "",
-    **extra_fields: Any,
-) -> None:
-    """Utility to log SQL-related warnings with consistent metadata."""
-    extra_data = {
-        "lint_rule": rule_code,
-        "node_lineno": node.lineno,
-        "node_col_offset": node.col_offset,
-    }
-
-    if sql_content:
-        extra_data["sql_statement"] = sql_content
-
-    extra_data.update(extra_fields)
-    LOGGER.warning(message, extra=extra_data)
 
 
 Language = Literal["python", "sql"]
@@ -721,10 +638,15 @@ class ScopedVisitor(ast.NodeVisitor):
                 import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
                 # Import ParseError outside try block so we can except it
+                # Use a Union approach to handle both cases
+                ParseErrorType: type[Exception]
                 if DependencyManager.sqlglot.has():
-                    from sqlglot.errors import ParseError
+                    from sqlglot.errors import ParseError as SQLGLOTParseError
+
+                    ParseErrorType = SQLGLOTParseError
                 else:
-                    ParseError = Exception  # Fallback
+                    # Fallback when sqlglot is not available
+                    ParseErrorType = Exception
 
                 # TODO: Handle other SQL languages
                 # TODO: Get the engine so we can differentiate tables in diff engines
@@ -816,7 +738,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     except (
                         duckdb.ProgrammingError,
                         duckdb.IOException,
-                        ParseError,
+                        ParseErrorType,
                         BaseException,
                     ) as e:
                         # Use first_arg (SQL string node) for accurate positioning

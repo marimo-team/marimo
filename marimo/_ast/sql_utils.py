@@ -2,7 +2,7 @@
 
 import ast
 import re
-from typing import Literal, Optional, TypedDict, Union
+from typing import Callable, Literal, Optional, TypedDict, Union
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -78,10 +78,10 @@ def classify_sql_statement(
 
 
 def log_sql_error(
-    logger,
+    logger: Callable[..., None],
     *,
     message: str,
-    exception: Exception,
+    exception: BaseException,
     rule_code: str,
     node: Optional[ast.expr] = None,
     sql_content: str = "",

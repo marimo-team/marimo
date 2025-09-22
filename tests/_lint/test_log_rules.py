@@ -40,7 +40,9 @@ class TestLogRules:
         # No lint_rule specified - should go to MF006
 
         # Create minimal notebook
-        notebook = NotebookSerialization(filename="test.py", cells=[], app=None)
+        notebook = NotebookSerialization(
+            filename="test.py", cells=[], app=None
+        )
 
         # Test with initial logs
         ctx = LintContext(notebook, logs=[record1, record2])
