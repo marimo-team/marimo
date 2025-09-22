@@ -1,8 +1,9 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from unittest.mock import patch
+import pytest
 
+from marimo._utils.platform import is_windows
 from marimo._utils.strings import (
     _mslex_quote,
     _quote_for_cmd,
@@ -15,43 +16,45 @@ from marimo._utils.strings import (
 class TestCmdQuote:
     """Test the cmd_quote function for cross-platform command line quoting."""
 
-    @patch("marimo._utils.strings.is_windows", return_value=False)
+    @pytest.mark.skipif(is_windows(), reason="POSIX-specific test")
     def test_posix_simple_string(self):
         """Test simple strings on POSIX systems."""
         assert cmd_quote("hello") == "hello"
         assert cmd_quote("path/to/file") == "path/to/file"
 
-    @patch("marimo._utils.strings.is_windows", return_value=False)
+    @pytest.mark.skipif(is_windows(), reason="POSIX-specific test")
     def test_posix_strings_with_spaces(self):
         """Test strings with spaces on POSIX systems."""
         assert cmd_quote("hello world") == "'hello world'"
         assert cmd_quote("path with spaces") == "'path with spaces'"
 
-    @patch("marimo._utils.strings.is_windows", return_value=False)
+    @pytest.mark.skipif(is_windows(), reason="POSIX-specific test")
     def test_posix_strings_with_special_chars(self):
         """Test strings with special characters on POSIX systems."""
         assert cmd_quote("hello'world") == "'hello'\"'\"'world'"
         assert cmd_quote('hello"world') == "'hello\"world'"
         assert cmd_quote("hello$world") == "'hello$world'"
 
-    @patch("marimo._utils.strings.is_windows", return_value=True)
+    @pytest.mark.skipif(not is_windows(), reason="Windows-specific test")
     def test_windows_simple_string(self):
         """Test simple strings on Windows."""
         assert cmd_quote("hello") == "hello"
         assert cmd_quote("path\\to\\file") == "path\\to\\file"
 
-    @patch("marimo._utils.strings.is_windows", return_value=True)
+    @pytest.mark.skipif(not is_windows(), reason="Windows-specific test")
     def test_windows_empty_string(self):
         """Test empty string on Windows."""
         assert cmd_quote("") == '""'
 
-    @patch("marimo._utils.strings.is_windows", return_value=True)
+    @pytest.mark.skipif(not is_windows(), reason="Windows-specific test")
     def test_windows_strings_with_spaces(self):
         """Test strings with spaces on Windows."""
         assert cmd_quote("hello world") == '"hello world"'
-        assert cmd_quote("C:\\Program Files\\app") == '"C:\\Program Files\\app"'
+        assert (
+            cmd_quote("C:\\Program Files\\app") == '"C:\\Program Files\\app"'
+        )
 
-    @patch("marimo._utils.strings.is_windows", return_value=True)
+    @pytest.mark.skipif(not is_windows(), reason="Windows-specific test")
     def test_windows_strings_with_special_chars(self):
         """Test strings with Windows special characters."""
         # Test % character
@@ -159,13 +162,23 @@ class TestStandardizeAnnotationQuotes:
 
     def test_single_quotes_to_double(self):
         """Test converting single quotes to double quotes."""
-        assert standardize_annotation_quotes("Literal['foo']") == 'Literal["foo"]'
-        assert standardize_annotation_quotes("Literal['foo', 'bar']") == 'Literal["foo", "bar"]'
+        assert (
+            standardize_annotation_quotes("Literal['foo']") == 'Literal["foo"]'
+        )
+        assert (
+            standardize_annotation_quotes("Literal['foo', 'bar']")
+            == 'Literal["foo", "bar"]'
+        )
 
     def test_already_double_quotes(self):
         """Test that double quotes are preserved."""
-        assert standardize_annotation_quotes('Literal["foo"]') == 'Literal["foo"]'
-        assert standardize_annotation_quotes('Literal["foo", "bar"]') == 'Literal["foo", "bar"]'
+        assert (
+            standardize_annotation_quotes('Literal["foo"]') == 'Literal["foo"]'
+        )
+        assert (
+            standardize_annotation_quotes('Literal["foo", "bar"]')
+            == 'Literal["foo", "bar"]'
+        )
 
     def test_mixed_quotes_with_internal_double_quotes(self):
         """Test that single quotes are preserved when they contain unescaped double quotes."""
@@ -197,6 +210,8 @@ class TestStandardizeAnnotationQuotes:
 
     def test_multiple_string_literals(self):
         """Test multiple string literals in one annotation."""
-        input_annotation = "Dict[Literal['key1', 'key2'], Literal['val1', 'val2']]"
+        input_annotation = (
+            "Dict[Literal['key1', 'key2'], Literal['val1', 'val2']]"
+        )
         expected = 'Dict[Literal["key1", "key2"], Literal["val1", "val2"]]'
         assert standardize_annotation_quotes(input_annotation) == expected
