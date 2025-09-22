@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.16.0"
+version = "0.16.1"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments;we need a very compelling reason for each dependency added.
@@ -27,7 +27,8 @@ dependencies = [
     "pyyaml>=6.0",
     # web server
     # - 0.22.0 introduced timeout-graceful-shutdown, which we use
-    "uvicorn >= 0.22.0",
+    # - 0.36.0 fails to create new notebooks, see https://github.com/marimo-team/marimo/issues/6453
+    "uvicorn>=0.22.0,<0.36.0",
     # web framework
     # - 0.29.0 introduced Middleware kwargs, which we use
     # - starlette 0.36.0 introduced a bug

@@ -9,8 +9,7 @@ import {
 } from "@/components/ui/context-menu";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
+import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
@@ -103,7 +102,7 @@ const CreateCellButtonContextMenu = (props: {
             evt.stopPropagation();
             maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
             onClick({
-              code: new MarkdownLanguageAdapter().defaultCode,
+              code: LanguageAdapters.markdown.defaultCode,
               hideCode: true,
             });
           }}
@@ -118,7 +117,7 @@ const CreateCellButtonContextMenu = (props: {
           onSelect={(evt) => {
             evt.stopPropagation();
             maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
-            onClick({ code: new SQLLanguageAdapter().defaultCode });
+            onClick({ code: LanguageAdapters.sql.defaultCode });
           }}
         >
           <div className="mr-3 text-muted-foreground">

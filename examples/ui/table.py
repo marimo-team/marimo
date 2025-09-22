@@ -19,7 +19,9 @@ def _(mo):
             {"first_name": "Michael", "last_name": "Scott"},
             {"first_name": "Jim", "last_name": "Halpert"},
             {"first_name": "Pam", "last_name": "Beesly"},
-        ]
+        ],
+        # Show full name on hover for each row using column placeholders
+        hover_template="{{first_name}} {{last_name}}",
     )
     table
     return (table,)

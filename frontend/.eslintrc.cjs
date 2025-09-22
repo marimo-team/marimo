@@ -13,6 +13,7 @@ module.exports = {
     "plugin:@typescript-eslint/recommended-type-checked",
     "plugin:@typescript-eslint/stylistic-type-checked",
     "plugin:@typescript-eslint/strict-type-checked",
+    "plugin:react-you-might-not-need-an-effect/legacy-recommended",
     // React
     "plugin:react-hooks/recommended-legacy",
     "plugin:react/recommended",

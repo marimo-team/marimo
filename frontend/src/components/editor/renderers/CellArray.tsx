@@ -20,8 +20,7 @@ import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
+import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { aiEnabledAtom } from "@/core/config/config";
 import { isConnectedAtom } from "@/core/network/connection";
 import { useBoolean } from "@/hooks/useBoolean";
@@ -288,7 +287,7 @@ const AddCellButtons: React.FC<{
             createNewCell({
               cellId: { type: "__end__", columnId },
               before: false,
-              code: new MarkdownLanguageAdapter().defaultCode,
+              code: LanguageAdapters.markdown.defaultCode,
               hideCode: true,
             });
           }}
@@ -307,7 +306,7 @@ const AddCellButtons: React.FC<{
             createNewCell({
               cellId: { type: "__end__", columnId },
               before: false,
-              code: new SQLLanguageAdapter().defaultCode,
+              code: LanguageAdapters.sql.defaultCode,
             });
           }}
         >
