@@ -2037,57 +2037,62 @@ class Kernel:
         4. Marks the cells as completed (not stale)
         5. Removes them from uninstantiated requests
 
-        If 'mo' is not available in the graph definitions, all cells are marked as stale.
-        Regular cells are marked as stale as usual.
+        NOTE: If 'mo' is not available in the graph definitions, all cells are
+        marked as stale. Regular cells are marked as stale as usual.
         """
         # If 'mo' is not available in the graph, mark all cells as stale
-        if "mo" not in self.graph.definitions:
-            for cid in self._uninstantiated_execution_requests:
-                CellOp.broadcast_stale(cell_id=cid, stale=True)
-            return
-
-        markdown_cells_to_remove = set()
+        markdown_cells: dict[CellId_t, str] = {}
+        exports_mo = False
         for cid, er in self._uninstantiated_execution_requests.items():
             # Check if cell already exists in graph (to avoid recompilation)
             cell = self.graph.cells.get(cid)
+            error = None
 
             # If cell doesn't exist in graph, try to compile it
             if cell is None:
+                # TODO: Don't bother compiling whole cell.
                 cell, error = self._try_compiling_cell(cid, er.code, [])
-                if error is not None:
-                    # Compilation error - mark as stale
-                    CellOp.broadcast_stale(cell_id=cid, stale=True)
-                    continue
+
+            if cell is None or error is not None:
+                # Compilation error - mark as stale
+                CellOp.broadcast_stale(cell_id=cid, stale=True)
+                continue
 
             # Check if this is a markdown cell
-            if cell is not None and cell.markdown is not None:
-                # This is a markdown cell - render and send its output immediately
-                from marimo._output.md import md
-
-                html_obj = md(cell.markdown)
-                mimetype, html_content = html_obj._mime_()
-
-                # Broadcast the markdown output
-                CellOp.broadcast_output(
-                    channel=CellChannel.OUTPUT,
-                    mimetype=mimetype,
-                    data=html_content,
-                    cell_id=cid,
-                    status="idle",
-                )
-
-                # Mark the cell as not stale (already "run")
-                CellOp.broadcast_stale(cell_id=cid, stale=False)
-
+            if cell.markdown is not None:
                 # Remove from uninstantiated requests since it's effectively "run"
-                markdown_cells_to_remove.add(cid)
+                markdown_cells[cid] = cell.markdown
             else:
                 # Regular cell - mark as stale
-                CellOp.broadcast_stale(cell_id=cid, stale=True)
+                exports_mo |= "mo" in cell.defs
+
+        if not exports_mo:
+            markdown_cells.clear()
 
         # Remove markdown cells from uninstantiated requests
-        for cid in markdown_cells_to_remove:
-            del self._uninstantiated_execution_requests[cid]
+        for cell_id, content in markdown_cells.items():
+            # This is a markdown cell - render and send its output immediately
+            from marimo._output.md import md
+
+            html_obj = md(content)
+            mimetype, html_content = html_obj._mime_()
+
+            # Broadcast the markdown output
+            CellOp.broadcast_output(
+                channel=CellChannel.OUTPUT,
+                mimetype=mimetype,
+                data=html_content,
+                cell_id=cell_id,
+                status="idle",
+            )
+
+            # Mark the cell as not stale (already "run")
+            CellOp.broadcast_stale(cell_id=cell_id, stale=False)
+
+        # If 'mo' is not exported by any cell, mark all cells as stale
+        for cid in self._uninstantiated_execution_requests.keys():
+            if cid not in markdown_cells:
+                CellOp.broadcast_stale(cell_id=cid, stale=True)
 
     def load_dotenv(self) -> None:
         dotenvs = self.user_config["runtime"].get("dotenv", [])
