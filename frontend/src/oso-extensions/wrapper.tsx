@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useCallback, useEffect, type PropsWithChildren } from "react";
+import { useCallback, useEffect, useState, type PropsWithChildren } from "react";
 import { useCellActions } from "@/core/cells/cells";
 import { PyodideBridge } from "@/core/wasm/bridge";
 import { useFragmentStore } from "./fragment-store";
@@ -8,8 +8,15 @@ import { store } from "@/core/state/jotai";
 import { runtimeConfigAtom } from "@/core/runtime/config";
 import { setLatestEngineSelected, useDataSourceActions } from "@/core/datasets/data-source-connections";
 import type { ConnectionName } from "@/core/datasets/engines";
+import type { AddCellWithAIHook } from "@/components/editor/ai/add-cell-with-ai";
 
 const COMMAND_PREFIX = "oso_commands:";
+
+declare global {
+  interface WindowEventMap {
+    'add-cell-with-ai-opened': CustomEvent<AddCellWithAIHook>;
+  }
+}
 
 /**
  * OSO's wrapper component
@@ -18,6 +25,7 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
   console.log("Setting up oso wrapper");
   //const config = { column: 0, hide_code: false, disabled: false };
 
+  const [aiGenerateOpened, setAIGenerateOpened] = useState(false);
   const fragmentStore = useFragmentStore();
   const actions = useCellActions();
   const dataSourceActions = useDataSourceActions();
@@ -54,6 +62,39 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
       }
     }
   }, []);
+
+  const addCellWithAICallback = useCallback((ev: CustomEvent<AddCellWithAIHook>) => {
+    const { setInput } = ev.detail;
+    // Given a specific string, send every character to the input one by one
+    // with a delay of X ms to simulate typing
+    const aiPrompt = fragmentStore.getString("aiPrompt");
+    if (aiPrompt) {
+      let index = 0;
+      const interval = setInterval(() => {
+        if (index < aiPrompt.length) {
+          setInput(aiPrompt.slice(0, index + 1));
+          index++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 25);
+
+      setAIGenerateOpened(true);
+      return () => clearInterval(interval);
+    }
+    setAIGenerateOpened(true);
+  }, []);
+
+  useEffect(() => {
+    if (aiGenerateOpened) {
+      return;
+    };
+
+    window.addEventListener("add-cell-with-ai-opened", addCellWithAICallback);
+    return () => {
+      window.removeEventListener("add-cell-with-ai-opened", addCellWithAICallback);
+    }
+  }, [aiGenerateOpened]);
 
   // Setup the bridge and inject environment variables
   useEffect(() => {
@@ -93,10 +134,13 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
               },
               models: {
                 ...prev.ai?.models,
-                chat_model: envVars["OSO_AI_MODEL"] || "oso/semantic",
-                edit_model: envVars["OSO_AI_MODEL"] || "oso/semantic",
-                custom_models: prev.ai?.models?.custom_models || [],
-                displayed_models: prev.ai?.models?.displayed_models || [],
+                chat_model: envVars["OSO_AI_MODEL"] || "oso/text2sql",
+                edit_model: envVars["OSO_AI_MODEL"] || "oso/text2sql",
+                custom_models: [
+                  "oso/text2sql",
+                  "oso/gemini",
+                ],
+                displayed_models: ["oso/text2sql", "oso/gemini"],
               },
             },
           }));
