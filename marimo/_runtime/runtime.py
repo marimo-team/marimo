@@ -2023,8 +2023,53 @@ class Kernel:
             self._uninstantiated_execution_requests = {
                 er.cell_id: er for er in request.execution_requests
             }
-            for cid in self._uninstantiated_execution_requests:
+
+            # Handle markdown cells specially during kernel-ready initialization
+            self._handle_markdown_cells_on_instantiate()
+
+    def _handle_markdown_cells_on_instantiate(self) -> None:
+        """Handle markdown cells during kernel-ready initialization.
+
+        For cells that contain only markdown (mo.md calls), this method:
+        1. Compiles the cells to extract markdown content
+        2. Renders the markdown to HTML
+        3. Broadcasts the rendered output immediately
+        4. Marks the cells as completed (not stale)
+        5. Removes them from uninstantiated requests
+
+        Regular cells are marked as stale as usual.
+        """
+        markdown_cells_to_remove = set()
+        for cid, er in self._uninstantiated_execution_requests.items():
+            # Try to compile the cell to check if it has markdown
+            cell, error = self._try_compiling_cell(cid, er.code, [])
+            if error is None and cell is not None and cell.markdown is not None:
+                # This is a markdown cell - render and send its output immediately
+                from marimo._output.md import md
+                html_obj = md(cell.markdown)
+                mimetype, html_content = html_obj._mime_()
+
+                # Broadcast the markdown output
+                CellOp.broadcast_output(
+                    channel=CellChannel.OUTPUT,
+                    mimetype=mimetype,
+                    data=html_content,
+                    cell_id=cid,
+                    status="idle",
+                )
+
+                # Mark the cell as not stale (already "run")
+                CellOp.broadcast_stale(cell_id=cid, stale=False)
+
+                # Remove from uninstantiated requests since it's effectively "run"
+                markdown_cells_to_remove.add(cid)
+            else:
+                # Regular cell - mark as stale
                 CellOp.broadcast_stale(cell_id=cid, stale=True)
+
+        # Remove markdown cells from uninstantiated requests
+        for cid in markdown_cells_to_remove:
+            del self._uninstantiated_execution_requests[cid]
 
     def load_dotenv(self) -> None:
         dotenvs = self.user_config["runtime"].get("dotenv", [])
