@@ -25,7 +25,7 @@ function main() {
     process.exit(1);
   }
 
-  for (let filePath of paths) {
+  for (const filePath of paths) {
     assert(fs.existsSync(filePath), `Expected ${filePath} to exist`);
     assert(
       filePath.endsWith(".ts"),
