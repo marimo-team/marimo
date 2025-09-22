@@ -18,6 +18,7 @@ them but just render their children in a certain way.
 | [`marimo.lazy`][marimo.lazy] | Lazy load content |
 | [`marimo.left`][marimo.left] | Left-align content |
 | [`marimo.nav_menu`][marimo.nav_menu] | Create navigation menus |
+| [`marimo.outline`][marimo.outline] | Display table of contents outline |
 | [`marimo.plain`][marimo.plain] | Display content without styling |
 | [`marimo.right`][marimo.right] | Right-align content |
 | [`marimo.routes`][marimo.routes] | Create page routing |
