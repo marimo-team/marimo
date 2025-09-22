@@ -3,7 +3,7 @@
 
 import type { Column } from "@tanstack/react-table";
 import { capitalize } from "lodash-es";
-import { FilterIcon, MinusIcon, TextIcon, XIcon } from "lucide-react";
+import { FilterIcon, InfoIcon, MinusIcon, TextIcon, XIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useLocale } from "react-aria";
 import {
@@ -90,7 +90,15 @@ export const DataTableColumnHeader = <TData, TValue>({
   if (!column.getCanSort() && !column.getCanFilter()) {
     return (
       <div className={cn(className)} title={headerTitle}>
-        {header}
+        <span className="flex items-center gap-1">
+          {header}
+          {headerTitle && (
+            <InfoIcon
+              className="h-3 w-3 text-muted-foreground"
+              title={headerTitle}
+            />
+          )}
+        </span>
       </div>
     );
   }
@@ -110,7 +118,15 @@ export const DataTableColumnHeader = <TData, TValue>({
             data-testid="data-table-sort-button"
             title={headerTitle}
           >
-            <span className="flex-1">{header}</span>
+            <span className="flex-1 flex items-center gap-1">
+              {header}
+              {headerTitle && (
+                <InfoIcon
+                  className="h-3 w-3 text-muted-foreground"
+                  title={headerTitle}
+                />
+              )}
+            </span>
             <span
               className={cn(
                 "h-5 py-1 px-1",
