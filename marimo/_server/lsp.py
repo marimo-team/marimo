@@ -16,6 +16,7 @@ from marimo._messaging.ops import Alert
 from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
 from marimo._utils.paths import marimo_package_path
+from marimo._utils.strings import cmd_quote
 
 LOGGER = _loggers.marimo_logger()
 
@@ -189,8 +190,6 @@ class CopilotLspServer(BaseLspServer):
         return self._lsp_dir() / "index.cjs"
 
     def get_command(self) -> list[str]:
-        import shlex
-
         lsp_bin = self._lsp_bin()
         # Check if the LSP binary exists
         if not lsp_bin.exists():
@@ -202,7 +201,7 @@ class CopilotLspServer(BaseLspServer):
         log_file = _loggers.get_log_directory() / "github-copilot-lsp.log"
 
         # Properly quote the copilot binary path to handle spaces and special characters
-        copilot_command = f"node {shlex.quote(str(copilot_bin))} --stdio"
+        copilot_command = f"node {cmd_quote(str(copilot_bin))} --stdio"
 
         return [
             "node",
@@ -326,15 +325,13 @@ class TyServer(BaseLspServer):
         return True
 
     def get_command(self) -> list[str]:
-        import shlex
-
         from ty.__main__ import find_ty_bin  # type: ignore
 
         lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
         log_file = _loggers.get_log_directory() / "ty-lsp.log"
 
         # Properly quote the ty binary path to handle spaces and special characters
-        ty_command = f"{shlex.quote(find_ty_bin())} server"
+        ty_command = f"{cmd_quote(find_ty_bin())} server"
 
         return [
             "node",
