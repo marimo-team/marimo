@@ -22,6 +22,7 @@ from marimo._ast.sql_visitor import (
 )
 from marimo._ast.variables import is_local
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.strings import standardize_annotation_quotes
 
 LOGGER = _loggers.marimo_logger()
 
@@ -813,11 +814,8 @@ class ScopedVisitor(ast.NodeVisitor):
             annotation = ast.unparse(node.annotation)
             # It's also possible for multiline types/ strings
             annotation = annotation.replace("\n", "").strip()
-            # ast seems to give single quote strings regardless
-            # but ruff asks for double quotes (unless double quotes are
-            # contained).
-            if annotation.startswith("'") and '"' not in annotation[1:-1]:
-                annotation = f'"{annotation[1:-1]}"'
+            # Standardize quotes to use double quotes consistently
+            annotation = standardize_annotation_quotes(annotation)
 
             self.variable_data[name][0].annotation_data = AnnotationData(
                 annotation, annotation_refs
