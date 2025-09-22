@@ -152,6 +152,54 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
     return node
 
 
+def const_string(args: list[ast.stmt]) -> str:
+    (inner,) = args
+    if hasattr(inner, "values"):
+        (inner,) = inner.values
+    return f"{inner.value}"  # type: ignore[attr-defined]
+
+
+def const_or_id(args: ast.stmt) -> str:
+    if hasattr(args, "value"):
+        return f"{args.value}"  # type: ignore[attr-defined]
+    return f"{args.id}"  # type: ignore[attr-defined]
+
+
+def extract_markdown(code: str) -> Optional[str]:
+    markdown_lines = [
+        line for line in code.strip().split("\n") if line.startswith("mo.md(")
+    ]
+    if len(markdown_lines) > 1:
+        return None
+
+    code = code.strip()
+    # Attribute Error handled by the outer try/except block.
+    # Wish there was a more compact to ignore ignore[attr-defined] for all.
+    try:
+        (body,) = ast.parse(code).body
+        if body.value.func.attr == "md":  # type: ignore[attr-defined]
+            value = body.value  # type: ignore[attr-defined]
+        else:
+            return None
+        assert value.func.value.id == "mo"
+        md_lines = const_string(value.args).split("\n")
+    except (AssertionError, AttributeError, ValueError, SyntaxError):
+        # No reason to explicitly catch exceptions if we can't parse out
+        # markdown. Just handle it as a code block.
+        return None
+
+    # Dedent behavior is a little different that in marimo js, so handle
+    # accordingly.
+    md_lines = [line.rstrip() for line in md_lines]
+    md = (
+        textwrap.dedent(md_lines[0])
+        + "\n"
+        + textwrap.dedent("\n".join(md_lines[1:]))
+    )
+    md = md.strip()
+    return md
+
+
 def compile_cell(
     code: str,
     cell_id: CellId_t,
@@ -310,6 +358,7 @@ def compile_cell(
         body=body,
         last_expr=last_expr,
         cell_id=cell_id,
+        markdown=extract_markdown(code),
         _test=is_test,
     )
 

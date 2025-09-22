@@ -4,10 +4,10 @@ from __future__ import annotations
 import ast
 import os
 import re
-from textwrap import dedent
 from typing import Optional, Union
 
 from marimo._ast.cell import Cell, CellImpl
+from marimo._ast.compiler import const_or_id, extract_markdown
 
 
 def format_filename_title(filename: str) -> str:
@@ -31,19 +31,6 @@ def get_download_filename(filename: Optional[str], extension: str) -> str:
     return f"{os.path.splitext(basename)[0]}.{extension}"
 
 
-def _const_string(args: list[ast.stmt]) -> str:
-    (inner,) = args
-    if hasattr(inner, "values"):
-        (inner,) = inner.values
-    return f"{inner.value}"  # type: ignore[attr-defined]
-
-
-def _const_or_id(args: ast.stmt) -> str:
-    if hasattr(args, "value"):
-        return f"{args.value}"  # type: ignore[attr-defined]
-    return f"{args.id}"  # type: ignore[attr-defined]
-
-
 def get_markdown_from_cell(
     cell: Union[CellImpl, Cell], code: str
 ) -> Optional[str]:
@@ -51,34 +38,7 @@ def get_markdown_from_cell(
 
     if not (cell.refs == {"mo"} and not cell.defs):
         return None
-    markdown_lines = [
-        line for line in code.strip().split("\n") if line.startswith("mo.md(")
-    ]
-    if len(markdown_lines) > 1:
-        return None
-
-    code = code.strip()
-    # Attribute Error handled by the outer try/except block.
-    # Wish there was a more compact to ignore ignore[attr-defined] for all.
-    try:
-        (body,) = ast.parse(code).body
-        if body.value.func.attr == "md":  # type: ignore[attr-defined]
-            value = body.value  # type: ignore[attr-defined]
-        else:
-            return None
-        assert value.func.value.id == "mo"
-        md_lines = _const_string(value.args).split("\n")
-    except (AssertionError, AttributeError, ValueError, SyntaxError):
-        # No reason to explicitly catch exceptions if we can't parse out
-        # markdown. Just handle it as a code block.
-        return None
-
-    # Dedent behavior is a little different that in marimo js, so handle
-    # accordingly.
-    md_lines = [line.rstrip() for line in md_lines]
-    md = dedent(md_lines[0]) + "\n" + dedent("\n".join(md_lines[1:]))
-    md = md.strip()
-    return md
+    return extract_markdown(code)
 
 
 def get_sql_options_from_cell(code: str) -> Optional[dict[str, str]]:
@@ -96,7 +56,7 @@ def get_sql_options_from_cell(code: str) -> Optional[dict[str, str]]:
             return None
         if value.keywords:
             for keyword in value.keywords:  # type: ignore[attr-defined]
-                options[keyword.arg] = _const_or_id(keyword.value)  # type: ignore[attr-defined]
+                options[keyword.arg] = const_or_id(keyword.value)  # type: ignore[attr-defined]
         output = options.pop("output", "True").lower()
         if output == "false":
             options["hide_output"] = "True"
