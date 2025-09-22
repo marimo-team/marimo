@@ -3162,9 +3162,19 @@ class TestMarkdownHandling:
         # Clear stream before instantiate
         stream.messages.clear()
 
-        # First, manually add mo to the graph definitions to simulate it being available
-        # This simulates the scenario where mo has been imported in a previous cell
-        k.graph.definitions["mo"] = {"import_mo"}
+        # Add a cell that exports 'mo' to enable markdown processing
+        # This simulates the scenario where marimo has been imported
+        execution_requests.append(
+            ExecutionRequest(cell_id="mo_import", code="import marimo as mo")
+        )
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
 
         # Instantiate the kernel
         await k.instantiate(creation_request)
@@ -3277,9 +3287,19 @@ class TestMarkdownHandling:
 
         stream.messages.clear()
 
-        # First, manually add mo to the graph definitions to simulate it being available
-        # This simulates the scenario where mo has been imported in a previous cell
-        k.graph.definitions["mo"] = {"import_mo"}
+        # Add a cell that exports 'mo' to enable markdown processing
+        # This simulates the scenario where marimo has been imported
+        execution_requests.append(
+            ExecutionRequest(cell_id="mo_import", code="import marimo as mo")
+        )
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
 
         await k.instantiate(creation_request)
 

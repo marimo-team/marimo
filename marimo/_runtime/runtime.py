@@ -2010,9 +2010,12 @@ class Kernel:
             del request
             LOGGER.debug("App already instantiated.")
             return
+
         # Handle markdown cells specially during kernel-ready initialization
-        # Both auto_run and non-auto_run instantiation need this
-        self._handle_markdown_cells_on_instantiate()
+        execution_requests = {
+            er.cell_id: er for er in request.execution_requests
+        }
+        self._handle_markdown_cells_on_instantiate(execution_requests)
 
         if request.auto_run:
             self.reset_ui_initializers()
@@ -2022,17 +2025,16 @@ class Kernel:
             ) in request.set_ui_element_value_request.ids_and_values:
                 self.ui_initializers[object_id] = initial_value
 
-            await self.run(request.execution_requests)
+            await self.run(list(execution_requests.values()))
             self.reset_ui_initializers()
         else:
-            self._uninstantiated_execution_requests = {
-                er.cell_id: er for er in request.execution_requests
-            }
-
+            self._uninstantiated_execution_requests = execution_requests
             for cell_id in self._uninstantiated_execution_requests.keys():
                 CellOp.broadcast_stale(cell_id=cell_id, stale=True)
 
-    def _handle_markdown_cells_on_instantiate(self) -> None:
+    def _handle_markdown_cells_on_instantiate(
+        self, execution_requests: dict[CellId_t, ExecutionRequest]
+    ) -> None:
         """Handle markdown cells during kernel-ready initialization.
 
         For cells that contain only markdown (mo.md calls), this method:
@@ -2048,7 +2050,7 @@ class Kernel:
         # If 'mo' is not available in the graph, mark all cells as stale
         markdown_cells: dict[CellId_t, str] = {}
         exports_mo = False
-        for cid, er in self._uninstantiated_execution_requests.items():
+        for cid, er in execution_requests.items():
             # Check if cell already exists in graph (to avoid recompilation)
             cell = self.graph.cells.get(cid)
             error = None
@@ -2056,6 +2058,8 @@ class Kernel:
             # If cell doesn't exist in graph, try to compile it
             if cell is None:
                 # TODO: Don't bother compiling whole cell.
+                # However, since we still need to extract defs
+                # for mo / marimo, this is OK for now.
                 cell, error = self._try_compiling_cell(cid, er.code, [])
 
             if cell is None or error is not None:
@@ -2075,7 +2079,8 @@ class Kernel:
 
         # Remove markdown cells from uninstantiated requests
         for cell_id, content in markdown_cells.items():
-            # This is a markdown cell - render and send its output immediately
+            # Since markdown cell, render and broadcast output
+            # Remove cell from outstanding requests
             from marimo._output.md import md
 
             html_obj = md(content)
@@ -2092,7 +2097,7 @@ class Kernel:
 
             # Mark the cell as not stale (already "run")
             CellOp.broadcast_stale(cell_id=cell_id, stale=False)
-            del self._uninstantiated_execution_requests[cell_id]
+            del execution_requests[cell_id]
 
     def load_dotenv(self) -> None:
         dotenvs = self.user_config["runtime"].get("dotenv", [])
