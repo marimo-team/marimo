@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { normalizeName } from "@/core/cells/names";
-import type { ConnectionName } from "@/core/datasets/engines";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
 import { formatSQL } from "../../format";
 import { languageAdapterState } from "../extension";
 import { MarkdownLanguageAdapter } from "../languages/markdown";
 import {
   SQLLanguageAdapter,
+  type SQLMode,
   updateSQLDialectFromConnection,
 } from "../languages/sql/sql";
 import {
@@ -22,7 +24,7 @@ import {
 import type { LanguageMetadataOf } from "../types";
 import type { QuotePrefixKind } from "../utils/quotes";
 import { getQuotePrefix, MarkdownQuotePrefixTooltip } from "./markdown";
-import { SQLEngineSelect } from "./sql";
+import { SQLEngineSelect, SQLModeSelect } from "./sql";
 
 const Divider = () => <div className="h-4 border-r border-border" />;
 
@@ -70,6 +72,12 @@ export const LanguagePanelComponent: React.FC<{
       updateSQLDialectFromConnection(view, engine);
     };
 
+    const switchMode = (mode: SQLMode) => {
+      triggerUpdate<Metadata1>({ mode });
+    };
+
+    const sqlModeEnabled = getFeatureFlag("sql_mode");
+
     actions = (
       <div className="flex flex-1 gap-2 items-center">
         <label className="flex gap-2 items-center">
@@ -95,6 +103,9 @@ export const LanguagePanelComponent: React.FC<{
           onChange={switchEngine}
         />
         <div className="flex items-center gap-2 ml-auto">
+          {sqlModeEnabled && metadata.engine === DUCKDB_ENGINE && (
+            <SQLModeSelect selectedMode={metadata.mode} onChange={switchMode} />
+          )}
           <Tooltip content="Format SQL">
             <Button
               variant="text"

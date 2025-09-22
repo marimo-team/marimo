@@ -14,6 +14,7 @@ export interface ExperimentalFeatures {
   mcp_docs: boolean;
   sql_linter: boolean;
   external_agents: boolean;
+  sql_mode: boolean;
   // Add new feature flags here
 }
 
@@ -26,6 +27,7 @@ const defaultValues: ExperimentalFeatures = {
   mcp_docs: false,
   sql_linter: false,
   external_agents: import.meta.env.DEV,
+  sql_mode: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

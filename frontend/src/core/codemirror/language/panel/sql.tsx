@@ -1,7 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, CircleHelpIcon } from "lucide-react";
+import {
+  AlertCircle,
+  CircleHelpIcon,
+  DatabaseBackup,
+  SearchCheck,
+} from "lucide-react";
 import { transformDisplayName } from "@/components/databases/display";
 import { DatabaseLogo } from "@/components/databases/icon";
 import {
@@ -24,6 +29,7 @@ import {
 } from "@/core/datasets/engines";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { useNonce } from "@/hooks/useNonce";
+import type { SQLMode } from "../languages/sql/sql";
 
 interface SelectProps {
   selectedEngine: ConnectionName;
@@ -130,3 +136,44 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
 const HELP_KEY = "__help__";
 const HELP_URL =
   "http://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database";
+
+interface SQLModeSelectProps {
+  selectedMode: SQLMode;
+  onChange: (mode: SQLMode) => void;
+}
+
+export const SQLModeSelect: React.FC<SQLModeSelectProps> = ({
+  selectedMode,
+  onChange,
+}) => {
+  const handleSelectMode = (value: string) => {
+    onChange(value as SQLMode);
+  };
+
+  return (
+    <div className="flex flex-row gap-1 items-center">
+      <Select value={selectedMode} onValueChange={handleSelectMode}>
+        <SelectTrigger className="text-xs border-border shadow-none! ring-0! h-4.5 px-1.5">
+          <SelectValue placeholder="Select a mode" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectLabel>SQL Mode</SelectLabel>
+            <SelectItem value="default">
+              <div className="flex items-center gap-1">
+                <DatabaseBackup className="h-3 w-3" />
+                <span>Default</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="validate">
+              <div className="flex items-center gap-1">
+                <SearchCheck className="h-3 w-3" />
+                <span>Validate</span>
+              </div>
+            </SelectItem>
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+};

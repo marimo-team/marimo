@@ -32,6 +32,7 @@ import type { ConnectionName } from "../datasets/engines";
 import {
   PreviewSQLTable,
   PreviewSQLTableList,
+  ValidateSQL,
 } from "../datasets/request-registry";
 import { useDatasetsActions } from "../datasets/state";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
@@ -237,6 +238,9 @@ export function useMarimoWebSocket(opts: {
         return;
       case "sql-table-list-preview":
         PreviewSQLTableList.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "validate-sql-result":
+        ValidateSQL.resolve(msg.data.request_id as RequestId, msg.data);
         return;
       case "secret-keys-result":
         SECRETS_REGISTRY.resolve(msg.data.request_id as RequestId, msg.data);

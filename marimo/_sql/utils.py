@@ -183,6 +183,33 @@ def is_explain_query(query: str) -> bool:
     return query.lstrip().lower().startswith("explain ")
 
 
+def wrap_query_with_explain(query: str) -> str:
+    """
+    Wrap a SQL query with an EXPLAIN query if it is not already.
+
+    If the query is just comments, return it. Executing this would return nothing.
+    """
+    if is_explain_query(query):
+        return query
+
+    return f"EXPLAIN {query}"
+
+
+def is_query_just_comments(query: str) -> bool:
+    """Check if a SQL query is just comments."""
+    DependencyManager.sqlglot.require(why="Detecting comments")
+
+    import sqlglot
+    from sqlglot.errors import ParseError
+
+    try:
+        parsed = sqlglot.parse(query)
+    except ParseError:
+        return False
+
+    return all(res is None for res in parsed)
+
+
 def extract_explain_content(df: Any) -> str:
     """Extract all content from a DataFrame for EXPLAIN queries.
 

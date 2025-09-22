@@ -11,6 +11,7 @@ from marimo._runtime.requests import (
     PreviewDataSourceConnectionRequest,
     PreviewSQLTableListRequest,
     PreviewSQLTableRequest,
+    ValidateSQLRequest,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
@@ -74,6 +75,7 @@ async def preview_sql_table(request: Request) -> BaseResponse:
     """
     app_state = AppState(request)
     body = await parse_request(request, PreviewSQLTableRequest)
+    # This is in kernel
     app_state.require_current_session().put_control_request(
         body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
@@ -126,6 +128,32 @@ async def preview_datasource_connection(request: Request) -> BaseResponse:
     """
     app_state = AppState(request)
     body = await parse_request(request, PreviewDataSourceConnectionRequest)
+    app_state.require_current_session().put_control_request(
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
+    return SuccessResponse()
+
+
+@router.post("/sql/validate")
+@requires("edit")
+async def validate_sql(request: Request) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ValidateSQLRequest"
+    responses:
+        200:
+            description: Validate an SQL query
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, ValidateSQLRequest)
     app_state.require_current_session().put_control_request(
         body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),

@@ -626,6 +626,13 @@ class DataSourceConnections(Op, tag="data-source-connections"):
     connections: list[DataSourceConnection]
 
 
+class ValidateSQLResult(Op, tag="validate-sql-result"):
+    name: ClassVar[str] = "validate-sql-result"
+    request_id: RequestId
+    result: Optional[Any] = None
+    error: Optional[str] = None
+
+
 class QueryParamsSet(Op, tag="query-params-set"):
     """Set query parameters."""
 
@@ -721,6 +728,7 @@ MessageOperation = Union[
     SQLTablePreview,
     SQLTableListPreview,
     DataSourceConnections,
+    ValidateSQLResult,
     # Secrets
     SecretKeysResult,
     # Kiosk specific

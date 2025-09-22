@@ -222,6 +222,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         requests.PreviewSQLTableListRequest,
         requests.PreviewDataSourceConnectionRequest,
         requests.PreviewSQLTableRequest,
+        requests.ValidateSQLRequest,
         requests.RenameRequest,
         requests.SetCellConfigRequest,
         requests.ModelMessage,

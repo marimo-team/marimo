@@ -4,6 +4,7 @@ import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
+  AlertCircleIcon,
   HelpCircleIcon,
   MoreHorizontalIcon,
   SquareFunctionIcon,
@@ -28,6 +29,7 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
+import { useSqlValidationErrorsForCell } from "@/core/codemirror/language/languages/sql/validation-errors";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { canCollapseOutline } from "@/core/dom/outline";
 import { isErrorMime } from "@/core/mime";
@@ -452,6 +454,7 @@ const EditableCellComponent = ({
   const hasOutput = !isOutputEmpty(cellRuntime.output);
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const cellOutput = userConfig.display.cell_output;
+  const sqlValidationError = useSqlValidationErrorsForCell(cellId);
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
   const hasOutputBelow = hasOutput && cellOutput === "below";
@@ -549,6 +552,18 @@ const EditableCellComponent = ({
 
   const isToplevel = cellRuntime.serialization?.toLowerCase() === "valid";
 
+  const sqlErrorDisplay = sqlValidationError && (
+    <div className="p-2 text-sm flex items-start text-muted-foreground gap-1.5">
+      <AlertCircleIcon size={13} className="mt-[3px] text-destructive" />
+      <p>
+        <span className="font-bold text-destructive">
+          {sqlValidationError.errorType}:
+        </span>{" "}
+        {sqlValidationError.errorMessage}
+      </p>
+    </div>
+  );
+
   return (
     <TooltipProvider>
       <CellActionsContextMenu cellId={cellId} getEditorView={getEditorView}>
@@ -573,7 +588,12 @@ const EditableCellComponent = ({
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}
           >
-            {cellOutput === "above" && outputArea}
+            {cellOutput === "above" && (
+              <>
+                {outputArea}
+                {sqlErrorDisplay}
+              </>
+            )}
             <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
               <StagedAICellBackground cellId={cellId} />
               <div className="absolute right-2 -top-4 z-10">
@@ -653,7 +673,12 @@ const EditableCellComponent = ({
                 )}
               </div>
             </div>
-            {cellOutput === "below" && outputArea}
+            {cellOutput === "below" && (
+              <>
+                {sqlErrorDisplay}
+                {outputArea}
+              </>
+            )}
             {cellRuntime.serialization && (
               <div className="py-1 px-2 flex items-center justify-end gap-2 last:rounded-b">
                 {isToplevel && (

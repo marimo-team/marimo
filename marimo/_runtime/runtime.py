@@ -67,6 +67,7 @@ from marimo._messaging.ops import (
     SecretKeysResult,
     SQLTableListPreview,
     SQLTablePreview,
+    ValidateSQLResult,
     VariableDeclaration,
     Variables,
     VariableValue,
@@ -149,6 +150,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
     SetUserConfigRequest,
     StopRequest,
+    ValidateSQLRequest,
 )
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.runner.hooks import (
@@ -176,7 +178,8 @@ from marimo._secrets.load_dotenv import (
 from marimo._secrets.secrets import get_secret_keys
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
-from marimo._sql.engines.types import EngineCatalog
+from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
+from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
@@ -2220,6 +2223,10 @@ class Kernel:
             PreviewDataSourceConnectionRequest,
             self.datasets_callbacks.preview_datasource_connection,
         )
+        # SQL
+        handler.register(
+            ValidateSQLRequest, self.datasets_callbacks.validate_sql
+        )
         # Secrets
         handler.register(
             ListSecretKeysRequest, self.secrets_callbacks.list_secrets
@@ -2452,6 +2459,36 @@ class DatasetCallbacks:
         )
         DataSourceConnections(
             connections=[data_source_connection],
+        ).broadcast()
+
+    @kernel_tracer.start_as_current_span("validate_sql_query")
+    async def validate_sql(self, request: ValidateSQLRequest) -> None:
+        """Validate an SQL query"""
+        # TODO: Place request in queue
+        variable_name = cast(VariableName, request.engine)
+        if variable_name == INTERNAL_DUCKDB_ENGINE:
+            engine = DuckDBEngine(connection=None)
+            error = None
+        else:
+            engine, error = self._get_engine_catalog(variable_name)
+
+        if error is not None or engine is None:
+            LOGGER.error("Failed to get engine %s", variable_name)
+            ValidateSQLResult(
+                request_id=request.request_id,
+                result=None,
+                error="Engine not found",
+            ).broadcast()
+            return
+
+        result = None
+        if isinstance(engine, QueryEngine):
+            result, error = engine.execute_in_explain_mode(request.query)
+        else:
+            error = "Engine does not support explain mode"
+
+        ValidateSQLResult(
+            request_id=request.request_id, result=result, error=error
         ).broadcast()
 
 

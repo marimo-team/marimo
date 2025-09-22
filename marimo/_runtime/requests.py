@@ -338,6 +338,14 @@ class PreviewDataSourceConnectionRequest(msgspec.Struct, rename="camel"):
     engine: str
 
 
+class ValidateSQLRequest(msgspec.Struct, rename="camel"):
+    """Validate an SQL query"""
+
+    request_id: RequestId
+    engine: str
+    query: str
+
+
 class ListSecretKeysRequest(msgspec.Struct, rename="camel"):
     request_id: RequestId
 
@@ -397,6 +405,7 @@ ControlRequest = Union[
     SetUserConfigRequest,
     ListSecretKeysRequest,
     PreviewDataSourceConnectionRequest,
+    ValidateSQLRequest,
     # Requests with no fields (will match any empty object)
     StopRequest,
     RefreshSecretsRequest,

@@ -207,6 +207,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    validateSQL: (request) => {
+      return getClient()
+        .POST("/api/datasources/sql/validate", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
     openFile: async (request) => {
       await waitForConnectionOpen();
       await getClient()
