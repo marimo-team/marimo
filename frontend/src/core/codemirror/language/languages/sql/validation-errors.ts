@@ -1,12 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { SupportedDialects } from "@marimo-team/codemirror-sql";
 import { atom, useAtomValue } from "jotai";
 import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
 
-interface SQLValidationError {
+export interface SQLValidationError {
   errorType: string;
   errorMessage: string;
+  codeblock?: string; // Code block that caused the error
 }
 
 type CellToSQLErrors = Map<CellId, SQLValidationError>;
@@ -27,21 +29,51 @@ export function clearSqlValidationError(cellId: CellId) {
   store.set(sqlValidationErrorsAtom, newErrors);
 }
 
-export function setSqlValidationError(cellId: CellId, error: string) {
+export function setSqlValidationError({
+  cellId,
+  error,
+  dialect,
+}: {
+  cellId: CellId;
+  error: string;
+  dialect: SupportedDialects | null;
+}) {
   const sqlValidationErrors = store.get(sqlValidationErrorsAtom);
   const newErrors = new Map(sqlValidationErrors);
 
-  const { errorType, errorMessage } = splitErrorMessage(error);
-  newErrors.set(cellId, { errorType, errorMessage });
+  const errorResult: SQLValidationError =
+    dialect === "DuckDB" ? handleDuckdbError(error) : splitErrorMessage(error);
+
+  newErrors.set(cellId, errorResult);
   store.set(sqlValidationErrorsAtom, newErrors);
 }
 
+function handleDuckdbError(error: string): SQLValidationError {
+  const { errorType, errorMessage } = splitErrorMessage(error);
+  let newErrorMessage = errorMessage;
+
+  // Extract the LINE and the rest of the message as codeblock, keep errorMessage as whatever is before
+  let codeblock: string | undefined;
+  const lineIndex = errorMessage.indexOf("LINE ");
+  if (lineIndex !== -1) {
+    codeblock = errorMessage.slice(Math.max(0, lineIndex)).trim();
+    newErrorMessage = errorMessage.slice(0, Math.max(0, lineIndex)).trim();
+  }
+
+  return {
+    errorType,
+    errorMessage: newErrorMessage,
+    codeblock,
+  };
+}
+
 function splitErrorMessage(error: string) {
-  const errorType = error.split(":")[0];
-  const errorMessage = error.split(":").slice(1).join(":");
+  const errorType = error.split(":")[0].trim();
+  const errorMessage = error.split(":").slice(1).join(":").trim();
   return { errorType, errorMessage };
 }
 
 export const exportedForTesting = {
   splitErrorMessage,
+  handleDuckdbError,
 };

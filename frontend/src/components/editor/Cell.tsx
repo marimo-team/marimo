@@ -4,7 +4,6 @@ import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
-  AlertCircleIcon,
   HelpCircleIcon,
   MoreHorizontalIcon,
   SquareFunctionIcon,
@@ -82,6 +81,7 @@ import { useDeleteCellCallback } from "./cell/useDeleteCell";
 import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";
 import { cellDomProps } from "./common";
+import { SqlValidationError } from "./errors/sql-validation-errors";
 import { useCellNavigationProps } from "./navigation/navigation";
 import {
   useTemporarilyShownCode,
@@ -552,18 +552,6 @@ const EditableCellComponent = ({
 
   const isToplevel = cellRuntime.serialization?.toLowerCase() === "valid";
 
-  const sqlErrorDisplay = sqlValidationError && (
-    <div className="p-2 text-sm flex items-start text-muted-foreground gap-1.5">
-      <AlertCircleIcon size={13} className="mt-[3px] text-destructive" />
-      <p>
-        <span className="font-bold text-destructive">
-          {sqlValidationError.errorType}:
-        </span>{" "}
-        {sqlValidationError.errorMessage}
-      </p>
-    </div>
-  );
-
   return (
     <TooltipProvider>
       <CellActionsContextMenu cellId={cellId} getEditorView={getEditorView}>
@@ -668,7 +656,9 @@ const EditableCellComponent = ({
                 )}
               </div>
             </div>
-            {sqlErrorDisplay}
+            {sqlValidationError && (
+              <SqlValidationError error={sqlValidationError} />
+            )}
             {cellOutput === "below" && outputArea}
             {cellRuntime.serialization && (
               <div className="py-1 px-2 flex items-center justify-end gap-2 last:rounded-b">

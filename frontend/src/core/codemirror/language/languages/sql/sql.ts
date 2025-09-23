@@ -334,9 +334,14 @@ function getSchema(view: EditorView): SQLNamespace {
 function guessParserDialect(state: EditorState): ParserDialects | null {
   const metadata = getSQLMetadata(state);
   const connectionName = metadata.engine;
+  return connectionNameToParserDialect(connectionName);
+}
+
+function connectionNameToParserDialect(
+  connectionName: ConnectionName,
+): ParserDialects | null {
   const dialect =
     SCHEMA_CACHE.getInternalDialect(connectionName)?.toLowerCase();
-
   switch (dialect) {
     case "postgresql":
     case "postgres":
@@ -614,7 +619,8 @@ function sqlValidationExtension(): Extension {
         });
 
         if (result.error) {
-          setSqlValidationError(cellId, result.error);
+          const dialect = connectionNameToParserDialect(connectionName);
+          setSqlValidationError({ cellId, error: result.error, dialect });
         } else {
           clearSqlValidationError(cellId);
         }
