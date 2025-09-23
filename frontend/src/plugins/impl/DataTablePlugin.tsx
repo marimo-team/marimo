@@ -348,7 +348,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
-            headerInfo={props.data.headerTooltip}
           />
         </LazyDataTableComponent>
       </TableProviders>
@@ -390,7 +389,6 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
   hoverTemplate?: string | null;
-  headerInfo?: Record<string, string> | undefined;
   toggleDisplayHeader?: () => void;
   host: HTMLElement;
   cellId?: CellId | null;
@@ -915,7 +913,6 @@ const DataTableComponent = ({
             cellSelection={cellSelection}
             cellStyling={cellStyles}
             hoverTemplate={hoverTemplate}
-            headerTooltip={headerTooltip}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
             searchQuery={searchQuery}
