@@ -38,6 +38,10 @@ from marimo._runtime.executor import (
     get_executor,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._sql.error_utils import (
+    create_sql_error_from_exception,
+    is_sql_parse_error,
+)
 from marimo._types.ids import CellId_t
 
 LOGGER = marimo_logger()
@@ -403,6 +407,13 @@ class Runner:
                         exception = output
                 except Exception:
                     pass
+        # Handle SQL parsing errors
+        elif unwrapped_exception is not None and is_sql_parse_error(
+            unwrapped_exception
+        ):
+            cell = self.graph.cells[cell_id]
+            output = create_sql_error_from_exception(unwrapped_exception, cell)
+            exception = output
         elif isinstance(unwrapped_exception, MarimoStopError):
             output = unwrapped_exception.output
             exception = unwrapped_exception

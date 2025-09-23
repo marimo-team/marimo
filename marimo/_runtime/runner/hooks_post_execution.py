@@ -16,6 +16,7 @@ from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     MarimoExceptionRaisedError,
     MarimoInterruptionError,
+    MarimoSQLError,
     MarimoStrictExecutionError,
 )
 from marimo._messaging.ops import (
@@ -331,6 +332,13 @@ def _broadcast_outputs(
         CellOp.broadcast_error(
             data=[run_result.exception],
             clear_console=False,
+            cell_id=cell.cell_id,
+        )
+    elif isinstance(run_result.exception, MarimoSQLError):
+        LOGGER.debug("Cell %s raised a SQL error", cell.cell_id)
+        CellOp.broadcast_error(
+            data=[run_result.exception],
+            clear_console=True,
             cell_id=cell.cell_id,
         )
     elif run_result.exception is not None:

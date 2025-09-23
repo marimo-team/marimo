@@ -11,6 +11,7 @@ from marimo._sql.engines.dbapi import DBAPIConnection, DBAPIEngine
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import QueryEngine
+from marimo._sql.error_utils import MarimoSQLException, is_sql_parse_error
 from marimo._sql.get_engines import SUPPORTED_ENGINES
 from marimo._sql.utils import (
     extract_explain_content,
@@ -75,7 +76,30 @@ def sql(
                 "Unsupported engine. Must be a SQLAlchemy, Ibis, Clickhouse, DuckDB, Redshift or DBAPI 2.0 compatible engine."
             )
 
-    df = sql_engine.execute(query)
+    try:
+        df = sql_engine.execute(query)
+    except Exception as e:
+        if is_sql_parse_error(e):
+            exception_msg = str(e)
+            exception_type = type(e).__name__
+
+            # Create clean error message
+            clean_message = exception_msg.split("\n", 1)[0]
+            if exception_type == "ParserException":
+                clean_message = f"SQL syntax error: {clean_message}"
+            elif "ParseError" in exception_type:
+                clean_message = f"SQL parse error: {clean_message}"
+            elif "ProgrammingError" in exception_type:
+                clean_message = f"SQL programming error: {clean_message}"
+
+            raise MarimoSQLException(
+                message=clean_message,
+                sql_statement=query[:200] + "..."
+                if len(query) > 200
+                else query,
+            ) from e
+        raise
+
     if df is None:
         return None
 
