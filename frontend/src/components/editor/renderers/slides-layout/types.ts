@@ -6,7 +6,7 @@
  * This must be backwards-compatible as it is stored on the user's disk.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type SerializedSlidesLayout = {};
+export interface SerializedSlidesLayout {}
 
 export interface SlidesLayout extends SerializedSlidesLayout {
   // No additional properties for now

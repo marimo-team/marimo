@@ -72,6 +72,8 @@ export const MarimoErrorOutput = ({
     titleContents = "Ancestor stopped";
     alertVariant = "default";
     titleColor = "text-secondary-foreground";
+  } else if (errors.some((e) => e.type === "sql-error")) {
+    titleContents = "SQL Error in statement";
   } else {
     // Check for exception type
     const exceptionError = errors.find((e) => e.type === "exception");
@@ -125,6 +127,9 @@ export const MarimoErrorOutput = ({
   );
   const unknownErrors = errors.filter(
     (e): e is Extract<MarimoError, { type: "unknown" }> => e.type === "unknown",
+  );
+  const sqlErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "sql-error" }> => e.type === "sql-error",
   );
 
   const openScratchpad = () => {
@@ -481,6 +486,45 @@ export const MarimoErrorOutput = ({
           {cellId && (
             <AutoFixButton errors={ancestorStoppedErrors} cellId={cellId} />
           )}
+        </div>,
+      );
+    }
+
+    if (sqlErrors.length > 0) {
+      messages.push(
+        <div key="sql-errors">
+          {sqlErrors.map((error, idx) => (
+            <div key={`sql-error-${idx}`} className="space-y-2">
+              <p className="text-muted-foreground">{error.msg}</p>
+              {error.sql_statement && (
+                <div className="bg-muted/50 p-2 rounded text-xs font-mono">
+                  <pre className="whitespace-pre-wrap">{error.sql_statement}</pre>
+                </div>
+              )}
+              {error.sql_line !== null && error.sql_col !== null && (
+                <p className="text-xs text-muted-foreground">
+                  Error at line {error.sql_line + 1}, column {error.sql_col + 1}
+                </p>
+              )}
+              {error.lint_rule && (
+                <p className="text-xs text-muted-foreground">
+                  Rule: {error.lint_rule}
+                </p>
+              )}
+            </div>
+          ))}
+          {cellId && <AutoFixButton errors={sqlErrors} cellId={cellId} />}
+          <Tip title="How to fix SQL errors">
+            <p className="pb-2">
+              SQL parsing errors often occur due to invalid syntax, missing
+              keywords, or unsupported SQL features.
+            </p>
+            <p className="py-2">
+              Check your SQL syntax and ensure you're using supported SQL
+              dialect features. The error location can help you identify the
+              problematic part of your query.
+            </p>
+          </Tip>
         </div>,
       );
     }
