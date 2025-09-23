@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.errors import ImportStarError
+from marimo._ast.sql_utils import log_sql_error
 from marimo._ast.sql_visitor import (
     SQLDefs,
     SQLKind,
@@ -26,7 +27,9 @@ from marimo._utils.strings import standardize_annotation_quotes
 
 LOGGER = _loggers.marimo_logger()
 
+
 Name = str
+
 
 Language = Literal["python", "sql"]
 
@@ -632,6 +635,18 @@ class ScopedVisitor(ast.NodeVisitor):
                 and sql
             ):
                 import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+
+                # Import ParseError outside try block so we can except it
+                # Use a Union approach to handle both cases
+                ParseErrorType: type[Exception]
+                if DependencyManager.sqlglot.has():
+                    from sqlglot.errors import ParseError as SQLGLOTParseError
+
+                    ParseErrorType = SQLGLOTParseError
+                else:
+                    # Fallback when sqlglot is not available
+                    ParseErrorType = Exception
+
                 # TODO: Handle other SQL languages
                 # TODO: Get the engine so we can differentiate tables in diff engines
 
@@ -655,7 +670,14 @@ class ScopedVisitor(ast.NodeVisitor):
                     # We catch base exceptions because we don't want to
                     # fail due to bugs in duckdb -- users code should
                     # be saveable no matter what
-                    LOGGER.warning("Unexpected duckdb error %s", e)
+                    log_sql_error(
+                        LOGGER.warning,
+                        message=f"Unexpected duckdb error {e}",
+                        exception=e,
+                        node=node,
+                        rule_code="MF005",
+                        sql_content=sql,
+                    )
                     self.generic_visit(node)
                     return node
 
@@ -667,7 +689,15 @@ class ScopedVisitor(ast.NodeVisitor):
                     except duckdb.ProgrammingError:
                         sql_defs = SQLDefs()
                     except BaseException as e:
-                        LOGGER.warning("Unexpected duckdb error %s", e)
+                        log_sql_error(
+                            LOGGER.warning,
+                            message=f"Unexpected duckdb error {e}",
+                            exception=e,
+                            node=node,
+                            rule_code="MF005",
+                            sql_content=sql,
+                            context="sql_defs_extraction",
+                        )
                         sql_defs = SQLDefs()
 
                     defined_names = set()
@@ -699,13 +729,23 @@ class ScopedVisitor(ast.NodeVisitor):
 
                     sql_refs: set[SQLRef] = set()
                     try:
+                        # Take results
                         sql_refs = find_sql_refs_cached(statement.query)
-                    except (duckdb.ProgrammingError, duckdb.IOException):
-                        LOGGER.debug(
-                            "Error parsing SQL statement: %s", statement.query
+                    except (
+                        duckdb.ProgrammingError,
+                        duckdb.IOException,
+                        ParseErrorType,
+                        BaseException,
+                    ) as e:
+                        # Use first_arg (SQL string node) for accurate positioning
+                        log_sql_error(
+                            LOGGER.error,
+                            message=f"Error parsing SQL statement: {e}",
+                            exception=e,
+                            node=first_arg,
+                            rule_code="MF005",
+                            sql_content=statement.query,
                         )
-                    except BaseException as e:
-                        LOGGER.warning("Unexpected duckdb error %s", e)
 
                     for ref in sql_refs:
                         name = ref.qualified_name

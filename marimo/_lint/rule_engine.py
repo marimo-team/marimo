@@ -10,6 +10,7 @@ from marimo._lint.rules import RULE_CODES
 from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
+    import logging
     from collections.abc import AsyncIterator
 
     from marimo._lint.diagnostic import Diagnostic
@@ -67,9 +68,10 @@ class RuleEngine:
         notebook: NotebookSerialization,
         stdout: str = "",
         stderr: str = "",
+        logs: list[logging.LogRecord] | None = None,
     ) -> AsyncIterator[Diagnostic]:
         """Check notebook and yield diagnostics as they become available."""
-        ctx = LintContext(notebook, stdout, stderr)
+        ctx = LintContext(notebook, stdout, stderr, logs)
 
         # Create tasks for all rules with their completion tracking
         pending_tasks = {
@@ -115,11 +117,12 @@ class RuleEngine:
         notebook: NotebookSerialization,
         stdout: str = "",
         stderr: str = "",
+        logs: list[logging.LogRecord] | None = None,
     ) -> list[Diagnostic]:
         """Check notebook for all lint rule violations using async execution."""
         diagnostics = []
         async for diagnostic in self.check_notebook_streaming(
-            notebook, stdout, stderr
+            notebook, stdout, stderr, logs
         ):
             diagnostics.append(diagnostic)
         return diagnostics

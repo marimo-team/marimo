@@ -1,6 +1,7 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import logging
 import re
 from typing import TYPE_CHECKING
 
@@ -152,6 +153,147 @@ class StderrRule(LintRule):
                     message=f"stderr: {ctx.stderr}",
                     cell_id=None,
                     line=0,
+                    column=0,
+                )
+            )
+
+
+class SqlParseRule(LintRule):
+    """MF005: SQL parsing errors during dependency analysis.
+
+    This rule processes log messages captured when marimo encounters errors
+    while parsing SQL statements in notebook cells. SQL parsing is used for
+    dependency analysis and dataframe tracking.
+
+    ## What it does
+
+    Captures SQL parsing error logs and creates diagnostics pointing to
+    problematic SQL statements in cells.
+
+    ## Why is this bad?
+
+    SQL parsing failures can lead to:
+    - Incorrect dependency analysis for SQL-using cells
+    - Missing dataframe references in dependency graph
+    - Reduced effectiveness of reactive execution
+    - Potential runtime errors when SQL is executed
+
+    ## Examples
+
+    **Triggered by:**
+    - Invalid SQL syntax in cell code
+    - Unsupported SQL dialects or extensions
+    - Complex SQL that exceeds parser capabilities
+
+    ## References
+
+    - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
+    - [SQL Support](https://docs.marimo.io/guides/sql/)
+    """
+
+    code = "MF005"
+    name = "sql-parse-error"
+    description = "SQL parsing errors during dependency analysis"
+    severity = Severity.FORMATTING
+    fixable = False
+
+    async def check(self, ctx: RuleContext) -> None:
+        """Process SQL parsing error logs."""
+        logs = ctx.get_logs(self.code)
+
+        for record in logs:
+            # Extract metadata from log record - ONLY use extra_data
+            extra_data = getattr(record, "__dict__", {})
+
+            # Use clean message from metadata (without SQL trace)
+            message = extra_data.get("clean_message", "SQL parsing error")
+
+            # Calculate line position using cell information
+            cell_lineno = extra_data.get(
+                "cell_lineno", 0
+            )  # Cell start line in notebook
+            node_lineno = extra_data.get(
+                "node_lineno", 1
+            )  # Node line within cell
+            sql_line = extra_data.get("sql_line")  # SQL line within SQL string
+
+            # Start with cell position + node position within cell
+            line = cell_lineno + node_lineno - 1  # Convert to 0-based
+
+            # Add SQL line offset if available
+            if sql_line is not None:
+                line += sql_line
+
+            # Use SQL column if available, otherwise node column
+            sql_col = extra_data.get("sql_col")
+            col = (
+                sql_col
+                if sql_col is not None
+                else extra_data.get("node_col_offset", 0)
+            )
+
+            await ctx.add_diagnostic(
+                Diagnostic(
+                    message=message,
+                    line=line,
+                    cell_id=None,
+                    column=col,
+                )
+            )
+
+
+class MiscLogRule(LintRule):
+    """MF006: Miscellaneous log messages during processing.
+
+    This rule processes log messages that don't have a specific rule assigned
+    but may still be relevant for understanding notebook health and potential
+    issues during processing.
+
+    ## What it does
+
+    Captures warning and error level log messages that aren't handled by
+    other specific log rules and creates diagnostics to surface them.
+
+    ## Why is this bad?
+
+    Unhandled log messages may indicate:
+    - Unexpected issues during notebook processing
+    - Configuration problems
+    - Library warnings that affect execution
+    - Performance or resource issues
+
+    ## Examples
+
+    **Triggered by:**
+    - General warnings from imported libraries
+    - Configuration issues
+    - Unexpected errors during processing
+
+    ## References
+
+    - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
+    """
+
+    code = "MF006"
+    name = "misc-log-capture"
+    description = "Miscellaneous log messages during processing"
+    severity = Severity.FORMATTING
+    fixable = False
+
+    async def check(self, ctx: RuleContext) -> None:
+        """Process miscellaneous log messages."""
+        logs = ctx.get_logs(self.code)
+
+        for record in logs:
+            # Only process WARNING and ERROR level logs to avoid noise
+            if record.levelno < logging.WARNING:
+                continue
+
+            await ctx.add_diagnostic(
+                Diagnostic(
+                    message=record.getMessage(),
+                    line=0,  # Misc logs don't have meaningful line positioning
+                    cell_id=None,
                     column=0,
                 )
             )

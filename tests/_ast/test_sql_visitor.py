@@ -788,7 +788,10 @@ class TestFindSQLRefs:
 
     def test_invalid_sql(self) -> None:
         sql = "SELECT * FROM"
-        assert find_sql_refs(sql) == set()
+        from sqlglot import ParseError
+
+        with pytest.raises(ParseError):
+            find_sql_refs(sql)
 
     def test_dml_with_subquery(self) -> None:
         # first

@@ -250,6 +250,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                         LOGGER.warning(
                             "Unexpected number of parts in CREATE TABLE: %s",
                             parts,
+                            extra={"parts": parts},
                         )
 
                     if is_table:
@@ -497,7 +498,6 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     DependencyManager.sqlglot.require(why="SQL parsing")
 
     from sqlglot import exp, parse
-    from sqlglot.errors import ParseError
     from sqlglot.optimizer.scope import build_scope
 
     def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
@@ -507,7 +507,6 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
         catalog_name = table.catalog or None
 
         if table_name is None:
-            LOGGER.warning("Table name cannot be found in the SQL statement")
             return None
 
         # Check if the table name looks like a URL or has a file extension.
@@ -520,12 +519,9 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
             table=table_name, schema=schema_name, catalog=catalog_name
         )
 
-    try:
-        with _loggers.suppress_warnings_logs("sqlglot"):
-            expression_list = parse(sql_statement, dialect="duckdb")
-    except ParseError as e:
-        LOGGER.error(f"Unable to parse SQL. Error: {e}")
-        return set()
+    # May raise a ParseError
+    with _loggers.suppress_warnings_logs("sqlglot"):
+        expression_list = parse(sql_statement, dialect="duckdb")
 
     refs: set[SQLRef] = set()
 

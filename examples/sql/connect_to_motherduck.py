@@ -212,7 +212,7 @@ def _(MONTHS, duckdb, mo):
         """
         SELECT DISTINCT type as 'HN Type'
         FROM sample_data.hn.hacker_news
-        WHERE score NOT NULL AND descendants NOT NULL
+        WHERE score IS NOT NULL AND descendants IS NOT NULL
         LIMIT 10;
         """
     ).df()
@@ -259,8 +259,7 @@ def _(hn_type_select, mo, month_list):
                 AND
                 MONTH(timestamp) in ({month_list})
                 AND
-                descendants NOT NULl
-
+                descendants IS NOT NULL
         )
 
         SELECT
