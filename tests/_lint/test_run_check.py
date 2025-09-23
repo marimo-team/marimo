@@ -368,4 +368,20 @@ def __():
             assert result.files[0].failed is True
             # Note: errored might not be True as we changed error handling
             assert "Failed to parse" in result.files[0].message
-        """Test error handling in run_check."""
+
+    def test_run_check_with_nonexistent_file_pattern(self):
+        """Test run_check with a specific nonexistent file."""
+        result = run_check(("nonexistent_file.py",))
+
+        assert isinstance(result, Linter)
+        assert len(result.files) == 1  # Should create a failed file status
+        assert result.files[0].failed is True
+        assert "File not found" in result.files[0].message
+
+    def test_run_check_with_nonexistent_directory_pattern(self):
+        """Test run_check with nonexistent directory patterns."""
+        result = run_check(("nonexistent_dir/**/*.py",))
+
+        assert isinstance(result, Linter)
+        assert len(result.files) == 0
+        assert result.errored is False

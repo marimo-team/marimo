@@ -7,7 +7,7 @@ from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.linter import FileStatus, Linter
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
 from marimo._lint.rules.base import LintRule
-from marimo._utils.files import expand_file_patterns
+from marimo._utils.files import async_expand_file_patterns
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -43,8 +43,8 @@ def run_check(
     Returns:
         Linter with per-file status and diagnostics
     """
-    # Expand patterns to actual files
-    files_to_check = expand_file_patterns(file_patterns)
+    # Get async generator for files
+    files_to_check = async_expand_file_patterns(file_patterns)
 
     linter = Linter(
         pipe=pipe,
@@ -100,7 +100,7 @@ def collect_messages(
         rules=filtered_rules,
     )
 
-    files_to_check = expand_file_patterns(file_patterns)
+    files_to_check = async_expand_file_patterns(file_patterns)
     linter.run_streaming(files_to_check)
 
     return linter, "\n".join(messages)
