@@ -273,6 +273,10 @@ def test_duckdb_execute() -> None:
     duckdb_conn.close()
 
 
+@pytest.mark.skipif(
+    not HAS_DUCKDB or not HAS_POLARS,
+    reason="Duckdb and polars not installed",
+)
 def test_duckdb_execute_in_explain_mode():
     """Test DuckDBEngine execute in explain mode."""
     import duckdb
@@ -340,6 +344,7 @@ def test_sqlalchemy_execute() -> None:
     assert engine.execute("PRAGMA journal_mode=WAL") is not None
 
 
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_sqlalchemy_execute_in_explain_mode():
     """Test SQLAlchemyEngine execute in explain mode."""
     import sqlalchemy as sa
