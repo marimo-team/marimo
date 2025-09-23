@@ -173,6 +173,7 @@ nav:
           - HTML head: guides/configuration/html_head.md
           - Theming: guides/configuration/theming.md
           - Snippets: guides/configuration/snippets.md
+          - i18n: guides/configuration/internationalization.md
       - Coming from other tools:
           - Coming from other tools: guides/coming_from/index.md
           - Jupytext: guides/coming_from/jupytext.md
@@ -231,6 +232,7 @@ nav:
           - Json: api/layouts/json.md
           - Justify: api/layouts/justify.md
           - Lazy: api/layouts/lazy.md
+          - Outline: api/layouts/outline.md
           - Plain: api/layouts/plain.md
           - Routes: api/layouts/routes.md
           - Sidebar: api/layouts/sidebar.md

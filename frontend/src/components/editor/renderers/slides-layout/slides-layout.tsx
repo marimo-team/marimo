@@ -24,7 +24,7 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   const isReading = mode === "read";
 
   const slides = (
-    <LazySlidesComponent forceKeyboardNavigation={true}>
+    <LazySlidesComponent forceKeyboardNavigation={true} className="flex-1">
       {cells.map((cell) => {
         const isOutputEmpty = cell.output == null || cell.output.data === "";
         if (isOutputEmpty) {
@@ -45,10 +45,10 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   );
 
   if (isReading) {
-    return <div className="p-4">{slides}</div>;
+    return <div className="p-4 flex flex-col flex-1 max-h-[95%]">{slides}</div>;
   }
 
-  return <div className="pr-9">{slides}</div>;
+  return <div className="pr-18 pb-5 flex-1 flex flex-col">{slides}</div>;
 };
 
 interface SlideProps extends Pick<CellRuntimeState, "output" | "status"> {

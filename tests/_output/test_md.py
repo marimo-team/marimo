@@ -257,6 +257,16 @@ def test_md_repr_markdown():
     assert md._repr_markdown_() == input_text
 
 
+def test_md_format():
+    input_text = "This is **bold** and this is _italic_."
+    md = _md(input_text)
+    assert f"{md}" == input_text
+
+    input_text = "```python\nprint('Hello, world!')\n```"
+    md = _md(input_text)
+    assert f"{md}" == input_text
+
+
 @patch("marimo._runtime.output")
 def test_latex_via_path(output: MagicMock, tmp_path: Path) -> None:
     filename = tmp_path / "macros.tex"

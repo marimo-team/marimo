@@ -20,37 +20,51 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ```python
-        def fibonacci(n):
-            if n <= 0:
-                return []
-            elif n == 1:
-                return [0]
-            elif n == 2:
-                return [0, 1]
+    ```python
+    def fibonacci(n):
+        if n <= 0:
+            return []
+        elif n == 1:
+            return [0]
+        elif n == 2:
+            return [0, 1]
 
-            fib_sequence = [0, 1]
-            for i in range(2, n):
-                fib_sequence.append(fib_sequence[i-1] + fib_sequence[i-2])
+        fib_sequence = [0, 1]
+        for i in range(2, n):
+            fib_sequence.append(fib_sequence[i-1] + fib_sequence[i-2])
 
-            return fib_sequence
-        ```
-        """
+        return fib_sequence
+    ```
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(code_block, mo):
+    mo.md(
+        rf"""
+    ```
+    # Example usage:
+    # print(fibonacci(10))
+    ```
+
+    **Nested code block**
+    {code_block}
+    """
     )
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ```
-        # Example usage:
-        # print(fibonacci(10))
-        ```
-        """
-    )
-    return
+    code_block = mo.md("""
+    ```python
+    def add(x: int, y: int):
+        return x + y
+    ```
+    """)
+    return (code_block,)
 
 
 @app.cell

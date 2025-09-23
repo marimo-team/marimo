@@ -145,6 +145,31 @@ export function initialNotebookState(): NotebookState {
   });
 }
 
+export interface CreateNewCellAction {
+  /** The target cell ID to create a new cell relative to. Can be:
+   * - A CellId string for an existing cell
+   * - "__end__" to append at the end of the first column
+   * - {type: "__end__", columnId} to append at the end of a specific column
+   */
+  cellId: CellId | "__end__" | { type: "__end__"; columnId: CellColumnId };
+  /** Whether to insert before (true) or after (false) the target cell */
+  before: boolean;
+  /** Initial code content for the new cell */
+  code?: string;
+  /** The last executed code for the new cell */
+  lastCodeRun?: string;
+  /** Timestamp of the last execution */
+  lastExecutionTime?: number;
+  /** Optional custom ID for the new cell. Auto-generated if not provided */
+  newCellId?: CellId;
+  /** Whether to focus the new cell after creation */
+  autoFocus?: boolean;
+  /** If true, skip creation if code already exists */
+  skipIfCodeExists?: boolean;
+  /** Hide the code in the new cell. This will be initially shown until the cell is blurred for the first time. */
+  hideCode?: boolean;
+}
+
 /**
  * Actions and reducer for the notebook state.
  */
@@ -154,33 +179,7 @@ const {
   useActions,
   valueAtom: notebookAtom,
 } = createReducerAndAtoms(initialNotebookState, {
-  createNewCell: (
-    state,
-    action: {
-      /** The target cell ID to create a new cell relative to. Can be:
-       * - A CellId string for an existing cell
-       * - "__end__" to append at the end of the first column
-       * - {type: "__end__", columnId} to append at the end of a specific column
-       */
-      cellId: CellId | "__end__" | { type: "__end__"; columnId: CellColumnId };
-      /** Whether to insert before (true) or after (false) the target cell */
-      before: boolean;
-      /** Initial code content for the new cell */
-      code?: string;
-      /** The last executed code for the new cell */
-      lastCodeRun?: string;
-      /** Timestamp of the last execution */
-      lastExecutionTime?: number;
-      /** Optional custom ID for the new cell. Auto-generated if not provided */
-      newCellId?: CellId;
-      /** Whether to focus the new cell after creation */
-      autoFocus?: boolean;
-      /** If true, skip creation if code already exists */
-      skipIfCodeExists?: boolean;
-      /** Hide the code in the new cell. This will be initially shown until the cell is blurred for the first time. */
-      hideCode?: boolean;
-    },
-  ) => {
+  createNewCell: (state, action: CreateNewCellAction) => {
     const {
       cellId,
       before,
