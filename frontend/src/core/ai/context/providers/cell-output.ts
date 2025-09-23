@@ -10,6 +10,7 @@ import { isOutputEmpty } from "@/core/cells/outputs";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { JotaiStore } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
+import { parseHtmlContent } from "@/utils/dom";
 import { type AIContextItem, AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
 import { Boosts } from "./common";
@@ -64,23 +65,6 @@ function isMediaMimetype(
   return false;
 }
 
-function parseHtmlContent(htmlString: string): string {
-  try {
-    // Create a temporary DOM element to parse HTML
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = htmlString;
-
-    // Extract text content, removing HTML tags
-    const textContent = tempDiv.textContent || tempDiv.innerText || "";
-
-    // Clean up extra whitespace
-    return textContent.replaceAll(/\s+/g, " ").trim();
-  } catch (error) {
-    Logger.error("Error parsing HTML content:", error);
-    // If parsing fails, return the original string
-    return htmlString;
-  }
-}
 
 export class CellOutputContextProvider extends AIContextProvider<CellOutputContextItem> {
   readonly title = "Cell Outputs";

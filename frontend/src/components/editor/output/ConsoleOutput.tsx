@@ -14,6 +14,7 @@ import type { OutputMessage } from "@/core/kernel/messages";
 import { useSelectAllContent } from "@/hooks/useSelectAllContent";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
+import { ansiToPlainText, parseHtmlContent } from "@/utils/dom";
 import { invariant } from "@/utils/invariant";
 import { Strings } from "@/utils/strings";
 import { NameCellContentEditable } from "../actions/name-cell-input";
@@ -124,7 +125,18 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
                 onClick={() => {
                   const text = reversedOutputs
                     .filter((output) => output.channel !== "pdb")
-                    .map((output) => Strings.asString(output.data))
+                    .map((output) => {
+                      // If starts with `<`, then assume it's HTML
+                      if (
+                        typeof output.data === "string" &&
+                        output.data.startsWith("<")
+                      ) {
+                        return parseHtmlContent(output.data);
+                      }
+
+                      // Otherwise, convert the ANSI to HTML, then parse as HTML
+                      return ansiToPlainText(Strings.asString(output.data));
+                    })
                     .join("\n");
                   void copyToClipboard(text);
                 }}
