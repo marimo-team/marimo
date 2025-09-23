@@ -268,7 +268,7 @@ describe("sqlValidationErrors", () => {
       const error = "SyntaxError: SELECT * FROM df";
       const { errorType, errorMessage } = splitErrorMessage(error);
       expect(errorType).toBe("SyntaxError");
-      expect(errorMessage).toBe(" SELECT * FROM df");
+      expect(errorMessage).toBe("SELECT * FROM df");
     });
 
     it("should handle multiple colons", () => {
@@ -277,7 +277,7 @@ describe("sqlValidationErrors", () => {
       const { errorType, errorMessage } = splitErrorMessage(error);
       expect(errorType).toBe("SyntaxError");
       expect(errorMessage).toBe(
-        " SELECT * FROM df:SyntaxError: SELECT * FROM df",
+        "SELECT * FROM df:SyntaxError: SELECT * FROM df",
       );
     });
   });
