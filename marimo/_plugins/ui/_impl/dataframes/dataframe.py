@@ -13,7 +13,6 @@ from typing import (
     Union,
 )
 
-import marimo._output.data.data as mo_data
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
@@ -38,6 +37,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
 )
+from marimo._plugins.ui._impl.utils.dataframe import download_as
 from marimo._plugins.validators import (
     validate_no_integer_columns,
     validate_page_size,
@@ -298,18 +298,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
         # Get the table manager for the transformed data
         manager = self._get_cached_table_manager(df, self._limit)
-
-        ext = args.format
-        if ext == "csv":
-            return mo_data.csv(manager.to_csv()).url
-        elif ext == "json":
-            return mo_data.json(manager.to_json()).url
-        elif ext == "parquet":
-            return mo_data.parquet(manager.to_parquet()).url
-        else:
-            raise ValueError(
-                "format must be one of 'csv', 'json', or 'parquet'."
-            )
+        return download_as(manager, args.format)
 
     def _apply_filters_query_sort(
         self,
