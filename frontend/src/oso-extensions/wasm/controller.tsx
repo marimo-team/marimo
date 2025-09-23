@@ -238,6 +238,10 @@ export class DefaultWasmController implements WasmController {
             await micropip.install(pkg)
           except Exception as e:
             print("Failed to load packages from micropip. skipping", e)
+
+        # Patch pyodide http so that requests and other libraries work
+        import pyodide_http
+        pyodide_http.patch_all()
       `)
         .catch((error) => {
           // Don't let micropip loading failures stop the notebook from loading
