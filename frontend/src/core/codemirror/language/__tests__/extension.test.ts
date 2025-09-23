@@ -209,7 +209,6 @@ describe("switchLanguage", () => {
         "commentLines": [],
         "dataframeName": "_df",
         "engine": "${DUCKDB_ENGINE}",
-        "mode": "default",
         "quotePrefix": "f",
         "showOutput": true,
       }
@@ -248,7 +247,6 @@ describe("switchLanguage", () => {
       commentLines: [],
       dataframeName: "_df",
       engine: DUCKDB_ENGINE,
-      mode: "default",
       quotePrefix: "f",
       showOutput: true,
     });

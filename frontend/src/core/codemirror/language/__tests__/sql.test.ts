@@ -22,6 +22,7 @@ import {
   SQLLanguageAdapter,
   type SQLLanguageAdapterMetadata,
 } from "../languages/sql/sql";
+import { exportedForTesting } from "../languages/sql/validation-errors";
 import { languageMetadataField } from "../metadata";
 
 const adapter = new SQLLanguageAdapter();
@@ -1683,3 +1684,23 @@ const testDatasets = [
     ],
   },
 ];
+
+describe("SQL Validation Extension", () => {
+  describe("Error Message Splitting", () => {
+    it("should handle error message splitting correctly", () => {
+      const { splitErrorMessage } = exportedForTesting;
+
+      const result1 = splitErrorMessage("Syntax error: unexpected token");
+      expect(result1.errorType).toBe("Syntax error");
+      expect(result1.errorMessage).toBe(" unexpected token");
+
+      const result2 = splitErrorMessage("Multiple: colons: in error");
+      expect(result2.errorType).toBe("Multiple");
+      expect(result2.errorMessage).toBe(" colons: in error");
+
+      const result3 = splitErrorMessage("No colon error");
+      expect(result3.errorType).toBe("No colon error");
+      expect(result3.errorMessage).toBe("");
+    });
+  });
+});
