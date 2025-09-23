@@ -4,4433 +4,4319 @@
  */
 
 export interface paths {
-  "/@file/{filename_and_length}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          /** @description The filename and byte length of the virtual file */
-          filename_and_length: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Get a virtual file */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/octet-stream": string;
-          };
-        };
-        /** @description Invalid byte length in virtual file request */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/ai/chat": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      /** @description The request body for AI chat */
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["ChatRequest"];
-        };
-      };
-      responses: never;
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/ai/completion": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      /** @description The request body for AI completion */
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["AiCompletionRequest"];
-        };
-      };
-      responses: {
-        /** @description Get AI completion for a prompt */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              [key: string]: unknown;
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/ai/inline_completion": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      /** @description The request body for AI inline completion */
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["AiInlineCompletionRequest"];
-        };
-      };
-      responses: {
-        /** @description Get AI inline completion for code */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/ai/invoke_tool": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      /** @description The request body for tool invocation */
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["InvokeAiToolRequest"];
-        };
-      };
-      responses: {
-        /** @description Tool invocation result */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["InvokeAiToolResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/datasources/preview_column": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["PreviewDatasetColumnRequest"];
-        };
-      };
-      responses: {
-        /** @description Preview a column in a dataset */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/datasources/preview_datasource_connection": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["PreviewDataSourceConnectionRequest"];
-        };
-      };
-      responses: {
-        /** @description Broadcasts a datasource connection */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/datasources/preview_sql_table": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["PreviewSQLTableRequest"];
-        };
-      };
-      responses: {
-        /** @description Preview a SQL table */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/datasources/preview_sql_table_list": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["PreviewSQLTableListRequest"];
-        };
-      };
-      responses: {
-        /** @description Preview a list of tables in an SQL schema */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/documentation/snippets": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Load the snippets for the documentation page */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Snippets"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/export/auto_export/html": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ExportAsHTMLRequest"];
-        };
-      };
-      responses: {
-        /** @description Export the notebook as HTML */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-        /** @description File must be saved before downloading */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/export/auto_export/ipynb": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ExportAsIPYNBRequest"];
-        };
-      };
-      responses: {
-        /** @description Export the notebook as IPYNB */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-        /** @description File must be saved before downloading */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/export/auto_export/markdown": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ExportAsMarkdownRequest"];
-        };
-      };
-      responses: {
-        /** @description Export the notebook as a markdown */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-        /** @description File must be saved before downloading */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/export/html": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ExportAsHTMLRequest"];
-        };
-      };
-      responses: {
-        /** @description Export the notebook as HTML */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/html": string;
-          };
-        };
-        /** @description File must be saved before downloading */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/export/markdown": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ExportAsMarkdownRequest"];
-        };
-      };
-      responses: {
-        /** @description Export the notebook as a markdown */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-        /** @description File must be saved before downloading */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/export/script": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ExportAsScriptRequest"];
-        };
-      };
-      responses: {
-        /** @description Export the notebook as a script */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-        /** @description File must be saved before downloading */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/files/create": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["FileCreateRequest"];
-        };
-      };
-      responses: {
-        /** @description Create a new file or directory */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["FileCreateResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/files/delete": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["FileDeleteRequest"];
-        };
-      };
-      responses: {
-        /** @description Delete a file or directory */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["FileDeleteResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/files/file_details": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["FileDetailsRequest"];
-        };
-      };
-      responses: {
-        /** @description Get details of a specific file or directory */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["FileDetailsResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/files/list_files": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["FileListRequest"];
-        };
-      };
-      responses: {
-        /** @description List files and directories in a given path */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["FileListResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/files/move": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["FileMoveRequest"];
-        };
-      };
-      responses: {
-        /** @description Move a file or directory */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["FileMoveResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/files/open": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["FileOpenRequest"];
-        };
-      };
-      responses: {
-        /** @description Open a file in the system editor */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["BaseResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/files/search": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["FileSearchRequest"];
-        };
-      };
-      responses: {
-        /** @description Search for files and directories matching a query */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["FileSearchResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/files/update": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["FileUpdateRequest"];
-        };
-      };
-      responses: {
-        /** @description Update a file or directory */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["FileUpdateResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/home/recent_files": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Get the recent files */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["RecentFilesResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/home/running_notebooks": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Get the running files */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["RunningNotebooksResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/home/shutdown_session": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ShutdownSessionRequest"];
-        };
-      };
-      responses: {
-        /** @description Shutdown the current session */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["RunningNotebooksResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/home/tutorial/open": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["OpenTutorialRequest"];
-        };
-      };
-      responses: {
-        /** @description Open a new tutorial */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["MarimoFile"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/home/workspace_files": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["WorkspaceFilesRequest"];
-        };
-      };
-      responses: {
-        /** @description Get the files in the workspace */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["WorkspaceFilesResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/code_autocomplete": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["CodeCompletionRequest"];
-        };
-      };
-      responses: {
-        /** @description Complete a code fragment */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/copy": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["CopyNotebookRequest"];
-        };
-      };
-      responses: {
-        /** @description Copy notebook */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/delete": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["DeleteCellRequest"];
-        };
-      };
-      responses: {
-        /** @description Delete a cell */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/format": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["FormatRequest"];
-        };
-      };
-      responses: {
-        /** @description Format code */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["FormatResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/function_call": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["FunctionCallRequest"];
-        };
-      };
-      responses: {
-        /** @description Invoke an RPC */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/install_missing_packages": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["InstallMissingPackagesRequest"];
-        };
-      };
-      responses: {
-        /** @description Install missing packages */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/instantiate": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["InstantiateRequest"];
-        };
-      };
-      responses: {
-        /** @description Instantiate a component */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/interrupt": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Interrupt the kernel's execution */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/pdb/pm": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["PdbRequest"];
-        };
-      };
-      responses: {
-        /** @description Run a post mortem on the most recent failed cell. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/read_code": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Read the code from the server */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["ReadCodeResponse"];
-          };
-        };
-        /** @description File must be saved before downloading */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/rename": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["RenameFileRequest"];
-        };
-      };
-      responses: {
-        /** @description Rename the current app */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/restart_session": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Restart the current session without affecting other sessions. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/run": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["RunRequest"];
-        };
-      };
-      responses: {
-        /** @description Run a cell. Updates cell code in the kernel if needed; registers new cells for unseen cell IDs. Only allowed in edit mode. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/save": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["SaveNotebookRequest"];
-        };
-      };
-      responses: {
-        /** @description Save the current app */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/save_app_config": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["SaveAppConfigurationRequest"];
-        };
-      };
-      responses: {
-        /** @description Save the app configuration */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/save_user_config": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["SaveUserConfigurationRequest"];
-        };
-      };
-      responses: {
-        /** @description Update the user config on disk and in the kernel. Only allowed in edit mode. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/scratchpad/run": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ExecuteScratchpadRequest"];
-        };
-      };
-      responses: {
-        /** @description Run the scratchpad */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/set_cell_config": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["SetCellConfigRequest"];
-        };
-      };
-      responses: {
-        /** @description Set the configuration of a cell */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/set_model_value": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["SetModelMessageRequest"];
-        };
-      };
-      responses: {
-        /** @description Set model value */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/set_ui_element_value": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["UpdateComponentValuesRequest"];
-        };
-      };
-      responses: {
-        /** @description Set UI element values */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/shutdown": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Shutdown the kernel */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/stdin": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["StdinRequest"];
-        };
-      };
-      responses: {
-        /** @description Send input to the stdin stream */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/sync/cell_ids": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["UpdateCellIdsRequest"];
-        };
-      };
-      responses: {
-        /** @description Sync cell ids */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/takeover": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Successfully closed existing sessions */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              status?: string;
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/packages/add": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["AddPackageRequest"];
-        };
-      };
-      responses: {
-        /** @description Install package */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["PackageOperationResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/packages/list": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description List installed packages */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["ListPackagesResponse"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/packages/remove": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["RemovePackageRequest"];
-        };
-      };
-      responses: {
-        /** @description Uninstall package */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["PackageOperationResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/packages/tree": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description List dependency tree */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["DependencyTreeResponse"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/secrets/create": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["CreateSecretRequest"];
-        };
-      };
-      responses: {
-        /** @description Create a secret */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["BaseResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/secrets/delete": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Delete a secret */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["BaseResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/secrets/keys": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["ListSecretKeysRequest"];
-        };
-      };
-      responses: {
-        /** @description List all secret keys */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["ListSecretKeysResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/status": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Get the status of the application */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              filenames?: string[];
-              lsp_running?: boolean;
-              mode?: string;
-              node_version?: string;
-              requirements?: string[];
-              sessions?: number;
-              status?: string;
-              version?: string;
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/status/connections": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Get the number of active websocket connections */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              active?: number;
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/usage": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Get the current memory and CPU usage of the application */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              cpu: {
-                percent: number;
-              };
-              gpu?: {
-                index: number;
-                memory: {
-                  free: number;
-                  percent: number;
-                  total: number;
-                  used: number;
+    "/@file/{filename_and_length}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description The filename and byte length of the virtual file */
+                    filename_and_length: string;
                 };
-                name: string;
-              }[];
-              kernel?: {
-                memory?: number;
-              };
-              memory: {
-                available: number;
-                free: number;
-                percent: number;
-                total: number;
-                used: number;
-              };
-              server?: {
-                memory: number;
-              };
+                cookie?: never;
             };
-          };
+            requestBody?: never;
+            responses: {
+                /** @description Get a virtual file */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/octet-stream": string;
+                    };
+                };
+                /** @description Invalid byte length in virtual file request */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
         };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/version": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Get the version of the application */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
+    "/api/ai/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/auth/login": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Submit login form */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/x-www-form-urlencoded": {
-            /** @description Access token or password */
-            password?: string;
-          };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The request body for AI chat */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChatRequest"];
+                };
+            };
+            responses: never;
         };
-      };
-      responses: {
-        /** @description Login page */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/html": string;
-          };
-        };
-        /** @description Redirect to the next URL */
-        302: {
-          headers: {
-            Location?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
+    "/api/ai/completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The request body for AI completion */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AiCompletionRequest"];
+                };
+            };
+            responses: {
+                /** @description Get AI completion for a prompt */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/inline_completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The request body for AI inline completion */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AiInlineCompletionRequest"];
+                };
+            };
+            responses: {
+                /** @description Get AI inline completion for code */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": string;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/invoke_tool": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The request body for tool invocation */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InvokeAiToolRequest"];
+                };
+            };
+            responses: {
+                /** @description Tool invocation result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvokeAiToolResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasources/preview_column": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PreviewDatasetColumnRequest"];
+                };
+            };
+            responses: {
+                /** @description Preview a column in a dataset */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasources/preview_datasource_connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PreviewDataSourceConnectionRequest"];
+                };
+            };
+            responses: {
+                /** @description Broadcasts a datasource connection */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasources/preview_sql_table": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PreviewSQLTableRequest"];
+                };
+            };
+            responses: {
+                /** @description Preview a SQL table */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasources/preview_sql_table_list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PreviewSQLTableListRequest"];
+                };
+            };
+            responses: {
+                /** @description Preview a list of tables in an SQL schema */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/documentation/snippets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Load the snippets for the documentation page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Snippets"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/export/auto_export/html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ExportAsHTMLRequest"];
+                };
+            };
+            responses: {
+                /** @description Export the notebook as HTML */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+                /** @description File must be saved before downloading */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/export/auto_export/ipynb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ExportAsIPYNBRequest"];
+                };
+            };
+            responses: {
+                /** @description Export the notebook as IPYNB */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+                /** @description File must be saved before downloading */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/export/auto_export/markdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ExportAsMarkdownRequest"];
+                };
+            };
+            responses: {
+                /** @description Export the notebook as a markdown */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+                /** @description File must be saved before downloading */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/export/html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ExportAsHTMLRequest"];
+                };
+            };
+            responses: {
+                /** @description Export the notebook as HTML */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+                /** @description File must be saved before downloading */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/export/markdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ExportAsMarkdownRequest"];
+                };
+            };
+            responses: {
+                /** @description Export the notebook as a markdown */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": string;
+                    };
+                };
+                /** @description File must be saved before downloading */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/export/script": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ExportAsScriptRequest"];
+                };
+            };
+            responses: {
+                /** @description Export the notebook as a script */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": string;
+                    };
+                };
+                /** @description File must be saved before downloading */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["FileCreateRequest"];
+                };
+            };
+            responses: {
+                /** @description Create a new file or directory */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FileCreateResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["FileDeleteRequest"];
+                };
+            };
+            responses: {
+                /** @description Delete a file or directory */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FileDeleteResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/file_details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["FileDetailsRequest"];
+                };
+            };
+            responses: {
+                /** @description Get details of a specific file or directory */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FileDetailsResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/list_files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["FileListRequest"];
+                };
+            };
+            responses: {
+                /** @description List files and directories in a given path */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FileListResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["FileMoveRequest"];
+                };
+            };
+            responses: {
+                /** @description Move a file or directory */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FileMoveResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["FileOpenRequest"];
+                };
+            };
+            responses: {
+                /** @description Open a file in the system editor */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BaseResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["FileSearchRequest"];
+                };
+            };
+            responses: {
+                /** @description Search for files and directories matching a query */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FileSearchResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["FileUpdateRequest"];
+                };
+            };
+            responses: {
+                /** @description Update a file or directory */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FileUpdateResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/home/recent_files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Get the recent files */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RecentFilesResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/home/running_notebooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Get the running files */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RunningNotebooksResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/home/shutdown_session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ShutdownSessionRequest"];
+                };
+            };
+            responses: {
+                /** @description Shutdown the current session */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RunningNotebooksResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/home/tutorial/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["OpenTutorialRequest"];
+                };
+            };
+            responses: {
+                /** @description Open a new tutorial */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MarimoFile"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/home/workspace_files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["WorkspaceFilesRequest"];
+                };
+            };
+            responses: {
+                /** @description Get the files in the workspace */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkspaceFilesResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/code_autocomplete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CodeCompletionRequest"];
+                };
+            };
+            responses: {
+                /** @description Complete a code fragment */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/copy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CopyNotebookRequest"];
+                };
+            };
+            responses: {
+                /** @description Copy notebook */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": string;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["DeleteCellRequest"];
+                };
+            };
+            responses: {
+                /** @description Delete a cell */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/format": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["FormatRequest"];
+                };
+            };
+            responses: {
+                /** @description Format code */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FormatResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/function_call": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["FunctionCallRequest"];
+                };
+            };
+            responses: {
+                /** @description Invoke an RPC */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/install_missing_packages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["InstallMissingPackagesRequest"];
+                };
+            };
+            responses: {
+                /** @description Install missing packages */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/instantiate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["InstantiateRequest"];
+                };
+            };
+            responses: {
+                /** @description Instantiate a component */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/interrupt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Interrupt the kernel's execution */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/pdb/pm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PdbRequest"];
+                };
+            };
+            responses: {
+                /** @description Run a post mortem on the most recent failed cell. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/read_code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Read the code from the server */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReadCodeResponse"];
+                    };
+                };
+                /** @description File must be saved before downloading */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/rename": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RenameFileRequest"];
+                };
+            };
+            responses: {
+                /** @description Rename the current app */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/restart_session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Restart the current session without affecting other sessions. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RunRequest"];
+                };
+            };
+            responses: {
+                /** @description Run a cell. Updates cell code in the kernel if needed; registers new cells for unseen cell IDs. Only allowed in edit mode. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SaveNotebookRequest"];
+                };
+            };
+            responses: {
+                /** @description Save the current app */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": string;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/save_app_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SaveAppConfigurationRequest"];
+                };
+            };
+            responses: {
+                /** @description Save the app configuration */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": string;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/save_user_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SaveUserConfigurationRequest"];
+                };
+            };
+            responses: {
+                /** @description Update the user config on disk and in the kernel. Only allowed in edit mode. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/scratchpad/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ExecuteScratchpadRequest"];
+                };
+            };
+            responses: {
+                /** @description Run the scratchpad */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/set_cell_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SetCellConfigRequest"];
+                };
+            };
+            responses: {
+                /** @description Set the configuration of a cell */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/set_model_value": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SetModelMessageRequest"];
+                };
+            };
+            responses: {
+                /** @description Set model value */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/set_ui_element_value": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateComponentValuesRequest"];
+                };
+            };
+            responses: {
+                /** @description Set UI element values */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/shutdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Shutdown the kernel */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/stdin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["StdinRequest"];
+                };
+            };
+            responses: {
+                /** @description Send input to the stdin stream */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/sync/cell_ids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateCellIdsRequest"];
+                };
+            };
+            responses: {
+                /** @description Sync cell ids */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuccessResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kernel/takeover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successfully closed existing sessions */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            status?: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/packages/add": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["AddPackageRequest"];
+                };
+            };
+            responses: {
+                /** @description Install package */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PackageOperationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/packages/list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List installed packages */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ListPackagesResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/packages/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RemovePackageRequest"];
+                };
+            };
+            responses: {
+                /** @description Uninstall package */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PackageOperationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/packages/tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List dependency tree */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DependencyTreeResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/secrets/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateSecretRequest"];
+                };
+            };
+            responses: {
+                /** @description Create a secret */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BaseResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/secrets/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Delete a secret */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BaseResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/secrets/keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ListSecretKeysRequest"];
+                };
+            };
+            responses: {
+                /** @description List all secret keys */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ListSecretKeysResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Get the status of the application */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            filenames?: string[];
+                            lsp_running?: boolean;
+                            mode?: string;
+                            node_version?: string;
+                            requirements?: string[];
+                            sessions?: number;
+                            status?: string;
+                            version?: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/status/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Get the number of active websocket connections */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            active?: number;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Get the current memory and CPU usage of the application */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            cpu: {
+                                percent: number;
+                            };
+                            gpu?: {
+                                index: number;
+                                memory: {
+                                    free: number;
+                                    percent: number;
+                                    total: number;
+                                    used: number;
+                                };
+                                name: string;
+                            }[];
+                            kernel?: {
+                                memory?: number;
+                            };
+                            memory: {
+                                available: number;
+                                free: number;
+                                percent: number;
+                                total: number;
+                                used: number;
+                            };
+                            server?: {
+                                memory: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Get the version of the application */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": string;
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit login form */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/x-www-form-urlencoded": {
+                        /** @description Access token or password */
+                        password?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Login page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+                /** @description Redirect to the next URL */
+                302: {
+                    headers: {
+                        Location?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, any>;
 export interface components {
-  schemas: {
-    /**
-     * AddPackageRequest
-     * @description This can be a remove package or a local package.
-     *
-     *     Supported formats:
-     *
-     *     httpx
-     *     httpx==0.27.0
-     *     httpx>=0.27.0
-     *     git+https://github.com/encode/httpx
-     *     https://files.pythonhosted.org/packages/5c/2d/3da5bdf4408b8b2800061c339f240c1802f2e82d55e50bd39c5a881f47f0/httpx-0.27.0.tar.gz
-     *     /example/foo-0.1.0-py3-none-any.whl
-     */
-    AddPackageRequest: {
-      package: string;
-      /** @default false */
-      upgrade?: boolean | null;
-    };
-    /** AiCompletionContext */
-    AiCompletionContext: {
-      /** @default  */
-      plainText?: string;
-      /** @default [] */
-      schema?: components["schemas"]["SchemaTable"][];
-      /** @default [] */
-      variables?: (string | components["schemas"]["VariableContext"])[];
-    };
-    /** AiCompletionRequest */
-    AiCompletionRequest: {
-      code: string;
-      /** @default null */
-      context?: null | components["schemas"]["AiCompletionContext"];
-      includeOtherCode: string;
-      /**
-       * @default python
-       * @enum {unknown}
-       */
-      language?: "markdown" | "python" | "sql";
-      /** @default [] */
-      messages?: components["schemas"]["ChatMessage"][];
-      prompt: string;
-      /** @default null */
-      selectedText?: string | null;
-    };
-    /**
-     * AiConfig
-     * @description Configuration options for AI.
-     *
-     *     **Keys.**
-     *
-     *     - `rules`: custom rules to include in all AI completion prompts
-     *     - `max_tokens`: the maximum number of tokens to use in AI completions
-     *     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
-     *     - `models`: the models to use for AI completions
-     *     - `open_ai`: the OpenAI config
-     *     - `anthropic`: the Anthropic config
-     *     - `google`: the Google AI config
-     *     - `bedrock`: the Bedrock config
-     *     - `azure`: the Azure config
-     *     - `ollama`: the Ollama config
-     *     - `github`: the GitHub config
-     *     - `open_ai_compatible`: the OpenAI-compatible config
-     */
-    AiConfig: {
-      anthropic?: components["schemas"]["AnthropicConfig"];
-      azure?: components["schemas"]["OpenAiConfig"];
-      bedrock?: components["schemas"]["BedrockConfig"];
-      github?: components["schemas"]["GitHubConfig"];
-      google?: components["schemas"]["GoogleAiConfig"];
-      max_tokens?: number;
-      /** @enum {unknown} */
-      mode?: "ask" | "manual";
-      models?: components["schemas"]["AiModelConfig"];
-      ollama?: components["schemas"]["OpenAiConfig"];
-      open_ai?: components["schemas"]["OpenAiConfig"];
-      open_ai_compatible?: components["schemas"]["OpenAiConfig"];
-      rules?: string;
-    };
-    /** AiInlineCompletionRequest */
-    AiInlineCompletionRequest: {
-      /**
-       * @default python
-       * @enum {unknown}
-       */
-      language?: "markdown" | "python" | "sql";
-      prefix: string;
-      suffix: string;
-    };
-    /**
-     * AiModelConfig
-     * @description Configuration options for an AI model.
-     *
-     *     **Keys.**
-     *
-     *     - `chat_model`: the model to use for chat completions
-     *     - `edit_model`: the model to use for edit completions
-     *     - `autocomplete_model`: the model to use for code completion/autocomplete
-     *     - `displayed_models`: a list of models to display in the UI
-     *     - `custom_models`: a list of custom models to use that are not from the default list
-     */
-    AiModelConfig: {
-      autocomplete_model?: string;
-      chat_model?: string;
-      custom_models: string[];
-      displayed_models: string[];
-      edit_model?: string;
-    };
-    /** Alert */
-    Alert: {
-      description: string;
-      /** @enum {unknown} */
-      op: "alert";
-      title: string;
-      /** @default null */
-      variant?: "danger" | null;
-    };
-    /**
-     * AnthropicConfig
-     * @description Configuration options for Anthropic.
-     *
-     *     **Keys.**
-     *
-     *     - `api_key`: the Anthropic API key
-     */
-    AnthropicConfig: {
-      api_key?: string;
-    };
-    /** Banner */
-    Banner: {
-      /** @default null */
-      action?: "restart" | null;
-      description: string;
-      /** @enum {unknown} */
-      op: "banner";
-      title: string;
-      /** @default null */
-      variant?: "danger" | null;
-    };
-    /** BaseResponse */
-    BaseResponse: {
-      success: boolean;
-    };
-    /**
-     * BasedpyrightServerConfig
-     * @description Configuration options for basedpyright Language Server.
-     *
-     *     basedpyright handles completion, hover, go-to-definition, and diagnostics,
-     *     but we only use it for diagnostics.
-     */
-    BasedpyrightServerConfig: {
-      enabled?: boolean;
-    };
-    /**
-     * BedrockConfig
-     * @description Configuration options for Bedrock.
-     *
-     *     **Keys.**
-     *
-     *     - `profile_name`: the AWS profile to use
-     *     - `region_name`: the AWS region to use
-     *     - `aws_access_key_id`: the AWS access key ID
-     *     - `aws_secret_access_key`: the AWS secret access key
-     */
-    BedrockConfig: {
-      aws_access_key_id?: string;
-      aws_secret_access_key?: string;
-      profile_name?: string;
-      region_name?: string;
-    };
-    /**
-     * CellChannel
-     * @description The channel of a cell's output.
-     * @enum {unknown}
-     */
-    CellChannel:
-      | "marimo-error"
-      | "media"
-      | "output"
-      | "pdb"
-      | "stderr"
-      | "stdin"
-      | "stdout";
-    /**
-     * CellConfig
-     * @description Internal representation of a cell's configuration.
-     *     This is not part of the public API.
-     */
-    CellConfig: {
-      /** @default null */
-      column?: number | null;
-      /** @default false */
-      disabled?: boolean;
-      /** @default false */
-      hide_code?: boolean;
-    };
-    /**
-     * CellOp
-     * @description Op to transition a cell.
-     *
-     *     A CellOp's data has some optional fields:
-     *
-     *     output        - a CellOutput
-     *     console       - a CellOutput (console msg to append), or a list of
-     *                     CellOutputs
-     *     status        - execution status
-     *     stale_inputs  - whether the cell has stale inputs (variables, modules, ...)
-     *     run_id        - the run associated with this cell.
-     *     serialization - the serialization status of the cell
-     *
-     *     Omitting a field means that its value should be unchanged!
-     *
-     *     And one required field:
-     *
-     *     cell_id - the cell id
-     */
-    CellOp: {
-      cell_id: string;
-      /** @default null */
-      console?:
-        | components["schemas"]["CellOutput"][]
-        | null
-        | components["schemas"]["CellOutput"];
-      /** @enum {unknown} */
-      op: "cell-op";
-      /** @default null */
-      output?: null | components["schemas"]["CellOutput"];
-      /** @default null */
-      run_id?: string | null;
-      /** @default null */
-      serialization?: string | null;
-      /** @default null */
-      stale_inputs?: boolean | null;
-      /** @default null */
-      status?: ("disabled-transitively" | "idle" | "queued" | "running") | null;
-      timestamp?: number;
-    };
-    /** CellOutput */
-    CellOutput: {
-      channel: components["schemas"]["CellChannel"];
-      data:
-        | string
-        | (
-            | components["schemas"]["SetupRootError"]
-            | components["schemas"]["CycleError"]
-            | components["schemas"]["MultipleDefinitionError"]
-            | components["schemas"]["ImportStarError"]
-            | components["schemas"]["MarimoAncestorStoppedError"]
-            | components["schemas"]["MarimoAncestorPreventedError"]
-            | components["schemas"]["MarimoExceptionRaisedError"]
-            | components["schemas"]["MarimoStrictExecutionError"]
-            | components["schemas"]["MarimoInterruptionError"]
-            | components["schemas"]["MarimoSyntaxError"]
-            | components["schemas"]["MarimoInternalError"]
-            | components["schemas"]["MarimoSQLError"]
-            | components["schemas"]["UnknownError"]
-          )[]
-        | Record<string, any>;
-      /** @enum {unknown} */
-      mimetype:
-        | "application/json"
-        | "application/vnd.jupyter.widget-view+json"
-        | "application/vnd.marimo+error"
-        | "application/vnd.marimo+mimebundle"
-        | "application/vnd.marimo+traceback"
-        | "application/vnd.vega.v5+json"
-        | "application/vnd.vegalite.v5+json"
-        | "image/avif"
-        | "image/bmp"
-        | "image/gif"
-        | "image/jpeg"
-        | "image/png"
-        | "image/svg+xml"
-        | "image/tiff"
-        | "text/csv"
-        | "text/html"
-        | "text/latex"
-        | "text/markdown"
-        | "text/plain"
-        | "video/mp4"
-        | "video/mpeg";
-      timestamp?: number;
-    };
-    /** ChatAttachment */
-    ChatAttachment: {
-      /** @default null */
-      content_type?: string | null;
-      /** @default attachment */
-      name?: string;
-      url: string;
-    };
-    /**
-     * ChatMessage
-     * @description A message in a chat.
-     */
-    ChatMessage: {
-      /** @default null */
-      attachments?: components["schemas"]["ChatAttachment"][] | null;
-      content: unknown;
-      /** @default null */
-      parts?: Record<string, any>[] | null;
-      /** @enum {unknown} */
-      role: "assistant" | "system" | "user";
-    };
-    /** ChatRequest */
-    ChatRequest: {
-      context: components["schemas"]["AiCompletionContext"];
-      includeOtherCode: string;
-      messages: components["schemas"]["ChatMessage"][];
-      /** @default null */
-      model?: string | null;
-      /** @default null */
-      variables?: (string | components["schemas"]["VariableContext"])[] | null;
-    };
-    /** CodeCompletionRequest */
-    CodeCompletionRequest: {
-      cellId: string;
-      document: string;
-      id: string;
-    };
-    /**
-     * ColumnStats
-     * @description Represents stats for a column in a data table.
-     */
-    ColumnStats: {
-      /** @default null */
-      false?: number | null;
-      /** @default null */
-      max?: unknown | null;
-      /** @default null */
-      mean?: unknown | null;
-      /** @default null */
-      median?: unknown | null;
-      /** @default null */
-      min?: unknown | null;
-      /** @default null */
-      nulls?: number | null;
-      /** @default null */
-      p25?: unknown | null;
-      /** @default null */
-      p5?: unknown | null;
-      /** @default null */
-      p75?: unknown | null;
-      /** @default null */
-      p95?: unknown | null;
-      /** @default null */
-      std?: unknown | null;
-      /** @default null */
-      total?: number | null;
-      /** @default null */
-      true?: number | null;
-      /** @default null */
-      unique?: number | null;
-    };
-    /**
-     * CompletedRun
-     * @description Written on run completion (of submitted cells and their descendants.
-     */
-    CompletedRun: {
-      /** @enum {unknown} */
-      op: "completed-run";
-    };
-    /**
-     * CompletionConfig
-     * @description Configuration for code completion.
-     *
-     *     A dict with key/value pairs configuring code completion in the marimo
-     *     editor.
-     *
-     *     **Keys.**
-     *
-     *     - `activate_on_typing`: if `False`, completion won't activate
-     *     until the completion hotkey is entered
-     *     - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
-     *     - `codeium_api_key`: the Codeium API key
-     */
-    CompletionConfig: {
-      activate_on_typing: boolean;
-      api_key?: string | null;
-      base_url?: string | null;
-      codeium_api_key?: string | null;
-      copilot: boolean | ("codeium" | "custom" | "github");
-      model?: string | null;
-    };
-    /** CompletionOption */
-    CompletionOption: {
-      completion_info: string | null;
-      name: string;
-      type: string;
-    };
-    /**
-     * CompletionResult
-     * @description Code completion result.
-     */
-    CompletionResult: {
-      completion_id: string;
-      /** @enum {unknown} */
-      op: "completion-result";
-      options: components["schemas"]["CompletionOption"][];
-      prefix_length: number;
-    };
-    /** CopyNotebookRequest */
-    CopyNotebookRequest: {
-      destination: string;
-      source: string;
-    };
-    /** CreateSecretRequest */
-    CreateSecretRequest: {
-      key: string;
-      name: string;
-      /** @enum {unknown} */
-      provider: "dotenv" | "env";
-      value: string;
-    };
-    /** CycleError */
-    CycleError: {
-      edges_with_vars: [string, string[], string][];
-      /** @enum {unknown} */
-      type: "cycle";
-    };
-    /**
-     * DataColumnPreview
-     * @description Preview of a column in a dataset.
-     */
-    DataColumnPreview: {
-      /** @default null */
-      chart_code?: string | null;
-      /** @default null */
-      chart_spec?: string | null;
-      /** @default  */
-      column_name?: string;
-      /** @default null */
-      error?: string | null;
-      /** @default null */
-      missing_packages?: string[] | null;
-      /** @enum {unknown} */
-      op: "data-column-preview";
-      /** @default null */
-      stats?: null | components["schemas"]["ColumnStats"];
-      /** @default  */
-      table_name?: string;
-    };
-    /**
-     * DataSourceConnection
-     * @description Represents a data source connection.
-     *
-     *     Attributes:
-     *         source (str): The source of the data source connection. E.g 'postgres'.
-     *         dialect (str): The dialect of the data source connection. E.g 'postgresql'.
-     *         name (str): The name of the data source connection. E.g 'engine'.
-     *         display_name (str): The display name of the data source connection. E.g 'PostgresQL (engine)'.
-     *         databases (List[Database]): The databases in the data source connection.
-     *         default_database (Optional[str]): The default database in the data source connection.
-     *         default_schema (Optional[str]): The default schema in the data source connection.
-     */
-    DataSourceConnection: {
-      databases: components["schemas"]["Database"][];
-      /** @default null */
-      default_database?: string | null;
-      /** @default null */
-      default_schema?: string | null;
-      dialect: string;
-      display_name: string;
-      name: string;
-      source: string;
-    };
-    /** DataSourceConnections */
-    DataSourceConnections: {
-      connections: components["schemas"]["DataSourceConnection"][];
-      /** @enum {unknown} */
-      op: "data-source-connections";
-    };
-    /**
-     * DataTable
-     * @description Represents a data table.
-     *
-     *     Attributes:
-     *         source_type (DataTableSource): Type of data source ('local', 'duckdb', 'connection').
-     *         source (str): Can be dialect, or source db name.
-     *         name (str): Name of the data table.
-     *         num_rows (Optional[int]): Total number of rows in the table, if known.
-     *         num_columns (Optional[int]): Total number of columns in the table, if known.
-     *         variable_name (Optional[VariableName]): Variable name referencing this table in code.
-     *         columns (List[DataTableColumn]): List of column definitions and metadata.
-     *         engine (Optional[VariableName]): Database engine or connection handler, if any.
-     *         type (DataTableType): Table type, either 'table' or 'view'. Defaults to 'table'.
-     *         primary_keys (Optional[List[str]]): Column names used as primary keys, if any.
-     *         indexes (Optional[List[str]]): Column names used as indexes, if any.
-     */
-    DataTable: {
-      columns: components["schemas"]["DataTableColumn"][];
-      /** @default null */
-      engine?: string | null;
-      /** @default null */
-      indexes?: string[] | null;
-      name: string;
-      num_columns: number | null;
-      num_rows: number | null;
-      /** @default null */
-      primary_keys?: string[] | null;
-      source: string;
-      /** @enum {unknown} */
-      source_type: "catalog" | "connection" | "duckdb" | "local";
-      /**
-       * @default table
-       * @enum {unknown}
-       */
-      type?: "table" | "view";
-      variable_name: string | null;
-    };
-    /**
-     * DataTableColumn
-     * @description Represents a column in a data table.
-     *
-     *     Attributes:
-     *         name (str): The name of the column.
-     *         type (DataType): The data type of the column.
-     *         external_type (ExternalDataType): The raw data type of the column.
-     *         sample_values (List[Any]): The sample values of the column.
-     */
-    DataTableColumn: {
-      external_type: string;
-      name: string;
-      sample_values: unknown[];
-      /** @enum {unknown} */
-      type:
-        | "boolean"
-        | "date"
-        | "datetime"
-        | "integer"
-        | "number"
-        | "string"
-        | "time"
-        | "unknown";
-    };
-    /**
-     * Database
-     * @description Represents a collection of schemas.
-     *
-     *     Attributes:
-     *         name (str): The name of the database
-     *         dialect (str): The dialect of the database
-     *         schemas (List[Schema]): List of schemas in the database
-     *         engine (Optional[VariableName]): Database engine or connection handler, if any.
-     */
-    Database: {
-      dialect: string;
-      /** @default null */
-      engine?: string | null;
-      name: string;
-      schemas: components["schemas"]["Schema"][];
-    };
-    /**
-     * Datasets
-     * @description List of datasets.
-     */
-    Datasets: {
-      /** @default null */
-      clear_channel?: ("catalog" | "connection" | "duckdb" | "local") | null;
-      /** @enum {unknown} */
-      op: "datasets";
-      tables: components["schemas"]["DataTable"][];
-    };
-    /**
-     * DatasourcesConfig
-     * @description Configuration for datasources panel.
-     *
-     *     **Keys.**
-     *
-     *     - `auto_discover_schemas`: if `True`, include schemas in the datasource
-     *     - `auto_discover_tables`: if `True`, include tables in the datasource
-     *     - `auto_discover_columns`: if `True`, include columns & table metadata in the datasource
-     */
-    DatasourcesConfig: {
-      auto_discover_columns?: boolean | "auto";
-      auto_discover_schemas?: boolean | "auto";
-      auto_discover_tables?: boolean | "auto";
-    };
-    /** DeleteCellRequest */
-    DeleteCellRequest: {
-      cellId: string;
-    };
-    /** DeleteSecretRequest */
-    DeleteSecretRequest: {
-      key: string;
-    };
-    /** DependencyTreeNode */
-    DependencyTreeNode: {
-      dependencies: components["schemas"]["DependencyTreeNode"][];
-      name: string;
-      tags: {
-        [key: string]: string;
-      }[];
-      version: string | null;
-    };
-    /** DependencyTreeResponse */
-    DependencyTreeResponse: {
-      tree: null | components["schemas"]["DependencyTreeNode"];
-    };
-    /**
-     * DiagnosticsConfig
-     * @description Configuration options for diagnostics.
-     *
-     *     **Keys.**
-     *
-     *     - `enabled`: if `True`, diagnostics will be shown in the editor
-     */
-    DiagnosticsConfig: {
-      enabled?: boolean;
-    };
-    /**
-     * DisplayConfig
-     * @description Configuration for display.
-     *
-     *     **Keys.**
-     *
-     *     - `theme`: `"light"`, `"dark"`, or `"system"`
-     *     - `code_editor_font_size`: font size for the code editor
-     *     - `cell_output`: `"above"` or `"below"`
-     *     - `dataframes`: `"rich"` or `"plain"`
-     *     - `custom_css`: list of paths to custom CSS files
-     *     - `default_table_page_size`: default number of rows to display in tables
-     *     - `default_table_max_columns`: default maximum number of columns to display in tables
-     *     - `reference_highlighting`: if `True`, highlight reactive variable references
-     *     - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
-     */
-    DisplayConfig: {
-      /** @enum {unknown} */
-      cell_output: "above" | "below";
-      code_editor_font_size: number;
-      custom_css?: string[];
-      /** @enum {unknown} */
-      dataframes: "plain" | "rich";
-      default_table_max_columns: number;
-      default_table_page_size: number;
-      /** @enum {unknown} */
-      default_width: "columns" | "compact" | "full" | "medium" | "normal";
-      locale?: string | null;
-      reference_highlighting?: boolean;
-      /** @enum {unknown} */
-      theme: "dark" | "light" | "system";
-    };
-    /** ExecuteMultipleRequest */
-    ExecuteMultipleRequest: {
-      cellIds: string[];
-      codes: string[];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      timestamp?: number;
-    };
-    /** ExecuteScratchpadRequest */
-    ExecuteScratchpadRequest: {
-      code: string;
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-    };
-    /** ExecuteStaleRequest */
-    ExecuteStaleRequest: {
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-    };
-    /** ExecutionRequest */
-    ExecutionRequest: {
-      cellId: string;
-      code: string;
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      timestamp?: number;
-    };
-    /** ExportAsHTMLRequest */
-    ExportAsHTMLRequest: {
-      /** @default null */
-      assetUrl?: string | null;
-      download: boolean;
-      files: string[];
-      includeCode: boolean;
-    };
-    /** ExportAsIPYNBRequest */
-    ExportAsIPYNBRequest: {
-      download: boolean;
-    };
-    /** ExportAsMarkdownRequest */
-    ExportAsMarkdownRequest: {
-      download: boolean;
-    };
-    /** ExportAsScriptRequest */
-    ExportAsScriptRequest: {
-      download: boolean;
-    };
-    /** FileCreateRequest */
-    FileCreateRequest: {
-      /** @default null */
-      contents?: string | null;
-      name: string;
-      path: string;
-      /** @enum {unknown} */
-      type: "directory" | "file";
-    };
-    /** FileCreateResponse */
-    FileCreateResponse: {
-      /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
-      /** @default null */
-      message?: string | null;
-      success: boolean;
-    };
-    /** FileDeleteRequest */
-    FileDeleteRequest: {
-      path: string;
-    };
-    /** FileDeleteResponse */
-    FileDeleteResponse: {
-      /** @default null */
-      message?: string | null;
-      success: boolean;
-    };
-    /** FileDetailsRequest */
-    FileDetailsRequest: {
-      path: string;
-    };
-    /** FileDetailsResponse */
-    FileDetailsResponse: {
-      /** @default null */
-      contents?: string | null;
-      file: components["schemas"]["FileInfo"];
-      /** @default null */
-      mimeType?: string | null;
-    };
-    /** FileInfo */
-    FileInfo: {
-      /** @default [] */
-      children?: components["schemas"]["FileInfo"][];
-      id: string;
-      isDirectory: boolean;
-      isMarimoFile: boolean;
-      /** @default null */
-      lastModified?: number | null;
-      name: string;
-      path: string;
-    };
-    /** FileListRequest */
-    FileListRequest: {
-      /** @default null */
-      path?: string | null;
-    };
-    /** FileListResponse */
-    FileListResponse: {
-      files: components["schemas"]["FileInfo"][];
-      root: string;
-    };
-    /** FileMoveRequest */
-    FileMoveRequest: {
-      newPath: string;
-      path: string;
-    };
-    /** FileMoveResponse */
-    FileMoveResponse: {
-      /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
-      /** @default null */
-      message?: string | null;
-      success: boolean;
-    };
-    /** FileOpenRequest */
-    FileOpenRequest: {
-      path: string;
-    };
-    /** FileSearchRequest */
-    FileSearchRequest: {
-      /** @default 3 */
-      depth?: number;
-      /** @default true */
-      includeDirectories?: boolean;
-      /** @default true */
-      includeFiles?: boolean;
-      /** @default 100 */
-      limit?: number;
-      /** @default null */
-      path?: string | null;
-      query: string;
-    };
-    /** FileSearchResponse */
-    FileSearchResponse: {
-      files: components["schemas"]["FileInfo"][];
-      query: string;
-      totalFound: number;
-    };
-    /** FileUpdateRequest */
-    FileUpdateRequest: {
-      contents: string;
-      path: string;
-    };
-    /** FileUpdateResponse */
-    FileUpdateResponse: {
-      /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
-      /** @default null */
-      message?: string | null;
-      success: boolean;
-    };
-    /** FocusCell */
-    FocusCell: {
-      cell_id: string;
-      /** @enum {unknown} */
-      op: "focus-cell";
-    };
-    /** FormatRequest */
-    FormatRequest: {
-      codes: {
-        [key: string]: string;
-      };
-      lineLength: number;
-    };
-    /** FormatResponse */
-    FormatResponse: {
-      codes: {
-        [key: string]: string;
-      };
-    };
-    /**
-     * FormattingConfig
-     * @description Configuration for code formatting.
-     *
-     *     **Keys.**
-     *
-     *     - `line_length`: max line length
-     */
-    FormattingConfig: {
-      line_length: number;
-    };
-    /** FunctionCallRequest */
-    FunctionCallRequest: {
-      args: Record<string, any>;
-      functionCallId: string;
-      functionName: string;
-      namespace: string;
-    };
-    /**
-     * FunctionCallResult
-     * @description Result of calling a function.
-     */
-    FunctionCallResult: {
-      function_call_id: string;
-      /** @enum {unknown} */
-      op: "function-call-result";
-      return_value: unknown;
-      status: components["schemas"]["HumanReadableStatus"];
-    };
-    /**
-     * GitHubConfig
-     * @description Configuration options for GitHub.
-     *
-     *     **Keys.**
-     *
-     *     - `api_key`: the GitHub API token
-     *     - `base_url`: the base URL for the API
-     */
-    GitHubConfig: {
-      api_key?: string;
-      base_url?: string;
-    };
-    /**
-     * GoogleAiConfig
-     * @description Configuration options for Google AI.
-     *
-     *     **Keys.**
-     *
-     *     - `api_key`: the Google AI API key
-     */
-    GoogleAiConfig: {
-      api_key?: string;
-    };
-    HTTPRequest: {
-      baseUrl: {
-        [key: string]: unknown;
-      };
-      cookies: {
-        [key: string]: string;
-      };
-      headers: {
-        [key: string]: string;
-      };
-      meta: {
-        [key: string]: unknown;
-      };
-      pathParams: {
-        [key: string]: unknown;
-      };
-      queryParams: {
-        [key: string]: string[];
-      };
-      url: {
-        [key: string]: unknown;
-      };
-      user: unknown;
-    };
-    /**
-     * HumanReadableStatus
-     * @description Human-readable status.
-     */
-    HumanReadableStatus: {
-      /** @enum {unknown} */
-      code: "error" | "ok";
-      /** @default null */
-      message?: string | null;
-      /** @default null */
-      title?: string | null;
-    };
-    /** ImportStarError */
-    ImportStarError: {
-      msg: string;
-      /** @enum {unknown} */
-      type: "import-star";
-    };
-    /** InstallMissingPackagesRequest */
-    InstallMissingPackagesRequest: {
-      manager: string;
-      versions: {
-        [key: string]: string;
-      };
-    };
-    /** InstallingPackageAlert */
-    InstallingPackageAlert: {
-      /** @default null */
-      log_status?: ("append" | "done" | "start") | null;
-      /** @default null */
-      logs?: {
-        [key: string]: string;
-      } | null;
-      /** @enum {unknown} */
-      op: "installing-package-alert";
-      packages: {
-        [key: string]: "failed" | "installed" | "installing" | "queued";
-      };
-    };
-    /** InstantiateRequest */
-    InstantiateRequest: {
-      /** @default true */
-      autoRun?: boolean;
-      objectIds: string[];
-      values: unknown[];
-    };
-    /**
-     * Interrupted
-     * @description Written when the kernel is interrupted by the user.
-     */
-    Interrupted: {
-      /** @enum {unknown} */
-      op: "interrupted";
-    };
-    /** InvokeAiToolRequest */
-    InvokeAiToolRequest: {
-      arguments: Record<string, any>;
-      toolName: string;
-    };
-    /** InvokeAiToolResponse */
-    InvokeAiToolResponse: {
-      /** @default null */
-      error?: string | null;
-      result: unknown;
-      success: boolean;
-      toolName: string;
-    };
-    /** KernelCapabilities */
-    KernelCapabilities: {
-      /** @default false */
-      basedpyright?: boolean;
-      /** @default false */
-      pylsp?: boolean;
-      /** @default false */
-      terminal?: boolean;
-      /** @default false */
-      ty?: boolean;
-    };
-    /**
-     * KernelReady
-     * @description Kernel is ready for execution.
-     */
-    KernelReady: {
-      app_config: components["schemas"]["_AppConfig"];
-      capabilities: components["schemas"]["KernelCapabilities"];
-      cell_ids: string[];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
-      kiosk: boolean;
-      last_executed_code: {
-        [key: string]: string;
-      } | null;
-      last_execution_time: {
-        [key: string]: number;
-      } | null;
-      layout: components["schemas"]["LayoutConfig"] | null;
-      names: string[];
-      /** @enum {unknown} */
-      op: "kernel-ready";
-      resumed: boolean;
-      ui_values: Record<string, any> | null;
-    };
-    /**
-     * KeymapConfig
-     * @description Configuration for keymaps.
-     *
-     *     **Keys.**
-     *
-     *     - `preset`: one of `"default"` or `"vim"`
-     *     - `overrides`: a dict of keymap actions to their keymap override
-     *     - `vimrc`: path to a vimrc file to load keymaps from
-     *     - `destructive_delete`: if `True`, allows deleting cells with content.
-     */
-    KeymapConfig: {
-      destructive_delete?: boolean;
-      overrides?: {
-        [key: string]: string;
-      };
-      /** @enum {unknown} */
-      preset: "default" | "vim";
-      vimrc?: string | null;
-    };
-    /** KnownUnions */
-    KnownUnions: {
-      /** @enum {unknown} */
-      data_type:
-        | "boolean"
-        | "date"
-        | "datetime"
-        | "integer"
-        | "number"
-        | "string"
-        | "time"
-        | "unknown";
-      error:
-        | components["schemas"]["SetupRootError"]
-        | components["schemas"]["CycleError"]
-        | components["schemas"]["MultipleDefinitionError"]
-        | components["schemas"]["ImportStarError"]
-        | components["schemas"]["MarimoAncestorStoppedError"]
-        | components["schemas"]["MarimoAncestorPreventedError"]
-        | components["schemas"]["MarimoExceptionRaisedError"]
-        | components["schemas"]["MarimoStrictExecutionError"]
-        | components["schemas"]["MarimoInterruptionError"]
-        | components["schemas"]["MarimoSyntaxError"]
-        | components["schemas"]["MarimoInternalError"]
-        | components["schemas"]["MarimoSQLError"]
-        | components["schemas"]["UnknownError"];
-      operation:
-        | components["schemas"]["CellOp"]
-        | components["schemas"]["FunctionCallResult"]
-        | components["schemas"]["SendUIElementMessage"]
-        | components["schemas"]["RemoveUIElements"]
-        | components["schemas"]["Reload"]
-        | components["schemas"]["Reconnected"]
-        | components["schemas"]["Interrupted"]
-        | components["schemas"]["CompletedRun"]
-        | components["schemas"]["KernelReady"]
-        | components["schemas"]["CompletionResult"]
-        | components["schemas"]["Alert"]
-        | components["schemas"]["Banner"]
-        | components["schemas"]["MissingPackageAlert"]
-        | components["schemas"]["InstallingPackageAlert"]
-        | components["schemas"]["StartupLogs"]
-        | components["schemas"]["Variables"]
-        | components["schemas"]["VariableValues"]
-        | components["schemas"]["QueryParamsSet"]
-        | components["schemas"]["QueryParamsAppend"]
-        | components["schemas"]["QueryParamsDelete"]
-        | components["schemas"]["QueryParamsClear"]
-        | components["schemas"]["Datasets"]
-        | components["schemas"]["DataColumnPreview"]
-        | components["schemas"]["SQLTablePreview"]
-        | components["schemas"]["SQLTableListPreview"]
-        | components["schemas"]["DataSourceConnections"]
-        | components["schemas"]["SecretKeysResult"]
-        | components["schemas"]["FocusCell"]
-        | components["schemas"]["UpdateCellCodes"]
-        | components["schemas"]["UpdateCellIdsRequest"];
-    };
-    /**
-     * LanguageServersConfig
-     * @description Configuration options for language servers.
-     *
-     *     **Keys.**
-     *
-     *     - `pylsp`: the pylsp config
-     */
-    LanguageServersConfig: {
-      basedpyright?: components["schemas"]["BasedpyrightServerConfig"];
-      pylsp?: components["schemas"]["PythonLanguageServerConfig"];
-      ty?: components["schemas"]["TyLanguageServerConfig"];
-    };
-    /** LayoutConfig */
-    LayoutConfig: {
-      data: Record<string, any>;
-      type: string;
-    };
-    /** ListPackagesResponse */
-    ListPackagesResponse: {
-      packages: components["schemas"]["PackageDescription"][];
-    };
-    /** ListSecretKeysRequest */
-    ListSecretKeysRequest: {
-      requestId: string;
-    };
-    /** ListSecretKeysResponse */
-    ListSecretKeysResponse: {
-      keys: components["schemas"]["SecretKeysWithProvider"][];
-    };
-    /** MarimoAncestorPreventedError */
-    MarimoAncestorPreventedError: {
-      blamed_cell: string | null;
-      msg: string;
-      raising_cell: string;
-      /** @enum {unknown} */
-      type: "ancestor-prevented";
-    };
-    /** MarimoAncestorStoppedError */
-    MarimoAncestorStoppedError: {
-      msg: string;
-      raising_cell: string;
-      /** @enum {unknown} */
-      type: "ancestor-stopped";
-    };
-    /**
-     * MarimoConfig
-     * @description Configuration for the marimo editor
-     */
-    MarimoConfig: {
-      ai?: components["schemas"]["AiConfig"];
-      completion: components["schemas"]["CompletionConfig"];
-      datasources?: components["schemas"]["DatasourcesConfig"];
-      diagnostics?: components["schemas"]["DiagnosticsConfig"];
-      display: components["schemas"]["DisplayConfig"];
-      experimental?: Record<string, any>;
-      formatting: components["schemas"]["FormattingConfig"];
-      keymap: components["schemas"]["KeymapConfig"];
-      language_servers?: components["schemas"]["LanguageServersConfig"];
-      package_management: components["schemas"]["PackageManagementConfig"];
-      runtime: components["schemas"]["RuntimeConfig"];
-      save: components["schemas"]["SaveConfig"];
-      server: components["schemas"]["ServerConfig"];
-      sharing?: components["schemas"]["SharingConfig"];
-      snippets?: components["schemas"]["SnippetsConfig"];
-    };
-    /** MarimoExceptionRaisedError */
-    MarimoExceptionRaisedError: {
-      exception_type: string;
-      msg: string;
-      raising_cell: string | null;
-      /** @enum {unknown} */
-      type: "exception";
-    };
-    /** MarimoFile */
-    MarimoFile: {
-      /** @default null */
-      initializationId?: string | null;
-      /** @default null */
-      lastModified?: number | null;
-      name: string;
-      path: string;
-      /** @default null */
-      sessionId?: string | null;
-    };
-    /**
-     * MarimoInternalError
-     * @description An internal error that should be hidden from the user.
-     *     The error is logged to the console and then a new error is broadcasted
-     *     such that the data is hidden.
-     *
-     *     They can be linked back to the original error by the error_id.
-     */
-    MarimoInternalError: {
-      error_id: string;
-      /** @default  */
-      msg?: string;
-      /** @enum {unknown} */
-      type: "internal";
-    };
-    /** MarimoInterruptionError */
-    MarimoInterruptionError: {
-      /** @enum {unknown} */
-      type: "interruption";
-    };
-    /**
-     * MarimoSQLError
-     * @description SQL-specific error with enhanced metadata for debugging.
-     */
-    MarimoSQLError: {
-      msg: string;
-      /** @default 0 */
-      node_col_offset?: number;
-      /** @default 0 */
-      node_lineno?: number;
-      /** @default null */
-      sql_col?: number | null;
-      /** @default null */
-      sql_line?: number | null;
-      sql_statement: string;
-      /** @enum {unknown} */
-      type: "sql-error";
-    };
-    /** MarimoStrictExecutionError */
-    MarimoStrictExecutionError: {
-      blamed_cell: string | null;
-      msg: string;
-      ref: string;
-      /** @enum {unknown} */
-      type: "strict-exception";
-    };
-    /** MarimoSyntaxError */
-    MarimoSyntaxError: {
-      msg: string;
-      /** @enum {unknown} */
-      type: "syntax";
-    };
-    /** MissingPackageAlert */
-    MissingPackageAlert: {
-      isolated: boolean;
-      /** @enum {unknown} */
-      op: "missing-package-alert";
-      packages: string[];
-    };
-    /** ModelMessage */
-    ModelMessage: {
-      bufferPaths: (string | number)[][];
-      state: Record<string, any>;
-    };
-    /** MultipleDefinitionError */
-    MultipleDefinitionError: {
-      cells: string[];
-      name: string;
-      /** @enum {unknown} */
-      type: "multiple-defs";
-    };
-    /**
-     * OpenAiConfig
-     * @description Configuration options for OpenAI or OpenAI-compatible services.
-     *
-     *     **Keys.**
-     *
-     *     - `api_key`: the OpenAI API key
-     *     - `base_url`: the base URL for the API
-     *     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
-     *     - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
-     *     - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
-     *     - `extra_headers`: extra headers to be passed to the OpenAI client
-     */
-    OpenAiConfig: {
-      api_key?: string;
-      base_url?: string;
-      ca_bundle_path?: string;
-      client_pem?: string;
-      extra_headers?: {
-        [key: string]: string;
-      };
-      model?: string;
-      ssl_verify?: boolean;
-    };
-    /** OpenTutorialRequest */
-    OpenTutorialRequest: {
-      tutorialId:
-        | (
-            | "dataflow"
-            | "fileformat"
-            | "for-jupyter-users"
-            | "intro"
-            | "layout"
-            | "markdown"
-            | "plots"
-            | "sql"
-            | "ui"
-          )
-        | "markdown-format";
-    };
-    /** PackageDescription */
-    PackageDescription: {
-      name: string;
-      version: string;
-    };
-    /**
-     * PackageManagementConfig
-     * @description Configuration options for package management.
-     *
-     *     **Keys.**
-     *
-     *     - `manager`: the package manager to use
-     */
-    PackageManagementConfig: {
-      /** @enum {unknown} */
-      manager: "pip" | "pixi" | "poetry" | "rye" | "uv";
-    };
-    /** PackageOperationResponse */
-    PackageOperationResponse: {
-      /** @default null */
-      error?: string | null;
-      success: boolean;
-    };
-    /** PdbRequest */
-    PdbRequest: {
-      cellId: string;
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-    };
-    /**
-     * PreviewDataSourceConnectionRequest
-     * @description Fetch a datasource connection
-     */
-    PreviewDataSourceConnectionRequest: {
-      engine: string;
-    };
-    /** PreviewDatasetColumnRequest */
-    PreviewDatasetColumnRequest: {
-      columnName: string;
-      /** @default null */
-      fullyQualifiedTableName?: string | null;
-      source: string;
-      /** @enum {unknown} */
-      sourceType: "catalog" | "connection" | "duckdb" | "local";
-      tableName: string;
-    };
-    /**
-     * PreviewSQLTableListRequest
-     * @description Preview list of tables in an SQL schema
-     */
-    PreviewSQLTableListRequest: {
-      database: string;
-      engine: string;
-      requestId: string;
-      schema: string;
-    };
-    /**
-     * PreviewSQLTableRequest
-     * @description Preview table details in an SQL database
-     */
-    PreviewSQLTableRequest: {
-      database: string;
-      engine: string;
-      requestId: string;
-      schema: string;
-      tableName: string;
-    };
-    /**
-     * PythonLanguageServerConfig
-     * @description Configuration options for Python Language Server.
-     *
-     *     pylsp handles completion, hover, go-to-definition, and diagnostics.
-     */
-    PythonLanguageServerConfig: {
-      enable_flake8?: boolean;
-      enable_mypy?: boolean;
-      enable_pydocstyle?: boolean;
-      enable_pyflakes?: boolean;
-      enable_pylint?: boolean;
-      enable_ruff?: boolean;
-      enabled?: boolean;
-    };
-    /** QueryParamsAppend */
-    QueryParamsAppend: {
-      key: string;
-      /** @enum {unknown} */
-      op: "query-params-append";
-      value: string;
-    };
-    /** QueryParamsClear */
-    QueryParamsClear: {
-      /** @enum {unknown} */
-      op: "query-params-clear";
-    };
-    /** QueryParamsDelete */
-    QueryParamsDelete: {
-      key: string;
-      /** @enum {unknown} */
-      op: "query-params-delete";
-      value: string | null;
-    };
-    /**
-     * QueryParamsSet
-     * @description Set query parameters.
-     */
-    QueryParamsSet: {
-      key: string;
-      /** @enum {unknown} */
-      op: "query-params-set";
-      value: string | string[];
-    };
-    /** ReadCodeResponse */
-    ReadCodeResponse: {
-      contents: string;
-    };
-    /** RecentFilesResponse */
-    RecentFilesResponse: {
-      files: components["schemas"]["MarimoFile"][];
-    };
-    /** Reconnected */
-    Reconnected: {
-      /** @enum {unknown} */
-      op: "reconnected";
-    };
-    /** Reload */
-    Reload: {
-      /** @enum {unknown} */
-      op: "reload";
-    };
-    /** RemovePackageRequest */
-    RemovePackageRequest: {
-      package: string;
-    };
-    /**
-     * RemoveUIElements
-     * @description Invalidate UI elements for a given cell.
-     */
-    RemoveUIElements: {
-      cell_id: string;
-      /** @enum {unknown} */
-      op: "remove-ui-elements";
-    };
-    /** RenameFileRequest */
-    RenameFileRequest: {
-      filename: string;
-    };
-    /** RenameRequest */
-    RenameRequest: {
-      filename: string;
-    };
-    /** RunRequest */
-    RunRequest: {
-      cellIds: string[];
-      codes: string[];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-    };
-    /** RunningNotebooksResponse */
-    RunningNotebooksResponse: {
-      files: components["schemas"]["MarimoFile"][];
-    };
-    /**
-     * RuntimeConfig
-     * @description Configuration for runtime.
-     *
-     *     **Keys.**
-     *
-     *     - `auto_instantiate`: if `False`, cells won't automatically
-     *         run on startup. This only applies when editing a notebook,
-     *         and not when running as an application.
-     *         The default is `True`.
-     *     - `auto_reload`: if `lazy`, cells importing modified modules will marked
-     *       as stale; if `autorun`, affected cells will be automatically run. similar
-     *       to IPython's %autoreload extension but with more code intelligence.
-     *     - `reactive_tests`: if `True`, marimo will automatically run pytest on cells containing only test functions and test classes.
-     *       execution.
-     *     - `on_cell_change`: if `lazy`, cells will be marked stale when their
-     *       ancestors run but won't autorun; if `autorun`, cells will automatically
-     *       run when their ancestors run.
-     *     - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
-     *       if `strict` marimo will clone cell declarations by default, avoiding
-     *       hidden potential state build up.
-     *     - `watcher_on_save`: how to handle file changes when saving. `"lazy"` marks
-     *         affected cells as stale, `"autorun"` automatically runs affected cells.
-     *     - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
-     *         values may affect frontend performance
-     *     - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
-     *       larger values may affect frontend performance
-     *     - `pythonpath`: a list of directories to add to the Python search path.
-     *         Directories will be added to the head of sys.path. Similar to the
-     *         `PYTHONPATH` environment variable, the directories will be included in
-     *         where Python will look for imported modules.
-     *     - `dotenv`: a list of paths to `.env` files to load.
-     *         If the file does not exist, it will be silently ignored.
-     *         The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
-     *     - `default_sql_output`: the default output format for SQL queries. Can be one of:
-     *         `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
-     *         The default is `"auto"`.
-     *     - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
-     *        `html`, `markdown`, `ipynb`.
-     *        The default is None.
-     */
-    RuntimeConfig: {
-      auto_instantiate: boolean;
-      /** @enum {unknown} */
-      auto_reload: "autorun" | "lazy" | "off";
-      default_auto_download?: ("html" | "ipynb" | "markdown")[];
-      /** @enum {unknown} */
-      default_sql_output:
-        | "auto"
-        | "lazy-polars"
-        | "native"
-        | "pandas"
-        | "polars";
-      dotenv?: string[];
-      /** @enum {unknown} */
-      on_cell_change: "autorun" | "lazy";
-      output_max_bytes: number;
-      pythonpath?: string[];
-      reactive_tests: boolean;
-      std_stream_max_bytes: number;
-      /** @enum {unknown} */
-      watcher_on_save: "autorun" | "lazy";
-    };
-    /**
-     * SQLTableListPreview
-     * @description Preview of a list of tables in a schema.
-     */
-    SQLTableListPreview: {
-      /** @default null */
-      error?: string | null;
-      /** @enum {unknown} */
-      op: "sql-table-list-preview";
-      request_id: string;
-      /** @default [] */
-      tables?: components["schemas"]["DataTable"][];
-    };
-    /**
-     * SQLTablePreview
-     * @description Preview of a table in a SQL database.
-     */
-    SQLTablePreview: {
-      /** @default null */
-      error?: string | null;
-      /** @enum {unknown} */
-      op: "sql-table-preview";
-      request_id: string;
-      table: null | components["schemas"]["DataTable"];
-    };
-    /** SaveAppConfigurationRequest */
-    SaveAppConfigurationRequest: {
-      config: Record<string, any>;
-    };
-    /**
-     * SaveConfig
-     * @description Configuration for saving.
-     *
-     *     **Keys.**
-     *
-     *     - `autosave`: one of `"off"` or `"after_delay"`
-     *     - `delay`: number of milliseconds to wait before autosaving
-     *     - `format_on_save`: if `True`, format the code on save
-     */
-    SaveConfig: {
-      /** @enum {unknown} */
-      autosave: "after_delay" | "off";
-      autosave_delay: number;
-      format_on_save: boolean;
-    };
-    /** SaveNotebookRequest */
-    SaveNotebookRequest: {
-      cellIds: string[];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
-      filename: string;
-      /** @default null */
-      layout?: Record<string, any> | null;
-      names: string[];
-      /** @default true */
-      persist?: boolean;
-    };
-    /** SaveUserConfigurationRequest */
-    SaveUserConfigurationRequest: {
-      config: Record<string, any>;
-    };
-    /** Schema */
-    Schema: {
-      name: string;
-      tables: components["schemas"]["DataTable"][];
-    };
-    /** SchemaColumn */
-    SchemaColumn: {
-      name: string;
-      sampleValues: unknown[];
-      type: string;
-    };
-    /** SchemaTable */
-    SchemaTable: {
-      columns: components["schemas"]["SchemaColumn"][];
-      name: string;
-    };
-    /**
-     * SecretKeysResult
-     * @description Result of listing secret keys.
-     */
-    SecretKeysResult: {
-      /** @enum {unknown} */
-      op: "secret-keys-result";
-      request_id: string;
-      secrets: components["schemas"]["SecretKeysWithProvider"][];
-    };
-    /** SecretKeysWithProvider */
-    SecretKeysWithProvider: {
-      keys: string[];
-      name: string;
-      /** @enum {unknown} */
-      provider: "dotenv" | "env";
-    };
-    /**
-     * SendUIElementMessage
-     * @description Send a message to a UI element.
-     */
-    SendUIElementMessage: {
-      /** @default null */
-      buffers?: string[] | null;
-      message: Record<string, any>;
-      model_id: string | null;
-      /** @enum {unknown} */
-      op: "send-ui-element-message";
-      ui_element: string | null;
-    };
-    /**
-     * ServerConfig
-     * @description Configuration for the server.
-     *
-     *     **Keys.**
-     *
-     *     - `browser`: the web browser to use. `"default"` or a browser registered
-     *         with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
-     *     - `follow_symlink`: if true, the server will follow symlinks it finds
-     *         inside its static assets directory.
-     */
-    ServerConfig: {
-      browser: "default" | string;
-      follow_symlink: boolean;
-    };
-    /** SetCellConfigRequest */
-    SetCellConfigRequest: {
-      configs: {
-        [key: string]: Record<string, any>;
-      };
-    };
-    /** SetModelMessageRequest */
-    SetModelMessageRequest: {
-      /** @default null */
-      buffers?: string[] | null;
-      message: components["schemas"]["ModelMessage"];
-      modelId: string;
-    };
-    /** SetUIElementValueRequest */
-    SetUIElementValueRequest: {
-      objectIds: string[];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      token?: string;
-      values: unknown[];
-    };
-    /** SetUserConfigRequest */
-    SetUserConfigRequest: {
-      config: components["schemas"]["MarimoConfig"];
-    };
-    /** SetupRootError */
-    SetupRootError: {
-      edges_with_vars: [string, string[], string][];
-      /** @enum {unknown} */
-      type: "setup-refs";
-    };
-    /**
-     * SharingConfig
-     * @description Configuration for sharing features.
-     *
-     *     **Keys.**
-     *
-     *     - `html`: if `False`, HTML sharing options will be hidden from the UI
-     *     - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
-     */
-    SharingConfig: {
-      html?: boolean;
-      wasm?: boolean;
-    };
-    /** ShutdownSessionRequest */
-    ShutdownSessionRequest: {
-      sessionId: string;
-    };
-    /** Snippet */
-    Snippet: {
-      sections: components["schemas"]["SnippetSection"][];
-      title: string;
-    };
-    /** SnippetSection */
-    SnippetSection: {
-      /** @default null */
-      code?: string | null;
-      /** @default null */
-      html?: string | null;
-      id: string;
-    };
-    /** Snippets */
-    Snippets: {
-      snippets: components["schemas"]["Snippet"][];
-    };
-    /**
-     * SnippetsConfig
-     * @description Configuration for snippets.
-     *
-     *     **Keys.**
-     *
-     *     - `custom_path`: the path to the custom snippets directory
-     */
-    SnippetsConfig: {
-      custom_paths?: string[];
-      include_default_snippets?: boolean;
-    };
-    /** StartupLogs */
-    StartupLogs: {
-      content: string;
-      /** @enum {unknown} */
-      op: "startup-logs";
-      /** @enum {unknown} */
-      status: "append" | "done" | "start";
-    };
-    /** StdinRequest */
-    StdinRequest: {
-      text: string;
-    };
-    /** StopRequest */
-    StopRequest: Record<string, any>;
-    /**
-     * StoreConfig
-     * @description Configuration for cache stores.
-     */
-    StoreConfig: {
-      args?: Record<string, any>;
-      /** @enum {unknown} */
-      type?: "file" | "redis" | "rest" | "tiered";
-    };
-    /** SuccessResponse */
-    SuccessResponse: {
-      /** @default true */
-      success?: boolean;
-    };
-    /**
-     * TyLanguageServerConfig
-     * @description Configuration options for Ty Language Server.
-     *
-     *     ty handles completion, hover, go-to-definition, and diagnostics,
-     *     but we only use it for diagnostics.
-     */
-    TyLanguageServerConfig: {
-      enabled?: boolean;
-    };
-    /** UnknownError */
-    UnknownError: {
-      /** @default null */
-      error_type?: string | null;
-      msg: string;
-      /** @enum {unknown} */
-      type: "unknown";
-    };
-    /** UpdateCellCodes */
-    UpdateCellCodes: {
-      cell_ids: string[];
-      code_is_stale: boolean;
-      codes: string[];
-      /** @enum {unknown} */
-      op: "update-cell-codes";
-    };
-    /**
-     * UpdateCellIdsRequest
-     * @description Update the cell ID ordering of the cells in the notebook.
-     *
-     *     Right now we send the entire list of cell IDs,
-     *     but in the future we might want to send change-deltas.
-     */
-    UpdateCellIdsRequest: {
-      cell_ids: string[];
-      /** @enum {unknown} */
-      op: "update-cell-ids";
-    };
-    /** UpdateComponentValuesRequest */
-    UpdateComponentValuesRequest: {
-      objectIds: string[];
-      values: unknown[];
-    };
-    /** VariableContext */
-    VariableContext: {
-      name: string;
-      previewValue: unknown;
-      valueType: string;
-    };
-    /** VariableDeclaration */
-    VariableDeclaration: {
-      declared_by: string[];
-      name: string;
-      used_by: string[];
-    };
-    /** VariableValue */
-    VariableValue: {
-      datatype: string | null;
-      name: string;
-      value: string | null;
-    };
-    /**
-     * VariableValues
-     * @description List of variables and their types/values.
-     */
-    VariableValues: {
-      /** @enum {unknown} */
-      op: "variable-values";
-      variables: components["schemas"]["VariableValue"][];
-    };
-    /**
-     * Variables
-     * @description List of variable declarations.
-     */
-    Variables: {
-      /** @enum {unknown} */
-      op: "variables";
-      variables: components["schemas"]["VariableDeclaration"][];
-    };
-    /** WorkspaceFilesRequest */
-    WorkspaceFilesRequest: {
-      /** @default false */
-      includeMarkdown?: boolean;
-    };
-    /** WorkspaceFilesResponse */
-    WorkspaceFilesResponse: {
-      files: components["schemas"]["FileInfo"][];
-      root: string;
-    };
-    /**
-     * _AppConfig
-     * @description Program-specific configuration.
-     *
-     *     Configuration for frontends or runtimes that is specific to
-     *     a single marimo program.
-     */
-    _AppConfig: {
-      /** @default null */
-      app_title?: string | null;
-      auto_download?: ("html" | "ipynb" | "markdown")[];
-      /** @default null */
-      css_file?: string | null;
-      /** @default null */
-      html_head_file?: string | null;
-      /** @default null */
-      layout_file?: string | null;
-      /**
-       * @default auto
-       * @enum {unknown}
-       */
-      sql_output?: "auto" | "lazy-polars" | "native" | "pandas" | "polars";
-      /**
-       * @default compact
-       * @enum {unknown}
-       */
-      width?: "columns" | "compact" | "full" | "medium" | "normal";
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    schemas: {
+        /**
+         * AddPackageRequest
+         * @description This can be a remove package or a local package.
+         *
+         *     Supported formats:
+         *
+         *     httpx
+         *     httpx==0.27.0
+         *     httpx>=0.27.0
+         *     git+https://github.com/encode/httpx
+         *     https://files.pythonhosted.org/packages/5c/2d/3da5bdf4408b8b2800061c339f240c1802f2e82d55e50bd39c5a881f47f0/httpx-0.27.0.tar.gz
+         *     /example/foo-0.1.0-py3-none-any.whl
+         */
+        AddPackageRequest: {
+            package: string;
+            /** @default false */
+            upgrade?: boolean | null;
+        };
+        /** AiCompletionContext */
+        AiCompletionContext: {
+            /** @default  */
+            plainText?: string;
+            /** @default [] */
+            schema?: components["schemas"]["SchemaTable"][];
+            /** @default [] */
+            variables?: (string | components["schemas"]["VariableContext"])[];
+        };
+        /** AiCompletionRequest */
+        AiCompletionRequest: {
+            code: string;
+            /** @default null */
+            context?: null | components["schemas"]["AiCompletionContext"];
+            includeOtherCode: string;
+            /**
+             * @default python
+             * @enum {unknown}
+             */
+            language?: "markdown" | "python" | "sql";
+            /** @default [] */
+            messages?: components["schemas"]["ChatMessage"][];
+            prompt: string;
+            /** @default null */
+            selectedText?: string | null;
+        };
+        /**
+         * AiConfig
+         * @description Configuration options for AI.
+         *
+         *     **Keys.**
+         *
+         *     - `rules`: custom rules to include in all AI completion prompts
+         *     - `max_tokens`: the maximum number of tokens to use in AI completions
+         *     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+         *     - `models`: the models to use for AI completions
+         *     - `open_ai`: the OpenAI config
+         *     - `anthropic`: the Anthropic config
+         *     - `google`: the Google AI config
+         *     - `bedrock`: the Bedrock config
+         *     - `azure`: the Azure config
+         *     - `ollama`: the Ollama config
+         *     - `github`: the GitHub config
+         *     - `open_ai_compatible`: the OpenAI-compatible config
+         */
+        AiConfig: {
+            anthropic?: components["schemas"]["AnthropicConfig"];
+            azure?: components["schemas"]["OpenAiConfig"];
+            bedrock?: components["schemas"]["BedrockConfig"];
+            github?: components["schemas"]["GitHubConfig"];
+            google?: components["schemas"]["GoogleAiConfig"];
+            max_tokens?: number;
+            /** @enum {unknown} */
+            mode?: "ask" | "manual";
+            models?: components["schemas"]["AiModelConfig"];
+            ollama?: components["schemas"]["OpenAiConfig"];
+            open_ai?: components["schemas"]["OpenAiConfig"];
+            open_ai_compatible?: components["schemas"]["OpenAiConfig"];
+            rules?: string;
+        };
+        /** AiInlineCompletionRequest */
+        AiInlineCompletionRequest: {
+            /**
+             * @default python
+             * @enum {unknown}
+             */
+            language?: "markdown" | "python" | "sql";
+            prefix: string;
+            suffix: string;
+        };
+        /**
+         * AiModelConfig
+         * @description Configuration options for an AI model.
+         *
+         *     **Keys.**
+         *
+         *     - `chat_model`: the model to use for chat completions
+         *     - `edit_model`: the model to use for edit completions
+         *     - `autocomplete_model`: the model to use for code completion/autocomplete
+         *     - `displayed_models`: a list of models to display in the UI
+         *     - `custom_models`: a list of custom models to use that are not from the default list
+         */
+        AiModelConfig: {
+            autocomplete_model?: string;
+            chat_model?: string;
+            custom_models: string[];
+            displayed_models: string[];
+            edit_model?: string;
+        };
+        /** Alert */
+        Alert: {
+            description: string;
+            /** @enum {unknown} */
+            op: "alert";
+            title: string;
+            /** @default null */
+            variant?: "danger" | null;
+        };
+        /**
+         * AnthropicConfig
+         * @description Configuration options for Anthropic.
+         *
+         *     **Keys.**
+         *
+         *     - `api_key`: the Anthropic API key
+         */
+        AnthropicConfig: {
+            api_key?: string;
+        };
+        /** Banner */
+        Banner: {
+            /** @default null */
+            action?: "restart" | null;
+            description: string;
+            /** @enum {unknown} */
+            op: "banner";
+            title: string;
+            /** @default null */
+            variant?: "danger" | null;
+        };
+        /** BaseResponse */
+        BaseResponse: {
+            success: boolean;
+        };
+        /**
+         * BasedpyrightServerConfig
+         * @description Configuration options for basedpyright Language Server.
+         *
+         *     basedpyright handles completion, hover, go-to-definition, and diagnostics,
+         *     but we only use it for diagnostics.
+         */
+        BasedpyrightServerConfig: {
+            enabled?: boolean;
+        };
+        /**
+         * BedrockConfig
+         * @description Configuration options for Bedrock.
+         *
+         *     **Keys.**
+         *
+         *     - `profile_name`: the AWS profile to use
+         *     - `region_name`: the AWS region to use
+         *     - `aws_access_key_id`: the AWS access key ID
+         *     - `aws_secret_access_key`: the AWS secret access key
+         */
+        BedrockConfig: {
+            aws_access_key_id?: string;
+            aws_secret_access_key?: string;
+            profile_name?: string;
+            region_name?: string;
+        };
+        /**
+         * CellChannel
+         * @description The channel of a cell's output.
+         * @enum {unknown}
+         */
+        CellChannel: "marimo-error" | "media" | "output" | "pdb" | "stderr" | "stdin" | "stdout";
+        /**
+         * CellConfig
+         * @description Internal representation of a cell's configuration.
+         *     This is not part of the public API.
+         */
+        CellConfig: {
+            /** @default null */
+            column?: number | null;
+            /** @default false */
+            disabled?: boolean;
+            /** @default false */
+            hide_code?: boolean;
+        };
+        /**
+         * CellOp
+         * @description Op to transition a cell.
+         *
+         *     A CellOp's data has some optional fields:
+         *
+         *     output        - a CellOutput
+         *     console       - a CellOutput (console msg to append), or a list of
+         *                     CellOutputs
+         *     status        - execution status
+         *     stale_inputs  - whether the cell has stale inputs (variables, modules, ...)
+         *     run_id        - the run associated with this cell.
+         *     serialization - the serialization status of the cell
+         *
+         *     Omitting a field means that its value should be unchanged!
+         *
+         *     And one required field:
+         *
+         *     cell_id - the cell id
+         */
+        CellOp: {
+            cell_id: string;
+            /** @default null */
+            console?: components["schemas"]["CellOutput"][] | null | components["schemas"]["CellOutput"];
+            /** @enum {unknown} */
+            op: "cell-op";
+            /** @default null */
+            output?: null | components["schemas"]["CellOutput"];
+            /** @default null */
+            run_id?: string | null;
+            /** @default null */
+            serialization?: string | null;
+            /** @default null */
+            stale_inputs?: boolean | null;
+            /** @default null */
+            status?: ("disabled-transitively" | "idle" | "queued" | "running") | null;
+            timestamp?: number;
+        };
+        /** CellOutput */
+        CellOutput: {
+            channel: components["schemas"]["CellChannel"];
+            data: string | (components["schemas"]["SetupRootError"] | components["schemas"]["CycleError"] | components["schemas"]["MultipleDefinitionError"] | components["schemas"]["ImportStarError"] | components["schemas"]["MarimoAncestorStoppedError"] | components["schemas"]["MarimoAncestorPreventedError"] | components["schemas"]["MarimoExceptionRaisedError"] | components["schemas"]["MarimoStrictExecutionError"] | components["schemas"]["MarimoInterruptionError"] | components["schemas"]["MarimoSyntaxError"] | components["schemas"]["MarimoInternalError"] | components["schemas"]["MarimoSQLError"] | components["schemas"]["UnknownError"])[] | Record<string, any>;
+            /** @enum {unknown} */
+            mimetype: "application/json" | "application/vnd.jupyter.widget-view+json" | "application/vnd.marimo+error" | "application/vnd.marimo+mimebundle" | "application/vnd.marimo+traceback" | "application/vnd.vega.v5+json" | "application/vnd.vegalite.v5+json" | "image/avif" | "image/bmp" | "image/gif" | "image/jpeg" | "image/png" | "image/svg+xml" | "image/tiff" | "text/csv" | "text/html" | "text/latex" | "text/markdown" | "text/plain" | "video/mp4" | "video/mpeg";
+            timestamp?: number;
+        };
+        /** ChatAttachment */
+        ChatAttachment: {
+            /** @default null */
+            content_type?: string | null;
+            /** @default attachment */
+            name?: string;
+            url: string;
+        };
+        /**
+         * ChatMessage
+         * @description A message in a chat.
+         */
+        ChatMessage: {
+            /** @default null */
+            attachments?: components["schemas"]["ChatAttachment"][] | null;
+            content: unknown;
+            /** @default null */
+            parts?: Record<string, any>[] | null;
+            /** @enum {unknown} */
+            role: "assistant" | "system" | "user";
+        };
+        /** ChatRequest */
+        ChatRequest: {
+            context: components["schemas"]["AiCompletionContext"];
+            includeOtherCode: string;
+            messages: components["schemas"]["ChatMessage"][];
+            /** @default null */
+            model?: string | null;
+            /** @default null */
+            variables?: (string | components["schemas"]["VariableContext"])[] | null;
+        };
+        /** CodeCompletionRequest */
+        CodeCompletionRequest: {
+            cellId: string;
+            document: string;
+            id: string;
+        };
+        /**
+         * ColumnStats
+         * @description Represents stats for a column in a data table.
+         */
+        ColumnStats: {
+            /** @default null */
+            false?: number | null;
+            /** @default null */
+            max?: unknown | null;
+            /** @default null */
+            mean?: unknown | null;
+            /** @default null */
+            median?: unknown | null;
+            /** @default null */
+            min?: unknown | null;
+            /** @default null */
+            nulls?: number | null;
+            /** @default null */
+            p25?: unknown | null;
+            /** @default null */
+            p5?: unknown | null;
+            /** @default null */
+            p75?: unknown | null;
+            /** @default null */
+            p95?: unknown | null;
+            /** @default null */
+            std?: unknown | null;
+            /** @default null */
+            total?: number | null;
+            /** @default null */
+            true?: number | null;
+            /** @default null */
+            unique?: number | null;
+        };
+        /**
+         * CompletedRun
+         * @description Written on run completion (of submitted cells and their descendants.
+         */
+        CompletedRun: {
+            /** @enum {unknown} */
+            op: "completed-run";
+        };
+        /**
+         * CompletionConfig
+         * @description Configuration for code completion.
+         *
+         *     A dict with key/value pairs configuring code completion in the marimo
+         *     editor.
+         *
+         *     **Keys.**
+         *
+         *     - `activate_on_typing`: if `False`, completion won't activate
+         *     until the completion hotkey is entered
+         *     - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
+         *     - `codeium_api_key`: the Codeium API key
+         */
+        CompletionConfig: {
+            activate_on_typing: boolean;
+            api_key?: string | null;
+            base_url?: string | null;
+            codeium_api_key?: string | null;
+            copilot: boolean | ("codeium" | "custom" | "github");
+            model?: string | null;
+        };
+        /** CompletionOption */
+        CompletionOption: {
+            completion_info: string | null;
+            name: string;
+            type: string;
+        };
+        /**
+         * CompletionResult
+         * @description Code completion result.
+         */
+        CompletionResult: {
+            completion_id: string;
+            /** @enum {unknown} */
+            op: "completion-result";
+            options: components["schemas"]["CompletionOption"][];
+            prefix_length: number;
+        };
+        /** CopyNotebookRequest */
+        CopyNotebookRequest: {
+            destination: string;
+            source: string;
+        };
+        /** CreateSecretRequest */
+        CreateSecretRequest: {
+            key: string;
+            name: string;
+            /** @enum {unknown} */
+            provider: "dotenv" | "env";
+            value: string;
+        };
+        /** CycleError */
+        CycleError: {
+            edges_with_vars: [
+                string,
+                string[],
+                string
+            ][];
+            /** @enum {unknown} */
+            type: "cycle";
+        };
+        /**
+         * DataColumnPreview
+         * @description Preview of a column in a dataset.
+         */
+        DataColumnPreview: {
+            /** @default null */
+            chart_code?: string | null;
+            /** @default null */
+            chart_spec?: string | null;
+            /** @default  */
+            column_name?: string;
+            /** @default null */
+            error?: string | null;
+            /** @default null */
+            missing_packages?: string[] | null;
+            /** @enum {unknown} */
+            op: "data-column-preview";
+            /** @default null */
+            stats?: null | components["schemas"]["ColumnStats"];
+            /** @default  */
+            table_name?: string;
+        };
+        /**
+         * DataSourceConnection
+         * @description Represents a data source connection.
+         *
+         *     Attributes:
+         *         source (str): The source of the data source connection. E.g 'postgres'.
+         *         dialect (str): The dialect of the data source connection. E.g 'postgresql'.
+         *         name (str): The name of the data source connection. E.g 'engine'.
+         *         display_name (str): The display name of the data source connection. E.g 'PostgresQL (engine)'.
+         *         databases (List[Database]): The databases in the data source connection.
+         *         default_database (Optional[str]): The default database in the data source connection.
+         *         default_schema (Optional[str]): The default schema in the data source connection.
+         */
+        DataSourceConnection: {
+            databases: components["schemas"]["Database"][];
+            /** @default null */
+            default_database?: string | null;
+            /** @default null */
+            default_schema?: string | null;
+            dialect: string;
+            display_name: string;
+            name: string;
+            source: string;
+        };
+        /** DataSourceConnections */
+        DataSourceConnections: {
+            connections: components["schemas"]["DataSourceConnection"][];
+            /** @enum {unknown} */
+            op: "data-source-connections";
+        };
+        /**
+         * DataTable
+         * @description Represents a data table.
+         *
+         *     Attributes:
+         *         source_type (DataTableSource): Type of data source ('local', 'duckdb', 'connection').
+         *         source (str): Can be dialect, or source db name.
+         *         name (str): Name of the data table.
+         *         num_rows (Optional[int]): Total number of rows in the table, if known.
+         *         num_columns (Optional[int]): Total number of columns in the table, if known.
+         *         variable_name (Optional[VariableName]): Variable name referencing this table in code.
+         *         columns (List[DataTableColumn]): List of column definitions and metadata.
+         *         engine (Optional[VariableName]): Database engine or connection handler, if any.
+         *         type (DataTableType): Table type, either 'table' or 'view'. Defaults to 'table'.
+         *         primary_keys (Optional[List[str]]): Column names used as primary keys, if any.
+         *         indexes (Optional[List[str]]): Column names used as indexes, if any.
+         */
+        DataTable: {
+            columns: components["schemas"]["DataTableColumn"][];
+            /** @default null */
+            engine?: string | null;
+            /** @default null */
+            indexes?: string[] | null;
+            name: string;
+            num_columns: number | null;
+            num_rows: number | null;
+            /** @default null */
+            primary_keys?: string[] | null;
+            source: string;
+            /** @enum {unknown} */
+            source_type: "catalog" | "connection" | "duckdb" | "local";
+            /**
+             * @default table
+             * @enum {unknown}
+             */
+            type?: "table" | "view";
+            variable_name: string | null;
+        };
+        /**
+         * DataTableColumn
+         * @description Represents a column in a data table.
+         *
+         *     Attributes:
+         *         name (str): The name of the column.
+         *         type (DataType): The data type of the column.
+         *         external_type (ExternalDataType): The raw data type of the column.
+         *         sample_values (List[Any]): The sample values of the column.
+         */
+        DataTableColumn: {
+            external_type: string;
+            name: string;
+            sample_values: unknown[];
+            /** @enum {unknown} */
+            type: "boolean" | "date" | "datetime" | "integer" | "number" | "string" | "time" | "unknown";
+        };
+        /**
+         * Database
+         * @description Represents a collection of schemas.
+         *
+         *     Attributes:
+         *         name (str): The name of the database
+         *         dialect (str): The dialect of the database
+         *         schemas (List[Schema]): List of schemas in the database
+         *         engine (Optional[VariableName]): Database engine or connection handler, if any.
+         */
+        Database: {
+            dialect: string;
+            /** @default null */
+            engine?: string | null;
+            name: string;
+            schemas: components["schemas"]["Schema"][];
+        };
+        /**
+         * Datasets
+         * @description List of datasets.
+         */
+        Datasets: {
+            /** @default null */
+            clear_channel?: ("catalog" | "connection" | "duckdb" | "local") | null;
+            /** @enum {unknown} */
+            op: "datasets";
+            tables: components["schemas"]["DataTable"][];
+        };
+        /**
+         * DatasourcesConfig
+         * @description Configuration for datasources panel.
+         *
+         *     **Keys.**
+         *
+         *     - `auto_discover_schemas`: if `True`, include schemas in the datasource
+         *     - `auto_discover_tables`: if `True`, include tables in the datasource
+         *     - `auto_discover_columns`: if `True`, include columns & table metadata in the datasource
+         */
+        DatasourcesConfig: {
+            auto_discover_columns?: boolean | "auto";
+            auto_discover_schemas?: boolean | "auto";
+            auto_discover_tables?: boolean | "auto";
+        };
+        /** DeleteCellRequest */
+        DeleteCellRequest: {
+            cellId: string;
+        };
+        /** DeleteSecretRequest */
+        DeleteSecretRequest: {
+            key: string;
+        };
+        /** DependencyTreeNode */
+        DependencyTreeNode: {
+            dependencies: components["schemas"]["DependencyTreeNode"][];
+            name: string;
+            tags: {
+                [key: string]: string;
+            }[];
+            version: string | null;
+        };
+        /** DependencyTreeResponse */
+        DependencyTreeResponse: {
+            tree: null | components["schemas"]["DependencyTreeNode"];
+        };
+        /**
+         * DiagnosticsConfig
+         * @description Configuration options for diagnostics.
+         *
+         *     **Keys.**
+         *
+         *     - `enabled`: if `True`, diagnostics will be shown in the editor
+         */
+        DiagnosticsConfig: {
+            enabled?: boolean;
+        };
+        /**
+         * DisplayConfig
+         * @description Configuration for display.
+         *
+         *     **Keys.**
+         *
+         *     - `theme`: `"light"`, `"dark"`, or `"system"`
+         *     - `code_editor_font_size`: font size for the code editor
+         *     - `cell_output`: `"above"` or `"below"`
+         *     - `dataframes`: `"rich"` or `"plain"`
+         *     - `custom_css`: list of paths to custom CSS files
+         *     - `default_table_page_size`: default number of rows to display in tables
+         *     - `default_table_max_columns`: default maximum number of columns to display in tables
+         *     - `reference_highlighting`: if `True`, highlight reactive variable references
+         *     - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
+         */
+        DisplayConfig: {
+            /** @enum {unknown} */
+            cell_output: "above" | "below";
+            code_editor_font_size: number;
+            custom_css?: string[];
+            /** @enum {unknown} */
+            dataframes: "plain" | "rich";
+            default_table_max_columns: number;
+            default_table_page_size: number;
+            /** @enum {unknown} */
+            default_width: "columns" | "compact" | "full" | "medium" | "normal";
+            locale?: string | null;
+            reference_highlighting?: boolean;
+            /** @enum {unknown} */
+            theme: "dark" | "light" | "system";
+        };
+        /** ExecuteMultipleRequest */
+        ExecuteMultipleRequest: {
+            cellIds: string[];
+            codes: string[];
+            /** @default null */
+            request?: components["schemas"]["HTTPRequest"] | null;
+            timestamp?: number;
+        };
+        /** ExecuteScratchpadRequest */
+        ExecuteScratchpadRequest: {
+            code: string;
+            /** @default null */
+            request?: components["schemas"]["HTTPRequest"] | null;
+        };
+        /** ExecuteStaleRequest */
+        ExecuteStaleRequest: {
+            /** @default null */
+            request?: components["schemas"]["HTTPRequest"] | null;
+        };
+        /** ExecutionRequest */
+        ExecutionRequest: {
+            cellId: string;
+            code: string;
+            /** @default null */
+            request?: components["schemas"]["HTTPRequest"] | null;
+            timestamp?: number;
+        };
+        /** ExportAsHTMLRequest */
+        ExportAsHTMLRequest: {
+            /** @default null */
+            assetUrl?: string | null;
+            download: boolean;
+            files: string[];
+            includeCode: boolean;
+        };
+        /** ExportAsIPYNBRequest */
+        ExportAsIPYNBRequest: {
+            download: boolean;
+        };
+        /** ExportAsMarkdownRequest */
+        ExportAsMarkdownRequest: {
+            download: boolean;
+        };
+        /** ExportAsScriptRequest */
+        ExportAsScriptRequest: {
+            download: boolean;
+        };
+        /** FileCreateRequest */
+        FileCreateRequest: {
+            /** @default null */
+            contents?: string | null;
+            name: string;
+            path: string;
+            /** @enum {unknown} */
+            type: "directory" | "file";
+        };
+        /** FileCreateResponse */
+        FileCreateResponse: {
+            /** @default null */
+            info?: null | components["schemas"]["FileInfo"];
+            /** @default null */
+            message?: string | null;
+            success: boolean;
+        };
+        /** FileDeleteRequest */
+        FileDeleteRequest: {
+            path: string;
+        };
+        /** FileDeleteResponse */
+        FileDeleteResponse: {
+            /** @default null */
+            message?: string | null;
+            success: boolean;
+        };
+        /** FileDetailsRequest */
+        FileDetailsRequest: {
+            path: string;
+        };
+        /** FileDetailsResponse */
+        FileDetailsResponse: {
+            /** @default null */
+            contents?: string | null;
+            file: components["schemas"]["FileInfo"];
+            /** @default null */
+            mimeType?: string | null;
+        };
+        /** FileInfo */
+        FileInfo: {
+            /** @default [] */
+            children?: components["schemas"]["FileInfo"][];
+            id: string;
+            isDirectory: boolean;
+            isMarimoFile: boolean;
+            /** @default null */
+            lastModified?: number | null;
+            name: string;
+            path: string;
+        };
+        /** FileListRequest */
+        FileListRequest: {
+            /** @default null */
+            path?: string | null;
+        };
+        /** FileListResponse */
+        FileListResponse: {
+            files: components["schemas"]["FileInfo"][];
+            root: string;
+        };
+        /** FileMoveRequest */
+        FileMoveRequest: {
+            newPath: string;
+            path: string;
+        };
+        /** FileMoveResponse */
+        FileMoveResponse: {
+            /** @default null */
+            info?: null | components["schemas"]["FileInfo"];
+            /** @default null */
+            message?: string | null;
+            success: boolean;
+        };
+        /** FileOpenRequest */
+        FileOpenRequest: {
+            path: string;
+        };
+        /** FileSearchRequest */
+        FileSearchRequest: {
+            /** @default 3 */
+            depth?: number;
+            /** @default true */
+            includeDirectories?: boolean;
+            /** @default true */
+            includeFiles?: boolean;
+            /** @default 100 */
+            limit?: number;
+            /** @default null */
+            path?: string | null;
+            query: string;
+        };
+        /** FileSearchResponse */
+        FileSearchResponse: {
+            files: components["schemas"]["FileInfo"][];
+            query: string;
+            totalFound: number;
+        };
+        /** FileUpdateRequest */
+        FileUpdateRequest: {
+            contents: string;
+            path: string;
+        };
+        /** FileUpdateResponse */
+        FileUpdateResponse: {
+            /** @default null */
+            info?: null | components["schemas"]["FileInfo"];
+            /** @default null */
+            message?: string | null;
+            success: boolean;
+        };
+        /** FocusCell */
+        FocusCell: {
+            cell_id: string;
+            /** @enum {unknown} */
+            op: "focus-cell";
+        };
+        /** FormatRequest */
+        FormatRequest: {
+            codes: {
+                [key: string]: string;
+            };
+            lineLength: number;
+        };
+        /** FormatResponse */
+        FormatResponse: {
+            codes: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * FormattingConfig
+         * @description Configuration for code formatting.
+         *
+         *     **Keys.**
+         *
+         *     - `line_length`: max line length
+         */
+        FormattingConfig: {
+            line_length: number;
+        };
+        /** FunctionCallRequest */
+        FunctionCallRequest: {
+            args: Record<string, any>;
+            functionCallId: string;
+            functionName: string;
+            namespace: string;
+        };
+        /**
+         * FunctionCallResult
+         * @description Result of calling a function.
+         */
+        FunctionCallResult: {
+            function_call_id: string;
+            /** @enum {unknown} */
+            op: "function-call-result";
+            return_value: unknown;
+            status: components["schemas"]["HumanReadableStatus"];
+        };
+        /**
+         * GitHubConfig
+         * @description Configuration options for GitHub.
+         *
+         *     **Keys.**
+         *
+         *     - `api_key`: the GitHub API token
+         *     - `base_url`: the base URL for the API
+         */
+        GitHubConfig: {
+            api_key?: string;
+            base_url?: string;
+        };
+        /**
+         * GoogleAiConfig
+         * @description Configuration options for Google AI.
+         *
+         *     **Keys.**
+         *
+         *     - `api_key`: the Google AI API key
+         */
+        GoogleAiConfig: {
+            api_key?: string;
+        };
+        HTTPRequest: {
+            baseUrl: {
+                [key: string]: unknown;
+            };
+            cookies: {
+                [key: string]: string;
+            };
+            headers: {
+                [key: string]: string;
+            };
+            meta: {
+                [key: string]: unknown;
+            };
+            pathParams: {
+                [key: string]: unknown;
+            };
+            queryParams: {
+                [key: string]: string[];
+            };
+            url: {
+                [key: string]: unknown;
+            };
+            user: unknown;
+        };
+        /**
+         * HumanReadableStatus
+         * @description Human-readable status.
+         */
+        HumanReadableStatus: {
+            /** @enum {unknown} */
+            code: "error" | "ok";
+            /** @default null */
+            message?: string | null;
+            /** @default null */
+            title?: string | null;
+        };
+        /** ImportStarError */
+        ImportStarError: {
+            msg: string;
+            /** @enum {unknown} */
+            type: "import-star";
+        };
+        /** InstallMissingPackagesRequest */
+        InstallMissingPackagesRequest: {
+            manager: string;
+            versions: {
+                [key: string]: string;
+            };
+        };
+        /** InstallingPackageAlert */
+        InstallingPackageAlert: {
+            /** @default null */
+            log_status?: ("append" | "done" | "start") | null;
+            /** @default null */
+            logs?: {
+                [key: string]: string;
+            } | null;
+            /** @enum {unknown} */
+            op: "installing-package-alert";
+            packages: {
+                [key: string]: "failed" | "installed" | "installing" | "queued";
+            };
+        };
+        /** InstantiateRequest */
+        InstantiateRequest: {
+            /** @default true */
+            autoRun?: boolean;
+            objectIds: string[];
+            values: unknown[];
+        };
+        /**
+         * Interrupted
+         * @description Written when the kernel is interrupted by the user.
+         */
+        Interrupted: {
+            /** @enum {unknown} */
+            op: "interrupted";
+        };
+        /** InvokeAiToolRequest */
+        InvokeAiToolRequest: {
+            arguments: Record<string, any>;
+            toolName: string;
+        };
+        /** InvokeAiToolResponse */
+        InvokeAiToolResponse: {
+            /** @default null */
+            error?: string | null;
+            result: unknown;
+            success: boolean;
+            toolName: string;
+        };
+        /** KernelCapabilities */
+        KernelCapabilities: {
+            /** @default false */
+            basedpyright?: boolean;
+            /** @default false */
+            pylsp?: boolean;
+            /** @default false */
+            terminal?: boolean;
+            /** @default false */
+            ty?: boolean;
+        };
+        /**
+         * KernelReady
+         * @description Kernel is ready for execution.
+         */
+        KernelReady: {
+            app_config: components["schemas"]["_AppConfig"];
+            capabilities: components["schemas"]["KernelCapabilities"];
+            cell_ids: string[];
+            codes: string[];
+            configs: components["schemas"]["CellConfig"][];
+            kiosk: boolean;
+            last_executed_code: {
+                [key: string]: string;
+            } | null;
+            last_execution_time: {
+                [key: string]: number;
+            } | null;
+            layout: components["schemas"]["LayoutConfig"] | null;
+            names: string[];
+            /** @enum {unknown} */
+            op: "kernel-ready";
+            resumed: boolean;
+            ui_values: Record<string, any> | null;
+        };
+        /**
+         * KeymapConfig
+         * @description Configuration for keymaps.
+         *
+         *     **Keys.**
+         *
+         *     - `preset`: one of `"default"` or `"vim"`
+         *     - `overrides`: a dict of keymap actions to their keymap override
+         *     - `vimrc`: path to a vimrc file to load keymaps from
+         *     - `destructive_delete`: if `True`, allows deleting cells with content.
+         */
+        KeymapConfig: {
+            destructive_delete?: boolean;
+            overrides?: {
+                [key: string]: string;
+            };
+            /** @enum {unknown} */
+            preset: "default" | "vim";
+            vimrc?: string | null;
+        };
+        /** KnownUnions */
+        KnownUnions: {
+            /** @enum {unknown} */
+            data_type: "boolean" | "date" | "datetime" | "integer" | "number" | "string" | "time" | "unknown";
+            error: components["schemas"]["SetupRootError"] | components["schemas"]["CycleError"] | components["schemas"]["MultipleDefinitionError"] | components["schemas"]["ImportStarError"] | components["schemas"]["MarimoAncestorStoppedError"] | components["schemas"]["MarimoAncestorPreventedError"] | components["schemas"]["MarimoExceptionRaisedError"] | components["schemas"]["MarimoStrictExecutionError"] | components["schemas"]["MarimoInterruptionError"] | components["schemas"]["MarimoSyntaxError"] | components["schemas"]["MarimoInternalError"] | components["schemas"]["MarimoSQLError"] | components["schemas"]["UnknownError"];
+            operation: components["schemas"]["CellOp"] | components["schemas"]["FunctionCallResult"] | components["schemas"]["SendUIElementMessage"] | components["schemas"]["RemoveUIElements"] | components["schemas"]["Reload"] | components["schemas"]["Reconnected"] | components["schemas"]["Interrupted"] | components["schemas"]["CompletedRun"] | components["schemas"]["KernelReady"] | components["schemas"]["CompletionResult"] | components["schemas"]["Alert"] | components["schemas"]["Banner"] | components["schemas"]["MissingPackageAlert"] | components["schemas"]["InstallingPackageAlert"] | components["schemas"]["StartupLogs"] | components["schemas"]["Variables"] | components["schemas"]["VariableValues"] | components["schemas"]["QueryParamsSet"] | components["schemas"]["QueryParamsAppend"] | components["schemas"]["QueryParamsDelete"] | components["schemas"]["QueryParamsClear"] | components["schemas"]["Datasets"] | components["schemas"]["DataColumnPreview"] | components["schemas"]["SQLTablePreview"] | components["schemas"]["SQLTableListPreview"] | components["schemas"]["DataSourceConnections"] | components["schemas"]["SecretKeysResult"] | components["schemas"]["FocusCell"] | components["schemas"]["UpdateCellCodes"] | components["schemas"]["UpdateCellIdsRequest"];
+        };
+        /**
+         * LanguageServersConfig
+         * @description Configuration options for language servers.
+         *
+         *     **Keys.**
+         *
+         *     - `pylsp`: the pylsp config
+         */
+        LanguageServersConfig: {
+            basedpyright?: components["schemas"]["BasedpyrightServerConfig"];
+            pylsp?: components["schemas"]["PythonLanguageServerConfig"];
+            ty?: components["schemas"]["TyLanguageServerConfig"];
+        };
+        /** LayoutConfig */
+        LayoutConfig: {
+            data: Record<string, any>;
+            type: string;
+        };
+        /** ListPackagesResponse */
+        ListPackagesResponse: {
+            packages: components["schemas"]["PackageDescription"][];
+        };
+        /** ListSecretKeysRequest */
+        ListSecretKeysRequest: {
+            requestId: string;
+        };
+        /** ListSecretKeysResponse */
+        ListSecretKeysResponse: {
+            keys: components["schemas"]["SecretKeysWithProvider"][];
+        };
+        /** MarimoAncestorPreventedError */
+        MarimoAncestorPreventedError: {
+            blamed_cell: string | null;
+            msg: string;
+            raising_cell: string;
+            /** @enum {unknown} */
+            type: "ancestor-prevented";
+        };
+        /** MarimoAncestorStoppedError */
+        MarimoAncestorStoppedError: {
+            msg: string;
+            raising_cell: string;
+            /** @enum {unknown} */
+            type: "ancestor-stopped";
+        };
+        /**
+         * MarimoConfig
+         * @description Configuration for the marimo editor
+         */
+        MarimoConfig: {
+            ai?: components["schemas"]["AiConfig"];
+            completion: components["schemas"]["CompletionConfig"];
+            datasources?: components["schemas"]["DatasourcesConfig"];
+            diagnostics?: components["schemas"]["DiagnosticsConfig"];
+            display: components["schemas"]["DisplayConfig"];
+            experimental?: Record<string, any>;
+            formatting: components["schemas"]["FormattingConfig"];
+            keymap: components["schemas"]["KeymapConfig"];
+            language_servers?: components["schemas"]["LanguageServersConfig"];
+            package_management: components["schemas"]["PackageManagementConfig"];
+            runtime: components["schemas"]["RuntimeConfig"];
+            save: components["schemas"]["SaveConfig"];
+            server: components["schemas"]["ServerConfig"];
+            sharing?: components["schemas"]["SharingConfig"];
+            snippets?: components["schemas"]["SnippetsConfig"];
+        };
+        /** MarimoExceptionRaisedError */
+        MarimoExceptionRaisedError: {
+            exception_type: string;
+            msg: string;
+            raising_cell: string | null;
+            /** @enum {unknown} */
+            type: "exception";
+        };
+        /** MarimoFile */
+        MarimoFile: {
+            /** @default null */
+            initializationId?: string | null;
+            /** @default null */
+            lastModified?: number | null;
+            name: string;
+            path: string;
+            /** @default null */
+            sessionId?: string | null;
+        };
+        /**
+         * MarimoInternalError
+         * @description An internal error that should be hidden from the user.
+         *     The error is logged to the console and then a new error is broadcasted
+         *     such that the data is hidden.
+         *
+         *     They can be linked back to the original error by the error_id.
+         */
+        MarimoInternalError: {
+            error_id: string;
+            /** @default  */
+            msg?: string;
+            /** @enum {unknown} */
+            type: "internal";
+        };
+        /** MarimoInterruptionError */
+        MarimoInterruptionError: {
+            /** @enum {unknown} */
+            type: "interruption";
+        };
+        /**
+         * MarimoSQLError
+         * @description SQL-specific error with enhanced metadata for debugging.
+         */
+        MarimoSQLError: {
+            /** @default null */
+            hint?: string | null;
+            msg: string;
+            /** @default 0 */
+            node_col_offset?: number;
+            /** @default 0 */
+            node_lineno?: number;
+            /** @default null */
+            sql_col?: number | null;
+            /** @default null */
+            sql_line?: number | null;
+            sql_statement: string;
+            /** @enum {unknown} */
+            type: "sql-error";
+        };
+        /** MarimoStrictExecutionError */
+        MarimoStrictExecutionError: {
+            blamed_cell: string | null;
+            msg: string;
+            ref: string;
+            /** @enum {unknown} */
+            type: "strict-exception";
+        };
+        /** MarimoSyntaxError */
+        MarimoSyntaxError: {
+            msg: string;
+            /** @enum {unknown} */
+            type: "syntax";
+        };
+        /** MissingPackageAlert */
+        MissingPackageAlert: {
+            isolated: boolean;
+            /** @enum {unknown} */
+            op: "missing-package-alert";
+            packages: string[];
+        };
+        /** ModelMessage */
+        ModelMessage: {
+            bufferPaths: (string | number)[][];
+            state: Record<string, any>;
+        };
+        /** MultipleDefinitionError */
+        MultipleDefinitionError: {
+            cells: string[];
+            name: string;
+            /** @enum {unknown} */
+            type: "multiple-defs";
+        };
+        /**
+         * OpenAiConfig
+         * @description Configuration options for OpenAI or OpenAI-compatible services.
+         *
+         *     **Keys.**
+         *
+         *     - `api_key`: the OpenAI API key
+         *     - `base_url`: the base URL for the API
+         *     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
+         *     - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
+         *     - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
+         *     - `extra_headers`: extra headers to be passed to the OpenAI client
+         */
+        OpenAiConfig: {
+            api_key?: string;
+            base_url?: string;
+            ca_bundle_path?: string;
+            client_pem?: string;
+            extra_headers?: {
+                [key: string]: string;
+            };
+            model?: string;
+            ssl_verify?: boolean;
+        };
+        /** OpenTutorialRequest */
+        OpenTutorialRequest: {
+            tutorialId: ("dataflow" | "fileformat" | "for-jupyter-users" | "intro" | "layout" | "markdown" | "plots" | "sql" | "ui") | "markdown-format";
+        };
+        /** PackageDescription */
+        PackageDescription: {
+            name: string;
+            version: string;
+        };
+        /**
+         * PackageManagementConfig
+         * @description Configuration options for package management.
+         *
+         *     **Keys.**
+         *
+         *     - `manager`: the package manager to use
+         */
+        PackageManagementConfig: {
+            /** @enum {unknown} */
+            manager: "pip" | "pixi" | "poetry" | "rye" | "uv";
+        };
+        /** PackageOperationResponse */
+        PackageOperationResponse: {
+            /** @default null */
+            error?: string | null;
+            success: boolean;
+        };
+        /** PdbRequest */
+        PdbRequest: {
+            cellId: string;
+            /** @default null */
+            request?: components["schemas"]["HTTPRequest"] | null;
+        };
+        /**
+         * PreviewDataSourceConnectionRequest
+         * @description Fetch a datasource connection
+         */
+        PreviewDataSourceConnectionRequest: {
+            engine: string;
+        };
+        /** PreviewDatasetColumnRequest */
+        PreviewDatasetColumnRequest: {
+            columnName: string;
+            /** @default null */
+            fullyQualifiedTableName?: string | null;
+            source: string;
+            /** @enum {unknown} */
+            sourceType: "catalog" | "connection" | "duckdb" | "local";
+            tableName: string;
+        };
+        /**
+         * PreviewSQLTableListRequest
+         * @description Preview list of tables in an SQL schema
+         */
+        PreviewSQLTableListRequest: {
+            database: string;
+            engine: string;
+            requestId: string;
+            schema: string;
+        };
+        /**
+         * PreviewSQLTableRequest
+         * @description Preview table details in an SQL database
+         */
+        PreviewSQLTableRequest: {
+            database: string;
+            engine: string;
+            requestId: string;
+            schema: string;
+            tableName: string;
+        };
+        /**
+         * PythonLanguageServerConfig
+         * @description Configuration options for Python Language Server.
+         *
+         *     pylsp handles completion, hover, go-to-definition, and diagnostics.
+         */
+        PythonLanguageServerConfig: {
+            enable_flake8?: boolean;
+            enable_mypy?: boolean;
+            enable_pydocstyle?: boolean;
+            enable_pyflakes?: boolean;
+            enable_pylint?: boolean;
+            enable_ruff?: boolean;
+            enabled?: boolean;
+        };
+        /** QueryParamsAppend */
+        QueryParamsAppend: {
+            key: string;
+            /** @enum {unknown} */
+            op: "query-params-append";
+            value: string;
+        };
+        /** QueryParamsClear */
+        QueryParamsClear: {
+            /** @enum {unknown} */
+            op: "query-params-clear";
+        };
+        /** QueryParamsDelete */
+        QueryParamsDelete: {
+            key: string;
+            /** @enum {unknown} */
+            op: "query-params-delete";
+            value: string | null;
+        };
+        /**
+         * QueryParamsSet
+         * @description Set query parameters.
+         */
+        QueryParamsSet: {
+            key: string;
+            /** @enum {unknown} */
+            op: "query-params-set";
+            value: string | string[];
+        };
+        /** ReadCodeResponse */
+        ReadCodeResponse: {
+            contents: string;
+        };
+        /** RecentFilesResponse */
+        RecentFilesResponse: {
+            files: components["schemas"]["MarimoFile"][];
+        };
+        /** Reconnected */
+        Reconnected: {
+            /** @enum {unknown} */
+            op: "reconnected";
+        };
+        /** Reload */
+        Reload: {
+            /** @enum {unknown} */
+            op: "reload";
+        };
+        /** RemovePackageRequest */
+        RemovePackageRequest: {
+            package: string;
+        };
+        /**
+         * RemoveUIElements
+         * @description Invalidate UI elements for a given cell.
+         */
+        RemoveUIElements: {
+            cell_id: string;
+            /** @enum {unknown} */
+            op: "remove-ui-elements";
+        };
+        /** RenameFileRequest */
+        RenameFileRequest: {
+            filename: string;
+        };
+        /** RenameRequest */
+        RenameRequest: {
+            filename: string;
+        };
+        /** RunRequest */
+        RunRequest: {
+            cellIds: string[];
+            codes: string[];
+            /** @default null */
+            request?: components["schemas"]["HTTPRequest"] | null;
+        };
+        /** RunningNotebooksResponse */
+        RunningNotebooksResponse: {
+            files: components["schemas"]["MarimoFile"][];
+        };
+        /**
+         * RuntimeConfig
+         * @description Configuration for runtime.
+         *
+         *     **Keys.**
+         *
+         *     - `auto_instantiate`: if `False`, cells won't automatically
+         *         run on startup. This only applies when editing a notebook,
+         *         and not when running as an application.
+         *         The default is `True`.
+         *     - `auto_reload`: if `lazy`, cells importing modified modules will marked
+         *       as stale; if `autorun`, affected cells will be automatically run. similar
+         *       to IPython's %autoreload extension but with more code intelligence.
+         *     - `reactive_tests`: if `True`, marimo will automatically run pytest on cells containing only test functions and test classes.
+         *       execution.
+         *     - `on_cell_change`: if `lazy`, cells will be marked stale when their
+         *       ancestors run but won't autorun; if `autorun`, cells will automatically
+         *       run when their ancestors run.
+         *     - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
+         *       if `strict` marimo will clone cell declarations by default, avoiding
+         *       hidden potential state build up.
+         *     - `watcher_on_save`: how to handle file changes when saving. `"lazy"` marks
+         *         affected cells as stale, `"autorun"` automatically runs affected cells.
+         *     - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
+         *         values may affect frontend performance
+         *     - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
+         *       larger values may affect frontend performance
+         *     - `pythonpath`: a list of directories to add to the Python search path.
+         *         Directories will be added to the head of sys.path. Similar to the
+         *         `PYTHONPATH` environment variable, the directories will be included in
+         *         where Python will look for imported modules.
+         *     - `dotenv`: a list of paths to `.env` files to load.
+         *         If the file does not exist, it will be silently ignored.
+         *         The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
+         *     - `default_sql_output`: the default output format for SQL queries. Can be one of:
+         *         `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
+         *         The default is `"auto"`.
+         *     - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
+         *        `html`, `markdown`, `ipynb`.
+         *        The default is None.
+         */
+        RuntimeConfig: {
+            auto_instantiate: boolean;
+            /** @enum {unknown} */
+            auto_reload: "autorun" | "lazy" | "off";
+            default_auto_download?: ("html" | "ipynb" | "markdown")[];
+            /** @enum {unknown} */
+            default_sql_output: "auto" | "lazy-polars" | "native" | "pandas" | "polars";
+            dotenv?: string[];
+            /** @enum {unknown} */
+            on_cell_change: "autorun" | "lazy";
+            output_max_bytes: number;
+            pythonpath?: string[];
+            reactive_tests: boolean;
+            std_stream_max_bytes: number;
+            /** @enum {unknown} */
+            watcher_on_save: "autorun" | "lazy";
+        };
+        /**
+         * SQLTableListPreview
+         * @description Preview of a list of tables in a schema.
+         */
+        SQLTableListPreview: {
+            /** @default null */
+            error?: string | null;
+            /** @enum {unknown} */
+            op: "sql-table-list-preview";
+            request_id: string;
+            /** @default [] */
+            tables?: components["schemas"]["DataTable"][];
+        };
+        /**
+         * SQLTablePreview
+         * @description Preview of a table in a SQL database.
+         */
+        SQLTablePreview: {
+            /** @default null */
+            error?: string | null;
+            /** @enum {unknown} */
+            op: "sql-table-preview";
+            request_id: string;
+            table: null | components["schemas"]["DataTable"];
+        };
+        /** SaveAppConfigurationRequest */
+        SaveAppConfigurationRequest: {
+            config: Record<string, any>;
+        };
+        /**
+         * SaveConfig
+         * @description Configuration for saving.
+         *
+         *     **Keys.**
+         *
+         *     - `autosave`: one of `"off"` or `"after_delay"`
+         *     - `delay`: number of milliseconds to wait before autosaving
+         *     - `format_on_save`: if `True`, format the code on save
+         */
+        SaveConfig: {
+            /** @enum {unknown} */
+            autosave: "after_delay" | "off";
+            autosave_delay: number;
+            format_on_save: boolean;
+        };
+        /** SaveNotebookRequest */
+        SaveNotebookRequest: {
+            cellIds: string[];
+            codes: string[];
+            configs: components["schemas"]["CellConfig"][];
+            filename: string;
+            /** @default null */
+            layout?: Record<string, any> | null;
+            names: string[];
+            /** @default true */
+            persist?: boolean;
+        };
+        /** SaveUserConfigurationRequest */
+        SaveUserConfigurationRequest: {
+            config: Record<string, any>;
+        };
+        /** Schema */
+        Schema: {
+            name: string;
+            tables: components["schemas"]["DataTable"][];
+        };
+        /** SchemaColumn */
+        SchemaColumn: {
+            name: string;
+            sampleValues: unknown[];
+            type: string;
+        };
+        /** SchemaTable */
+        SchemaTable: {
+            columns: components["schemas"]["SchemaColumn"][];
+            name: string;
+        };
+        /**
+         * SecretKeysResult
+         * @description Result of listing secret keys.
+         */
+        SecretKeysResult: {
+            /** @enum {unknown} */
+            op: "secret-keys-result";
+            request_id: string;
+            secrets: components["schemas"]["SecretKeysWithProvider"][];
+        };
+        /** SecretKeysWithProvider */
+        SecretKeysWithProvider: {
+            keys: string[];
+            name: string;
+            /** @enum {unknown} */
+            provider: "dotenv" | "env";
+        };
+        /**
+         * SendUIElementMessage
+         * @description Send a message to a UI element.
+         */
+        SendUIElementMessage: {
+            /** @default null */
+            buffers?: string[] | null;
+            message: Record<string, any>;
+            model_id: string | null;
+            /** @enum {unknown} */
+            op: "send-ui-element-message";
+            ui_element: string | null;
+        };
+        /**
+         * ServerConfig
+         * @description Configuration for the server.
+         *
+         *     **Keys.**
+         *
+         *     - `browser`: the web browser to use. `"default"` or a browser registered
+         *         with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
+         *     - `follow_symlink`: if true, the server will follow symlinks it finds
+         *         inside its static assets directory.
+         */
+        ServerConfig: {
+            browser: "default" | string;
+            follow_symlink: boolean;
+        };
+        /** SetCellConfigRequest */
+        SetCellConfigRequest: {
+            configs: {
+                [key: string]: Record<string, any>;
+            };
+        };
+        /** SetModelMessageRequest */
+        SetModelMessageRequest: {
+            /** @default null */
+            buffers?: string[] | null;
+            message: components["schemas"]["ModelMessage"];
+            modelId: string;
+        };
+        /** SetUIElementValueRequest */
+        SetUIElementValueRequest: {
+            objectIds: string[];
+            /** @default null */
+            request?: components["schemas"]["HTTPRequest"] | null;
+            token?: string;
+            values: unknown[];
+        };
+        /** SetUserConfigRequest */
+        SetUserConfigRequest: {
+            config: components["schemas"]["MarimoConfig"];
+        };
+        /** SetupRootError */
+        SetupRootError: {
+            edges_with_vars: [
+                string,
+                string[],
+                string
+            ][];
+            /** @enum {unknown} */
+            type: "setup-refs";
+        };
+        /**
+         * SharingConfig
+         * @description Configuration for sharing features.
+         *
+         *     **Keys.**
+         *
+         *     - `html`: if `False`, HTML sharing options will be hidden from the UI
+         *     - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
+         */
+        SharingConfig: {
+            html?: boolean;
+            wasm?: boolean;
+        };
+        /** ShutdownSessionRequest */
+        ShutdownSessionRequest: {
+            sessionId: string;
+        };
+        /** Snippet */
+        Snippet: {
+            sections: components["schemas"]["SnippetSection"][];
+            title: string;
+        };
+        /** SnippetSection */
+        SnippetSection: {
+            /** @default null */
+            code?: string | null;
+            /** @default null */
+            html?: string | null;
+            id: string;
+        };
+        /** Snippets */
+        Snippets: {
+            snippets: components["schemas"]["Snippet"][];
+        };
+        /**
+         * SnippetsConfig
+         * @description Configuration for snippets.
+         *
+         *     **Keys.**
+         *
+         *     - `custom_path`: the path to the custom snippets directory
+         */
+        SnippetsConfig: {
+            custom_paths?: string[];
+            include_default_snippets?: boolean;
+        };
+        /** StartupLogs */
+        StartupLogs: {
+            content: string;
+            /** @enum {unknown} */
+            op: "startup-logs";
+            /** @enum {unknown} */
+            status: "append" | "done" | "start";
+        };
+        /** StdinRequest */
+        StdinRequest: {
+            text: string;
+        };
+        /** StopRequest */
+        StopRequest: Record<string, any>;
+        /**
+         * StoreConfig
+         * @description Configuration for cache stores.
+         */
+        StoreConfig: {
+            args?: Record<string, any>;
+            /** @enum {unknown} */
+            type?: "file" | "redis" | "rest" | "tiered";
+        };
+        /** SuccessResponse */
+        SuccessResponse: {
+            /** @default true */
+            success?: boolean;
+        };
+        /**
+         * TyLanguageServerConfig
+         * @description Configuration options for Ty Language Server.
+         *
+         *     ty handles completion, hover, go-to-definition, and diagnostics,
+         *     but we only use it for diagnostics.
+         */
+        TyLanguageServerConfig: {
+            enabled?: boolean;
+        };
+        /** UnknownError */
+        UnknownError: {
+            /** @default null */
+            error_type?: string | null;
+            msg: string;
+            /** @enum {unknown} */
+            type: "unknown";
+        };
+        /** UpdateCellCodes */
+        UpdateCellCodes: {
+            cell_ids: string[];
+            code_is_stale: boolean;
+            codes: string[];
+            /** @enum {unknown} */
+            op: "update-cell-codes";
+        };
+        /**
+         * UpdateCellIdsRequest
+         * @description Update the cell ID ordering of the cells in the notebook.
+         *
+         *     Right now we send the entire list of cell IDs,
+         *     but in the future we might want to send change-deltas.
+         */
+        UpdateCellIdsRequest: {
+            cell_ids: string[];
+            /** @enum {unknown} */
+            op: "update-cell-ids";
+        };
+        /** UpdateComponentValuesRequest */
+        UpdateComponentValuesRequest: {
+            objectIds: string[];
+            values: unknown[];
+        };
+        /** VariableContext */
+        VariableContext: {
+            name: string;
+            previewValue: unknown;
+            valueType: string;
+        };
+        /** VariableDeclaration */
+        VariableDeclaration: {
+            declared_by: string[];
+            name: string;
+            used_by: string[];
+        };
+        /** VariableValue */
+        VariableValue: {
+            datatype: string | null;
+            name: string;
+            value: string | null;
+        };
+        /**
+         * VariableValues
+         * @description List of variables and their types/values.
+         */
+        VariableValues: {
+            /** @enum {unknown} */
+            op: "variable-values";
+            variables: components["schemas"]["VariableValue"][];
+        };
+        /**
+         * Variables
+         * @description List of variable declarations.
+         */
+        Variables: {
+            /** @enum {unknown} */
+            op: "variables";
+            variables: components["schemas"]["VariableDeclaration"][];
+        };
+        /** WorkspaceFilesRequest */
+        WorkspaceFilesRequest: {
+            /** @default false */
+            includeMarkdown?: boolean;
+        };
+        /** WorkspaceFilesResponse */
+        WorkspaceFilesResponse: {
+            files: components["schemas"]["FileInfo"][];
+            root: string;
+        };
+        /**
+         * _AppConfig
+         * @description Program-specific configuration.
+         *
+         *     Configuration for frontends or runtimes that is specific to
+         *     a single marimo program.
+         */
+        _AppConfig: {
+            /** @default null */
+            app_title?: string | null;
+            auto_download?: ("html" | "ipynb" | "markdown")[];
+            /** @default null */
+            css_file?: string | null;
+            /** @default null */
+            html_head_file?: string | null;
+            /** @default null */
+            layout_file?: string | null;
+            /**
+             * @default auto
+             * @enum {unknown}
+             */
+            sql_output?: "auto" | "lazy-polars" | "native" | "pandas" | "polars";
+            /**
+             * @default compact
+             * @enum {unknown}
+             */
+            width?: "columns" | "compact" | "full" | "medium" | "normal";
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, any>;
 export type operations = Record<string, any>;

@@ -496,6 +496,14 @@ export const MarimoErrorOutput = ({
           {sqlErrors.map((error, idx) => (
             <div key={`sql-error-${idx}`} className="space-y-2">
               <p className="text-muted-foreground">{error.msg}</p>
+              {error.hint && (
+                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-2 rounded text-sm">
+                  <div className="flex items-start gap-2">
+                    <span className="text-green-600 dark:text-green-400 font-medium">💡</span>
+                    <pre className="whitespace-pre-wrap text-green-700 dark:text-green-300 font-medium">{error.hint}</pre>
+                  </div>
+                </div>
+              )}
               {error.sql_statement && (
                 <div className="bg-muted/50 p-2 rounded text-xs font-mono">
                   <pre className="whitespace-pre-wrap">{error.sql_statement}</pre>

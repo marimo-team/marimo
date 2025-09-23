@@ -80,11 +80,23 @@ def sql(
         df = sql_engine.execute(query)
     except Exception as e:
         if is_sql_parse_error(e):
-            exception_msg = str(e)
-            exception_type = type(e).__name__
+            # Use centralized error processing
+            from marimo._sql.error_utils import (
+                create_sql_error_metadata,
+                metadata_to_sql_exception,
+            )
 
-            # Create clean error message
-            clean_message = exception_msg.split("\n", 1)[0]
+            metadata = create_sql_error_metadata(
+                e,
+                rule_code="runtime",
+                node=None,
+                sql_content=query,
+                context="sql_execution",
+            )
+
+            # Enhance error messages based on exception type
+            exception_type = metadata["error_type"]
+            clean_message = metadata["clean_message"]
             if exception_type == "ParserException":
                 clean_message = f"SQL syntax error: {clean_message}"
             elif "ParseError" in exception_type:
@@ -92,11 +104,16 @@ def sql(
             elif "ProgrammingError" in exception_type:
                 clean_message = f"SQL programming error: {clean_message}"
 
+            # Truncate long SQL statements
+            truncated_query = query[:200] + "..." if len(query) > 200 else query
+
+            # Raise MarimoSQLException with structured hint data
             raise MarimoSQLException(
                 message=clean_message,
-                sql_statement=query[:200] + "..."
-                if len(query) > 200
-                else query,
+                sql_statement=truncated_query,
+                sql_line=metadata["sql_line"],
+                sql_col=metadata["sql_col"],
+                hint=metadata["hint"],
             ) from e
         raise
 

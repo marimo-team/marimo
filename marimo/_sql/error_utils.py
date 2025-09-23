@@ -22,11 +22,13 @@ class MarimoSQLException(Exception):
         sql_statement: str = "",
         sql_line: Optional[int] = None,
         sql_col: Optional[int] = None,
+        hint: Optional[str] = None,
     ):
         super().__init__(message)
         self.sql_statement = sql_statement
         self.sql_line = sql_line
         self.sql_col = sql_col
+        self.hint = hint
 
 
 class SQLErrorMetadata(TypedDict):
@@ -35,6 +37,7 @@ class SQLErrorMetadata(TypedDict):
     lint_rule: str
     error_type: str
     clean_message: str
+    hint: Optional[str]
     node_lineno: int
     node_col_offset: int
     sql_statement: str
@@ -129,13 +132,49 @@ def create_sql_error_metadata(
     if sql_content and len(sql_content) > 200:
         truncated_sql = sql_content[:200] + "..."
 
-    # Create clean error message
+    # Create clean error message (first line only)
     clean_message = exception_msg.split("\n", 1)[0]
+
+    # Extract helpful DuckDB hints separately (including multiline hints)
+    hint = None
+    if "\n" in exception_msg:
+        lines = exception_msg.split("\n")
+        hint_lines = []
+        in_multiline_hint = False
+
+        for i in range(1, len(lines)):  # Skip first line (main error message)
+            line = lines[i]
+            stripped_line = line.strip()
+
+            # Check if this line starts a hint block
+            if stripped_line and (
+                stripped_line.startswith("Did you mean") or
+                stripped_line.startswith("Candidate bindings:") or
+                stripped_line.startswith("Candidate functions:") or
+                stripped_line.startswith("Candidates:") or
+                "candidate" in stripped_line.lower() or
+                "did you mean" in stripped_line.lower()
+            ):
+                hint_lines.append(stripped_line)
+                in_multiline_hint = True
+            elif in_multiline_hint:
+                # Continue collecting lines that are part of the multiline hint
+                if stripped_line and (line.startswith('\t') or line.startswith('    ')):
+                    # This is an indented continuation line
+                    hint_lines.append(stripped_line)
+                elif stripped_line:
+                    # Non-empty, non-indented line - end of multiline hint
+                    break
+                # Empty lines within hints are ignored but don't break the hint
+
+        if hint_lines:
+            hint = "\n".join(hint_lines)
 
     return SQLErrorMetadata(
         lint_rule=rule_code,
         error_type=type(exception).__name__,
         clean_message=clean_message,
+        hint=hint,
         node_lineno=node.lineno if node else 0,
         node_col_offset=node.col_offset if node else 0,
         sql_statement=truncated_sql,
@@ -152,6 +191,7 @@ def metadata_to_sql_error(metadata: SQLErrorMetadata) -> "MarimoSQLError":
     return MarimoSQLError(
         msg=metadata["clean_message"],
         sql_statement=metadata["sql_statement"],
+        hint=metadata["hint"],
         sql_line=metadata["sql_line"],
         sql_col=metadata["sql_col"],
         node_lineno=metadata["node_lineno"],
@@ -210,6 +250,18 @@ def create_sql_error_from_exception(
     sql_statement = ""
     if hasattr(cell, "sqls") and cell.sqls:
         sql_statement = str(cell.sqls[0])
+
+    # Check if this is a MarimoSQLException with structured hint data
+    if isinstance(exception, MarimoSQLException) and exception.hint:
+        # Use the structured hint data from the exception
+        from marimo._messaging.errors import MarimoSQLError
+        return MarimoSQLError(
+            msg=str(exception),
+            sql_statement=exception.sql_statement,
+            hint=exception.hint,
+            sql_line=exception.sql_line,
+            sql_col=exception.sql_col,
+        )
 
     # Create metadata using centralized function
     metadata = create_sql_error_metadata(

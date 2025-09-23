@@ -2293,6 +2293,11 @@ components:
     MarimoSQLError:
       description: SQL-specific error with enhanced metadata for debugging.
       properties:
+        hint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         msg:
           type: string
         node_col_offset:

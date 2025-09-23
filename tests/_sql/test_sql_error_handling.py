@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.errors import MarimoSQLError
@@ -201,6 +202,8 @@ class TestErrorUtilityFunctions:
             assert "nonexistent_table" in error.sql_statement
             assert len(error.msg) > 0
             assert "nonexistent_table" in error.msg
+            # Hint field should exist (may be None for this error)
+            assert hasattr(error, 'hint')
 
     def test_create_sql_error_long_statement(self):
         """Test SQL statement truncation in error creation."""
@@ -329,3 +332,85 @@ class TestIntegrationAndEdgeCases:
         """Test error handling with SQL containing special characters."""
         with pytest.raises(MarimoSQLException):
             sql("SELECT * FROM 'table with spaces and quotes'")
+
+    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+    def test_duckdb_hints_preserved(self):
+        """Test that DuckDB hints like 'Did you mean?' are preserved in error messages."""
+        import duckdb
+
+        # Create a table to generate "Did you mean?" suggestions
+        duckdb.sql("CREATE OR REPLACE TABLE test_hints_table (id INT, name TEXT)")
+
+        with pytest.raises(MarimoSQLException) as exc_info:
+            sql("SELECT * FROM test_hint")  # Missing 's' in table name
+
+        error_msg = str(exc_info.value)
+        # Check that both the error and hint are present
+        assert "does not exist" in error_msg
+        assert ("Did you mean" in error_msg or "candidate" in error_msg.lower())
+
+    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+    def test_column_candidates_preserved(self):
+        """Test that column candidate hints are preserved in error messages."""
+        import duckdb
+
+        # Create a table to generate candidate binding suggestions
+        duckdb.sql("CREATE OR REPLACE TABLE test_columns (id INT, user_name TEXT, email TEXT)")
+
+        with pytest.raises(MarimoSQLException) as exc_info:
+            sql("SELECT fullname FROM test_columns")  # Wrong column name
+
+        error_msg = str(exc_info.value)
+        # Check that candidate bindings are included
+        assert "not found" in error_msg
+        assert ("Candidate" in error_msg or "candidate" in error_msg.lower())
+
+    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+    def test_hint_field_in_sql_error_struct(self):
+        """Test that MarimoSQLError struct properly includes hint field."""
+        import duckdb
+
+        # Create table for hint generation
+        duckdb.sql("CREATE OR REPLACE TABLE hint_test_table (id INT, name TEXT)")
+
+        try:
+            duckdb.sql("SELECT * FROM hint_test")  # Missing letters
+        except Exception as e:
+            class MockCell:
+                sqls = ["SELECT * FROM hint_test"]
+
+            error_struct = create_sql_error_from_exception(e, MockCell())
+
+            # Verify the struct has the hint field and it's populated
+            assert hasattr(error_struct, 'hint')
+            assert error_struct.hint is not None
+            assert ("Did you mean" in error_struct.hint or "candidate" in error_struct.hint.lower())
+            # Main message should not contain the hint
+            assert error_struct.hint not in error_struct.msg
+
+    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+    def test_multiline_hints_preserved(self):
+        """Test that multiline hints like function candidates are fully captured."""
+        import duckdb
+
+        # Create table for multiline hint generation
+        duckdb.sql("CREATE OR REPLACE TABLE hint_multiline_table (id INT, name TEXT)")
+
+        try:
+            duckdb.sql("SELECT SUBSTRING(name) FROM hint_multiline_table")  # Wrong args
+        except Exception as e:
+            class MockCell:
+                sqls = ["SELECT SUBSTRING(name) FROM hint_multiline_table"]
+
+            error_struct = create_sql_error_from_exception(e, MockCell())
+
+            # Verify multiline hint is captured completely
+            assert hasattr(error_struct, 'hint')
+            assert error_struct.hint is not None
+            assert "Candidate functions:" in error_struct.hint
+            assert "substring(VARCHAR, BIGINT, BIGINT)" in error_struct.hint
+            assert "substring(VARCHAR, BIGINT)" in error_struct.hint
+            # Should be multiline
+            assert "\n" in error_struct.hint
+            # Main message should be clean
+            assert "Candidate functions:" not in error_struct.msg
