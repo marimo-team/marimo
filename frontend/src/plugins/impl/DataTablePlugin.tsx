@@ -37,6 +37,10 @@ import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-owner
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
 import {
+  type DownloadAsArgs,
+  DownloadAsSchema,
+} from "@/components/data-table/schemas";
+import {
   type BinValues,
   type ColumnHeaderStats,
   type ColumnName,
@@ -191,7 +195,7 @@ interface Data<T> {
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type DataTableFunctions = {
-  download_as: (req: { format: "csv" | "json" | "parquet" }) => Promise<string>;
+  download_as: DownloadAsArgs;
   get_column_summaries: <T>(
     opts: ColumnSummariesArgs,
   ) => Promise<ColumnSummaries<T>>;
@@ -265,9 +269,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     }),
   )
   .withFunctions<DataTableFunctions>({
-    download_as: rpc
-      .input(z.object({ format: z.enum(["csv", "json", "parquet"]) }))
-      .output(z.string()),
+    download_as: DownloadAsSchema,
     get_column_summaries: rpc
       .input(z.object({ precompute: z.boolean() }))
       .output(
