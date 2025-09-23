@@ -2077,12 +2077,12 @@ class Kernel:
         if not exports_mo:
             return
 
+        # Since markdown cell, render and broadcast output
+        # Remove cell from outstanding requests
+        from marimo._output.md import md
+
         # Remove markdown cells from uninstantiated requests
         for cell_id, content in markdown_cells.items():
-            # Since markdown cell, render and broadcast output
-            # Remove cell from outstanding requests
-            from marimo._output.md import md
-
             html_obj = md(content)
             mimetype, html_content = html_obj._mime_()
 
