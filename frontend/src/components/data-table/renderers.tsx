@@ -2,6 +2,7 @@
 "use no memo";
 
 import {
+  type AccessorKeyColumnDefBase,
   type Cell,
   type Column,
   type ColumnDef,
@@ -36,8 +37,10 @@ export function renderTableHeader<TData>(
     return headerGroups.map((headerGroup) =>
       headerGroup.headers.map((header) => {
         const { className, style } = getPinningStyles(header.column);
-        const accessorKey = (header.column.columnDef as any)?.accessorKey;
-        const lookupKey = (accessorKey as string) ?? header.column.id;
+        const accessorKey: string = (
+          header.column.columnDef as AccessorKeyColumnDefBase<TData>
+        )?.accessorKey as string;
+        const lookupKey: string = accessorKey ?? header.column.id;
         const headerHoverTitle: string | undefined =
           headerTooltip?.[lookupKey] || undefined;
         return (
