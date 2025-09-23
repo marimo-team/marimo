@@ -188,7 +188,7 @@ export const SQLModeSelect: React.FC = () => {
             <SelectSeparator />
             <div className="text-xs text-muted-foreground flex items-center gap-2 px-2 py-1">
               <InfoIcon className="h-3 w-3" />
-              <span>This config is shared across all cells</span>
+              <span>This setting is shared across all cells</span>
             </div>
           </SelectGroup>
         </SelectContent>
