@@ -119,6 +119,7 @@ export async function initialize() {
       case "sql-table-list-preview":
       case "datasets":
       case "data-source-connections":
+      case "validate-sql-result":
       case "secret-keys-result":
       case "startup-logs":
         // Unsupported
