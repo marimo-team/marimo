@@ -68,6 +68,21 @@ const cli = yargs(hideBin(process.argv))
     type: "string",
     default: process.env.MARIMO_REPO_DIR,
   })
+  .option("enable-local-ai-completions-host", {
+    description: "Whether to enable a local AI completions host",
+    type: "boolean",
+    default: ["true", "0"].indexOf(process.env.ENABLE_LOCAL_AI_COMPLETIONS_HOST || "false") !== -1,
+  })
+  .option("ai-completions-host", {
+    description: "The hostname for the AI completions host",
+    type: "string",
+    default: process.env.AI_COMPLETIONS_HOST || "127.0.0.1",
+  })
+  .option("ai-completions-port", {
+    description: "The port for the AI completions host",
+    type: "number",
+    default: parseInt(process.env.AI_COMPLETIONS_PORT || "3001"),
+  })
   .command<WasmTesterArgs>(
     "serve",
     "Start the server",

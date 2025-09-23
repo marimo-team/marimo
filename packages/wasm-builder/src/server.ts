@@ -24,6 +24,9 @@ export type BuildOptions = {
   osoApiKey: string;
   otherUvPackagesToInclude: string;
   marimoRepoDir?: string;
+  enableLocalAiCompletionsHost: boolean;
+  aiCompletionsHost: string;
+  aiCompletionsPort: number;
 }
 export type LockFileGenerator = () => Promise<string>;
 export type ServerKill = () => Promise<void>;
@@ -191,12 +194,23 @@ export async function startServer(config: BuildConfig) {
       .then(() => console.log(`Created session ${sessionId}`))
       .catch(console.error);
     }
-    
+
     const originalUrl = req.url;
     req.url = req.url.replace('/notebook', '');
     console.log(`Rewriting API request from ${originalUrl} to ${req.url}`);
+
+    if (config.enableLocalAiCompletionsHost) {
+      if (originalUrl === "/notebook/api/ai/completion") {
+        // redirect to the specified local ai completions host
+        req.url = "/api/v1/marimo/ai/completion";
+        req.headers.host = `${config.targetHostname}:${3001}`; // frontend needs to be running somewhere else
+        console.log(`^^ Proxying AI request to: http://${config.aiCompletionsHost}:${config.aiCompletionsPort}${req.url}`);
+        return proxy.web(req, res, { target: `http://${config.aiCompletionsHost}:${config.aiCompletionsPort}` });
+      }
+    }
+    
     req.headers.host = `${config.targetHostname}:${config.targetPort}`;
-    proxy.web(req, res, { target: targetService });
+    return proxy.web(req, res, { target: targetService });
   });
 
   app.all("/{*path}", (req, res) => {
