@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import { InfoIcon, NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 import { Fragment, type JSX } from "react";
 import {
   Accordion,
@@ -497,11 +497,9 @@ export const MarimoErrorOutput = ({
             <div key={`sql-error-${idx}`} className="space-y-2">
               <p className="text-muted-foreground">{error.msg}</p>
               {error.hint && (
-                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-2 rounded text-sm">
-                  <div className="flex items-start gap-2">
-                    <span className="text-green-600 dark:text-green-400 font-medium">💡</span>
-                    <pre className="whitespace-pre-wrap text-green-700 dark:text-green-300 font-medium">{error.hint}</pre>
-                  </div>
+                <div className="flex items-start gap-2">
+                  <InfoIcon className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <pre className="whitespace-pre-wrap text-sm text-muted-foreground">{error.hint}</pre>
                 </div>
               )}
               {error.sql_statement && (
