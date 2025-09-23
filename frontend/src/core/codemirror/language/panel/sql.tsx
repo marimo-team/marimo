@@ -6,11 +6,11 @@ import {
   AlertCircle,
   CircleHelpIcon,
   DatabaseBackup,
-  InfoIcon,
   SearchCheck,
 } from "lucide-react";
 import { transformDisplayName } from "@/components/databases/display";
 import { DatabaseLogo } from "@/components/databases/icon";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   dataConnectionsMapAtom,
   setLatestEngineSelected,
@@ -141,58 +142,54 @@ const HELP_URL =
 
 export const SQLModeSelect: React.FC = () => {
   const { sqlMode, setSQLMode } = useSQLMode();
-  const handleSelectMode = (value: string) => {
-    setSQLMode(value as SQLMode);
+
+  const handleToggleMode = () => {
+    setSQLMode(sqlMode === "validate" ? "default" : "validate");
   };
 
   const getModeIcon = (mode: SQLMode) => {
     return mode === "validate" ? (
-      <SearchCheck className="h-3 w-3 mr-1 mt-0.5" />
+      <SearchCheck className="h-3 w-3" />
     ) : (
-      <DatabaseBackup className="h-3 w-3 mr-1 mt-0.5" />
+      <DatabaseBackup className="h-3 w-3" />
+    );
+  };
+
+  const getTooltipContent = (mode: SQLMode) => {
+    return mode === "validate" ? (
+      <div className="text-xs">
+        <div className="font-semibold mb-1 flex flex-row items-center gap-1">
+          <SearchCheck className="h-3 w-3" />
+          Validate Mode
+        </div>
+        <p>Queries are validated as you write them</p>
+      </div>
+    ) : (
+      <div className="text-xs">
+        <div className="font-semibold mb-1 flex flex-row items-center gap-1">
+          <DatabaseBackup className="h-3 w-3" />
+          Default Mode
+        </div>
+        <p>Standard editing</p>
+      </div>
     );
   };
 
   return (
     <div className="flex flex-row gap-1 items-center">
-      <Select value={sqlMode} onValueChange={handleSelectMode}>
-        <SQLSelectTrigger>
+      <Tooltip delayDuration={300} content={getTooltipContent(sqlMode)}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleToggleMode}
+          className="h-5 px-1.5 text-xs border-border shadow-none hover:bg-accent"
+        >
           {getModeIcon(sqlMode)}
-          {sqlMode === "validate" ? "Validate" : "Default"}
-        </SQLSelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectLabel>SQL Mode</SelectLabel>
-            <SelectItem value="default">
-              <div className="flex items-center gap-2">
-                <DatabaseBackup className="h-3 w-3" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">Default</span>
-                  <span className="text-xs text-muted-foreground">
-                    Standard editing
-                  </span>
-                </div>
-              </div>
-            </SelectItem>
-            <SelectItem value="validate">
-              <div className="flex items-center gap-2">
-                <SearchCheck className="h-3 w-3" />
-                <div className="flex flex-col">
-                  <span>Validate</span>
-                  <span className="text-xs text-muted-foreground">
-                    Queries are validated as you write them
-                  </span>
-                </div>
-              </div>
-            </SelectItem>
-            <SelectSeparator />
-            <div className="text-xs text-muted-foreground flex items-center gap-2 px-2 py-1">
-              <InfoIcon className="h-3 w-3" />
-              <span>This setting is shared across all cells</span>
-            </div>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+          <span className="ml-1">
+            {sqlMode === "validate" ? "Validate" : "Default"}
+          </span>
+        </Button>
+      </Tooltip>
     </div>
   );
 };

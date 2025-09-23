@@ -1329,32 +1329,6 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.sql_mode"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">SQL Mode</FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="sql-mode-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <IsOverridden
-                    userConfig={config}
-                    name="experimental.sql_mode"
-                  />
-                  <FormDescription>
-                    Enable experimental SQL Validate mode to validate queries as
-                    you write them.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="experimental.external_agents"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">

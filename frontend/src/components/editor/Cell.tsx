@@ -28,7 +28,6 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
-import { useSqlValidationErrorsForCell } from "@/core/codemirror/language/languages/sql/validation-errors";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { canCollapseOutline } from "@/core/dom/outline";
 import { isErrorMime } from "@/core/mime";
@@ -454,7 +453,6 @@ const EditableCellComponent = ({
   const hasOutput = !isOutputEmpty(cellRuntime.output);
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const cellOutput = userConfig.display.cell_output;
-  const sqlValidationError = useSqlValidationErrorsForCell(cellId);
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
   const hasOutputBelow = hasOutput && cellOutput === "below";
@@ -656,9 +654,7 @@ const EditableCellComponent = ({
                 )}
               </div>
             </div>
-            {sqlValidationError && (
-              <SqlValidationError error={sqlValidationError} />
-            )}
+            <SqlValidationError cellId={cellId} />
             {cellOutput === "below" && outputArea}
             {cellRuntime.serialization && (
               <div className="py-1 px-2 flex items-center justify-end gap-2 last:rounded-b">

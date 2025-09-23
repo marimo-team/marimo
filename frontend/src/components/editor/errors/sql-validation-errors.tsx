@@ -1,15 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { AlertCircleIcon } from "lucide-react";
-import type { SQLValidationError } from "@/core/codemirror/language/languages/sql/validation-errors";
+import type { CellId } from "@/core/cells/ids";
+import { useSqlValidationErrorsForCell } from "@/core/codemirror/language/languages/sql/validation-errors";
 
-export const SqlValidationError = ({
-  error,
-}: {
-  error: SQLValidationError;
-}) => {
+export const SqlValidationError = ({ cellId }: { cellId: CellId }) => {
+  const error = useSqlValidationErrorsForCell(cellId);
+
+  if (!error) {
+    return;
+  }
+
   return (
-    <div className="px-3 py-2 text-sm flex flex-col text-muted-foreground gap-1.5 bg-destructive/5">
+    <div className="p-3 text-sm flex flex-col text-muted-foreground gap-1.5 bg-destructive/5">
       <div className="flex items-start gap-1.5">
         <AlertCircleIcon size={13} className="mt-[3px] text-destructive" />
         <p>

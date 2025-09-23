@@ -209,7 +209,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     validateSQL: (request) => {
       return getClient()
-        .POST("/api/datasources/sql/validate", {
+        .POST("/api/sql/validate", {
           body: request,
         })
         .then(handleResponseReturnNull);
