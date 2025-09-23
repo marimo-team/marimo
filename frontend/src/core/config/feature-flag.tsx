@@ -34,7 +34,7 @@ export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
   feature: T,
 ): ExperimentalFeatures[T] {
   return (
-    (getResolvedMarimoConfig()?.experimental?.[
+    (getResolvedMarimoConfig().experimental?.[
       feature
     ] as ExperimentalFeatures[T]) ?? defaultValues[feature]
   );
