@@ -39,7 +39,7 @@ export function renderTableHeader<TData>(
           <TableHead
             key={header.id}
             className={cn(
-              "h-auto min-h-10 whitespace-pre align-top",
+              "h-auto min-h-10 whitespace-pre align-top bg-red-100",
               className,
             )}
             style={style}
