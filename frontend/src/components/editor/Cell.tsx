@@ -588,12 +588,7 @@ const EditableCellComponent = ({
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}
           >
-            {cellOutput === "above" && (
-              <>
-                {outputArea}
-                {sqlErrorDisplay}
-              </>
-            )}
+            {cellOutput === "above" && outputArea}
             <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
               <StagedAICellBackground cellId={cellId} />
               <div className="absolute right-2 -top-4 z-10">
@@ -673,12 +668,8 @@ const EditableCellComponent = ({
                 )}
               </div>
             </div>
-            {cellOutput === "below" && (
-              <>
-                {sqlErrorDisplay}
-                {outputArea}
-              </>
-            )}
+            {sqlErrorDisplay}
+            {cellOutput === "below" && outputArea}
             {cellRuntime.serialization && (
               <div className="py-1 px-2 flex items-center justify-end gap-2 last:rounded-b">
                 {isToplevel && (

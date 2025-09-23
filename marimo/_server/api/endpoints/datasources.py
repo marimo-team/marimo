@@ -75,7 +75,6 @@ async def preview_sql_table(request: Request) -> BaseResponse:
     """
     app_state = AppState(request)
     body = await parse_request(request, PreviewSQLTableRequest)
-    # This is in kernel
     app_state.require_current_session().put_control_request(
         body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),

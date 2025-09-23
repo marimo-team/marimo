@@ -16,14 +16,17 @@ import {
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import dedent from "string-dedent";
-import type { CellId } from "@/core/cells/ids";
 import { cellIdState } from "@/core/codemirror/cells/state";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   dataSourceConnectionsAtom,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
-import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
+import {
+  type ConnectionName,
+  DUCKDB_ENGINE,
+  INTERNAL_SQL_ENGINES,
+} from "@/core/datasets/engines";
 import { ValidateSQL } from "@/core/datasets/request-registry";
 import type { ValidateSQLResult } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
@@ -41,7 +44,11 @@ import {
   tablesCompletionSource,
 } from "./completion-sources";
 import { SCHEMA_CACHE } from "./completion-store";
-import { sqlValidationErrorsAtom } from "./validation-errors";
+import { getSQLMode } from "./sql-mode";
+import {
+  clearSqlValidationError,
+  setSqlValidationError,
+} from "./validation-errors";
 
 const DEFAULT_DIALECT = DuckDBDialect;
 const DEFAULT_PARSER_DIALECT = "DuckDB";
@@ -49,15 +56,12 @@ const DEFAULT_PARSER_DIALECT = "DuckDB";
 // A compartment for the SQL config, so we can update the config of codemirror
 const sqlConfigCompartment = new Compartment();
 
-export type SQLMode = "validate" | "default";
-
 export interface SQLLanguageAdapterMetadata {
   dataframeName: string;
   quotePrefix: QuotePrefixKind;
   commentLines: string[];
   showOutput: boolean;
   engine: ConnectionName;
-  mode: SQLMode;
 }
 
 function getLatestEngine(): ConnectionName {
@@ -91,7 +95,6 @@ export class SQLLanguageAdapter
       commentLines: [],
       showOutput: true,
       engine: getLatestEngine() || this.defaultEngine,
-      mode: "default",
     };
   }
 
@@ -565,8 +568,15 @@ function sqlValidationExtension(): Extension {
   let lastValidationRequest: string | null = null;
 
   return EditorView.updateListener.of((update) => {
+    const sqlMode = getSQLMode();
+    if (sqlMode !== "validate") {
+      return;
+    }
+
     const metadata = getSQLMetadata(update.state);
-    if (metadata.mode !== "validate") {
+    const connectionName = metadata.engine;
+    if (!INTERNAL_SQL_ENGINES.has(connectionName)) {
+      // Currently only internal engines are supported
       return;
     }
 
@@ -576,8 +586,6 @@ function sqlValidationExtension(): Extension {
 
     const doc = update.state.doc;
     const sqlContent = doc.toString();
-
-    const connectionName = metadata.engine;
 
     // Clear existing timeout
     if (debounceTimeout) {
@@ -615,22 +623,4 @@ function sqlValidationExtension(): Extension {
       }
     }, 300);
   });
-}
-
-function setSqlValidationError(cellId: CellId, error: string) {
-  const sqlValidationErrors = store.get(sqlValidationErrorsAtom);
-  const newErrors = new Map(sqlValidationErrors.errors);
-
-  // Split error message into error type and error message
-  const errorType = error.split(":")[0];
-  const errorMessage = error.split(":").slice(1).join(":");
-  newErrors.set(cellId, { errorType, errorMessage });
-  store.set(sqlValidationErrorsAtom, { errors: newErrors });
-}
-
-function clearSqlValidationError(cellId: CellId) {
-  const sqlValidationErrors = store.get(sqlValidationErrorsAtom);
-  const newErrors = new Map(sqlValidationErrors.errors);
-  newErrors.delete(cellId);
-  store.set(sqlValidationErrorsAtom, { errors: newErrors });
 }

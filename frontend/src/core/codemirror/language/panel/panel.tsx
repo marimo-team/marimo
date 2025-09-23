@@ -13,7 +13,6 @@ import { languageAdapterState } from "../extension";
 import { MarkdownLanguageAdapter } from "../languages/markdown";
 import {
   SQLLanguageAdapter,
-  type SQLMode,
   updateSQLDialectFromConnection,
 } from "../languages/sql/sql";
 import {
@@ -72,10 +71,6 @@ export const LanguagePanelComponent: React.FC<{
       updateSQLDialectFromConnection(view, engine);
     };
 
-    const switchMode = (mode: SQLMode) => {
-      triggerUpdate<Metadata1>({ mode });
-    };
-
     const sqlModeEnabled = getFeatureFlag("sql_mode");
 
     actions = (
@@ -104,7 +99,7 @@ export const LanguagePanelComponent: React.FC<{
         />
         <div className="flex items-center gap-2 ml-auto">
           {sqlModeEnabled && metadata.engine === DUCKDB_ENGINE && (
-            <SQLModeSelect selectedMode={metadata.mode} onChange={switchMode} />
+            <SQLModeSelect />
           )}
           <Tooltip content="Format SQL">
             <Button

@@ -1,10 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { SelectTriggerProps } from "@radix-ui/react-select";
 import { useAtomValue } from "jotai";
 import {
   AlertCircle,
   CircleHelpIcon,
   DatabaseBackup,
+  InfoIcon,
   SearchCheck,
 } from "lucide-react";
 import { transformDisplayName } from "@/components/databases/display";
@@ -29,7 +31,7 @@ import {
 } from "@/core/datasets/engines";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { useNonce } from "@/hooks/useNonce";
-import type { SQLMode } from "../languages/sql/sql";
+import { type SQLMode, useSQLMode } from "../languages/sql/sql-mode";
 
 interface SelectProps {
   selectedEngine: ConnectionName;
@@ -83,7 +85,7 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
       <SelectItem key={connection.name} value={connection.name}>
         <div className="flex items-center gap-1">
           <DatabaseLogo className="h-3 w-3" name={connection.dialect} />
-          <span className="truncate">
+          <span className="truncate ml-0.5">
             {transformDisplayName(connection.display_name)}
           </span>
         </div>
@@ -94,9 +96,9 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
   return (
     <div className="flex flex-row gap-1 items-center">
       <Select value={selectedEngine} onValueChange={handleSelectEngine}>
-        <SelectTrigger className="text-xs border-border shadow-none! ring-0! h-4.5 px-1.5">
+        <SQLSelectTrigger>
           <SelectValue placeholder="Select an engine" />
-        </SelectTrigger>
+        </SQLSelectTrigger>
         <SelectContent>
           <SelectGroup>
             <SelectLabel>Database connections</SelectLabel>
@@ -137,43 +139,74 @@ const HELP_KEY = "__help__";
 const HELP_URL =
   "http://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database";
 
-interface SQLModeSelectProps {
-  selectedMode: SQLMode;
-  onChange: (mode: SQLMode) => void;
-}
-
-export const SQLModeSelect: React.FC<SQLModeSelectProps> = ({
-  selectedMode,
-  onChange,
-}) => {
+export const SQLModeSelect: React.FC = () => {
+  const { sqlMode, setSQLMode } = useSQLMode();
   const handleSelectMode = (value: string) => {
-    onChange(value as SQLMode);
+    setSQLMode(value as SQLMode);
+  };
+
+  const getModeIcon = (mode: SQLMode) => {
+    return mode === "validate" ? (
+      <SearchCheck className="h-3 w-3 mr-1 mt-0.5" />
+    ) : (
+      <DatabaseBackup className="h-3 w-3 mr-1 mt-0.5" />
+    );
   };
 
   return (
     <div className="flex flex-row gap-1 items-center">
-      <Select value={selectedMode} onValueChange={handleSelectMode}>
-        <SelectTrigger className="text-xs border-border shadow-none! ring-0! h-4.5 px-1.5">
-          <SelectValue placeholder="Select a mode" />
-        </SelectTrigger>
+      <Select value={sqlMode} onValueChange={handleSelectMode}>
+        <SQLSelectTrigger>
+          {getModeIcon(sqlMode)}
+          {sqlMode === "validate" ? "Validate" : "Default"}
+        </SQLSelectTrigger>
         <SelectContent>
           <SelectGroup>
             <SelectLabel>SQL Mode</SelectLabel>
             <SelectItem value="default">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <DatabaseBackup className="h-3 w-3" />
-                <span>Default</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">Default</span>
+                  <span className="text-xs text-muted-foreground">
+                    Standard editing
+                  </span>
+                </div>
               </div>
             </SelectItem>
             <SelectItem value="validate">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <SearchCheck className="h-3 w-3" />
-                <span>Validate</span>
+                <div className="flex flex-col">
+                  <span>Validate</span>
+                  <span className="text-xs text-muted-foreground">
+                    Queries are validated as you write them
+                  </span>
+                </div>
               </div>
             </SelectItem>
+            <SelectSeparator />
+            <div className="text-xs text-muted-foreground flex items-center gap-2 px-2 py-1">
+              <InfoIcon className="h-3 w-3" />
+              <span>This config is shared across all cells</span>
+            </div>
           </SelectGroup>
         </SelectContent>
       </Select>
     </div>
+  );
+};
+
+const SQLSelectTrigger: React.FC<SelectTriggerProps> = ({
+  children,
+  ...props
+}) => {
+  return (
+    <SelectTrigger
+      className="text-xs border-border shadow-none! ring-0! h-5 px-1.5 hover:bg-accent transition-colors"
+      {...props}
+    >
+      {children}
+    </SelectTrigger>
   );
 };

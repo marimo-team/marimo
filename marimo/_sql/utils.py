@@ -195,19 +195,37 @@ def wrap_query_with_explain(query: str) -> str:
     return f"EXPLAIN {query}"
 
 
-def is_query_just_comments(query: str) -> bool:
-    """Check if a SQL query is just comments."""
-    DependencyManager.sqlglot.require(why="Detecting comments")
+def is_query_empty(query: str) -> bool:
+    """Check if a SQL query is empty or just comments"""
+    stripped = query.strip()
+    if not stripped:
+        return True
 
-    import sqlglot
-    from sqlglot.errors import ParseError
+    # If the query starts with -- or /*, it's likely just comments
+    if stripped.startswith("--") or stripped.startswith("/*"):
+        import re
 
-    try:
-        parsed = sqlglot.parse(query)
-    except ParseError:
-        return False
+        # Remove /* */ comments
+        no_block_comments = re.sub(r"/\*.*?\*/", "", query, flags=re.DOTALL)
 
-    return all(res is None for res in parsed)
+        # Remove -- comments (just split on \n and check each line)
+        lines = no_block_comments.split("\n")
+        for line in lines:
+            # Find first non-whitespace character
+            for char in line:
+                if char.isspace():
+                    continue
+                elif char == "-":
+                    if line.strip().startswith("--"):
+                        break  # This line is a comment, continue to next line
+                    else:
+                        return False  # Found non-comment content
+                else:
+                    return False  # Found non-comment content
+        return True
+
+    # If it doesn't start with comment markers, it's not empty
+    return False
 
 
 def extract_explain_content(df: Any) -> str:

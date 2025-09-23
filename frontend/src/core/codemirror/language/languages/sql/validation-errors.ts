@@ -2,6 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import type { CellId } from "@/core/cells/ids";
+import { store } from "@/core/state/jotai";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 
 interface SQLValidationError {
@@ -79,7 +80,34 @@ export const useSqlValidationErrorsForCell = (cellId: CellId) => {
   return sqlValidationErrors.errors.get(cellId);
 };
 
+/**
+ * For cases where we can't use the reducer, call the store directly
+ * @param cellId
+ */
+export function clearSqlValidationError(cellId: CellId) {
+  const sqlValidationErrors = store.get(sqlValidationErrorsAtom);
+  const newErrors = new Map(sqlValidationErrors.errors);
+  newErrors.delete(cellId);
+  store.set(sqlValidationErrorsAtom, { errors: newErrors });
+}
+
+export function setSqlValidationError(cellId: CellId, error: string) {
+  const sqlValidationErrors = store.get(sqlValidationErrorsAtom);
+  const newErrors = new Map(sqlValidationErrors.errors);
+
+  const { errorType, errorMessage } = splitErrorMessage(error);
+  newErrors.set(cellId, { errorType, errorMessage });
+  store.set(sqlValidationErrorsAtom, { errors: newErrors });
+}
+
+function splitErrorMessage(error: string) {
+  const errorType = error.split(":")[0];
+  const errorMessage = error.split(":").slice(1).join(":");
+  return { errorType, errorMessage };
+}
+
 export const exportedForTesting = {
   reducer,
   useActions: useSqlValidationErrorsActions,
+  splitErrorMessage,
 };

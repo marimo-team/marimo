@@ -2466,6 +2466,7 @@ class DatasetCallbacks:
         """Validate an SQL query"""
         # TODO: Place request in queue
         variable_name = cast(VariableName, request.engine)
+        engine: Optional[EngineCatalog[Any]] = None
         if variable_name == INTERNAL_DUCKDB_ENGINE:
             engine = DuckDBEngine(connection=None)
             error = None
@@ -2481,14 +2482,15 @@ class DatasetCallbacks:
             ).broadcast()
             return
 
-        result = None
         if isinstance(engine, QueryEngine):
-            result, error = engine.execute_in_explain_mode(request.query)
+            result, error = engine.execute_in_explain_mode(request.query)  # type: ignore
         else:
             error = "Engine does not support explain mode"
 
         ValidateSQLResult(
-            request_id=request.request_id, result=result, error=error
+            request_id=request.request_id,
+            result=None,  # We aren't using the result yet
+            error=error,
         ).broadcast()
 
 

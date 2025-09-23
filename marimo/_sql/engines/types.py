@@ -13,7 +13,7 @@ from marimo._runtime.context.types import (
     get_context,
     runtime_context_installed,
 )
-from marimo._sql.utils import wrap_query_with_explain
+from marimo._sql.utils import is_query_empty, wrap_query_with_explain
 from marimo._types.ids import VariableName
 
 NO_SCHEMA_NAME = ""
@@ -141,6 +141,8 @@ class QueryEngine(BaseEngine[CONN], ABC):
         try:
             return self.execute(explain_query), None
         except Exception as e:
+            if is_query_empty(query):
+                return None, None
             return None, str(e)
 
 

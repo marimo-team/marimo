@@ -81,6 +81,20 @@ def test_preview_datasource_connection(client: TestClient) -> None:
     assert content["success"] is True
 
 
+@with_session(SESSION_ID)
+def test_validate_sql(client: TestClient) -> None:
+    response = client.post(
+        "/api/datasources/sql/validate",
+        headers=HEADERS,
+        json={
+            "requestId": "test_request_id",
+            "engine": "test_engine",
+            "query": "SELECT * FROM test",
+        },
+    )
+    assert response.status_code == 200, response.text
+
+
 @with_read_session(SESSION_ID)
 def test_fails_in_read_mode(client: TestClient) -> None:
     response = client.post(
@@ -125,6 +139,17 @@ def test_fails_in_read_mode(client: TestClient) -> None:
         headers=HEADERS,
         json={
             "engine": "test_engine",
+        },
+    )
+    assert response.status_code == 401
+
+    response = client.post(
+        "/api/datasources/sql/validate",
+        headers=HEADERS,
+        json={
+            "requestId": "test_request_id",
+            "engine": "test_engine",
+            "query": "SELECT * FROM test",
         },
     )
     assert response.status_code == 401
