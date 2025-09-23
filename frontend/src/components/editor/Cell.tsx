@@ -80,7 +80,7 @@ import { useDeleteCellCallback } from "./cell/useDeleteCell";
 import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";
 import { cellDomProps } from "./common";
-import { SqlValidationError } from "./errors/sql-validation-errors";
+import { SqlValidationErrorBanner } from "./errors/sql-validation-errors";
 import { useCellNavigationProps } from "./navigation/navigation";
 import {
   useTemporarilyShownCode,
@@ -654,7 +654,7 @@ const EditableCellComponent = ({
                 )}
               </div>
             </div>
-            <SqlValidationError cellId={cellId} />
+            <SqlValidationErrorBanner cellId={cellId} />
             {cellOutput === "below" && outputArea}
             {cellRuntime.serialization && (
               <div className="py-1 px-2 flex items-center justify-end gap-2 last:rounded-b">
