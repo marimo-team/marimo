@@ -328,7 +328,7 @@ class table(
         text_justify_columns (Dict[str, Literal["left", "center", "right"]], optional):
             Dictionary of column names to text justification options: left, center, right.
         wrapped_columns (List[str], optional): List of column names to wrap.
-        header_hover_text (Dict[str, str], optional): Mapping from column names to header hover text.
+        header_tooltip (Dict[str, str], optional): Mapping from column names to tooltip text on the column header.
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
             Optional callback to run when this element's value changes.
