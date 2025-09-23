@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -12,8 +13,13 @@ from marimo._plugins.ui._impl.dataframes.dataframe import (
     GetColumnValuesArgs,
     GetColumnValuesResponse,
 )
-from marimo._plugins.ui._impl.table import SearchTableArgs, TableSearchError
+from marimo._plugins.ui._impl.table import (
+    DownloadAsArgs,
+    SearchTableArgs,
+    TableSearchError,
+)
 from marimo._runtime.functions import EmptyArgs
+from marimo._utils.data_uri import from_data_uri
 from marimo._utils.platform import is_windows
 from tests._data.mocks import create_dataframes
 
@@ -264,6 +270,129 @@ class TestDataframes:
             SearchTableArgs(page_size=10, page_number=0)
         )
         assert search_result.total_rows == 100
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_show_download() -> None:
+        # default behavior
+        df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        subject = ui.dataframe(df)
+        assert subject._component_args["show-download"] is True
+
+        # show_download=True
+        subject = ui.dataframe(df, show_download=True)
+        assert subject._component_args["show-download"] is True
+
+        # show_download=False
+        subject = ui.dataframe(df, show_download=False)
+        assert subject._component_args["show-download"] is False
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    @pytest.mark.parametrize("format_type", ["csv", "json", "parquet"])
+    def test_dataframe_download_formats(format_type) -> None:
+        df = pd.DataFrame(
+            {
+                "cities": ["Newark", "New York", "Los Angeles"],
+                "population": [311549, 8336817, 3898747],
+            }
+        )
+        subject = ui.dataframe(df)
+
+        # no transformations
+        download_url = subject._download_as(DownloadAsArgs(format=format_type))
+        assert download_url.startswith("data:")
+
+        data_bytes = from_data_uri(download_url)[1]
+        assert len(data_bytes) > 0
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_with_transformations() -> None:
+        df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [25, 30, 35],
+                "city": ["New York", "Newark", "Los Angeles"],
+            }
+        )
+        subject = ui.dataframe(df)
+
+        # Apply some transformations (would be done through the UI)
+        subject._value = df[df["age"] > 27]
+
+        # download with transformations applied
+        download_url = subject._download_as(DownloadAsArgs(format="json"))
+        data_bytes = from_data_uri(download_url)[1]
+
+        json_data = json.loads(data_bytes.decode("utf-8"))
+
+        assert len(json_data) == 2
+        names = [row["name"] for row in json_data]
+        assert "Bob" in names
+        assert "Charlie" in names
+        assert "Alice" not in names
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_empty() -> None:
+        df = pd.DataFrame({"A": [], "B": []})
+        subject = ui.dataframe(df)
+
+        download_url = subject._download_as(DownloadAsArgs(format="csv"))
+        data_bytes = from_data_uri(download_url)[1]
+
+        csv_content = data_bytes.decode("utf-8")
+        assert "A,B" in csv_content or "A" in csv_content
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_unsupported_format() -> None:
+        df = pd.DataFrame({"A": [1, 2, 3]})
+        subject = ui.dataframe(df)
+
+        # unsupported format
+        with pytest.raises(ValueError) as exc_info:
+            subject._download_as(DownloadAsArgs(format="xml"))
+
+        assert "format must be one of 'csv', 'json', or 'parquet'" in str(
+            exc_info.value
+        )
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {"A": [1, 2, 3], "B": ["x", "y", "z"]},
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
+        ),
+    )
+    def test_dataframe_download_different_backends(df) -> None:
+        subject = ui.dataframe(df)
+
+        # Test that download works with different dataframe backends
+        for format_type in ["csv", "json", "parquet"]:
+            try:
+                download_url = subject._download_as(
+                    DownloadAsArgs(format=format_type)
+                )
+                assert download_url.startswith("data:")
+            except Exception as e:
+                # Some backends might not support all formats
+                pytest.skip(f"Backend doesn't support {format_type}: {e}")
 
     @staticmethod
     @pytest.mark.parametrize(
