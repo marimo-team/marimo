@@ -2,6 +2,7 @@
 
 import { render } from "@testing-library/react";
 import { describe, expect, it, test } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { generateColumns, inferFieldTypes } from "../columns";
 import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
 import type { FieldTypesWithExternalType } from "../types";
@@ -244,6 +245,45 @@ describe("generateColumns", () => {
     expect(columns).toHaveLength(2);
     expect(columns[0].id).toBe("name");
     expect(columns[1].id).toBe("age");
+  });
+
+  it("should render header with tooltip when headerTooltip is provided", () => {
+    const columns = generateColumns({
+      rowHeaders: [],
+      selection: null,
+      fieldTypes,
+      headerTooltip: { name: "Custom Name Tooltip" },
+    });
+
+    // Get the header function for the first column
+    const headerFunction = columns[0].header;
+    expect(headerFunction).toBeTypeOf("function");
+
+    const mockColumn = {
+      id: "name",
+      getCanSort: () => false,
+      getCanFilter: () => false,
+      columnDef: {
+        meta: {
+          dtype: "string",
+          dataType: "string",
+        },
+      },
+    };
+
+    const { container } = render(
+      <TooltipProvider>
+        {/* @ts-expect-error: mock column and header function */}
+        {headerFunction({ column: mockColumn })}
+      </TooltipProvider>,
+    );
+
+    expect(container.textContent).toContain("name");
+
+    // The tooltip should be passed to DataTableColumnHeader
+    // We can verify this by checking if the InfoIcon is present (indicating tooltip)
+    const infoIconElement = container.querySelector(".lucide-info");
+    expect(infoIconElement).toBeTruthy();
   });
 });
 

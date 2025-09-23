@@ -17,6 +17,7 @@ import { JsonOutput } from "../editor/output/JsonOutput";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Tooltip } from "../ui/tooltip";
 import { DataTableColumnHeader } from "./column-header";
 import type { ColumnChartSpecModel } from "./column-summary/chart-spec-model";
 import { TableColumnSummary } from "./column-summary/column-summary";
@@ -182,16 +183,30 @@ export function generateColumns<T>({
 
         const headerWithType = (
           <div className="flex flex-col">
-            <span className="font-bold">{key === "" ? " " : key}</span>
+            <span
+              className={cn(
+                "font-bold",
+                headerTitle && "underline decoration-dotted",
+              )}
+            >
+              {key === "" ? " " : key}
+            </span>
             {dtypeHeader}
           </div>
         );
 
+        const headerWithTooltip = headerTitle ? (
+          <Tooltip content={headerTitle} delayDuration={300}>
+            {headerWithType}
+          </Tooltip>
+        ) : (
+          headerWithType
+        );
+
         const dataTableColumnHeader = (
           <DataTableColumnHeader
-            header={headerWithType}
+            header={headerWithTooltip}
             column={column}
-            headerTitle={headerTitle}
             calculateTopKRows={calculateTopKRows}
           />
         );
