@@ -3,7 +3,7 @@
 
 import type { Column } from "@tanstack/react-table";
 import { capitalize } from "lodash-es";
-import { FilterIcon, MinusIcon, TextIcon, XIcon } from "lucide-react";
+import { FilterIcon, InfoIcon, MinusIcon, TextIcon, XIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useLocale } from "react-aria";
 import {
@@ -67,12 +67,14 @@ interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   header: React.ReactNode;
+  headerTitle?: string;
   calculateTopKRows?: CalculateTopKRows;
 }
 
 export const DataTableColumnHeader = <TData, TValue>({
   column,
   header,
+  headerTitle,
   className,
   calculateTopKRows,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
@@ -86,7 +88,16 @@ export const DataTableColumnHeader = <TData, TValue>({
 
   // No sorting or filtering
   if (!column.getCanSort() && !column.getCanFilter()) {
-    return <div className={cn(className)}>{header}</div>;
+    return (
+      <div className={cn(className)} title={headerTitle}>
+        <span className="flex items-center gap-1">
+          {header}
+          {headerTitle && (
+            <InfoIcon className="h-3 w-3 text-muted-foreground" />
+          )}
+        </span>
+      </div>
+    );
   }
 
   const hasFilter = column.getFilterValue() !== undefined;
@@ -102,8 +113,14 @@ export const DataTableColumnHeader = <TData, TValue>({
               className,
             )}
             data-testid="data-table-sort-button"
+            title={headerTitle}
           >
-            <span className="flex-1">{header}</span>
+            <span className="flex-1 flex items-center gap-1">
+              {header}
+              {headerTitle && (
+                <InfoIcon className="h-3 w-3 text-muted-foreground" />
+              )}
+            </span>
             <span
               className={cn(
                 "h-5 py-1 px-1",

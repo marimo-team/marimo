@@ -328,6 +328,7 @@ class table(
         text_justify_columns (Dict[str, Literal["left", "center", "right"]], optional):
             Dictionary of column names to text justification options: left, center, right.
         wrapped_columns (List[str], optional): List of column names to wrap.
+        header_tooltip (Dict[str, str], optional): Mapping from column names to tooltip text on the column header.
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
             Optional callback to run when this element's value changes.
@@ -422,6 +423,7 @@ class table(
             dict[str, Literal["left", "center", "right"]]
         ] = None,
         wrapped_columns: Optional[list[str]] = None,
+        header_tooltip: Optional[dict[str, str]] = None,
         show_download: bool = True,
         max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
         *,
@@ -634,6 +636,7 @@ class table(
             _validate_column_formatting(
                 text_justify_columns, wrapped_columns, column_names_set
             )
+            _validate_header_tooltip(header_tooltip, column_names_set)
 
             field_types = self._manager.get_field_types()
 
@@ -666,6 +669,7 @@ class table(
                 "freeze-columns-right": freeze_columns_right,
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
+                "header-tooltip": header_tooltip,
                 "has-stable-row-id": self._has_stable_row_id,
                 "cell-styles": search_result_styles,
                 "hover-template": hover_template,
@@ -1409,6 +1413,22 @@ def _validate_column_formatting(
     if wrapped_columns:
         wrapped_columns_set = set(wrapped_columns)
         invalid = wrapped_columns_set - column_names_set
+        if invalid:
+            raise ValueError(
+                f"Column '{next(iter(invalid))}' not found in table."
+            )
+
+
+def _validate_header_tooltip(
+    header_tooltip: Optional[dict[str, str]],
+    column_names_set: set[str],
+) -> None:
+    """Validate header tooltip mapping.
+
+    Ensures all specified columns exist in the table.
+    """
+    if header_tooltip:
+        invalid = set(header_tooltip.keys()) - column_names_set
         if invalid:
             raise ValueError(
                 f"Column '{next(iter(invalid))}' not found in table."

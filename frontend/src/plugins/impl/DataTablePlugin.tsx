@@ -182,6 +182,7 @@ interface Data<T> {
   freezeColumnsRight?: string[];
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
+  headerTooltip?: Record<string, string>;
   totalColumns: number;
   maxColumns: number | "all";
   hasStableRowId: boolean;
@@ -249,6 +250,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .record(z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
+      headerTooltip: z.record(z.string()).optional(),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
@@ -346,6 +348,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
+            headerInfo={props.data.headerTooltip}
           />
         </LazyDataTableComponent>
       </TableProviders>
@@ -387,6 +390,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
   hoverTemplate?: string | null;
+  headerInfo?: Record<string, string> | undefined;
   toggleDisplayHeader?: () => void;
   host: HTMLElement;
   cellId?: CellId | null;
@@ -706,6 +710,7 @@ const DataTableComponent = ({
   freezeColumnsRight,
   textJustifyColumns,
   wrappedColumns,
+  headerTooltip,
   totalColumns,
   get_row_ids,
   cellStyles,
@@ -779,6 +784,7 @@ const DataTableComponent = ({
         fieldTypes: memoizedClampedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,
+        headerTooltip: headerTooltip,
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
         calculateTopKRows: calculate_top_k_rows,
@@ -791,6 +797,7 @@ const DataTableComponent = ({
       memoizedClampedFieldTypes,
       memoizedTextJustifyColumns,
       memoizedWrappedColumns,
+      headerTooltip,
       calculate_top_k_rows,
     ],
   );
@@ -908,6 +915,7 @@ const DataTableComponent = ({
             cellSelection={cellSelection}
             cellStyling={cellStyles}
             hoverTemplate={hoverTemplate}
+            headerTooltip={headerTooltip}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
             searchQuery={searchQuery}
