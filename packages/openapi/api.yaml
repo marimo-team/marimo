@@ -86,15 +86,35 @@ components:
       title: AiCompletionRequest
       type: object
     AiConfig:
-      description: "Configuration options for AI.\n\n    **Keys.**\n\n    - `rules`:\
-        \ custom rules to include in all AI completion prompts\n    - `max_tokens`:\
-        \ the maximum number of tokens to use in AI completions\n    - `mode`: the\
-        \ mode to use for AI completions. Can be one of: `\"ask\"` or `\"manual\"\
-        `\n    - `models`: the models to use for AI completions\n    - `open_ai`:\
-        \ the OpenAI config\n    - `anthropic`: the Anthropic config\n    - `google`:\
-        \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
-        \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
-        \ GitHub config\n    - `open_ai_compatible`: the OpenAI-compatible config"
+      description: 'Configuration options for AI.
+
+
+        **Keys.**
+
+
+        - `rules`: custom rules to include in all AI completion prompts
+
+        - `max_tokens`: the maximum number of tokens to use in AI completions
+
+        - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+
+        - `models`: the models to use for AI completions
+
+        - `open_ai`: the OpenAI config
+
+        - `anthropic`: the Anthropic config
+
+        - `google`: the Google AI config
+
+        - `bedrock`: the Bedrock config
+
+        - `azure`: the Azure config
+
+        - `ollama`: the Ollama config
+
+        - `github`: the GitHub config
+
+        - `open_ai_compatible`: the OpenAI-compatible config'
       properties:
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
@@ -143,12 +163,22 @@ components:
       title: AiInlineCompletionRequest
       type: object
     AiModelConfig:
-      description: "Configuration options for an AI model.\n\n    **Keys.**\n\n  \
-        \  - `chat_model`: the model to use for chat completions\n    - `edit_model`:\
-        \ the model to use for edit completions\n    - `autocomplete_model`: the model\
-        \ to use for code completion/autocomplete\n    - `displayed_models`: a list\
-        \ of models to display in the UI\n    - `custom_models`: a list of custom\
-        \ models to use that are not from the default list"
+      description: 'Configuration options for an AI model.
+
+
+        **Keys.**
+
+
+        - `chat_model`: the model to use for chat completions
+
+        - `edit_model`: the model to use for edit completions
+
+        - `autocomplete_model`: the model to use for code completion/autocomplete
+
+        - `displayed_models`: a list of models to display in the UI
+
+        - `custom_models`: a list of custom models to use that are not from the default
+        list'
       properties:
         autocomplete_model:
           type: string
@@ -191,8 +221,13 @@ components:
       title: Alert
       type: object
     AnthropicConfig:
-      description: "Configuration options for Anthropic.\n\n    **Keys.**\n\n    -\
-        \ `api_key`: the Anthropic API key"
+      description: 'Configuration options for Anthropic.
+
+
+        **Keys.**
+
+
+        - `api_key`: the Anthropic API key'
       properties:
         api_key:
           type: string
@@ -248,10 +283,19 @@ components:
       title: BasedpyrightServerConfig
       type: object
     BedrockConfig:
-      description: "Configuration options for Bedrock.\n\n    **Keys.**\n\n    - `profile_name`:\
-        \ the AWS profile to use\n    - `region_name`: the AWS region to use\n   \
-        \ - `aws_access_key_id`: the AWS access key ID\n    - `aws_secret_access_key`:\
-        \ the AWS secret access key"
+      description: 'Configuration options for Bedrock.
+
+
+        **Keys.**
+
+
+        - `profile_name`: the AWS profile to use
+
+        - `region_name`: the AWS region to use
+
+        - `aws_access_key_id`: the AWS access key ID
+
+        - `aws_secret_access_key`: the AWS secret access key'
       properties:
         aws_access_key_id:
           type: string
@@ -295,14 +339,14 @@ components:
       title: CellConfig
       type: object
     CellOp:
-      description: "Op to transition a cell.\n\n    A CellOp's data has some optional\
-        \ fields:\n\n    output        - a CellOutput\n    console       - a CellOutput\
-        \ (console msg to append), or a list of\n                    CellOutputs\n\
-        \    status        - execution status\n    stale_inputs  - whether the cell\
-        \ has stale inputs (variables, modules, ...)\n    run_id        - the run\
-        \ associated with this cell.\n    serialization - the serialization status\
-        \ of the cell\n\n    Omitting a field means that its value should be unchanged!\n\
-        \n    And one required field:\n\n    cell_id - the cell id"
+      description: "Op to transition a cell.\n\nA CellOp's data has some optional\
+        \ fields:\n\noutput        - a CellOutput\nconsole       - a CellOutput (console\
+        \ msg to append), or a list of\n                CellOutputs\nstatus      \
+        \  - execution status\nstale_inputs  - whether the cell has stale inputs (variables,\
+        \ modules, ...)\nrun_id        - the run associated with this cell.\nserialization\
+        \ - the serialization status of the cell\n\nOmitting a field means that its\
+        \ value should be unchanged!\n\nAnd one required field:\n\ncell_id - the cell\
+        \ id"
       properties:
         cell_id:
           type: string
@@ -373,6 +417,7 @@ components:
               - $ref: '#/components/schemas/MarimoInterruptionError'
               - $ref: '#/components/schemas/MarimoSyntaxError'
               - $ref: '#/components/schemas/MarimoInternalError'
+              - $ref: '#/components/schemas/MarimoSQLError'
               - $ref: '#/components/schemas/UnknownError'
               discriminator:
                 mapping:
@@ -385,6 +430,7 @@ components:
                   interruption: '#/components/schemas/MarimoInterruptionError'
                   multiple-defs: '#/components/schemas/MultipleDefinitionError'
                   setup-refs: '#/components/schemas/SetupRootError'
+                  sql-error: '#/components/schemas/MarimoSQLError'
                   strict-exception: '#/components/schemas/MarimoStrictExecutionError'
                   syntax: '#/components/schemas/MarimoSyntaxError'
                   unknown: '#/components/schemas/UnknownError'
@@ -597,12 +643,24 @@ components:
       title: CompletedRun
       type: object
     CompletionConfig:
-      description: "Configuration for code completion.\n\n    A dict with key/value\
-        \ pairs configuring code completion in the marimo\n    editor.\n\n    **Keys.**\n\
-        \n    - `activate_on_typing`: if `False`, completion won't activate\n    until\
-        \ the completion hotkey is entered\n    - `copilot`: one of `\"github\"`,\
-        \ `\"codeium\"`, or `\"custom\"`\n    - `codeium_api_key`: the Codeium API\
-        \ key"
+      description: 'Configuration for code completion.
+
+
+        A dict with key/value pairs configuring code completion in the marimo
+
+        editor.
+
+
+        **Keys.**
+
+
+        - `activate_on_typing`: if `False`, completion won''t activate
+
+        until the completion hotkey is entered
+
+        - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
+
+        - `codeium_api_key`: the Codeium API key'
       properties:
         activate_on_typing:
           type: boolean
@@ -975,11 +1033,18 @@ components:
       title: Datasets
       type: object
     DatasourcesConfig:
-      description: "Configuration for datasources panel.\n\n    **Keys.**\n\n    -\
-        \ `auto_discover_schemas`: if `True`, include schemas in the datasource\n\
-        \    - `auto_discover_tables`: if `True`, include tables in the datasource\n\
-        \    - `auto_discover_columns`: if `True`, include columns & table metadata\
-        \ in the datasource"
+      description: 'Configuration for datasources panel.
+
+
+        **Keys.**
+
+
+        - `auto_discover_schemas`: if `True`, include schemas in the datasource
+
+        - `auto_discover_tables`: if `True`, include tables in the datasource
+
+        - `auto_discover_columns`: if `True`, include columns & table metadata in
+        the datasource'
       properties:
         auto_discover_columns:
           anyOf:
@@ -1051,8 +1116,13 @@ components:
       title: DependencyTreeResponse
       type: object
     DiagnosticsConfig:
-      description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
-        \  - `enabled`: if `True`, diagnostics will be shown in the editor"
+      description: 'Configuration options for diagnostics.
+
+
+        **Keys.**
+
+
+        - `enabled`: if `True`, diagnostics will be shown in the editor'
       properties:
         enabled:
           type: boolean
@@ -1060,16 +1130,31 @@ components:
       title: DiagnosticsConfig
       type: object
     DisplayConfig:
-      description: "Configuration for display.\n\n    **Keys.**\n\n    - `theme`:\
-        \ `\"light\"`, `\"dark\"`, or `\"system\"`\n    - `code_editor_font_size`:\
-        \ font size for the code editor\n    - `cell_output`: `\"above\"` or `\"below\"\
-        `\n    - `dataframes`: `\"rich\"` or `\"plain\"`\n    - `custom_css`: list\
-        \ of paths to custom CSS files\n    - `default_table_page_size`: default number\
-        \ of rows to display in tables\n    - `default_table_max_columns`: default\
-        \ maximum number of columns to display in tables\n    - `reference_highlighting`:\
-        \ if `True`, highlight reactive variable references\n    - `locale`: locale\
-        \ for date formatting and internationalization (e.g., \"en-US\", \"en-GB\"\
-        , \"de-DE\")"
+      description: 'Configuration for display.
+
+
+        **Keys.**
+
+
+        - `theme`: `"light"`, `"dark"`, or `"system"`
+
+        - `code_editor_font_size`: font size for the code editor
+
+        - `cell_output`: `"above"` or `"below"`
+
+        - `dataframes`: `"rich"` or `"plain"`
+
+        - `custom_css`: list of paths to custom CSS files
+
+        - `default_table_page_size`: default number of rows to display in tables
+
+        - `default_table_max_columns`: default maximum number of columns to display
+        in tables
+
+        - `reference_highlighting`: if `True`, highlight reactive variable references
+
+        - `locale`: locale for date formatting and internationalization (e.g., "en-US",
+        "en-GB", "de-DE")'
       properties:
         cell_output:
           enum:
@@ -1507,8 +1592,13 @@ components:
       title: FormatResponse
       type: object
     FormattingConfig:
-      description: "Configuration for code formatting.\n\n    **Keys.**\n\n    - `line_length`:\
-        \ max line length"
+      description: 'Configuration for code formatting.
+
+
+        **Keys.**
+
+
+        - `line_length`: max line length'
       properties:
         line_length:
           type: integer
@@ -1552,8 +1642,15 @@ components:
       title: FunctionCallResult
       type: object
     GitHubConfig:
-      description: "Configuration options for GitHub.\n\n    **Keys.**\n\n    - `api_key`:\
-        \ the GitHub API token\n    - `base_url`: the base URL for the API"
+      description: 'Configuration options for GitHub.
+
+
+        **Keys.**
+
+
+        - `api_key`: the GitHub API token
+
+        - `base_url`: the base URL for the API'
       properties:
         api_key:
           type: string
@@ -1563,8 +1660,13 @@ components:
       title: GitHubConfig
       type: object
     GoogleAiConfig:
-      description: "Configuration options for Google AI.\n\n    **Keys.**\n\n    -\
-        \ `api_key`: the Google AI API key"
+      description: 'Configuration options for Google AI.
+
+
+        **Keys.**
+
+
+        - `api_key`: the Google AI API key'
       properties:
         api_key:
           type: string
@@ -1828,11 +1930,19 @@ components:
       title: KernelReady
       type: object
     KeymapConfig:
-      description: "Configuration for keymaps.\n\n    **Keys.**\n\n    - `preset`:\
-        \ one of `\"default\"` or `\"vim\"`\n    - `overrides`: a dict of keymap actions\
-        \ to their keymap override\n    - `vimrc`: path to a vimrc file to load keymaps\
-        \ from\n    - `destructive_delete`: if `True`, allows deleting cells with\
-        \ content."
+      description: 'Configuration for keymaps.
+
+
+        **Keys.**
+
+
+        - `preset`: one of `"default"` or `"vim"`
+
+        - `overrides`: a dict of keymap actions to their keymap override
+
+        - `vimrc`: path to a vimrc file to load keymaps from
+
+        - `destructive_delete`: if `True`, allows deleting cells with content.'
       properties:
         destructive_delete:
           type: boolean
@@ -1877,6 +1987,7 @@ components:
           - $ref: '#/components/schemas/MarimoInterruptionError'
           - $ref: '#/components/schemas/MarimoSyntaxError'
           - $ref: '#/components/schemas/MarimoInternalError'
+          - $ref: '#/components/schemas/MarimoSQLError'
           - $ref: '#/components/schemas/UnknownError'
           discriminator:
             mapping:
@@ -1889,6 +2000,7 @@ components:
               interruption: '#/components/schemas/MarimoInterruptionError'
               multiple-defs: '#/components/schemas/MultipleDefinitionError'
               setup-refs: '#/components/schemas/SetupRootError'
+              sql-error: '#/components/schemas/MarimoSQLError'
               strict-exception: '#/components/schemas/MarimoStrictExecutionError'
               syntax: '#/components/schemas/MarimoSyntaxError'
               unknown: '#/components/schemas/UnknownError'
@@ -1965,8 +2077,13 @@ components:
       title: KnownUnions
       type: object
     LanguageServersConfig:
-      description: "Configuration options for language servers.\n\n    **Keys.**\n\
-        \n    - `pylsp`: the pylsp config"
+      description: 'Configuration options for language servers.
+
+
+        **Keys.**
+
+
+        - `pylsp`: the pylsp config'
       properties:
         basedpyright:
           $ref: '#/components/schemas/BasedpyrightServerConfig'
@@ -2173,6 +2290,38 @@ components:
       - type
       title: MarimoInterruptionError
       type: object
+    MarimoSQLError:
+      description: SQL-specific error with enhanced metadata for debugging.
+      properties:
+        msg:
+          type: string
+        node_col_offset:
+          default: 0
+          type: integer
+        node_lineno:
+          default: 0
+          type: integer
+        sql_col:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        sql_line:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        sql_statement:
+          type: string
+        type:
+          enum:
+          - sql-error
+      required:
+      - type
+      - msg
+      - sql_statement
+      title: MarimoSQLError
+      type: object
     MarimoStrictExecutionError:
       properties:
         blamed_cell:
@@ -2257,15 +2406,27 @@ components:
       title: MultipleDefinitionError
       type: object
     OpenAiConfig:
-      description: "Configuration options for OpenAI or OpenAI-compatible services.\n\
-        \n    **Keys.**\n\n    - `api_key`: the OpenAI API key\n    - `base_url`:\
-        \ the base URL for the API\n    - `ssl_verify` : Boolean argument for httpx\
-        \ passed to open ai client. httpx defaults to true, but some use cases to\
-        \ let users override to False in some testing scenarios\n    - `ca_bundle_path`:\
-        \ custom ca bundle to be used for verifying SSL certificates. Used to create\
-        \ custom SSL context for httpx client\n    - `client_pem` : custom path of\
-        \ a client .pem cert used for verifying identity of client server\n    - `extra_headers`:\
-        \ extra headers to be passed to the OpenAI client"
+      description: 'Configuration options for OpenAI or OpenAI-compatible services.
+
+
+        **Keys.**
+
+
+        - `api_key`: the OpenAI API key
+
+        - `base_url`: the base URL for the API
+
+        - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx
+        defaults to true, but some use cases to let users override to False in some
+        testing scenarios
+
+        - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates.
+        Used to create custom SSL context for httpx client
+
+        - `client_pem` : custom path of a client .pem cert used for verifying identity
+        of client server
+
+        - `extra_headers`: extra headers to be passed to the OpenAI client'
       properties:
         api_key:
           type: string
@@ -2318,8 +2479,13 @@ components:
       title: PackageDescription
       type: object
     PackageManagementConfig:
-      description: "Configuration options for package management.\n\n    **Keys.**\n\
-        \n    - `manager`: the package manager to use"
+      description: 'Configuration options for package management.
+
+
+        **Keys.**
+
+
+        - `manager`: the package manager to use'
       properties:
         manager:
           enum:
@@ -2620,37 +2786,35 @@ components:
       title: RunningNotebooksResponse
       type: object
     RuntimeConfig:
-      description: "Configuration for runtime.\n\n    **Keys.**\n\n    - `auto_instantiate`:\
-        \ if `False`, cells won't automatically\n        run on startup. This only\
-        \ applies when editing a notebook,\n        and not when running as an application.\n\
-        \        The default is `True`.\n    - `auto_reload`: if `lazy`, cells importing\
-        \ modified modules will marked\n      as stale; if `autorun`, affected cells\
-        \ will be automatically run. similar\n      to IPython's %autoreload extension\
-        \ but with more code intelligence.\n    - `reactive_tests`: if `True`, marimo\
-        \ will automatically run pytest on cells containing only test functions and\
-        \ test classes.\n      execution.\n    - `on_cell_change`: if `lazy`, cells\
-        \ will be marked stale when their\n      ancestors run but won't autorun;\
-        \ if `autorun`, cells will automatically\n      run when their ancestors run.\n\
-        \    - `execution_type`: if `relaxed`, marimo will not clone cell declarations;\n\
-        \      if `strict` marimo will clone cell declarations by default, avoiding\n\
-        \      hidden potential state build up.\n    - `watcher_on_save`: how to handle\
-        \ file changes when saving. `\"lazy\"` marks\n        affected cells as stale,\
-        \ `\"autorun\"` automatically runs affected cells.\n    - `output_max_bytes`:\
-        \ the maximum size in bytes of cell outputs; larger\n        values may affect\
-        \ frontend performance\n    - `std_stream_max_bytes`: the maximum size in\
-        \ bytes of console outputs;\n      larger values may affect frontend performance\n\
-        \    - `pythonpath`: a list of directories to add to the Python search path.\n\
-        \        Directories will be added to the head of sys.path. Similar to the\n\
-        \        `PYTHONPATH` environment variable, the directories will be included\
-        \ in\n        where Python will look for imported modules.\n    - `dotenv`:\
-        \ a list of paths to `.env` files to load.\n        If the file does not exist,\
-        \ it will be silently ignored.\n        The default is `[\".env\"]` if a pyproject.toml\
-        \ is found, otherwise `[]`.\n    - `default_sql_output`: the default output\
-        \ format for SQL queries. Can be one of:\n        `\"auto\"`, `\"native\"\
-        `, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n        The default\
-        \ is `\"auto\"`.\n    - `default_auto_download`: an Optional list of export\
-        \ types to automatically snapshot your notebook as:\n       `html`, `markdown`,\
-        \ `ipynb`.\n       The default is None."
+      description: "Configuration for runtime.\n\n**Keys.**\n\n- `auto_instantiate`:\
+        \ if `False`, cells won't automatically\n    run on startup. This only applies\
+        \ when editing a notebook,\n    and not when running as an application.\n\
+        \    The default is `True`.\n- `auto_reload`: if `lazy`, cells importing modified\
+        \ modules will marked\n  as stale; if `autorun`, affected cells will be automatically\
+        \ run. similar\n  to IPython's %autoreload extension but with more code intelligence.\n\
+        - `reactive_tests`: if `True`, marimo will automatically run pytest on cells\
+        \ containing only test functions and test classes.\n  execution.\n- `on_cell_change`:\
+        \ if `lazy`, cells will be marked stale when their\n  ancestors run but won't\
+        \ autorun; if `autorun`, cells will automatically\n  run when their ancestors\
+        \ run.\n- `execution_type`: if `relaxed`, marimo will not clone cell declarations;\n\
+        \  if `strict` marimo will clone cell declarations by default, avoiding\n\
+        \  hidden potential state build up.\n- `watcher_on_save`: how to handle file\
+        \ changes when saving. `\"lazy\"` marks\n    affected cells as stale, `\"\
+        autorun\"` automatically runs affected cells.\n- `output_max_bytes`: the maximum\
+        \ size in bytes of cell outputs; larger\n    values may affect frontend performance\n\
+        - `std_stream_max_bytes`: the maximum size in bytes of console outputs;\n\
+        \  larger values may affect frontend performance\n- `pythonpath`: a list of\
+        \ directories to add to the Python search path.\n    Directories will be added\
+        \ to the head of sys.path. Similar to the\n    `PYTHONPATH` environment variable,\
+        \ the directories will be included in\n    where Python will look for imported\
+        \ modules.\n- `dotenv`: a list of paths to `.env` files to load.\n    If the\
+        \ file does not exist, it will be silently ignored.\n    The default is `[\"\
+        .env\"]` if a pyproject.toml is found, otherwise `[]`.\n- `default_sql_output`:\
+        \ the default output format for SQL queries. Can be one of:\n    `\"auto\"\
+        `, `\"native\"`, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n    The\
+        \ default is `\"auto\"`.\n- `default_auto_download`: an Optional list of export\
+        \ types to automatically snapshot your notebook as:\n   `html`, `markdown`,\
+        \ `ipynb`.\n   The default is None."
       properties:
         auto_instantiate:
           type: boolean
@@ -2761,10 +2925,17 @@ components:
       title: SaveAppConfigurationRequest
       type: object
     SaveConfig:
-      description: "Configuration for saving.\n\n    **Keys.**\n\n    - `autosave`:\
-        \ one of `\"off\"` or `\"after_delay\"`\n    - `delay`: number of milliseconds\
-        \ to wait before autosaving\n    - `format_on_save`: if `True`, format the\
-        \ code on save"
+      description: 'Configuration for saving.
+
+
+        **Keys.**
+
+
+        - `autosave`: one of `"off"` or `"after_delay"`
+
+        - `delay`: number of milliseconds to wait before autosaving
+
+        - `format_on_save`: if `True`, format the code on save'
       properties:
         autosave:
           enum:
@@ -2931,10 +3102,10 @@ components:
       title: SendUIElementMessage
       type: object
     ServerConfig:
-      description: "Configuration for the server.\n\n    **Keys.**\n\n    - `browser`:\
-        \ the web browser to use. `\"default\"` or a browser registered\n        with\
-        \ Python's webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n    - `follow_symlink`:\
-        \ if true, the server will follow symlinks it finds\n        inside its static\
+      description: "Configuration for the server.\n\n**Keys.**\n\n- `browser`: the\
+        \ web browser to use. `\"default\"` or a browser registered\n    with Python's\
+        \ webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n- `follow_symlink`:\
+        \ if true, the server will follow symlinks it finds\n    inside its static\
         \ assets directory."
       properties:
         browser:
@@ -3029,10 +3200,16 @@ components:
       title: SetupRootError
       type: object
     SharingConfig:
-      description: "Configuration for sharing features.\n\n    **Keys.**\n\n    -\
-        \ `html`: if `False`, HTML sharing options will be hidden from the UI\n  \
-        \  - `wasm`: if `False`, WebAssembly sharing options will be hidden from the\
-        \ UI"
+      description: 'Configuration for sharing features.
+
+
+        **Keys.**
+
+
+        - `html`: if `False`, HTML sharing options will be hidden from the UI
+
+        - `wasm`: if `False`, WebAssembly sharing options will be hidden from the
+        UI'
       properties:
         html:
           type: boolean
@@ -3091,8 +3268,13 @@ components:
       title: Snippets
       type: object
     SnippetsConfig:
-      description: "Configuration for snippets.\n\n    **Keys.**\n\n    - `custom_path`:\
-        \ the path to the custom snippets directory"
+      description: 'Configuration for snippets.
+
+
+        **Keys.**
+
+
+        - `custom_path`: the path to the custom snippets directory'
       properties:
         custom_paths:
           items:
@@ -3342,8 +3524,12 @@ components:
       title: WorkspaceFilesResponse
       type: object
     _AppConfig:
-      description: "Program-specific configuration.\n\n    Configuration for frontends\
-        \ or runtimes that is specific to\n    a single marimo program."
+      description: 'Program-specific configuration.
+
+
+        Configuration for frontends or runtimes that is specific to
+
+        a single marimo program.'
       properties:
         app_title:
           anyOf:
@@ -3393,7 +3579,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.15.5
+  version: 0.16.1
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
