@@ -123,9 +123,7 @@ class Linter:
         # Check if file is a supported notebook format
         if not file_path.endswith((".py", ".md", ".qmd")):
             file_status.skipped = True
-            file_status.message = (
-                f"Skipped: {file_path} (not a notebook file)"
-            )
+            file_status.message = f"Skipped: {file_path} (not a notebook file)"
             return file_status
 
         try:
@@ -196,9 +194,7 @@ class Linter:
         else:
             # Status is valid but no notebook - shouldn't happen but handle gracefully
             file_status.skipped = True
-            file_status.message = (
-                f"Skipped: {file_path} (no notebook content)"
-            )
+            file_status.message = f"Skipped: {file_path} (no notebook content)"
 
         # Ensure diagnostics list is initialized for cases where no processing happened
         if not hasattr(file_status, "diagnostics"):
