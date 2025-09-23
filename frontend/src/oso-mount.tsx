@@ -46,7 +46,7 @@ import { initializePlugins } from "./plugins/plugins";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { reportVitals } from "./utils/vitals";
 import { OSOWrapper } from "./oso-extensions/wrapper";
-import { OSONotebook, LazyOSONotebookEditPage, preloadPage } from "./oso-extensions/OSONotebook";
+import { OSONotebook, preloadPage } from "./oso-extensions/OSONotebook";
 import { FragmentStore, FragmentStoreProvider } from "./oso-extensions/fragment-store";
 import { SupabaseFileStore } from "./oso-extensions/supabase-filestore";
 
