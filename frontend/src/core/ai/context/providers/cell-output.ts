@@ -9,8 +9,8 @@ import { displayCellName } from "@/core/cells/names";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { JotaiStore } from "@/core/state/jotai";
-import { Logger } from "@/utils/Logger";
 import { parseHtmlContent } from "@/utils/dom";
+import { Logger } from "@/utils/Logger";
 import { type AIContextItem, AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
 import { Boosts } from "./common";
@@ -64,7 +64,6 @@ function isMediaMimetype(
 
   return false;
 }
-
 
 export class CellOutputContextProvider extends AIContextProvider<CellOutputContextItem> {
   readonly title = "Cell Outputs";
