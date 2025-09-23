@@ -1,8 +1,9 @@
 # Copyright 2025 Marimo. All rights reserved.
-
 import ast
 import re
 from typing import TYPE_CHECKING, Optional, TypedDict
+
+from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
     from marimo._messaging.errors import MarimoSQLError
@@ -45,23 +46,40 @@ class SQLErrorMetadata(TypedDict):
 def is_sql_parse_error(exception: BaseException) -> bool:
     """Check if the exception is a SQL parsing error."""
     # Check for DuckDB exceptions first (most common)
-    try:
-        import duckdb
+    if DependencyManager.duckdb.has():
+        try:
+            import duckdb
 
-        if isinstance(
-            exception, (duckdb.duckdb.ParserException, duckdb.ProgrammingError)
-        ):
-            return True
-    except ImportError:
-        pass
+            # Errors are general enough to capture all meaningful SQL issues.
+            # NB. Errors like Binder/CatalogException are under ProgrammingError.
+            # The definitions can be found here:
+            # https://github.com/duckdb/duckdb-python/blob/0ee500cfa35fc07bf81ed02e8ab6984ea1f665fd/duckdb/__init__.pyi#L82
+            if isinstance(
+                exception,
+                (
+                    duckdb.duckdb.ParserException,
+                    duckdb.ProgrammingError,
+                    duckdb.IOException,
+                    duckdb.OperationalError,
+                    duckdb.IntegrityError,
+                    duckdb.DataError
+                ),
+            ):
+                return True
+        except ImportError:
+            pass
 
-    try:
-        from sqlglot.errors import ParseError as SQLGLOTParseError
+    # Check for SQLGlot exceptions
+    if DependencyManager.sqlglot.has():
+        try:
+            from sqlglot.errors import ParseError
 
-        if isinstance(exception, SQLGLOTParseError):
-            return True
-    except ImportError:
-        pass
+            # Definitions can be found here:
+            # https://sqlglot.com/sqlglot/errors.html
+            if isinstance(exception, ParseError):
+                return True
+        except ImportError:
+            pass
 
     return isinstance(exception, MarimoSQLException)
 
