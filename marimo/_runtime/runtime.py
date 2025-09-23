@@ -2009,7 +2009,15 @@ class Kernel:
         if self.graph.cells:
             del request
             LOGGER.debug("App already instantiated.")
-        elif request.auto_run:
+            return
+
+        # Handle markdown cells specially during kernel-ready initialization
+        execution_requests = {
+            er.cell_id: er for er in request.execution_requests
+        }
+        self._handle_markdown_cells_on_instantiate(execution_requests)
+
+        if request.auto_run:
             self.reset_ui_initializers()
             for (
                 object_id,
@@ -2017,14 +2025,79 @@ class Kernel:
             ) in request.set_ui_element_value_request.ids_and_values:
                 self.ui_initializers[object_id] = initial_value
 
-            await self.run(request.execution_requests)
+            await self.run(list(execution_requests.values()))
             self.reset_ui_initializers()
         else:
-            self._uninstantiated_execution_requests = {
-                er.cell_id: er for er in request.execution_requests
-            }
-            for cid in self._uninstantiated_execution_requests:
-                CellOp.broadcast_stale(cell_id=cid, stale=True)
+            self._uninstantiated_execution_requests = execution_requests
+            for cell_id in self._uninstantiated_execution_requests.keys():
+                CellOp.broadcast_stale(cell_id=cell_id, stale=True)
+
+    def _handle_markdown_cells_on_instantiate(
+        self, execution_requests: dict[CellId_t, ExecutionRequest]
+    ) -> None:
+        """Handle markdown cells during kernel-ready initialization.
+
+        For cells that contain only markdown (mo.md calls), this method:
+        1. Compiles the cells to extract markdown content
+        2. Renders the markdown to HTML
+        3. Broadcasts the rendered output immediately
+        4. Marks the cells as completed (not stale)
+        5. Removes them from uninstantiated requests
+
+        NOTE: If 'mo' is not available in the graph definitions, all cells are
+        marked as stale. Regular cells are marked as stale as usual.
+        """
+        # If 'mo' is not available in the graph, mark all cells as stale
+        markdown_cells: dict[CellId_t, str] = {}
+        exports_mo = False
+        for cid, er in execution_requests.items():
+            # Check if cell already exists in graph (to avoid recompilation)
+            cell = self.graph.cells.get(cid)
+            error = None
+
+            # If cell doesn't exist in graph, try to compile it
+            if cell is None:
+                # TODO: Don't bother compiling whole cell.
+                # However, since we still need to extract defs
+                # for mo / marimo, this is OK for now.
+                cell, error = self._try_compiling_cell(cid, er.code, [])
+
+            if cell is None or error is not None:
+                continue
+
+            # Check if this is a markdown cell
+            if cell.markdown is not None:
+                # Remove from uninstantiated requests since it's effectively "run"
+                markdown_cells[cid] = cell.markdown
+            else:
+                # Regular cell - mark as stale
+                exports_mo |= "mo" in cell.defs
+
+        # Handle as default if no cells export 'mo'
+        if not exports_mo:
+            return
+
+        # Since markdown cell, render and broadcast output
+        # Remove cell from outstanding requests
+        from marimo._output.md import md
+
+        # Remove markdown cells from uninstantiated requests
+        for cell_id, content in markdown_cells.items():
+            html_obj = md(content)
+            mimetype, html_content = html_obj._mime_()
+
+            # Broadcast the markdown output
+            CellOp.broadcast_output(
+                channel=CellChannel.OUTPUT,
+                mimetype=mimetype,
+                data=html_content,
+                cell_id=cell_id,
+                status="idle",
+            )
+
+            # Mark the cell as not stale (already "run")
+            CellOp.broadcast_stale(cell_id=cell_id, stale=False)
+            del execution_requests[cell_id]
 
     def load_dotenv(self) -> None:
         dotenvs = self.user_config["runtime"].get("dotenv", [])

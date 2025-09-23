@@ -173,6 +173,9 @@ class CellImpl:
     # unique id
     cell_id: CellId_t
 
+    # Markdown content of the cell if it exists
+    markdown: Optional[str] = None
+
     # Mutable fields
     # explicit configuration of cell
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
