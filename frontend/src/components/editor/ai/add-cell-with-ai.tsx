@@ -99,6 +99,7 @@ export const AddCellWithAI: React.FC<{
   const ai = useAtomValue(aiAtom);
   const editModel = ai?.models?.edit_model || DEFAULT_AI_MODEL;
   const { saveModelChange } = useModelChange();
+  const [model, setModel] = useState(editModel);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
   const runtimeConfig = useAtomValue(runtimeConfigAtom);
 
@@ -120,6 +121,7 @@ export const AddCellWithAI: React.FC<{
       ...completionBody,
       language: language,
       code: "",
+      model: model,
       ...(runtimeConfig.authToken && { osoApiKey: runtimeConfig.authToken }),
     },
     onError: (error) => {
@@ -289,6 +291,7 @@ export const AddCellWithAI: React.FC<{
           <AIModelDropdown
             value={editModel}
             onSelect={(model) => {
+              setModel(model);
               saveModelChange(model, "edit");
             }}
             triggerClassName="h-7 text-xs max-w-64"
