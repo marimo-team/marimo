@@ -13,6 +13,7 @@ from typing import (
     Union,
 )
 
+import marimo._output.data.data as mo_data
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
@@ -24,6 +25,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     Transformations,
 )
 from marimo._plugins.ui._impl.table import (
+    DownloadAsArgs,
     SearchTableArgs,
     SearchTableResponse,
     SortArgs,
@@ -101,6 +103,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         limit (Optional[int], optional): The number of items to load into memory, in case
             the data is remote and lazily fetched. This is likely true for SQL-backed
             dataframes via Ibis.
+        show_download (bool, optional): Whether to show the download button.
+            Defaults to True.
         on_change (Optional[Callable[[DataFrameType], None]], optional): Optional callback
             to run when this element's value changes.
     """
@@ -113,6 +117,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         on_change: Optional[Callable[[DataFrameType], None]] = None,
         page_size: Optional[int] = 5,
         limit: Optional[int] = None,
+        show_download: bool = True,
     ) -> None:
         validate_no_integer_columns(df)
         # This will raise an error if the dataframe type is not supported.
@@ -144,6 +149,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self._error: Optional[str] = None
         self._last_transforms = Transformations([])
         self._page_size = page_size or 5  # Default to 5 rows (.head())
+        self._show_download = show_download
         validate_page_size(self._page_size)
 
         super().__init__(
@@ -158,6 +164,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                 "dataframe-name": dataframe_name,
                 "total": self._manager.get_num_rows(force=False),
                 "page-size": page_size,
+                "show-download": show_download,
             },
             functions=(
                 Function(
@@ -174,6 +181,11 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                     name="search",
                     arg_cls=SearchTableArgs,
                     function=self._search,
+                ),
+                Function(
+                    name="download_as",
+                    arg_cls=DownloadAsArgs,
+                    function=self._download_as,
                 ),
             ),
         )
@@ -265,6 +277,39 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             data=data,
             total_rows=result.get_num_rows(force=True) or 0,
         )
+
+    def _download_as(self, args: DownloadAsArgs) -> str:
+        """Download the transformed dataframe in the specified format.
+
+        Downloads the dataframe with all current transformations applied.
+
+        Args:
+            args (DownloadAsArgs): Arguments specifying the download format.
+                format must be one of 'csv', 'json', or 'parquet'.
+
+        Returns:
+            str: URL to download the data file.
+
+        Raises:
+            ValueError: If format is not supported.
+        """
+        # Get transformed dataframe
+        df = self._value
+
+        # Get the table manager for the transformed data
+        manager = self._get_cached_table_manager(df, self._limit)
+
+        ext = args.format
+        if ext == "csv":
+            return mo_data.csv(manager.to_csv()).url
+        elif ext == "json":
+            return mo_data.json(manager.to_json()).url
+        elif ext == "parquet":
+            return mo_data.parquet(manager.to_parquet()).url
+        else:
+            raise ValueError(
+                "format must be one of 'csv', 'json', or 'parquet'."
+            )
 
     def _apply_filters_query_sort(
         self,
