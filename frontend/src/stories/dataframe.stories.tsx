@@ -40,6 +40,8 @@ export const DataFrame: StoryObj = {
         get_dataframe={() => Promise.reject(new Error("not implemented"))}
         search={Functions.THROW}
         host={document.body}
+        showDownload={false}
+        download_as={async () => ""}
       />
     );
   },
