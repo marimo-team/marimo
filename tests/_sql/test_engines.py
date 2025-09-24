@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,6 +16,9 @@ from marimo._sql.utils import (
     sql_type_to_data_type,
     try_convert_to_polars,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
@@ -50,39 +54,47 @@ def test_raise_df_import_error() -> None:
 
 
 @pytest.mark.skipif(
-    not (HAS_DUCKDB and HAS_SQLALCHEMY and HAS_CLICKHOUSE),
-    reason="Duckdb, sqlalchemy, and Clickhouse not installed",
+    not (HAS_DUCKDB and HAS_SQLALCHEMY),
+    reason="Duckdb and sqlalchemy not installed",
 )
 def test_engine_name_initialization() -> None:
     """Test engine name initialization."""
-    import chdb
     import duckdb
     import sqlalchemy as sa
 
     duckdb_conn = duckdb.connect(":memory:")
     sqlite_engine = sa.create_engine("sqlite:///:memory:")
-    clickhouse_conn = chdb.connect(":memory:")
 
     duck_engine = DuckDBEngine(duckdb_conn, engine_name="my_duck")
     sql_engine = SQLAlchemyEngine(sqlite_engine, engine_name="my_sql")
-    clickhouse_engine = SQLAlchemyEngine(
-        clickhouse_conn, engine_name="my_clickhouse"
-    )
 
     assert duck_engine._engine_name == "my_duck"
     assert sql_engine._engine_name == "my_sql"
-    assert clickhouse_engine._engine_name == "my_clickhouse"
 
     # Test default names
     duck_engine_default = DuckDBEngine(duckdb_conn)
     sql_engine_default = SQLAlchemyEngine(sqlite_engine)
-    clickhouse_engine_default = ClickhouseEmbedded(clickhouse_conn)
 
     assert duck_engine_default._engine_name is None
     assert sql_engine_default._engine_name is None
-    assert clickhouse_engine_default._engine_name is None
 
     duckdb_conn.close()
+
+
+@pytest.mark.skipif(not HAS_CLICKHOUSE, reason="Clickhouse not installed")
+def test_clickhouse_engine_name_initialization() -> None:
+    """Test ClickhouseEmbedded engine name initialization."""
+    import chdb
+
+    clickhouse_conn = chdb.connect(":memory:")
+    engine = ClickhouseEmbedded(clickhouse_conn, engine_name="my_clickhouse")
+    clickhouse_engine = SQLAlchemyEngine(
+        clickhouse_conn, engine_name="my_clickhouse"
+    )
+    assert clickhouse_engine._engine_name == "my_clickhouse"
+    clickhouse_engine_default = ClickhouseEmbedded(clickhouse_conn)
+    assert clickhouse_engine_default._engine_name is None
+
     clickhouse_conn.close()
 
 
@@ -274,42 +286,60 @@ def test_duckdb_execute() -> None:
 
 
 @pytest.mark.skipif(
-    not HAS_DUCKDB or not HAS_POLARS,
-    reason="Duckdb and polars not installed",
+    not HAS_DUCKDB or not HAS_POLARS, reason="Duckdb and polars not installed"
 )
-def test_duckdb_execute_in_explain_mode():
-    """Test DuckDBEngine execute in explain mode."""
-    import duckdb
+class TestExecuteExplainMode:
+    @pytest.fixture
+    def engine(self) -> Generator[DuckDBEngine, None, None]:
+        import duckdb
 
-    duckdb_conn = duckdb.connect(":memory:")
-    engine = DuckDBEngine(duckdb_conn)
+        connection = duckdb.connect(":memory:")
+        engine = DuckDBEngine(connection)
 
-    # Test with valid query
-    result, error = engine.execute_in_explain_mode("SELECT 1, 2")
-    assert result is not None
-    assert error is None
+        yield engine
+        connection.close()
 
-    # Test with invalid queries
-    result, error = engine.execute_in_explain_mode(
-        "SELECT * FROM non_existent_table"  # catalog error
-    )
-    assert result is None
-    assert error is not None
+    def test_duckdb_valid_queries(self, engine: DuckDBEngine):
+        result, error = engine.execute_in_explain_mode("SELECT 1, 2")
+        assert result is not None
+        assert error is None
 
-    result, error = engine.execute_in_explain_mode("SELECT * FROM ")
-    assert result is None
-    assert error is not None
+    def test_empty_query(self, engine: DuckDBEngine):
+        result, error = engine.execute_in_explain_mode("")
+        assert result is None
+        assert error is None
 
-    # Test with empty queries
-    result, error = engine.execute_in_explain_mode("")
-    assert result is None
-    assert error is None
+    def test_invalid_queries(self, engine: DuckDBEngine):
+        result, error = engine.execute_in_explain_mode(
+            "SELECT * FROM non_existent_table"  # catalog error
+        )
+        assert result is None
+        assert error is not None
 
-    result, error = engine.execute_in_explain_mode("-- SELECT * FROM ")
-    assert result is None
-    assert error is None
+        result, error = engine.execute_in_explain_mode("SELECT * FROM ")
+        assert result is None
+        assert error is not None
 
-    duckdb_conn.close()
+    def test_duckdb_result(self, engine: DuckDBEngine):
+        result, error = engine.execute_in_explain_mode("SELECT * FROM test")
+        assert result is None
+        assert (
+            error
+            == """Catalog Error: Table with name test does not exist!
+Did you mean "sqlite_temp_master"?
+
+LINE 1: SELECT * FROM test
+                      ^"""
+        )
+
+    def test_duckdb_with_interpolated_query(self, engine: DuckDBEngine):
+        result = engine.execute("SELECT {1}")
+        print(result)
+        assert result is None
+
+        result, error = engine.execute_in_explain_mode("SELECT {1}")
+        assert result is not None
+        assert error is None
 
 
 @pytest.mark.skipif(

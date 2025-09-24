@@ -195,6 +195,46 @@ def wrap_query_with_explain(query: str) -> str:
     return f"EXPLAIN {query}"
 
 
+def strip_explain_from_error_message(error_message: str) -> str:
+    """Strip EXPLAIN from an error message. Also adjusts the caret position
+
+    Example:
+    ```
+    LINE 1: EXPLAIN SELECT * FROM t
+                                  ^
+    ```
+    becomes
+    ```
+    LINE 1: SELECT * FROM t
+                          ^
+    ```
+    """
+    # Find the first occurrence of "EXPLAIN " and replace it
+    explain_pos = error_message.find("EXPLAIN ")
+    if explain_pos == -1:
+        return error_message
+
+    explain_length = len("EXPLAIN ")
+
+    # Replace the first "EXPLAIN " with empty string
+    result = (
+        error_message[:explain_pos]
+        + error_message[explain_pos + explain_length :]
+    )
+
+    # Find the next newline and strip the same amount from the next line
+    next_newline = result.find("\n", explain_pos)
+    if next_newline != -1 and next_newline + explain_length < len(result):
+        # Remove the same length from the beginning of the next line
+        # This is the caret position
+        result = (
+            result[: next_newline + 1]
+            + result[next_newline + 1 + explain_length :]
+        )
+
+    return result
+
+
 def is_query_empty(query: str) -> bool:
     """Check if a SQL query is empty or just comments"""
     stripped = query.strip()
