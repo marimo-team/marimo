@@ -291,7 +291,7 @@ class Exporter:
                 metadata["header"] = header.strip()
         else:
             header_file = previous if previous else filename
-            if header_file:
+            if header_file and Path(header_file).exists():
                 with open(header_file, encoding="utf-8") as f:
                     _metadata, _ = extract_frontmatter(f.read())
                 metadata.update(_metadata)
