@@ -11,7 +11,7 @@ from typing import Any, Callable, Union
 
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
-from marimo._ast.transformers import NameTransformer
+from marimo._ast.transformers import NameTransformer, RemoveImportTransformer
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
 from marimo._convert.utils import markdown_to_marimo
@@ -651,20 +651,26 @@ def transform_remove_duplicate_imports(sources: list[str]) -> list[str]:
     imports: set[str] = set()
     new_sources: list[str] = []
     for source in sources:
-        new_lines: list[str] = []
-        for line in source.split("\n"):
-            stripped_line = line.strip()
-            if stripped_line.startswith("import ") or stripped_line.startswith(
-                "from "
-            ):
-                if stripped_line not in imports:
-                    imports.add(stripped_line)
-                    new_lines.append(line)
-            else:
-                new_lines.append(line)
-
-        new_source = "\n".join(new_lines)
-        new_sources.append(new_source.strip())
+        try:
+            cell = compile_cell(source, cell_id=CellId_t("temp"))
+        except SyntaxError:
+            new_sources.append(source)
+            continue
+        scoped = set()
+        for var, instances in cell.variable_data.items():
+            for instance in instances:
+                if (
+                    var in imports or var in scoped
+                ) and instance.kind == "import":
+                    # If it's not in global imports, we keep one instance
+                    keep_one = var not in imports
+                    transformer = RemoveImportTransformer(
+                        var, keep_one=keep_one
+                    )
+                    source = transformer.strip_imports(source)
+                scoped.add(var)
+        imports.update(scoped)
+        new_sources.append(source)
 
     return new_sources
 
@@ -715,20 +721,39 @@ def _transform_sources(
 
     After this step, cells are ready for execution or rendering.
     """
-    source_transforms: list[Transform] = [
+    from marimo._convert.comment_preserver import CommentPreserver
+
+    # Define transforms that don't need comment preservation
+    simple_transforms = [
         transform_strip_whitespace,
         transform_magic_commands,
         transform_exclamation_mark,
+    ]
+
+    # Define transforms that should preserve comments
+    comment_preserving_transforms = [
         transform_remove_duplicate_imports,
         transform_fixup_multiple_definitions,
         transform_duplicate_definitions,
     ]
 
-    # Run all the source transforms
-    for source_transform in source_transforms:
+    # Run simple transforms first (no comment preservation needed)
+    for source_transform in simple_transforms:
         new_sources = source_transform(sources)
         assert len(new_sources) == len(sources), (
             f"{source_transform.__name__} changed cell count"
+        )
+        sources = new_sources
+
+    # Create comment preserver from the simplified sources
+    comment_preserver = CommentPreserver(sources)
+
+    # Run comment-preserving transforms
+    for base_transform in comment_preserving_transforms:
+        transform = comment_preserver(base_transform)
+        new_sources = transform(sources)
+        assert len(new_sources) == len(sources), (
+            f"{base_transform.__name__} changed cell count"
         )
         sources = new_sources
 
