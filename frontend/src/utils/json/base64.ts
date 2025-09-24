@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { OperationMessageData } from "@/core/kernel/messages";
 import type { TypedString } from "../typed";
 
 export type JsonString<T = unknown> = TypedString<"Json"> & {
@@ -51,4 +53,15 @@ export function extractBase64FromDataURL(str: DataURLString): Base64String {
 
 export function byteStringToBinary(bytes: ByteString): Uint8Array {
   return Uint8Array.from(bytes, (c) => c.charCodeAt(0));
+}
+
+export function safeExtractSetUIElementMessageBuffers(
+  op: OperationMessageData<"send-ui-element-message">,
+): readonly DataView[] {
+  // @ts-expect-error - TypeScript doesn't know that these strings are actually base64 strings
+  const strs: Base64String[] = op.buffers ?? [];
+  return strs.map((str) => {
+    const bytes = byteStringToBinary(typedAtob(str));
+    return new DataView(bytes.buffer);
+  });
 }

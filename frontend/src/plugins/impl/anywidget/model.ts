@@ -10,7 +10,6 @@ import { assertNever } from "@/utils/assertNever";
 import { Deferred } from "@/utils/Deferred";
 import { updateBufferPaths } from "@/utils/data-views";
 import { throwNotImplemented } from "@/utils/functions";
-import type { Base64String } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 
 export type EventHandler = (...args: any[]) => void;
@@ -171,7 +170,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
    * When receiving a message from the backend.
    * We want to notify all listeners with `msg:custom`
    */
-  receiveCustomMessage(message: any, buffers?: DataView[]): void {
+  receiveCustomMessage(message: any, buffers: readonly DataView[] = []): void {
     const response = AnyWidgetMessageSchema.safeParse(message);
     if (response.success) {
       const data = response.data;
@@ -260,7 +259,7 @@ export async function handleWidgetMessage({
 }: {
   modelId: string;
   msg: AnyWidgetMessage;
-  buffers: Base64String[];
+  buffers: readonly DataView[];
   modelManager: ModelManager;
 }): Promise<void> {
   if (msg.method === "echo_update") {

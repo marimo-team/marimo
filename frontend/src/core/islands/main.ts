@@ -16,7 +16,11 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { initializePlugins } from "@/plugins/plugins";
 import { logNever } from "@/utils/assertNever";
 import { Functions } from "@/utils/functions";
-import type { Base64String } from "@/utils/json/base64";
+import {
+  type Base64String,
+  base64StringToDataView,
+  safeExtractSetUIElementMessageBuffers,
+} from "@/utils/json/base64";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Logger } from "@/utils/Logger";
 import {
@@ -145,7 +149,7 @@ export async function initialize() {
         UI_ELEMENT_REGISTRY.broadcastMessage(
           msg.data.ui_element as UIElementId,
           msg.data.message,
-          msg.data.buffers as Base64String[],
+          safeExtractSetUIElementMessageBuffers(msg.data),
         );
         return;
 
