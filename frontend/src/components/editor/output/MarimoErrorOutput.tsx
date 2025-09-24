@@ -498,36 +498,36 @@ export const MarimoErrorOutput = ({
     if (sqlErrors.length > 0) {
       messages.push(
         <div key="sql-errors">
-          {sqlErrors.map((error, idx) => (
-            <div key={`sql-error-${idx}`} className="space-y-2">
-              <p className="text-muted-foreground">{error.msg}</p>
-              {error.hint && (
-                <div className="flex items-start gap-2">
-                  <InfoIcon className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
-                    {error.hint}
-                  </pre>
-                </div>
-              )}
-              {error.sql_statement && (
-                <div className="bg-muted/50 p-2 rounded text-xs font-mono">
-                  <pre className="whitespace-pre-wrap">
-                    {error.sql_statement}
-                  </pre>
-                </div>
-              )}
-              {error.sql_line !== null && error.sql_col !== null && (
-                <p className="text-xs text-muted-foreground">
-                  Error at line {error.sql_line + 1}, column {error.sql_col + 1}
-                </p>
-              )}
-              {error.lint_rule && (
-                <p className="text-xs text-muted-foreground">
-                  Rule: {error.lint_rule}
-                </p>
-              )}
-            </div>
-          ))}
+          {sqlErrors.map((error, idx) => {
+            const line =
+              error.sql_line != null ? (error?.sql_line | 0) + 1 : null;
+            const col = error.sql_col != null ? (error?.sql_col | 0) + 1 : null;
+            return (
+              <div key={`sql-error-${idx}`} className="space-y-2">
+                <p className="text-muted-foreground">{error.msg}</p>
+                {error.hint && (
+                  <div className="flex items-start gap-2">
+                    <InfoIcon className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
+                      {error.hint}
+                    </pre>
+                  </div>
+                )}
+                {error.sql_statement && (
+                  <div className="bg-muted/50 p-2 rounded text-xs font-mono">
+                    <pre className="whitespace-pre-wrap">
+                      {error.sql_statement}
+                    </pre>
+                  </div>
+                )}
+                {line !== null && col !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    Error at line {line}, column {col}
+                  </p>
+                )}
+              </div>
+            );
+          })}
           {cellId && <AutoFixButton errors={sqlErrors} cellId={cellId} />}
           <Tip title="How to fix SQL errors">
             <p className="pb-2">
