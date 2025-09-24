@@ -16,11 +16,7 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { initializePlugins } from "@/plugins/plugins";
 import { logNever } from "@/utils/assertNever";
 import { Functions } from "@/utils/functions";
-import {
-  type Base64String,
-  base64StringToDataView,
-  safeExtractSetUIElementMessageBuffers,
-} from "@/utils/json/base64";
+import { safeExtractSetUIElementMessageBuffers } from "@/utils/json/base64";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Logger } from "@/utils/Logger";
 import {

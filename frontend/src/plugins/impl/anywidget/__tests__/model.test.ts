@@ -9,7 +9,6 @@ import {
   vi,
 } from "vitest";
 import { TestUtils } from "@/__tests__/test-helpers";
-import type { Base64String } from "@/utils/json/base64";
 import {
   type AnyWidgetMessage,
   handleWidgetMessage,
@@ -286,7 +285,7 @@ describe("ModelManager", () => {
   }: {
     modelId: string;
     message: AnyWidgetMessage;
-    buffers: Base64String[];
+    buffers: readonly DataView[];
   }) => {
     return handleWidgetMessage({
       modelId,

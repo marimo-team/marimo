@@ -8,7 +8,7 @@ import { Logger } from "./Logger";
  */
 export function updateBufferPaths<T extends Record<string, unknown>>(
   inputObject: T,
-  bufferPaths: Array<Array<string | number>> | null | undefined,
+  bufferPaths: ReadonlyArray<ReadonlyArray<string | number>>,
   buffers: readonly DataView[],
 ): T {
   // If no buffer paths, return the original object

@@ -129,7 +129,7 @@ describe("LoadedSlot", () => {
           method: "update",
           state: { count: 10 },
         },
-        buffers: undefined,
+        buffers: [],
       },
       bubbles: false,
       composed: true,
