@@ -28,7 +28,12 @@ export function tablesCompletionSource(): CompletionSource {
       return null;
     }
 
-    return schemaCompletionSource(config)(ctx);
+    const completions = schemaCompletionSource(config)(ctx);
+    if (!completions) {
+      return null;
+    }
+
+    return completions;
   };
 }
 

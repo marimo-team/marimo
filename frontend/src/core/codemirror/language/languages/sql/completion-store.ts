@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { SQLConfig, SQLDialect } from "@codemirror/lang-sql";
+import { atom } from "jotai";
 import { isSchemaless } from "@/components/datasources/utils";
 import { dataConnectionsMapAtom } from "@/core/datasets/data-source-connections";
 import type { ConnectionName } from "@/core/datasets/engines";
@@ -8,13 +9,21 @@ import { datasetTablesAtom } from "@/core/datasets/state";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { LRUCache } from "@/utils/lru";
+import { CompletionBuilder } from "./completion-builder";
 import { guessDialect, ModifiedStandardSQL } from "./utils";
 
-type TableToCols = Record<string, string[]>;
-type Schemas = Record<string, TableToCols>;
 type CachedSchema = Pick<SQLConfig, "schema" | "defaultSchema"> & {
   shouldAddLocalTables: boolean;
 };
+
+const datasetTableCompletionsAtom = atom((get) => {
+  const tables = get(datasetTablesAtom);
+  const builder = new CompletionBuilder();
+  for (const table of tables) {
+    builder.addTable([], table.name, table.columns);
+  }
+  return builder.build();
+});
 
 class SQLCompletionStore {
   private cache: LRUCache<DataSourceConnection, CachedSchema>;
@@ -33,80 +42,76 @@ class SQLCompletionStore {
   }
 
   private getConnectionSchema(connection: DataSourceConnection): CachedSchema {
-    const schemaMap: Record<string, TableToCols> = {};
-    const databaseMap: Record<string, Schemas> = {};
+    const { default_database, databases } = connection;
+    const builder = new CompletionBuilder();
 
     // When there is only one database, it is the default
-    const defaultDb = connection.databases.find(
-      (db) =>
-        db.name === connection.default_database ||
-        connection.databases.length === 1,
+    const defaultDb = databases.find(
+      (db) => db.name === default_database || databases.length === 1,
     );
 
-    const dbToVerify = defaultDb ?? connection.databases[0];
+    const dbToVerify = defaultDb ?? databases[0];
     const isSchemalessDb =
       dbToVerify?.schemas.some((schema) => isSchemaless(schema.name)) ?? false;
 
     // For schemaless databases, treat databases as schemas
     if (isSchemalessDb) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const dbToTablesMap: Record<string, any> = {};
-
-      for (const db of connection.databases) {
+      for (const db of databases) {
         const isDefaultDb = db.name === defaultDb?.name;
+        const tables = db.schemas.flatMap((schema) => schema.tables);
+        builder.addNamespace([db.name], db.name);
 
-        for (const schema of db.schemas) {
-          for (const table of schema.tables) {
-            const columns = table.columns.map((col) => col.name);
-
-            if (isDefaultDb) {
-              // For default database, add tables directly to top level
-              dbToTablesMap[table.name] = columns;
-            } else {
-              // Otherwise nest under database name
-              dbToTablesMap[db.name] = dbToTablesMap[db.name] || {};
-              dbToTablesMap[db.name][table.name] = columns;
-            }
+        for (const table of tables) {
+          if (isDefaultDb) {
+            // For default database, add tables directly to top level
+            builder.addTable([], table.name, table.columns);
+          } else {
+            // Otherwise nest under database name
+            builder.addTable([db.name], table.name, table.columns);
           }
         }
       }
 
       return {
         shouldAddLocalTables: false,
-        schema: dbToTablesMap,
+        schema: builder.build(),
         defaultSchema: defaultDb?.name,
       };
     }
 
-    // For default db, we can use the schema name directly
+    // For default db, we can use the schema name directly so add them to the top level
     for (const schema of defaultDb?.schemas ?? []) {
-      schemaMap[schema.name] = {};
+      builder.addNamespace([schema.name], schema.name);
+
       for (const table of schema.tables) {
-        const columns = table.columns.map((col) => col.name);
-        schemaMap[schema.name][table.name] = columns;
+        builder.addTable([schema.name], table.name, table.columns);
       }
     }
 
     // Otherwise, we need to use the fully qualified name
     for (const database of connection.databases) {
+      // Skip the default database, since we already added it
       if (database.name === defaultDb?.name) {
         continue;
       }
-      databaseMap[database.name] = {};
+      builder.addNamespace([database.name], database.name);
 
       for (const schema of database.schemas) {
-        databaseMap[database.name][schema.name] = {};
+        builder.addNamespace([database.name, schema.name], schema.name);
 
         for (const table of schema.tables) {
-          const columns = table.columns.map((col) => col.name);
-          databaseMap[database.name][schema.name][table.name] = columns;
+          builder.addTable(
+            [database.name, schema.name],
+            table.name,
+            table.columns,
+          );
         }
       }
     }
 
     return {
       shouldAddLocalTables: true,
-      schema: { ...databaseMap, ...schemaMap },
+      schema: builder.build(),
       defaultSchema: connection.default_schema ?? undefined,
     };
   }
@@ -142,15 +147,9 @@ class SQLCompletionStore {
     }
 
     const getTablesMap = () => {
-      const localTables = store.get(datasetTablesAtom);
       // If there is a conflict with connection tables,
       // the engine will prioritize the connection tables without special handling
-      const tablesMap: TableToCols = {};
-      for (const table of localTables) {
-        const tableColumns = table.columns.map((col) => col.name);
-        tablesMap[table.name] = tableColumns;
-      }
-      return tablesMap;
+      return store.get(datasetTableCompletionsAtom);
     };
 
     const schema = this.cache.getOrCreate(connection);
