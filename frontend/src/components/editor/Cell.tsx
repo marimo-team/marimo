@@ -451,6 +451,7 @@ const EditableCellComponent = ({
   });
   const canCollapse = canCollapseOutline(cellRuntime.outline);
   const hasOutput = !isOutputEmpty(cellRuntime.output);
+  const isStaleCell = outputIsStale(cellRuntime, cellData.edited);
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const cellOutput = userConfig.display.cell_output;
 
@@ -511,7 +512,7 @@ const EditableCellComponent = ({
         className="output-area"
         cellId={cellId}
         output={cellRuntime.output}
-        stale={outputIsStale(cellRuntime, cellData.edited)}
+        stale={isStaleCell}
         loading={outputIsLoading(cellRuntime.status)}
       />
       {isMarkdownCodeHidden &&
@@ -654,7 +655,10 @@ const EditableCellComponent = ({
                 )}
               </div>
             </div>
-            <SqlValidationErrorBanner cellId={cellId} />
+            <SqlValidationErrorBanner
+              cellId={cellId}
+              hide={cellRuntime.errored && !isStaleCell}
+            />
             {cellOutput === "below" && outputArea}
             {cellRuntime.serialization && (
               <div className="py-1 px-2 flex items-center justify-end gap-2 last:rounded-b">

@@ -13,7 +13,11 @@ from marimo._runtime.context.types import (
     get_context,
     runtime_context_installed,
 )
-from marimo._sql.utils import is_query_empty, wrap_query_with_explain
+from marimo._sql.utils import (
+    is_query_empty,
+    strip_explain_from_error_message,
+    wrap_query_with_explain,
+)
 from marimo._types.ids import VariableName
 
 NO_SCHEMA_NAME = ""
@@ -143,7 +147,7 @@ class QueryEngine(BaseEngine[CONN], ABC):
         except Exception as e:
             if is_query_empty(query):
                 return None, None
-            return None, str(e)
+            return None, strip_explain_from_error_message(str(e))
 
 
 class SQLConnection(EngineCatalog[CONN], QueryEngine[CONN]):
