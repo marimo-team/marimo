@@ -177,7 +177,9 @@ def get_default_table_page_size() -> int:
     except ContextNotInitializedError:
         return 10
     else:
-        return ctx.marimo_config["display"]["default_table_page_size"]
+        config = cast(Any, ctx.marimo_config)
+        value = config["display"]["default_table_page_size"]
+        return int(value)
 
 
 def get_default_table_max_columns() -> int:
@@ -187,7 +189,9 @@ def get_default_table_max_columns() -> int:
     except ContextNotInitializedError:
         return DEFAULT_MAX_COLUMNS
     else:
-        return ctx.marimo_config["display"]["default_table_max_columns"]
+        config = cast(Any, ctx.marimo_config)
+        value = config["display"]["default_table_max_columns"]
+        return int(value)
 
 
 @mddoc
@@ -335,6 +339,9 @@ class table(
         hover_template (str, optional): A template for the hover text of the table.
         max_columns (int, optional): Maximum number of columns to display. Defaults to the
             configured default_table_max_columns (50 by default). Set to None to show all columns.
+        max_height (int, optional): Maximum height of the table body in pixels. When set,
+            the table becomes vertically scrollable and the header may be made sticky
+            in the UI to remain visible while scrolling. Defaults to None.
         label (str, optional): A descriptive name for the table. Defaults to "".
     """
 
@@ -441,6 +448,7 @@ class table(
         ] = None,
         style_cell: Optional[Callable[[str, str, Any], dict[str, Any]]] = None,
         hover_template: Optional[str] = None,
+        max_height: Optional[int] = None,
         # The _internal_* arguments are for overriding and unit tests
         # table should take the value unconditionally
         _internal_column_charts_row_limit: Optional[int] = None,
@@ -471,8 +479,9 @@ class table(
 
         # Handle max_columns: use config default if not provided, None means "all"
         if max_columns == MAX_COLUMNS_NOT_PROVIDED:
-            self._max_columns = get_default_table_max_columns()
-            max_columns_arg = self._max_columns
+            default_max_columns = get_default_table_max_columns()
+            self._max_columns = default_max_columns
+            max_columns_arg = default_max_columns
         elif max_columns is None:
             self._max_columns = None
             max_columns_arg = "all"
@@ -671,6 +680,14 @@ class table(
                 "hover-template": hover_template,
                 "lazy": _internal_lazy,
                 "preload": _internal_preload,
+                **(
+                    {
+                        "max-height": int(max_height),
+                        "is-sticky": True,
+                    }
+                    if max_height is not None
+                    else {}
+                ),
             },
             on_change=on_change,
             functions=(

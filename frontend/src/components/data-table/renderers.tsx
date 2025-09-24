@@ -26,6 +26,7 @@ import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
+  isSticky?: boolean,
 ): JSX.Element | null {
   if (!table.getRowModel().rows?.length) {
     return null;
@@ -39,7 +40,7 @@ export function renderTableHeader<TData>(
           <TableHead
             key={header.id}
             className={cn(
-              "h-auto min-h-10 whitespace-pre align-top bg-red-100",
+              "h-auto min-h-10 whitespace-pre align-top",
               className,
             )}
             style={style}
@@ -57,7 +58,7 @@ export function renderTableHeader<TData>(
   };
 
   return (
-    <TableHeader>
+    <TableHeader sticky={Boolean(isSticky)}>
       <TableRow>
         {renderHeaderGroup(table.getLeftHeaderGroups())}
         {renderHeaderGroup(table.getCenterHeaderGroups())}
@@ -106,9 +107,9 @@ export const DataTableBody = <TData,>({
       const s = renderUnknownValue({ value: v, nullAsEmptyString: true });
       idToValue.set(c.column.id, s);
     }
-    return template.replace(variableRegex, (_substr, varName: string) => {
+    return template.replaceAll(variableRegex, (_substr, varName: string) => {
       const val = idToValue.get(varName);
-      return val !== undefined ? val : `{{${varName}}}`;
+      return val === undefined ? `{{${varName}}}` : val;
     });
   }
 
