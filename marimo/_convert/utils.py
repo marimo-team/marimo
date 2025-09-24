@@ -5,7 +5,14 @@ from marimo._ast import codegen
 
 
 def markdown_to_marimo(source: str) -> str:
+    # NB. This should be kept in sync with the logic in
+    # frontend/src/core/codemirror/language/languages/markdown.ts
+    # ::transformOut
     source = source.replace('"""', '\\"\\"\\"')
+
+    # 6 quotes in a row breaks
+    if not source:
+        source = " "
 
     if "\n" not in source:
         return f'mo.md(r"""{source}""")'

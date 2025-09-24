@@ -103,6 +103,9 @@ export class MarkdownLanguageAdapter
     code: string,
     metadata: MarkdownLanguageAdapterMetadata,
   ): [string, number] {
+    // NB. Must be kept consistent with marimo/_convert/utils.py
+    // ::markdown_to_marimo
+
     // Empty string
     if (code === "") {
       // Need at least a space, otherwise the output will be 6 quotes
