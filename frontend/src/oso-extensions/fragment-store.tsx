@@ -13,7 +13,7 @@ export class FragmentStore {
         this.params = searchParams;
     }
 
-    getBoolean(key: string, defaultValue: boolean = false): boolean {
+    getBoolean(key: string, defaultValue = false): boolean {
         const value = this.params.get(key);
         if (value === null) return defaultValue;
         return value === "true";

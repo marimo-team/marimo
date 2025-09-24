@@ -255,6 +255,7 @@ export class DefaultWasmController implements WasmController {
 
 // This is a workaround to make sure that the default controller is resolved
 // when this is dynamically imported
+// eslint-disable-next-line unicorn/no-thenable
 export function then(resolve: (value: DefaultWasmController) => void) {
   resolve(new DefaultWasmController());
 
