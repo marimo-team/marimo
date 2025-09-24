@@ -4,7 +4,7 @@ from __future__ import annotations
 import ast
 import inspect
 import textwrap
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, cast
 
 from marimo._ast.parse import ast_parse
 from marimo._ast.variables import unmangle_local
@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 ARG_PREFIX: str = "*"
+
+T = TypeVar("T", bound="ast.Import | ast.ImportFrom")
 
 
 class BlockException(Exception):
@@ -197,9 +199,9 @@ class RemoveImportTransformer(ast.NodeTransformer):
 
     def _return_once(
         self,
-        node: ast.Import | ast.ImportFrom,
+        node: T,
         original_names: list[ast.alias],
-    ) -> Optional[ast.Import | ast.ImportFrom]:
+    ) -> Optional[T]:
         if node.names:
             return node
         elif self.keep_one:
