@@ -161,3 +161,7 @@ class InvokeAiToolResponse(BaseResponse):
     tool_name: str
     result: Any
     error: Optional[str] = None
+
+
+class ParseSQLResponse(msgspec.Struct, rename="camel"):
+    response: str

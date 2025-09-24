@@ -38,6 +38,17 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
     def dialect(self) -> str:
         return "duckdb"
 
+    @staticmethod
+    def execute_and_return_relation(
+        query: str, params: Optional[list[Any]] = None
+    ) -> duckdb.DuckDBPyRelation:
+        """Execute a query and return a relation. Supports parameters."""
+        DependencyManager.duckdb.require("to execute sql")
+
+        import duckdb
+
+        return duckdb.sql(query, params=params)
+
     def execute(self, query: str) -> Any:
         relation = wrapped_sql(query, self._connection)
 

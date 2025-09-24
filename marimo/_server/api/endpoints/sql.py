@@ -6,11 +6,16 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo._runtime.requests import (
+    ParseSQLRequest,
     ValidateSQLRequest,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
-from marimo._server.models.models import BaseResponse, SuccessResponse
+from marimo._server.models.models import (
+    BaseResponse,
+    ParseSQLResponse,
+    SuccessResponse,
+)
 from marimo._server.router import APIRouter
 from marimo._types.ids import ConsumerId
 
@@ -45,3 +50,25 @@ async def validate_sql(request: Request) -> BaseResponse:
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
     return SuccessResponse()
+
+
+@router.post("/parse")
+@requires("edit")
+async def parse_sql(request: Request) -> ParseSQLResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ParseSQLRequest"
+    responses:
+        200:
+            description: Parse an SQL query
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ParseSQLResponse"
+    """
+    body = await parse_request(request, ParseSQLRequest)
+
+    return ParseSQLResponse(response="TODO")

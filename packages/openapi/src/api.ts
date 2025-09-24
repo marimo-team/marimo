@@ -3811,18 +3811,9 @@ export interface components {
      * @description SQL-specific error with enhanced metadata for debugging.
      */
     MarimoSQLError: {
-      /** @default null */
-      hint?: string | null;
+      codeblock: string | null;
+      error_type: string;
       msg: string;
-      /** @default 0 */
-      node_col_offset?: number;
-      /** @default 0 */
-      node_lineno?: number;
-      /** @default null */
-      sql_col?: number | null;
-      /** @default null */
-      sql_line?: number | null;
-      sql_statement: string;
       /** @enum {unknown} */
       type: "sql-error";
     };
