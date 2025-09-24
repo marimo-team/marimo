@@ -339,7 +339,7 @@ class PreviewDataSourceConnectionRequest(msgspec.Struct, rename="camel"):
 
 
 class ValidateSQLRequest(msgspec.Struct, rename="camel"):
-    """Validate an SQL query"""
+    """Validate an SQL query against the engine"""
 
     request_id: RequestId
     engine: str
@@ -347,7 +347,7 @@ class ValidateSQLRequest(msgspec.Struct, rename="camel"):
 
 
 class ParseSQLRequest(msgspec.Struct, rename="camel"):
-    """Parse an SQL query"""
+    """Parse an SQL query for linting"""
 
     request_id: RequestId
     dialect: str

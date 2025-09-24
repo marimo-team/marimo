@@ -2353,6 +2353,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/sql/parse": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ParseSQLRequest"];
+        };
+      };
+      responses: {
+        /** @description Parse an SQL query */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ParseSQLResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/sql/validate": {
     parameters: {
       query?: never;
@@ -3922,6 +3961,19 @@ export interface components {
       error?: string | null;
       success: boolean;
     };
+    /**
+     * ParseSQLRequest
+     * @description Parse an SQL query for linting
+     */
+    ParseSQLRequest: {
+      dialect: string;
+      query: string;
+      requestId: string;
+    };
+    /** ParseSQLResponse */
+    ParseSQLResponse: {
+      response: string;
+    };
     /** PdbRequest */
     PdbRequest: {
       cellId: string;
@@ -4395,7 +4447,7 @@ export interface components {
     };
     /**
      * ValidateSQLRequest
-     * @description Validate an SQL query
+     * @description Validate an SQL query against the engine
      */
     ValidateSQLRequest: {
       engine: string;

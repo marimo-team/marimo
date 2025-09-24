@@ -2388,6 +2388,29 @@ components:
       - success
       title: PackageOperationResponse
       type: object
+    ParseSQLRequest:
+      description: Parse an SQL query for linting
+      properties:
+        dialect:
+          type: string
+        query:
+          type: string
+        requestId:
+          type: string
+      required:
+      - requestId
+      - dialect
+      - query
+      title: ParseSQLRequest
+      type: object
+    ParseSQLResponse:
+      properties:
+        response:
+          type: string
+      required:
+      - response
+      title: ParseSQLResponse
+      type: object
     PdbRequest:
       properties:
         cellId:
@@ -3286,7 +3309,7 @@ components:
       title: UpdateComponentValuesRequest
       type: object
     ValidateSQLRequest:
-      description: Validate an SQL query
+      description: Validate an SQL query against the engine
       properties:
         engine:
           type: string
