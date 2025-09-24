@@ -52,8 +52,7 @@ initial_status: RuntimeStateType = "running"
 updated_status: RuntimeStateType = "running"
 
 
-def test_cell_ids() -> None:
-    session_view = SessionView()
+def test_cell_ids(session_view: SessionView) -> None:
     assert session_view.cell_ids is None
 
     session_view.add_operation(
@@ -66,9 +65,7 @@ def test_cell_ids() -> None:
     assert operation.cell_ids == [cell_id]
 
 
-def test_session_view_cell_op() -> None:
-    session_view = SessionView()
-
+def test_session_view_cell_op(session_view: SessionView) -> None:
     # Create initial CellOp
     initial_cell_op = CellOp(
         cell_id=cell_id, output=initial_output, status=initial_status
@@ -86,9 +83,7 @@ def test_session_view_cell_op() -> None:
 
 
 # Test adding Variables to SessionView
-def test_session_view_variables() -> None:
-    session_view = SessionView()
-
+def test_session_view_variables(session_view: SessionView) -> None:
     # Create Variables operation
     variables_op = Variables(
         variables=[
@@ -102,8 +97,7 @@ def test_session_view_variables() -> None:
 
 
 # Test adding VariableValues to SessionView
-def test_session_view_variable_values() -> None:
-    session_view = SessionView()
+def test_session_view_variable_values(session_view: SessionView) -> None:
     # Create Variables operation
     variables_op = Variables(
         variables=[
@@ -147,8 +141,7 @@ def test_session_view_variable_values() -> None:
     assert list(variables_names) == ["var2"]
 
 
-def test_ui_values() -> None:
-    session_view = SessionView()
+def test_ui_values(session_view: SessionView) -> None:
     session_view.add_control_request(
         SetUIElementValueRequest.from_ids_and_values([("test_ui", 123)])
     )
@@ -180,8 +173,7 @@ def test_ui_values() -> None:
     assert "test_ui3" in session_view.ui_values
 
 
-def test_model_message_values() -> None:
-    session_view = SessionView()
+def test_model_message_values(session_view: SessionView) -> None:
     model_id = WidgetModelId("test_model")
     model_id2 = WidgetModelId("test_model2")
 
@@ -222,8 +214,7 @@ def test_model_message_values() -> None:
     }
 
 
-def test_last_run_code() -> None:
-    session_view = SessionView()
+def test_last_run_code(session_view: SessionView) -> None:
     session_view.add_control_request(
         ExecuteMultipleRequest(
             cell_ids=[cell_id],
@@ -265,9 +256,7 @@ def test_serialize_parse_variable_value() -> None:
     assert parsed == original
 
 
-def test_add_variables() -> None:
-    session_view = SessionView()
-
+def test_add_variables(session_view: SessionView) -> None:
     session_view.add_raw_operation(
         serialize_kernel_message(
             Variables(
@@ -301,9 +290,7 @@ def test_add_variables() -> None:
     assert session_view.variable_values["var2"].datatype == "str"
 
 
-def test_add_datasets() -> None:
-    session_view = SessionView()
-
+def test_add_datasets(session_view: SessionView) -> None:
     session_view.add_raw_operation(
         serialize_kernel_message(
             Datasets(
@@ -412,8 +399,7 @@ def test_add_datasets() -> None:
     assert session_view.datasets.tables[0].name == "table2"
 
 
-def test_add_datasets_clear_channel() -> None:
-    session_view = SessionView()
+def test_add_datasets_clear_channel(session_view: SessionView) -> None:
     session_view.add_raw_operation(
         serialize_kernel_message(
             Datasets(
@@ -473,9 +459,7 @@ def test_add_datasets_clear_channel() -> None:
     assert "db.table2" in names
 
 
-def test_add_data_source_connections() -> None:
-    session_view = SessionView()
-
+def test_add_data_source_connections(session_view: SessionView) -> None:
     # Add initial connections
     session_view.add_raw_operation(
         serialize_kernel_message(
@@ -574,8 +558,7 @@ def test_add_data_source_connections() -> None:
     assert INTERNAL_DUCKDB_ENGINE in session_view_names
 
 
-def test_add_cell_op() -> None:
-    session_view = SessionView()
+def test_add_cell_op(session_view: SessionView) -> None:
     session_view.add_raw_operation(
         serialize_kernel_message(
             CellOp(
@@ -590,9 +573,10 @@ def test_add_cell_op() -> None:
 
 # patch time
 @patch("time.time", return_value=123)
-def test_combine_console_outputs(time_mock: Any) -> None:
+def test_combine_console_outputs(
+    time_mock: Any, session_view: SessionView
+) -> None:
     del time_mock
-    session_view = SessionView()
     session_view.add_operation(
         CellOp(
             cell_id=cell_id,
@@ -651,9 +635,8 @@ def test_combine_console_outputs(time_mock: Any) -> None:
 
 
 @patch("time.time", return_value=123)
-def test_stdin(time_mock: Any) -> None:
+def test_stdin(time_mock: Any, session_view: SessionView) -> None:
     del time_mock
-    session_view = SessionView()
     session_view.add_operation(
         CellOp(
             cell_id=cell_id,
@@ -683,10 +666,9 @@ def test_stdin(time_mock: Any) -> None:
 
 
 @patch("time.time", return_value=123)
-def test_get_cell_outputs(time_mock: Any) -> None:
+def test_get_cell_outputs(time_mock: Any, session_view: SessionView) -> None:
     del time_mock
     cell_2_id = "cell_2"
-    session_view = SessionView()
     session_view.add_operation(
         CellOp(
             cell_id=cell_id,
@@ -731,10 +713,11 @@ def test_get_cell_outputs(time_mock: Any) -> None:
 
 
 @patch("time.time", return_value=123)
-def test_get_cell_console_outputs(time_mock: Any) -> None:
+def test_get_cell_console_outputs(
+    time_mock: Any, session_view: SessionView
+) -> None:
     del time_mock
     cell_2_id = "cell_2"
-    session_view = SessionView()
     session_view.add_operation(
         CellOp(
             cell_id=cell_id,
@@ -778,8 +761,7 @@ def test_get_cell_console_outputs(time_mock: Any) -> None:
     }
 
 
-def test_mark_auto_export():
-    session_view = SessionView()
+def test_mark_auto_export(session_view: SessionView):
     assert session_view.needs_export("html")
     assert session_view.needs_export("md")
 
@@ -812,9 +794,8 @@ def test_mark_auto_export():
     assert session_view.needs_export("session")
 
 
-def test_stale_code() -> None:
+def test_stale_code(session_view: SessionView) -> None:
     """Test that stale code is properly tracked and included in operations."""
-    session_view = SessionView()
     assert session_view.stale_code is None
 
     # Add stale code operation
@@ -855,9 +836,9 @@ def test_stale_code() -> None:
     assert stale_code_op not in session_view.operations
 
 
-def test_dataset_filter_by_engine_and_variable() -> None:
-    session_view = SessionView()
-
+def test_dataset_filter_by_engine_and_variable(
+    session_view: SessionView,
+) -> None:
     # Initially add three tables: one with an engine, one with a variable name, and one with neither
     session_view.add_raw_operation(
         serialize_kernel_message(
@@ -936,9 +917,8 @@ def test_dataset_filter_by_engine_and_variable() -> None:
     assert table_names == ["table_none"]
 
 
-def test_is_empty() -> None:
+def test_is_empty(session_view: SessionView) -> None:
     """Test that SessionView.is_empty() correctly detects empty session views."""
-    session_view = SessionView()
 
     # Initially empty
     assert session_view.is_empty()
@@ -963,8 +943,8 @@ def test_is_empty() -> None:
     # No longer empty
     assert not session_view.is_empty()
 
-    # Clear operations by creating a new session view
-    session_view = SessionView()
+
+def test_is_empty_multiple_operations(session_view: SessionView) -> None:
     assert session_view.is_empty()
 
     # Add multiple operations - should still not be empty
@@ -985,9 +965,7 @@ def test_is_empty() -> None:
     assert not session_view.is_empty()
 
 
-def test_session_view_startup_logs() -> None:
-    session_view = SessionView()
-
+def test_session_view_startup_logs(session_view: SessionView) -> None:
     # Test adding a startup log with "start" status
     start_log = StartupLogs(content="Starting process...", status="start")
     session_view.add_operation(start_log)
@@ -1018,9 +996,9 @@ def test_session_view_startup_logs() -> None:
     assert session_view.startup_logs.status == "done"
 
 
-def test_session_view_startup_logs_operations_exclude_done() -> None:
-    session_view = SessionView()
-
+def test_session_view_startup_logs_operations_exclude_done(
+    session_view: SessionView,
+) -> None:
     # Add startup log in progress
     start_log = StartupLogs(content="Starting...", status="start")
     session_view.add_operation(start_log)
@@ -1041,9 +1019,9 @@ def test_session_view_startup_logs_operations_exclude_done() -> None:
     assert len(startup_ops) == 0
 
 
-def test_session_view_startup_logs_standalone_done() -> None:
-    session_view = SessionView()
-
+def test_session_view_startup_logs_standalone_done(
+    session_view: SessionView,
+) -> None:
     # Add a standalone "done" log without prior start/append
     done_log = StartupLogs(content="Process complete", status="done")
     session_view.add_operation(done_log)
@@ -1053,17 +1031,17 @@ def test_session_view_startup_logs_standalone_done() -> None:
     assert session_view.startup_logs.status == "done"
 
 
-def test_session_view_package_logs_initialization() -> None:
+def test_session_view_package_logs_initialization(
+    session_view: SessionView,
+) -> None:
     """Test that SessionView initializes package_logs correctly."""
-    session_view = SessionView()
     assert hasattr(session_view, "package_logs")
     assert isinstance(session_view.package_logs, dict)
     assert len(session_view.package_logs) == 0
 
 
-def test_session_view_package_logs_start() -> None:
+def test_session_view_package_logs_start(session_view: SessionView) -> None:
     """Test SessionView handles package logs start status."""
-    session_view = SessionView()
 
     alert = InstallingPackageAlert(
         packages={"numpy": "installing"},
@@ -1077,9 +1055,8 @@ def test_session_view_package_logs_start() -> None:
     assert session_view.package_logs["numpy"] == "Installing numpy...\n"
 
 
-def test_session_view_package_logs_append() -> None:
+def test_session_view_package_logs_append(session_view: SessionView) -> None:
     """Test SessionView handles package logs append status."""
-    session_view = SessionView()
 
     # Start with initial log
     start_alert = InstallingPackageAlert(
@@ -1103,9 +1080,8 @@ def test_session_view_package_logs_append() -> None:
     assert session_view.package_logs["pandas"] == expected_content
 
 
-def test_session_view_package_logs_done() -> None:
+def test_session_view_package_logs_done(session_view: SessionView) -> None:
     """Test SessionView handles package logs done status."""
-    session_view = SessionView()
 
     # Start installation
     start_alert = InstallingPackageAlert(
@@ -1139,9 +1115,10 @@ def test_session_view_package_logs_done() -> None:
     assert session_view.package_logs["scipy"] == expected_content
 
 
-def test_session_view_package_logs_multiple_packages() -> None:
+def test_session_view_package_logs_multiple_packages(
+    session_view: SessionView,
+) -> None:
     """Test SessionView handles logs for multiple packages simultaneously."""
-    session_view = SessionView()
 
     # Start installing multiple packages
     multi_alert = InstallingPackageAlert(
@@ -1182,9 +1159,10 @@ def test_session_view_package_logs_multiple_packages() -> None:
     )
 
 
-def test_session_view_package_logs_without_logs() -> None:
+def test_session_view_package_logs_without_logs(
+    session_view: SessionView,
+) -> None:
     """Test SessionView handles InstallingPackageAlert without logs (backward compatibility)."""
-    session_view = SessionView()
 
     # Old-style alert without logs
     alert = InstallingPackageAlert(packages={"requests": "installing"})
@@ -1194,9 +1172,10 @@ def test_session_view_package_logs_without_logs() -> None:
     assert len(session_view.package_logs) == 0
 
 
-def test_session_view_package_logs_partial_logs() -> None:
+def test_session_view_package_logs_partial_logs(
+    session_view: SessionView,
+) -> None:
     """Test SessionView handles alerts with logs but no log_status."""
-    session_view = SessionView()
 
     # Alert with logs but no log_status
     alert = InstallingPackageAlert(
@@ -1210,9 +1189,10 @@ def test_session_view_package_logs_partial_logs() -> None:
     assert len(session_view.package_logs) == 0
 
 
-def test_session_view_package_logs_start_without_existing() -> None:
+def test_session_view_package_logs_start_without_existing(
+    session_view: SessionView,
+) -> None:
     """Test package logs start status on package that doesn't exist yet."""
-    session_view = SessionView()
 
     alert = InstallingPackageAlert(
         packages={"new_package": "installing"},
@@ -1227,9 +1207,10 @@ def test_session_view_package_logs_start_without_existing() -> None:
     )
 
 
-def test_session_view_package_logs_append_without_existing() -> None:
+def test_session_view_package_logs_append_without_existing(
+    session_view: SessionView,
+) -> None:
     """Test package logs append status on package that doesn't exist yet."""
-    session_view = SessionView()
 
     # Append to non-existing package should start with empty string
     alert = InstallingPackageAlert(
@@ -1245,9 +1226,10 @@ def test_session_view_package_logs_append_without_existing() -> None:
     )
 
 
-def test_session_view_package_logs_empty_content() -> None:
+def test_session_view_package_logs_empty_content(
+    session_view: SessionView,
+) -> None:
     """Test SessionView handles empty log content."""
-    session_view = SessionView()
 
     alert = InstallingPackageAlert(
         packages={"empty_logs": "installing"},

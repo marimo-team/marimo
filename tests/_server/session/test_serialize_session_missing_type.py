@@ -4,9 +4,11 @@ from marimo._server.session.serialize import serialize_session_view
 from marimo._server.session.session_view import SessionView
 
 
-def test_serialize_session_with_dict_error_missing_type():
+def test_serialize_session_with_dict_error_missing_type(
+    session_view: SessionView,
+):
     """Test serialization of a session with a dictionary error missing the type key"""
-    view = SessionView()
+    view = session_view
     view.cell_operations["cell1"] = CellOp(
         cell_id="cell1",
         status="idle",

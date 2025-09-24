@@ -20,6 +20,7 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
 from marimo._runtime.requests import PreviewDatasetColumnRequest
 from marimo._utils.platform import is_windows
 from tests.mocks import snapshotter
+from tests.utils import assert_serialize_roundtrip
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -84,6 +85,7 @@ def test_get_column_preview_for_dataframe() -> None:
         assert result.chart_spec is not None
         assert result.stats is not None
         assert result.error is None
+        assert_serialize_roundtrip(result)
 
 
 @pytest.mark.skipif(
@@ -148,6 +150,8 @@ def test_get_column_preview(column_name: str, snapshot_prefix: str) -> None:
         # Verify vegafusion was checked
         mock_dm.vegafusion.has.assert_called_once()
 
+        assert_serialize_roundtrip(result)
+
     result_with_vegafusion = get_column_preview_dataset(
         table=get_table_manager(df),
         table_name="table",
@@ -168,6 +172,7 @@ def test_get_column_preview(column_name: str, snapshot_prefix: str) -> None:
         )
     assert result_with_vegafusion.chart_code == result.chart_code
     assert result_with_vegafusion.chart_spec != result.chart_spec
+    assert_serialize_roundtrip(result_with_vegafusion)
 
 
 @pytest.mark.skipif(
@@ -194,6 +199,7 @@ def test_get_column_preview_for_duckdb() -> None:
     assert result is not None
     assert result.stats is not None
     assert result.error is None
+    assert_serialize_roundtrip(result)
 
     # Check if summary contains expected statistics for the alternating pattern
     assert result.stats.total == 100
@@ -210,6 +216,8 @@ def test_get_column_preview_for_duckdb() -> None:
     assert result_id.stats is not None
     assert result_id.error is None
     assert result_id.chart_spec is not None
+
+    assert_serialize_roundtrip(result_id)
 
     # Not implemented yet
     assert result.chart_code is None
@@ -243,6 +251,7 @@ def test_get_column_preview_for_duckdb_categorical() -> None:
     assert result_categorical is not None
     assert result_categorical.stats is not None
     assert result_categorical.error is None
+    assert_serialize_roundtrip(result_categorical)
 
     # Check if summary contains expected statistics for the categorical pattern
     assert result_categorical.stats.total == 100
@@ -292,6 +301,7 @@ def test_get_column_preview_for_duckdb_date() -> None:
     assert result_date is not None
     assert result_date.stats is not None
     assert result_date.error is None
+    assert_serialize_roundtrip(result_date)
 
     # Check if summary contains expected statistics for the date pattern
     assert result_date.stats.total == 100
@@ -343,6 +353,7 @@ def test_get_column_preview_for_duckdb_datetime() -> None:
     assert result_datetime is not None
     assert result_datetime.stats is not None
     assert result_datetime.error is None
+    assert_serialize_roundtrip(result_datetime)
 
     # Check if summary contains expected statistics for the datetime pattern
     assert result_datetime.stats.total == 100
@@ -393,6 +404,7 @@ def test_get_column_preview_for_duckdb_time() -> None:
     assert result_time is not None
     assert result_time.stats is not None
     assert result_time.error is None
+    assert_serialize_roundtrip(result_time)
 
     # Check if summary contains expected statistics for the time pattern
     assert result_time.stats.total == 100
@@ -429,6 +441,7 @@ def test_get_column_preview_for_duckdb_bool() -> None:
     assert result_bool is not None
     assert result_bool.stats is not None
     assert result_bool.error is None
+    assert_serialize_roundtrip(result_bool)
 
     # Check if summary contains expected statistics for the boolean pattern
     assert result_bool.stats.total == 100
@@ -477,6 +490,7 @@ def test_get_column_preview_for_duckdb_over_limit() -> None:
     )
     assert result.missing_packages == ["vegafusion", "vl_convert_python"]
     assert result.chart_spec is None
+    assert_serialize_roundtrip(result)
 
     # Not implemented yet
     assert result.chart_code is None
@@ -499,7 +513,6 @@ def test_sanitize_dtypes() -> None:
     # Sanitize the dtypes
     result = _sanitize_data(nw_df, "cat_col")
     assert result.collect_schema()["cat_col"] == nw.String
-
     result = _sanitize_data(nw_df, "int128_col")
     assert result.collect_schema()["int128_col"] == nw.Int64
 
@@ -555,6 +568,9 @@ def test_preview_column_duration_dtype() -> None:
             table_name="table",
             column_name=column_name,
         )
-    assert result is not None
-    assert result.chart_code is not None
-    assert result.chart_spec is not None
+
+        assert result is not None
+        assert result.chart_code is not None
+        assert result.chart_spec is not None
+
+        assert_serialize_roundtrip(result)

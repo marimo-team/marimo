@@ -33,7 +33,7 @@ class CellOutput(msgspec.Struct):
     # descriptive name about the kind of output: e.g., stdout, stderr, ...
     channel: CellChannel
     mimetype: KnownMimeType
-    data: Union[str, list[Error], dict[str, Any]]
+    data: Union[str, list[Error], dict[str, Any], Any]
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __repr__(self) -> str:

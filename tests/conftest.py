@@ -74,6 +74,8 @@ class _MockStream(ThreadSafeStream):
 
     def write(self, data: KernelMessage) -> None:
         self.messages.append(data)
+        # Attempt to deserialize the message to ensure it is valid
+        deserialize_kernel_message(data)
 
     @property
     def operations(self) -> list[MessageOperation]:
