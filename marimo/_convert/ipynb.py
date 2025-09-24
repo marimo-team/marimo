@@ -11,7 +11,7 @@ from typing import Any, Callable, Union
 
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
-from marimo._ast.transformers import NameTransformer
+from marimo._ast.transformers import NameTransformer, RemoveImportTransformer
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
 from marimo._convert.utils import markdown_to_marimo
@@ -651,20 +651,22 @@ def transform_remove_duplicate_imports(sources: list[str]) -> list[str]:
     imports: set[str] = set()
     new_sources: list[str] = []
     for source in sources:
-        new_lines: list[str] = []
-        for line in source.split("\n"):
-            stripped_line = line.strip()
-            if stripped_line.startswith("import ") or stripped_line.startswith(
-                "from "
-            ):
-                if stripped_line not in imports:
-                    imports.add(stripped_line)
-                    new_lines.append(line)
-            else:
-                new_lines.append(line)
-
-        new_source = "\n".join(new_lines)
-        new_sources.append(new_source.strip())
+        try:
+            cell = compile_cell(source, cell_id=CellId_t("temp"))
+        except SyntaxError:
+            new_sources.append(source)
+            continue
+        scoped = set()
+        for var, instances in cell.variable_data.items():
+            for instance in instances:
+                if (var in imports or var in scoped) and instance.kind == "import":
+                    # If it's not in global imports, we keep one instance
+                    keep_one = var not in imports
+                    transformer = RemoveImportTransformer(var, keep_one=keep_one)
+                    source = transformer.strip_imports(source)
+                scoped.add(var)
+        imports.update(scoped)
+        new_sources.append(source)
 
     return new_sources
 
@@ -722,11 +724,11 @@ def _transform_sources(
         transform_strip_whitespace,
         transform_magic_commands,
         transform_exclamation_mark,
-        transform_remove_duplicate_imports,
     ]
 
     # Define transforms that should preserve comments
     comment_preserving_transforms = [
+        transform_remove_duplicate_imports,
         transform_fixup_multiple_definitions,
         transform_duplicate_definitions,
     ]

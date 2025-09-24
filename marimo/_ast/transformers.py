@@ -190,9 +190,20 @@ class RemoveImportTransformer(ast.NodeTransformer):
     To prevent module collisions in top level definitions.
     """
 
-    def __init__(self, import_name: str) -> None:
+    def __init__(self, import_name: str, keep_one:bool=False) -> None:
         super().__init__()
+        self.keep_one = keep_one
         self.import_name = import_name
+
+    def _return_once(self, node: ast.Import | ast.ImportFrom, original_names:
+                     list[ast.alias]) -> Optional[ast.Import | ast.ImportFrom]:
+        if node.names:
+            return node
+        elif self.keep_one:
+            self.keep_one = False
+            node.names = original_names
+            return node
+        return None
 
     def strip_imports(self, code: str) -> str:
         tree = ast_parse(code)
@@ -201,25 +212,27 @@ class RemoveImportTransformer(ast.NodeTransformer):
 
     def visit_Import(self, node: ast.Import) -> Optional[ast.Import]:
         name = self.import_name
+        original_names = list(node.names)
         node.names = [
             alias
             for alias in node.names
             if (alias.asname and alias.asname != name)
             or (not alias.asname and alias.name != name)
         ]
-        return node if node.names else None
+        return self._return_once(node, original_names)
 
     def visit_ImportFrom(
         self, node: ast.ImportFrom
     ) -> Optional[ast.ImportFrom]:
         name = self.import_name
+        original_names = list(node.names)
         node.names = [
             alias
             for alias in node.names
             if (alias.asname and alias.asname != name)
             or (not alias.asname and alias.name != name)
         ]
-        return node if node.names else None
+        return self._return_once(node, original_names)
 
 
 class ExtractWithBlock(ast.NodeTransformer):

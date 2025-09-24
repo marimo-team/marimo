@@ -423,7 +423,7 @@ def test_transform_remove_duplicate_imports_complex():
     assert result == [
         "import numpy as np\nfrom pandas import DataFrame\nimport matplotlib.pyplot as plt",  # noqa: E501
         "from sklearn.model_selection import train_test_split, cross_val_score",  # noqa: E501
-        "from pandas import Series\nfrom matplotlib import pyplot as plt\nimport pandas as pd",  # noqa: E501
+        "from pandas import Series\nimport pandas as pd",  # noqa: E501
     ]
 
 
@@ -505,7 +505,7 @@ def test_transform_remove_duplicate_imports_with_aliases():
     assert result == [
         "import numpy as np\nimport pandas as pd",
         "import numpy as numpy\nfrom pandas import DataFrame as DF",
-        "import numpy\nfrom pandas import Series",
+        "from pandas import Series",
     ]
 
 

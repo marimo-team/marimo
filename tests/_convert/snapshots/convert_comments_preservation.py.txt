@@ -57,15 +57,16 @@ def _():
     import numpy as np  # Import numpy
     import pandas as pd  # Import pandas
     # These imports might be duplicated elsewhere
-    return
+    return (np,)
 
 
 @app.cell
-def _():
+def _(np):
     # Cell 7: Duplicate import with different comment
-    import numpy as np  # Import numpy again with different comment
+    # This should be deduplicated but preserve one of the comments  # Import numpy again with different comment
     # This should be deduplicated but preserve one of the comments
-    arr = _np.array([1, 2, 3])  # Create array
+    # Create array
+    arr = np.array([1, 2, 3])  # Import numpy again with different comment  # Create array
     return
 
 
