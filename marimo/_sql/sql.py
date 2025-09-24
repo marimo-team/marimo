@@ -109,7 +109,7 @@ def sql(
             )
 
             # Raise MarimoSQLException with structured hint data
-            # NB. raising _from_ creates a noiser stack trace, but preserves
+            # NB. raising _from_ creates a noisier stack trace, but preserves
             # the original exception context for debugging.
             raise MarimoSQLException(
                 message=clean_message,
