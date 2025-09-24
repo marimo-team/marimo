@@ -1,6 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { InfoIcon, NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import {
+  InfoIcon,
+  NotebookPenIcon,
+  SquareArrowOutUpRightIcon,
+} from "lucide-react";
 import { Fragment, type JSX } from "react";
 import {
   Accordion,
@@ -129,7 +133,8 @@ export const MarimoErrorOutput = ({
     (e): e is Extract<MarimoError, { type: "unknown" }> => e.type === "unknown",
   );
   const sqlErrors = errors.filter(
-    (e): e is Extract<MarimoError, { type: "sql-error" }> => e.type === "sql-error",
+    (e): e is Extract<MarimoError, { type: "sql-error" }> =>
+      e.type === "sql-error",
   );
 
   const openScratchpad = () => {
@@ -499,12 +504,16 @@ export const MarimoErrorOutput = ({
               {error.hint && (
                 <div className="flex items-start gap-2">
                   <InfoIcon className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <pre className="whitespace-pre-wrap text-sm text-muted-foreground">{error.hint}</pre>
+                  <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
+                    {error.hint}
+                  </pre>
                 </div>
               )}
               {error.sql_statement && (
                 <div className="bg-muted/50 p-2 rounded text-xs font-mono">
-                  <pre className="whitespace-pre-wrap">{error.sql_statement}</pre>
+                  <pre className="whitespace-pre-wrap">
+                    {error.sql_statement}
+                  </pre>
                 </div>
               )}
               {error.sql_line !== null && error.sql_col !== null && (
