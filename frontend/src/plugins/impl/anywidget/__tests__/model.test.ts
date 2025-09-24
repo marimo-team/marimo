@@ -245,7 +245,7 @@ describe("Model", () => {
         content,
       });
 
-      expect(callback).toHaveBeenCalledWith(content, undefined);
+      expect(callback).toHaveBeenCalledWith(content, []);
     });
 
     it("should handle custom messages with buffers", () => {
@@ -352,7 +352,7 @@ describe("ModelManager", () => {
       message: { method: "custom", content: { count: 1 } },
       buffers: [],
     });
-    expect(callback).toHaveBeenCalledWith({ count: 1 }, undefined);
+    expect(callback).toHaveBeenCalledWith({ count: 1 }, []);
   });
 
   it("should handle close messages", async () => {
