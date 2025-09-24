@@ -48,7 +48,11 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
-from marimo._plugins.ui._impl.utils.dataframe import ListOrTuple, TableData
+from marimo._plugins.ui._impl.utils.dataframe import (
+    ListOrTuple,
+    TableData,
+    download_as,
+)
 from marimo._plugins.validators import (
     validate_no_integer_columns,
     validate_page_size,
@@ -806,17 +810,9 @@ class table(
 
         # Remove the selection column before downloading
         if isinstance(manager_candidate, TableManager):
-            manager = manager_candidate.drop_columns([INDEX_COLUMN_NAME])
-
-            ext = args.format
-            if ext == "csv":
-                return mo_data.csv(manager.to_csv()).url
-            elif ext == "json":
-                return mo_data.json(manager.to_json()).url
-            elif ext == "parquet":
-                return mo_data.parquet(manager.to_parquet()).url
-            else:
-                raise ValueError("format must be one of 'csv' or 'json'.")
+            return download_as(
+                manager_candidate, args.format, drop_marimo_index=True
+            )
         else:
             raise NotImplementedError(
                 "Download is not supported for this table format."

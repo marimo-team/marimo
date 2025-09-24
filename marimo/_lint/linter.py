@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import asyncio
 import re
+from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
@@ -17,7 +18,7 @@ from marimo._loggers import capture_output
 from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable
+    from collections.abc import AsyncIterator, Callable, Iterator
 
     from marimo._lint.rules.base import LintRule
 
@@ -38,6 +39,20 @@ def _contents_differ_excluding_generated_with(
     gen_cleaned = re.sub(pattern, "", generated, flags=re.MULTILINE).strip()
 
     return orig_cleaned != gen_cleaned
+
+
+async def _to_async_iterator(
+    files_to_check: Union[AsyncIterator[Path], Iterator[Path]],
+) -> AsyncIterator[Path]:
+    """Convert a regular iterator to an async iterator if needed."""
+    if hasattr(files_to_check, "__aiter__"):
+        # Already an async iterator
+        async for file_path in files_to_check:
+            yield file_path
+    else:
+        # Convert regular iterator to async
+        for file_path in files_to_check:
+            yield file_path
 
 
 @dataclass
@@ -91,105 +106,110 @@ class Linter:
         self.fixed_count: int = 0
         self.issues_count: int = 0
 
+    async def _process_single_file(self, file: Path) -> FileStatus:
+        """Process a single file and return its status."""
+        file_path = str(file)
+        file_status = FileStatus(file=file_path)
+        # Check if file exists first
+        if not file.exists():
+            self.errored = True
+            file_status.failed = True
+            file_status.message = f"File not found: {file_path}"
+            file_status.details = [
+                f"FileNotFoundError: No such file or directory: '{file_path}'"
+            ]
+            return file_status
+
+        # Check if file is a supported notebook format
+        if not file_path.endswith((".py", ".md", ".qmd")):
+            file_status.skipped = True
+            file_status.message = f"Skipped: {file_path} (not a notebook file)"
+            return file_status
+
+        try:
+            with capture_output() as (stdout, stderr, logs):
+                load_result = get_notebook_status(file_path)
+        except SyntaxError as e:
+            # Handle syntax errors in notebooks
+            self.errored = True
+            file_status.failed = True
+            file_status.message = f"Failed to parse: {file_path}"
+            file_status.details = [f"SyntaxError: {str(e)}"]
+            return file_status
+        except MarimoFileError as e:
+            # Handle syntax errors in notebooks
+            if self.ignore_scripts:
+                # Skip this file silently when ignore_scripts is enabled
+                file_status.skipped = True
+                file_status.message = (
+                    f"Skipped: {file_path} (not a marimo notebook)"
+                )
+                return file_status
+            else:
+                self.errored = True
+                file_status.failed = True
+                file_status.message = (
+                    f"Not recognizable as a marimo notebook: {file_path}"
+                )
+                file_status.details = [f"MarimoFileError: {str(e)}"]
+                return file_status
+
+        file_status.notebook = load_result.notebook
+        file_status.contents = load_result.contents
+
+        if load_result.status == "empty":
+            file_status.skipped = True
+            file_status.message = f"Skipped: {file_path} (empty file)"
+        elif load_result.status == "invalid":
+            if self.ignore_scripts:
+                # Skip this file silently when ignore_scripts is enabled
+                file_status.skipped = True
+                file_status.message = (
+                    f"Skipped: {file_path} (not a marimo notebook)"
+                )
+                return file_status
+            else:
+                file_status.failed = True
+                file_status.message = (
+                    f"Failed to parse: {file_path} (not a valid notebook)"
+                )
+        elif load_result.notebook is not None:
+            try:
+                # Check notebook with all rules including parsing
+                file_status.diagnostics = (
+                    await self.rule_engine.check_notebook(
+                        load_result.notebook,
+                        # Add parsing rule if there's captured output
+                        stdout=stdout.getvalue().strip(),
+                        stderr=stderr.getvalue().strip(),
+                        logs=logs,
+                    )
+                )
+            except Exception as e:
+                # Handle other parsing errors
+                self.errored = True
+                file_status.failed = True
+                file_status.message = f"Failed to process {file_path}"
+                file_status.details = [str(e)]
+        else:
+            # Status is valid but no notebook - shouldn't happen but handle gracefully
+            file_status.skipped = True
+            file_status.message = f"Skipped: {file_path} (no notebook content)"
+
+        # Ensure diagnostics list is initialized for cases where no processing happened
+        if not hasattr(file_status, "diagnostics"):
+            file_status.diagnostics = []
+
+        return file_status
+
     async def _run_stream(
         self, files_to_check: list[Path]
     ) -> AsyncIterator[FileStatus]:
         """Asynchronously check files and yield results as they complete."""
 
         # Create tasks for all files
-        async def process_file(file: Path) -> FileStatus:
-            file_path = str(file)
-            file_status = FileStatus(file=file_path)
-
-            # Check if file is a supported notebook format
-            if not file_path.endswith((".py", ".md", ".qmd")):
-                file_status.skipped = True
-                file_status.message = (
-                    f"Skipped: {file_path} (not a notebook file)"
-                )
-                return file_status
-
-            try:
-                with capture_output() as (stdout, stderr, logs):
-                    load_result = get_notebook_status(file_path)
-            except SyntaxError as e:
-                # Handle syntax errors in notebooks
-                self.errored = True
-                file_status.failed = True
-                file_status.message = f"Failed to parse: {file_path}"
-                file_status.details = [f"SyntaxError: {str(e)}"]
-                return file_status
-            except MarimoFileError as e:
-                # Handle syntax errors in notebooks
-                if self.ignore_scripts:
-                    # Skip this file silently when ignore_scripts is enabled
-                    file_status.skipped = True
-                    file_status.message = (
-                        f"Skipped: {file_path} (not a marimo notebook)"
-                    )
-                    return file_status
-                else:
-                    self.errored = True
-                    file_status.failed = True
-                    file_status.message = (
-                        f"Not recognizable as a marimo notebook: {file_path}"
-                    )
-                    file_status.details = [f"MarimoFileError: {str(e)}"]
-                    return file_status
-
-            file_status.notebook = load_result.notebook
-            file_status.contents = load_result.contents
-
-            if load_result.status == "empty":
-                file_status.skipped = True
-                file_status.message = f"Skipped: {file_path} (empty file)"
-            elif load_result.status == "invalid":
-                if self.ignore_scripts:
-                    # Skip this file silently when ignore_scripts is enabled
-                    file_status.skipped = True
-                    file_status.message = (
-                        f"Skipped: {file_path} (not a marimo notebook)"
-                    )
-                    return file_status
-                else:
-                    file_status.failed = True
-                    file_status.message = (
-                        f"Failed to parse: {file_path} (not a valid notebook)"
-                    )
-            elif load_result.notebook is not None:
-                try:
-                    # Check notebook with all rules including parsing
-                    file_status.diagnostics = (
-                        await self.rule_engine.check_notebook(
-                            load_result.notebook,
-                            # Add parsing rule if there's captured output
-                            stdout=stdout.getvalue().strip(),
-                            stderr=stderr.getvalue().strip(),
-                            logs=logs,
-                        )
-                    )
-                except Exception as e:
-                    # Handle other parsing errors
-                    self.errored = True
-                    file_status.failed = True
-                    file_status.message = f"Failed to process {file_path}"
-                    file_status.details = [str(e)]
-            else:
-                # Status is valid but no notebook - shouldn't happen but handle gracefully
-                file_status.skipped = True
-                file_status.message = (
-                    f"Skipped: {file_path} (no notebook content)"
-                )
-
-            # Ensure diagnostics list is initialized for cases where no processing happened
-            if not hasattr(file_status, "diagnostics"):
-                file_status.diagnostics = []
-
-            return file_status
-
-        # Create tasks for all files
         tasks = [
-            asyncio.create_task(process_file(file_path))
+            asyncio.create_task(self._process_single_file(file_path))
             for file_path in files_to_check
         ]
 
@@ -254,15 +274,22 @@ class Linter:
             file_status.notebook, file_status.file
         )
 
-    def run_streaming(self, files_to_check: list[Path]) -> None:
+    def run_streaming(
+        self, files_to_check: Union[AsyncIterator[Path], Iterator[Path]]
+    ) -> None:
         """Run linting checks with real-time streaming output."""
         asyncio.run(self._run_streaming_async(files_to_check))
 
-    async def _run_streaming_async(self, files_to_check: list[Path]) -> None:
+    async def _run_streaming_async(
+        self, files_to_check: Union[AsyncIterator[Path], Iterator[Path]]
+    ) -> None:
         """Internal async implementation of run_streaming."""
         # Process files as they complete
         fixed_count = 0
-        async for file_status in self._run_stream(files_to_check):
+
+        # Convert to async iterator and process
+        async for file_path in _to_async_iterator(files_to_check):
+            file_status = await self._process_single_file(file_path)
             self.files.append(file_status)
 
             # Stream output via pipe if available
@@ -278,6 +305,7 @@ class Linter:
                     fixed_count += 1
                     if self.pipe:
                         self.pipe(f"Updated: {file_status.file}")
+
         self.fixed_count = fixed_count
 
     async def fix(self, file_status: FileStatus) -> bool:

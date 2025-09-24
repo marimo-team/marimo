@@ -4,6 +4,10 @@ import { isEqual } from "lodash-es";
 import { Code2Icon, DatabaseIcon, FunctionSquareIcon } from "lucide-react";
 import { type JSX, memo, useEffect, useRef, useState } from "react";
 import { z } from "zod";
+import {
+  type DownloadAsArgs,
+  DownloadAsSchema,
+} from "@/components/data-table/schemas";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 import { Spinner } from "@/components/icons/spinner";
@@ -68,7 +72,7 @@ type PluginFunctions = {
     data: TableData<T>;
     total_rows: number;
   }>;
-  download_as: (req: { format: "csv" | "json" | "parquet" }) => Promise<string>;
+  download_as: DownloadAsArgs;
 };
 
 // Value is selection, but it is not currently exposed to the user
@@ -127,13 +131,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
           total_rows: z.number(),
         }),
       ),
-    download_as: rpc
-      .input(
-        z.object({
-          format: z.enum(["csv", "json", "parquet"]),
-        }),
-      )
-      .output(z.string()),
+    download_as: DownloadAsSchema,
   })
   .renderer((props) => (
     <TableProviders>
@@ -152,7 +150,7 @@ interface DataTableProps extends Data, PluginFunctions {
   setValue: (value: S) => void;
   host: HTMLElement;
   showDownload: boolean;
-  download_as: (req: { format: "csv" | "json" | "parquet" }) => Promise<string>;
+  download_as: DownloadAsArgs;
 }
 
 const EMPTY: Transformations = {
