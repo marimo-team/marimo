@@ -16,6 +16,8 @@ from marimo._sql.sql import sql
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLGLOT = DependencyManager.sqlglot.has()
+HAS_PANDAS = DependencyManager.pandas.has()
+HAS_POLARS = DependencyManager.polars.has()
 
 
 class TestDuckDBRuntimeErrors:
@@ -67,7 +69,10 @@ class TestDuckDBRuntimeErrors:
             or "parser error" in str(error).lower()
         )
 
-    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+    @pytest.mark.skipif(
+        not HAS_DUCKDB or not (HAS_PANDAS or HAS_POLARS),
+        reason="DuckDB/Pandas not installed",
+    )
     def test_data_type_error(self):
         """Test data type conversion errors."""
         sql("CREATE OR REPLACE TABLE test_type_table (id INTEGER)")
