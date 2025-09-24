@@ -18,7 +18,7 @@ export const SqlValidationErrorBanner = ({
   }
 
   return (
-    <div className="p-3 text-sm flex flex-col text-muted-foreground gap-1.5 bg-destructive/5">
+    <div className="p-3 text-sm flex flex-col text-muted-foreground gap-1.5 bg-destructive/4">
       <div className="flex items-start gap-1.5">
         <AlertCircleIcon size={13} className="mt-[3px] text-destructive" />
         <p>
@@ -30,7 +30,7 @@ export const SqlValidationErrorBanner = ({
       {error.codeblock && (
         <pre
           lang="sql"
-          className="text-xs bg-muted rounded p-2 pb-0 mx-3 overflow-x-auto font-mono whitespace-pre-wrap"
+          className="text-xs bg-muted/80 rounded p-2 pb-0 mx-3 font-medium whitespace-pre-wrap"
         >
           {error.codeblock}
         </pre>
