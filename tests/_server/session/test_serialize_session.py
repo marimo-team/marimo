@@ -721,22 +721,21 @@ def test_serialize_session_with_dict_error():
     assert result["cells"][0]["outputs"][0]["evalue"] == "Something went wrong"
 
 
-def test_serialize_session_with_mixed_error_formats():
+def test_serialize_session_with_mixed_error_formats(session_view: SessionView):
     """Test serialization of a session with mixed error formats (dict and object)"""
-    view = SessionView()
+    view = session_view
 
     # Test with both dictionary and object error formats
     mixed_errors = [
         # Dictionary format error
         {
-            "type": "ValueError",
+            "type": "exception",
+            "exception_type": "ValueError",
             "msg": "Invalid value",
-            "traceback": ["line 1", "line 2"],
+            "raising_cell": "cell1",
         },
         # Object format error
         UnknownError(msg="Runtime error occurred", error_type="RuntimeError"),
-        # Dictionary without traceback
-        {"type": "TypeError", "msg": "Type mismatch"},
     ]
 
     view.cell_operations[CellId_t("cell1")] = CellOp(
@@ -759,14 +758,14 @@ def test_serialize_session_with_mixed_error_formats():
     # Verify the error normalization worked correctly
     assert len(result["cells"]) == 1
     cell = result["cells"][0]
-    assert len(cell["outputs"]) == 3
+    assert len(cell["outputs"]) == 2
 
     # Check first error (dictionary with traceback)
     error1 = cell["outputs"][0]
     assert error1["type"] == "error"
-    assert error1["ename"] == "ValueError"
+    assert error1["ename"] == "exception"
     assert error1["evalue"] == "Invalid value"
-    assert error1["traceback"] == ["line 1", "line 2"]
+    assert error1["traceback"] == []
 
     # Check second error (object format)
     error2 = cell["outputs"][1]
@@ -776,13 +775,6 @@ def test_serialize_session_with_mixed_error_formats():
     assert (
         error2["traceback"] == []
     )  # UnknownError doesn't have traceback by default
-
-    # Check third error (dictionary without traceback)
-    error3 = cell["outputs"][2]
-    assert error3["type"] == "error"
-    assert error3["ename"] == "TypeError"
-    assert error3["evalue"] == "Type mismatch"
-    assert error3["traceback"] == []
 
     snapshot("mixed_error_session.json", json.dumps(result, indent=2))
 

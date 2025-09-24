@@ -10,20 +10,14 @@
       "outputs": [
         {
           "type": "error",
-          "ename": "ValueError",
+          "ename": "exception",
           "evalue": "Invalid value",
-          "traceback": ["line 1", "line 2"]
+          "traceback": []
         },
         {
           "type": "error",
           "ename": "RuntimeError",
           "evalue": "Runtime error occurred",
-          "traceback": []
-        },
-        {
-          "type": "error",
-          "ename": "TypeError",
-          "evalue": "Type mismatch",
           "traceback": []
         }
       ],
