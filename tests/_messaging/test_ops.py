@@ -7,6 +7,7 @@ from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
 from marimo._messaging.ops import (
     CellOp,
     InstallingPackageAlert,
+    SendUIElementMessage,
     StartupLogs,
     VariableValue,
 )
@@ -99,3 +100,32 @@ def test_installing_package_alert_with_logs() -> None:
     assert alert.packages == packages
     assert alert.logs == logs
     assert alert.log_status == "start"
+
+
+def test_send_ui_element_message_broadcast() -> None:
+    """Test SendUIElementMessage broadcasting and serialization."""
+    stream = MockStream()
+
+    msg = SendUIElementMessage(
+        ui_element="test_element",
+        model_id=None,
+        message={"action": "update", "value": 42},
+        buffers=[b"buffer1", b"buffer2"],
+    )
+
+    msg.broadcast(stream=stream)
+
+    assert len(stream.messages) == 1
+
+    assert stream.operations[0] == {
+        "op": "send-ui-element-message",
+        "ui_element": "test_element",
+        "model_id": None,
+        "message": {"action": "update", "value": 42},
+        "buffers": [
+            "YnVmZmVyMQ==",
+            "YnVmZmVyMg==",
+        ],
+    }
+
+    assert stream.parsed_operations[0] == msg
