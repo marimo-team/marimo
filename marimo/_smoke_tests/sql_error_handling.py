@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.16.1"
+__generated_with = "0.16.0"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
@@ -400,8 +400,31 @@ def _(用户表):
 @app.cell(hide_code=True)
 def _():
     mo.md(
+        r"""
+    ## 10. Multiple Statements
+
+    Test sql cells with multiple queries
+    """
+    )
+    return
+
+
+@app.cell
+def _(users):
+    _df = mo.sql(
+        f"""
+        SELECT * FROM users;
+        SELECT names FROM users
         """
-    ## 10. Successful Query for Comparison
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(
+        """
+    ## 11. Successful Query for Comparison
 
     Here's a working query to show the contrast with error handling.
     """

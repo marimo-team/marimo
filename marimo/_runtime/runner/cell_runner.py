@@ -22,6 +22,7 @@ from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
     Error,
     MarimoExceptionRaisedError,
+    MarimoSQLError,
     MarimoStrictExecutionError,
     UnknownError,
 )
@@ -411,8 +412,12 @@ class Runner:
         elif unwrapped_exception is not None and is_sql_parse_error(
             unwrapped_exception
         ):
-            cell = self.graph.cells[cell_id]
-            output = create_sql_error_from_exception(unwrapped_exception, cell)
+            metadata = create_sql_error_from_exception(unwrapped_exception)
+            output = MarimoSQLError(
+                msg=metadata["message"],
+                error_type=metadata["error_type"],
+                codeblock=metadata["codeblock"],
+            )
             exception = output
         elif isinstance(unwrapped_exception, MarimoStopError):
             output = unwrapped_exception.output

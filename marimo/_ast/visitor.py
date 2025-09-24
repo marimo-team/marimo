@@ -674,9 +674,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         LOGGER.warning,
                         message=f"Unexpected duckdb error {e}",
                         exception=e,
-                        node=node,
                         rule_code="MF005",
-                        sql_content=sql,
                     )
                     self.generic_visit(node)
                     return node
@@ -693,9 +691,7 @@ class ScopedVisitor(ast.NodeVisitor):
                             LOGGER.warning,
                             message=f"Unexpected duckdb error {e}",
                             exception=e,
-                            node=node,
                             rule_code="MF005",
-                            sql_content=sql,
                             context="sql_defs_extraction",
                         )
                         sql_defs = SQLDefs()
@@ -742,9 +738,7 @@ class ScopedVisitor(ast.NodeVisitor):
                             LOGGER.error,
                             message=f"Error parsing SQL statement: {e}",
                             exception=e,
-                            node=first_arg,
                             rule_code="MF005",
-                            sql_content=statement.query,
                         )
 
                     for ref in sql_refs:

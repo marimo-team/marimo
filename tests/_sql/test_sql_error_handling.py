@@ -5,12 +5,11 @@ from __future__ import annotations
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.errors import MarimoSQLError
 from marimo._sql.error_utils import (
     MarimoSQLException,
-    create_sql_error_from_exception,
-    extract_sql_position,
+    exception_message_to_metadata,
     is_sql_parse_error,
+    split_error_message,
 )
 from marimo._sql.sql import sql
 
@@ -18,6 +17,56 @@ HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLGLOT = DependencyManager.sqlglot.has()
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_POLARS = DependencyManager.polars.has()
+
+
+class TestSplitErrorMessage:
+    def test_split_error_message(self):
+        assert split_error_message(
+            "Syntax error: SELECT * FROM nonexistent_table"
+        ) == ("Syntax error", "SELECT * FROM nonexistent_table")
+
+    def test_split_multiple_error_message(self):
+        assert split_error_message(
+            "Syntax error: SELECT * FROM nonexistent_table: Table with name pokemo does not exist!"
+        ) == (
+            "Syntax error",
+            "SELECT * FROM nonexistent_table: Table with name pokemo does not exist!",
+        )
+
+    def test_split_error_message_no_colon(self):
+        assert split_error_message(
+            "Syntax error SELECT * FROM nonexistent_table"
+        ) == (None, "Syntax error SELECT * FROM nonexistent_table")
+
+
+class TestExceptionMessageToMetadata:
+    def test_exception_message_to_metadata(self):
+        assert exception_message_to_metadata(
+            "Syntax error: SELECT * FROM nonexistent_table", "duckdb"
+        ) == ("SELECT * FROM nonexistent_table", "Syntax error", None)
+
+    def test_exception_message_with_line(self):
+        result = exception_message_to_metadata(
+            "Syntax error: SELECT * FROM nonexistent_table: LINE 1: SELECT * FROM nonexistent_table",
+            "duckdb",
+        )
+        assert result == (
+            "SELECT * FROM nonexistent_table:",
+            "Syntax error",
+            "LINE 1: SELECT * FROM nonexistent_table",
+        )
+
+        # Handle multi-line
+        result = exception_message_to_metadata(
+            """Syntax error: SELECT * FROM nonexistent_table
+        LINE 2: SELECT * FROM nonexistent_table""",
+            "duckdb",
+        )
+        assert result == (
+            "SELECT * FROM nonexistent_table",
+            "Syntax error",
+            "LINE 2: SELECT * FROM nonexistent_table",
+        )
 
 
 class TestDuckDBRuntimeErrors:
@@ -32,7 +81,9 @@ class TestDuckDBRuntimeErrors:
         error = exc_info.value
         assert "nonexistent_table" in str(error).lower()
         assert "does not exist" in str(error).lower()
-        assert error.sql_statement == "SELECT * FROM nonexistent_table"
+        assert (  # pyright: ignore[reportOperatorIssue]
+            "LINE 1: SELECT * FROM nonexistent_table" in error.codeblock
+        )
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
     def test_column_not_found_error(self):
@@ -45,7 +96,10 @@ class TestDuckDBRuntimeErrors:
 
         error = exc_info.value
         assert "invalid_column" in str(error)
-        assert "test_error_table" in error.sql_statement
+        assert (  # pyright: ignore[reportOperatorIssue]
+            "LINE 1: SELECT invalid_column FROM test_error_table"
+            in error.codeblock
+        )
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
     def test_syntax_error_missing_from(self):
@@ -55,7 +109,6 @@ class TestDuckDBRuntimeErrors:
 
         error = exc_info.value
         assert "syntax error" in str(error).lower()
-        assert "SELECT * FRM test_table" in error.sql_statement
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
     def test_syntax_error_malformed_expression(self):
@@ -84,24 +137,6 @@ class TestDuckDBRuntimeErrors:
         error = exc_info.value
         # Error message varies by DuckDB version, just ensure we caught it
         assert len(str(error)) > 0
-
-    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_long_sql_statement_truncation(self):
-        """Test that long SQL statements are truncated in error messages."""
-        long_query = (
-            "SELECT "
-            + ", ".join([f"col_{i}" for i in range(100)])
-            + " FROM nonexistent_table"
-        )
-
-        with pytest.raises(MarimoSQLException) as exc_info:
-            sql(long_query)
-
-        error = exc_info.value
-        # Should be truncated to ~200 chars + "..."
-        assert len(error.sql_statement) <= 203
-        if len(long_query) > 200:
-            assert error.sql_statement.endswith("...")
 
 
 class TestSQLGlotParseErrors:
@@ -187,271 +222,7 @@ class TestErrorUtilityFunctions:
 
     def test_is_sql_parse_error_marimo_sql_exception(self):
         """Test that MarimoSQLException is detected as SQL error."""
-        marimo_sql_exception = MarimoSQLException("SQL error message")
+        marimo_sql_exception = MarimoSQLException(
+            "SQL error message", "SQL error", "codeblock"
+        )
         assert is_sql_parse_error(marimo_sql_exception) is True
-
-    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_create_sql_error_from_exception(self):
-        """Test conversion of raw exception to MarimoSQLError."""
-        import duckdb
-
-        class MockCell:
-            def __init__(self, sql_statement: str):
-                self.sqls = [sql_statement]
-
-        try:
-            duckdb.sql("SELECT * FROM nonexistent_table")
-        except Exception as e:
-            mock_cell = MockCell("SELECT * FROM nonexistent_table")
-            error = create_sql_error_from_exception(e, mock_cell)
-
-            assert isinstance(error, MarimoSQLError)
-            assert "nonexistent_table" in error.sql_statement
-            assert len(error.msg) > 0
-            assert "nonexistent_table" in error.msg
-            # Hint field should exist (may be None for this error)
-            assert hasattr(error, "hint")
-
-    def test_create_sql_error_long_statement(self):
-        """Test SQL statement truncation in error creation."""
-        import duckdb
-
-        long_statement = (
-            "SELECT "
-            + ", ".join([f"col_{i}" for i in range(100)])
-            + " FROM test"
-        )
-
-        class MockCell:
-            def __init__(self, sql_statement: str):
-                self.sqls = [sql_statement]
-
-        try:
-            duckdb.sql(long_statement)
-        except Exception as e:
-            mock_cell = MockCell(long_statement)
-            error = create_sql_error_from_exception(e, mock_cell)
-
-            # Should be truncated
-            assert len(error.sql_statement) <= 203
-            if len(long_statement) > 200:
-                assert error.sql_statement.endswith("...")
-
-
-class TestErrorMessageQuality:
-    """Test that error messages are actionable and well-formatted."""
-
-    def test_extract_sql_position_duckdb_format(self):
-        """Test position extraction from DuckDB error messages."""
-        # DuckDB format: "Line 1, Col: 15"
-        duckdb_msg = "Parser Error: syntax error at Line 1, Col: 15"
-        line, col = extract_sql_position(duckdb_msg)
-        assert line == 0  # 0-based
-        assert col == 14  # 0-based
-
-    def test_extract_sql_position_sqlglot_format(self):
-        """Test position extraction from SQLGlot error messages."""
-        # SQLGlot format variations
-        sqlglot_msg = "Parse error at line 2, col 10"
-        line, col = extract_sql_position(sqlglot_msg)
-        assert line == 1  # 0-based
-        assert col == 9  # 0-based
-
-    def test_extract_sql_position_no_position(self):
-        """Test position extraction when no position info available."""
-        no_position_msg = "Some generic SQL error without position"
-        line, col = extract_sql_position(no_position_msg)
-        assert line is None
-        assert col is None
-
-    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_error_message_enhancement(self):
-        """Test that error messages are enhanced with prefixes."""
-        import duckdb
-
-        class MockCell:
-            sqls = ["SELECT * FRM invalid"]
-
-        try:
-            duckdb.sql("SELECT * FRM invalid")
-        except Exception as e:
-            error = create_sql_error_from_exception(e, MockCell())
-            # Should have "SQL syntax error:" prefix for ParserException
-            assert error.msg.startswith(
-                "SQL syntax error:"
-            ) or error.msg.startswith("SQL parse error:")
-
-    def test_error_message_cleaning(self):
-        """Test that error messages are cleaned of traces."""
-
-        class MockException(Exception):
-            def __str__(self):
-                return "SQL error message\nTraceback (most recent call last):\n  File..."
-
-        class MockCell:
-            sqls = ["SELECT * FROM test"]
-
-        error = create_sql_error_from_exception(MockException(), MockCell())
-        # Should only contain the first line, no traceback
-        assert "Traceback" not in error.msg
-        assert error.msg == "SQL error message"
-
-
-class TestIntegrationAndEdgeCases:
-    """Test complete error flow and edge cases."""
-
-    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_sql_function_error_flow(self):
-        """Test complete error flow through mo.sql() function."""
-        with pytest.raises(MarimoSQLException) as exc_info:
-            sql("SELECT * FROM definitely_nonexistent_table_12345")
-
-        error = exc_info.value
-        assert isinstance(error, MarimoSQLException)
-        assert error.sql_statement is not None
-        assert len(error.sql_statement) > 0
-
-    def test_empty_sql_statement_error_handling(self):
-        """Test error handling with empty SQL statements."""
-
-        class MockCell:
-            sqls = []
-
-        mock_exception = Exception("Test error")
-        error = create_sql_error_from_exception(mock_exception, MockCell())
-
-        assert error.sql_statement == ""
-
-    def test_cell_without_sqls_attribute(self):
-        """Test error handling when cell doesn't have sqls attribute."""
-
-        class MockCellNoSqls:
-            pass
-
-        mock_exception = Exception("Test error")
-        error = create_sql_error_from_exception(
-            mock_exception, MockCellNoSqls()
-        )
-
-        assert error.sql_statement == ""
-
-    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_multiple_errors_in_sequence(self):
-        """Test handling multiple SQL errors in sequence."""
-        # First error
-        with pytest.raises(MarimoSQLException):
-            sql("SELECT * FROM table1_nonexistent")
-
-        # Second error should still work
-        with pytest.raises(MarimoSQLException):
-            sql("SELECT * FROM table2_nonexistent")
-
-    def test_error_with_special_characters(self):
-        """Test error handling with SQL containing special characters."""
-        with pytest.raises(MarimoSQLException):
-            sql("SELECT * FROM 'table with spaces and quotes'")
-
-    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_duckdb_hints_preserved(self):
-        """Test that DuckDB hints like 'Did you mean?' are preserved in error messages."""
-        import duckdb
-
-        # Create a table to generate "Did you mean?" suggestions
-        duckdb.sql(
-            "CREATE OR REPLACE TABLE test_hints_table (id INT, name TEXT)"
-        )
-
-        with pytest.raises(MarimoSQLException) as exc_info:
-            sql("SELECT * FROM test_hint")  # Missing 's' in table name
-
-        error = exc_info.value
-        error_msg = str(error)
-        # Check that the main error message is present
-        assert "does not exist" in error_msg
-        # Check that the hint is properly extracted to the hint field
-        assert error.hint is not None
-        assert (
-            "Did you mean" in error.hint or "candidate" in error.hint.lower()
-        )
-
-    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_column_candidates_preserved(self):
-        """Test that column candidate hints are preserved in error messages."""
-        import duckdb
-
-        # Create a table to generate candidate binding suggestions
-        duckdb.sql(
-            "CREATE OR REPLACE TABLE test_columns (id INT, user_name TEXT, email TEXT)"
-        )
-
-        with pytest.raises(MarimoSQLException) as exc_info:
-            sql("SELECT fullname FROM test_columns")  # Wrong column name
-
-        error = exc_info.value
-        error_msg = str(error)
-        # Check that the main error message is present
-        assert "not found" in error_msg
-        # Check that the hint is properly extracted to the hint field
-        assert error.hint is not None
-        assert "Candidate" in error.hint or "candidate" in error.hint.lower()
-
-    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_hint_field_in_sql_error_struct(self):
-        """Test that MarimoSQLError struct properly includes hint field."""
-        import duckdb
-
-        # Create table for hint generation
-        duckdb.sql(
-            "CREATE OR REPLACE TABLE hint_test_table (id INT, name TEXT)"
-        )
-
-        try:
-            duckdb.sql("SELECT * FROM hint_test")  # Missing letters
-        except Exception as e:
-
-            class MockCell:
-                sqls = ["SELECT * FROM hint_test"]
-
-            error_struct = create_sql_error_from_exception(e, MockCell())
-
-            # Verify the struct has the hint field and it's populated
-            assert hasattr(error_struct, "hint")
-            assert error_struct.hint is not None
-            assert (
-                "Did you mean" in error_struct.hint
-                or "candidate" in error_struct.hint.lower()
-            )
-            # Main message should not contain the hint
-            assert error_struct.hint not in error_struct.msg
-
-    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_multiline_hints_preserved(self):
-        """Test that multiline hints like function candidates are fully captured."""
-        import duckdb
-
-        # Create table for multiline hint generation
-        duckdb.sql(
-            "CREATE OR REPLACE TABLE hint_multiline_table (id INT, name TEXT)"
-        )
-
-        try:
-            duckdb.sql(
-                "SELECT SUBSTRING(name) FROM hint_multiline_table"
-            )  # Wrong args
-        except Exception as e:
-
-            class MockCell:
-                sqls = ["SELECT SUBSTRING(name) FROM hint_multiline_table"]
-
-            error_struct = create_sql_error_from_exception(e, MockCell())
-
-            # Verify multiline hint is captured completely
-            assert hasattr(error_struct, "hint")
-            assert error_struct.hint is not None
-            assert "Candidate functions:" in error_struct.hint
-            assert "substring(VARCHAR, BIGINT, BIGINT)" in error_struct.hint
-            assert "substring(VARCHAR, BIGINT)" in error_struct.hint
-            # Should be multiline
-            assert "\n" in error_struct.hint
-            # Main message should be clean
-            assert "Candidate functions:" not in error_struct.msg

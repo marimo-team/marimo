@@ -119,14 +119,8 @@ class MarimoSQLError(msgspec.Struct, tag="sql-error"):
     """
 
     msg: str
-    sql_statement: str
-    hint: Optional[str] = (
-        None  # Helpful hints like "Did you mean?" or "Candidate bindings"
-    )
-    sql_line: Optional[int] = None  # 0-based line within SQL
-    sql_col: Optional[int] = None  # 0-based column within SQL
-    node_lineno: int = 0
-    node_col_offset: int = 0
+    error_type: str
+    codeblock: Optional[str]
 
     def describe(self) -> str:
         return self.msg

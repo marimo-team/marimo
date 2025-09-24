@@ -39,8 +39,6 @@ def classify_sql_statement(
             message="Failed to parse SQL statement for classification.",
             exception=e,
             rule_code="MF005",
-            node=None,
-            sql_content=sql_statement,
         )
         return "unknown"
 
