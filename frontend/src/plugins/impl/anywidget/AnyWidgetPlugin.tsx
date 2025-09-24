@@ -3,7 +3,7 @@
 
 import type { AnyWidget, Experimental } from "@anywidget/types";
 import { get, isEqual, set } from "lodash-es";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { z } from "zod";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { asRemoteURL } from "@/core/runtime/config";
@@ -62,7 +62,12 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
 type Props = IPluginProps<T, Data, PluginFunctions>;
 
 const AnyWidgetSlot = (props: Props) => {
-  const { css, jsUrl, jsHash, bufferPaths, initialValue } = props.data;
+  const { css, jsUrl, jsHash, bufferPaths } = props.data;
+
+  const valueWithBuffers = useMemo(() => {
+    return resolveInitialValue(props.value, bufferPaths ?? []);
+  }, [props.value, bufferPaths]);
+
   // JS is an ESM file with a render function on it
   // export function render({ model, el }) {
   //   ...
@@ -157,7 +162,7 @@ const AnyWidgetSlot = (props: Props) => {
       key={key}
       {...props}
       widget={module.default}
-      value={resolveInitialValue(initialValue, bufferPaths ?? [])}
+      value={valueWithBuffers}
     />
   );
 };
@@ -285,7 +290,7 @@ export const visibleForTesting = {
   getDirtyFields,
 };
 
-function resolveInitialValue(
+export function resolveInitialValue(
   raw: Record<string, any>,
   bufferPaths: ReadonlyArray<ReadonlyArray<string | number>>,
 ) {
