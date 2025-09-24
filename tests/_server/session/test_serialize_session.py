@@ -693,9 +693,9 @@ def test_deserialize_error_with_traceback():
     assert console_output.data == tb
 
 
-def test_serialize_session_with_dict_error(session_view: SessionView):
+def test_serialize_session_with_dict_error():
     """Test serialization of a session with a dictionary error"""
-    view = session_view
+    view = SessionView()
     view.cell_operations["cell1"] = CellOp(
         cell_id="cell1",
         status="idle",
@@ -721,9 +721,9 @@ def test_serialize_session_with_dict_error(session_view: SessionView):
     assert result["cells"][0]["outputs"][0]["evalue"] == "Something went wrong"
 
 
-def test_serialize_session_with_mixed_error_formats(session_view: SessionView):
+def test_serialize_session_with_mixed_error_formats():
     """Test serialization of a session with mixed error formats (dict and object)"""
-    view = session_view
+    view = SessionView()
 
     # Test with both dictionary and object error formats
     mixed_errors = [
