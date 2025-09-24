@@ -381,7 +381,7 @@ class SendUIElementMessage(Op, tag="send-ui-element-message"):
     ui_element: Optional[str]
     model_id: Optional[WidgetModelId]
     message: dict[str, Any]
-    buffers: Optional[list[str]] = None
+    buffers: Optional[list[bytes]] = None
 
 
 class Interrupted(Op, tag="interrupted"):

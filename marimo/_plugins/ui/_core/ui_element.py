@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import abc
-import base64
 import copy
 import random
 import sys
@@ -440,9 +439,7 @@ class UIElement(Html, Generic[S, T]):
             ui_element=self._id,
             model_id=None,
             message=message,
-            buffers=[
-                base64.b64encode(buffer).decode() for buffer in (buffers or [])
-            ],
+            buffers=list(buffers or []),
         ).broadcast()
 
     def _update(self, value: S) -> None:

@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
@@ -229,10 +228,7 @@ class MarimoComm:
                 ui_element=self.ui_element_id,
                 model_id=item.model_id,
                 message=item.data,
-                buffers=[
-                    base64.b64encode(buffer).decode()
-                    for buffer in item.buffers
-                ],
+                buffers=item.buffers,
             ).broadcast()
 
     # This is the method that ipywidgets.widgets.Widget uses to respond to
