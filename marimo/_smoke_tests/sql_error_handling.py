@@ -396,12 +396,34 @@ def _(用户表):
     )
     return
 
+@app.cell(hide_code=True)
+def _():
+    mo.md(
+        r"""
+    ## 11. Multiple Statements
+
+    Test sql cells with multiple queries
+    """
+    )
+    return
+
+
+@app.cell
+def _(users):
+    _df = mo.sql(
+        f"""
+        SELECT * FROM users;
+        SELECT names FROM users
+        """
+    )
+    return
+
 
 @app.cell(hide_code=True)
 def _():
     mo.md(
         """
-    ## 10. Successful Query for Comparison
+    ## 12. Successful Query for Comparison
 
     Here's a working query to show the contrast with error handling.
     """

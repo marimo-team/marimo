@@ -4,10 +4,16 @@ import { AlertCircleIcon } from "lucide-react";
 import type { CellId } from "@/core/cells/ids";
 import { useSqlValidationErrorsForCell } from "@/core/codemirror/language/languages/sql/validation-errors";
 
-export const SqlValidationErrorBanner = ({ cellId }: { cellId: CellId }) => {
+export const SqlValidationErrorBanner = ({
+  cellId,
+  hide,
+}: {
+  cellId: CellId;
+  hide: boolean;
+}) => {
   const error = useSqlValidationErrorsForCell(cellId);
 
-  if (!error) {
+  if (!error || hide) {
     return;
   }
 
@@ -17,7 +23,7 @@ export const SqlValidationErrorBanner = ({ cellId }: { cellId: CellId }) => {
         <AlertCircleIcon size={13} className="mt-[3px] text-destructive" />
         <p>
           <span className="font-bold text-destructive">{error.errorType}:</span>{" "}
-          {error.errorMessage}
+          <span className="whitespace-pre-wrap">{error.errorMessage}</span>
         </p>
       </div>
 

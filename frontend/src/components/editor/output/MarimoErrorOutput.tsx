@@ -77,7 +77,7 @@ export const MarimoErrorOutput = ({
     alertVariant = "default";
     titleColor = "text-secondary-foreground";
   } else if (errors.some((e) => e.type === "sql-error")) {
-    titleContents = "SQL Error in statement";
+    titleContents = "SQL error";
   } else {
     // Check for exception type
     const exceptionError = errors.find((e) => e.type === "exception");
@@ -504,22 +504,26 @@ export const MarimoErrorOutput = ({
             const col =
               error.sql_col == null ? null : Math.trunc(error?.sql_col) + 1;
             return (
-              <div key={`sql-error-${idx}`} className="space-y-2">
-                <p className="text-muted-foreground">{error.msg}</p>
+              <div key={`sql-error-${idx}`} className="space-y-2 mt-2">
+                <p className="text-muted-foreground font-medium">{error.msg}</p>
                 {error.hint && (
                   <div className="flex items-start gap-2">
-                    <InfoIcon className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <InfoIcon
+                      size={11}
+                      className="text-muted-foreground mt-0.5 flex-shrink-0"
+                    />
                     <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
                       {error.hint}
                     </pre>
                   </div>
                 )}
                 {error.sql_statement && (
-                  <div className="bg-muted/50 p-2 rounded text-xs font-mono">
-                    <pre className="whitespace-pre-wrap">
-                      {error.sql_statement}
-                    </pre>
-                  </div>
+                  <pre
+                    lang="sql"
+                    className="text-xs bg-muted/80 rounded p-0 whitespace-pre-wrap"
+                  >
+                    {error.sql_statement}
+                  </pre>
                 )}
                 {line !== null && col !== null && (
                   <p className="text-xs text-muted-foreground">
@@ -530,17 +534,6 @@ export const MarimoErrorOutput = ({
             );
           })}
           {cellId && <AutoFixButton errors={sqlErrors} cellId={cellId} />}
-          <Tip title="How to fix SQL errors">
-            <p className="pb-2">
-              SQL parsing errors often occur due to invalid syntax, missing
-              keywords, or unsupported SQL features.
-            </p>
-            <p className="py-2">
-              Check your SQL syntax and ensure you're using supported SQL
-              dialect features. The error location can help you identify the
-              problematic part of your query.
-            </p>
-          </Tip>
         </div>,
       );
     }
