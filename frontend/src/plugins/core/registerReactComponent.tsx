@@ -24,7 +24,7 @@ import ReactDOM, { type Root } from "react-dom/client";
 import useEvent from "react-use-event-hook";
 import type { ZodSchema } from "zod";
 import { notebookAtom } from "@/core/cells/cells.ts";
-import { findCellId } from "@/core/cells/ids.ts";
+import { HTMLCellId } from "@/core/cells/ids.ts";
 import { isUninstantiated } from "@/core/cells/utils";
 import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
 import { getUIElementObjectId } from "@/core/dom/ui-element";
@@ -182,24 +182,28 @@ function PluginSlotInternal<T>(
         const objectId = getUIElementObjectId(hostElement);
         invariant(objectId, "Object ID should exist");
 
-        const cellId = findCellId(hostElement);
-        invariant(cellId, "Cell ID should exist");
+        const htmlId = HTMLCellId.findElementThroughShadowDOMs(hostElement)?.id;
+        const cellId = htmlId ? HTMLCellId.parse(htmlId) : null;
+        if (cellId) {
+          // If the cell is not initialized, throw an error
+          const notebookState = store.get(notebookAtom);
+          const cellRuntime = notebookState.cellRuntime[cellId];
+          const cellData = notebookState.cellData[cellId];
 
-        const notebookState = store.get(notebookAtom);
-        const cellRuntime = notebookState.cellRuntime[cellId];
-        const cellData = notebookState.cellData[cellId];
+          const cellNotInitialized = isUninstantiated({
+            executionTime:
+              cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
+            status: cellRuntime.status,
+            errored: cellRuntime.errored,
+            interrupted: cellRuntime.interrupted,
+            stopped: cellRuntime.stopped,
+          });
 
-        const cellNotInitialized = isUninstantiated({
-          executionTime:
-            cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
-          status: cellRuntime.status,
-          errored: cellRuntime.errored,
-          interrupted: cellRuntime.interrupted,
-          stopped: cellRuntime.stopped,
-        });
-
-        if (cellNotInitialized) {
-          throw new CellNotInitializedError();
+          if (cellNotInitialized) {
+            throw new CellNotInitializedError();
+          }
+        } else {
+          Logger.warn(`Cell ID ${cellId} cannot be found`);
         }
 
         const response = await FUNCTIONS_REGISTRY.request({
