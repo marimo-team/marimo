@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import io
 import token as token_types
+from dataclasses import dataclass
 from tokenize import TokenError, tokenize
 from typing import Callable
-from dataclasses import dataclass
 
 
 @dataclass

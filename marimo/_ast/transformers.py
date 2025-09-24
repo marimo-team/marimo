@@ -190,7 +190,7 @@ class RemoveImportTransformer(ast.NodeTransformer):
     To prevent module collisions in top level definitions.
     """
 
-    def __init__(self, import_name: str, keep_one:bool=False) -> None:
+    def __init__(self, import_name: str, keep_one: bool = False) -> None:
         super().__init__()
         self.keep_one = keep_one
         self.import_name = import_name
