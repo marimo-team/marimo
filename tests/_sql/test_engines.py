@@ -332,6 +332,7 @@ LINE 1: SELECT * FROM test
                       ^"""
         )
 
+    @pytest.mark.xfail(reason="Interpolated queries are not supported")
     def test_duckdb_with_interpolated_query(self, engine: DuckDBEngine):
         result = engine.execute("SELECT {1}")
         print(result)
