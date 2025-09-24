@@ -46,7 +46,7 @@ from marimo._messaging.ops import (
 )
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
-from marimo._runtime import requests, runtime
+from marimo._runtime import requests
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
@@ -57,6 +57,7 @@ from marimo._runtime.requests import (
     SerializedQueryParams,
     SetUIElementValueRequest,
 )
+from marimo._runtime.runtime.kernel import launch_kernel
 from marimo._server.exceptions import InvalidSessionException
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
@@ -198,7 +199,7 @@ class KernelManager:
             # Need to use a socket for windows compatibility
             listener = connection.Listener(family="AF_INET")
             self.kernel_task = mp.Process(
-                target=runtime.launch_kernel,
+                target=launch_kernel,
                 args=(
                     self.queue_manager.control_queue,
                     self.queue_manager.set_ui_element_queue,
@@ -230,7 +231,7 @@ class KernelManager:
             # We can't terminate threads, so we have to wait until they
             # naturally exit before cleaning up resources
             def launch_kernel_with_cleanup(*args: Any) -> None:
-                runtime.launch_kernel(*args)
+                launch_kernel(*args)
 
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs

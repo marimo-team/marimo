@@ -18,8 +18,10 @@ from marimo._runtime.requests import (
     PreviewSQLTableRequest,
     ValidateSQLRequest,
 )
+from marimo._runtime.runtime.dataset_callbacks import (
+    ERROR_MSG_CATALOG_OPERATIONS,
+)
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
-from marimo._sql.engines.types import ERROR_MSG_CATALOG_OPERATIONS
 from marimo._types.ids import CellId_t, RequestId
 from tests.conftest import MockedKernel
 

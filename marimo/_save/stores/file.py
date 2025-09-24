@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from marimo._runtime.runtime import notebook_dir
+from marimo._runtime.runtime.directives import notebook_dir
 from marimo._save.stores.store import Store
 
 

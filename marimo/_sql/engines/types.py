@@ -150,10 +150,3 @@ class SQLConnection(EngineCatalog[CONN], QueryEngine[CONN]):
     """Combines the catalog and query interfaces for an SQL engine."""
 
     pass
-
-
-SQLConnectionType = Union[QueryEngine[Any], EngineCatalog[Any]]
-ERROR_MSG_CATALOG_OPERATIONS = "Connection does not support catalog operations"
-ERROR_MSG_CONNECTION_OPERATIONS = (
-    "Connection does not support query or catalog operations"
-)

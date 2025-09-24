@@ -12,7 +12,7 @@ from marimo._runtime.control_flow import MarimoInterrupt
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from marimo._runtime.runtime import Kernel
+    from marimo._runtime.runtime.kernel import Kernel
 
 
 def construct_interrupt_handler(

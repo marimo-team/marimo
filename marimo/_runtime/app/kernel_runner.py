@@ -36,7 +36,7 @@ class AppKernelRunner:
         from marimo._runtime.runner.hooks_post_execution import (
             _reset_matplotlib_context,
         )
-        from marimo._runtime.runtime import Kernel
+        from marimo._runtime.runtime.kernel import Kernel
 
         self.app = app
         self._outputs: dict[CellId_t, Any] = {}

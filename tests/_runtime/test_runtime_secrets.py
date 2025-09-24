@@ -10,7 +10,7 @@ from marimo._runtime.requests import (
     ListSecretKeysRequest,
     RefreshSecretsRequest,
 )
-from marimo._runtime.runtime import SecretsCallbacks
+from marimo._runtime.runtime.secrets_callbacks import SecretsCallbacks
 from marimo._types.ids import RequestId
 from tests._messaging.mocks import MockStream
 from tests._runtime.test_runtime import MockedKernel

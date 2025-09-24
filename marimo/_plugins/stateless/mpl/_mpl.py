@@ -29,7 +29,7 @@ from marimo._runtime.context import (
     get_context,
 )
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
-from marimo._runtime.runtime import app_meta
+from marimo._runtime.runtime.directives import app_meta
 from marimo._server.utils import find_free_port
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import get_signals

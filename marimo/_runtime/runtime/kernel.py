@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import dataclasses
 import io
 import itertools
 import os
@@ -25,16 +24,10 @@ from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.errors import ImportStarError
 from marimo._ast.names import SETUP_CELL_NAME
-from marimo._ast.variables import BUILTINS, is_local
+from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
-from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._data.preview_column import (
-    get_column_preview_for_dataframe,
-    get_column_preview_for_duckdb,
-)
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
@@ -50,18 +43,9 @@ from marimo._messaging.errors import (
 from marimo._messaging.ops import (
     CellOp,
     CompletedRun,
-    DataColumnPreview,
-    DataSourceConnections,
     FunctionCallResult,
     HumanReadableStatus,
-    InstallingPackageAlert,
-    MissingPackageAlert,
-    PackageStatusType,
     RemoveUIElements,
-    SecretKeysResult,
-    SQLTableListPreview,
-    SQLTablePreview,
-    ValidateSQLResult,
     VariableDeclaration,
     Variables,
     VariableValue,
@@ -83,17 +67,11 @@ from marimo._messaging.types import (
     Stdout,
     Stream,
 )
-from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER
 from marimo._runtime import dataflow, handlers, marimo_pdb, patches
-from marimo._runtime.app_meta import AppMeta
-from marimo._runtime.context import (
-    ContextNotInitializedError,
-    ExecutionContext,
-    get_context,
-)
+from marimo._runtime.context import ExecutionContext, get_context
 from marimo._runtime.context.kernel_context import (
     KernelRuntimeContext,
     initialize_kernel_context,
@@ -101,20 +79,7 @@ from marimo._runtime.context.kernel_context import (
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import input_override
-from marimo._runtime.packages.import_error_extractors import (
-    extract_missing_module_from_cause_chain,
-    try_extract_packages_from_import_error_message,
-)
 from marimo._runtime.packages.module_registry import ModuleRegistry
-from marimo._runtime.packages.package_manager import (
-    LogCallback,
-    PackageManager,
-)
-from marimo._runtime.packages.package_managers import create_package_manager
-from marimo._runtime.packages.utils import (
-    PackageRequirement,
-    is_python_isolated,
-)
 from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
@@ -160,6 +125,17 @@ from marimo._runtime.runner.hooks_post_execution import (
 )
 from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
 from marimo._runtime.runner.hooks_preparation import PreparationHookType
+from marimo._runtime.runtime.dataset_callbacks import (
+    ERROR_MSG_CONNECTION_OPERATIONS,
+    DatasetCallbacks,
+)
+from marimo._runtime.runtime.directives import CellMetadata
+from marimo._runtime.runtime.packages_callbacks import PackagesCallbacks
+from marimo._runtime.runtime.secrets_callbacks import SecretsCallbacks
+from marimo._runtime.runtime.sql_callbacks import (
+    SqlCallbacks,
+    SQLConnectionType,
+)
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._runtime.state import State
 from marimo._runtime.utils.set_ui_element_request_manager import (
@@ -169,25 +145,15 @@ from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._secrets.load_dotenv import (
     load_dotenv_with_fallback,
 )
-from marimo._secrets.secrets import get_secret_keys
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
-from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
-from marimo._sql.engines.types import (
-    ERROR_MSG_CATALOG_OPERATIONS,
-    ERROR_MSG_CONNECTION_OPERATIONS,
-    EngineCatalog,
-    QueryEngine,
-    SQLConnectionType,
-)
+from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.get_engines import (
-    engine_to_data_source_connection,
     get_engines_from_variables,
 )
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._types.lifespan import Lifespan
-from marimo._utils.assert_never import assert_never
 from marimo._utils.lifespans import Lifespans
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
@@ -204,260 +170,6 @@ LOGGER = _loggers.marimo_logger()
 _KERNEL_LIFESPAN_REGISTRY = EntryPointRegistry[Lifespan[None]](
     "marimo.kernel.lifespan",
 )
-
-
-@mddoc
-def defs() -> tuple[str, ...]:
-    """Get the definitions of the currently executing cell.
-
-    Returns:
-        tuple[str, ...]: A tuple of the currently executing cell's defs.
-    """
-    try:
-        ctx = get_context()
-    except ContextNotInitializedError:
-        return tuple()
-
-    if ctx.execution_context is not None:
-        return tuple(
-            sorted(
-                defn
-                for defn in ctx.graph.cells[ctx.execution_context.cell_id].defs
-            )
-        )
-    return tuple()
-
-
-@mddoc
-def refs() -> tuple[str, ...]:
-    """Get the references of the currently executing cell.
-
-    Returns:
-        tuple[str, ...]: A tuple of the currently executing cell's refs.
-    """
-    try:
-        ctx = get_context()
-    except ContextNotInitializedError:
-        return tuple()
-
-    # builtins that have not been shadowed by the user
-    unshadowed_builtins = BUILTINS.difference(
-        set(ctx.graph.definitions.keys())
-    )
-
-    if ctx.execution_context is not None:
-        return tuple(
-            sorted(
-                defn
-                for defn in ctx.graph.cells[ctx.execution_context.cell_id].refs
-                # exclude builtins that have not been shadowed
-                if defn not in unshadowed_builtins
-            )
-        )
-    return tuple()
-
-
-@mddoc
-def query_params() -> QueryParams:
-    """Get the query parameters of a marimo app.
-
-    Examples:
-        Keep the text input in sync with the URL query parameters:
-
-        ```python3
-        # In its own cell
-        query_params = mo.query_params()
-
-        # In another cell
-        search = mo.ui.text(
-            value=query_params["search"] or "",
-            on_change=lambda value: query_params.set("search", value),
-        )
-        search
-        ```
-
-        You can also set the query parameters reactively:
-
-        ```python3
-        toggle = mo.ui.switch(label="Toggle me")
-        toggle
-
-        # In another cell
-        query_params["is_enabled"] = toggle.value
-        ```
-
-    Returns:
-        QueryParams: A QueryParams object containing the query parameters.
-            You can directly interact with this object like a dictionary.
-            If you mutate this object, changes will be persisted to the frontend
-            query parameters and any other cells referencing the query parameters
-            will automatically re-run.
-    """
-    return get_context().query_params
-
-
-@mddoc
-def app_meta() -> AppMeta:
-    """Get the metadata of a marimo app.
-
-    The `AppMeta` class provides access to runtime metadata about a marimo app,
-    such as its display theme and execution mode.
-
-    Examples:
-        Get the current theme and conditionally set a plotting library's theme:
-
-        ```python
-        import altair as alt
-
-        # Enable dark theme for Altair when marimo is in dark mode
-        alt.themes.enable(
-            "dark" if mo.app_meta().theme == "dark" else "default"
-        )
-        ```
-
-        Show content only in edit mode:
-
-        ```python
-        # Only show this content when editing the notebook
-        mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
-        ```
-
-        Get the current request headers or user info:
-
-        ```python
-        request = mo.app_meta().request
-        print(request.headers)
-        print(request.user)
-        ```
-
-    Returns:
-        AppMeta: An AppMeta object containing the app's metadata.
-    """
-    return AppMeta()
-
-
-@mddoc
-def cli_args() -> CLIArgs:
-    """Get the command line arguments of a marimo notebook.
-
-    Examples:
-        `marimo edit notebook.py -- -size 10`
-
-        ```python3
-        # Access the command line arguments
-        size = mo.cli_args().get("size") or 100
-
-        for i in range(size):
-            print(i)
-        ```
-
-    Returns:
-        CLIArgs: A dictionary containing the command line arguments.
-            This dictionary is read-only and cannot be mutated.
-    """
-    return get_context().cli_args
-
-
-@mddoc
-def notebook_dir() -> pathlib.Path | None:
-    """Get the directory of the currently executing notebook.
-
-    Returns:
-        pathlib.Path | None: A pathlib.Path object representing the directory of the current
-            notebook, or None if the notebook's directory cannot be determined.
-
-    Examples:
-        ```python
-        data_file = mo.notebook_dir() / "data" / "example.csv"
-        # Use the directory to read a file
-        if data_file.exists():
-            print(f"Found data file: {data_file}")
-        else:
-            print("No data file found")
-        ```
-    """
-    try:
-        ctx = get_context()
-    except ContextNotInitializedError:
-        # If we are not running in a notebook (e.g. exported to Jupyter),
-        # return the current working directory
-        return pathlib.Path().absolute()
-
-    # NB: __file__ is patched by runner, so always bound to be correct.
-    filename = ctx.globals.get("__file__", None) or ctx.filename
-    if filename is not None:
-        path = pathlib.Path(filename).resolve()
-        while not path.is_dir():
-            path = path.parent
-        return path
-
-    return None
-
-
-class URLPath(pathlib.PurePosixPath):
-    """
-    Wrapper around pathlib.Path that preserves the "://" in the URL protocol.
-    """
-
-    def __str__(self) -> str:
-        return super().__str__().replace(":/", "://")
-
-
-@mddoc
-def notebook_location() -> pathlib.PurePath | None:
-    """Get the location of the currently executing notebook.
-
-    In WASM, this is the URL of webpage, for example, `https://my-site.com`.
-    For nested paths, this is the URL including the origin and pathname.
-    `https://<my-org>.github.io/<my-repo>/folder`.
-
-    In non-WASM, this is the directory of the notebook, which is the same as
-    `mo.notebook_dir()`.
-
-    Examples:
-        In order to access data both locally and when a notebook runs via
-        WebAssembly (e.g. hosted on GitHub Pages), you can use this
-        approach to fetch data from the notebook's location.
-
-        ```python
-        import polars as pl
-
-        data_path = mo.notebook_location() / "public" / "data.csv"
-        df = pl.read_csv(str(data_path))
-        df.head()
-        ```
-
-    Returns:
-        Path | None: A Path object representing the URL or directory of the current
-            notebook, or None if the notebook's directory cannot be determined.
-    """
-    if is_pyodide():
-        from js import location  # type: ignore
-
-        path_location = pathlib.Path(str(location))
-        # The location looks like https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js
-        # We want to crawl out of the assets/ folder
-        if "assets" in path_location.parts:
-            return URLPath(str(path_location.parent.parent))
-        return URLPath(str(path_location))
-
-    else:
-        return notebook_dir()
-
-
-@dataclasses.dataclass
-class CellMetadata:
-    """CellMetadata class for storing cell metadata.
-
-    Metadata the kernel needs to persist, even when a cell is removed
-    from the graph or when a cell can't be formed from user code due to syntax
-    errors.
-
-    Attributes:
-        config (CellConfig): Configuration for the cell.
-    """
-
-    config: CellConfig = dataclasses.field(default_factory=CellConfig)
 
 
 class Kernel:
@@ -2276,518 +1988,6 @@ class Kernel:
                 "Failed to get engine %s", variable_name, exc_info=e
             )
             return None, str(e)
-
-
-class DatasetCallbacks:
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
-
-    def get_engine_catalog(
-        self, variable_name: str
-    ) -> tuple[Optional[EngineCatalog[Any]], Optional[str]]:
-        """Get engines that support catalog operations.
-        Returns an error if the connection does not support catalog operations."""
-
-        connection, error = self._kernel.get_sql_connection(variable_name)
-        if error is not None or connection is None:
-            return None, error
-
-        if isinstance(connection, EngineCatalog):
-            return connection, None
-        else:
-            return None, ERROR_MSG_CATALOG_OPERATIONS
-
-    @kernel_tracer.start_as_current_span("preview_dataset_column")
-    async def preview_dataset_column(
-        self, request: PreviewDatasetColumnRequest
-    ) -> None:
-        """Preview a column of a dataset.
-
-        The dataset is loaded, and the column is displayed in the frontend.
-
-        Args:
-            request (PreviewDatasetColumnRequest): The preview request containing:
-                - table_name: Name of the table
-                - column_name: Name of the column
-                - source_type: Type of data source ("duckdb" or "local")
-        """
-        table_name = request.table_name
-        column_name = request.column_name
-        source_type = request.source_type
-
-        try:
-            if source_type == "duckdb":
-                column_preview = get_column_preview_for_duckdb(
-                    fully_qualified_table_name=request.fully_qualified_table_name
-                    or table_name,
-                    column_name=column_name,
-                )
-            elif source_type == "local":
-                dataset = self._kernel.globals[table_name]
-                column_preview = get_column_preview_for_dataframe(
-                    dataset, request
-                )
-            elif source_type == "connection":
-                DataColumnPreview(
-                    error="Column preview for connection data sources is not supported",
-                    column_name=column_name,
-                    table_name=table_name,
-                ).broadcast()
-                return
-            elif source_type == "catalog":
-                DataColumnPreview(
-                    error="Column preview for catalog data sources is not supported",
-                    column_name=column_name,
-                    table_name=table_name,
-                ).broadcast()
-                return
-            else:
-                assert_never(source_type)
-
-            if column_preview is None:
-                DataColumnPreview(
-                    error=f"Column {column_name} not found",
-                    column_name=column_name,
-                    table_name=table_name,
-                ).broadcast()
-            else:
-                column_preview.broadcast()
-        except Exception as e:
-            LOGGER.warning(
-                "Failed to get preview for column %s in table %s",
-                column_name,
-                table_name,
-                exc_info=e,
-            )
-            DataColumnPreview(
-                error=str(e),
-                column_name=column_name,
-                table_name=table_name,
-            ).broadcast()
-        return
-
-    @kernel_tracer.start_as_current_span("preview_sql_table")
-    async def preview_sql_table(self, request: PreviewSQLTableRequest) -> None:
-        """Get table details for an SQL table.
-
-        Args:
-            request (PreviewSQLTableRequest): The request containing:
-                - engine: Name of the SQL engine / connection
-                - database: Name of the database
-                - schema: Name of the schema
-                - table_name: Name of the table
-        """
-        variable_name = cast(VariableName, request.engine)
-        database_name = request.database
-        schema_name = request.schema
-        table_name = request.table_name
-
-        engine, error = self.get_engine_catalog(variable_name)
-        if error is not None or engine is None:
-            SQLTablePreview(
-                request_id=request.request_id, table=None, error=error
-            ).broadcast()
-            return
-
-        try:
-            table = engine.get_table_details(
-                table_name=table_name,
-                schema_name=schema_name,
-                database_name=database_name,
-            )
-
-            SQLTablePreview(
-                request_id=request.request_id, table=table
-            ).broadcast()
-        except Exception as e:
-            LOGGER.exception(
-                "Failed to get preview for table %s in schema %s",
-                table_name,
-                schema_name,
-            )
-            SQLTablePreview(
-                request_id=request.request_id,
-                table=None,
-                error="Failed to get table details: " + str(e),
-            ).broadcast()
-
-    @kernel_tracer.start_as_current_span("preview_sql_table_list")
-    async def preview_sql_table_list(
-        self, request: PreviewSQLTableListRequest
-    ) -> None:
-        """Get a list of tables from an SQL schema
-
-        Args:
-            request (PreviewSQLTableListRequest): The request containing:
-                - engine: Name of the SQL engine / connection
-                - database: Name of the database
-                - schema: Name of the schema
-        """
-        variable_name = cast(VariableName, request.engine)
-        database_name = request.database
-        schema_name = request.schema
-
-        engine, error = self.get_engine_catalog(variable_name)
-        if error is not None or engine is None:
-            SQLTableListPreview(
-                request_id=request.request_id, tables=[], error=error
-            ).broadcast()
-            return
-
-        try:
-            table_list = engine.get_tables_in_schema(
-                schema=schema_name,
-                database=database_name,
-                include_table_details=False,
-            )
-            SQLTableListPreview(
-                request_id=request.request_id, tables=table_list
-            ).broadcast()
-        except Exception as e:
-            LOGGER.exception(
-                "Failed to get table list for schema %s", schema_name
-            )
-            SQLTableListPreview(
-                request_id=request.request_id,
-                tables=[],
-                error="Failed to get table list: " + str(e),
-            )
-
-    @kernel_tracer.start_as_current_span("preview_datasource_connection")
-    async def preview_datasource_connection(
-        self, request: PreviewDataSourceConnectionRequest
-    ) -> None:
-        """Broadcasts a datasource connection for a given engine"""
-        variable_name = cast(VariableName, request.engine)
-        engine, error = self.get_engine_catalog(variable_name)
-        if error is not None or engine is None:
-            LOGGER.error("Failed to get engine %s", variable_name)
-            return
-
-        data_source_connection = engine_to_data_source_connection(
-            variable_name, engine
-        )
-
-        LOGGER.debug(
-            "Broadcasting datasource connection for %s engine", variable_name
-        )
-        DataSourceConnections(
-            connections=[data_source_connection],
-        ).broadcast()
-
-
-class SqlCallbacks:
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
-
-    @kernel_tracer.start_as_current_span("validate_sql_query")
-    async def validate_sql(self, request: ValidateSQLRequest) -> None:
-        """Validate an SQL query"""
-        # TODO: Place request in queue
-        variable_name = cast(VariableName, request.engine)
-        engine: Optional[SQLConnectionType] = None
-        if variable_name == INTERNAL_DUCKDB_ENGINE:
-            engine = DuckDBEngine(connection=None)
-            error = None
-        else:
-            engine, error = self._kernel.get_sql_connection(variable_name)
-
-        if error is not None or engine is None:
-            LOGGER.error("Failed to get engine %s", variable_name)
-            ValidateSQLResult(
-                request_id=request.request_id,
-                result=None,
-                error="Engine not found",
-            ).broadcast()
-            return
-
-        if isinstance(engine, QueryEngine):
-            result, error = engine.execute_in_explain_mode(request.query)  # type: ignore
-        else:
-            error = "Engine does not support explain mode"
-
-        ValidateSQLResult(
-            request_id=request.request_id,
-            result=None,  # We aren't using the result yet
-            error=error,
-        ).broadcast()
-
-
-class SecretsCallbacks:
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
-
-    async def list_secrets(self, request: ListSecretKeysRequest) -> None:
-        secrets = get_secret_keys(
-            self._kernel.user_config, self._kernel._original_environ
-        )
-        SecretKeysResult(
-            request_id=request.request_id, secrets=secrets
-        ).broadcast()
-
-    async def refresh_secrets(self, request: RefreshSecretsRequest) -> None:
-        del request
-        self._kernel.load_dotenv()
-
-
-class PackagesCallbacks:
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
-        self.package_manager: PackageManager | None = None
-
-    def update_package_manager(self, package_manager: str) -> None:
-        if (
-            self.package_manager is None
-            or package_manager != self.package_manager.name
-        ):
-            self.package_manager = create_package_manager(package_manager)
-
-            # All marimo notebooks depend on the marimo package; if the
-            # notebook already has marimo as a dependency, or an optional
-            # dependency group with marimo, such as marimo[sql], this is a
-            # NOOP.
-            self._maybe_add_marimo_to_script_metadata()
-
-    def send_missing_packages_alert(self, missing_packages: set[str]) -> None:
-        if self.package_manager is None:
-            return
-
-        packages = list(
-            sorted(
-                pkg
-                for mod in missing_packages
-                if not self.package_manager.attempted_to_install(
-                    pkg := self.package_manager.module_to_package(mod)
-                )
-            )
-        )
-        # Deleting a cell can make the set of missing packages smaller
-        MissingPackageAlert(
-            packages=packages,
-            isolated=is_python_isolated(),
-        ).broadcast()
-
-    def missing_packages_hook(self, runner: cell_runner.Runner) -> None:
-        module_not_found_errors = [
-            e
-            for e in runner.exceptions.values()
-            if isinstance(e, (ImportError, ManyModulesNotFoundError))
-        ]
-
-        if len(module_not_found_errors) == 0:
-            return
-
-        if self.package_manager is None:
-            return
-
-        missing_modules: set[str] = set()
-        missing_packages: set[str] = set()
-
-        # Populate missing_modules and missing_packages from the errors
-        for e in module_not_found_errors:
-            if isinstance(e, ManyModulesNotFoundError):
-                # filter out packages that we already attempted to install
-                # to prevent an infinite loop
-                missing_packages.update(
-                    {
-                        pkg
-                        for pkg in e.package_names
-                        if not self.package_manager.attempted_to_install(pkg)
-                    }
-                )
-                continue
-
-            maybe_missing_module = extract_missing_module_from_cause_chain(e)
-            if maybe_missing_module:
-                missing_modules.add(maybe_missing_module)
-                continue
-
-            maybe_missing_packages = (
-                try_extract_packages_from_import_error_message(str(e))
-            )
-            if maybe_missing_packages:
-                missing_packages.update(
-                    {
-                        pkg
-                        for pkg in maybe_missing_packages
-                        if not self.package_manager.attempted_to_install(pkg)
-                    }
-                )
-
-        # Grab missing modules from module registry and from module not found errors
-        missing_modules = (
-            self._kernel.module_registry.missing_modules() | missing_modules
-        )
-
-        # Convert modules to packages
-        for mod in missing_modules:
-            pkg = self.package_manager.module_to_package(mod)
-            # filter out packages that we already attempted to install
-            # to prevent an infinite loop
-            if not self.package_manager.attempted_to_install(pkg):
-                missing_packages.add(pkg)
-
-        if not missing_packages:
-            return
-
-        packages = list(sorted(missing_packages))
-        if self.package_manager.should_auto_install():
-            version = {pkg: "" for pkg in packages}
-            self._kernel.enqueue_control_request(
-                InstallMissingPackagesRequest(
-                    manager=self.package_manager.name, versions=version
-                )
-            )
-        else:
-            MissingPackageAlert(
-                packages=packages,
-                isolated=is_python_isolated(),
-            ).broadcast()
-
-    async def install_missing_packages(
-        self, request: InstallMissingPackagesRequest
-    ) -> None:
-        """Attempts to install packages for modules that cannot be imported
-
-        Runs cells affected by successful installation.
-        """
-        assert self.package_manager is not None, (
-            "Cannot install packages without a package manager"
-        )
-        if request.manager != self.package_manager.name:
-            # Swap out the package manager
-            self.package_manager = create_package_manager(request.manager)
-
-        if not self.package_manager.is_manager_installed():
-            self.package_manager.alert_not_installed()
-            return
-
-        resolved_packages: dict[str, PackageRequirement] = {}
-        for pkg in request.versions.keys():
-            pkg_req = PackageRequirement.parse(pkg)
-            resolved_packages[pkg_req.name] = pkg_req
-
-        # Append all other missing packages from the notebook; the missing
-        # package request only contains the packages from the cell the user
-        # executed.
-        for module in self._kernel.module_registry.missing_modules():
-            pkg_req = PackageRequirement.parse(
-                self.package_manager.module_to_package(module)
-            )
-            if pkg_req.name not in resolved_packages:
-                resolved_packages[pkg_req.name] = pkg_req
-
-        # Convert back to list of package strings
-        missing_packages = [
-            str(pkg)
-            for pkg in sorted(resolved_packages.values(), key=lambda p: p.name)
-        ]
-
-        # Frontend shows package names, not module names
-        package_statuses: PackageStatusType = {
-            pkg: "queued" for pkg in missing_packages
-        }
-        InstallingPackageAlert(packages=package_statuses).broadcast()
-
-        def create_log_callback(pkg: str) -> LogCallback:
-            def log_callback(log_line: str) -> None:
-                InstallingPackageAlert(
-                    packages=package_statuses,
-                    logs={pkg: log_line},
-                    log_status="append",
-                ).broadcast()
-
-            return log_callback
-
-        for pkg in missing_packages:
-            if self.package_manager.attempted_to_install(package=pkg):
-                # Already attempted an installation; it must have failed.
-                # Skip the installation.
-                continue
-            package_statuses[pkg] = "installing"
-            InstallingPackageAlert(packages=package_statuses).broadcast()
-
-            # Send initial "start" log
-            InstallingPackageAlert(
-                packages=package_statuses,
-                logs={pkg: f"Installing {pkg}...\n"},
-                log_status="start",
-            ).broadcast()
-
-            version = request.versions.get(pkg)
-            if await self.package_manager.install(
-                pkg, version=version, log_callback=create_log_callback(pkg)
-            ):
-                package_statuses[pkg] = "installed"
-                # Send final "done" log
-                InstallingPackageAlert(
-                    packages=package_statuses,
-                    logs={pkg: f"Successfully installed {pkg}\n"},
-                    log_status="done",
-                ).broadcast()
-            else:
-                package_statuses[pkg] = "failed"
-                mod = self.package_manager.package_to_module(pkg)
-                self._kernel.module_registry.excluded_modules.add(mod)
-                # Send final "done" log with error
-                InstallingPackageAlert(
-                    packages=package_statuses,
-                    logs={pkg: f"Failed to install {pkg}\n"},
-                    log_status="done",
-                ).broadcast()
-
-        installed_modules = [
-            self.package_manager.package_to_module(pkg)
-            for pkg in package_statuses
-            if package_statuses[pkg] == "installed"
-        ]
-
-        # If a package was not installed at cell registration time, it won't
-        # yet be in the script metadata.
-        if self.should_update_script_metadata():
-            self.update_script_metadata(installed_modules)
-
-        cells_to_run = set(
-            cid
-            for module in installed_modules
-            if (cid := self._kernel.module_registry.defining_cell(module))
-            is not None
-        )
-        if cells_to_run:
-            await self._kernel._if_autorun_then_run_cells(cells_to_run)
-
-    def _maybe_add_marimo_to_script_metadata(self) -> None:
-        if self.should_update_script_metadata():
-            self.update_script_metadata(["marimo"])
-
-    def should_update_script_metadata(self) -> bool:
-        return (
-            GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
-            and self._kernel.app_metadata.filename is not None
-            and self.package_manager is not None
-        )
-
-    def update_script_metadata(
-        self, import_namespaces_to_add: list[str]
-    ) -> None:
-        filename = self._kernel.app_metadata.filename
-
-        if not filename or not self.package_manager:
-            return
-
-        try:
-            LOGGER.debug(
-                "Updating script metadata: %s. Adding namespaces: %s.",
-                filename,
-                import_namespaces_to_add,
-            )
-            self.package_manager.update_notebook_script_metadata(
-                filepath=filename,
-                import_namespaces_to_add=import_namespaces_to_add,
-                upgrade=False,
-            )
-        except Exception as e:
-            LOGGER.error("Failed to add script metadata to notebook: %s", e)
 
 
 class RequestHandler:

@@ -38,7 +38,8 @@ from marimo._runtime.requests import (
     SetCellConfigRequest,
     SetUIElementValueRequest,
 )
-from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
+from marimo._runtime.runtime.directives import notebook_dir, notebook_location
+from marimo._runtime.runtime.kernel import Kernel
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
