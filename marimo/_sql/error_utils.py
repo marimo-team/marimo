@@ -49,7 +49,7 @@ class SQLErrorMetadata(TypedDict):
 def is_sql_parse_error(exception: BaseException) -> bool:
     """Check if the exception is a SQL parsing error."""
     # Check for DuckDB exceptions first (most common)
-    if DependencyManager.duckdb.has():
+    if DependencyManager.duckdb.imported():
         try:
             import duckdb
 
@@ -73,13 +73,24 @@ def is_sql_parse_error(exception: BaseException) -> bool:
             pass
 
     # Check for SQLGlot exceptions
-    if DependencyManager.sqlglot.has():
+    if DependencyManager.sqlglot.imported():
         try:
             from sqlglot.errors import ParseError
 
             # Definitions can be found here:
             # https://sqlglot.com/sqlglot/errors.html
             if isinstance(exception, ParseError):
+                return True
+        except ImportError:
+            pass
+
+    if DependencyManager.sqlalchemy.imported():
+        try:
+            from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
+
+            # Definitions can be found here:
+            # https://docs.sqlalchemy.org/en/20/core/exceptions.html
+            if isinstance(exception, (SQLAlchemyError, ProgrammingError)):
                 return True
         except ImportError:
             pass

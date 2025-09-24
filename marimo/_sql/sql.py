@@ -109,13 +109,15 @@ def sql(
             )
 
             # Raise MarimoSQLException with structured hint data
+            # NB. raising _from_ creates a noisier stack trace, but preserves
+            # the original exception context for debugging.
             raise MarimoSQLException(
                 message=clean_message,
                 sql_statement=truncated_query,
                 sql_line=metadata["sql_line"],
                 sql_col=metadata["sql_col"],
                 hint=metadata["hint"],
-            ) from None
+            ) from e
         raise
 
     if df is None:
