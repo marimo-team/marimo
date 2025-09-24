@@ -1,7 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 import ast
 import re
-from typing import TYPE_CHECKING, Optional, TypedDict
+from typing import TYPE_CHECKING, Optional, TypedDict, Callable
 
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -60,7 +60,7 @@ def is_sql_parse_error(exception: BaseException) -> bool:
             if isinstance(
                 exception,
                 (
-                    duckdb.duckdb.ParserException,
+                    duckdb.ParserException,
                     duckdb.ProgrammingError,
                     duckdb.IOException,
                     duckdb.OperationalError,
@@ -184,7 +184,7 @@ def metadata_to_sql_error(metadata: SQLErrorMetadata) -> "MarimoSQLError":
 
 
 def log_sql_error(
-    logger_func,
+    logger_func: Callable[..., None],
     *,
     message: str,
     exception: BaseException,
