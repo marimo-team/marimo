@@ -496,6 +496,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
       return null;
     };
 
+  validateSQL: EditRequests["validateSQL"] = async (request) => {
+    await this.putControlRequest(request);
+    return null;
+  };
+
   sendModelValue: RunRequests["sendModelValue"] = async (request) => {
     await this.putControlRequest(request);
     return null;

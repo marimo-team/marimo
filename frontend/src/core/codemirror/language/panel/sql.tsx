@@ -1,9 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { SelectTriggerProps } from "@radix-ui/react-select";
 import { useAtomValue } from "jotai";
-import { AlertCircle, CircleHelpIcon } from "lucide-react";
+import {
+  AlertCircle,
+  CircleHelpIcon,
+  DatabaseBackup,
+  SearchCheck,
+} from "lucide-react";
 import { transformDisplayName } from "@/components/databases/display";
 import { DatabaseLogo } from "@/components/databases/icon";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -14,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   dataConnectionsMapAtom,
   setLatestEngineSelected,
@@ -24,6 +32,7 @@ import {
 } from "@/core/datasets/engines";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { useNonce } from "@/hooks/useNonce";
+import { type SQLMode, useSQLMode } from "../languages/sql/sql-mode";
 
 interface SelectProps {
   selectedEngine: ConnectionName;
@@ -77,7 +86,7 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
       <SelectItem key={connection.name} value={connection.name}>
         <div className="flex items-center gap-1">
           <DatabaseLogo className="h-3 w-3" name={connection.dialect} />
-          <span className="truncate">
+          <span className="truncate ml-0.5">
             {transformDisplayName(connection.display_name)}
           </span>
         </div>
@@ -88,9 +97,9 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
   return (
     <div className="flex flex-row gap-1 items-center">
       <Select value={selectedEngine} onValueChange={handleSelectEngine}>
-        <SelectTrigger className="text-xs border-border shadow-none! ring-0! h-4.5 px-1.5">
+        <SQLSelectTrigger>
           <SelectValue placeholder="Select an engine" />
-        </SelectTrigger>
+        </SQLSelectTrigger>
         <SelectContent>
           <SelectGroup>
             <SelectLabel>Database connections</SelectLabel>
@@ -130,3 +139,71 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
 const HELP_KEY = "__help__";
 const HELP_URL =
   "http://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database";
+
+export const SQLModeSelect: React.FC = () => {
+  const { sqlMode, setSQLMode } = useSQLMode();
+
+  const handleToggleMode = () => {
+    setSQLMode(sqlMode === "validate" ? "default" : "validate");
+  };
+
+  const getModeIcon = (mode: SQLMode) => {
+    return mode === "validate" ? (
+      <SearchCheck className="h-3 w-3" />
+    ) : (
+      <DatabaseBackup className="h-3 w-3" />
+    );
+  };
+
+  const getTooltipContent = (mode: SQLMode) => {
+    return mode === "validate" ? (
+      <div className="text-xs">
+        <div className="font-semibold mb-1 flex flex-row items-center gap-1">
+          <SearchCheck className="h-3 w-3" />
+          Validate Mode
+        </div>
+        <p>Queries are validated as you write them</p>
+      </div>
+    ) : (
+      <div className="text-xs">
+        <div className="font-semibold mb-1 flex flex-row items-center gap-1">
+          <DatabaseBackup className="h-3 w-3" />
+          Default Mode
+        </div>
+        <p>Standard editing</p>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-row gap-1 items-center">
+      <Tooltip delayDuration={300} content={getTooltipContent(sqlMode)}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleToggleMode}
+          className="h-5 px-1.5 text-xs border-border shadow-none hover:bg-accent"
+        >
+          {getModeIcon(sqlMode)}
+          <span className="ml-1">
+            {sqlMode === "validate" ? "Validate" : "Default"}
+          </span>
+        </Button>
+      </Tooltip>
+    </div>
+  );
+};
+
+const SQLSelectTrigger: React.FC<SelectTriggerProps> = ({
+  children,
+  ...props
+}) => {
+  return (
+    <SelectTrigger
+      className="text-xs border-border shadow-none! ring-0! h-5 px-1.5 hover:bg-accent transition-colors"
+      {...props}
+    >
+      {children}
+    </SelectTrigger>
+  );
+};

@@ -14,6 +14,7 @@ import {
   languageAdapterState,
   switchLanguage,
 } from "../extension";
+import { exportedForTesting as sqlValidationErrorsForTesting } from "../languages/sql/validation-errors";
 import { languageMetadataField } from "../metadata";
 
 let view: EditorView | null = null;
@@ -255,6 +256,29 @@ describe("switchLanguage", () => {
     expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
     expect(mockEditor.state.field(languageMetadataField)).toEqual({
       quotePrefix: "r",
+    });
+  });
+});
+
+describe("sqlValidationErrors", () => {
+  const { splitErrorMessage } = sqlValidationErrorsForTesting;
+
+  describe("split error message", () => {
+    it("should split the error message into error type and error message", () => {
+      const error = "SyntaxError: SELECT * FROM df";
+      const { errorType, errorMessage } = splitErrorMessage(error);
+      expect(errorType).toBe("SyntaxError");
+      expect(errorMessage).toBe("SELECT * FROM df");
+    });
+
+    it("should handle multiple colons", () => {
+      const error =
+        "SyntaxError: SELECT * FROM df:SyntaxError: SELECT * FROM df";
+      const { errorType, errorMessage } = splitErrorMessage(error);
+      expect(errorType).toBe("SyntaxError");
+      expect(errorMessage).toBe(
+        "SELECT * FROM df:SyntaxError: SELECT * FROM df",
+      );
     });
   });
 });

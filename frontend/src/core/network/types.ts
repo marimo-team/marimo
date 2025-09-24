@@ -62,6 +62,7 @@ export type PreviewSQLTableRequest = schemas["PreviewSQLTableRequest"];
 export type PreviewSQLTableListRequest = schemas["PreviewSQLTableListRequest"];
 export type PreviewDataSourceConnectionRequest =
   schemas["PreviewDataSourceConnectionRequest"];
+export type ValidateSQLRequest = schemas["ValidateSQLRequest"];
 export type PdbRequest = schemas["PdbRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
@@ -140,6 +141,7 @@ export interface EditRequests {
   previewDataSourceConnection: (
     request: PreviewDataSourceConnectionRequest,
   ) => Promise<null>;
+  validateSQL: (request: ValidateSQLRequest) => Promise<null>;
   openFile: (request: { path: string }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
   // Debugger

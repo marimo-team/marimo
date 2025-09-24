@@ -2033,6 +2033,7 @@ components:
           - $ref: '#/components/schemas/SQLTablePreview'
           - $ref: '#/components/schemas/SQLTableListPreview'
           - $ref: '#/components/schemas/DataSourceConnections'
+          - $ref: '#/components/schemas/ValidateSQLResult'
           - $ref: '#/components/schemas/SecretKeysResult'
           - $ref: '#/components/schemas/FocusCell'
           - $ref: '#/components/schemas/UpdateCellCodes'
@@ -2067,6 +2068,7 @@ components:
               startup-logs: '#/components/schemas/StartupLogs'
               update-cell-codes: '#/components/schemas/UpdateCellCodes'
               update-cell-ids: '#/components/schemas/UpdateCellIdsRequest'
+              validate-sql-result: '#/components/schemas/ValidateSQLResult'
               variable-values: '#/components/schemas/VariableValues'
               variables: '#/components/schemas/Variables'
             propertyName: op
@@ -3428,6 +3430,43 @@ components:
       - values
       title: UpdateComponentValuesRequest
       type: object
+    ValidateSQLRequest:
+      description: Validate an SQL query
+      properties:
+        engine:
+          type: string
+        query:
+          type: string
+        requestId:
+          type: string
+      required:
+      - requestId
+      - engine
+      - query
+      title: ValidateSQLRequest
+      type: object
+    ValidateSQLResult:
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        op:
+          enum:
+          - validate-sql-result
+        request_id:
+          type: string
+        result:
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
+      required:
+      - op
+      - request_id
+      title: ValidateSQLResult
+      type: object
     VariableContext:
       properties:
         name:
@@ -4399,6 +4438,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListSecretKeysResponse'
           description: List all secret keys
+  /api/sql/validate:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateSQLRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Validate an SQL query
   /api/status:
     get:
       responses:

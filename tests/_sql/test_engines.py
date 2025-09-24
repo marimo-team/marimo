@@ -274,6 +274,45 @@ def test_duckdb_execute() -> None:
 
 
 @pytest.mark.skipif(
+    not HAS_DUCKDB or not HAS_POLARS,
+    reason="Duckdb and polars not installed",
+)
+def test_duckdb_execute_in_explain_mode():
+    """Test DuckDBEngine execute in explain mode."""
+    import duckdb
+
+    duckdb_conn = duckdb.connect(":memory:")
+    engine = DuckDBEngine(duckdb_conn)
+
+    # Test with valid query
+    result, error = engine.execute_in_explain_mode("SELECT 1, 2")
+    assert result is not None
+    assert error is None
+
+    # Test with invalid queries
+    result, error = engine.execute_in_explain_mode(
+        "SELECT * FROM non_existent_table"  # catalog error
+    )
+    assert result is None
+    assert error is not None
+
+    result, error = engine.execute_in_explain_mode("SELECT * FROM ")
+    assert result is None
+    assert error is not None
+
+    # Test with empty queries
+    result, error = engine.execute_in_explain_mode("")
+    assert result is None
+    assert error is None
+
+    result, error = engine.execute_in_explain_mode("-- SELECT * FROM ")
+    assert result is None
+    assert error is None
+
+    duckdb_conn.close()
+
+
+@pytest.mark.skipif(
     not HAS_SQLALCHEMY or not (HAS_PANDAS or HAS_POLARS),
     reason="SQLAlchemy and either pandas or polars not installed",
 )
@@ -303,6 +342,40 @@ def test_sqlalchemy_execute() -> None:
 
     # Test with a query that doesn't return a result set
     assert engine.execute("PRAGMA journal_mode=WAL") is not None
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_execute_in_explain_mode():
+    """Test SQLAlchemyEngine execute in explain mode."""
+    import sqlalchemy as sa
+
+    sqlite_engine = sa.create_engine("sqlite:///:memory:")
+    engine = SQLAlchemyEngine(sqlite_engine)
+
+    # Test with valid query
+    result, error = engine.execute_in_explain_mode("SELECT 1, 2")
+    assert result is not None
+    assert error is None
+
+    # Test with invalid queries
+    result, error = engine.execute_in_explain_mode(
+        "SELECT * FROM non_existent_table"  # catalog error
+    )
+    assert result is None
+    assert error is not None
+
+    result, error = engine.execute_in_explain_mode("SELECT * FROM ")
+    assert result is None
+    assert error is not None
+
+    # Test with empty queries
+    result, error = engine.execute_in_explain_mode("")
+    assert result is None
+    assert error is None
+
+    result, error = engine.execute_in_explain_mode("-- SELECT * FROM ")
+    assert result is None
+    assert error is None
 
 
 def test_sql_type_to_data_type() -> None:

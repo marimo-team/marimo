@@ -183,6 +183,51 @@ def is_explain_query(query: str) -> bool:
     return query.lstrip().lower().startswith("explain ")
 
 
+def wrap_query_with_explain(query: str) -> str:
+    """
+    Wrap a SQL query with an EXPLAIN query if it is not already.
+
+    If the query is just comments, return it. Executing this would return nothing.
+    """
+    if is_explain_query(query):
+        return query
+
+    return f"EXPLAIN {query}"
+
+
+def is_query_empty(query: str) -> bool:
+    """Check if a SQL query is empty or just comments"""
+    stripped = query.strip()
+    if not stripped:
+        return True
+
+    # If the query starts with -- or /*, it's likely just comments
+    if stripped.startswith("--") or stripped.startswith("/*"):
+        import re
+
+        # Remove /* */ comments
+        no_block_comments = re.sub(r"/\*.*?\*/", "", query, flags=re.DOTALL)
+
+        # Remove -- comments (just split on \n and check each line)
+        lines = no_block_comments.split("\n")
+        for line in lines:
+            # Find first non-whitespace character
+            for char in line:
+                if char.isspace():
+                    continue
+                elif char == "-":
+                    if line.strip().startswith("--"):
+                        break  # This line is a comment, continue to next line
+                    else:
+                        return False  # Found non-comment content
+                else:
+                    return False  # Found non-comment content
+        return True
+
+    # If it doesn't start with comment markers, it's not empty
+    return False
+
+
 def extract_explain_content(df: Any) -> str:
     """Extract all content from a DataFrame for EXPLAIN queries.
 

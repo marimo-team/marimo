@@ -13,6 +13,7 @@ from marimo._runtime.context.types import (
     get_context,
     runtime_context_installed,
 )
+from marimo._sql.utils import is_query_empty, wrap_query_with_explain
 from marimo._types.ids import VariableName
 
 NO_SCHEMA_NAME = ""
@@ -132,6 +133,17 @@ class QueryEngine(BaseEngine[CONN], ABC):
             except ContextNotInitializedError:
                 return "auto"
         return "auto"
+
+    def execute_in_explain_mode(self, query: str) -> tuple[Any, Optional[str]]:
+        """Execute a query in explain mode. Returns a tuple of the result and an error if there is one."""
+
+        explain_query = wrap_query_with_explain(query)
+        try:
+            return self.execute(explain_query), None
+        except Exception as e:
+            if is_query_empty(query):
+                return None, None
+            return None, str(e)
 
 
 class SQLConnection(EngineCatalog[CONN], QueryEngine[CONN]):

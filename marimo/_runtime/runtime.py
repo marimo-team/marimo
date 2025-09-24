@@ -67,6 +67,7 @@ from marimo._messaging.ops import (
     SecretKeysResult,
     SQLTableListPreview,
     SQLTablePreview,
+    ValidateSQLResult,
     VariableDeclaration,
     Variables,
     VariableValue,
@@ -149,6 +150,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
     SetUserConfigRequest,
     StopRequest,
+    ValidateSQLRequest,
 )
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.runner.hooks import (
@@ -176,7 +178,8 @@ from marimo._secrets.load_dotenv import (
 from marimo._secrets.secrets import get_secret_keys
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
-from marimo._sql.engines.types import EngineCatalog
+from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
+from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
@@ -523,6 +526,7 @@ class Kernel:
         self.secrets_callbacks = SecretsCallbacks(self)
         self.datasets_callbacks = DatasetCallbacks(self)
         self.packages_callbacks = PackagesCallbacks(self)
+        self.sql_callbacks = SqlCallbacks(self)
 
         # Apply pythonpath from config at initialization
         pythonpath = user_config["runtime"].get("pythonpath")
@@ -2220,6 +2224,8 @@ class Kernel:
             PreviewDataSourceConnectionRequest,
             self.datasets_callbacks.preview_datasource_connection,
         )
+        # SQL
+        handler.register(ValidateSQLRequest, self.sql_callbacks.validate_sql)
         # Secrets
         handler.register(
             ListSecretKeysRequest, self.secrets_callbacks.list_secrets
@@ -2245,6 +2251,31 @@ class Kernel:
             LOGGER.debug("Handling control request: %s", request)
             await self.request_handler.handle(request)
             LOGGER.debug("Handled control request: %s", request)
+
+    def get_engine_catalog(
+        self, variable_name: str
+    ) -> tuple[Optional[EngineCatalog[Any]], Optional[str]]:
+        """Fetch the catalog-capable engine associated with the given variable name.
+
+        Returns the engine if it supports catalog operations, or an error message if not."""
+        variable_name = cast(VariableName, variable_name)
+
+        try:
+            # Should we find the existing engine instead?
+            engine_val = self.globals.get(variable_name)
+            engines = get_engines_from_variables([(variable_name, engine_val)])
+            if engines is None or len(engines) == 0:
+                return None, "Engine not found"
+            engine = engines[0][1]
+            if isinstance(engine, EngineCatalog):
+                return engine, None
+            else:
+                return None, "Connection does not support catalog operations"
+        except Exception as e:
+            LOGGER.warning(
+                "Failed to get engine %s", variable_name, exc_info=e
+            )
+            return None, str(e)
 
 
 class DatasetCallbacks:
@@ -2320,31 +2351,6 @@ class DatasetCallbacks:
             ).broadcast()
         return
 
-    def _get_engine_catalog(
-        self, variable_name: str
-    ) -> tuple[Optional[EngineCatalog[Any]], Optional[str]]:
-        """Fetch the catalog-capable engine associated with the given variable name.
-
-        Returns the engine if it supports catalog operations, or an error message if not."""
-        variable_name = cast(VariableName, variable_name)
-
-        try:
-            # Should we find the existing engine instead?
-            engine_val = self._kernel.globals.get(variable_name)
-            engines = get_engines_from_variables([(variable_name, engine_val)])
-            if engines is None or len(engines) == 0:
-                return None, "Engine not found"
-            engine = engines[0][1]
-            if isinstance(engine, EngineCatalog):
-                return engine, None
-            else:
-                return None, "Connection does not support catalog operations"
-        except Exception as e:
-            LOGGER.warning(
-                "Failed to get engine %s", variable_name, exc_info=e
-            )
-            return None, str(e)
-
     @kernel_tracer.start_as_current_span("preview_sql_table")
     async def preview_sql_table(self, request: PreviewSQLTableRequest) -> None:
         """Get table details for an SQL table.
@@ -2361,7 +2367,7 @@ class DatasetCallbacks:
         schema_name = request.schema
         table_name = request.table_name
 
-        engine, error = self._get_engine_catalog(variable_name)
+        engine, error = self._kernel.get_engine_catalog(variable_name)
         if error is not None or engine is None:
             SQLTablePreview(
                 request_id=request.request_id, table=None, error=error
@@ -2406,7 +2412,7 @@ class DatasetCallbacks:
         database_name = request.database
         schema_name = request.schema
 
-        engine, error = self._get_engine_catalog(variable_name)
+        engine, error = self._kernel.get_engine_catalog(variable_name)
         if error is not None or engine is None:
             SQLTableListPreview(
                 request_id=request.request_id, tables=[], error=error
@@ -2438,7 +2444,7 @@ class DatasetCallbacks:
     ) -> None:
         """Broadcasts a datasource connection for a given engine"""
         variable_name = cast(VariableName, request.engine)
-        engine, error = self._get_engine_catalog(variable_name)
+        engine, error = self._kernel.get_engine_catalog(variable_name)
         if error is not None or engine is None:
             LOGGER.error("Failed to get engine %s", variable_name)
             return
@@ -2452,6 +2458,43 @@ class DatasetCallbacks:
         )
         DataSourceConnections(
             connections=[data_source_connection],
+        ).broadcast()
+
+
+class SqlCallbacks:
+    def __init__(self, kernel: Kernel):
+        self._kernel = kernel
+
+    @kernel_tracer.start_as_current_span("validate_sql_query")
+    async def validate_sql(self, request: ValidateSQLRequest) -> None:
+        """Validate an SQL query"""
+        # TODO: Place request in queue
+        variable_name = cast(VariableName, request.engine)
+        engine: Optional[EngineCatalog[Any]] = None
+        if variable_name == INTERNAL_DUCKDB_ENGINE:
+            engine = DuckDBEngine(connection=None)
+            error = None
+        else:
+            engine, error = self._kernel.get_engine_catalog(variable_name)
+
+        if error is not None or engine is None:
+            LOGGER.error("Failed to get engine %s", variable_name)
+            ValidateSQLResult(
+                request_id=request.request_id,
+                result=None,
+                error="Engine not found",
+            ).broadcast()
+            return
+
+        if isinstance(engine, QueryEngine):
+            result, error = engine.execute_in_explain_mode(request.query)  # type: ignore
+        else:
+            error = "Engine does not support explain mode"
+
+        ValidateSQLResult(
+            request_id=request.request_id,
+            result=None,  # We aren't using the result yet
+            error=error,
         ).broadcast()
 
 

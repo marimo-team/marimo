@@ -5,7 +5,7 @@ import { insertTab } from "@codemirror/commands";
 import { type SQLDialect, type SQLNamespace, sql } from "@codemirror/lang-sql";
 import type { EditorState, Extension } from "@codemirror/state";
 import { Compartment } from "@codemirror/state";
-import { type EditorView, keymap } from "@codemirror/view";
+import { EditorView, keymap } from "@codemirror/view";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parser } from "@lezer/python";
 import {
@@ -16,12 +16,19 @@ import {
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import dedent from "string-dedent";
+import { cellIdState } from "@/core/codemirror/cells/state";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   dataSourceConnectionsAtom,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
-import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
+import {
+  type ConnectionName,
+  DUCKDB_ENGINE,
+  INTERNAL_SQL_ENGINES,
+} from "@/core/datasets/engines";
+import { ValidateSQL } from "@/core/datasets/request-registry";
+import type { ValidateSQLResult } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { resolvedThemeAtom } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
@@ -37,6 +44,11 @@ import {
   tablesCompletionSource,
 } from "./completion-sources";
 import { SCHEMA_CACHE } from "./completion-store";
+import { getSQLMode } from "./sql-mode";
+import {
+  clearSqlValidationError,
+  setSqlValidationError,
+} from "./validation-errors";
 
 const DEFAULT_DIALECT = DuckDBDialect;
 const DEFAULT_PARSER_DIALECT = "DuckDB";
@@ -64,12 +76,15 @@ export class SQLLanguageAdapter
 {
   readonly type = "sql";
   sqlLinterEnabled: boolean;
+  sqlModeEnabled: boolean;
 
   constructor() {
     try {
       this.sqlLinterEnabled = getFeatureFlag("sql_linter");
+      this.sqlModeEnabled = getFeatureFlag("sql_mode");
     } catch {
       this.sqlLinterEnabled = false;
+      this.sqlModeEnabled = false;
     }
   }
 
@@ -265,6 +280,10 @@ export class SQLLanguageAdapter
       );
     }
 
+    if (this.sqlModeEnabled) {
+      extensions.push(sqlValidationExtension());
+    }
+
     return extensions;
   }
 }
@@ -315,9 +334,14 @@ function getSchema(view: EditorView): SQLNamespace {
 function guessParserDialect(state: EditorState): ParserDialects | null {
   const metadata = getSQLMetadata(state);
   const connectionName = metadata.engine;
+  return connectionNameToParserDialect(connectionName);
+}
+
+function connectionNameToParserDialect(
+  connectionName: ConnectionName,
+): ParserDialects | null {
   const dialect =
     SCHEMA_CACHE.getInternalDialect(connectionName)?.toLowerCase();
-
   switch (dialect) {
     case "postgresql":
     case "postgres":
@@ -542,4 +566,67 @@ function safeDedent(code: string): string {
   } catch {
     return code;
   }
+}
+
+function sqlValidationExtension(): Extension {
+  let debounceTimeout: NodeJS.Timeout | null = null;
+  let lastValidationRequest: string | null = null;
+
+  return EditorView.updateListener.of((update) => {
+    const sqlMode = getSQLMode();
+    if (sqlMode !== "validate") {
+      return;
+    }
+
+    const metadata = getSQLMetadata(update.state);
+    const connectionName = metadata.engine;
+    if (!INTERNAL_SQL_ENGINES.has(connectionName)) {
+      // Currently only internal engines are supported
+      return;
+    }
+
+    if (!update.docChanged) {
+      return;
+    }
+
+    const doc = update.state.doc;
+    const sqlContent = doc.toString();
+
+    // Clear existing timeout
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
+
+    // Debounce the validation call
+    debounceTimeout = setTimeout(async () => {
+      // Skip if content hasn't changed since last validation
+      if (lastValidationRequest === sqlContent) {
+        return;
+      }
+
+      lastValidationRequest = sqlContent;
+      const cellId = update.view.state.facet(cellIdState);
+
+      if (sqlContent === "") {
+        clearSqlValidationError(cellId);
+        return;
+      }
+
+      try {
+        const result: ValidateSQLResult = await ValidateSQL.request({
+          engine: connectionName,
+          query: sqlContent,
+        });
+
+        if (result.error) {
+          const dialect = connectionNameToParserDialect(connectionName);
+          setSqlValidationError({ cellId, error: result.error, dialect });
+        } else {
+          clearSqlValidationError(cellId);
+        }
+      } catch (error) {
+        Logger.warn("Failed to validate SQL", { error });
+      }
+    }, 300);
+  });
 }

@@ -38,6 +38,7 @@ export type DataColumnPreview = OperationMessageData<"data-column-preview">;
 export type SQLTablePreview = OperationMessageData<"sql-table-preview">;
 export type SQLTableListPreview =
   OperationMessageData<"sql-table-list-preview">;
+export type ValidateSQLResult = OperationMessageData<"validate-sql-result">;
 export type SecretKeysResult = OperationMessageData<"secret-keys-result">;
 export type StartupLogs = OperationMessageData<"startup-logs">;
 export type CellMessage = OperationMessageData<"cell-op">;

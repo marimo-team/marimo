@@ -13,7 +13,12 @@ from marimo._plugins import ui
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.sql import _query_includes_limit, sql
-from marimo._sql.utils import extract_explain_content, is_explain_query
+from marimo._sql.utils import (
+    extract_explain_content,
+    is_explain_query,
+    is_query_empty,
+    wrap_query_with_explain,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -513,3 +518,53 @@ logical_plan
 
         # Clean up
         duckdb.sql("DROP TABLE test_explain")
+
+    def test_wrap_query_with_explain(self):
+        """Test wrap_query_with_explain function."""
+        assert (
+            wrap_query_with_explain("SELECT * FROM t")
+            == "EXPLAIN SELECT * FROM t"
+        )
+        assert (
+            wrap_query_with_explain("EXPLAIN SELECT * FROM t")
+            == "EXPLAIN SELECT * FROM t"
+        )
+        assert (
+            wrap_query_with_explain("EXPLAIN (FORMAT JSON) SELECT * FROM t")
+            == "EXPLAIN (FORMAT JSON) SELECT * FROM t"
+        )
+        assert (
+            wrap_query_with_explain("EXPLAIN ANALYZE SELECT * FROM t")
+            == "EXPLAIN ANALYZE SELECT * FROM t"
+        )
+        assert (
+            wrap_query_with_explain("EXPLAIN QUERY PLAN SELECT * FROM t")
+            == "EXPLAIN QUERY PLAN SELECT * FROM t"
+        )
+
+    def test_is_query_empty(self):
+        """Test is_query_empty function."""
+
+        assert is_query_empty("SELECT * FROM t") is False
+        assert is_query_empty("INSERT INTO t VALUES (1)") is False
+        assert is_query_empty("UPDATE t SET col = 1") is False
+        assert is_query_empty("DELETE FROM t") is False
+        assert is_query_empty("CREATE TABLE t (id INT)") is False
+        assert is_query_empty("") is True
+        assert is_query_empty("   ") is True
+
+        # Comments
+        assert is_query_empty("-- SELECT * FROM t") is True
+        assert is_query_empty("/* SELECT * FROM t */") is True
+        assert (
+            is_query_empty("""
+        -- SELECT * FROM t
+        /* SELECT * FROM t */
+        """)
+            is True
+        )
+        assert is_query_empty(" -- some query with space") is True
+
+        # Invalid SQL
+        assert is_query_empty("NOT A VALID SQL QUERY") is False
+        assert is_query_empty("SELECT * FROM t WHERE x = '") is False
