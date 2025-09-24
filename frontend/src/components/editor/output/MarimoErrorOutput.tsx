@@ -1,6 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import {
+  InfoIcon,
+  NotebookPenIcon,
+  SquareArrowOutUpRightIcon,
+} from "lucide-react";
 import { Fragment, type JSX } from "react";
 import {
   Accordion,
@@ -72,6 +76,8 @@ export const MarimoErrorOutput = ({
     titleContents = "Ancestor stopped";
     alertVariant = "default";
     titleColor = "text-secondary-foreground";
+  } else if (errors.some((e) => e.type === "sql-error")) {
+    titleContents = "SQL Error in statement";
   } else {
     // Check for exception type
     const exceptionError = errors.find((e) => e.type === "exception");
@@ -125,6 +131,10 @@ export const MarimoErrorOutput = ({
   );
   const unknownErrors = errors.filter(
     (e): e is Extract<MarimoError, { type: "unknown" }> => e.type === "unknown",
+  );
+  const sqlErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "sql-error" }> =>
+      e.type === "sql-error",
   );
 
   const openScratchpad = () => {
@@ -481,6 +491,55 @@ export const MarimoErrorOutput = ({
           {cellId && (
             <AutoFixButton errors={ancestorStoppedErrors} cellId={cellId} />
           )}
+        </div>,
+      );
+    }
+
+    if (sqlErrors.length > 0) {
+      messages.push(
+        <div key="sql-errors">
+          {sqlErrors.map((error, idx) => {
+            const line =
+              error.sql_line != null ? (error?.sql_line | 0) + 1 : null;
+            const col = error.sql_col != null ? (error?.sql_col | 0) + 1 : null;
+            return (
+              <div key={`sql-error-${idx}`} className="space-y-2">
+                <p className="text-muted-foreground">{error.msg}</p>
+                {error.hint && (
+                  <div className="flex items-start gap-2">
+                    <InfoIcon className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
+                      {error.hint}
+                    </pre>
+                  </div>
+                )}
+                {error.sql_statement && (
+                  <div className="bg-muted/50 p-2 rounded text-xs font-mono">
+                    <pre className="whitespace-pre-wrap">
+                      {error.sql_statement}
+                    </pre>
+                  </div>
+                )}
+                {line !== null && col !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    Error at line {line}, column {col}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+          {cellId && <AutoFixButton errors={sqlErrors} cellId={cellId} />}
+          <Tip title="How to fix SQL errors">
+            <p className="pb-2">
+              SQL parsing errors often occur due to invalid syntax, missing
+              keywords, or unsupported SQL features.
+            </p>
+            <p className="py-2">
+              Check your SQL syntax and ensure you're using supported SQL
+              dialect features. The error location can help you identify the
+              problematic part of your query.
+            </p>
+          </Tip>
         </div>,
       );
     }

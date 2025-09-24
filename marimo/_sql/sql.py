@@ -11,6 +11,7 @@ from marimo._sql.engines.dbapi import DBAPIConnection, DBAPIEngine
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import QueryEngine
+from marimo._sql.error_utils import MarimoSQLException, is_sql_parse_error
 from marimo._sql.get_engines import SUPPORTED_ENGINES
 from marimo._sql.utils import (
     extract_explain_content,
@@ -75,7 +76,48 @@ def sql(
                 "Unsupported engine. Must be a SQLAlchemy, Ibis, Clickhouse, DuckDB, Redshift or DBAPI 2.0 compatible engine."
             )
 
-    df = sql_engine.execute(query)
+    try:
+        df = sql_engine.execute(query)
+    except Exception as e:
+        if is_sql_parse_error(e):
+            # Use centralized error processing
+            from marimo._sql.error_utils import (
+                create_sql_error_metadata,
+            )
+
+            metadata = create_sql_error_metadata(
+                e,
+                rule_code="runtime",
+                node=None,
+                sql_content=query,
+                context="sql_execution",
+            )
+
+            # Enhance error messages based on exception type
+            exception_type = metadata["error_type"]
+            clean_message = metadata["clean_message"]
+            if exception_type == "ParserException":
+                clean_message = f"SQL syntax error: {clean_message}"
+            elif "ParseError" in exception_type:
+                clean_message = f"SQL parse error: {clean_message}"
+            elif "ProgrammingError" in exception_type:
+                clean_message = f"SQL programming error: {clean_message}"
+
+            # Truncate long SQL statements
+            truncated_query = (
+                query[:200] + "..." if len(query) > 200 else query
+            )
+
+            # Raise MarimoSQLException with structured hint data
+            raise MarimoSQLException(
+                message=clean_message,
+                sql_statement=truncated_query,
+                sql_line=metadata["sql_line"],
+                sql_col=metadata["sql_col"],
+                hint=metadata["hint"],
+            ) from None
+        raise
+
     if df is None:
         return None
 

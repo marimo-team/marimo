@@ -12,7 +12,6 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.errors import ImportStarError
-from marimo._ast.sql_utils import log_sql_error
 from marimo._ast.sql_visitor import (
     SQLDefs,
     SQLKind,
@@ -23,6 +22,7 @@ from marimo._ast.sql_visitor import (
 )
 from marimo._ast.variables import is_local
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._sql.error_utils import log_sql_error
 from marimo._utils.strings import standardize_annotation_quotes
 
 LOGGER = _loggers.marimo_logger()

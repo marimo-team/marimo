@@ -113,6 +113,25 @@ class MarimoInternalError(msgspec.Struct, tag="internal"):
         return self.msg
 
 
+class MarimoSQLError(msgspec.Struct, tag="sql-error"):
+    """
+    SQL-specific error with enhanced metadata for debugging.
+    """
+
+    msg: str
+    sql_statement: str
+    hint: Optional[str] = (
+        None  # Helpful hints like "Did you mean?" or "Candidate bindings"
+    )
+    sql_line: Optional[int] = None  # 0-based line within SQL
+    sql_col: Optional[int] = None  # 0-based column within SQL
+    node_lineno: int = 0
+    node_col_offset: int = 0
+
+    def describe(self) -> str:
+        return self.msg
+
+
 def is_unexpected_error(error: Error) -> bool:
     """
     These errors are unexpected, in that they are not intentional.
@@ -154,5 +173,6 @@ Error = Union[
     MarimoInterruptionError,
     MarimoSyntaxError,
     MarimoInternalError,
+    MarimoSQLError,
     UnknownError,
 ]
