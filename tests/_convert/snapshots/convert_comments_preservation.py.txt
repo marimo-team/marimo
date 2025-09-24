@@ -41,19 +41,14 @@ def _():
     return
 
 
-app._unparsable_cell(
-    r"""
-    # Cell 5: Multi-line magic with comments
-    # This is a SQL query
-    _df = mo.sql(\"\"\"
-
-    \"\"\")
+@app.cell
+def _(mo):
+    _df = mo.sql("""
     -- SQL comment inside magic
     SELECT * FROM table  -- Another SQL comment
     WHERE id > 0  # Python-style comment in SQL
-    """,
-    name="_"
-)
+    """)
+    return
 
 
 @app.cell
@@ -66,11 +61,11 @@ def _():
 
 
 @app.cell
-def _(np_1):
+def _():
     # Cell 7: Duplicate import with different comment
     import numpy as np  # Import numpy again with different comment
     # This should be deduplicated but preserve one of the comments
-    arr = np_1.array([1, 2, 3])  # Create array
+    arr = _np.array([1, 2, 3])  # Create array
     return
 
 
@@ -106,7 +101,7 @@ def _():
 @app.cell
 def _():
     import marimo as mo
-    return
+    return (mo,)
 
 
 if __name__ == "__main__":

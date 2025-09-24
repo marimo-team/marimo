@@ -719,8 +719,8 @@ def _transform_sources(
 
     # Define transforms that don't need comment preservation
     simple_transforms = [
-        transform_magic_commands,
         transform_strip_whitespace,
+        transform_magic_commands,
         transform_exclamation_mark,
         transform_remove_duplicate_imports,
     ]
