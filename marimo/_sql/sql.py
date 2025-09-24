@@ -104,7 +104,9 @@ def sql(
                 clean_message = f"SQL programming error: {clean_message}"
 
             # Truncate long SQL statements
-            truncated_query = query[:200] + "..." if len(query) > 200 else query
+            truncated_query = (
+                query[:200] + "..." if len(query) > 200 else query
+            )
 
             # Raise MarimoSQLException with structured hint data
             raise MarimoSQLException(

@@ -65,7 +65,7 @@ def is_sql_parse_error(exception: BaseException) -> bool:
                     duckdb.IOException,
                     duckdb.OperationalError,
                     duckdb.IntegrityError,
-                    duckdb.DataError
+                    duckdb.DataError,
                 ),
             ):
                 return True
@@ -213,7 +213,6 @@ def log_sql_error(
     logger_func(log_msg, extra=metadata)
 
 
-
 def create_sql_error_from_exception(
     exception: BaseException,
     cell: object,
@@ -228,6 +227,7 @@ def create_sql_error_from_exception(
     if isinstance(exception, MarimoSQLException) and exception.hint:
         # Use the structured hint data from the exception
         from marimo._messaging.errors import MarimoSQLError
+
         return MarimoSQLError(
             msg=str(exception),
             sql_statement=exception.sql_statement,
