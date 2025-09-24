@@ -13,7 +13,7 @@ import marimo
 from marimo._ast.app import App
 from marimo._plugins.ui._impl.input import dropdown
 from marimo._runtime.requests import ExecutionRequest
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from marimo._save.cache import Cache, ModuleStub, UIElementStub
 from tests.conftest import ExecReqProvider, TestableModuleStub
 

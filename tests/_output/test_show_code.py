@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from marimo._output.show_code import show_code, substitute_show_code_with_arg
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from tests.conftest import ExecReqProvider
 
 

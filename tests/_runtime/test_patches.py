@@ -11,7 +11,7 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.capture import capture_stderr
 from marimo._runtime.patches import patch_polars_write_json
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from marimo._utils.platform import is_pyodide
 from tests._messaging.mocks import MockStream
 from tests.conftest import ExecReqProvider

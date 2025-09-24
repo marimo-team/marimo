@@ -1,5 +1,5 @@
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from tests.conftest import ExecReqProvider
 
 

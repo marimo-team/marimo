@@ -1,7 +1,7 @@
 import time
 
 from marimo._runtime.requests import DeleteCellRequest
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from tests._messaging.mocks import MockStream
 from tests.conftest import ExecReqProvider
 

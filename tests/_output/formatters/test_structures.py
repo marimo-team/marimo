@@ -12,7 +12,7 @@ from marimo._output.formatters.structures import (
 from marimo._output.formatting import get_formatter
 from marimo._output.md import md
 from marimo._plugins.ui._impl.input import slider
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from tests.conftest import ExecReqProvider
 
 

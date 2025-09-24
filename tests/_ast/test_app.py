@@ -41,7 +41,7 @@ from marimo._types.ids import CellId_t
 from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
-    from marimo._runtime.runtime import Kernel
+    from marimo._runtime.runtime.kernel import Kernel
 
 
 # don't complain for useless expressions (cell outputs)

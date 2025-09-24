@@ -6,7 +6,7 @@ from typing import Any
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import RuntimeContext
 from marimo._runtime.functions import Function
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from tests.conftest import ExecReqProvider
 
 

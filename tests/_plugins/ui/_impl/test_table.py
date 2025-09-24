@@ -30,7 +30,7 @@ from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import TableCell
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.functions import EmptyArgs
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from marimo._utils.data_uri import from_data_uri
 from marimo._utils.platform import is_windows
 from tests._data.mocks import create_dataframes

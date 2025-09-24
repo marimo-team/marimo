@@ -25,7 +25,7 @@ from marimo._plugins.ui._impl.altair_chart import (
     _update_vconcat_width,
     altair_chart,
 )
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from tests._data.mocks import NON_EAGER_LIBS, create_dataframes
 from tests.conftest import ExecReqProvider
 from tests.mocks import snapshotter

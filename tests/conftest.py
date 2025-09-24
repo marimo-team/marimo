@@ -37,7 +37,7 @@ from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from marimo._save.cache import ModuleStub
 from marimo._server.model import SessionMode
 from marimo._types.ids import CellId_t

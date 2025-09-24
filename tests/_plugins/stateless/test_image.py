@@ -10,7 +10,7 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.image import image
 from marimo._runtime.context import get_context
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from tests.conftest import ExecReqProvider
 
 HAS_DEPS = DependencyManager.numpy.has() and DependencyManager.pillow.has()

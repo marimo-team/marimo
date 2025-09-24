@@ -4,7 +4,7 @@ from __future__ import annotations
 from marimo._runtime import control_flow
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runner import cell_runner
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 
 
 async def test_stop_false(execution_kernel: Kernel) -> None:

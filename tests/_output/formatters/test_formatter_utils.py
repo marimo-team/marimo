@@ -5,7 +5,7 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 from marimo._output.formatters.utils import src_or_src_doc
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from tests.conftest import ExecReqProvider
 
 

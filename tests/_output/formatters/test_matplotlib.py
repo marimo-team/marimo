@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from tests.conftest import ExecReqProvider
 
 HAS_MPL = DependencyManager.matplotlib.has()

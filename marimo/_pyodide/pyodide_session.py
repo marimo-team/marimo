@@ -38,7 +38,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
     SetUserConfigRequest,
 )
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
 )

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from marimo._runtime.context import get_context
 from marimo._runtime.requests import DeleteCellRequest
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime.kernel import Kernel
 from tests.conftest import ExecReqProvider
 
 
