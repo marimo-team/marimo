@@ -4,7 +4,7 @@ import { invariant } from "./invariant";
 import { Logger } from "./Logger";
 
 /**
- * Update the ob ect with DataView buffers at the specified paths.
+ * Update the ob etc with DataView buffers at the specified paths.
  */
 export function updateBufferPaths<T extends Record<string, unknown>>(
   inputObject: T,
