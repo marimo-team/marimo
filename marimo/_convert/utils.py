@@ -6,13 +6,17 @@ from marimo._ast import codegen
 
 def markdown_to_marimo(source: str) -> str:
     source = source.replace('"""', '\\"\\"\\"')
+
+    if "\n" not in source:
+        return f'mo.md(r"""{source}""")'
+
     return "\n".join(
         [
             "mo.md(",
             # r-string: a backslash is just a backslash!
             codegen.indent_text('r"""'),
-            codegen.indent_text(source),
-            codegen.indent_text('"""'),
+            source,
+            '"""',
             ")",
         ]
     )

@@ -247,7 +247,7 @@ def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
     header = root.get("header", None)
     pyproject = root.get("pyproject", None)
     if pyproject and not header:
-        header = "\n# ".join(["# ///script", *pyproject.splitlines(), "///"])
+        header = "\n# ".join(["# /// script", *pyproject.splitlines(), "///"])
     notebook = NotebookSerializationV1(
         app=AppInstantiation(options=app_config),
         cells=[
