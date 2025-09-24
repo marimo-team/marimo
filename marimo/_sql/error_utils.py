@@ -23,10 +23,8 @@ class MarimoSQLException(Exception):
         sql_line: Optional[int] = None,
         sql_col: Optional[int] = None,
         hint: Optional[str] = None,
-        _parent: Optional[BaseException] = None,
     ):
         super().__init__(message)
-        self._parent = _parent
         self.sql_statement = sql_statement
         self.sql_line = sql_line
         self.sql_col = sql_col
