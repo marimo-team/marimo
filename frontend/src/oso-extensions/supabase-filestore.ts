@@ -69,6 +69,7 @@ export class SupabaseFileStore implements FileStore {
 
     if (error) {
       console.error("Failed to save file to Supabase:", error);
+      throw new Error(`Failed to save file: ${error.message}`);
     }
   }
 
