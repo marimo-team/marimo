@@ -141,11 +141,15 @@ def test_invalid_sql(
     import duckdb
     import sqlalchemy
 
-    with pytest.raises(duckdb.Error):
-        sql("SELECT *", engine=duckdb_connection)
+    from marimo._sql.error_utils import MarimoSQLException
 
-    with pytest.raises(sqlalchemy.exc.StatementError):
+    with pytest.raises(MarimoSQLException) as exc_info:
+        sql("SELECT *", engine=duckdb_connection)
+    assert isinstance(exc_info.value._parent, duckdb.Error)
+
+    with pytest.raises(MarimoSQLException) as exc_info:
         sql("SELECT *", engine=sqlite_engine)
+    assert isinstance(exc_info.value._parent, sqlalchemy.exc.StatementError)
 
 
 # TODO

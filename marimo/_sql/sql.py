@@ -115,6 +115,7 @@ def sql(
                 sql_line=metadata["sql_line"],
                 sql_col=metadata["sql_col"],
                 hint=metadata["hint"],
+                _parent=e,
             ) from None
         raise
 

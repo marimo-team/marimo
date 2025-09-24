@@ -23,8 +23,10 @@ class MarimoSQLException(Exception):
         sql_line: Optional[int] = None,
         sql_col: Optional[int] = None,
         hint: Optional[str] = None,
+        _parent: Optional[BaseException] = None,
     ):
         super().__init__(message)
+        self._parent = _parent
         self.sql_statement = sql_statement
         self.sql_line = sql_line
         self.sql_col = sql_col
@@ -80,6 +82,17 @@ def is_sql_parse_error(exception: BaseException) -> bool:
             # Definitions can be found here:
             # https://sqlglot.com/sqlglot/errors.html
             if isinstance(exception, ParseError):
+                return True
+        except ImportError:
+            pass
+
+    if DependencyManager.sqlalchemy.has():
+        try:
+            from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
+
+            # Definitions can be found here:
+            # https://docs.sqlalchemy.org/en/20/core/exceptions.html
+            if isinstance(exception, (SQLAlchemyError, ProgrammingError)):
                 return True
         except ImportError:
             pass
