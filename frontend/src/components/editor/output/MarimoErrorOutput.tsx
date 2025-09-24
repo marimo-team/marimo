@@ -500,8 +500,9 @@ export const MarimoErrorOutput = ({
         <div key="sql-errors">
           {sqlErrors.map((error, idx) => {
             const line =
-              error.sql_line != null ? (error?.sql_line | 0) + 1 : null;
-            const col = error.sql_col != null ? (error?.sql_col | 0) + 1 : null;
+              error.sql_line == null ? null : Math.trunc(error?.sql_line) + 1;
+            const col =
+              error.sql_col == null ? null : Math.trunc(error?.sql_col) + 1;
             return (
               <div key={`sql-error-${idx}`} className="space-y-2">
                 <p className="text-muted-foreground">{error.msg}</p>
