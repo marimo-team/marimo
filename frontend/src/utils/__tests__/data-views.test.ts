@@ -26,7 +26,27 @@ describe("updateBufferPaths", () => {
       new TextEncoder().encode("World"),
     ].map((b) => new DataView(b.buffer));
     const result = updateBufferPaths(input, bufferPaths, buffers);
-    expect(result).toMatchInlineSnapshot();
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "a": 1,
+        "b": {
+          "c": DataView [
+            72,
+            101,
+            108,
+            108,
+            111,
+          ],
+          "d": DataView [
+            87,
+            111,
+            114,
+            108,
+            100,
+          ],
+        },
+      }
+    `);
   });
 
   it("should throw error when buffers and paths length mismatch", () => {

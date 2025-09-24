@@ -3,7 +3,7 @@
 
 import type { AnyWidget, Experimental } from "@anywidget/types";
 import { get, isEqual, set } from "lodash-es";
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { asRemoteURL } from "@/core/runtime/config";

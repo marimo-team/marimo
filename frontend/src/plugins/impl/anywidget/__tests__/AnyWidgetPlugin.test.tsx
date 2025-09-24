@@ -7,8 +7,8 @@ import type { UIElementId } from "@/core/cells/ids";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import {
   getDirtyFields,
-  visibleForTesting,
   resolveInitialValue,
+  visibleForTesting,
 } from "../AnyWidgetPlugin";
 import { Model } from "../model";
 
