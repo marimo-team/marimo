@@ -73,9 +73,13 @@ class CommentPreserver:
             original_sources = args[0]
 
             # Merge comments back into transformed sources
-            return self._merge_comments(
-                original_sources, transformed_sources
-            )
+            result = self._merge_comments(original_sources, transformed_sources)
+
+            # Update our internal comment data to track only the clean transformed sources
+            # This clears old comments that no longer apply
+            self._update_comments_for_transformed_sources(transformed_sources)
+
+            return result
 
         return wrapper
 
@@ -138,20 +142,37 @@ class CommentPreserver:
             if target_line_idx < 0:
                 continue
 
+            # Select the best comment for this line (line comments take precedence)
+            line_comment = None
+            inline_comment = None
+
             for comment in line_comments:
-                comment_text = comment.text
-                if comment.col > 0 and target_line_idx < len(original_lines):
+                if comment.col == 0:  # Line comment (starts at column 0)
+                    line_comment = comment
+                    break  # Line comment takes precedence, no need to check others
+                else:  # Inline comment
+                    inline_comment = comment
+
+            # Prefer line comment over inline comment
+            chosen_comment = line_comment if line_comment else inline_comment
+
+            if chosen_comment:
+                comment_text = chosen_comment.text
+                if chosen_comment.col > 0 and target_line_idx < len(original_lines):
                     # Inline comment - append to the line if not already present
                     current_line = result_lines[target_line_idx]
-                    if not current_line.rstrip().endswith(
-                        comment_text.rstrip()
-                    ):
+                    if not current_line.rstrip().endswith(comment_text.rstrip()):
                         result_lines[target_line_idx] = (
                             current_line.rstrip() + "  " + comment_text
                         )
                 elif target_line_idx >= 0 and comment_text not in result_lines:
-                    # Standalone comment - insert above the line if not already
-                    # present
+                    # Standalone comment - insert above the line if not already present
                     result_lines.insert(target_line_idx, comment_text)
 
         return "\n".join(result_lines)
+
+    def _update_comments_for_transformed_sources(self, sources: list[str]) -> None:
+        """Update internal comment data to track the transformed sources."""
+        self.sources = sources
+        self.comments_by_source = {}
+        self._extract_all_comments()

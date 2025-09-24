@@ -63,9 +63,7 @@ def _():
 @app.cell
 def _(np):
     # Cell 7: Duplicate import with different comment
-    # This should be deduplicated but preserve one of the comments  # Import numpy again with different comment
     # This should be deduplicated but preserve one of the comments
-    # Create array
     arr = np.array([1, 2, 3])  # Import numpy again with different comment  # Create array
     return
 
