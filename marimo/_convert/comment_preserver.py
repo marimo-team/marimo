@@ -73,7 +73,9 @@ class CommentPreserver:
             original_sources = args[0]
 
             # Merge comments back into transformed sources
-            result = self._merge_comments(original_sources, transformed_sources)
+            result = self._merge_comments(
+                original_sources, transformed_sources
+            )
 
             # Update our internal comment data to track only the clean transformed sources
             # This clears old comments that no longer apply
@@ -158,10 +160,14 @@ class CommentPreserver:
 
             if chosen_comment:
                 comment_text = chosen_comment.text
-                if chosen_comment.col > 0 and target_line_idx < len(original_lines):
+                if chosen_comment.col > 0 and target_line_idx < len(
+                    original_lines
+                ):
                     # Inline comment - append to the line if not already present
                     current_line = result_lines[target_line_idx]
-                    if not current_line.rstrip().endswith(comment_text.rstrip()):
+                    if not current_line.rstrip().endswith(
+                        comment_text.rstrip()
+                    ):
                         result_lines[target_line_idx] = (
                             current_line.rstrip() + "  " + comment_text
                         )
@@ -171,7 +177,9 @@ class CommentPreserver:
 
         return "\n".join(result_lines)
 
-    def _update_comments_for_transformed_sources(self, sources: list[str]) -> None:
+    def _update_comments_for_transformed_sources(
+        self, sources: list[str]
+    ) -> None:
         """Update internal comment data to track the transformed sources."""
         self.sources = sources
         self.comments_by_source = {}

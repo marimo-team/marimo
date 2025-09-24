@@ -195,8 +195,11 @@ class RemoveImportTransformer(ast.NodeTransformer):
         self.keep_one = keep_one
         self.import_name = import_name
 
-    def _return_once(self, node: ast.Import | ast.ImportFrom, original_names:
-                     list[ast.alias]) -> Optional[ast.Import | ast.ImportFrom]:
+    def _return_once(
+        self,
+        node: ast.Import | ast.ImportFrom,
+        original_names: list[ast.alias],
+    ) -> Optional[ast.Import | ast.ImportFrom]:
         if node.names:
             return node
         elif self.keep_one:

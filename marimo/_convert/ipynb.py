@@ -659,10 +659,14 @@ def transform_remove_duplicate_imports(sources: list[str]) -> list[str]:
         scoped = set()
         for var, instances in cell.variable_data.items():
             for instance in instances:
-                if (var in imports or var in scoped) and instance.kind == "import":
+                if (
+                    var in imports or var in scoped
+                ) and instance.kind == "import":
                     # If it's not in global imports, we keep one instance
                     keep_one = var not in imports
-                    transformer = RemoveImportTransformer(var, keep_one=keep_one)
+                    transformer = RemoveImportTransformer(
+                        var, keep_one=keep_one
+                    )
                     source = transformer.strip_imports(source)
                 scoped.add(var)
         imports.update(scoped)
