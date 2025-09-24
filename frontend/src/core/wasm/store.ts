@@ -8,7 +8,7 @@ import { TypedLocalStorage } from "@/utils/localStorage";
 import { PyodideRouter } from "./router";
 
 export interface FileStore {
-  saveFile(contents: string): void;
+  saveFile(contents: string): Promise<void> | void;
   readFile(): string | null | Promise<string | null>;
 }
 
@@ -93,8 +93,8 @@ export class CompositeFileStore implements FileStore {
     this.stores.splice(index, 0, store);
   }
 
-  saveFile(contents: string) {
-    this.stores.forEach((store) => store.saveFile(contents));
+  async saveFile(contents: string) {
+    await Promise.all(this.stores.map((store) => store.saveFile(contents)));
   }
 
   async readFile() {

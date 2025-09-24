@@ -212,8 +212,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
     await this.saveRpc.saveNotebook(request);
     const code = await this.readCode();
     if (code.contents) {
-      notebookFileStore.saveFile(code.contents);
-      fallbackFileStore.saveFile(code.contents);
+      await notebookFileStore.saveFile(code.contents);
+      await fallbackFileStore.saveFile(code.contents);
     }
     // Also save to the other worker, since this is needed for
     // exporting to HTML
@@ -332,8 +332,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
     // Save first
     const code = await this.readCode();
     if (code.contents) {
-      notebookFileStore.saveFile(code.contents);
-      fallbackFileStore.saveFile(code.contents);
+      await notebookFileStore.saveFile(code.contents);
+      await fallbackFileStore.saveFile(code.contents);
     }
     reloadSafe();
     return null;
