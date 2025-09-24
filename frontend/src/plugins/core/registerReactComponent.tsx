@@ -203,7 +203,7 @@ function PluginSlotInternal<T>(
             throw new CellNotInitializedError();
           }
         } else {
-             Logger.warn(`Cell ID ${cellId} cannot be found`);
+          Logger.warn(`Cell ID ${cellId} cannot be found`);
         }
 
         const response = await FUNCTIONS_REGISTRY.request({
