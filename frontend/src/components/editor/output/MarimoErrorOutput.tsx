@@ -510,19 +510,19 @@ export const MarimoErrorOutput = ({
                   <div className="flex items-start gap-2">
                     <InfoIcon
                       size={11}
-                      className="text-muted-foreground mt-0.5 flex-shrink-0"
+                      className="text-muted-foreground mt-1 flex-shrink-0"
                     />
-                    <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
+                    <p className="whitespace-pre-wrap text-sm text-muted-foreground">
                       {error.hint}
-                    </pre>
+                    </p>
                   </div>
                 )}
                 {error.sql_statement && (
                   <pre
                     lang="sql"
-                    className="text-xs bg-muted/80 rounded p-0 whitespace-pre-wrap"
+                    className="text-xs bg-muted/80 rounded whitespace-pre-wrap p-3.5"
                   >
-                    {error.sql_statement}
+                    {error.sql_statement.trim()}
                   </pre>
                 )}
                 {line !== null && col !== null && (
