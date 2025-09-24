@@ -91,12 +91,20 @@ def extract_sql_position(
     exception_msg: str,
 ) -> tuple[Optional[int], Optional[int]]:
     """Extract line and column position from SQL exception message."""
-    # DuckDB format: "Line 1, Col: 15"
+    # SqlGlot format: "Line 1, Col: 15"
     line_col_match = re.search(r"Line (\d+), Col: (\d+)", exception_msg)
     if line_col_match:
         return (
             int(line_col_match.group(1)) - 1,  # Convert to 0-based
             int(line_col_match.group(2)) - 1,
+        )
+
+    # DuckDB format: "LINE 4:" (line only)
+    line_only_match = re.search(r"LINE (\d+):", exception_msg)
+    if line_only_match:
+        return (
+            int(line_only_match.group(1)) - 1,  # Convert to 0-based
+            None,  # No column information
         )
 
     # SQLGlot format variations
@@ -137,38 +145,14 @@ def create_sql_error_metadata(
 
     # Extract helpful DuckDB hints separately (including multiline hints)
     hint = None
-    if "\n" in exception_msg:
-        lines = exception_msg.split("\n")
-        hint_lines = []
-        in_multiline_hint = False
+    lines = exception_msg.split("\n")
+    hint_lines = []
 
-        for i in range(1, len(lines)):  # Skip first line (main error message)
-            line = lines[i]
-            stripped_line = line.strip()
+    for line in lines[1:]:
+        hint_lines.append(line.strip())
 
-            # Check if this line starts a hint block
-            if stripped_line and (
-                stripped_line.startswith("Did you mean") or
-                stripped_line.startswith("Candidate bindings:") or
-                stripped_line.startswith("Candidate functions:") or
-                stripped_line.startswith("Candidates:") or
-                "candidate" in stripped_line.lower() or
-                "did you mean" in stripped_line.lower()
-            ):
-                hint_lines.append(stripped_line)
-                in_multiline_hint = True
-            elif in_multiline_hint:
-                # Continue collecting lines that are part of the multiline hint
-                if stripped_line and (line.startswith('\t') or line.startswith('    ')):
-                    # This is an indented continuation line
-                    hint_lines.append(stripped_line)
-                elif stripped_line:
-                    # Non-empty, non-indented line - end of multiline hint
-                    break
-                # Empty lines within hints are ignored but don't break the hint
-
-        if hint_lines:
-            hint = "\n".join(hint_lines)
+    if hint_lines:
+        hint = "\n".join(hint_lines)
 
     return SQLErrorMetadata(
         lint_rule=rule_code,
@@ -196,18 +180,6 @@ def metadata_to_sql_error(metadata: SQLErrorMetadata) -> "MarimoSQLError":
         sql_col=metadata["sql_col"],
         node_lineno=metadata["node_lineno"],
         node_col_offset=metadata["node_col_offset"],
-    )
-
-
-def metadata_to_sql_exception(
-    metadata: SQLErrorMetadata,
-) -> MarimoSQLException:
-    """Convert SQLErrorMetadata to MarimoSQLException for runtime exceptions."""
-    return MarimoSQLException(
-        message=metadata["clean_message"],
-        sql_statement=metadata["sql_statement"],
-        sql_line=metadata["sql_line"],
-        sql_col=metadata["sql_col"],
     )
 
 
@@ -239,6 +211,7 @@ def log_sql_error(
         log_msg += f"\nSQL: {metadata['sql_statement']}"
 
     logger_func(log_msg, extra=metadata)
+
 
 
 def create_sql_error_from_exception(

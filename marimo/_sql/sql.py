@@ -83,7 +83,6 @@ def sql(
             # Use centralized error processing
             from marimo._sql.error_utils import (
                 create_sql_error_metadata,
-                metadata_to_sql_exception,
             )
 
             metadata = create_sql_error_metadata(
@@ -114,7 +113,7 @@ def sql(
                 sql_line=metadata["sql_line"],
                 sql_col=metadata["sql_col"],
                 hint=metadata["hint"],
-            ) from e
+            ) from None
         raise
 
     if df is None:
