@@ -17,6 +17,7 @@ from marimo._sql.utils import (
     extract_explain_content,
     is_explain_query,
     is_query_empty,
+    strip_explain_from_error_message,
     wrap_query_with_explain,
 )
 
@@ -568,3 +569,59 @@ logical_plan
         # Invalid SQL
         assert is_query_empty("NOT A VALID SQL QUERY") is False
         assert is_query_empty("SELECT * FROM t WHERE x = '") is False
+
+    def test_strip_explain_from_error_message(self):
+        """Test strip_explain_from_error_message function."""
+        # Basic case - simple EXPLAIN removal
+        assert (
+            strip_explain_from_error_message("EXPLAIN SELECT * FROM t")
+            == "SELECT * FROM t"
+        )
+
+        # Case insensitive - should not match lowercase
+        assert (
+            strip_explain_from_error_message("explain SELECT * FROM t")
+            == "explain SELECT * FROM t"
+        )
+
+        # Error message with caret position adjustment
+        error_message = """
+LINE 1: EXPLAIN SELECT * FROM pokemons
+                              ^
+"""
+        assert (
+            strip_explain_from_error_message(error_message)
+            == """
+LINE 1: SELECT * FROM pokemons
+                      ^
+"""
+        )
+
+        # No EXPLAIN - should return unchanged
+        assert (
+            strip_explain_from_error_message("SELECT * FROM t")
+            == "SELECT * FROM t"
+        )
+
+        # Empty string
+        assert strip_explain_from_error_message("") == ""
+
+        # Multiple EXPLAIN occurrences - should only remove first
+        assert (
+            strip_explain_from_error_message("EXPLAIN EXPLAIN SELECT * FROM t")
+            == "EXPLAIN SELECT * FROM t"
+        )
+
+        # EXPLAIN at end of line with no next line
+        assert strip_explain_from_error_message("Error: EXPLAIN ") == "Error: "
+
+        # EXPLAIN with multiline error and caret
+        multiline_error = """Syntax error at line 1:
+EXPLAIN SELECT * FROM users WHERE
+                              ^
+Expected 'FROM' keyword"""
+        expected = """Syntax error at line 1:
+SELECT * FROM users WHERE
+                      ^
+Expected 'FROM' keyword"""
+        assert strip_explain_from_error_message(multiline_error) == expected
