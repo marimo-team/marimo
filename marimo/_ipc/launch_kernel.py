@@ -7,7 +7,7 @@ import sys
 
 from marimo._ipc.queue_manager import QueueManager
 from marimo._ipc.types import KernelArgs
-from marimo._runtime import runtime
+from marimo._runtime.runtime.kernel import launch_kernel
 
 
 def main() -> None:
@@ -31,7 +31,7 @@ def main() -> None:
     sys.stdout.write("KERNEL_READY\n")
     sys.stdout.flush()
 
-    runtime.launch_kernel(
+    launch_kernel(
         set_ui_element_queue=queue_manager.set_ui_element_queue,
         interrupt_queue=queue_manager.win32_interrupt_queue,
         completion_queue=queue_manager.completion_queue,
