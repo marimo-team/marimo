@@ -42,7 +42,7 @@ class SQLCompletionStore {
   }
 
   private getConnectionSchema(connection: DataSourceConnection): CachedSchema {
-    const { default_database, databases } = connection;
+    const { default_database, databases, default_schema } = connection;
     const builder = new CompletionBuilder();
 
     // When there is only one database, it is the default
@@ -89,7 +89,7 @@ class SQLCompletionStore {
     }
 
     // Otherwise, we need to use the fully qualified name
-    for (const database of connection.databases) {
+    for (const database of databases) {
       // Skip the default database, since we already added it
       if (database.name === defaultDb?.name) {
         continue;
@@ -112,7 +112,7 @@ class SQLCompletionStore {
     return {
       shouldAddLocalTables: true,
       schema: builder.build(),
-      defaultSchema: connection.default_schema ?? undefined,
+      defaultSchema: default_schema ?? undefined,
     };
   }
 
