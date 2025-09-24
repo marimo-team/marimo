@@ -715,20 +715,39 @@ def _transform_sources(
 
     After this step, cells are ready for execution or rendering.
     """
-    source_transforms: list[Transform] = [
-        transform_strip_whitespace,
+    from marimo._convert.comment_preserver import CommentPreserver
+
+    # Define transforms that don't need comment preservation
+    simple_transforms = [
         transform_magic_commands,
+        transform_strip_whitespace,
         transform_exclamation_mark,
         transform_remove_duplicate_imports,
+    ]
+
+    # Define transforms that should preserve comments
+    comment_preserving_transforms = [
         transform_fixup_multiple_definitions,
         transform_duplicate_definitions,
     ]
 
-    # Run all the source transforms
-    for source_transform in source_transforms:
+    # Run simple transforms first (no comment preservation needed)
+    for source_transform in simple_transforms:
         new_sources = source_transform(sources)
         assert len(new_sources) == len(sources), (
             f"{source_transform.__name__} changed cell count"
+        )
+        sources = new_sources
+
+    # Create comment preserver from the simplified sources
+    comment_preserver = CommentPreserver(sources)
+
+    # Run comment-preserving transforms
+    for base_transform in comment_preserving_transforms:
+        transform = comment_preserver(base_transform)
+        new_sources = transform(sources)
+        assert len(new_sources) == len(sources), (
+            f"{base_transform.__name__} changed cell count"
         )
         sources = new_sources
 
