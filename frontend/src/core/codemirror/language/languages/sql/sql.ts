@@ -568,8 +568,10 @@ function safeDedent(code: string): string {
   }
 }
 
+const SQL_VALIDATION_DEBOUNCE_MS = 300;
+
 function sqlValidationExtension(): Extension {
-  let debounceTimeout: NodeJS.Timeout | null = null;
+  let debounceTimeout: number | undefined;
   let lastValidationRequest: string | null = null;
 
   return EditorView.updateListener.of((update) => {
@@ -594,11 +596,11 @@ function sqlValidationExtension(): Extension {
 
     // Clear existing timeout
     if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
+      window.clearTimeout(debounceTimeout);
     }
 
     // Debounce the validation call
-    debounceTimeout = setTimeout(async () => {
+    debounceTimeout = window.setTimeout(async () => {
       // Skip if content hasn't changed since last validation
       if (lastValidationRequest === sqlContent) {
         return;
@@ -627,6 +629,6 @@ function sqlValidationExtension(): Extension {
       } catch (error) {
         Logger.warn("Failed to validate SQL", { error });
       }
-    }, 300);
+    }, SQL_VALIDATION_DEBOUNCE_MS);
   });
 }
