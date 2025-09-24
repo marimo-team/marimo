@@ -13,7 +13,7 @@ import pytest
 
 import marimo
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import CompletionResult
+from marimo._messaging.ops import CompletionResult, deserialize_kernel_message
 from marimo._messaging.types import KernelMessage, Stream
 from marimo._runtime.complete import (
     _build_docstring_cached,
@@ -367,6 +367,8 @@ class CaptureStream(Stream):
 
     def write(self, data: KernelMessage) -> None:
         self.messages.append(data)
+        # Attempt to deserialize the message to ensure it is valid
+        deserialize_kernel_message(data)
 
     @property
     def operations(self) -> list[dict[str, Any]]:

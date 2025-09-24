@@ -3,9 +3,12 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from marimo._messaging.mimetypes import ConsoleMimeType
-from marimo._messaging.ops import CellOp, MessageOperation
+from marimo._messaging.ops import (
+    CellOp,
+    MessageOperation,
+    deserialize_kernel_message,
+)
 from marimo._messaging.types import KernelMessage, Stderr, Stream
-from marimo._utils.parse_dataclass import parse_raw
 
 
 class MockStream(Stream):
@@ -17,6 +20,8 @@ class MockStream(Stream):
 
     def write(self, data: KernelMessage) -> None:
         self.messages.append(data)
+        # Attempt to deserialize the message to ensure it is valid
+        deserialize_kernel_message(data)
 
     @property
     def operations(self) -> list[dict[str, Any]]:
@@ -27,7 +32,7 @@ class MockStream(Stream):
     @property
     def parsed_operations(self) -> list[MessageOperation]:
         return [
-            parse_raw(op_data, MessageOperation) for op_data in self.messages
+            deserialize_kernel_message(op_data) for op_data in self.messages
         ]
 
     @property

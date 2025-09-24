@@ -33,9 +33,9 @@ from tests.mocks import snapshotter
 snapshot = snapshotter(__file__)
 
 
-def test_serialize_basic_session():
+def test_serialize_basic_session(session_view: SessionView):
     """Test serialization of a basic session with a single cell with data output"""
-    view = SessionView()
+    view = session_view
     view.cell_operations[CellId_t("cell1")] = CellOp(
         cell_id=CellId_t("cell1"),
         status="idle",
@@ -53,9 +53,9 @@ def test_serialize_basic_session():
     snapshot("basic_session.json", json.dumps(result, indent=2))
 
 
-def test_serialize_session_with_error():
+def test_serialize_session_with_error(session_view: SessionView):
     """Test serialization of a session with an error output"""
-    view = SessionView()
+    view = session_view
     view.cell_operations[CellId_t("cell1")] = CellOp(
         cell_id=CellId_t("cell1"),
         status="idle",
@@ -75,9 +75,9 @@ def test_serialize_session_with_error():
     snapshot("error_session.json", json.dumps(result, indent=2))
 
 
-def test_serialize_session_with_console():
+def test_serialize_session_with_console(session_view: SessionView):
     """Test serialization of a session with console output"""
-    view = SessionView()
+    view = session_view
     view.cell_operations["cell1"] = CellOp(
         cell_id="cell1",
         status="idle",
@@ -102,9 +102,9 @@ def test_serialize_session_with_console():
     snapshot("console_session.json", json.dumps(result, indent=2))
 
 
-def test_serialize_session_with_mime_bundle():
+def test_serialize_session_with_mime_bundle(session_view: SessionView):
     """Test serialization of a session with a mime bundle output"""
-    view = SessionView()
+    view = session_view
     view.cell_operations["cell1"] = CellOp(
         cell_id="cell1",
         status="idle",
@@ -125,9 +125,9 @@ def test_serialize_session_with_mime_bundle():
     snapshot("mime_bundle_session.json", json.dumps(result, indent=2))
 
 
-def test_serialize_notebook_basic():
+def test_serialize_notebook_basic(session_view: SessionView):
     """Test serialization of a SessionView to a Notebook with basic cell"""
-    view = SessionView()
+    view = session_view
     cell_manager = CellManager()
 
     # Register cell with cell manager
@@ -168,9 +168,9 @@ def test_serialize_notebook_basic():
     assert cell["config"]["hide_code"] is True
 
 
-def test_serialize_notebook_multiple_cells():
+def test_serialize_notebook_multiple_cells(session_view: SessionView):
     """Test serialization of a SessionView to a Notebook with multiple cells"""
-    view = SessionView()
+    view = session_view
     cell_manager = CellManager()
 
     # Register first cell
@@ -234,7 +234,9 @@ def test_serialize_notebook_multiple_cells():
     assert cell2["config"]["hide_code"] is True
 
 
-def test_serialize_notebook_multiple_cells_not_top_down():
+def test_serialize_notebook_multiple_cells_not_top_down(
+    session_view: SessionView,
+):
     """Test serializing an "out-of-order" notebook.
 
     Serialize a notebook in which the topological sort
@@ -242,7 +244,7 @@ def test_serialize_notebook_multiple_cells_not_top_down():
     the serialized notebook is in notebook order.
     """
 
-    view = SessionView()
+    view = session_view
     cell_manager = CellManager()
 
     cell_id1 = CellId_t("cell1")
@@ -303,9 +305,9 @@ def test_serialize_notebook_multiple_cells_not_top_down():
     assert cell2["config"]["disabled"] is False
 
 
-def test_serialize_notebook_empty_code():
+def test_serialize_notebook_empty_code(session_view: SessionView):
     """Test serialization when cells have no executed code"""
-    view = SessionView()
+    view = session_view
     cell_manager = CellManager()
 
     # Register cell with cell manager but with different code
@@ -341,9 +343,9 @@ def test_serialize_notebook_empty_code():
     assert cell["config"]["hide_code"] is False  # Default value
 
 
-def test_serialize_notebook_no_cells():
+def test_serialize_notebook_no_cells(session_view: SessionView):
     """Test serialization of an empty SessionView"""
-    view = SessionView()
+    view = session_view
     cell_manager = CellManager()
 
     result = serialize_notebook(view, cell_manager)
@@ -362,9 +364,9 @@ def test_serialize_notebook_no_cells():
     "the cell manager's view of cells differs from the session view. "
     "The session view doesn't know the order of cells in the notebook."
 )
-def test_serialize_notebook_missing_cell_data():
+def test_serialize_notebook_missing_cell_data(session_view: SessionView):
     """Test serialization when cell exists in SessionView but not in CellManager"""
-    view = SessionView()
+    view = session_view
     cell_manager = CellManager()
 
     # Add cell to session view but don't register it with cell manager
@@ -497,9 +499,9 @@ def test_deserialize_session_with_console():
     assert console_outputs[1].mimetype == "text/plain"
 
 
-async def test_session_cache_writer():
+async def test_session_cache_writer(session_view: SessionView):
     """Test AsyncWriter writes session data periodically"""
-    view = SessionView()
+    view = session_view
     view.cell_operations["cell1"] = CellOp(
         cell_id="cell1",
         status="idle",
@@ -530,9 +532,9 @@ async def test_session_cache_writer():
         await writer.stop()
 
 
-async def test_session_cache_writer_no_writes():
+async def test_session_cache_writer_no_writes(session_view: SessionView):
     """Test AsyncWriter does not write when no changes"""
-    view = SessionView()
+    view = session_view
     view.mark_auto_export_session()
     with tempfile.TemporaryDirectory() as tmpdir:
         path = Path(tmpdir) / "session.json"
@@ -719,22 +721,21 @@ def test_serialize_session_with_dict_error():
     assert result["cells"][0]["outputs"][0]["evalue"] == "Something went wrong"
 
 
-def test_serialize_session_with_mixed_error_formats():
+def test_serialize_session_with_mixed_error_formats(session_view: SessionView):
     """Test serialization of a session with mixed error formats (dict and object)"""
-    view = SessionView()
+    view = session_view
 
     # Test with both dictionary and object error formats
     mixed_errors = [
         # Dictionary format error
         {
-            "type": "ValueError",
+            "type": "exception",
+            "exception_type": "ValueError",
             "msg": "Invalid value",
-            "traceback": ["line 1", "line 2"],
+            "raising_cell": "cell1",
         },
         # Object format error
         UnknownError(msg="Runtime error occurred", error_type="RuntimeError"),
-        # Dictionary without traceback
-        {"type": "TypeError", "msg": "Type mismatch"},
     ]
 
     view.cell_operations[CellId_t("cell1")] = CellOp(
@@ -757,14 +758,14 @@ def test_serialize_session_with_mixed_error_formats():
     # Verify the error normalization worked correctly
     assert len(result["cells"]) == 1
     cell = result["cells"][0]
-    assert len(cell["outputs"]) == 3
+    assert len(cell["outputs"]) == 2
 
     # Check first error (dictionary with traceback)
     error1 = cell["outputs"][0]
     assert error1["type"] == "error"
-    assert error1["ename"] == "ValueError"
+    assert error1["ename"] == "exception"
     assert error1["evalue"] == "Invalid value"
-    assert error1["traceback"] == ["line 1", "line 2"]
+    assert error1["traceback"] == []
 
     # Check second error (object format)
     error2 = cell["outputs"][1]
@@ -775,29 +776,22 @@ def test_serialize_session_with_mixed_error_formats():
         error2["traceback"] == []
     )  # UnknownError doesn't have traceback by default
 
-    # Check third error (dictionary without traceback)
-    error3 = cell["outputs"][2]
-    assert error3["type"] == "error"
-    assert error3["ename"] == "TypeError"
-    assert error3["evalue"] == "Type mismatch"
-    assert error3["traceback"] == []
-
     snapshot("mixed_error_session.json", json.dumps(result, indent=2))
 
 
 class TestSessionCacheManager:
     """Test SessionCacheManager functionality"""
 
-    def test_init_without_path(self):
+    def test_init_without_path(self, session_view: SessionView):
         """Test initialization without path"""
-        view = SessionView()
+        view = session_view
         manager = SessionCacheManager(view, None, 0.1)
         manager.start()
         assert manager.session_cache_writer is None
 
-    async def test_rename_path(self):
+    async def test_rename_path(self, session_view: SessionView):
         """Test renaming path updates writer"""
-        view = SessionView()
+        view = session_view
         with tempfile.TemporaryDirectory() as tmpdir:
             old_path = Path(tmpdir) / "old.py"
             new_path = Path(tmpdir) / "new.py"
@@ -812,9 +806,9 @@ class TestSessionCacheManager:
             assert manager.session_cache_writer != old_writer
             assert manager.path == new_path
 
-    def test_read_session_view_no_path(self):
+    def test_read_session_view_no_path(self, session_view: SessionView):
         """Test reading session view without path"""
-        view = SessionView()
+        view = session_view
         manager = SessionCacheManager(view, None, 0.1)
         assert (
             manager.read_session_view(
@@ -823,9 +817,9 @@ class TestSessionCacheManager:
             == view
         )
 
-    def test_read_session_view_no_cache(self):
+    def test_read_session_view_no_cache(self, session_view: SessionView):
         """Test reading session view with no cache file"""
-        view = SessionView()
+        view = session_view
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "notebook.py"
             manager = SessionCacheManager(view, path, 0.1)
@@ -836,9 +830,11 @@ class TestSessionCacheManager:
                 == view
             )
 
-    async def test_read_session_view_with_cache(self):
+    async def test_read_session_view_with_cache(
+        self, session_view: SessionView
+    ):
         """Test reading session view from cache file"""
-        view = SessionView()
+        view = session_view
         view.cell_operations["cell1"] = CellOp(
             cell_id="cell1",
             status="idle",
@@ -870,9 +866,11 @@ class TestSessionCacheManager:
             assert cell.output is not None
             assert cell.output.data == "test data"
 
-    async def test_read_session_view_cache_miss_code(self):
+    async def test_read_session_view_cache_miss_code(
+        self, session_view: SessionView
+    ):
         """Test reading session view from cache file"""
-        view = SessionView()
+        view = session_view
         view.cell_operations["cell1"] = CellOp(
             cell_id="cell1",
             status="idle",
@@ -905,9 +903,11 @@ class TestSessionCacheManager:
             )
             assert not loaded_view.cell_operations
 
-    async def test_read_session_view_cache_miss_version(self):
+    async def test_read_session_view_cache_miss_version(
+        self, session_view: SessionView
+    ):
         """Test reading session view from cache file"""
-        view = SessionView()
+        view = session_view
         view.add_control_request(
             ExecuteMultipleRequest(cell_ids=["1", "2"], codes=["a", "b"])
         )
@@ -934,9 +934,11 @@ class TestSessionCacheManager:
             )
             assert not loaded_view.cell_operations
 
-    async def test_read_session_view_cache_hit(self):
+    async def test_read_session_view_cache_hit(
+        self, session_view: SessionView
+    ):
         """Test reading session view from cache file"""
-        view = SessionView()
+        view = session_view
         view.cell_operations["cell1"] = CellOp(
             cell_id="cell1",
             status="idle",
