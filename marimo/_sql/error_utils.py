@@ -1,7 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 import ast
 import re
-from typing import TYPE_CHECKING, Optional, TypedDict, Callable
+from typing import TYPE_CHECKING, Callable, Optional, TypedDict
 
 from marimo._dependencies.dependencies import DependencyManager
 
