@@ -22,11 +22,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     MultipleDefinitionError,
 )
-from marimo._messaging.ops import (
-    CellOp,
-    Variables,
-    deserialize_kernel_message,
-)
+from marimo._messaging.ops import CellOp, Variables, deserialize_kernel_message
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
