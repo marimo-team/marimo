@@ -346,6 +346,14 @@ class ValidateSQLRequest(msgspec.Struct, rename="camel"):
     query: str
 
 
+class ParseSQLRequest(msgspec.Struct, rename="camel"):
+    """Parse an SQL query"""
+
+    request_id: RequestId
+    dialect: str
+    query: str
+
+
 class ListSecretKeysRequest(msgspec.Struct, rename="camel"):
     request_id: RequestId
 
