@@ -4,6 +4,10 @@ from typing import Literal, Optional, Union
 
 import msgspec
 
+from marimo import _loggers
+
+LOGGER = _loggers.marimo_logger()
+
 
 class SqlParseError(msgspec.Struct):
     """
@@ -35,7 +39,18 @@ class SqlParseResult(msgspec.Struct):
     errors: list[SqlParseError]
 
 
-def parse_sql(query: str, dialect: str) -> SqlParseResult:
+class SqlCatalogCheckResult(msgspec.Struct):
+    """
+    Result of running validation against the database.
+    """
+
+    success: bool
+    error_message: Optional[str]
+
+
+def parse_sql(
+    query: str, dialect: str
+) -> tuple[Optional[SqlParseResult], Optional[str]]:
     """Parses an SQL query. Returns syntax errors.
     Does not check for catalog errors (incorrect table names, etc).
     Currently only supports DuckDB.
@@ -45,7 +60,7 @@ def parse_sql(query: str, dialect: str) -> SqlParseResult:
         dialect (str): The dialect of the SQL query.
 
     Returns:
-        str: The syntax errors in the SQL query.
+        tuple[SqlParseResult, str]: SqlParseResult and unexpected errors
     """
     dialect = dialect.strip().lower()
 
@@ -53,8 +68,7 @@ def parse_sql(query: str, dialect: str) -> SqlParseResult:
     if "duckdb" in dialect:
         return _parse_sql_duckdb(query)
 
-    # If we don't support the dialect, we return a success result
-    return SqlParseResult(success=True, errors=[])
+    return None, "Unsupported dialect: " + dialect
 
 
 # DuckDB
@@ -73,22 +87,39 @@ class DuckDBParseError(msgspec.Struct):
 JSON_SERIALIZE_QUERY = "SELECT JSON_SERIALIZE_SQL(?, skip_null := true, skip_empty := true, skip_default := true)"
 
 
-def _parse_sql_duckdb(query: str) -> SqlParseResult:
+def _parse_sql_duckdb(
+    query: str,
+) -> tuple[Optional[SqlParseResult], Optional[str]]:
+    """Parse an SQL query using DuckDB. Returns parse result and unexpected errors.
+
+    Note:
+    - Only SELECT statements support json_serialize_sql
+    - Invalid function names do not throw errors
+    """
     import duckdb
 
     relation = duckdb.execute(JSON_SERIALIZE_QUERY, [query])
-    result = relation.fetchone()[0]
-    parsed_error = msgspec.json.decode(result, type=DuckDBParseError)
+    fetch_result = relation.fetchone()
+    if fetch_result is None:
+        return None, "No result from DuckDB parse query"
+
+    parse_response = fetch_result[0]
+    parsed_error = msgspec.json.decode(parse_response, type=DuckDBParseError)
 
     if not parsed_error.error:
-        return SqlParseResult(success=True, errors=[])
+        return SqlParseResult(success=True, errors=[]), None
+
+    if parsed_error.error_type == "not implemented":
+        # This is a valid query, but not supported by DuckDB
+        # Only SELECT statements support json_serialize_sql
+        return SqlParseResult(success=True, errors=[]), None
 
     position = int(parsed_error.position or 0)
     subquery = query[:position]
     line_number = subquery.count("\n") + 1
     column_number = position - subquery.rfind("\n") - 1
 
-    return SqlParseResult(
+    sql_parse_result = SqlParseResult(
         success=False,
         errors=[
             SqlParseError(
@@ -99,3 +130,4 @@ def _parse_sql_duckdb(query: str) -> SqlParseResult:
             )
         ],
     )
+    return sql_parse_result, None

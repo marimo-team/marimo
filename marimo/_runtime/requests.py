@@ -342,11 +342,12 @@ class ValidateSQLRequest(msgspec.Struct, rename="camel"):
     """Validate an SQL query against the engine"""
 
     request_id: RequestId
-    engine: str
     query: str
-    # Whether to only parse the query the query,
-    # but not validate the table and column names
+    # Whether to only parse the query or validate against the database
+    # Parsing is done without a DB connection and uses dialect, whereas validation requires a connection
     only_parse: bool
+    engine: Optional[str] = None
+    dialect: Optional[str] = None
 
 
 class ParseSQLRequest(msgspec.Struct, rename="camel"):

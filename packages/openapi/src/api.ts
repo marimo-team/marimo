@@ -2353,45 +2353,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/sql/parse": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ParseSQLRequest"];
-        };
-      };
-      responses: {
-        /** @description Parse an SQL query */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["ParseSQLResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/sql/validate": {
     parameters: {
       query?: never;
@@ -3961,19 +3922,6 @@ export interface components {
       error?: string | null;
       success: boolean;
     };
-    /**
-     * ParseSQLRequest
-     * @description Parse an SQL query for linting
-     */
-    ParseSQLRequest: {
-      dialect: string;
-      query: string;
-      requestId: string;
-    };
-    /** ParseSQLResponse */
-    ParseSQLResponse: {
-      response: string;
-    };
     /** PdbRequest */
     PdbRequest: {
       cellId: string;
@@ -4375,6 +4323,14 @@ export interface components {
       include_default_snippets?: boolean;
     };
     /**
+     * SqlCatalogCheckResult
+     * @description Result of running validation against the database.
+     */
+    SqlCatalogCheckResult: {
+      error_message: string | null;
+      success: boolean;
+    };
+    /**
      * SqlParseError
      * @description Represents a single SQL parse error.
      *
@@ -4479,7 +4435,10 @@ export interface components {
      * @description Validate an SQL query against the engine
      */
     ValidateSQLRequest: {
-      engine: string;
+      /** @default null */
+      dialect?: string | null;
+      /** @default null */
+      engine?: string | null;
       onlyParse: boolean;
       query: string;
       requestId: string;
@@ -4490,9 +4449,11 @@ export interface components {
       error?: string | null;
       /** @enum {unknown} */
       op: "validate-sql-result";
+      /** @default null */
+      parse_result?: null | components["schemas"]["SqlParseResult"];
       request_id: string;
       /** @default null */
-      result?: null | components["schemas"]["SqlParseResult"];
+      validate_result?: null | components["schemas"]["SqlCatalogCheckResult"];
     };
     /** VariableContext */
     VariableContext: {

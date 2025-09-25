@@ -13,6 +13,7 @@ import {
   NodeSqlParser,
   type SupportedDialects as ParserDialects,
   type SqlParseError,
+  type SqlParseResult,
   sqlExtension,
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
@@ -298,14 +299,38 @@ class CustomSqlParser extends NodeSqlParser {
       const result = await ValidateSQL.request({
         onlyParse: true,
         engine: opts.state.field(languageMetadataField).engine,
+        dialect,
         query: sql,
       });
       // TODO: share this with the other validation error handling
       // that shows the banner
-      return result.result?.errors ?? [];
+      if (result.error) {
+        Logger.error("Failed to validate SQL", { error: result.error });
+        return [];
+      }
+
+      return result.parse_result?.errors ?? [];
     }
 
     return super.validateSql(sql, opts);
+  }
+
+  // TODO: Export codemirror types
+  override async parse(
+    sql: string,
+    opts: { state: EditorState },
+  ): Promise<SqlParseResult> {
+    const dialect = guessParserDialect(opts.state);
+    if (dialect === "DuckDB") {
+      const result = await ValidateSQL.request({
+        onlyParse: true,
+        engine: opts.state.field(languageMetadataField).engine,
+        dialect,
+        query: sql,
+      });
+      return result.parse_result ?? { success: false, errors: [] };
+    }
+    return super.parse(sql, opts);
   }
 }
 
@@ -635,17 +660,24 @@ function sqlValidationExtension(): Extension {
 
       try {
         const result = await ValidateSQL.request({
-          onlyParse: true,
+          onlyParse: false,
           engine: connectionName,
           query: sqlContent,
         });
 
         if (result.error) {
+          Logger.error("Failed to validate SQL", { error: result.error });
+          return;
+        }
+
+        const validateResult = result.validate_result;
+
+        if (validateResult?.error_message) {
           const dialect = connectionNameToParserDialect(connectionName);
           setSqlValidationError({
             cellId,
-            error: result.error,
-            result: result.result ?? null,
+            error: validateResult.error_message,
+            result: result.parse_result ?? null,
             dialect,
           });
         } else {
