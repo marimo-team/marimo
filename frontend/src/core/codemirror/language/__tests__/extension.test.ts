@@ -14,7 +14,7 @@ import {
   languageAdapterState,
   switchLanguage,
 } from "../extension";
-import { exportedForTesting as sqlValidationErrorsForTesting } from "../languages/sql/validation-errors";
+import { exportedForTesting as sqlValidationErrorsForTesting } from "../languages/sql/banner-validation-errors";
 import { languageMetadataField } from "../metadata";
 
 let view: EditorView | null = null;

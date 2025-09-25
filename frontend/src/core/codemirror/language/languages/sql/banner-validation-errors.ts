@@ -1,9 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type {
-  SqlParseResult,
-  SupportedDialects,
-} from "@marimo-team/codemirror-sql";
+import type { SupportedDialects } from "@marimo-team/codemirror-sql";
 import { atom, useAtomValue } from "jotai";
 import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
@@ -11,7 +8,6 @@ import { store } from "@/core/state/jotai";
 export interface SQLValidationError {
   errorType: string;
   errorMessage: string;
-  result: SqlParseResult | null;
   codeblock?: string; // Code block that caused the error
 }
 
@@ -35,13 +31,11 @@ export function clearSqlValidationError(cellId: CellId) {
 
 export function setSqlValidationError({
   cellId,
-  error,
-  result,
+  errorMessage,
   dialect,
 }: {
   cellId: CellId;
-  error: string;
-  result: SqlParseResult | null;
+  errorMessage: string;
   dialect: SupportedDialects | null;
 }) {
   const sqlValidationErrors = store.get(sqlValidationErrorsAtom);
@@ -49,17 +43,14 @@ export function setSqlValidationError({
 
   const errorResult: SQLValidationError =
     dialect === "DuckDB"
-      ? handleDuckdbError(error, result)
-      : splitErrorMessage(error);
+      ? handleDuckdbError(errorMessage)
+      : splitErrorMessage(errorMessage);
 
   newErrors.set(cellId, errorResult);
   store.set(sqlValidationErrorsAtom, newErrors);
 }
 
-function handleDuckdbError(
-  error: string,
-  result: SqlParseResult | null,
-): SQLValidationError {
+function handleDuckdbError(error: string): SQLValidationError {
   const { errorType, errorMessage } = splitErrorMessage(error);
   let newErrorMessage = errorMessage;
 
@@ -75,14 +66,13 @@ function handleDuckdbError(
     errorType,
     errorMessage: newErrorMessage,
     codeblock,
-    result,
   };
 }
 
 function splitErrorMessage(error: string) {
   const errorType = error.split(":")[0].trim();
   const errorMessage = error.split(":").slice(1).join(":").trim();
-  return { errorType, errorMessage, result: null };
+  return { errorType, errorMessage };
 }
 
 export const exportedForTesting = {
