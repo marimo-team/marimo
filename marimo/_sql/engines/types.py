@@ -150,3 +150,6 @@ class SQLConnection(EngineCatalog[CONN], QueryEngine[CONN]):
     """Combines the catalog and query interfaces for an SQL engine."""
 
     pass
+
+
+SQLConnectionType = Union[EngineCatalog[Any], QueryEngine[Any]]
