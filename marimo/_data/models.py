@@ -3,11 +3,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
-from marimo._utils.msgspec_basestruct import BaseStruct
-
-import msgspec
 
 from marimo._types.ids import VariableName
+from marimo._utils.msgspec_basestruct import BaseStruct
 
 DataType = Literal[
     "string",
