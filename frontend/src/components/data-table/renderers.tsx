@@ -225,8 +225,8 @@ function getPinningStyles<TData>(
       left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
       right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
       opacity: 1,
-      position: isPinned ? "sticky" : "relative",
-      zIndex: isPinned ? 1 : 0,
+      position: isPinned ? "sticky" : undefined,
+      zIndex: isPinned ? 1 : undefined,
       width: column.getSize(),
     },
   };
