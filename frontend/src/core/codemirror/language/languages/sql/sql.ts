@@ -19,7 +19,6 @@ import {
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import { debounce } from "lodash-es";
 import dedent from "string-dedent";
-import type { CellId } from "@/core/cells/ids";
 import { cellIdState } from "@/core/codemirror/cells/state";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
@@ -286,58 +285,44 @@ export class SQLLanguageAdapter
 
     // Hack to clear validation errors when sql is empty
     if (this.sqlModeEnabled) {
-      extensions.push(clearSqlValidationExtension());
+      extensions.push(sqlValidationExtension());
     }
 
     return extensions;
   }
 }
 
-const SQL_VALIDATION_DEBOUNCE_MS = 200;
+const SQL_VALIDATION_DEBOUNCE_MS = 300;
 
 class CustomSqlParser extends NodeSqlParser {
+  private baseValidateSQL = async (
+    sql: string,
+    engine: string,
+    dialect: ParserDialects | null,
+  ): Promise<SqlParseError[]> => {
+    let result: ValidateSQLResult | null = null;
+
+    try {
+      result = await ValidateSQL.request({
+        onlyParse: true,
+        engine,
+        dialect,
+        query: sql,
+      });
+    } catch (error) {
+      Logger.error("Failed to validate SQL", { error: error });
+      return [];
+    }
+
+    if (result.error) {
+      Logger.error("Failed to validate SQL", { error: result.error });
+      return [];
+    }
+    return result.parse_result?.errors ?? [];
+  };
+
   private debouncedValidateSQL = debounce(
-    async (
-      sql: string,
-      engine: string,
-      dialect: ParserDialects | null,
-      cellId: CellId,
-    ): Promise<SqlParseError[]> => {
-      let result: ValidateSQLResult | null = null;
-
-      try {
-        result = await ValidateSQL.request({
-          onlyParse: false,
-          engine,
-          dialect,
-          query: sql,
-        });
-      } catch (error) {
-        Logger.error("Failed to validate SQL", { error: error });
-        return [];
-      }
-
-      if (result.error) {
-        Logger.error("Failed to validate SQL", { error: result.error });
-        return [];
-      }
-
-      const sqlMode = getSQLMode();
-      if (sqlMode === "validate") {
-        const errorMessage = result.validate_result?.error_message;
-        if (errorMessage) {
-          // Add banner errors for validate mode
-          setSqlValidationError({
-            cellId: cellId,
-            errorMessage,
-            dialect,
-          });
-        } else {
-          clearSqlValidationError(cellId);
-        }
-      }
-      return result.parse_result?.errors ?? [];
-    },
+    this.baseValidateSQL,
     SQL_VALIDATION_DEBOUNCE_MS,
   );
 
@@ -353,14 +338,12 @@ class CustomSqlParser extends NodeSqlParser {
     }
 
     const dialect = guessParserDialect(opts.state);
-    const cellId = opts.state.facet(cellIdState);
 
     // Use the debounced version for validation
     const result = await this.debouncedValidateSQL(
       sql,
       metadata.engine,
       dialect,
-      cellId,
     );
     return result ?? [];
   }
@@ -661,7 +644,10 @@ function safeDedent(code: string): string {
   }
 }
 
-function clearSqlValidationExtension(): Extension {
+function sqlValidationExtension(): Extension {
+  let debounceTimeout: number | undefined;
+  let lastValidationRequest: string | null = null;
+
   return EditorView.updateListener.of((update) => {
     if (!update.docChanged) {
       return;
@@ -672,13 +658,63 @@ function clearSqlValidationExtension(): Extension {
       return;
     }
 
+    const metadata = getSQLMetadata(update.state);
+    const connectionName = metadata.engine;
+    // Currently only internal engines are supported
+    if (!INTERNAL_SQL_ENGINES.has(connectionName)) {
+      return;
+    }
+
     const doc = update.state.doc;
     const sqlContent = doc.toString();
 
-    // Clear validation errors when SQL content is empty
-    if (sqlContent === "") {
-      const cellId = update.state.facet(cellIdState);
-      clearSqlValidationError(cellId);
+    // Clear existing timeout
+    if (debounceTimeout) {
+      window.clearTimeout(debounceTimeout);
     }
+
+    // Debounce the validation call
+    debounceTimeout = window.setTimeout(async () => {
+      // Skip if content hasn't changed since last validation
+      if (lastValidationRequest === sqlContent) {
+        return;
+      }
+
+      lastValidationRequest = sqlContent;
+      const cellId = update.view.state.facet(cellIdState);
+
+      if (sqlContent === "") {
+        clearSqlValidationError(cellId);
+        return;
+      }
+
+      try {
+        const result = await ValidateSQL.request({
+          onlyParse: false,
+          engine: connectionName,
+          query: sqlContent,
+        });
+
+        if (result.error) {
+          Logger.error("Failed to validate SQL", { error: result.error });
+          return;
+        }
+
+        const validateResult = result.validate_result;
+
+        if (validateResult?.error_message) {
+          const dialect = connectionNameToParserDialect(connectionName);
+          setSqlValidationError({
+            cellId,
+            errorMessage: validateResult.error_message,
+            dialect,
+          });
+        } else {
+          clearSqlValidationError(cellId);
+        }
+      } catch (error) {
+        Logger.warn("Failed to validate SQL", { error });
+      }
+    }, SQL_VALIDATION_DEBOUNCE_MS);
   });
 }
