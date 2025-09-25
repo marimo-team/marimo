@@ -52,12 +52,12 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        Nested fence
-        ````text
-        The guards are
-        ```python {.marimo}
-        ````
-        """
+    Nested fence
+    ````text
+    The guards are
+    ```python {.marimo}
+    ````
+    """
     )
     return
 

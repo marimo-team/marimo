@@ -10,17 +10,16 @@ from marimo._convert import utils
 
 def test_markdown_to_marimo():
     markdown = "# Hello, World!\nThis is a test."
-    expected = 'mo.md(\n    r"""\n    # Hello, World!\n    This is a test.\n    """\n)'  # noqa: E501
+    expected = 'mo.md(\n    r"""\n# Hello, World!\nThis is a test.\n"""\n)'  # noqa: E501
     assert utils.markdown_to_marimo(markdown) == expected
 
     markdown = 'Here are some quotes: """'
-    expected = (
-        'mo.md(\n    r"""\n    Here are some quotes: \\"\\"\\"\n    """\n)'  # noqa: E501
-    )
+    expected = r'mo.md(r"""Here are some quotes: \"\"\"""")'
+
     assert utils.markdown_to_marimo(markdown) == expected
 
     markdown = r"This has a backslash: \\"
-    expected = 'mo.md(\n    r"""\n    This has a backslash: \\\\\n    """\n)'  # noqa: E501
+    expected = 'mo.md(r"""This has a backslash: \\\\""")'  # noqa: E501
     assert utils.markdown_to_marimo(markdown) == expected
 
 

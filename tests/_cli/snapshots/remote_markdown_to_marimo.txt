@@ -8,12 +8,12 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Remote Markdown Test
+    # Remote Markdown Test
 
-        ```python
-        print('Hello from Remote Markdown!')
-        ```
-        """
+    ```python
+    print('Hello from Remote Markdown!')
+    ```
+    """
     )
     return
 
