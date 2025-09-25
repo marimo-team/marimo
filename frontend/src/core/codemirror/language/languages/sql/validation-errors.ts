@@ -1,6 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { SupportedDialects } from "@marimo-team/codemirror-sql";
+import type {
+  SqlParseResult,
+  SupportedDialects,
+} from "@marimo-team/codemirror-sql";
 import { atom, useAtomValue } from "jotai";
 import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
@@ -8,6 +11,7 @@ import { store } from "@/core/state/jotai";
 export interface SQLValidationError {
   errorType: string;
   errorMessage: string;
+  result: SqlParseResult | null;
   codeblock?: string; // Code block that caused the error
 }
 
@@ -32,23 +36,30 @@ export function clearSqlValidationError(cellId: CellId) {
 export function setSqlValidationError({
   cellId,
   error,
+  result,
   dialect,
 }: {
   cellId: CellId;
   error: string;
+  result: SqlParseResult | null;
   dialect: SupportedDialects | null;
 }) {
   const sqlValidationErrors = store.get(sqlValidationErrorsAtom);
   const newErrors = new Map(sqlValidationErrors);
 
   const errorResult: SQLValidationError =
-    dialect === "DuckDB" ? handleDuckdbError(error) : splitErrorMessage(error);
+    dialect === "DuckDB"
+      ? handleDuckdbError(error, result)
+      : splitErrorMessage(error);
 
   newErrors.set(cellId, errorResult);
   store.set(sqlValidationErrorsAtom, newErrors);
 }
 
-function handleDuckdbError(error: string): SQLValidationError {
+function handleDuckdbError(
+  error: string,
+  result: SqlParseResult | null,
+): SQLValidationError {
   const { errorType, errorMessage } = splitErrorMessage(error);
   let newErrorMessage = errorMessage;
 
@@ -64,13 +75,14 @@ function handleDuckdbError(error: string): SQLValidationError {
     errorType,
     errorMessage: newErrorMessage,
     codeblock,
+    result,
   };
 }
 
 function splitErrorMessage(error: string) {
   const errorType = error.split(":")[0].trim();
   const errorMessage = error.split(":").slice(1).join(":").trim();
-  return { errorType, errorMessage };
+  return { errorType, errorMessage, result: null };
 }
 
 export const exportedForTesting = {

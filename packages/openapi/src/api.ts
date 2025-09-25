@@ -4374,6 +4374,35 @@ export interface components {
       custom_paths?: string[];
       include_default_snippets?: boolean;
     };
+    /**
+     * SqlParseError
+     * @description Represents a single SQL parse error.
+     *
+     *     Attributes:
+     *         message (str): Description of the error.
+     *         line (int): Line number where the error occurred (1-based).
+     *         column (int): Column number where the error occurred (1-based).
+     *         severity (Literal["error", "warning"]): Severity of the error.
+     */
+    SqlParseError: {
+      column: number;
+      line: number;
+      message: string;
+      /** @enum {unknown} */
+      severity: "error" | "warning";
+    };
+    /**
+     * SqlParseResult
+     * @description Result of parsing an SQL query.
+     *
+     *     Attributes:
+     *         success (bool): True if parsing succeeded without errors.
+     *         errors (list[SqlParseError]): List of parse errors (empty if success is True).
+     */
+    SqlParseResult: {
+      errors: components["schemas"]["SqlParseError"][];
+      success: boolean;
+    };
     /** StartupLogs */
     StartupLogs: {
       content: string;
@@ -4451,6 +4480,7 @@ export interface components {
      */
     ValidateSQLRequest: {
       engine: string;
+      onlyParse: boolean;
       query: string;
       requestId: string;
     };
@@ -4462,7 +4492,7 @@ export interface components {
       op: "validate-sql-result";
       request_id: string;
       /** @default null */
-      result?: unknown | null;
+      result?: null | components["schemas"]["SqlParseResult"];
     };
     /** VariableContext */
     VariableContext: {

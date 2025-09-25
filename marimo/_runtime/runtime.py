@@ -2485,6 +2485,15 @@ class SqlCallbacks:
             ).broadcast()
             return
 
+        # If we only want to parse the query, return early
+        if request.only_parse:
+            ValidateSQLResult(
+                request_id=request.request_id,
+                result=result,
+                error=None,
+            ).broadcast()
+            return
+
         # Now validate the table and column names
         # This can be cheap for in-memory engines (duckdb, sqlite)
         # But potentially expensive and requires an active connection for remote engines
