@@ -2949,6 +2949,7 @@ components:
         buffers:
           anyOf:
           - items:
+              contentEncoding: base64
               type: string
             type: array
           - type: 'null'

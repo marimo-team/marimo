@@ -43,7 +43,7 @@ export const MarimoIncomingMessageEvent = defineCustomEvent(
 )<{
   objectId: UIElementId;
   message: unknown;
-  buffers: DataView[] | undefined;
+  buffers: readonly DataView[];
 }>();
 export type MarimoIncomingMessageEventType = ReturnType<
   typeof MarimoIncomingMessageEvent.create

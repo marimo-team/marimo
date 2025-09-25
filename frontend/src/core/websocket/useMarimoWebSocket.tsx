@@ -16,7 +16,10 @@ import {
 } from "@/plugins/impl/anywidget/model";
 import { logNever } from "@/utils/assertNever";
 import { prettyError } from "@/utils/errors";
-import type { Base64String, JsonString } from "@/utils/json/base64";
+import {
+  type JsonString,
+  safeExtractSetUIElementMessageBuffers,
+} from "@/utils/json/base64";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
@@ -112,7 +115,7 @@ export function useMarimoWebSocket(opts: {
         const modelId = msg.data.model_id;
         const uiElement = msg.data.ui_element;
         const message = msg.data.message;
-        const buffers = (msg.data.buffers ?? []) as Base64String[];
+        const buffers = safeExtractSetUIElementMessageBuffers(msg.data);
 
         if (modelId && isMessageWidgetState(message)) {
           handleWidgetMessage({
