@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Union
 
+from marimo._lint.json_types import LintResultJSON
+
 from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
 from marimo._cli.print import red
@@ -85,6 +87,7 @@ class Linter:
         unsafe_fixes: bool = False,
         rules: list[LintRule] | None = None,
         ignore_scripts: bool = False,
+        formatter: str = "full",
     ):
         if rules is not None:
             self.rule_engine = RuleEngine(rules, early_stopping)
@@ -94,6 +97,7 @@ class Linter:
         self.fix_files = fix_files
         self.unsafe_fixes = unsafe_fixes
         self.ignore_scripts = ignore_scripts
+        self.formatter = formatter
         self.files: list[FileStatus] = []
 
         # Create rule lookup for unsafe fixes
@@ -246,8 +250,7 @@ class Linter:
         else:
             # Show diagnostics immediately as they're found
             for diagnostic in file_status.diagnostics:
-                self.pipe(diagnostic.format())
-                self.pipe("")  # Empty line for spacing
+                self.pipe(diagnostic.format(formatter=self.formatter))
 
     @staticmethod
     def _generate_file_contents_from_notebook(
@@ -359,3 +362,41 @@ class Linter:
             return True
 
         return False
+
+    def get_json_result(self) -> LintResultJSON:
+        """Get complete JSON result with diagnostics and summary."""
+        from marimo._lint.formatter import JSONFormatter
+
+        json_formatter = JSONFormatter()
+        issues = []
+
+        for file_status in self.files:
+            if file_status.failed:
+                # Add file-level errors
+                issues.append({
+                    "type": "error",
+                    "filename": file_status.file,
+                    "error": file_status.message,
+                })
+            elif not file_status.skipped:
+                # Add diagnostics from successfully processed files
+                for diagnostic in file_status.diagnostics:
+                    diagnostic_dict = json_formatter.to_json_dict(diagnostic, file_status.file)
+                    issues.append(diagnostic_dict)
+
+        return LintResultJSON(
+            issues=issues,
+            summary={
+                "total_files": len(self.files),
+                "files_with_issues": len(
+                    [
+                        f
+                        for f in self.files
+                        if (f.diagnostics and not f.skipped and not f.failed) or f.failed
+                    ]
+                ),
+                "total_issues": self.issues_count,
+                "fixed_issues": self.fixed_count,
+                "errored": self.errored,
+            }
+        )

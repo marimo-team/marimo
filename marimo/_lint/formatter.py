@@ -1,12 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import os
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from marimo._cli.print import bold, cyan, light_blue, red, yellow
 from marimo._lint.diagnostic import Severity
+from marimo._lint.json_types import DiagnosticJSON
 
 if TYPE_CHECKING:
     from marimo._lint.diagnostic import Diagnostic
@@ -110,4 +112,47 @@ class FullFormatter(DiagnosticFormatter):
 
         if diagnostic.fix:
             context_lines.append(light_blue("hint: ") + bold(diagnostic.fix))
-        return f"{header}\n" + "\n".join(context_lines)
+        return f"{header}\n" + "\n".join(context_lines) + "\n"
+
+
+class JSONFormatter(DiagnosticFormatter):
+    """JSON formatter that outputs diagnostics as structured JSON."""
+
+    def format(
+        self,
+        diagnostic: Diagnostic,
+        filename: str,
+        code_lines: list[str] | None = None,
+    ) -> str:
+        """Format the diagnostic as JSON."""
+        return json.dumps(
+            self.to_json_dict(diagnostic, filename), ensure_ascii=False
+        )
+
+    def to_json_dict(
+        self, diagnostic: Diagnostic, filename: str
+    ) -> DiagnosticJSON:
+        """Convert diagnostic to typed JSON dictionary."""
+
+        lines, columns = diagnostic.sorted_lines
+
+        # Build complete dict with all fields
+        result = {
+            "type": "diagnostic",
+            "message": diagnostic.message,
+            "filename": filename,
+            "line": lines[0] if lines else 0,
+            "column": columns[0] if columns else 0,
+            "lines": list(lines) if len(lines) > 1 else None,
+            "columns": list(columns) if len(columns) > 1 else None,
+            "severity": diagnostic.severity.value if diagnostic.severity else None,
+            "name": diagnostic.name,
+            "code": diagnostic.code,
+            "fixable": diagnostic.fixable,
+            "fix": diagnostic.fix,
+            "cell_id": diagnostic.cell_id,
+        }
+
+        # Filter out None values and return as typed dict
+        filtered = {k: v for k, v in result.items() if v is not None}
+        return DiagnosticJSON(filtered)  # type: ignore

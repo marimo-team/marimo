@@ -1289,6 +1289,14 @@ def shell_completion() -> None:
     type=bool,
     help="Ignore files that are not recognizable as marimo notebooks.",
 )
+@click.option(
+    "--format",
+    "formatter",
+    default="full",
+    show_default=True,
+    type=click.Choice(["full", "json"], case_sensitive=False),
+    help="Output format for diagnostics.",
+)
 @click.argument("files", nargs=-1, type=click.UNPROCESSED)
 def check(
     fix: bool,
@@ -1296,33 +1304,41 @@ def check(
     verbose: bool,
     unsafe_fixes: bool,
     ignore_scripts: bool,
+    formatter: str,
     files: tuple[str, ...],
 ) -> None:
     if not files:
         # If no files are provided, we lint the current directory
         files = ("**/*.py", "**/*.md", "**/*.qmd")
 
-    # Pass click.echo directly as pipe for streaming output, or None
-    pipe = click.echo if verbose else None
+    # Pass click.echo directly as pipe for streaming output, or None for JSON
+    pipe = click.echo if verbose and formatter != "json" else None
     linter = run_check(
         files,
         pipe=pipe,
         fix=fix,
         unsafe_fixes=unsafe_fixes,
         ignore_scripts=ignore_scripts,
+        formatter=formatter,
     )
 
-    # Get counts from linter (fix happens automatically during streaming)
-    fixed = linter.fixed_count
-    total_issues = linter.issues_count
+    if formatter == "json":
+        # JSON output - let linter handle the collection and formatting
+        result = linter.get_json_result()
+        # Always output to stdout for JSON, regardless of errors
+        click.echo(json.dumps(result), err=False)
+    else:
+        # Get counts from linter (fix happens automatically during streaming)
+        fixed = linter.fixed_count
+        total_issues = linter.issues_count
 
-    # Final summary
-    if fixed > 0:
-        click.echo(f"Updated {fixed} file{'s' if fixed > 1 else ''}.")
-    if total_issues > 0:
-        click.echo(
-            f"Found {total_issues} issue{'s' if total_issues > 1 else ''}."
-        )
+        # Final summary
+        if fixed > 0:
+            click.echo(f"Updated {fixed} file{'s' if fixed > 1 else ''}.")
+        if total_issues > 0:
+            click.echo(
+                f"Found {total_issues} issue{'s' if total_issues > 1 else ''}."
+            )
 
     if linter.errored or (strict and (fixed > 0 or total_issues > 0)):
         sys.exit(1)
