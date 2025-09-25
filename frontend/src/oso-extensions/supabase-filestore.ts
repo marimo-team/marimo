@@ -5,7 +5,8 @@ import type { FragmentStore } from "./fragment-store";
 export class SupabaseFileStore implements FileStore {
   private client: SupabaseClient | null = null;
   private fragmentStore: FragmentStore;
-  private notebookId: string | null = null;
+  private notebookName: string | null = null;
+  private organizationName: string | null = null;
   private userId: string | null = null;
 
   constructor(fragmentStore: FragmentStore) {
@@ -22,13 +23,15 @@ export class SupabaseFileStore implements FileStore {
     const supabaseUrl = envVars["SUPABASE_URL"];
     const jwtToken = envVars["SUPABASE_JWT_TOKEN"];
     const anonKey = envVars["SUPABASE_ANON_KEY"];
-    this.notebookId = envVars["OSO_NOTEBOOK_ID"];
+    this.notebookName = envVars["OSO_NOTEBOOK_NAME"];
+    this.organizationName = envVars["OSO_ORGANIZATION_NAME"];
 
     const requiredVars = [
       supabaseUrl,
       jwtToken,
       anonKey,
-      this.notebookId,
+      this.notebookName,
+      this.organizationName,
     ];
     if (!requiredVars.every(Boolean)) {
       return;
@@ -51,7 +54,7 @@ export class SupabaseFileStore implements FileStore {
   }
 
   private get isConfigured(): boolean {
-    return Boolean(this.client && this.notebookId);
+    return Boolean(this.client && this.notebookName && this.organizationName);
   }
 
   async saveFile(contents: string): Promise<void> {
@@ -60,11 +63,9 @@ export class SupabaseFileStore implements FileStore {
     }
 
     const existingId = await this.findExistingRecord();
-    if (!existingId) {
-      console.error("Failed to save file to Supabase: notebook doesn't exist with id=", this.notebookId);
-      throw new Error(`Failed to save file: notebook doesn't exist with id=${this.notebookId}`);
-    }
-    const { error } = await this.updateRecord(existingId, contents)
+    const { error } = existingId
+      ? await this.updateRecord(existingId, contents)
+      : await this.createRecord(contents);
 
     if (error) {
       console.error("Failed to save file to Supabase:", error);
@@ -73,14 +74,35 @@ export class SupabaseFileStore implements FileStore {
   }
 
   private async findExistingRecord(): Promise<string | null> {
+    const orgId = await this.getOrganizationId();
+    if (!orgId) {
+      return null;
+    }
+
     const { data, error } = await this.client!
       .from("notebooks")
       .select("id")
-      .eq("id", this.notebookId!)
+      .eq("org_id", orgId)
+      .eq("notebook_name", this.notebookName!)
       .is("deleted_at", null)
       .single();
 
     if (error?.code === "PGRST116") {
+      return null;
+    }
+
+    return data?.id || null;
+  }
+
+  private async getOrganizationId(): Promise<string | null> {
+    const { data, error } = await this.client!
+      .from("organizations")
+      .select("id")
+      .eq("org_name", this.organizationName!)
+      .is("deleted_at", null)
+      .single();
+
+    if (error) {
       return null;
     }
 
@@ -97,15 +119,37 @@ export class SupabaseFileStore implements FileStore {
       .eq("id", id);
   }
 
+  private async createRecord(contents: string) {
+    const orgId = await this.getOrganizationId();
+    if (!orgId) {
+      throw new Error(`Organization not found: ${this.organizationName}`);
+    }
+
+    return this.client!
+      .from("notebooks")
+      .insert({
+        org_id: orgId,
+        notebook_name: this.notebookName!,
+        data: contents,
+        created_by: this.userId!,
+      });
+  }
+
   async readFile(): Promise<string | null> {
     if (!this.isConfigured) {
+      return null;
+    }
+
+    const orgId = await this.getOrganizationId();
+    if (!orgId) {
       return null;
     }
 
     const { data, error } = await this.client!
       .from("notebooks")
       .select("data")
-      .eq("id", this.notebookId!)
+      .eq("org_id", orgId)
+      .eq("notebook_name", this.notebookName!)
       .is("deleted_at", null)
       .single();
 
