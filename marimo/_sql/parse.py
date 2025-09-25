@@ -95,6 +95,7 @@ def _parse_sql_duckdb(
     Note:
     - Only SELECT statements support json_serialize_sql
     - Invalid function names do not throw errors
+    - Some syntax errors do not throw errors since they are not errors in the AST parser
     """
     import duckdb
 

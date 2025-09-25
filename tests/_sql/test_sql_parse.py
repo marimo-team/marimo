@@ -42,7 +42,9 @@ class TestUnsupportedDialects:
     )
     def test_unsupported_dialects_return_success(self, dialect: str):
         """Test that unsupported dialects return successful parse results."""
-        result = parse_sql("SELECT * FROM table", dialect)
+        result, error = parse_sql("SELECT * FROM table", dialect)
+        assert result is not None
+        assert error is None
 
         assert isinstance(result, SqlParseResult)
         assert result.success is True
@@ -50,7 +52,10 @@ class TestUnsupportedDialects:
 
     def test_dialect_with_whitespace(self):
         """Test dialects with leading/trailing whitespace."""
-        result = parse_sql("SELECT 1", "  postgresql  ")
+        result, error = parse_sql("SELECT 1", "  postgresql  ")
+
+        assert result is not None
+        assert error is None
 
         assert result.success is True
         assert result.errors == []
@@ -78,7 +83,9 @@ class TestDuckDBValidQueries:
     )
     def test_valid_queries_return_success(self, query: str):
         """Test that valid SQL queries return successful parse results."""
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert result is not None
+        assert error is None
 
         assert isinstance(result, SqlParseResult)
         assert result.success is True
@@ -95,7 +102,9 @@ class TestDuckDBValidQueries:
     )
     def test_duckdb_dialect_variations(self, dialect: str):
         """Test that various DuckDB dialect strings work."""
-        result = parse_sql("SELECT * FROM", dialect)
+        result, error = parse_sql("SELECT * FROM", dialect)
+        assert result is not None
+        assert error is None
 
         assert result.success is False
 
@@ -109,7 +118,9 @@ class TestDuckDBValidQueries:
         ORDER BY id DESC
         """
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert result is not None
+        assert error is None
 
         assert result.success is True
         assert result.errors == []
@@ -121,7 +132,9 @@ class TestDuckDBValidQueries:
         SELECT 1 as test_column; -- End line comment
         """
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert result is not None
+        assert error is None
 
         assert result.success is True
         assert result.errors == []
@@ -148,7 +161,9 @@ class TestDuckDBValidQueries:
         ORDER BY total_quantity DESC
         """
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert result is not None
+        assert error is None
 
         assert result.success is True
         assert result.errors == []
@@ -214,7 +229,9 @@ class TestErrorPositionCalculation:
         """Test position calculation for single-line queries."""
         query = "SELECT * FRM table"  # Error at position of "FRM"
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert result is not None
+        assert error is None
 
         assert result.success is False
         assert len(result.errors) == 1
@@ -229,7 +246,8 @@ class TestErrorPositionCalculation:
         email,
         FRM users"""  # Error on line 3
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert result is not None
 
         assert result.success is False
         assert len(result.errors) == 1
@@ -243,7 +261,8 @@ class TestErrorPositionCalculation:
         query = """SELECT *
 FRM table"""
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert result is not None
 
         assert result.success is False
         assert len(result.errors) == 1
@@ -257,7 +276,8 @@ FRM table"""
         query = """    SELECT *
     FRM table"""
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert result is not None
 
         assert result.success is False
         assert len(result.errors) == 1
@@ -272,7 +292,9 @@ FRM table"""
         FROM users
         WHERE invalid_syntax"""
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert result is not None
+        assert error is None
 
         assert result.success is False
         assert len(result.errors) == 1
@@ -288,13 +310,18 @@ class TestEdgeCases:
 
     def test_empty_query(self):
         """Test parsing empty query."""
-        result = parse_sql("", "duckdb")
+        result, error = parse_sql("", "duckdb")
+        assert result is not None
+        assert error is None
+
         assert isinstance(result, SqlParseResult)
         assert result.success is True
 
     def test_whitespace_only_query(self):
         """Test parsing query with only whitespace."""
-        result = parse_sql("   \n  \t  ", "duckdb")
+        result, error = parse_sql("   \n  \t  ", "duckdb")
+        assert result is not None
+        assert error is None
 
         assert isinstance(result, SqlParseResult)
         assert result.success is True
@@ -302,7 +329,8 @@ class TestEdgeCases:
 
     def test_query_with_semicolon(self):
         """Test parsing query with trailing semicolon."""
-        result = parse_sql("SELECT 1;", "duckdb")
+        result, error = parse_sql("SELECT 1;", "duckdb")
+        assert result is not None
 
         assert result.success is True
         assert result.errors == []
@@ -311,7 +339,7 @@ class TestEdgeCases:
         """Test parsing multiple SQL statements."""
         query = "SELECT 1; SELECT 2;"
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
 
         # DuckDB might handle this differently, just ensure we get a result
         assert isinstance(result, SqlParseResult)
@@ -322,8 +350,10 @@ class TestEdgeCases:
         columns = ", ".join([f"{i} as col_{i}" for i in range(100)])
         query = f"SELECT {columns}"
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert error is None
 
+        assert result is not None
         assert result.success is True
         assert result.errors == []
 
@@ -331,8 +361,10 @@ class TestEdgeCases:
         """Test parsing query with Unicode characters."""
         query = "SELECT 'Hello 世界' as greeting"
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert error is None
 
+        assert result is not None
         assert result.success is True
         assert result.errors == []
 
@@ -340,8 +372,10 @@ class TestEdgeCases:
         """Test parsing query with various special characters."""
         query = "SELECT 'test@#$%^&*()' as special_chars"
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert error is None
 
+        assert result is not None
         assert result.success is True
         assert result.errors == []
 
@@ -357,7 +391,9 @@ class TestEdgeCases:
         ) outer_query
         """
 
-        result = parse_sql(query, "duckdb")
+        result, error = parse_sql(query, "duckdb")
+        assert error is None
 
+        assert result is not None
         assert result.success is True
         assert result.errors == []
