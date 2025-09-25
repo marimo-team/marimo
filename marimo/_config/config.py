@@ -726,36 +726,4 @@ def merge_config(
         ):
             merged["runtime"]["auto_reload"] = "lazy"
 
-    # If missing ai.models.chat_model or ai.models.edit_model, use ai.open_ai.model
-    openai_model = merged.get("ai", {}).get("open_ai", {}).get("model")
-    chat_model = merged.get("ai", {}).get("models", {}).get("chat_model")
-    edit_model = merged.get("ai", {}).get("models", {}).get("edit_model")
-    if not chat_model and not edit_model and openai_model:
-        merged_ai_config = cast(dict[Any, Any], merged.get("ai", {}))
-        models_config = {
-            "models": {
-                "chat_model": chat_model or openai_model,
-                "edit_model": edit_model or openai_model,
-            }
-        }
-        merged["ai"] = cast(
-            AiConfig, deep_merge(merged_ai_config, models_config)
-        )
-
-    # Migrate completion.model to ai.models.autocomplete_model
-    completion_model = merged.get("completion", {}).get("model")
-    autocomplete_model = (
-        merged.get("ai", {}).get("models", {}).get("autocomplete_model")
-    )
-    if completion_model and not autocomplete_model:
-        merged_ai_config = cast(dict[Any, Any], merged.get("ai", {}))
-        models_config = {
-            "models": {
-                "autocomplete_model": completion_model,
-            }
-        }
-        merged["ai"] = cast(
-            AiConfig, deep_merge(merged_ai_config, models_config)
-        )
-
     return merged
