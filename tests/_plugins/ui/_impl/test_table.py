@@ -1928,7 +1928,7 @@ def test_table_max_height():
 
     table_no_height = ui.table([1, 2, 3])
     # Keys may be absent when not configured
-    assert "max-height" not in table_no_height._component_args
+    assert table_no_height._component_args["max-height"] is None
 
 
 def test_calculate_top_k_rows():
