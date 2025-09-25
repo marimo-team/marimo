@@ -184,7 +184,7 @@ from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
 )
-from marimo._sql.parse import parse_sql
+from marimo._sql.parse import SqlCatalogCheckResult, parse_sql
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._types.lifespan import Lifespan
@@ -2474,30 +2474,36 @@ class SqlCallbacks:
         - the syntax (parsing)
         - the catalog (table and column names)
         """
-        # First try with just parsing (no DB connection required)
-        result = parse_sql(request.query, request.engine)
-        if not result.success:
-            # Return early with the parsing result
-            ValidateSQLResult(
-                request_id=request.request_id,
-                result=result,
-                error=None,
-            ).broadcast()
-            return
+        request_id = request.request_id
 
-        # If we only want to parse the query, return early
         if request.only_parse:
+            if request.dialect is None:
+                ValidateSQLResult(
+                    request_id=request_id,
+                    error="Dialect is required when only parsing",
+                ).broadcast()
+                return
+
+            # Just parse the query (no DB connection required)
+            parse_result, error = parse_sql(request.query, request.dialect)
             ValidateSQLResult(
-                request_id=request.request_id,
-                result=result,
-                error=None,
+                request_id=request_id,
+                parse_result=parse_result,
+                error=error,
             ).broadcast()
             return
 
-        # Now validate the table and column names
+        # Validate against the database
         # This can be cheap for in-memory engines (duckdb, sqlite)
         # But potentially expensive and requires an active connection for remote engines
         # For failed connections, we should not raise an error
+
+        if request.engine is None:
+            ValidateSQLResult(
+                request_id=request_id,
+                error="Engine is required for validating catalog",
+            ).broadcast()
+            return
 
         variable_name = cast(VariableName, request.engine)
         engine: Optional[EngineCatalog[Any]] = None
@@ -2508,23 +2514,36 @@ class SqlCallbacks:
             engine, error = self._kernel.get_engine_catalog(variable_name)
 
         if error is not None or engine is None:
-            LOGGER.error("Failed to get engine %s", variable_name)
             ValidateSQLResult(
-                request_id=request.request_id,
-                result=None,
-                error="Engine not found",
+                request_id=request_id,
+                error="Failed to get engine " + variable_name,
             ).broadcast()
             return
 
-        if isinstance(engine, QueryEngine):
-            result, error = engine.execute_in_explain_mode(request.query)  # type: ignore
-        else:
-            error = "Engine does not support explain mode"
+        # Get the parse error for linting
+        parse_result, parse_error = parse_sql(request.query, engine.dialect)
+        if parse_error is not None:
+            # We don't want to fail the validation if there is a parse error
+            LOGGER.debug("Parse error: %s", parse_error)
 
+        if not isinstance(engine, QueryEngine):
+            ValidateSQLResult(
+                request_id=request_id,
+                error=f"Engine {variable_name} does not support catalog validation.",
+                parse_result=parse_result,
+            ).broadcast()
+            return
+
+        _, error_message = engine.execute_in_explain_mode(request.query)  # type: ignore
+        validate_result = SqlCatalogCheckResult(
+            success=True if error_message is None else False,
+            error_message=error_message,
+        )
         ValidateSQLResult(
-            request_id=request.request_id,
-            result=None,  # We aren't using the result yet
-            error=error,
+            request_id=request_id,
+            validate_result=validate_result,
+            parse_result=parse_result,
+            error=None,
         ).broadcast()
 
 

@@ -35,7 +35,6 @@ from marimo._runtime.requests import (
     AppMetadata,
     CodeCompletionRequest,
     ControlRequest,
-    ParseSQLRequest,
     SetUIElementValueRequest,
     SetUserConfigRequest,
 )
@@ -399,11 +398,6 @@ class PyodideBridge:
             filename=self.session.app_manager.filename,
         )
         return json.dumps(md)
-
-    def parse_sql(self, request: str) -> str:
-        # TODO: Implement this
-        body = self._parse(request, ParseSQLRequest)
-        return self._dump(body)
 
     def _parse(self, request: str, cls: type[T]) -> T:
         return parse_raw(request, cls)
