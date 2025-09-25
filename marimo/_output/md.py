@@ -14,7 +14,13 @@ import markdown.preprocessors  # type: ignore
 import pymdownx.emoji  # type: ignore
 
 from marimo._output.hypertext import Html
+from marimo._output.md_extensions.breakless_lists import (
+    BreaklessListsExtension,
+)
 from marimo._output.md_extensions.external_links import ExternalLinksExtension
+from marimo._output.md_extensions.flexible_indent import (
+    FlexibleIndentExtension,
+)
 from marimo._output.md_extensions.iconify import IconifyExtension
 from marimo._output.rich_help import mddoc
 from marimo._utils.url import is_url
@@ -196,6 +202,10 @@ def _get_extensions() -> list[Union[str, markdown.Extension]]:
         "footnotes",
         # Sane lists, to include <ol start="n">
         "sane_lists",
+        # Flexible indentation - supports 2 or 4 space indentation
+        FlexibleIndentExtension(),
+        # Breakless lists - more compact list formatting
+        BreaklessListsExtension(),
         # Links
         ExternalLinksExtension(),
         # Iconify
