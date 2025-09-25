@@ -20,7 +20,7 @@ const datasetTableCompletionsAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
   const builder = new CompletionBuilder();
   for (const table of tables) {
-    builder.addTable([], table.name, table.columns);
+    builder.addTable([], table);
   }
   return builder.build();
 });
@@ -59,15 +59,15 @@ class SQLCompletionStore {
       for (const db of databases) {
         const isDefaultDb = db.name === defaultDb?.name;
         const tables = db.schemas.flatMap((schema) => schema.tables);
-        builder.addNamespace([db.name], db.name);
+        builder.addDatabase([db.name], db);
 
         for (const table of tables) {
           if (isDefaultDb) {
             // For default database, add tables directly to top level
-            builder.addTable([], table.name, table.columns);
+            builder.addTable([], table);
           } else {
             // Otherwise nest under database name
-            builder.addTable([db.name], table.name, table.columns);
+            builder.addTable([db.name], table);
           }
         }
       }
@@ -80,31 +80,28 @@ class SQLCompletionStore {
     }
 
     // For default db, we can use the schema name directly so add them to the top level
-    for (const schema of defaultDb?.schemas ?? []) {
-      builder.addNamespace([schema.name], schema.name);
+    if (defaultDb) {
+      for (const schema of defaultDb.schemas) {
+        builder.addSchema([schema.name], schema);
 
-      for (const table of schema.tables) {
-        builder.addTable([schema.name], table.name, table.columns);
+        for (const table of schema.tables) {
+          builder.addTable([schema.name], table);
+        }
       }
     }
 
     // Otherwise, we need to use the fully qualified name
     for (const database of databases) {
-      // Skip the default database, since we already added it
-      if (database.name === defaultDb?.name) {
-        continue;
-      }
-      builder.addNamespace([database.name], database.name);
+      // We still want to add the default database here in case
+      // users want fully qualified names for completions
+
+      builder.addDatabase([database.name], database);
 
       for (const schema of database.schemas) {
-        builder.addNamespace([database.name, schema.name], schema.name);
+        builder.addSchema([database.name, schema.name], schema);
 
         for (const table of schema.tables) {
-          builder.addTable(
-            [database.name, schema.name],
-            table.name,
-            table.columns,
-          );
+          builder.addTable([database.name, schema.name], table);
         }
       }
     }

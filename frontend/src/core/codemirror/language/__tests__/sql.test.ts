@@ -789,7 +789,75 @@ describe("tablesCompletionSource", () => {
             "detail": "public",
             "info": [Function],
             "label": "public",
-            "type": "namespace",
+            "type": "schema",
+          },
+        },
+        "test_db": {
+          "children": {
+            "public": {
+              "children": {
+                "orders": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "order_id",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "user_id",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "total",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "orders",
+                    "type": "table",
+                  },
+                },
+                "users": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "id",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "name",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "email",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "users",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.public",
+                "info": [Function],
+                "label": "public",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
           },
         },
       }
@@ -897,7 +965,7 @@ describe("tablesCompletionSource", () => {
                 "detail": "db1.schema1",
                 "info": [Function],
                 "label": "schema1",
-                "type": "namespace",
+                "type": "schema",
               },
             },
           },
@@ -905,7 +973,7 @@ describe("tablesCompletionSource", () => {
             "detail": "db1",
             "info": [Function],
             "label": "db1",
-            "type": "namespace",
+            "type": "database",
           },
         },
         "db2": {
@@ -931,7 +999,7 @@ describe("tablesCompletionSource", () => {
                 "detail": "db2.schema2",
                 "info": [Function],
                 "label": "schema2",
-                "type": "namespace",
+                "type": "schema",
               },
             },
           },
@@ -939,7 +1007,7 @@ describe("tablesCompletionSource", () => {
             "detail": "db2",
             "info": [Function],
             "label": "db2",
-            "type": "namespace",
+            "type": "database",
           },
         },
       }
@@ -1075,6 +1143,64 @@ describe("tablesCompletionSource", () => {
     );
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
+        "db1": {
+          "children": {
+            "schema1": {
+              "children": {
+                "table1": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col1",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "table1",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "db1.schema1",
+                "info": [Function],
+                "label": "schema1",
+                "type": "schema",
+              },
+            },
+            "schema2": {
+              "children": {
+                "table2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col2",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "table2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "db1.schema2",
+                "info": [Function],
+                "label": "schema2",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "db1",
+            "info": [Function],
+            "label": "db1",
+            "type": "database",
+          },
+        },
         "db2": {
           "children": {
             "schema2": {
@@ -1098,7 +1224,7 @@ describe("tablesCompletionSource", () => {
                 "detail": "db2.schema2",
                 "info": [Function],
                 "label": "schema2",
-                "type": "namespace",
+                "type": "schema",
               },
             },
           },
@@ -1106,7 +1232,7 @@ describe("tablesCompletionSource", () => {
             "detail": "db2",
             "info": [Function],
             "label": "db2",
-            "type": "namespace",
+            "type": "database",
           },
         },
         "db3": {
@@ -1132,7 +1258,7 @@ describe("tablesCompletionSource", () => {
                 "detail": "db3.schema2",
                 "info": [Function],
                 "label": "schema2",
-                "type": "namespace",
+                "type": "schema",
               },
             },
           },
@@ -1140,7 +1266,7 @@ describe("tablesCompletionSource", () => {
             "detail": "db3",
             "info": [Function],
             "label": "db3",
-            "type": "namespace",
+            "type": "database",
           },
         },
         "schema1": {
@@ -1164,7 +1290,7 @@ describe("tablesCompletionSource", () => {
             "detail": "schema1",
             "info": [Function],
             "label": "schema1",
-            "type": "namespace",
+            "type": "schema",
           },
         },
         "schema2": {
@@ -1188,7 +1314,7 @@ describe("tablesCompletionSource", () => {
             "detail": "schema2",
             "info": [Function],
             "label": "schema2",
-            "type": "namespace",
+            "type": "schema",
           },
         },
       }
@@ -1288,7 +1414,51 @@ describe("tablesCompletionSource", () => {
             "detail": "public",
             "info": [Function],
             "label": "public",
-            "type": "namespace",
+            "type": "schema",
+          },
+        },
+        "test_db": {
+          "children": {
+            "public": {
+              "children": {
+                "users": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "id",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "name",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "email",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "users",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.public",
+                "info": [Function],
+                "label": "public",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
           },
         },
       }
@@ -1421,7 +1591,7 @@ describe("tablesCompletionSource", () => {
             "detail": "test_db",
             "info": [Function],
             "label": "test_db",
-            "type": "namespace",
+            "type": "database",
           },
         },
         "test_db2": {
@@ -1445,7 +1615,7 @@ describe("tablesCompletionSource", () => {
             "detail": "test_db2",
             "info": [Function],
             "label": "test_db2",
-            "type": "namespace",
+            "type": "database",
           },
         },
         "users": {
@@ -1811,6 +1981,40 @@ describe("tablesCompletionSource", () => {
             "type": "table",
           },
         },
+        "test_db": {
+          "children": {
+            "test_schema": {
+              "children": {
+                "dataset2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col1",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "dataset2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.test_schema",
+                "info": [Function],
+                "label": "test_schema",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
+          },
+        },
         "test_schema": {
           "children": {
             "dataset2": {
@@ -1832,7 +2036,7 @@ describe("tablesCompletionSource", () => {
             "detail": "test_schema",
             "info": [Function],
             "label": "test_schema",
-            "type": "namespace",
+            "type": "schema",
           },
         },
       }
@@ -1848,6 +2052,40 @@ describe("tablesCompletionSource", () => {
     const completionSource = completionStore.getCompletionSource(TEST_ENGINE);
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
+        "test_db": {
+          "children": {
+            "test_schema": {
+              "children": {
+                "dataset2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col1",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "dataset2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.test_schema",
+                "info": [Function],
+                "label": "test_schema",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
+          },
+        },
         "test_schema": {
           "children": {
             "dataset2": {
@@ -1869,7 +2107,7 @@ describe("tablesCompletionSource", () => {
             "detail": "test_schema",
             "info": [Function],
             "label": "test_schema",
-            "type": "namespace",
+            "type": "schema",
           },
         },
       }
@@ -1924,6 +2162,40 @@ describe("tablesCompletionSource", () => {
             "type": "table",
           },
         },
+        "test_db": {
+          "children": {
+            "test_schema": {
+              "children": {
+                "dataset2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col1",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "dataset2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.test_schema",
+                "info": [Function],
+                "label": "test_schema",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
+          },
+        },
         "test_schema": {
           "children": {
             "dataset2": {
@@ -1945,7 +2217,7 @@ describe("tablesCompletionSource", () => {
             "detail": "test_schema",
             "info": [Function],
             "label": "test_schema",
-            "type": "namespace",
+            "type": "schema",
           },
         },
       }
@@ -1985,6 +2257,40 @@ describe("tablesCompletionSource", () => {
             "type": "table",
           },
         },
+        "test_db": {
+          "children": {
+            "test_schema": {
+              "children": {
+                "dataset2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col1",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "dataset2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.test_schema",
+                "info": [Function],
+                "label": "test_schema",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
+          },
+        },
         "test_schema": {
           "children": {
             "dataset2": {
@@ -2006,7 +2312,7 @@ describe("tablesCompletionSource", () => {
             "detail": "test_schema",
             "info": [Function],
             "label": "test_schema",
-            "type": "namespace",
+            "type": "schema",
           },
         },
       }

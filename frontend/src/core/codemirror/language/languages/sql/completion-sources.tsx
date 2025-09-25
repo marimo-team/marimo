@@ -7,6 +7,7 @@ import {
 } from "@codemirror/lang-sql";
 import type { EditorState } from "@codemirror/state";
 import { DefaultSqlTooltipRenders } from "@marimo-team/codemirror-sql";
+import { once } from "@/utils/once";
 import { languageMetadataField } from "../../metadata";
 import { SCHEMA_CACHE } from "./completion-store";
 import type { SQLLanguageAdapterMetadata } from "./sql";
@@ -89,7 +90,7 @@ export function customKeywordCompletionSource(): CompletionSource {
 }
 
 // e.g. lazily load keyword docs
-const getKeywordDocs = async (): Promise<Record<string, unknown>> => {
+const getKeywordDocs = once(async (): Promise<Record<string, unknown>> => {
   const keywords = await import(
     "@marimo-team/codemirror-sql/data/common-keywords.json"
   );
@@ -101,4 +102,4 @@ const getKeywordDocs = async (): Promise<Record<string, unknown>> => {
     ...keywords.default.keywords,
     ...duckdbKeywords.default.keywords,
   };
-};
+});

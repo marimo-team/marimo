@@ -2,8 +2,19 @@
 
 import type { Completion } from "@codemirror/autocomplete";
 import type { SQLNamespace } from "@codemirror/lang-sql";
-import { DefaultSqlTooltipRenders } from "@marimo-team/codemirror-sql";
-import type { DataTableColumn } from "@/core/kernel/messages";
+import { createRoot } from "react-dom/client";
+import type {
+  Database,
+  DatabaseSchema,
+  DataTable,
+  DataTableColumn,
+} from "@/core/kernel/messages";
+import {
+  renderColumnInfo,
+  renderDatabaseInfo,
+  renderSchemaInfo,
+  renderTableInfo,
+} from "./renderers";
 
 /**
  * Simple builder for SQL completion schemas.
@@ -14,38 +25,50 @@ export class CompletionBuilder {
   /**
    * Add a table with its columns at the specified path
    */
-  addTable(path: string[], table: string, columns: DataTableColumn[]): this {
+  addTable(path: string[], table: DataTable): this {
     const tableNamespace: SQLNamespace = {
       self: tableToCompletion({
-        tableName: table,
-        columns: columns,
+        table: table,
       }),
-      children: columns.map((col) =>
+      children: table.columns.map((col) =>
         columnToCompletion({
-          tableName: table,
-          column: col.name,
-          metadata: { Type: col.external_type },
+          column: col,
         }),
       ),
     };
 
-    this.setAt([...path, table], tableNamespace);
+    this.setAt([...path, table.name], tableNamespace);
     return this;
   }
 
   /**
-   * Add a namespace at the specified path
+   * Add a schema at the specified path
    */
-  addNamespace(path: string[], namespace: string): this {
-    const namespaceObject: SQLNamespace = {
-      self: namespaceToCompletion({
-        namespace: namespace,
+  addSchema(path: string[], schema: DatabaseSchema): this {
+    const schemaObject: SQLNamespace = {
+      self: schemaToCompletion({
+        namespace: schema,
         path: path,
       }),
       children: {},
     };
 
-    this.setAt(path, namespaceObject);
+    this.setAt(path, schemaObject);
+    return this;
+  }
+
+  /**
+   * Add a database at the specified path
+   */
+  addDatabase(path: string[], database: Database): this {
+    const databaseObject: SQLNamespace = {
+      self: databaseToCompletion({
+        namespace: database,
+        path: path,
+      }),
+      children: {},
+    };
+    this.setAt(path, databaseObject);
     return this;
   }
 
@@ -80,71 +103,57 @@ export class CompletionBuilder {
   }
 }
 
-function columnToCompletion(opts: {
-  tableName: string;
-  column: string;
-  metadata?: Record<string, string>;
-}): Completion {
+function columnToCompletion(opts: { column: DataTableColumn }): Completion {
   return {
-    label: opts.column,
+    label: opts.column.name,
     type: "column",
     info: () => {
-      // TODO: do our own styling
-      const html = DefaultSqlTooltipRenders.column({
-        tableName: opts.tableName,
-        columnName: opts.column,
-        schema: {},
-        metadata: opts.metadata,
-      });
       const dom = document.createElement("div");
-      dom.innerHTML = html;
+      createRoot(dom).render(renderColumnInfo(opts.column));
       return { dom: dom };
     },
   };
 }
 
-function tableToCompletion(opts: {
-  tableName: string;
-  columns: DataTableColumn[];
-  metadata?: Record<string, string>;
-}): Completion {
+function tableToCompletion(opts: { table: DataTable }): Completion {
   return {
-    label: opts.tableName,
+    label: opts.table.name,
     type: "table",
     info: () => {
-      // TODO: do our own styling
-      const html = DefaultSqlTooltipRenders.table({
-        tableName: opts.tableName,
-        columns: opts.columns.map(
-          (col) => `${col.name} (${col.external_type})`,
-        ),
-        metadata: opts.metadata,
-      });
       const dom = document.createElement("div");
-      dom.innerHTML = html;
+      createRoot(dom).render(renderTableInfo(opts.table));
       return { dom: dom };
     },
   };
 }
 
-function namespaceToCompletion(opts: {
-  namespace: string;
+function schemaToCompletion(opts: {
+  namespace: DatabaseSchema;
   path: string[];
-  metadata?: Record<string, string>;
 }): Completion {
   return {
-    label: opts.namespace,
+    label: opts.namespace.name,
     detail: opts.path.join("."),
-    type: "namespace",
+    type: "schema",
     info: () => {
-      // TODO: do our own styling
-      const html = DefaultSqlTooltipRenders.namespace({
-        path: opts.path,
-        type: "namespace",
-        semanticType: "namespace",
-      });
       const dom = document.createElement("div");
-      dom.innerHTML = html;
+      createRoot(dom).render(renderSchemaInfo(opts.namespace));
+      return { dom: dom };
+    },
+  };
+}
+
+function databaseToCompletion(opts: {
+  namespace: Database;
+  path: string[];
+}): Completion {
+  return {
+    label: opts.namespace.name,
+    detail: opts.path.join("."),
+    type: "database",
+    info: () => {
+      const dom = document.createElement("div");
+      createRoot(dom).render(renderDatabaseInfo(opts.namespace));
       return { dom: dom };
     },
   };
