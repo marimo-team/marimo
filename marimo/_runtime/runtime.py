@@ -184,6 +184,7 @@ from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
 )
+from marimo._sql.parse import parse_sql
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._types.lifespan import Lifespan
@@ -2467,8 +2468,28 @@ class SqlCallbacks:
 
     @kernel_tracer.start_as_current_span("validate_sql_query")
     async def validate_sql(self, request: ValidateSQLRequest) -> None:
-        """Validate an SQL query"""
-        # TODO: Place request in queue
+        """Validate an SQL query
+
+        This will validate:
+        - the syntax (parsing)
+        - the catalog (table and column names)
+        """
+        # First try with just parsing (no DB connection required)
+        result = parse_sql(request.query, request.engine)
+        if not result.success:
+            # Return early with the parsing result
+            ValidateSQLResult(
+                request_id=request.request_id,
+                result=result,
+                error=None,
+            ).broadcast()
+            return
+
+        # Now validate the table and column names
+        # This can be cheap for in-memory engines (duckdb, sqlite)
+        # But potentially expensive and requires an active connection for remote engines
+        # For failed connections, we should not raise an error
+
         variable_name = cast(VariableName, request.engine)
         engine: Optional[EngineCatalog[Any]] = None
         if variable_name == INTERNAL_DUCKDB_ENGINE:

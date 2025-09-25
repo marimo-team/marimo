@@ -8,8 +8,8 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.errors import MarimoSQLError
 from marimo._sql.error_utils import (
     MarimoSQLException,
+    _extract_sql_position,
     create_sql_error_from_exception,
-    extract_sql_position,
     is_sql_parse_error,
 )
 from marimo._sql.sql import sql
@@ -245,7 +245,7 @@ class TestErrorMessageQuality:
         """Test position extraction from DuckDB error messages."""
         # DuckDB format: "Line 1, Col: 15"
         duckdb_msg = "Parser Error: syntax error at Line 1, Col: 15"
-        line, col = extract_sql_position(duckdb_msg)
+        line, col = _extract_sql_position(duckdb_msg)
         assert line == 0  # 0-based
         assert col == 14  # 0-based
 
@@ -253,14 +253,14 @@ class TestErrorMessageQuality:
         """Test position extraction from SQLGlot error messages."""
         # SQLGlot format variations
         sqlglot_msg = "Parse error at line 2, col 10"
-        line, col = extract_sql_position(sqlglot_msg)
+        line, col = _extract_sql_position(sqlglot_msg)
         assert line == 1  # 0-based
         assert col == 9  # 0-based
 
     def test_extract_sql_position_no_position(self):
         """Test position extraction when no position info available."""
         no_position_msg = "Some generic SQL error without position"
-        line, col = extract_sql_position(no_position_msg)
+        line, col = _extract_sql_position(no_position_msg)
         assert line is None
         assert col is None
 
