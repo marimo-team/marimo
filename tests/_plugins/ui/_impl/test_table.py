@@ -1919,18 +1919,16 @@ def test_default_table_max_columns():
     assert get_default_table_max_columns() == DEFAULT_MAX_COLUMNS
 
 
-def test_table_max_height_and_sticky_args():
+def test_table_max_height():
     table = ui.table(
         [{"a": i} for i in range(100)], pagination=False, max_height=300
     )
     # Backend should expose optional UI hints when max_height is set
     assert table._component_args["max-height"] == 300
-    assert table._component_args["is-sticky"] is True
 
     table_no_height = ui.table([1, 2, 3])
     # Keys may be absent when not configured
     assert "max-height" not in table_no_height._component_args
-    assert "is-sticky" not in table_no_height._component_args
 
 
 def test_calculate_top_k_rows():
