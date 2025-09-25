@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from marimo._utils.msgspec_basestruct import BaseStruct
 
 import msgspec
 
@@ -23,7 +24,7 @@ DataType = Literal[
 ExternalDataType = str
 
 
-class DataTableColumn(msgspec.Struct):
+class DataTableColumn(BaseStruct):
     """
     Represents a column in a data table.
 
@@ -54,7 +55,7 @@ DataTableSource = Literal["local", "duckdb", "connection", "catalog"]
 DataTableType = Literal["table", "view"]
 
 
-class DataTable(msgspec.Struct):
+class DataTable(BaseStruct):
     """
     Represents a data table.
 
@@ -85,12 +86,12 @@ class DataTable(msgspec.Struct):
     indexes: Optional[list[str]] = None
 
 
-class Schema(msgspec.Struct):
+class Schema(BaseStruct):
     name: str
     tables: list[DataTable]
 
 
-class Database(msgspec.Struct):
+class Database(BaseStruct):
     """
     Represents a collection of schemas.
 
@@ -119,7 +120,7 @@ else:
     NonNestedLiteral = Any
 
 
-class ColumnStats(msgspec.Struct):
+class ColumnStats(BaseStruct):
     """
     Represents stats for a column in a data table.
     """
@@ -141,7 +142,7 @@ class ColumnStats(msgspec.Struct):
     p95: Optional[NonNestedLiteral] = None
 
 
-class BinValue(msgspec.Struct):
+class BinValue(BaseStruct):
     """
     Represents bin values for a column in a data table. This is used for plotting.
 
@@ -156,7 +157,7 @@ class BinValue(msgspec.Struct):
     count: int
 
 
-class ValueCount(msgspec.Struct):
+class ValueCount(BaseStruct):
     """
     Represents a value and its count in a column in a data table.
     Currently used for string columns.
@@ -170,7 +171,7 @@ class ValueCount(msgspec.Struct):
     count: int
 
 
-class DataSourceConnection(msgspec.Struct):
+class DataSourceConnection(BaseStruct):
     """
     Represents a data source connection.
 
