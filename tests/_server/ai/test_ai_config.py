@@ -565,37 +565,19 @@ class TestGetKey:
         """Test error when API key is missing."""
         config = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            _get_key(config, "Test Service")
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Test Service API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert _get_key(config, "Test Service") == ""
 
     def test_get_key_empty_api_key(self):
         """Test error when API key is empty."""
         config = {"api_key": ""}
 
-        with pytest.raises(HTTPException) as exc_info:
-            _get_key(config, "Test Service")
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Test Service API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert _get_key(config, "Test Service") == ""
 
     def test_get_key_none_api_key(self):
         """Test error when API key is None."""
         config = {"api_key": None}
 
-        with pytest.raises(HTTPException) as exc_info:
-            _get_key(config, "Test Service")
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Test Service API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert _get_key(config, "Test Service") == ""
 
     def test_get_key_with_fallback_key(self):
         """Test using fallback key when api_key is missing."""
@@ -633,25 +615,13 @@ class TestGetKey:
         """Test error when no fallback key provided and api_key missing."""
         config = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            _get_key(config, "Test Service", fallback_key=None)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Test Service API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert _get_key(config, "Test Service", fallback_key=None) == ""
 
     def test_get_key_empty_fallback_key(self):
         """Test error when fallback key is empty string."""
         config = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            _get_key(config, "Test Service", fallback_key="")
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Test Service API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert _get_key(config, "Test Service", fallback_key="") == ""
 
     def test_get_key_bedrock_profile_ignores_fallback(self):
         """Test that Bedrock profile handling ignores fallback key."""
@@ -1006,13 +976,9 @@ class TestEdgeCases:
         """Test error when OpenAI Compatible config is missing."""
         config: AiConfig = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_openai_compatible(config)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "OpenAI Compatible API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert AnyProviderConfig.for_openai_compatible(
+            config
+        ) == AnyProviderConfig(base_url=None, api_key="", ssl_verify=True)
 
     def test_github_config_missing(self):
         """Test error when GitHub config is missing."""
