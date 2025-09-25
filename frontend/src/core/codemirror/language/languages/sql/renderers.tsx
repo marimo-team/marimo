@@ -1,8 +1,11 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+
 import {
   ColumnsIcon,
   DatabaseIcon,
   EyeIcon,
   HashIcon,
+  InfoIcon,
   KeyIcon,
   LayersIcon,
   TableIcon,
@@ -40,6 +43,8 @@ const SOURCE_TYPE_COLORS = {
   connection: "bg-[var(--green-4)] text-[var(--green-11)]",
   catalog: "bg-[var(--purple-4)] text-[var(--purple-11)]",
 } as const;
+
+const CONTAINER_STYLES = "p-3 min-w-[250px] flex flex-col divide-y";
 
 // Helper components and functions
 const SectionHeader: React.FC<{
@@ -148,8 +153,11 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
     );
   });
 
+  const hasPrimaryKeys = table.primary_keys && table.primary_keys.length > 0;
+  const hasIndexes = table.indexes && table.indexes.length > 0;
+
   return (
-    <div className="p-4 min-w-[300px] flex flex-col divide-y">
+    <div className={`${CONTAINER_STYLES} min-w-[300px]`}>
       <SectionHeader icon={tableIcon} title={table.name} badge={typeBadge} />
 
       {/* Metadata */}
@@ -207,50 +215,49 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
         </div>
       )}
 
+      {/* Empty Info */}
+      {table.columns.length === 0 && renderEmptyInfo("column")}
+
       {/* Primary Keys & Indexes */}
-      {(table.primary_keys?.length || table.indexes?.length) && (
+      {(hasPrimaryKeys || hasIndexes) && (
         <div className="flex flex-col gap-2 py-2">
-          {table.primary_keys && table.primary_keys.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1 mb-1">
+          {hasPrimaryKeys && (
+            <div className="flex flex-row gap-1">
+              <div className="flex items-center gap-1">
                 <KeyIcon className="w-3 h-3 text-[var(--amber-9)]" />
                 <span className="text-xs font-medium text-[var(--slate-11)]">
                   Primary Keys:
                 </span>
               </div>
-              <div className="flex flex-wrap gap-1">
-                {table.primary_keys.map((key) => (
-                  <Badge
-                    key={key}
-                    variant="outline"
-                    className="text-xs bg-[var(--amber-4)] text-[var(--amber-11)]"
-                  >
-                    {key}
-                  </Badge>
-                ))}
-              </div>
+              {table.primary_keys?.map((key) => (
+                <Badge
+                  key={key}
+                  variant="outline"
+                  className="text-xs bg-[var(--amber-4)] text-[var(--amber-11)]"
+                >
+                  {key}
+                </Badge>
+              ))}
             </div>
           )}
 
-          {table.indexes && table.indexes.length > 0 && (
-            <div>
+          {hasIndexes && (
+            <div className="flex flex-row gap-1">
               <div className="flex items-center gap-1 mb-1">
                 <LayersIcon className="w-3 h-3 text-[var(--purple-9)]" />
                 <span className="text-xs font-medium text-[var(--slate-11)]">
                   Indexes:
                 </span>
               </div>
-              <div className="flex flex-wrap gap-1">
-                {table.indexes.map((index) => (
-                  <Badge
-                    key={index}
-                    variant="outline"
-                    className="text-xs bg-[var(--purple-4)] text-[var(--purple-11)]"
-                  >
-                    {index}
-                  </Badge>
-                ))}
-              </div>
+              {table.indexes?.map((index) => (
+                <Badge
+                  key={index}
+                  variant="outline"
+                  className="text-xs bg-[var(--purple-4)] text-[var(--purple-11)]"
+                >
+                  {index}
+                </Badge>
+              ))}
             </div>
           )}
         </div>
@@ -287,7 +294,7 @@ export const renderColumnInfo = (column: DataTableColumn): React.ReactNode => {
     )) || [];
 
   return (
-    <div className="p-4 min-w-[280px] flex flex-col divide-y">
+    <div className={CONTAINER_STYLES}>
       <SectionHeader
         icon={<TypeIcon className="w-4 h-4 text-[var(--slate-9)]" />}
         title={column.name}
@@ -295,7 +302,7 @@ export const renderColumnInfo = (column: DataTableColumn): React.ReactNode => {
       />
 
       {/* Type Information */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 mt-2">
         <MetadataRow
           label="Type"
           value={<span className="font-medium">{column.type}</span>}
@@ -348,13 +355,12 @@ export const renderDatabaseInfo = (database: Database): React.ReactNode => {
   ));
 
   return (
-    <div className="p-4 min-w-[300px] flex flex-col divide-y">
+    <div className={CONTAINER_STYLES}>
       <SectionHeader
         icon={<DatabaseIcon className="w-4 h-4 text-[var(--blue-9)]" />}
         title={database.name}
         badge={dialectBadge}
       />
-
       {/* Metadata */}
       <div className="flex flex-col gap-2 py-2">
         <MetadataRow
@@ -373,14 +379,15 @@ export const renderDatabaseInfo = (database: Database): React.ReactNode => {
           />
         )}
       </div>
-
       {/* Schema Statistics */}
       <div className="py-2">
         <StatisticItem
           icon={<LayersIcon className="w-3 h-3 text-[var(--slate-9)]" />}
-          text={`${database.schemas.length} schema${database.schemas.length !== 1 ? "s" : ""}`}
+          text={`${database.schemas.length} schema${database.schemas.length === 1 ? "" : "s"}`}
         />
       </div>
+      {/* Empty Info */}
+      {database.schemas.length === 0 && renderEmptyInfo("schema")}
 
       {/* Schema Preview */}
       {database.schemas.length > 0 && (
@@ -431,7 +438,7 @@ export const renderSchemaInfo = (schema: DatabaseSchema): React.ReactNode => {
   ));
 
   return (
-    <div className="p-4 min-w-[280px] flex flex-col divide-y">
+    <div className={CONTAINER_STYLES}>
       <SectionHeader
         icon={<LayersIcon className="w-4 h-4 text-[var(--green-9)]" />}
         title={schema.name}
@@ -442,9 +449,12 @@ export const renderSchemaInfo = (schema: DatabaseSchema): React.ReactNode => {
       <div className="py-2">
         <StatisticItem
           icon={<TableIcon className="w-3 h-3 text-[var(--slate-9)]" />}
-          text={`${schema.tables.length} table${schema.tables.length !== 1 ? "s" : ""}`}
+          text={`${schema.tables.length} table${schema.tables.length === 1 ? "" : "s"}`}
         />
       </div>
+
+      {/* Empty Info */}
+      {schema.tables.length === 0 && renderEmptyInfo("table")}
 
       {/* Table Preview */}
       {schema.tables.length > 0 && (
@@ -454,6 +464,22 @@ export const renderSchemaInfo = (schema: DatabaseSchema): React.ReactNode => {
           totalCount={schema.tables.length}
         />
       )}
+    </div>
+  );
+};
+
+export const renderEmptyInfo = (
+  type: "column" | "table" | "schema" | "database",
+) => {
+  return (
+    <div className="flex items-start gap-2 mt-3">
+      <InfoIcon size={10} className="mt-1 text-[var(--slate-10)] shrink-0" />
+      <span className="text-xs text-[var(--slate-11)]">
+        No {type} information available.{" \n"}
+        <span className="text-[var(--blue-10)]">
+          Introspect to see more details.
+        </span>
+      </span>
     </div>
   );
 };
