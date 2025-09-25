@@ -3,30 +3,30 @@ import * as React from "react";
 
 import { cn } from "@/utils/cn";
 
-type TableProps = React.HTMLAttributes<HTMLTableElement>;
-
-const Table = React.forwardRef<HTMLTableElement, TableProps>(
-  ({ className, ...props }, ref) => (
+const Table = React.forwardRef<
+  HTMLTableElement,
+  React.HTMLAttributes<HTMLTableElement>
+>(({ className, ...props }, ref) => (
+  <div className="w-full overflow-auto flex-1">
     <table
       ref={ref}
       className={cn("w-full caption-bottom text-sm", className)}
       {...props}
     />
-  ),
-);
+  </div>
+));
 Table.displayName = "Table";
 
-type TableHeaderProps = React.HTMLAttributes<HTMLTableSectionElement>;
-
-const TableHeader = React.forwardRef<HTMLTableSectionElement, TableHeaderProps>(
-  ({ className, ...props }, ref) => (
-    <thead
-      ref={ref}
-      className={cn("[&_tr]:border-b bg-background", className)}
-      {...props}
-    />
-  ),
-);
+const TableHeader = React.forwardRef<
+  HTMLTableSectionElement,
+  React.HTMLAttributes<HTMLTableSectionElement>
+>(({ className, ...props }, ref) => (
+  <thead
+    ref={ref}
+    className={cn("[&_tr]:border-b bg-background", className)}
+    {...props}
+  />
+));
 TableHeader.displayName = "TableHeader";
 
 const TableBody = React.forwardRef<
