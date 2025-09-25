@@ -53,6 +53,7 @@ from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
+from marimo._sql.parse import SqlParseResult
 from marimo._types.ids import CellId_t, RequestId, WidgetModelId
 from marimo._utils.platform import is_pyodide, is_windows
 
@@ -629,7 +630,7 @@ class DataSourceConnections(Op, tag="data-source-connections"):
 class ValidateSQLResult(Op, tag="validate-sql-result"):
     name: ClassVar[str] = "validate-sql-result"
     request_id: RequestId
-    result: Optional[Any] = None
+    result: Optional[SqlParseResult] = None
     error: Optional[str] = None
 
 

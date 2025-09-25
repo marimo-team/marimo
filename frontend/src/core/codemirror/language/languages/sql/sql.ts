@@ -12,6 +12,7 @@ import {
   defaultSqlHoverTheme,
   NodeSqlParser,
   type SupportedDialects as ParserDialects,
+  type SqlParseError,
   sqlExtension,
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
@@ -28,7 +29,6 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import { ValidateSQL } from "@/core/datasets/request-registry";
-import type { ValidateSQLResult } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { resolvedThemeAtom } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
@@ -245,7 +245,7 @@ export class SQLLanguageAdapter
 
     if (this.sqlLinterEnabled) {
       const theme = store.get(resolvedThemeAtom);
-      const parser = new NodeSqlParser({
+      const parser = new CustomSqlParser({
         getParserOptions: (state: EditorState) => {
           return {
             database: guessParserDialect(state) ?? DEFAULT_PARSER_DIALECT,
@@ -285,6 +285,27 @@ export class SQLLanguageAdapter
     }
 
     return extensions;
+  }
+}
+
+class CustomSqlParser extends NodeSqlParser {
+  override async validateSql(
+    sql: string,
+    opts: { state: EditorState },
+  ): Promise<SqlParseError[]> {
+    const dialect = guessParserDialect(opts.state);
+    if (dialect === "DuckDB") {
+      const result = await ValidateSQL.request({
+        onlyParse: true,
+        engine: opts.state.field(languageMetadataField).engine,
+        query: sql,
+      });
+      // TODO: share this with the other validation error handling
+      // that shows the banner
+      return result.result?.errors ?? [];
+    }
+
+    return super.validateSql(sql, opts);
   }
 }
 
@@ -613,14 +634,20 @@ function sqlValidationExtension(): Extension {
       }
 
       try {
-        const result: ValidateSQLResult = await ValidateSQL.request({
+        const result = await ValidateSQL.request({
+          onlyParse: true,
           engine: connectionName,
           query: sqlContent,
         });
 
         if (result.error) {
           const dialect = connectionNameToParserDialect(connectionName);
-          setSqlValidationError({ cellId, error: result.error, dialect });
+          setSqlValidationError({
+            cellId,
+            error: result.error,
+            result: result.result ?? null,
+            dialect,
+          });
         } else {
           clearSqlValidationError(cellId);
         }

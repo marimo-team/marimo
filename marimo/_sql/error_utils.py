@@ -87,7 +87,7 @@ def is_sql_parse_error(exception: BaseException) -> bool:
     return isinstance(exception, MarimoSQLException)
 
 
-def extract_sql_position(
+def _extract_sql_position(
     exception_msg: str,
 ) -> tuple[Optional[int], Optional[int]]:
     """Extract line and column position from SQL exception message."""
@@ -133,7 +133,7 @@ def create_sql_error_metadata(
     This is the single source of truth for parsing SQL exceptions into metadata.
     """
     exception_msg = str(exception)
-    sql_line, sql_col = extract_sql_position(exception_msg)
+    sql_line, sql_col = _extract_sql_position(exception_msg)
 
     # Truncate long SQL content
     truncated_sql = sql_content

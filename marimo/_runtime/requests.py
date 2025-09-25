@@ -344,6 +344,9 @@ class ValidateSQLRequest(msgspec.Struct, rename="camel"):
     request_id: RequestId
     engine: str
     query: str
+    # Whether to only parse the query the query,
+    # but not validate the table and column names
+    only_parse: bool
 
 
 class ParseSQLRequest(msgspec.Struct, rename="camel"):
