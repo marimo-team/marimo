@@ -5,6 +5,7 @@ from typing import Literal, Optional, Union
 import msgspec
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
 
@@ -84,7 +85,7 @@ class DuckDBParseError(msgspec.Struct):
 
 # skip to reduce the response size
 # the response doesn't matter too much, we are interested in the errors
-JSON_SERIALIZE_QUERY = "SELECT JSON_SERIALIZE_SQL(?, skip_null := true, skip_empty := true, skip_default := true)"
+JSON_SERIALIZE_QUERY = "SELECT JSON_SERIALIZE_SQL(CAST(? AS VARCHAR), skip_null := true, skip_empty := true, skip_default := true)"
 
 
 def _parse_sql_duckdb(
@@ -97,6 +98,8 @@ def _parse_sql_duckdb(
     - Invalid function names do not throw errors
     - Some syntax errors do not throw errors since they are not errors in the AST parser
     """
+    DependencyManager.duckdb.require("to parse sql")
+
     import duckdb
 
     relation = duckdb.execute(JSON_SERIALIZE_QUERY, [query])

@@ -17,7 +17,6 @@ import {
   sqlExtension,
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
-import { debounce } from "lodash-es";
 import dedent from "string-dedent";
 import { cellIdState } from "@/core/codemirror/cells/state";
 import { getFeatureFlag } from "@/core/config/feature-flag";
@@ -31,7 +30,6 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import { ValidateSQL } from "@/core/datasets/request-registry";
-import type { ValidateSQLResult } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { resolvedThemeAtom } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
@@ -283,48 +281,54 @@ export class SQLLanguageAdapter
       );
     }
 
-    // Hack to clear validation errors when sql is empty
-    if (this.sqlModeEnabled) {
-      extensions.push(sqlValidationExtension());
-    }
+    // TODO: Re-enable after we optimize the endpoint
+    // if (this.sqlModeEnabled) {
+    //   extensions.push(sqlValidationExtension());
+    // }
 
     return extensions;
   }
 }
 
-const SQL_VALIDATION_DEBOUNCE_MS = 300;
+const SQL_VALIDATION_DEBOUNCE_MS = 100;
 
 class CustomSqlParser extends NodeSqlParser {
-  private baseValidateSQL = async (
+  private validationTimeout: number | null = null;
+  private readonly VALIDATION_DELAY_MS = 300; // Wait 300ms after user stops typing
+
+  private async validateWithDelay(
     sql: string,
     engine: string,
     dialect: ParserDialects | null,
-  ): Promise<SqlParseError[]> => {
-    let result: ValidateSQLResult | null = null;
-
-    try {
-      result = await ValidateSQL.request({
-        onlyParse: true,
-        engine,
-        dialect,
-        query: sql,
-      });
-    } catch (error) {
-      Logger.error("Failed to validate SQL", { error: error });
-      return [];
+  ): Promise<SqlParseError[]> {
+    // Clear any existing delay call
+    if (this.validationTimeout) {
+      window.clearTimeout(this.validationTimeout);
     }
 
-    if (result.error) {
-      Logger.error("Failed to validate SQL", { error: result.error });
-      return [];
-    }
-    return result.parse_result?.errors ?? [];
-  };
-
-  private debouncedValidateSQL = debounce(
-    this.baseValidateSQL,
-    SQL_VALIDATION_DEBOUNCE_MS,
-  );
+    // Set up a new request to be called after the delay
+    return new Promise((resolve) => {
+      this.validationTimeout = window.setTimeout(async () => {
+        try {
+          const result = await ValidateSQL.request({
+            onlyParse: true,
+            engine,
+            dialect,
+            query: sql,
+          });
+          if (result.error) {
+            Logger.error("Failed to validate SQL", { error: result.error });
+            resolve([]);
+            return;
+          }
+          resolve(result.parse_result?.errors ?? []);
+        } catch (error) {
+          Logger.error("Failed to validate SQL", { error });
+          resolve([]);
+        }
+      }, this.VALIDATION_DELAY_MS);
+    });
+  }
 
   override async validateSql(
     sql: string,
@@ -338,14 +342,7 @@ class CustomSqlParser extends NodeSqlParser {
     }
 
     const dialect = guessParserDialect(opts.state);
-
-    // Use the debounced version for validation
-    const result = await this.debouncedValidateSQL(
-      sql,
-      metadata.engine,
-      dialect,
-    );
-    return result ?? [];
+    return this.validateWithDelay(sql, metadata.engine, dialect);
   }
 
   override async parse(
@@ -644,7 +641,8 @@ function safeDedent(code: string): string {
   }
 }
 
-function sqlValidationExtension(): Extension {
+// @ts-expect-error: TODO: Re-enable after we optimize the endpoint
+function _sqlValidationExtension(): Extension {
   let debounceTimeout: number | undefined;
   let lastValidationRequest: string | null = null;
 

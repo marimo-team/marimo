@@ -398,3 +398,26 @@ class TestEdgeCases:
         assert result is not None
         assert result.success is True
         assert result.errors == []
+
+    def test_just_comments(self):
+        """Test parsing query with just comments."""
+        for query in [
+            """
+            -- This is a comment
+            /* This is a comment */
+            """,
+            """-- SELECT 1""",
+            """/* SELECT 1 */""",
+            """
+            -- This is a comment
+            SELECT 1 as test_column; -- End line comment
+            """,
+            """
+            /* This is a comment */
+            SELECT 1 as test_column; /* End line comment */
+            """,
+        ]:
+            result, error = parse_sql(query, "duckdb")
+            assert result is not None
+            assert result.success is True
+            assert result.errors == []
