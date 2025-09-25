@@ -163,13 +163,12 @@ def test_comm_flush(comm: MarimoComm):
         )
     )
 
-    with patch("marimo._messaging.ops.SendUIElementMessage") as mock_send:
+    with patch(
+        "marimo._messaging.ops.SendUIElementMessage"
+    ) as MockSendUIElementMessage:
         comm.flush()
-        mock_send.assert_called_once()
-        call_args = mock_send.call_args[1]
+        MockSendUIElementMessage.assert_called_once()
+        call_args = MockSendUIElementMessage.call_args[1]
         assert call_args["model_id"] == comm.comm_id
         assert call_args["message"] == test_data
-        assert len(call_args["buffers"]) == 1
-        assert (
-            call_args["buffers"][0] == "dGVzdF9idWZmZXI="
-        )  # base64 of b"test_buffer"
+        assert call_args["buffers"] == [b"test_buffer"]
