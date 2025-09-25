@@ -31,18 +31,20 @@ export function clearSqlValidationError(cellId: CellId) {
 
 export function setSqlValidationError({
   cellId,
-  error,
+  errorMessage,
   dialect,
 }: {
   cellId: CellId;
-  error: string;
+  errorMessage: string;
   dialect: SupportedDialects | null;
 }) {
   const sqlValidationErrors = store.get(sqlValidationErrorsAtom);
   const newErrors = new Map(sqlValidationErrors);
 
   const errorResult: SQLValidationError =
-    dialect === "DuckDB" ? handleDuckdbError(error) : splitErrorMessage(error);
+    dialect === "DuckDB"
+      ? handleDuckdbError(errorMessage)
+      : splitErrorMessage(errorMessage);
 
   newErrors.set(cellId, errorResult);
   store.set(sqlValidationErrorsAtom, newErrors);

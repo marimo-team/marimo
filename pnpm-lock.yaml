@@ -137,8 +137,8 @@ importers:
         specifier: ^0.1.5
         version: 0.1.5(@codemirror/autocomplete@6.18.7)(@codemirror/state@6.5.2)(@codemirror/view@6.38.2)(@modelcontextprotocol/sdk@1.17.2)
       '@marimo-team/codemirror-sql':
-        specifier: ^0.2.1
-        version: 0.2.1(@codemirror/state@6.5.2)(@codemirror/view@6.38.2)
+        specifier: ^0.2.3
+        version: 0.2.3(@codemirror/state@6.5.2)(@codemirror/view@6.38.2)
       '@marimo-team/llm-info':
         specifier: workspace:*
         version: link:../packages/llm-info
@@ -1804,8 +1804,8 @@ packages:
       '@codemirror/view': ^6
       '@modelcontextprotocol/sdk': ^1
 
-  '@marimo-team/codemirror-sql@0.2.1':
-    resolution: {integrity: sha512-k/5IwEOIdSUB7wVoazF5qqhogOwaCW63Wpfk0uQ0oc1r5pNolfC0h6ZdZuf+pIHzkWun2u2dg0rMc9UOFtzIHQ==}
+  '@marimo-team/codemirror-sql@0.2.3':
+    resolution: {integrity: sha512-8Zwalm/MND9aWQATrnnMsXsATowDdbknE/Y1j+D7mwO3+kIbJnkQcY5OO5Y6hiB1AoEJKkQ6qpVBwIu76Z8G7g==}
     peerDependencies:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
@@ -7383,8 +7383,8 @@ packages:
   node-releases@2.0.19:
     resolution: {integrity: sha512-xxOWJsBKtzAq7DY0J+DTzuz58K8e7sJbdgwkbMWQe8UYB6ekmsQ45q0M/tJDsGaZmbC+l7n57UV8Hl5tHxO9uw==}
 
-  node-sql-parser@5.3.11:
-    resolution: {integrity: sha512-1ZcXu2qEFZlMkkaYPpMoTkypTunYTvtnInzVjWDhjc1+FS5h/WqT1rbgP2pP42/nXBWfPVN66mEfidWSpYVs1Q==}
+  node-sql-parser@5.3.12:
+    resolution: {integrity: sha512-GQBwA2e44qjbK0MzFwh5bNYefniV6cKT4KfjNDpuh/2EWipUEK1BCMc//moSidp8EF6fHB/EqJwUH9GCh9MAPg==}
     engines: {node: '>=8'}
 
   normalize-package-data@2.5.0:
@@ -11394,13 +11394,13 @@ snapshots:
       '@codemirror/view': 6.38.2
       '@modelcontextprotocol/sdk': 1.17.2
 
-  '@marimo-team/codemirror-sql@0.2.1(@codemirror/state@6.5.2)(@codemirror/view@6.38.2)':
+  '@marimo-team/codemirror-sql@0.2.3(@codemirror/state@6.5.2)(@codemirror/view@6.38.2)':
     dependencies:
       '@codemirror/autocomplete': 6.18.7
       '@codemirror/lint': 6.8.5
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.2
-      node-sql-parser: 5.3.11
+      node-sql-parser: 5.3.12
 
   '@marimo-team/react-slotz@0.2.0(react@19.1.1)':
     dependencies:
@@ -18268,7 +18268,7 @@ snapshots:
 
   node-releases@2.0.19: {}
 
-  node-sql-parser@5.3.11:
+  node-sql-parser@5.3.12:
     dependencies:
       '@types/pegjs': 0.10.6
       big-integer: 1.6.52

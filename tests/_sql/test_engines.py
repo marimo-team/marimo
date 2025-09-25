@@ -316,32 +316,36 @@ def test_duckdb_execute_in_explain_mode():
     not HAS_SQLALCHEMY or not (HAS_PANDAS or HAS_POLARS),
     reason="SQLAlchemy and either pandas or polars not installed",
 )
-def test_sqlalchemy_execute() -> None:
-    """Test SQLAlchemyEngine execute method."""
-    import sqlalchemy as sa
+class TestExecuteExplainModeSQLAlchemy:
+    @pytest.fixture
+    def engine(self) -> SQLAlchemyEngine:
+        import sqlalchemy as sa
 
-    sqlite_engine = sa.create_engine("sqlite:///:memory:")
-    engine = SQLAlchemyEngine(sqlite_engine)
+        sqlite_engine = sa.create_engine("sqlite:///:memory:")
+        engine = SQLAlchemyEngine(sqlite_engine)
+        return engine
 
-    # Create a test table
-    engine.execute("CREATE TABLE test (id INTEGER, name TEXT)")
-    engine.execute("INSERT INTO test VALUES (1, 'test1'), (2, 'test2')")
+    def test_sqlalchemy_execute(self, engine: SQLAlchemyEngine) -> None:
+        """Test SQLAlchemyEngine execute method."""
+        # Create a test table
+        engine.execute("CREATE TABLE test (id INTEGER, name TEXT)")
+        engine.execute("INSERT INTO test VALUES (1, 'test1'), (2, 'test2')")
 
-    # Query the table
-    result = engine.execute("SELECT * FROM test ORDER BY id")
+        # Query the table
+        result = engine.execute("SELECT * FROM test ORDER BY id")
 
-    # Check result type based on available libraries
-    if HAS_POLARS:
-        import polars as pl
+        # Check result type based on available libraries
+        if HAS_POLARS:
+            import polars as pl
 
-        assert isinstance(result, pl.DataFrame)
-    elif HAS_PANDAS:
-        import pandas as pd
+            assert isinstance(result, pl.DataFrame)
+        elif HAS_PANDAS:
+            import pandas as pd
 
-        assert isinstance(result, pd.DataFrame)
+            assert isinstance(result, pd.DataFrame)
 
-    # Test with a query that doesn't return a result set
-    assert engine.execute("PRAGMA journal_mode=WAL") is not None
+        # Test with a query that doesn't return a result set
+        assert engine.execute("PRAGMA journal_mode=WAL") is not None
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")

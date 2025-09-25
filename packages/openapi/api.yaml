@@ -3147,6 +3147,60 @@ components:
       required: []
       title: SnippetsConfig
       type: object
+    SqlCatalogCheckResult:
+      description: Result of running validation against the database.
+      properties:
+        error_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+        success:
+          type: boolean
+      required:
+      - success
+      - error_message
+      title: SqlCatalogCheckResult
+      type: object
+    SqlParseError:
+      description: "Represents a single SQL parse error.\n\nAttributes:\n    message\
+        \ (str): Description of the error.\n    line (int): Line number where the\
+        \ error occurred (1-based).\n    column (int): Column number where the error\
+        \ occurred (1-based).\n    severity (Literal[\"error\", \"warning\"]): Severity\
+        \ of the error."
+      properties:
+        column:
+          type: integer
+        line:
+          type: integer
+        message:
+          type: string
+        severity:
+          enum:
+          - error
+          - warning
+      required:
+      - message
+      - line
+      - column
+      - severity
+      title: SqlParseError
+      type: object
+    SqlParseResult:
+      description: "Result of parsing an SQL query.\n\nAttributes:\n    success (bool):\
+        \ True if parsing succeeded without errors.\n    errors (list[SqlParseError]):\
+        \ List of parse errors (empty if success is True)."
+      properties:
+        errors:
+          items:
+            $ref: '#/components/schemas/SqlParseError'
+          type: array
+        success:
+          type: boolean
+      required:
+      - success
+      - errors
+      title: SqlParseResult
+      type: object
     StartupLogs:
       properties:
         content:
@@ -3286,18 +3340,28 @@ components:
       title: UpdateComponentValuesRequest
       type: object
     ValidateSQLRequest:
-      description: Validate an SQL query
+      description: Validate an SQL query against the engine
       properties:
+        dialect:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         engine:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        onlyParse:
+          type: boolean
         query:
           type: string
         requestId:
           type: string
       required:
       - requestId
-      - engine
       - query
+      - onlyParse
       title: ValidateSQLRequest
       type: object
     ValidateSQLResult:
@@ -3310,12 +3374,17 @@ components:
         op:
           enum:
           - validate-sql-result
+        parse_result:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/SqlParseResult'
+          default: null
         request_id:
           type: string
-        result:
+        validate_result:
           anyOf:
-          - {}
           - type: 'null'
+          - $ref: '#/components/schemas/SqlCatalogCheckResult'
           default: null
       required:
       - op

@@ -2,7 +2,7 @@
 
 import { AlertCircleIcon } from "lucide-react";
 import type { CellId } from "@/core/cells/ids";
-import { useSqlValidationErrorsForCell } from "@/core/codemirror/language/languages/sql/validation-errors";
+import { useSqlValidationErrorsForCell } from "@/core/codemirror/language/languages/sql/banner-validation-errors";
 
 export const SqlValidationErrorBanner = ({
   cellId,

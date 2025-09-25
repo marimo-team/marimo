@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import { exportedForTesting } from "../languages/sql/validation-errors";
+import { exportedForTesting } from "../languages/sql/banner-validation-errors";
 
 describe("Error Message Splitting", () => {
   it("should handle error message splitting correctly", () => {

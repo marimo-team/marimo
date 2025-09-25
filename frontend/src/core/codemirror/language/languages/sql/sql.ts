@@ -11,7 +11,9 @@ import { parser } from "@lezer/python";
 import {
   defaultSqlHoverTheme,
   NodeSqlParser,
+  type NodeSqlParserResult,
   type SupportedDialects as ParserDialects,
+  type SqlParseError,
   sqlExtension,
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
@@ -28,7 +30,6 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import { ValidateSQL } from "@/core/datasets/request-registry";
-import type { ValidateSQLResult } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { resolvedThemeAtom } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
@@ -40,15 +41,15 @@ import { indentOneTab } from "../../utils/indentOneTab";
 import type { QuotePrefixKind } from "../../utils/quotes";
 import { MarkdownLanguageAdapter } from "../markdown";
 import {
+  clearSqlValidationError,
+  setSqlValidationError,
+} from "./banner-validation-errors";
+import {
   customKeywordCompletionSource,
   tablesCompletionSource,
 } from "./completion-sources";
 import { SCHEMA_CACHE } from "./completion-store";
 import { getSQLMode } from "./sql-mode";
-import {
-  clearSqlValidationError,
-  setSqlValidationError,
-} from "./validation-errors";
 
 const DEFAULT_DIALECT = DuckDBDialect;
 const DEFAULT_PARSER_DIALECT = "DuckDB";
@@ -245,7 +246,7 @@ export class SQLLanguageAdapter
 
     if (this.sqlLinterEnabled) {
       const theme = store.get(resolvedThemeAtom);
-      const parser = new NodeSqlParser({
+      const parser = new CustomSqlParser({
         getParserOptions: (state: EditorState) => {
           return {
             database: guessParserDialect(state) ?? DEFAULT_PARSER_DIALECT,
@@ -280,11 +281,81 @@ export class SQLLanguageAdapter
       );
     }
 
-    if (this.sqlModeEnabled) {
-      extensions.push(sqlValidationExtension());
-    }
+    // TODO: Re-enable after we optimize the endpoint
+    // if (this.sqlModeEnabled) {
+    //   extensions.push(sqlValidationExtension());
+    // }
 
     return extensions;
+  }
+}
+
+class CustomSqlParser extends NodeSqlParser {
+  private validationTimeout: number | null = null;
+  private readonly VALIDATION_DELAY_MS = 300; // Wait 300ms after user stops typing
+
+  private async validateWithDelay(
+    sql: string,
+    engine: string,
+    dialect: ParserDialects | null,
+  ): Promise<SqlParseError[]> {
+    // Clear any existing delay call
+    if (this.validationTimeout) {
+      window.clearTimeout(this.validationTimeout);
+    }
+
+    // Set up a new request to be called after the delay
+    return new Promise((resolve) => {
+      this.validationTimeout = window.setTimeout(async () => {
+        try {
+          const result = await ValidateSQL.request({
+            onlyParse: true,
+            engine,
+            dialect,
+            query: sql,
+          });
+          if (result.error) {
+            Logger.error("Failed to validate SQL", { error: result.error });
+            resolve([]);
+            return;
+          }
+          resolve(result.parse_result?.errors ?? []);
+        } catch (error) {
+          Logger.error("Failed to validate SQL", { error });
+          resolve([]);
+        }
+      }, this.VALIDATION_DELAY_MS);
+    });
+  }
+
+  override async validateSql(
+    sql: string,
+    opts: { state: EditorState },
+  ): Promise<SqlParseError[]> {
+    const metadata = getSQLMetadata(opts.state);
+
+    // Only perform custom validation for internal engines
+    if (!INTERNAL_SQL_ENGINES.has(metadata.engine)) {
+      return super.validateSql(sql, opts);
+    }
+
+    const dialect = guessParserDialect(opts.state);
+    return this.validateWithDelay(sql, metadata.engine, dialect);
+  }
+
+  override async parse(
+    sql: string,
+    opts: { state: EditorState },
+  ): Promise<NodeSqlParserResult> {
+    const metadata = getSQLMetadata(opts.state);
+    const engine = metadata.engine;
+
+    // For now, always return success for DuckDB
+    if (engine === DUCKDB_ENGINE) {
+      return { success: true, errors: [] };
+    }
+
+    return super.parse(sql, opts);
   }
 }
 
@@ -568,11 +639,18 @@ function safeDedent(code: string): string {
   }
 }
 
-function sqlValidationExtension(): Extension {
-  let debounceTimeout: NodeJS.Timeout | null = null;
+const SQL_VALIDATION_DEBOUNCE_MS = 300;
+
+// @ts-expect-error: TODO: Re-enable after we optimize the endpoint
+function _sqlValidationExtension(): Extension {
+  let debounceTimeout: number | undefined;
   let lastValidationRequest: string | null = null;
 
   return EditorView.updateListener.of((update) => {
+    if (!update.docChanged) {
+      return;
+    }
+
     const sqlMode = getSQLMode();
     if (sqlMode !== "validate") {
       return;
@@ -580,12 +658,8 @@ function sqlValidationExtension(): Extension {
 
     const metadata = getSQLMetadata(update.state);
     const connectionName = metadata.engine;
+    // Currently only internal engines are supported
     if (!INTERNAL_SQL_ENGINES.has(connectionName)) {
-      // Currently only internal engines are supported
-      return;
-    }
-
-    if (!update.docChanged) {
       return;
     }
 
@@ -594,11 +668,11 @@ function sqlValidationExtension(): Extension {
 
     // Clear existing timeout
     if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
+      window.clearTimeout(debounceTimeout);
     }
 
     // Debounce the validation call
-    debounceTimeout = setTimeout(async () => {
+    debounceTimeout = window.setTimeout(async () => {
       // Skip if content hasn't changed since last validation
       if (lastValidationRequest === sqlContent) {
         return;
@@ -613,20 +687,32 @@ function sqlValidationExtension(): Extension {
       }
 
       try {
-        const result: ValidateSQLResult = await ValidateSQL.request({
+        const result = await ValidateSQL.request({
+          onlyParse: false,
           engine: connectionName,
           query: sqlContent,
         });
 
         if (result.error) {
+          Logger.error("Failed to validate SQL", { error: result.error });
+          return;
+        }
+
+        const validateResult = result.validate_result;
+
+        if (validateResult?.error_message) {
           const dialect = connectionNameToParserDialect(connectionName);
-          setSqlValidationError({ cellId, error: result.error, dialect });
+          setSqlValidationError({
+            cellId,
+            errorMessage: validateResult.error_message,
+            dialect,
+          });
         } else {
           clearSqlValidationError(cellId);
         }
       } catch (error) {
         Logger.warn("Failed to validate SQL", { error });
       }
-    }, 300);
+    }, SQL_VALIDATION_DEBOUNCE_MS);
   });
 }
