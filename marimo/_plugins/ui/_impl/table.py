@@ -177,9 +177,7 @@ def get_default_table_page_size() -> int:
     except ContextNotInitializedError:
         return 10
     else:
-        config = cast(Any, ctx.marimo_config)
-        value = config["display"]["default_table_page_size"]
-        return int(value)
+        return ctx.marimo_config["display"]["default_table_page_size"]
 
 
 def get_default_table_max_columns() -> int:
@@ -189,9 +187,7 @@ def get_default_table_max_columns() -> int:
     except ContextNotInitializedError:
         return DEFAULT_MAX_COLUMNS
     else:
-        config = cast(Any, ctx.marimo_config)
-        value = config["display"]["default_table_max_columns"]
-        return int(value)
+        return ctx.marimo_config["display"]["default_table_max_columns"]
 
 
 @mddoc
@@ -479,9 +475,8 @@ class table(
 
         # Handle max_columns: use config default if not provided, None means "all"
         if max_columns == MAX_COLUMNS_NOT_PROVIDED:
-            default_max_columns = get_default_table_max_columns()
-            self._max_columns = default_max_columns
-            max_columns_arg = default_max_columns
+            self._max_columns = get_default_table_max_columns()
+            max_columns_arg = self._max_columns
         elif max_columns is None:
             self._max_columns = None
             max_columns_arg = "all"
