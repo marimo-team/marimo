@@ -28,7 +28,7 @@ class BaseStruct(msgspec.Struct):
         )
 
 
-# pcore_shim.py — tiny helpers that build CoreSchema dicts without importing pydantic_core
+# Tiny helpers that build CoreSchema dicts without importing pydantic_core
 # WARNING: these could break if pydantic_core changes its API
 
 from typing import Any, Iterable
