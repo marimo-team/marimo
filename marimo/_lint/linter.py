@@ -8,13 +8,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Union
 
-from marimo._lint.json_types import LintResultJSON
-
 from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
 from marimo._cli.print import red
 from marimo._convert.converters import MarimoConvert
 from marimo._lint.diagnostic import Diagnostic, Severity
+from marimo._lint.formatters import LintResultJSON
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
 from marimo._loggers import capture_output
 from marimo._schemas.serialization import NotebookSerialization
@@ -365,23 +364,30 @@ class Linter:
 
     def get_json_result(self) -> LintResultJSON:
         """Get complete JSON result with diagnostics and summary."""
-        from marimo._lint.formatter import JSONFormatter
+        from marimo._lint.formatters import (
+            FileErrorJSON,
+            IssueJSON,
+            JSONFormatter,
+        )
 
         json_formatter = JSONFormatter()
-        issues = []
+        issues: list[IssueJSON] = []
 
         for file_status in self.files:
             if file_status.failed:
                 # Add file-level errors
-                issues.append({
+                error: FileErrorJSON = {
                     "type": "error",
                     "filename": file_status.file,
                     "error": file_status.message,
-                })
+                }
+                issues.append(error)
             elif not file_status.skipped:
                 # Add diagnostics from successfully processed files
                 for diagnostic in file_status.diagnostics:
-                    diagnostic_dict = json_formatter.to_json_dict(diagnostic, file_status.file)
+                    diagnostic_dict = json_formatter.to_json_dict(
+                        diagnostic, file_status.file
+                    )
                     issues.append(diagnostic_dict)
 
         return LintResultJSON(
@@ -392,11 +398,12 @@ class Linter:
                     [
                         f
                         for f in self.files
-                        if (f.diagnostics and not f.skipped and not f.failed) or f.failed
+                        if (f.diagnostics and not f.skipped and not f.failed)
+                        or f.failed
                     ]
                 ),
                 "total_issues": self.issues_count,
                 "fixed_issues": self.fixed_count,
                 "errored": self.errored,
-            }
+            },
         )
