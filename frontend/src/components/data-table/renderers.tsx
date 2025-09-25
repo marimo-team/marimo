@@ -58,7 +58,7 @@ export function renderTableHeader<TData>(
   };
 
   return (
-    <TableHeader sticky={Boolean(isSticky)}>
+    <TableHeader className={cn(isSticky && "sticky top-0 z-10")}>
       <TableRow>
         {renderHeaderGroup(table.getLeftHeaderGroups())}
         {renderHeaderGroup(table.getCenterHeaderGroups())}

@@ -340,7 +340,7 @@ class table(
         max_columns (int, optional): Maximum number of columns to display. Defaults to the
             configured default_table_max_columns (50 by default). Set to None to show all columns.
         max_height (int, optional): Maximum height of the table body in pixels. When set,
-            the table becomes vertically scrollable and the header may be made sticky
+            the table becomes vertically scrollable and the header will be made sticky
             in the UI to remain visible while scrolling. Defaults to None.
         label (str, optional): A descriptive name for the table. Defaults to "".
     """
@@ -680,14 +680,9 @@ class table(
                 "hover-template": hover_template,
                 "lazy": _internal_lazy,
                 "preload": _internal_preload,
-                **(
-                    {
-                        "max-height": int(max_height),
-                        "is-sticky": True,
-                    }
-                    if max_height is not None
-                    else {}
-                ),
+                "max-height": int(max_height)
+                if max_height is not None
+                else None,
             },
             on_change=on_change,
             functions=(

@@ -48,7 +48,6 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
   className?: string;
   maxHeight?: number;
-  isSticky?: boolean;
   columns: Array<ColumnDef<TData>>;
   data: TData[];
   // Sorting
@@ -98,7 +97,6 @@ const DataTableInternal = <TData,>({
   wrapperClassName,
   className,
   maxHeight,
-  isSticky,
   columns,
   data,
   selection,
@@ -257,10 +255,7 @@ const DataTableInternal = <TData,>({
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
-      <div
-        className={cn(className || "rounded-md border overflow-hidden")}
-        style={maxHeight ? { maxHeight: `${maxHeight}px` } : undefined}
-      >
+      <div className={cn(className || "rounded-md border overflow-hidden")}>
         {onSearchQueryChange && enableSearch && (
           <SearchBar
             value={searchQuery || ""}
@@ -270,21 +265,26 @@ const DataTableInternal = <TData,>({
             reloading={reloading}
           />
         )}
-        <Table className="relative" maxHeight={maxHeight}>
-          {showLoadingBar && (
-            <div className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
-          )}
-          {renderTableHeader(table, isSticky ?? true)}
-          <CellSelectionProvider>
-            <DataTableBody
-              table={table}
-              columns={columns}
-              rowViewerPanelOpen={rowViewerPanelOpen}
-              getRowIndex={getPaginatedRowIndex}
-              viewedRowIdx={viewedRowIdx}
-            />
-          </CellSelectionProvider>
-        </Table>
+        <div
+          className={cn("w-full overflow-auto flex-1")}
+          style={maxHeight ? { maxHeight: `${maxHeight}px` } : undefined}
+        >
+          <Table className="relative">
+            {showLoadingBar && (
+              <div className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
+            )}
+            {renderTableHeader(table, Boolean(maxHeight))}
+            <CellSelectionProvider>
+              <DataTableBody
+                table={table}
+                columns={columns}
+                rowViewerPanelOpen={rowViewerPanelOpen}
+                getRowIndex={getPaginatedRowIndex}
+                viewedRowIdx={viewedRowIdx}
+              />
+            </CellSelectionProvider>
+          </Table>
+        </div>
       </div>
       <TableActions
         enableSearch={enableSearch}

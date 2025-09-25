@@ -3,40 +3,26 @@ import * as React from "react";
 
 import { cn } from "@/utils/cn";
 
-interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
-  maxHeight?: number;
-}
+type TableProps = React.HTMLAttributes<HTMLTableElement>;
 
 const Table = React.forwardRef<HTMLTableElement, TableProps>(
-  ({ className, maxHeight, ...props }, ref) => (
-    <div
-      className="w-full overflow-auto flex-1"
-      style={maxHeight ? { maxHeight: `${maxHeight}px` } : undefined}
-    >
-      <table
-        ref={ref}
-        className={cn("w-full caption-bottom text-sm", className)}
-        {...props}
-      />
-    </div>
+  ({ className, ...props }, ref) => (
+    <table
+      ref={ref}
+      className={cn("w-full caption-bottom text-sm", className)}
+      {...props}
+    />
   ),
 );
 Table.displayName = "Table";
 
-interface TableHeaderProps
-  extends React.HTMLAttributes<HTMLTableSectionElement> {
-  sticky?: boolean;
-}
+type TableHeaderProps = React.HTMLAttributes<HTMLTableSectionElement>;
 
 const TableHeader = React.forwardRef<HTMLTableSectionElement, TableHeaderProps>(
-  ({ className, sticky = false, ...props }, ref) => (
+  ({ className, ...props }, ref) => (
     <thead
       ref={ref}
-      className={cn(
-        "[&_tr]:border-b bg-background",
-        sticky && "sticky top-0 z-10",
-        className,
-      )}
+      className={cn("[&_tr]:border-b bg-background", className)}
       {...props}
     />
   ),

@@ -169,7 +169,6 @@ interface Data<T> {
   pagination: boolean;
   pageSize: number;
   maxHeight?: number;
-  isSticky?: boolean;
   selection: DataTableSelection;
   showDownload: boolean;
   showFilters: boolean;
@@ -256,7 +255,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),
       maxHeight: z.number().optional(),
-      isSticky: z.boolean().optional(),
       cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
       hoverTemplate: z.string().optional(),
       // Whether to load the data lazily.
@@ -654,7 +652,6 @@ export const LoadingDataTableComponent = memo(
         getRow={getRow}
         cellId={cellId}
         maxHeight={props.maxHeight}
-        isSticky={props.isSticky}
       />
     );
 
@@ -721,7 +718,6 @@ const DataTableComponent = ({
   preview_column,
   getRow,
   cellId,
-  isSticky,
   maxHeight,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
@@ -902,7 +898,6 @@ const DataTableComponent = ({
             data={data}
             columns={columns}
             className={className}
-            isSticky={isSticky}
             maxHeight={maxHeight}
             sorting={sorting}
             totalRows={totalRows}
