@@ -11,9 +11,9 @@ import { parser } from "@lezer/python";
 import {
   defaultSqlHoverTheme,
   NodeSqlParser,
+  type NodeSqlParserResult,
   type SupportedDialects as ParserDialects,
   type SqlParseError,
-  type SqlParseResult,
   sqlExtension,
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
@@ -365,11 +365,10 @@ class CustomSqlParser extends NodeSqlParser {
     return result ?? [];
   }
 
-  // @ts-expect-error: We need to export codemirror-sql types
   override async parse(
     sql: string,
     opts: { state: EditorState },
-  ): Promise<SqlParseResult> {
+  ): Promise<NodeSqlParserResult> {
     const metadata = getSQLMetadata(opts.state);
     const engine = metadata.engine;
 
