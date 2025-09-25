@@ -233,7 +233,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
                 <Badge
                   key={key}
                   variant="outline"
-                  className="text-xs bg-[var(--amber-4)] text-[var(--amber-11)]"
+                  className="text-xs text-[var(--slate-11)]"
                 >
                   {key}
                 </Badge>
@@ -253,7 +253,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
                 <Badge
                   key={index}
                   variant="outline"
-                  className="text-xs bg-[var(--purple-4)] text-[var(--purple-11)]"
+                  className="text-xs text-[var(--slate-11)]"
                 >
                   {index}
                 </Badge>
