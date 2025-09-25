@@ -37,6 +37,19 @@ def _(table):
     table.value
     return
 
+@app.cell
+def _(mo):
+    # Demonstrate a long table with a sticky header and a custom max height
+    long_rows = [{"row": i, "first_name": f"First {i}", "last_name": f"Last {i}"} for i in range(200)]
+    long_table = mo.ui.table(
+        long_rows,
+        pagination=False,
+        max_height=300,
+    )
+    long_table
+    return (long_table,)
+
+
 
 if __name__ == "__main__":
     app.run()

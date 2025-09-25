@@ -47,6 +47,7 @@ import { getStableRowId } from "./utils";
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
   className?: string;
+  maxHeight?: number;
   columns: Array<ColumnDef<TData>>;
   data: TData[];
   // Sorting
@@ -95,6 +96,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
 const DataTableInternal = <TData,>({
   wrapperClassName,
   className,
+  maxHeight,
   columns,
   data,
   selection,
@@ -250,6 +252,32 @@ const DataTableInternal = <TData,>({
 
   const rowViewerPanelOpen = isPanelOpen?.("row-viewer") ?? false;
 
+  const tableRef = React.useRef<HTMLTableElement | null>(null);
+
+  // Why use a ref to set max-height on the wrapper?
+  // - position: sticky only works when the sticky element's nearest scrollable
+  //   ancestor is its immediate container. If max-height/overflow are applied
+  //   on a grandparent, sticky table headers (th) will not stick.
+  // - We keep the scroll wrapper colocated with the base Table component, but
+  //   derive the scroll boundary from maxHeight here to avoid coupling UI base
+  //   components to data-table specifics or expanding their API surface.
+  // - Setting styles on the table's direct wrapper ensures the header sticks
+  //   reliably across browsers without changing upstream components.
+  React.useEffect(() => {
+    if (!tableRef.current) return;
+    const wrapper = tableRef.current.parentElement as HTMLDivElement | null;
+    if (!wrapper) return;
+    if (maxHeight) {
+      wrapper.style.maxHeight = `${maxHeight}px`;
+      // Ensure wrapper scrolls
+      if (!wrapper.style.overflow) {
+        wrapper.style.overflow = "auto";
+      }
+    } else {
+      wrapper.style.removeProperty("max-height");
+    }
+  }, [maxHeight]);
+
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
@@ -263,11 +291,11 @@ const DataTableInternal = <TData,>({
             reloading={reloading}
           />
         )}
-        <Table className="relative">
+        <Table className="relative" ref={tableRef}>
           {showLoadingBar && (
             <div className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
           )}
-          {renderTableHeader(table)}
+          {renderTableHeader(table, Boolean(maxHeight))}
           <CellSelectionProvider>
             <DataTableBody
               table={table}

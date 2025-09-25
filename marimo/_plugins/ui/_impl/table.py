@@ -340,6 +340,9 @@ class table(
         hover_template (str, optional): A template for the hover text of the table.
         max_columns (int, optional): Maximum number of columns to display. Defaults to the
             configured default_table_max_columns (50 by default). Set to None to show all columns.
+        max_height (int, optional): Maximum height of the table body in pixels. When set,
+            the table becomes vertically scrollable and the header will be made sticky
+            in the UI to remain visible while scrolling. Defaults to None.
         label (str, optional): A descriptive name for the table. Defaults to "".
     """
 
@@ -447,6 +450,7 @@ class table(
         ] = None,
         style_cell: Optional[Callable[[str, str, Any], dict[str, Any]]] = None,
         hover_template: Optional[str] = None,
+        max_height: Optional[int] = None,
         # The _internal_* arguments are for overriding and unit tests
         # table should take the value unconditionally
         _internal_column_charts_row_limit: Optional[int] = None,
@@ -679,6 +683,9 @@ class table(
                 "hover-template": hover_template,
                 "lazy": _internal_lazy,
                 "preload": _internal_preload,
+                "max-height": int(max_height)
+                if max_height is not None
+                else None,
             },
             on_change=on_change,
             functions=(

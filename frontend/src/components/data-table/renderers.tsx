@@ -26,6 +26,7 @@ import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
+  isSticky?: boolean,
 ): JSX.Element | null {
   if (!table.getRowModel().rows?.length) {
     return null;
@@ -57,7 +58,7 @@ export function renderTableHeader<TData>(
   };
 
   return (
-    <TableHeader>
+    <TableHeader className={cn(isSticky && "sticky top-0 z-10")}>
       <TableRow>
         {renderHeaderGroup(table.getLeftHeaderGroups())}
         {renderHeaderGroup(table.getCenterHeaderGroups())}
