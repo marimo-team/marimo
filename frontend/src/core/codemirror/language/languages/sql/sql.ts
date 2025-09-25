@@ -290,8 +290,6 @@ export class SQLLanguageAdapter
   }
 }
 
-const SQL_VALIDATION_DEBOUNCE_MS = 100;
-
 class CustomSqlParser extends NodeSqlParser {
   private validationTimeout: number | null = null;
   private readonly VALIDATION_DELAY_MS = 300; // Wait 300ms after user stops typing
@@ -640,6 +638,8 @@ function safeDedent(code: string): string {
     return code;
   }
 }
+
+const SQL_VALIDATION_DEBOUNCE_MS = 300;
 
 // @ts-expect-error: TODO: Re-enable after we optimize the endpoint
 function _sqlValidationExtension(): Extension {
