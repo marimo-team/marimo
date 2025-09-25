@@ -4,6 +4,7 @@ critical[invalid-syntax]: name 'tickers' is assigned to before global declaratio
   10 |     global tickers  # 
      |     ^
   11 | 
+
 critical[invalid-syntax]: 'return' outside function
  --> tests/_lint/test_files/syntax_errors.py:15:5
   15 |     if tickers is not None:

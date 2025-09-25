@@ -1,6 +1,6 @@
-warning[sql-parse-error]: Expecting ). Line 19, Col: 32.
- --> tests/_lint/test_files/sql_parsing_errors.py:36:31
+warning[sql-parse-error]: Expecting ). Line 19, Col: 21.
+ --> tests/_lint/test_files/sql_parsing_errors.py:36:20
   36 |                 AND
   37 |                 descendants NOT NULL
-     |                                  ^
+     |                       ^
   38 |         )

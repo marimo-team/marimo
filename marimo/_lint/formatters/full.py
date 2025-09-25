@@ -89,4 +89,4 @@ class FullFormatter(DiagnosticFormatter):
 
         if diagnostic.fix:
             context_lines.append(light_blue("hint: ") + bold(diagnostic.fix))
-        return f"{header}\n" + "\n".join(context_lines)
+        return f"{header}\n" + "\n".join(context_lines) + "\n"
