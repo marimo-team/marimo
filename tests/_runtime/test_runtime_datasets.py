@@ -400,9 +400,125 @@ class TestSQLValidate:
         validate_sql_results = [
             op for op in stream.operations if isinstance(op, ValidateSQLResult)
         ]
+        assert (
+            validate_sql_results[-1]
+            == ValidateSQLResult(
+                request_id=RequestId("3"),
+                parse_result=None,  # Currently does not support parse errors for non-duckdb engines
+                validate_result=SqlCatalogCheckResult(
+                    success=True, error_message=None
+                ),
+                error=None,
+            )
+        )
+
+    async def test_only_parse_with_no_dialect(
+        self,
+        mocked_kernel: MockedKernel,
+        connection_requests: list[ExecutionRequest],
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(connection_requests)
+
+        validate_sql_request = ValidateSQLRequest(
+            request_id=RequestId("4"),
+            engine=SQLITE_CONN,
+            query="SELECT 1, 2",
+            only_parse=True,
+        )
+        await k.handle_message(validate_sql_request)
+
+        validate_sql_results = [
+            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+        ]
         assert validate_sql_results[-1] == ValidateSQLResult(
-            request_id=RequestId("3"),
+            request_id=RequestId("4"),
             parse_result=None,
             validate_result=None,
+            error="Dialect is required when only parsing",
+        )
+
+    async def test_only_parse_unsupported_dialect(
+        self,
+        mocked_kernel: MockedKernel,
+        connection_requests: list[ExecutionRequest],
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(connection_requests)
+
+        validate_sql_request = ValidateSQLRequest(
+            request_id=RequestId("5"),
+            dialect="sqlite",
+            query="SELECT 1, 2",
+            only_parse=True,
+        )
+        await k.handle_message(validate_sql_request)
+
+        validate_sql_results = [
+            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+        ]
+        assert validate_sql_results[-1] == ValidateSQLResult(
+            request_id=RequestId("5"),
+            parse_result=None,
+            validate_result=None,
+            error="Unsupported dialect: sqlite",
+        )
+
+    async def test_only_parse_duckdb(
+        self,
+        mocked_kernel: MockedKernel,
+        connection_requests: list[ExecutionRequest],
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(connection_requests)
+
+        validate_sql_request = ValidateSQLRequest(
+            request_id=RequestId("6"),
+            dialect="duckdb",
+            query="SELECT 1, 2",
+            only_parse=True,
+        )
+        await k.handle_message(validate_sql_request)
+
+        validate_sql_results = [
+            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+        ]
+        assert validate_sql_results[-1] == ValidateSQLResult(
+            request_id=RequestId("6"),
+            parse_result=SqlParseResult(success=True, errors=[]),
+            validate_result=None,
             error=None,
+        )
+
+    async def test_validate_but_no_engine(
+        self,
+        mocked_kernel: MockedKernel,
+        connection_requests: list[ExecutionRequest],
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(connection_requests)
+
+        validate_sql_request = ValidateSQLRequest(
+            request_id=RequestId("7"),
+            query="SELECT 1, 2",
+            only_parse=False,
+        )
+        await k.handle_message(validate_sql_request)
+
+        validate_sql_results = [
+            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+        ]
+        assert validate_sql_results[-1] == ValidateSQLResult(
+            request_id=RequestId("7"),
+            parse_result=None,
+            validate_result=None,
+            error="Engine is required for validating catalog",
         )
