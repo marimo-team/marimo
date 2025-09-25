@@ -24,6 +24,7 @@ def test_validate_sql(client: TestClient) -> None:
             "requestId": "test_request_id",
             "engine": "test_engine",
             "query": "SELECT * FROM test",
+            "onlyParse": False,
         },
     )
     assert response.status_code == 200, response.text
