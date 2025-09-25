@@ -1,54 +1,44 @@
 # Copyright 2025 Marimo. All rights reserved.
 
-import json
-from typing import Optional
+from typing import Literal, Optional, Union
 
-from marimo._sql.engines.duckdb import DuckDBEngine
-
-SUPPORTED_DIALECTS = ["duckdb"]
-
-# skip to reduce the response size
-# the response doesn't matter too much, we are interested in the errors
-JSON_SERIALIZE_QUERY = "SELECT JSON_SERIALIZE_SQL(?, skip_null := true, skip_empty := true, skip_default := true)"
+import msgspec
 
 
-class ParserError(Exception):
-    def __init__(
-        self,
-        error_message: str,
-        position: Optional[int],
-        error_subtype: Optional[str],
-    ):
-        super().__init__(error_message)
-        self.error_subtype = error_subtype
-        self.position = position
+class SqlParseError(msgspec.Struct):
+    """
+    Represents a single SQL parse error.
+
+    Attributes:
+        message (str): Description of the error.
+        line (int): Line number where the error occurred (1-based).
+        column (int): Column number where the error occurred (1-based).
+        severity (Literal["error", "warning"]): Severity of the error.
+    """
+
+    message: str
+    line: int
+    column: int
+    severity: Literal["error", "warning"]
 
 
-def extract_error_response(
-    data: dict,
-) -> Optional[ParserError]:
-    has_error = data.get("error")
-    error_type = data.get("error_type")
-    error_message = data.get("error_message")
-    position = data.get("position")
-    error_subtype = data.get("SYNTAX_ERROR")
+class SqlParseResult(msgspec.Struct):
+    """
+    Result of parsing an SQL query.
 
-    if has_error and error_type == "parser":
-        return ParserError(
-            error_message=error_message or "Syntax error in query",
-            position=position,
-            error_subtype=error_subtype,
-        )
+    Attributes:
+        success (bool): True if parsing succeeded without errors.
+        errors (list[SqlParseError]): List of parse errors (empty if success is True).
+    """
 
-    if has_error and error_type == "not implemented":
-        # likely a valid query, but only SELECT statements are supported
-        return None
-
-    return None
+    success: bool
+    errors: list[SqlParseError]
 
 
-def parse_sql(query: str, dialect: str) -> Optional[ParserError]:
-    """Parses an SQL query. Returns syntax errors. Does not check for catalog errors. Currently only supports DuckDB.
+def parse_sql(query: str, dialect: str) -> SqlParseResult:
+    """Parses an SQL query. Returns syntax errors.
+    Does not check for catalog errors (incorrect table names, etc).
+    Currently only supports DuckDB.
 
     Args:
         query (str): The SQL query to parse.
@@ -57,13 +47,55 @@ def parse_sql(query: str, dialect: str) -> Optional[ParserError]:
     Returns:
         str: The syntax errors in the SQL query.
     """
-    if dialect.strip().lower() not in SUPPORTED_DIALECTS:
-        raise NotImplementedError(f"Dialect {dialect} not supported")
+    dialect = dialect.strip().lower()
 
-    relation = DuckDBEngine.execute_and_return_relation(
-        JSON_SERIALIZE_QUERY, params=[query]
+    # Handle DuckDB
+    if "duckdb" in dialect:
+        return _parse_sql_duckdb(query)
+
+    # If we don't support the dialect, we return a success result
+    return SqlParseResult(success=True, errors=[])
+
+
+# DuckDB
+
+
+class DuckDBParseError(msgspec.Struct):
+    error: bool
+    error_type: Optional[str] = None
+    error_message: Optional[str] = None
+    error_subtype: Optional[str] = None
+    position: Optional[Union[int, str]] = None
+
+
+# skip to reduce the response size
+# the response doesn't matter too much, we are interested in the errors
+JSON_SERIALIZE_QUERY = "SELECT JSON_SERIALIZE_SQL(?, skip_null := true, skip_empty := true, skip_default := true)"
+
+
+def _parse_sql_duckdb(query: str) -> SqlParseResult:
+    import duckdb
+
+    relation = duckdb.execute(JSON_SERIALIZE_QUERY, [query])
+    result = relation.fetchone()[0]
+    parsed_error = msgspec.json.decode(result, type=DuckDBParseError)
+
+    if not parsed_error.error:
+        return SqlParseResult(success=True, errors=[])
+
+    position = int(parsed_error.position or 0)
+    subquery = query[:position]
+    line_number = subquery.count("\n") + 1
+    column_number = position - subquery.rfind("\n") - 1
+
+    return SqlParseResult(
+        success=False,
+        errors=[
+            SqlParseError(
+                message=parsed_error.error_message or "Syntax error in query",
+                line=line_number,
+                column=column_number,
+                severity="error",
+            )
+        ],
     )
-    result = relation.fetchall()
-    json_response = result[0][0]
-    parsed_json = json.loads(json_response)
-    return extract_error_response(parsed_json)
