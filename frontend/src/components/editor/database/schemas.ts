@@ -16,18 +16,16 @@ function passwordField() {
     );
 }
 
-function tokenField() {
-  return z
-    .string()
-    .optional()
-    .describe(
-      FieldOptions.of({
-        label: "Token",
-        inputType: "password",
-        placeholder: "token",
-        optionRegex: ".*token.*",
-      }),
-    );
+function tokenField(label?: string, required?: boolean) {
+  const field = z.string().describe(
+    FieldOptions.of({
+      label: label || "Token",
+      inputType: "password",
+      placeholder: "token",
+      optionRegex: ".*token.*",
+    }),
+  );
+  return required ? field.nonempty() : field.optional();
 }
 
 function warehouseNameField() {
@@ -43,20 +41,22 @@ function warehouseNameField() {
     );
 }
 
-function uriField() {
-  return z
+function uriField(label?: string, required?: boolean) {
+  const field = z
     .string()
-    .optional()
-    .describe(FieldOptions.of({ label: "URI", optionRegex: ".*uri.*" }));
+    .describe(
+      FieldOptions.of({ label: label || "URI", optionRegex: ".*uri.*" }),
+    );
+  return required ? field.nonempty() : field.optional();
 }
 
-function hostField() {
+function hostField(label?: string) {
   return z
     .string()
     .nonempty()
     .describe(
       FieldOptions.of({
-        label: "Host",
+        label: label || "Host",
         placeholder: "localhost",
         optionRegex: ".*host.*",
       }),
@@ -464,6 +464,23 @@ export const RedshiftConnectionSchema = z
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
+export const DatabricksConnectionSchema = z
+  .object({
+    type: z.literal("databricks"),
+    access_token: tokenField("Access Token", true),
+    server_hostname: hostField("Server Hostname"),
+    http_path: uriField("HTTP Path", true),
+    catalog: z
+      .string()
+      .optional()
+      .describe(FieldOptions.of({ label: "Catalog" })),
+    schema: z
+      .string()
+      .optional()
+      .describe(FieldOptions.of({ label: "Schema" })),
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
 export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   PostgresConnectionSchema,
   MySQLConnectionSchema,
@@ -480,6 +497,7 @@ export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   DataFusionConnectionSchema,
   PySparkConnectionSchema,
   RedshiftConnectionSchema,
+  DatabricksConnectionSchema,
 ]);
 
 export type DatabaseConnection = z.infer<typeof DatabaseConnectionSchema>;
