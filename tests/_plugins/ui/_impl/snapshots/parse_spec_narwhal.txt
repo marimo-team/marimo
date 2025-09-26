@@ -6,10 +6,7 @@
     }
   },
   "data": {
-    "url": "_placeholder_",
-    "format": {
-      "type": "arrow"
-    }
+    "url": "_placeholder_"
   },
   "mark": {
     "type": "point"

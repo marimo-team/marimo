@@ -665,7 +665,7 @@ def test_parse_spec_pandas() -> None:
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
     spec = _parse_spec(chart)
     # Replace data.url with a placeholder
-    spec["data"]["url"] = "_placeholder_"
+    spec["data"] = {"url": "_placeholder_", "format": spec["data"]["format"]}
     snapshot("parse_spec_pandas.txt", json.dumps(spec, indent=2))
 
 
@@ -677,7 +677,7 @@ def test_parse_spec_narwhal() -> None:
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
     spec = _parse_spec(chart)
     # Replace data.url with a placeholder
-    spec["data"]["url"] = "_placeholder_"
+    spec["data"] = {"url": "_placeholder_", "format": spec["data"]["format"]}
     snapshot("parse_spec_narwhal.txt", json.dumps(spec, indent=2))
 
 
@@ -690,7 +690,7 @@ def test_parse_spec_polars() -> None:
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
     spec = _parse_spec(chart)
     # Replace data.url with a placeholder
-    spec["data"]["url"] = "_placeholder_"
+    spec["data"] = {"url": "_placeholder_", "format": spec["data"]["format"]}
     snapshot("parse_spec_polars.txt", json.dumps(spec, indent=2))
 
 
