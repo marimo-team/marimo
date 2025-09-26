@@ -28,4 +28,5 @@ async def mcp_server_lifespan(app: Starlette) -> AsyncIterator[None]:
         return
     except Exception as e:
         LOGGER.error(f"Failed to start MCP server: {e}")
-        raise
+        yield
+        return
