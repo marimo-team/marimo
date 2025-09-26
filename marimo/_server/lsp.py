@@ -205,13 +205,13 @@ class CopilotLspServer(BaseLspServer):
 
         return [
             "node",
-            str(lsp_bin),
+            cmd_quote(str(lsp_bin)),
             "--port",
             str(self.port),
             "--lsp",
             copilot_command,
             "--log-file",
-            str(log_file),
+            cmd_quote(str(log_file)),
         ]
 
     def missing_binary_alert(self) -> Alert:
@@ -288,13 +288,13 @@ class BasedpyrightServer(BaseLspServer):
 
         return [
             "node",
-            str(lsp_bin),
+            cmd_quote(str(lsp_bin)),
             "--port",
             str(self.port),
             "--lsp",
             "basedpyright-langserver --stdio",
             "--log-file",
-            str(log_file),
+            cmd_quote(str(log_file)),
         ]
 
     def missing_binary_alert(self) -> Alert:
@@ -335,13 +335,13 @@ class TyServer(BaseLspServer):
 
         return [
             "node",
-            str(lsp_bin),
+            cmd_quote(str(lsp_bin)),
             "--port",
             str(self.port),
             "--lsp",
             ty_command,
             "--log-file",
-            str(log_file),
+            cmd_quote(str(log_file)),
         ]
 
     def missing_binary_alert(self) -> Alert:
