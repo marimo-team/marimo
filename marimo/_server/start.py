@@ -197,7 +197,7 @@ def start(
         )
 
     if watch and config_reader.is_auto_save_enabled:
-        LOGGER.warning("Watch mode enabled and may interfere with auto-save.")
+        LOGGER.warning("Enabling watch mode may interfere with auto-save.")
 
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         config_reader = config_reader.with_overrides(
