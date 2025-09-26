@@ -1435,7 +1435,7 @@ def test_sql_table_f_string() -> None:
             "drop table and reference it in same statement",
             "drop table schema.cars; select * from cars",
             set(),
-            {"mo", "cars"},
+            {"mo", "cars", "schema.cars"},
         ),
         (
             "drop schema and reference table from it in same statement",

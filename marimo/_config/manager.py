@@ -108,6 +108,10 @@ class MarimoConfigReader:
         return {}
 
     @property
+    def is_auto_save_enabled(self) -> bool:
+        return self._config["save"]["autosave"] == "after_delay"
+
+    @property
     def experimental(self) -> ExperimentalConfigType:
         if "experimental" in self._config:
             return self._config["experimental"]

@@ -53,7 +53,9 @@ from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
+from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
 from marimo._types.ids import CellId_t, RequestId, WidgetModelId
+from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
@@ -501,7 +503,7 @@ class VariableDeclaration(msgspec.Struct):
     used_by: list[CellId_t]
 
 
-class VariableValue(msgspec.Struct):
+class VariableValue(BaseStruct):
     name: str
     value: Optional[str]
     datatype: Optional[str]
@@ -629,7 +631,8 @@ class DataSourceConnections(Op, tag="data-source-connections"):
 class ValidateSQLResult(Op, tag="validate-sql-result"):
     name: ClassVar[str] = "validate-sql-result"
     request_id: RequestId
-    result: Optional[Any] = None
+    parse_result: Optional[SqlParseResult] = None
+    validate_result: Optional[SqlCatalogCheckResult] = None
     error: Optional[str] = None
 
 

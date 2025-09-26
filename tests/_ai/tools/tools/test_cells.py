@@ -10,12 +10,13 @@ from marimo._ai._tools.tools.cells import (
     CellErrors,
     CellRuntimeMetadata,
     CellVariables,
-    CellVariableValue,
     GetCellRuntimeData,
     GetLightweightCellMap,
 )
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.ops import VariableValue
+from marimo._server.sessions import Session
+from marimo._types.ids import CellId_t, SessionId
 
 
 @dataclass
@@ -63,7 +64,7 @@ class MockSessionView:
 
 
 @dataclass
-class MockSession:
+class MockSession(Session):
     session_view: MockSessionView
 
 
@@ -77,7 +78,7 @@ def test_get_cell_errors_no_cell_op():
     tool = GetCellRuntimeData(ToolContext())
     session = MockSession(MockSessionView())
 
-    result = tool._get_cell_errors(session, "missing")
+    result = tool._get_cell_errors(session, CellId_t("missing"))
     assert result == CellErrors(has_errors=False, error_details=None)
 
 
@@ -90,7 +91,7 @@ def test_get_cell_errors_with_marimo_error():
     cell_op = MockCellOp(output=output)
     session = MockSession(MockSessionView(cell_operations={"c1": cell_op}))
 
-    result = tool._get_cell_errors(session, "c1")
+    result = tool._get_cell_errors(session, CellId_t("c1"))
     assert result.has_errors is True
     assert result.error_details is not None
     assert result.error_details[0].type == "NameError"
@@ -102,7 +103,7 @@ def test_get_cell_errors_with_stderr():
     cell_op = MockCellOp(console=[console_output])
     session = MockSession(MockSessionView(cell_operations={"c1": cell_op}))
 
-    result = tool._get_cell_errors(session, "c1")
+    result = tool._get_cell_errors(session, CellId_t("c1"))
     assert result.has_errors is True
     assert result.error_details is not None
     assert result.error_details[0].type == "STDERR"
@@ -130,7 +131,7 @@ def test_get_cell_metadata_basic():
         )
     )
 
-    result = tool._get_cell_metadata(session, "c1")
+    result = tool._get_cell_metadata(session, CellId_t("c1"))
     assert result == CellRuntimeMetadata(
         runtime_state="idle", execution_time=42.5
     )
@@ -140,7 +141,7 @@ def test_get_cell_metadata_no_cell_op():
     tool = GetCellRuntimeData(ToolContext())
     session = MockSession(MockSessionView())
 
-    result = tool._get_cell_metadata(session, "missing")
+    result = tool._get_cell_metadata(session, CellId_t("missing"))
     assert result == CellRuntimeMetadata(
         runtime_state=None, execution_time=None
     )
@@ -154,9 +155,9 @@ def test_get_cell_variables():
     cell_data = Mock()
     cell_data.cell = cell
 
-    var_x = VariableValue("x", 42, "int")
+    var_x = VariableValue("x", "42", "int")
     var_y = VariableValue("y", "hi", "str")
-    var_z = VariableValue("z", [1], "list")
+    var_z = VariableValue("z", "[1]", "list")
 
     session = MockSession(
         MockSessionView(variable_values={"x": var_x, "y": var_y, "z": var_z})
@@ -164,11 +165,11 @@ def test_get_cell_variables():
 
     result = tool._get_cell_variables(session, cell_data)
     expected: CellVariables = {
-        "x": CellVariableValue(
-            name="x", value=var_x.value, data_type=var_x.datatype
+        "x": VariableValue(
+            name="x", value=var_x.value, datatype=var_x.datatype
         ),
-        "y": CellVariableValue(
-            name="y", value=var_y.value, data_type=var_y.datatype
+        "y": VariableValue(
+            name="y", value=var_y.value, datatype=var_y.datatype
         ),
     }
     assert result == expected
@@ -210,7 +211,9 @@ def test_get_cell_runtime_data_invalid_cell():
     from marimo._ai._tools.tools.cells import GetCellRuntimeDataArgs
     from marimo._ai._tools.utils.exceptions import ToolExecutionError
 
-    args = GetCellRuntimeDataArgs(session_id="test", cell_id="invalid")
+    args = GetCellRuntimeDataArgs(
+        session_id=SessionId("test"), cell_id=CellId_t("invalid")
+    )
 
     with pytest.raises(ToolExecutionError) as exc_info:
         tool.handle(args)

@@ -47,14 +47,22 @@ class AnyProviderConfig:
     def for_openai(cls, config: AiConfig) -> AnyProviderConfig:
         fallback_key = cls.os_key("OPENAI_API_KEY")
         return cls._for_openai_like(
-            config, "open_ai", "OpenAI", fallback_key=fallback_key
+            config,
+            "open_ai",
+            "OpenAI",
+            fallback_key=fallback_key,
+            require_key=True,
         )
 
     @classmethod
     def for_azure(cls, config: AiConfig) -> AnyProviderConfig:
         fallback_key = cls.os_key("AZURE_API_KEY")
         return cls._for_openai_like(
-            config, "azure", "Azure OpenAI", fallback_key=fallback_key
+            config,
+            "azure",
+            "Azure OpenAI",
+            fallback_key=fallback_key,
+            require_key=True,
         )
 
     @classmethod
@@ -84,6 +92,20 @@ class AnyProviderConfig:
             fallback_key=fallback_key,
             # Default base URL for GitHub Copilot
             fallback_base_url="https://api.githubcopilot.com/",
+            require_key=True,
+        )
+
+    @classmethod
+    def for_openrouter(cls, config: AiConfig) -> AnyProviderConfig:
+        fallback_key = cls.os_key("OPENROUTER_API_KEY")
+        return cls._for_openai_like(
+            config,
+            "openrouter",
+            "OpenRouter",
+            fallback_key=fallback_key,
+            # Default base URL for OpenRouter
+            fallback_base_url="https://openrouter.ai/api/v1/",
+            require_key=True,
         )
 
     @classmethod
@@ -95,9 +117,12 @@ class AnyProviderConfig:
         *,
         fallback_key: Optional[str] = None,
         fallback_base_url: Optional[str] = None,
+        require_key: bool = False,
     ) -> AnyProviderConfig:
-        ai_config = _get_ai_config(config, key)
-        key = _get_key(ai_config, name, fallback_key=fallback_key)
+        ai_config: dict[str, Any] = _get_ai_config(config, key)
+        key = _get_key(
+            ai_config, name, fallback_key=fallback_key, require_key=require_key
+        )
 
         kwargs: dict[str, Any] = {
             "base_url": _get_base_url(ai_config) or fallback_base_url,
@@ -119,6 +144,7 @@ class AnyProviderConfig:
             ai_config,
             "Anthropic",
             fallback_key=fallback_key,
+            require_key=True,
         )
         return cls(
             base_url=_get_base_url(ai_config),
@@ -136,10 +162,12 @@ class AnyProviderConfig:
             ai_config,
             "Google AI",
             fallback_key=fallback_key,
+            require_key=False,
         )
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
+            ssl_verify=True,
             tools=_get_tools(config.get("mode", "manual")),
         )
 
@@ -170,12 +198,16 @@ class AnyProviderConfig:
             return cls.for_azure(config)
         elif model_id.provider == "github":
             return cls.for_github(config)
+        elif model_id.provider == "openrouter":
+            return cls.for_openrouter(config)
         elif model_id.provider == "openai_compatible":
             return cls.for_openai_compatible(config)
         else:
             # Catch-all: try OpenAI compatible first, then OpenAI.
             try:
-                return cls.for_openai_compatible(config)
+                if "open_ai_compatible" in config:
+                    return cls.for_openai_compatible(config)
+                return cls.for_openai(config)
             except HTTPException:
                 return cls.for_openai(config)
 
@@ -243,6 +275,7 @@ def _get_key(
     name: str,
     *,
     fallback_key: Optional[str] = None,
+    require_key: bool = False,
 ) -> str:
     """Get the API key for a given provider."""
     if not isinstance(config, dict):
@@ -277,10 +310,13 @@ def _get_key(
     if fallback_key:
         return fallback_key
 
-    raise HTTPException(
-        status_code=HTTPStatus.BAD_REQUEST,
-        detail=f"{name} API key not configured. Go to Settings > AI to configure.",
-    )
+    if require_key:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"{name} API key not configured. Go to Settings > AI to configure.",
+        )
+
+    return ""
 
 
 def _get_base_url(config: Any, name: str = "") -> Optional[str]:

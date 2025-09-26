@@ -27,6 +27,7 @@ from marimo._server.ai.providers import (
             "bedrock",
             id="bedrock",
         ),
+        pytest.param("openrouter/gpt-4", "openrouter", id="openrouter"),
     ],
 )
 def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
@@ -44,6 +45,9 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
         },
         bedrock={
             "profile_name": "aws-profile",
+        },
+        openrouter={
+            "api_key": "openrouter-key",
         },
     )
     config = AnyProviderConfig.for_model(model_name, ai_config)
@@ -68,6 +72,7 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
             BedrockProvider,
             id="bedrock",
         ),
+        pytest.param("openrouter/gpt-4", OpenAIProvider, id="openrouter"),
     ],
 )
 def test_get_completion_provider(model_name: str, provider_type: type) -> None:

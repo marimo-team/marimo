@@ -339,10 +339,22 @@ class PreviewDataSourceConnectionRequest(msgspec.Struct, rename="camel"):
 
 
 class ValidateSQLRequest(msgspec.Struct, rename="camel"):
-    """Validate an SQL query"""
+    """Validate an SQL query against the engine"""
 
     request_id: RequestId
-    engine: str
+    query: str
+    # Whether to only parse the query or validate against the database
+    # Parsing is done without a DB connection and uses dialect, whereas validation requires a connection
+    only_parse: bool
+    engine: Optional[str] = None
+    dialect: Optional[str] = None
+
+
+class ParseSQLRequest(msgspec.Struct, rename="camel"):
+    """Parse an SQL query for linting"""
+
+    request_id: RequestId
+    dialect: str
     query: str
 
 

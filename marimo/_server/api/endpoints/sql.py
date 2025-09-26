@@ -5,9 +5,7 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._runtime.requests import (
-    ValidateSQLRequest,
-)
+from marimo._runtime.requests import ValidateSQLRequest
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import BaseResponse, SuccessResponse

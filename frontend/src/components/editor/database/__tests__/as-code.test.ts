@@ -192,6 +192,22 @@ describe("generateDatabaseCode", () => {
     },
   };
 
+  const databricksConnection: DatabaseConnection = {
+    type: "databricks",
+    access_token: "my_access_token",
+    server_hostname: "localhost",
+    http_path: "http://localhost:8080",
+  };
+
+  const databricksWithCatalogSchema: DatabaseConnection = {
+    type: "databricks",
+    access_token: "my_access_token",
+    server_hostname: "localhost",
+    http_path: "http://localhost:8080",
+    catalog: "my_catalog",
+    schema: "my_schema",
+  };
+
   describe("basic connections", () => {
     const testCases: Array<[string, DatabaseConnection, ConnectionLibrary]> = [
       ["postgres with SQLModel", basePostgres, "sqlmodel"],
@@ -218,6 +234,13 @@ describe("generateDatabaseCode", () => {
       ["pyspark with session", pysparkConnSession, "ibis"],
       ["redshift with DB credentials", redshiftDBConnection, "redshift"],
       ["redshift with IAM credentials", redshiftIAMConnection, "redshift"],
+      ["databricks", databricksConnection, "sqlalchemy"],
+      [
+        "databricks with catalog and schema",
+        databricksWithCatalogSchema,
+        "sqlalchemy",
+      ],
+      ["databricks with ibis", databricksConnection, "ibis"],
     ];
 
     it.each(testCases)("%s", (name, connection, orm) => {

@@ -98,7 +98,7 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
     return result
 
 
-class TokenExtractor:
+class _TokenExtractor:
     def __init__(self, sql_statement: str, tokens: list[Any]) -> None:
         self.sql_statement = sql_statement
         self.tokens = tokens
@@ -178,7 +178,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     import duckdb
 
     tokens = duckdb.tokenize(sql_statement)
-    token_extractor = TokenExtractor(
+    token_extractor = _TokenExtractor(
         sql_statement=sql_statement, tokens=tokens
     )
     created_tables: list[SQLRef] = []
@@ -529,7 +529,20 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
         if expression is None:
             continue
 
-        if bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
+        if bool(
+            expression.find(
+                exp.Update,
+                exp.Insert,
+                exp.Delete,
+                exp.Describe,
+                exp.Summarize,
+                exp.Pivot,
+                exp.Analyze,
+                exp.Drop,
+                exp.TruncateTable,
+                exp.Copy,
+            )
+        ):
             for table in expression.find_all(exp.Table):
                 if ref := get_ref_from_table(table):
                     refs.add(ref)

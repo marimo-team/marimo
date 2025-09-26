@@ -2686,6 +2686,7 @@ export interface components {
      *         - `azure`: the Azure config
      *         - `ollama`: the Ollama config
      *         - `github`: the GitHub config
+     *         - `openrouter`: the OpenRouter config
      *         - `open_ai_compatible`: the OpenAI-compatible config
      */
     AiConfig: {
@@ -2701,6 +2702,7 @@ export interface components {
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
       open_ai_compatible?: components["schemas"]["OpenAiConfig"];
+      openrouter?: components["schemas"]["OpenAiConfig"];
       rules?: string;
     };
     /** AiInlineCompletionRequest */
@@ -4322,6 +4324,43 @@ export interface components {
       custom_paths?: string[];
       include_default_snippets?: boolean;
     };
+    /**
+     * SqlCatalogCheckResult
+     * @description Result of running validation against the database.
+     */
+    SqlCatalogCheckResult: {
+      error_message: string | null;
+      success: boolean;
+    };
+    /**
+     * SqlParseError
+     * @description Represents a single SQL parse error.
+     *
+     *     Attributes:
+     *         message (str): Description of the error.
+     *         line (int): Line number where the error occurred (1-based).
+     *         column (int): Column number where the error occurred (1-based).
+     *         severity (Literal["error", "warning"]): Severity of the error.
+     */
+    SqlParseError: {
+      column: number;
+      line: number;
+      message: string;
+      /** @enum {unknown} */
+      severity: "error" | "warning";
+    };
+    /**
+     * SqlParseResult
+     * @description Result of parsing an SQL query.
+     *
+     *     Attributes:
+     *         success (bool): True if parsing succeeded without errors.
+     *         errors (list[SqlParseError]): List of parse errors (empty if success is True).
+     */
+    SqlParseResult: {
+      errors: components["schemas"]["SqlParseError"][];
+      success: boolean;
+    };
     /** StartupLogs */
     StartupLogs: {
       content: string;
@@ -4395,10 +4434,14 @@ export interface components {
     };
     /**
      * ValidateSQLRequest
-     * @description Validate an SQL query
+     * @description Validate an SQL query against the engine
      */
     ValidateSQLRequest: {
-      engine: string;
+      /** @default null */
+      dialect?: string | null;
+      /** @default null */
+      engine?: string | null;
+      onlyParse: boolean;
       query: string;
       requestId: string;
     };
@@ -4408,9 +4451,11 @@ export interface components {
       error?: string | null;
       /** @enum {unknown} */
       op: "validate-sql-result";
+      /** @default null */
+      parse_result?: null | components["schemas"]["SqlParseResult"];
       request_id: string;
       /** @default null */
-      result?: unknown | null;
+      validate_result?: null | components["schemas"]["SqlCatalogCheckResult"];
     };
     /** VariableContext */
     VariableContext: {

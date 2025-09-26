@@ -19,6 +19,7 @@ export const PROVIDER_SORT_ORDER: ProviderId[] = [
   "openai",
   "google",
   "github",
+  "openrouter",
   "deepseek",
   "azure",
   "bedrock",

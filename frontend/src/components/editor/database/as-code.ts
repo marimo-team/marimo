@@ -14,7 +14,8 @@ export type ConnectionLibrary =
   | "pyiceberg"
   | "ibis"
   | "motherduck"
-  | "redshift";
+  | "redshift"
+  | "databricks";
 
 export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   sqlmodel: "SQLModel",
@@ -26,6 +27,7 @@ export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   ibis: "Ibis",
   motherduck: "MotherDuck",
   redshift: "Redshift",
+  databricks: "Databricks",
 };
 
 abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
@@ -54,6 +56,9 @@ abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
         break;
       case "duckdb":
         imports.add("import duckdb");
+        break;
+      case "ibis":
+        imports.add("import ibis");
         break;
     }
     return imports;
@@ -138,10 +143,38 @@ class SecretContainer {
     return `{${value}}`;
   }
 
+  /**
+   * Generate a password variable for connection strings, supporting inline values,
+   * environment variable lookups, and f-string formatting.
+   * @param {string|undefined} password - Fallback password value.
+   * @param {string} passwordPlaceholder - Environment variable name.
+   * @param {boolean} inFString - If true, wrap for Python f-string.
+   * @param {string} [variableName] - Variable name (default: "password").
+   * @returns {string}
+   *
+   * @example
+   * `printPassword("token123", "DATABRICKS_ACCESS_TOKEN", true, "access_token")`
+   *
+   * Returns:
+   * ```python
+   * _access_token = os.environ.get("DATABRICKS_ACCESS_TOKEN", "token123")
+   * f"db://sample:{_access_token}@sample.com"
+   * ```
+   *
+   * @example
+   * `printPassword("token123", "DATABRICKS_ACCESS_TOKEN", false, "access_token")`
+   *
+   * Returns:
+   * ```python
+   * access_token = os.environ.get("DATABRICKS_ACCESS_TOKEN", "token123")
+   * f"db://sample:access_token@sample.com"
+   * ```
+   */
   printPassword(
     password: string | undefined,
     passwordPlaceholder: string,
     inFString: boolean,
+    variableName?: string,
   ): string {
     // Inline passwords should use printInFString, otherwise use print
     const printMethod = inFString
@@ -149,8 +182,8 @@ class SecretContainer {
       : this.print.bind(this);
 
     return isSecret(password)
-      ? printMethod("password", password)
-      : printMethod("password", passwordPlaceholder, password);
+      ? printMethod(variableName || "password", password)
+      : printMethod(variableName || "password", passwordPlaceholder, password);
   }
 
   getSecrets(): Record<string, string> {
@@ -557,7 +590,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
 class DataFusionGenerator extends CodeGenerator<"datafusion"> {
   generateImports(): string[] {
     // To trigger installation of ibis-datafusion
-    return ["import ibis", "from datafusion import SessionContext"];
+    return ["from datafusion import SessionContext"];
   }
 
   generateConnectionCode(): string {
@@ -578,7 +611,7 @@ class DataFusionGenerator extends CodeGenerator<"datafusion"> {
 
 class PySparkGenerator extends CodeGenerator<"pyspark"> {
   generateImports(): string[] {
-    return ["import ibis", "from pyspark.sql import SparkSession"];
+    return ["from pyspark.sql import SparkSession"];
   }
 
   generateConnectionCode(): string {
@@ -668,6 +701,70 @@ ${formatUrlParams(params, (inner) => `          ${inner}`)},
   }
 }
 
+class DatabricksGenerator extends CodeGenerator<"databricks"> {
+  generateImports(): string[] {
+    return [];
+  }
+
+  generateConnectionCode(): string {
+    const useFString = this.orm !== "ibis";
+
+    const accessToken = this.secrets.printPassword(
+      this.connection.access_token,
+      "DATABRICKS_ACCESS_TOKEN",
+      useFString,
+      "access_token",
+    );
+
+    const serverHostname = this.secrets.printPassword(
+      this.connection.server_hostname,
+      "DATABRICKS_SERVER_HOSTNAME",
+      useFString,
+      "server_hostname",
+    );
+
+    const httpPath = this.secrets.printPassword(
+      this.connection.http_path,
+      "DATABRICKS_HTTP_PATH",
+      useFString,
+      "http_path",
+    );
+
+    const catalog = this.connection.catalog
+      ? this.secrets.printInFString("catalog", this.connection.catalog)
+      : undefined;
+    const schema = this.connection.schema
+      ? this.secrets.printInFString("schema", this.connection.schema)
+      : undefined;
+
+    let BASE_URL = `databricks://token:${accessToken}@${serverHostname}?http_path=${httpPath}`;
+    if (catalog) {
+      BASE_URL += `&catalog=${catalog}`;
+    }
+    if (schema) {
+      BASE_URL += `&schema=${schema}`;
+    }
+
+    if (this.orm === "ibis") {
+      const catalogParam = catalog ? `\n          catalog=${catalog},` : "";
+      const schemaParam = schema ? `\n          schema=${schema},` : "";
+
+      return dedent(`
+        engine = ibis.databricks.connect(
+          server_hostname=${serverHostname},
+          http_path=${httpPath},${catalogParam}${schemaParam}
+          access_token=${accessToken}
+        )
+      `);
+    }
+
+    return dedent(`
+      DATABASE_URL = f"${BASE_URL}"
+      engine = ${this.orm}.create_engine(DATABASE_URL)
+      `);
+  }
+}
+
 class CodeGeneratorFactory {
   public secrets = new SecretContainer();
 
@@ -706,6 +803,8 @@ class CodeGeneratorFactory {
         return new PySparkGenerator(connection, orm, this.secrets);
       case "redshift":
         return new RedshiftGenerator(connection, orm, this.secrets);
+      case "databricks":
+        return new DatabricksGenerator(connection, orm, this.secrets);
       default:
         assertNever(connection);
     }

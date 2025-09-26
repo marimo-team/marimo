@@ -168,6 +168,33 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-github-key"
         assert provider_config.base_url == "https://api.githubcopilot.com/"
 
+    def test_for_openrouter(self):
+        """Test OpenRouter configuration."""
+        config: AiConfig = {
+            "openrouter": {
+                "api_key": "test-openrouter-key",
+                "base_url": "https://openrouter.ai/api/v1/",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_openrouter(config)
+
+        assert provider_config.api_key == "test-openrouter-key"
+        assert provider_config.base_url == "https://openrouter.ai/api/v1/"
+
+    def test_for_openrouter_with_fallback_base_url(self):
+        """Test OpenRouter configuration uses fallback base URL when not specified."""
+        config: AiConfig = {
+            "openrouter": {
+                "api_key": "test-openrouter-key",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_openrouter(config)
+
+        assert provider_config.api_key == "test-openrouter-key"
+        assert provider_config.base_url == "https://openrouter.ai/api/v1/"
+
     def test_for_anthropic(self):
         """Test Anthropic configuration."""
         config: AiConfig = {
@@ -248,6 +275,17 @@ class TestAnyProviderConfig:
         provider_config = AnyProviderConfig.for_model("github/gpt-4o", config)
 
         assert provider_config.api_key == "test-github-key"
+
+    def test_for_model_openrouter(self) -> None:
+        """Test for_model with OpenRouter model."""
+        config: AiConfig = {"openrouter": {"api_key": "test-openrouter-key"}}
+
+        provider_config = AnyProviderConfig.for_model(
+            "openrouter/gpt-4", config
+        )
+
+        assert provider_config.api_key == "test-openrouter-key"
+        assert provider_config.base_url == "https://openrouter.ai/api/v1/"
 
     def test_for_model_unknown_defaults_to_ollama(self) -> None:
         """Test for_model with unknown provider defaults to Ollama."""
@@ -468,14 +506,16 @@ class TestProviderConfigWithFallback:
 
     @patch.dict(os.environ, {}, clear=True)
     def test_for_google_no_fallback_available(self) -> None:
-        """Test Google config fails when no config key and no env vars."""
+        """Test Google config succeeds with empty key when no env vars."""
         config: AiConfig = {"google": {}}
 
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_google(config)
+        provider_config = AnyProviderConfig.for_google(config)
 
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Google AI API key not configured" in str(exc_info.value.detail)
+        assert provider_config == AnyProviderConfig(
+            base_url=None,
+            api_key="",
+            ssl_verify=True,
+        )
 
     @patch.dict(os.environ, {"GITHUB_TOKEN": "env-github-token"})
     def test_for_github_with_fallback_key(self) -> None:
@@ -505,6 +545,34 @@ class TestProviderConfigWithFallback:
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
         assert "GitHub API key not configured" in str(exc_info.value.detail)
+
+    @patch.dict(os.environ, {"OPENROUTER_API_KEY": "env-openrouter-token"})
+    def test_for_openrouter_with_fallback_key(self) -> None:
+        """Test OpenRouter config uses fallback key when config is missing api_key."""
+        config: AiConfig = {"openrouter": {}}
+        provider_config = AnyProviderConfig.for_openrouter(config)
+        assert provider_config.api_key == "env-openrouter-token"
+
+    @patch.dict(os.environ, {"OPENROUTER_API_KEY": "env-openrouter-token"})
+    def test_for_openrouter_config_key_takes_precedence(self) -> None:
+        """Test OpenRouter config key takes precedence over environment variable."""
+        config: AiConfig = {
+            "openrouter": {"api_key": "config-openrouter-token"}
+        }
+        provider_config = AnyProviderConfig.for_openrouter(config)
+        assert provider_config.api_key == "config-openrouter-token"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_for_openrouter_no_fallback_available(self) -> None:
+        """Test OpenRouter config fails when no config key and no env var."""
+        config: AiConfig = {"openrouter": {}}
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_openrouter(config)
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "OpenRouter API key not configured" in str(
+            exc_info.value.detail
+        )
 
 
 class TestGetKey:
@@ -565,37 +633,19 @@ class TestGetKey:
         """Test error when API key is missing."""
         config = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            _get_key(config, "Test Service")
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Test Service API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert _get_key(config, "Test Service") == ""
 
     def test_get_key_empty_api_key(self):
         """Test error when API key is empty."""
         config = {"api_key": ""}
 
-        with pytest.raises(HTTPException) as exc_info:
-            _get_key(config, "Test Service")
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Test Service API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert _get_key(config, "Test Service") == ""
 
     def test_get_key_none_api_key(self):
         """Test error when API key is None."""
         config = {"api_key": None}
 
-        with pytest.raises(HTTPException) as exc_info:
-            _get_key(config, "Test Service")
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Test Service API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert _get_key(config, "Test Service") == ""
 
     def test_get_key_with_fallback_key(self):
         """Test using fallback key when api_key is missing."""
@@ -633,25 +683,13 @@ class TestGetKey:
         """Test error when no fallback key provided and api_key missing."""
         config = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            _get_key(config, "Test Service", fallback_key=None)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Test Service API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert _get_key(config, "Test Service", fallback_key=None) == ""
 
     def test_get_key_empty_fallback_key(self):
         """Test error when fallback key is empty string."""
         config = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            _get_key(config, "Test Service", fallback_key="")
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Test Service API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert _get_key(config, "Test Service", fallback_key="") == ""
 
     def test_get_key_bedrock_profile_ignores_fallback(self):
         """Test that Bedrock profile handling ignores fallback key."""
@@ -960,14 +998,15 @@ class TestEdgeCases:
         assert "Anthropic API key not configured" in str(exc_info.value.detail)
 
     def test_google_config_missing(self):
-        """Test error when Google config is missing."""
+        """Test Google config defaults to empty key when config is missing."""
         config: AiConfig = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_google(config)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Google AI API key not configured" in str(exc_info.value.detail)
+        provider_config = AnyProviderConfig.for_google(config)
+        assert provider_config == AnyProviderConfig(
+            base_url=None,
+            api_key="",
+            ssl_verify=True,
+        )
 
     def test_bedrock_config_missing(self):
         """Test when Bedrock config is missing, should not error since could use environment variables."""
@@ -1006,13 +1045,9 @@ class TestEdgeCases:
         """Test error when OpenAI Compatible config is missing."""
         config: AiConfig = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_openai_compatible(config)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "OpenAI Compatible API key not configured" in str(
-            exc_info.value.detail
-        )
+        assert AnyProviderConfig.for_openai_compatible(
+            config
+        ) == AnyProviderConfig(base_url=None, api_key="", ssl_verify=True)
 
     def test_github_config_missing(self):
         """Test error when GitHub config is missing."""

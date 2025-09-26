@@ -3,12 +3,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ast.models import CellData
+from marimo._messaging.ops import VariableValue
 from marimo._types.ids import CellId_t, SessionId
 
 if TYPE_CHECKING:
@@ -67,16 +68,7 @@ class CellRuntimeMetadata:
     execution_time: Optional[float] = None
 
 
-@dataclass
-class CellVariableValue:
-    name: str
-    # Cell variables can be arbitrary Python values (int, str, list, dict, ...),
-    # so we keep this as Any to reflect actual runtime.
-    value: Optional[Any] = None
-    data_type: Optional[str] = None
-
-
-CellVariables = dict[str, CellVariableValue]
+CellVariables = dict[str, VariableValue]
 
 
 @dataclass
@@ -381,10 +373,6 @@ class GetCellRuntimeData(
         for var_name in cell_defs:
             if var_name in all_variables:
                 var_value = all_variables[var_name]
-                cell_variables[var_name] = CellVariableValue(
-                    name=var_name,
-                    value=var_value.value,
-                    data_type=var_value.datatype,
-                )
+                cell_variables[var_name] = var_value
 
         return cell_variables

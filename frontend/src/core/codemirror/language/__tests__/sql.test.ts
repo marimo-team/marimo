@@ -735,16 +735,130 @@ describe("tablesCompletionSource", () => {
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
         "public": {
-          "orders": [
-            "order_id",
-            "user_id",
-            "total",
-          ],
-          "users": [
-            "id",
-            "name",
-            "email",
-          ],
+          "children": {
+            "orders": {
+              "children": [
+                {
+                  "info": [Function],
+                  "label": "order_id",
+                  "type": "column",
+                },
+                {
+                  "info": [Function],
+                  "label": "user_id",
+                  "type": "column",
+                },
+                {
+                  "info": [Function],
+                  "label": "total",
+                  "type": "column",
+                },
+              ],
+              "self": {
+                "info": [Function],
+                "label": "orders",
+                "type": "table",
+              },
+            },
+            "users": {
+              "children": [
+                {
+                  "info": [Function],
+                  "label": "id",
+                  "type": "column",
+                },
+                {
+                  "info": [Function],
+                  "label": "name",
+                  "type": "column",
+                },
+                {
+                  "info": [Function],
+                  "label": "email",
+                  "type": "column",
+                },
+              ],
+              "self": {
+                "info": [Function],
+                "label": "users",
+                "type": "table",
+              },
+            },
+          },
+          "self": {
+            "detail": "public",
+            "info": [Function],
+            "label": "public",
+            "type": "schema",
+          },
+        },
+        "test_db": {
+          "children": {
+            "public": {
+              "children": {
+                "orders": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "order_id",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "user_id",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "total",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "orders",
+                    "type": "table",
+                  },
+                },
+                "users": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "id",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "name",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "email",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "users",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.public",
+                "info": [Function],
+                "label": "public",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
+          },
         },
       }
     `);
@@ -829,17 +943,71 @@ describe("tablesCompletionSource", () => {
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
         "db1": {
-          "schema1": {
-            "table1": [
-              "col1",
-            ],
+          "children": {
+            "schema1": {
+              "children": {
+                "table1": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col1",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "table1",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "db1.schema1",
+                "info": [Function],
+                "label": "schema1",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "db1",
+            "info": [Function],
+            "label": "db1",
+            "type": "database",
           },
         },
         "db2": {
-          "schema2": {
-            "table2": [
-              "col2",
-            ],
+          "children": {
+            "schema2": {
+              "children": {
+                "table2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col2",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "table2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "db2.schema2",
+                "info": [Function],
+                "label": "schema2",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "db2",
+            "info": [Function],
+            "label": "db2",
+            "type": "database",
           },
         },
       }
@@ -975,29 +1143,179 @@ describe("tablesCompletionSource", () => {
     );
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
+        "db1": {
+          "children": {
+            "schema1": {
+              "children": {
+                "table1": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col1",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "table1",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "db1.schema1",
+                "info": [Function],
+                "label": "schema1",
+                "type": "schema",
+              },
+            },
+            "schema2": {
+              "children": {
+                "table2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col2",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "table2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "db1.schema2",
+                "info": [Function],
+                "label": "schema2",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "db1",
+            "info": [Function],
+            "label": "db1",
+            "type": "database",
+          },
+        },
         "db2": {
-          "schema2": {
-            "table2": [
-              "col2",
-            ],
+          "children": {
+            "schema2": {
+              "children": {
+                "table2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col2",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "table2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "db2.schema2",
+                "info": [Function],
+                "label": "schema2",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "db2",
+            "info": [Function],
+            "label": "db2",
+            "type": "database",
           },
         },
         "db3": {
-          "schema2": {
-            "table2": [
-              "col2",
-            ],
+          "children": {
+            "schema2": {
+              "children": {
+                "table2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col2",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "table2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "db3.schema2",
+                "info": [Function],
+                "label": "schema2",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "db3",
+            "info": [Function],
+            "label": "db3",
+            "type": "database",
           },
         },
         "schema1": {
-          "table1": [
-            "col1",
-          ],
+          "children": {
+            "table1": {
+              "children": [
+                {
+                  "info": [Function],
+                  "label": "col1",
+                  "type": "column",
+                },
+              ],
+              "self": {
+                "info": [Function],
+                "label": "table1",
+                "type": "table",
+              },
+            },
+          },
+          "self": {
+            "detail": "schema1",
+            "info": [Function],
+            "label": "schema1",
+            "type": "schema",
+          },
         },
         "schema2": {
-          "table2": [
-            "col2",
-          ],
+          "children": {
+            "table2": {
+              "children": [
+                {
+                  "info": [Function],
+                  "label": "col2",
+                  "type": "column",
+                },
+              ],
+              "self": {
+                "info": [Function],
+                "label": "table2",
+                "type": "table",
+              },
+            },
+          },
+          "self": {
+            "detail": "schema2",
+            "info": [Function],
+            "label": "schema2",
+            "type": "schema",
+          },
         },
       }
     `);
@@ -1066,11 +1384,82 @@ describe("tablesCompletionSource", () => {
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
         "public": {
-          "users": [
-            "id",
-            "name",
-            "email",
-          ],
+          "children": {
+            "users": {
+              "children": [
+                {
+                  "info": [Function],
+                  "label": "id",
+                  "type": "column",
+                },
+                {
+                  "info": [Function],
+                  "label": "name",
+                  "type": "column",
+                },
+                {
+                  "info": [Function],
+                  "label": "email",
+                  "type": "column",
+                },
+              ],
+              "self": {
+                "info": [Function],
+                "label": "users",
+                "type": "table",
+              },
+            },
+          },
+          "self": {
+            "detail": "public",
+            "info": [Function],
+            "label": "public",
+            "type": "schema",
+          },
+        },
+        "test_db": {
+          "children": {
+            "public": {
+              "children": {
+                "users": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "id",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "name",
+                      "type": "column",
+                    },
+                    {
+                      "info": [Function],
+                      "label": "email",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "users",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.public",
+                "info": [Function],
+                "label": "public",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
+          },
         },
       }
     `);
@@ -1196,16 +1585,55 @@ describe("tablesCompletionSource", () => {
     expect(completionSource?.dialect).toBe(PostgreSQL);
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
-        "test_db2": {
-          "orders": [
-            "order_id",
-          ],
+        "test_db": {
+          "children": {},
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
+          },
         },
-        "users": [
-          "id",
-        ],
+        "test_db2": {
+          "children": {
+            "orders": {
+              "children": [
+                {
+                  "info": [Function],
+                  "label": "order_id",
+                  "type": "column",
+                },
+              ],
+              "self": {
+                "info": [Function],
+                "label": "orders",
+                "type": "table",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db2",
+            "info": [Function],
+            "label": "test_db2",
+            "type": "database",
+          },
+        },
+        "users": {
+          "children": [
+            {
+              "info": [Function],
+              "label": "id",
+              "type": "column",
+            },
+          ],
+          "self": {
+            "info": [Function],
+            "label": "users",
+            "type": "table",
+          },
+        },
       }
-      `);
+    `);
   });
 
   it("should return local tables", () => {
@@ -1534,14 +1962,82 @@ describe("tablesCompletionSource", () => {
     const completionSource = completionStore.getCompletionSource(TEST_ENGINE);
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
-        "dataset1": [
-          "col1",
-          "col2",
-        ],
-        "test_schema": {
-          "dataset2": [
-            "col1",
+        "dataset1": {
+          "children": [
+            {
+              "info": [Function],
+              "label": "col1",
+              "type": "column",
+            },
+            {
+              "info": [Function],
+              "label": "col2",
+              "type": "column",
+            },
           ],
+          "self": {
+            "info": [Function],
+            "label": "dataset1",
+            "type": "table",
+          },
+        },
+        "test_db": {
+          "children": {
+            "test_schema": {
+              "children": {
+                "dataset2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col1",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "dataset2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.test_schema",
+                "info": [Function],
+                "label": "test_schema",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
+          },
+        },
+        "test_schema": {
+          "children": {
+            "dataset2": {
+              "children": [
+                {
+                  "info": [Function],
+                  "label": "col1",
+                  "type": "column",
+                },
+              ],
+              "self": {
+                "info": [Function],
+                "label": "dataset2",
+                "type": "table",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_schema",
+            "info": [Function],
+            "label": "test_schema",
+            "type": "schema",
+          },
         },
       }
     `);
@@ -1555,13 +2051,66 @@ describe("tablesCompletionSource", () => {
 
     const completionSource = completionStore.getCompletionSource(TEST_ENGINE);
     expect(completionSource?.schema).toMatchInlineSnapshot(`
-    {
-      "test_schema": {
-        "dataset2": [
-          "col1",
-        ],
-      },
-    }
+      {
+        "test_db": {
+          "children": {
+            "test_schema": {
+              "children": {
+                "dataset2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col1",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "dataset2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.test_schema",
+                "info": [Function],
+                "label": "test_schema",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
+          },
+        },
+        "test_schema": {
+          "children": {
+            "dataset2": {
+              "children": [
+                {
+                  "info": [Function],
+                  "label": "col1",
+                  "type": "column",
+                },
+              ],
+              "self": {
+                "info": [Function],
+                "label": "dataset2",
+                "type": "table",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_schema",
+            "info": [Function],
+            "label": "test_schema",
+            "type": "schema",
+          },
+        },
+      }
     `);
 
     const newConnection: DataSourceConnection = {
@@ -1593,17 +2142,85 @@ describe("tablesCompletionSource", () => {
     mockStore.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
     const completionSource = completionStore.getCompletionSource(TEST_ENGINE);
     expect(completionSource?.schema).toMatchInlineSnapshot(`
-    {
-      "dataset1": [
-        "col1",
-        "col2",
-      ],
-      "test_schema": {
-        "dataset2": [
-          "col1",
-        ],
-      },
-    }
+      {
+        "dataset1": {
+          "children": [
+            {
+              "info": [Function],
+              "label": "col1",
+              "type": "column",
+            },
+            {
+              "info": [Function],
+              "label": "col2",
+              "type": "column",
+            },
+          ],
+          "self": {
+            "info": [Function],
+            "label": "dataset1",
+            "type": "table",
+          },
+        },
+        "test_db": {
+          "children": {
+            "test_schema": {
+              "children": {
+                "dataset2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col1",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "dataset2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.test_schema",
+                "info": [Function],
+                "label": "test_schema",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
+          },
+        },
+        "test_schema": {
+          "children": {
+            "dataset2": {
+              "children": [
+                {
+                  "info": [Function],
+                  "label": "col1",
+                  "type": "column",
+                },
+              ],
+              "self": {
+                "info": [Function],
+                "label": "dataset2",
+                "type": "table",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_schema",
+            "info": [Function],
+            "label": "test_schema",
+            "type": "schema",
+          },
+        },
+      }
     `);
 
     const newTestDatasets = [
@@ -1620,17 +2237,85 @@ describe("tablesCompletionSource", () => {
     const newCompletionSource =
       completionStore.getCompletionSource(TEST_ENGINE);
     expect(newCompletionSource?.schema).toMatchInlineSnapshot(`
-    {
-      "dataset3": [
-        "col1",
-        "col2",
-      ],
-      "test_schema": {
-        "dataset2": [
-          "col1",
-        ],
-      },
-    }
+      {
+        "dataset3": {
+          "children": [
+            {
+              "info": [Function],
+              "label": "col1",
+              "type": "column",
+            },
+            {
+              "info": [Function],
+              "label": "col2",
+              "type": "column",
+            },
+          ],
+          "self": {
+            "info": [Function],
+            "label": "dataset3",
+            "type": "table",
+          },
+        },
+        "test_db": {
+          "children": {
+            "test_schema": {
+              "children": {
+                "dataset2": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "col1",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "dataset2",
+                    "type": "table",
+                  },
+                },
+              },
+              "self": {
+                "detail": "test_db.test_schema",
+                "info": [Function],
+                "label": "test_schema",
+                "type": "schema",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_db",
+            "info": [Function],
+            "label": "test_db",
+            "type": "database",
+          },
+        },
+        "test_schema": {
+          "children": {
+            "dataset2": {
+              "children": [
+                {
+                  "info": [Function],
+                  "label": "col1",
+                  "type": "column",
+                },
+              ],
+              "self": {
+                "info": [Function],
+                "label": "dataset2",
+                "type": "table",
+              },
+            },
+          },
+          "self": {
+            "detail": "test_schema",
+            "info": [Function],
+            "label": "test_schema",
+            "type": "schema",
+          },
+        },
+      }
     `);
   });
 });

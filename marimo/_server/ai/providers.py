@@ -777,6 +777,23 @@ class GoogleProvider(
             )
             from google import genai  # type: ignore
 
+        # If no API key is provided, try to use environment variables and ADC
+        # This supports Google Vertex AI usage without explicit API keys
+        if not config.api_key:
+            # Check if GOOGLE_GENAI_USE_VERTEXAI is set to enable Vertex AI mode
+            use_vertex = (
+                os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
+            )
+            if use_vertex:
+                project = os.getenv("GOOGLE_CLOUD_PROJECT")
+                location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+                return genai.Client(
+                    vertexai=True, project=project, location=location
+                ).aio
+            else:
+                # Try default initialization which may work with environment variables
+                return genai.Client().aio
+
         return genai.Client(api_key=config.api_key).aio
 
     async def stream_completion(
@@ -988,6 +1005,8 @@ def get_completion_provider(
         return BedrockProvider(model_id.model, config)
     elif model_id.provider == "azure":
         return AzureOpenAIProvider(model_id.model, config)
+    elif model_id.provider == "openrouter":
+        return OpenAIProvider(model_id.model, config)
     else:
         return OpenAIProvider(model_id.model, config)
 
