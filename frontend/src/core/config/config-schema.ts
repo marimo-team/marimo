@@ -163,6 +163,7 @@ export const UserConfigSchema = z
         anthropic: AiConfigSchema.optional(),
         google: AiConfigSchema.optional(),
         ollama: AiConfigSchema.optional(),
+        openrouter: AiConfigSchema.optional(),
         open_ai_compatible: AiConfigSchema.optional(),
         azure: AiConfigSchema.optional(),
         bedrock: z

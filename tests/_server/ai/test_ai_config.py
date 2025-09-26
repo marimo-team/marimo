@@ -168,6 +168,33 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-github-key"
         assert provider_config.base_url == "https://api.githubcopilot.com/"
 
+    def test_for_openrouter(self):
+        """Test OpenRouter configuration."""
+        config: AiConfig = {
+            "openrouter": {
+                "api_key": "test-openrouter-key",
+                "base_url": "https://openrouter.ai/api/v1/",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_openrouter(config)
+
+        assert provider_config.api_key == "test-openrouter-key"
+        assert provider_config.base_url == "https://openrouter.ai/api/v1/"
+
+    def test_for_openrouter_with_fallback_base_url(self):
+        """Test OpenRouter configuration uses fallback base URL when not specified."""
+        config: AiConfig = {
+            "openrouter": {
+                "api_key": "test-openrouter-key",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_openrouter(config)
+
+        assert provider_config.api_key == "test-openrouter-key"
+        assert provider_config.base_url == "https://openrouter.ai/api/v1/"
+
     def test_for_anthropic(self):
         """Test Anthropic configuration."""
         config: AiConfig = {
@@ -248,6 +275,17 @@ class TestAnyProviderConfig:
         provider_config = AnyProviderConfig.for_model("github/gpt-4o", config)
 
         assert provider_config.api_key == "test-github-key"
+
+    def test_for_model_openrouter(self) -> None:
+        """Test for_model with OpenRouter model."""
+        config: AiConfig = {"openrouter": {"api_key": "test-openrouter-key"}}
+
+        provider_config = AnyProviderConfig.for_model(
+            "openrouter/gpt-4", config
+        )
+
+        assert provider_config.api_key == "test-openrouter-key"
+        assert provider_config.base_url == "https://openrouter.ai/api/v1/"
 
     def test_for_model_unknown_defaults_to_ollama(self) -> None:
         """Test for_model with unknown provider defaults to Ollama."""
@@ -505,6 +543,34 @@ class TestProviderConfigWithFallback:
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
         assert "GitHub API key not configured" in str(exc_info.value.detail)
+
+    @patch.dict(os.environ, {"OPENROUTER_API_KEY": "env-openrouter-token"})
+    def test_for_openrouter_with_fallback_key(self) -> None:
+        """Test OpenRouter config uses fallback key when config is missing api_key."""
+        config: AiConfig = {"openrouter": {}}
+        provider_config = AnyProviderConfig.for_openrouter(config)
+        assert provider_config.api_key == "env-openrouter-token"
+
+    @patch.dict(os.environ, {"OPENROUTER_API_KEY": "env-openrouter-token"})
+    def test_for_openrouter_config_key_takes_precedence(self) -> None:
+        """Test OpenRouter config key takes precedence over environment variable."""
+        config: AiConfig = {
+            "openrouter": {"api_key": "config-openrouter-token"}
+        }
+        provider_config = AnyProviderConfig.for_openrouter(config)
+        assert provider_config.api_key == "config-openrouter-token"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_for_openrouter_no_fallback_available(self) -> None:
+        """Test OpenRouter config fails when no config key and no env var."""
+        config: AiConfig = {"openrouter": {}}
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_openrouter(config)
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "OpenRouter API key not configured" in str(
+            exc_info.value.detail
+        )
 
 
 class TestGetKey:

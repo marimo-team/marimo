@@ -96,6 +96,19 @@ class AnyProviderConfig:
         )
 
     @classmethod
+    def for_openrouter(cls, config: AiConfig) -> AnyProviderConfig:
+        fallback_key = cls.os_key("OPENROUTER_API_KEY")
+        return cls._for_openai_like(
+            config,
+            "openrouter",
+            "OpenRouter",
+            fallback_key=fallback_key,
+            # Default base URL for OpenRouter
+            fallback_base_url="https://openrouter.ai/api/v1/",
+            require_key=True,
+        )
+
+    @classmethod
     def _for_openai_like(
         cls,
         config: AiConfig,
@@ -184,6 +197,8 @@ class AnyProviderConfig:
             return cls.for_azure(config)
         elif model_id.provider == "github":
             return cls.for_github(config)
+        elif model_id.provider == "openrouter":
+            return cls.for_openrouter(config)
         elif model_id.provider == "openai_compatible":
             return cls.for_openai_compatible(config)
         else:

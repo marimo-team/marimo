@@ -8,6 +8,7 @@ import GitHubIcon from "@marimo-team/llm-info/icons/github.svg?inline";
 import GeminiIcon from "@marimo-team/llm-info/icons/googlegemini.svg?inline";
 import OllamaIcon from "@marimo-team/llm-info/icons/ollama.svg?inline";
 import OpenAIIcon from "@marimo-team/llm-info/icons/openai.svg?inline";
+import OpenRouterIcon from "@marimo-team/llm-info/icons/openrouter.svg?inline";
 import { BotIcon } from "lucide-react";
 import * as React from "react";
 import type { ProviderId } from "@/core/ai/ids/ids";
@@ -27,6 +28,7 @@ const icons: Record<ProviderId | Aliases, string> = {
   bedrock: BedrockIcon,
   deepseek: DeepseekIcon,
   github: GitHubIcon,
+  openrouter: OpenRouterIcon,
   marimo: marimoIcon,
 };
 

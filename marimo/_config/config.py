@@ -272,6 +272,7 @@ class AiConfig(TypedDict, total=False):
     - `azure`: the Azure config
     - `ollama`: the Ollama config
     - `github`: the GitHub config
+    - `openrouter`: the OpenRouter config
     - `open_ai_compatible`: the OpenAI-compatible config
     """
 
@@ -288,6 +289,7 @@ class AiConfig(TypedDict, total=False):
     azure: OpenAiConfig
     ollama: OpenAiConfig
     github: GitHubConfig
+    openrouter: OpenAiConfig
     open_ai_compatible: OpenAiConfig
 
 

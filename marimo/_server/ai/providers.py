@@ -988,6 +988,8 @@ def get_completion_provider(
         return BedrockProvider(model_id.model, config)
     elif model_id.provider == "azure":
         return AzureOpenAIProvider(model_id.model, config)
+    elif model_id.provider == "openrouter":
+        return OpenAIProvider(model_id.model, config)
     else:
         return OpenAIProvider(model_id.model, config)
 

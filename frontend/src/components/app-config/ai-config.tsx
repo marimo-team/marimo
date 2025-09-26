@@ -735,6 +735,36 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         </AccordionFormItem>
 
         <AccordionFormItem
+          title="OpenRouter"
+          provider="openrouter"
+          isConfigured={hasValue("ai.openrouter.api_key")}
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.openrouter.api_key"
+            placeholder="or-..."
+            testId="ai-openrouter-api-key-input"
+            description={
+              <>
+                Your OpenRouter API key from {""}
+                <ExternalLink href="https://openrouter.ai/keys">
+                  openrouter.ai
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.openrouter.base_url"
+            placeholder="https://openrouter.ai/api/v1/"
+            testId="ai-openrouter-base-url-input"
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
           title="Azure"
           provider="azure"
           isConfigured={
