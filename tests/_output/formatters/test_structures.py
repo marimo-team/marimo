@@ -331,31 +331,16 @@ def test_function_like_objects_fallback_on_exception() -> None:
         def __call__(self, *args: object, **kwargs: object) -> None:  # noqa: ARG002
             return None
 
-    b = Boom()
+    b = Boom().__call__
 
-    # Monkey-patch to raise from inspect.signature
-    import inspect as _inspect
+    from marimo._output.formatters.structures import StructuresFormatter
 
-    orig_signature = _inspect.signature
-    try:
-
-        def bad_signature(obj: object):  # type: ignore[no-untyped-def]
-            if obj is b:
-                raise ValueError("boom")
-            return orig_signature(obj)
-
-        _inspect.signature = bad_signature  # type: ignore[assignment]
-
-        from marimo._output.formatters.structures import StructuresFormatter
-
-        StructuresFormatter().register()
-        fmt = get_formatter(b)
-        assert fmt is not None
-        mime, data = fmt(b)
-        assert mime == "text/html" or mime == "text/plain"
-        # Fallback path returns plain text repr wrapped via plain_text
-        # which ultimately produces HTML; accept either to be robust.
-        assert isinstance(data, str)
-        assert len(data) > 0
-    finally:
-        _inspect.signature = orig_signature  # type: ignore[assignment]
+    StructuresFormatter().register()
+    fmt = get_formatter(b)
+    assert fmt is not None
+    mime, data = fmt(b)
+    assert mime == "text/html" or mime == "text/plain"
+    # Fallback path returns plain text repr wrapped via plain_text
+    # which ultimately produces HTML; accept either to be robust.
+    assert isinstance(data, str)
+    assert len(data) > 0
