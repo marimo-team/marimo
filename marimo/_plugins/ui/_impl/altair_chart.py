@@ -15,7 +15,8 @@ from typing import (
 )
 
 import narwhals.stable.v2 as nw
-from narwhals.typing import IntoDataFrame
+from narwhals.dependencies import is_narwhals_lazyframe
+from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -96,9 +97,13 @@ def _using_vegafusion() -> bool:
 
 
 def _filter_dataframe(
-    native_df: IntoDataFrame, selection: ChartSelection
+    native_df: Union[IntoDataFrame, IntoLazyFrame], selection: ChartSelection
 ) -> IntoDataFrame:
-    df = nw.from_native(native_df)
+    df = nw.from_native(native_df).lazy()
+    if is_narwhals_lazyframe(df):
+        raise ValueError(
+            "Lazyframes are not supported for filtering. Run `df.collect()` before filtering."
+        )
     if not isinstance(selection, dict):
         raise TypeError("Input 'selection' must be a dictionary")
 

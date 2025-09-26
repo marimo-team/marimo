@@ -9,7 +9,7 @@ from typing import Any, Optional, Union, cast
 
 import msgspec
 import narwhals.stable.v2 as nw
-from narwhals.stable.v2.typing import IntoFrameT
+from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 
 from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
@@ -46,12 +46,16 @@ UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API althou
 
 
 class NarwhalsTableManager(
-    TableManager[Union[nw.DataFrame[IntoFrameT], nw.LazyFrame[IntoFrameT]]]
+    TableManager[
+        Union[nw.DataFrame[IntoDataFrameT], nw.LazyFrame[IntoLazyFrameT]]
+    ]
 ):
     type = "narwhals"
 
     @staticmethod
-    def from_dataframe(data: IntoFrameT) -> NarwhalsTableManager[IntoFrameT]:
+    def from_dataframe(
+        data: Union[IntoDataFrameT, IntoLazyFrameT],
+    ) -> NarwhalsTableManager[IntoDataFrameT, IntoLazyFrameT]:
         return NarwhalsTableManager(nw.from_native(data, pass_through=False))
 
     def as_frame(self) -> nw.DataFrame[Any]:
@@ -93,7 +97,7 @@ class NarwhalsTableManager(
 
     def apply_formatting(
         self, format_mapping: Optional[FormatMapping]
-    ) -> NarwhalsTableManager[Any]:
+    ) -> NarwhalsTableManager[IntoDataFrameT, IntoLazyFrameT]:
         if not format_mapping:
             return self
 
@@ -111,7 +115,9 @@ class NarwhalsTableManager(
     def supports_filters(self) -> bool:
         return True
 
-    def select_rows(self, indices: list[int]) -> TableManager[Any]:
+    def select_rows(
+        self, indices: list[int]
+    ) -> TableManager[Union[IntoDataFrameT, IntoLazyFrameT]]:
         if not indices:
             return self.with_new_data(self.data.head(0))
 
@@ -456,6 +462,7 @@ class NarwhalsTableManager(
         # Downgrade to v1 since v2 does not support the hist() method yet
         downgraded_df = downgrade_narwhals_df_to_v1(self.as_frame())
         col = downgraded_df.get_column(column)
+
         bin_start = col.min()
         bin_values: list[BinValue] = []
 
