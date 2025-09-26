@@ -7,7 +7,10 @@ import { AppHeader } from "@/components/editor/header/app-header";
 import { Spinner } from "@/components/icons/spinner";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
-import { notebookOrUIElementsIsRunningAtom, useCellActions } from "./cells/cells";
+import {
+  notebookOrUIElementsIsRunningAtom,
+  useCellActions,
+} from "./cells/cells";
 import type { AppConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";

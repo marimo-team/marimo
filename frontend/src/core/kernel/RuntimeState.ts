@@ -1,6 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { Logger } from "@/utils/Logger";
+import { uiElementLoadingAtom } from "../cells/cells";
+import type { UIElementId } from "../cells/ids";
 import {
   MarimoValueReadyEvent,
   type MarimoValueReadyEventType,
@@ -8,8 +10,6 @@ import {
 import { UI_ELEMENT_REGISTRY, type UIElementRegistry } from "../dom/uiregistry";
 import type { RunRequests } from "../network/types";
 import { store } from "../state/jotai";
-import { uiElementLoadingAtom } from "../cells/cells";
-import type { UIElementId } from "../cells/ids";
 
 /**
  * Manager to track running cells.
@@ -93,19 +93,21 @@ export class RuntimeState {
       this.sendComponentValues({
         objectIds: [objectId],
         values: [value],
-      }).then(() => {
-        // Remove from loading state on success
-        this.clearLoadingState(objectId as UIElementId);
-      }).catch(
-        // This happens if the run failed to register (401, 403, network
-        // error, etc.) A run may fail if the kernel is restarted or the
-        // notebook is closed.
-        (error) => {
-          Logger.warn(error);
-          // Remove from loading state on error too
+      })
+        .then(() => {
+          // Remove from loading state on success
           this.clearLoadingState(objectId as UIElementId);
-        },
-      );
+        })
+        .catch(
+          // This happens if the run failed to register (401, 403, network
+          // error, etc.) A run may fail if the kernel is restarted or the
+          // notebook is closed.
+          (error) => {
+            Logger.warn(error);
+            // Remove from loading state on error too
+            this.clearLoadingState(objectId as UIElementId);
+          },
+        );
     }
   };
 
