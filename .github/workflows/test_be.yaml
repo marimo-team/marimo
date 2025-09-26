@@ -54,4 +54,4 @@ jobs:
 
       - name: Test LSP Copilot paths with spaces (Windows only)
         run: |
-          hatch run +py=${{ matrix.python-version }} test:test -v tests/_server/test_lsp_copilot_paths.py --maxfail=1
+          hatch run +py=${{ matrix.python-version }} test:test -v tests/_server/test_lsp_copilot_paths.py

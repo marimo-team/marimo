@@ -77,8 +77,9 @@ class TestCopilotLspServerPaths:
         ) as temp_dir:
             temp_path = Path(temp_dir)
 
-            # Create directory structure with spaces similar to "Program Files"
-            copilot_dir = temp_path / "copilot with spaces"
+            # Create directory structure with standard copilot directory name
+            # The spaces are in the parent path (temp_path), not the copilot directory
+            copilot_dir = temp_path / "copilot"
             copilot_dir.mkdir()
             copilot_bin = copilot_dir / "language-server.js"
             copilot_bin.write_text("// mock copilot binary")
@@ -187,8 +188,9 @@ class TestCopilotLspServerPaths:
         ) as temp_dir:
             temp_path = Path(temp_dir)
 
-            # Create directory structure with spaces
-            copilot_dir = temp_path / "GitHub Copilot"
+            # Create directory structure with standard copilot directory name
+            # The spaces are in the parent path (temp_path), not the copilot directory
+            copilot_dir = temp_path / "copilot"
             copilot_dir.mkdir()
             copilot_bin = copilot_dir / "language-server.js"
             copilot_bin.write_text("// mock copilot binary")
@@ -282,8 +284,9 @@ class TestCopilotLspServerPaths:
         with tempfile.TemporaryDirectory(prefix="Test Path With Spaces ") as temp_dir:
             temp_path = Path(temp_dir)
 
-            # Create directory structure with spaces
-            copilot_dir = temp_path / "copilot with spaces"
+            # Create directory structure with standard copilot directory name
+            # The spaces are in the parent path (temp_path), not the copilot directory
+            copilot_dir = temp_path / "copilot"
             copilot_dir.mkdir()
             copilot_bin = copilot_dir / "language-server.js"
             copilot_bin.write_text("// mock copilot binary")
