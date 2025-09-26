@@ -140,7 +140,7 @@ class TestCopilotLspServerPaths:
             return_value=None,
         ):
             result = server.validate_requirements()
-            assert result != True
+            assert not result
             assert "node.js binary is missing" in result
 
     def test_copilot_validate_requirements_node_old_version(self):
@@ -160,7 +160,7 @@ class TestCopilotLspServerPaths:
             )
 
             result = server.validate_requirements()
-            assert result != True
+            assert not result
             assert "Node.js version 18.20.0 is too old" in result
             assert "requires Node.js version 20 or higher" in result
 
