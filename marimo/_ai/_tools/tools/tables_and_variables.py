@@ -3,9 +3,9 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from marimo._ai._tools.base import ToolBase
-from marimo._ai._tools.tools.cells import CellVariableValue
 from marimo._ai._tools.types import SuccessResult
 from marimo._data.models import DataTableColumn
+from marimo._messaging.ops import VariableValue
 from marimo._server.sessions import Session
 from marimo._types.ids import SessionId
 
@@ -42,7 +42,7 @@ class DataTableMetadata:
 @dataclass
 class TablesAndVariablesOutput(SuccessResult):
     tables: dict[str, DataTableMetadata] = field(default_factory=dict)
-    variables: dict[str, CellVariableValue] = field(default_factory=dict)
+    variables: dict[str, VariableValue] = field(default_factory=dict)
 
 
 class GetTablesAndVariables(
@@ -98,13 +98,13 @@ class GetTablesAndVariables(
                 engine=table.engine,
             )
 
-        notebook_variables: dict[str, CellVariableValue] = {}
+        notebook_variables: dict[str, VariableValue] = {}
         for variable_name in filtered_variables:
             value = variables[variable_name]
-            notebook_variables[variable_name] = CellVariableValue(
+            notebook_variables[variable_name] = VariableValue(
                 name=variable_name,
                 value=value.value,
-                data_type=value.datatype,
+                datatype=value.datatype,
             )
 
         return TablesAndVariablesOutput(
