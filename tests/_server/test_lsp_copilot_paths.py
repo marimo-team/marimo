@@ -48,7 +48,9 @@ class TestCopilotLspServerPaths:
 
                 # Verify that the command contains the expected structure
                 assert command[0] == "node"
-                assert str(lsp_bin) in command
+                # The lsp_bin path should be quoted if it contains spaces
+                lsp_bin_str = str(lsp_bin)
+                assert lsp_bin_str in command or f'"{lsp_bin_str}"' in command
                 assert "--port" in command
                 assert "8080" in command
                 assert "--lsp" in command
@@ -261,7 +263,8 @@ class TestCopilotLspServerPaths:
                 assert len(command) > 0
 
                 # The lsp_bin path with spaces should be handled correctly
-                assert str(lsp_bin) in command
+                lsp_bin_str = str(lsp_bin)
+                assert lsp_bin_str in command or f'"{lsp_bin_str}"' in command
 
                 # Get the LSP command part
                 lsp_arg_index = command.index("--lsp") + 1
