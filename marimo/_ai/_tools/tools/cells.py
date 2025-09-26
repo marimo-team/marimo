@@ -373,10 +373,6 @@ class GetCellRuntimeData(
         for var_name in cell_defs:
             if var_name in all_variables:
                 var_value = all_variables[var_name]
-                cell_variables[var_name] = VariableValue(
-                    name=var_name,
-                    value=var_value.value,
-                    datatype=var_value.datatype,
-                )
+                cell_variables[var_name] = var_value
 
         return cell_variables
