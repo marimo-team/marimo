@@ -67,13 +67,17 @@ def test_tool_msgspec_structs_expose_pydantic_hook() -> None:
     offenders: list[str] = []
     for cls in TOOL_IO_CLASSES:
         for ann in (getattr(cls, "__annotations__", {}) or {}).values():
-            for typ in _iter_types(ann):
-                if isinstance(typ, type) and issubclass(typ, msgspec.Struct):
+            for resolved_type in _iter_types(ann):
+                if isinstance(resolved_type, type) and issubclass(
+                    resolved_type, msgspec.Struct
+                ):
                     if not callable(
-                        getattr(typ, "__get_pydantic_core_schema__", None)
+                        getattr(
+                            resolved_type, "__get_pydantic_core_schema__", None
+                        )
                     ):
                         offenders.append(
-                            f"{typ.__module__}.{typ.__name__} (referenced by {cls.__module__}.{cls.__name__})"
+                            f"{resolved_type.__module__}.{resolved_type.__name__} (referenced by {cls.__module__}.{cls.__name__})"
                         )
 
     assert not offenders, (
