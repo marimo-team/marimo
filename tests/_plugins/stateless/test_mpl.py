@@ -252,10 +252,9 @@ def test_mpl_server_manager() -> None:
 def test_get_or_create_application_with_restart() -> None:
     """Test get_or_create_application handles server restart"""
     from marimo._plugins.stateless.mpl._mpl import (
-        get_or_create_application,
         _server_manager,
-        _app,
-        figure_managers
+        figure_managers,
+        get_or_create_application,
     )
 
     # Clear any existing state
@@ -288,7 +287,9 @@ def test_get_or_create_application_with_restart() -> None:
         app2 = get_or_create_application()
         assert app2 is not None
         assert app2 is not app1  # Should be a new app instance
-        assert len(figure_managers.figure_managers) == 0  # Figures should be cleared
+        assert (
+            len(figure_managers.figure_managers) == 0
+        )  # Figures should be cleared
 
         # Should have started two threads (original + restart)
         assert mock_thread_class.call_count == 2

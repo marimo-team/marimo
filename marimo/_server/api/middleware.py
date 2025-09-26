@@ -421,11 +421,13 @@ class ProxyMiddleware:
             if "/mpl/" in request.url.path:
                 # Log at debug level and return a helpful error response
                 # instead of letting the exception bubble up
-                LOGGER.debug(f"Matplotlib server connection refused for {request.url.path}")
+                LOGGER.debug(
+                    f"Matplotlib server connection refused for {request.url.path}"
+                )
                 return Response(
                     content="Matplotlib server is not available. Please re-run the cell containing this plot.",
                     status_code=503,
-                    media_type="text/plain"
+                    media_type="text/plain",
                 )
             else:
                 # For non-matplotlib requests, re-raise the exception

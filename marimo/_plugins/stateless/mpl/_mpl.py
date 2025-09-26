@@ -84,7 +84,7 @@ class MplServerManager:
         self,
         app_host: Optional[str] = None,
         free_port: Optional[int] = None,
-        secure_host: Optional[bool] = None
+        secure_host: Optional[bool] = None,
     ) -> Starlette:
         """Start the matplotlib server and return the Starlette app."""
         import uvicorn
@@ -94,8 +94,11 @@ class MplServerManager:
 
         # Find a free port, with some randomization to avoid conflicts
         import random
+
         base_port = 10_000 + random.randint(0, 1000)  # Add some randomization
-        port = free_port if free_port is not None else find_free_port(base_port)
+        port = (
+            free_port if free_port is not None else find_free_port(base_port)
+        )
         app = create_application()
         app.state.host = host
         app.state.port = port
@@ -144,10 +147,7 @@ class MplServerManager:
             LOGGER.debug("Marked matplotlib server for restart")
 
 
-
 _server_manager = MplServerManager()
-
-
 
 
 def _get_host() -> str:
@@ -315,7 +315,10 @@ def create_application() -> Starlette:
             except Exception as e:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
                     await websocket.send_json(
-                        {"type": "error", "message": f"WebSocket receive error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot."}
+                        {
+                            "type": "error",
+                            "message": f"WebSocket receive error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot.",
+                        }
                     )
             finally:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
@@ -335,7 +338,10 @@ def create_application() -> Starlette:
             except Exception as e:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
                     await websocket.send_json(
-                        {"type": "error", "message": f"WebSocket send error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot."}
+                        {
+                            "type": "error",
+                            "message": f"WebSocket send error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot.",
+                        }
                     )
             finally:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
@@ -345,7 +351,12 @@ def create_application() -> Starlette:
             await asyncio.gather(receive(), send())
         except Exception as e:
             if websocket.application_state != WebSocketState.DISCONNECTED:
-                await websocket.send_json({"type": "error", "message": f"WebSocket connection error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot."})
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "message": f"WebSocket connection error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot.",
+                    }
+                )
                 await websocket.close()
 
     return Starlette(
@@ -385,7 +396,9 @@ def get_or_create_application(
     with _server_manager._restart_lock:
         if _app is None or not _server_manager.is_running():
             if _app is not None:
-                LOGGER.info("Matplotlib server appears to have died, restarting...")
+                LOGGER.info(
+                    "Matplotlib server appears to have died, restarting..."
+                )
                 _server_manager.stop()
                 # Clear existing figure managers to prevent stale state
                 figure_managers.figure_managers.clear()
