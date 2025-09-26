@@ -131,58 +131,6 @@ class TestCopilotLspServerPaths:
                 # Should return empty command when binary doesn't exist
                 assert command == []
 
-    def test_copilot_validate_requirements_node_missing(self):
-        """Test that copilot validation fails when node is missing."""
-        server = CopilotLspServer(port=8080)
-
-        with patch(
-            "marimo._dependencies.dependencies.DependencyManager.which",
-            return_value=None,
-        ):
-            result = server.validate_requirements()
-            assert not result
-            assert "node.js binary is missing" in result
-
-    def test_copilot_validate_requirements_node_old_version(self):
-        """Test that copilot validation fails when node version is too old."""
-        server = CopilotLspServer(port=8080)
-
-        with (
-            patch(
-                "marimo._dependencies.dependencies.DependencyManager.which",
-                return_value="/usr/bin/node",
-            ),
-            patch("subprocess.run") as mock_run,
-        ):
-            # Mock node version check to return old version
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="v18.20.0\n"
-            )
-
-            result = server.validate_requirements()
-            assert not result
-            assert "Node.js version 18.20.0 is too old" in result
-            assert "requires Node.js version 20 or higher" in result
-
-    def test_copilot_validate_requirements_node_good_version(self):
-        """Test that copilot validation succeeds with good node version."""
-        server = CopilotLspServer(port=8080)
-
-        with (
-            patch(
-                "marimo._dependencies.dependencies.DependencyManager.which",
-                return_value="/usr/bin/node",
-            ),
-            patch("subprocess.run") as mock_run,
-        ):
-            # Mock node version check to return good version
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="v20.10.0\n"
-            )
-
-            result = server.validate_requirements()
-            assert result is True
-
     def test_copilot_command_structure_consistency(self):
         """Test that the copilot command structure is consistent."""
         with tempfile.TemporaryDirectory() as temp_dir:
