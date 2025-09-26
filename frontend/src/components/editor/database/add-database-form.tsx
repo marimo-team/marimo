@@ -39,6 +39,7 @@ import {
   ChdbConnectionSchema,
   ClickhouseConnectionSchema,
   type DatabaseConnection,
+  DatabricksConnectionSchema,
   DataFusionConnectionSchema,
   DuckDBConnectionSchema,
   IcebergConnectionSchema,
@@ -208,6 +209,16 @@ const DATABASES = [
     connectionLibraries: {
       libraries: ["redshift"],
       preferred: "redshift",
+    },
+  },
+  {
+    name: "Databricks",
+    schema: DatabricksConnectionSchema,
+    color: "#c41e0c",
+    logo: "databricks",
+    connectionLibraries: {
+      libraries: ["sqlalchemy", "sqlmodel", "ibis"],
+      preferred: "sqlalchemy",
     },
   },
 ] satisfies ConnectionSchema[];
