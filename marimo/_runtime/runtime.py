@@ -2488,8 +2488,7 @@ class SqlCallbacks:
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
 
-    @kernel_tracer.start_as_current_span("validate_sql_query")
-    async def validate_sql(self, request: ValidateSQLRequest) -> None:
+    async def _validate_sql_query(self, request: ValidateSQLRequest) -> None:
         """Validate an SQL query
 
         This will validate:
@@ -2567,6 +2566,19 @@ class SqlCallbacks:
             parse_result=parse_result,
             error=None,
         ).broadcast()
+
+    @kernel_tracer.start_as_current_span("validate_sql")
+    async def validate_sql(self, request: ValidateSQLRequest) -> None:
+        """Validate an SQL query"""
+
+        try:
+            await self._validate_sql_query(request)
+        except Exception as e:
+            LOGGER.exception("Failed to validate SQL query")
+            ValidateSQLResult(
+                request_id=request.request_id,
+                error="Failed to validate SQL query: " + str(e),
+            ).broadcast()
 
 
 class SecretsCallbacks:
