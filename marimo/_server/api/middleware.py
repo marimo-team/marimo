@@ -446,6 +446,7 @@ class ProxyMiddleware:
             content=request.stream(),
         )
 
+        response: Union[StreamingResponse, Response]
         try:
             rp_resp = await client.send(rp_req, stream=True)
             response = StreamingResponse(
@@ -455,7 +456,7 @@ class ProxyMiddleware:
                 background=BackgroundTask(rp_resp.aclose),
             )
         except ConnectionRefusedError as e:
-            if self.connection_error_handler:
+            if self.connection_error_handler is not None:
                 response = self.connection_error_handler(e, request.url.path)
             else:
                 raise
