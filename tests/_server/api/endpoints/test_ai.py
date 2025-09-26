@@ -591,14 +591,17 @@ class TestGoogleAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.client.AsyncClient")
+    @patch("google.genai.Client")
     def test_google_ai_completion_without_token(
         client: TestClient, google_ai_mock: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        google_client = MagicMock()
-        google_ai_mock.return_value = google_client
+        # Mock the google client and its aio attribute
+        google_client_mock = MagicMock()
+        google_aio_mock = MagicMock()
+        google_client_mock.aio = google_aio_mock
+        google_ai_mock.return_value = google_client_mock
 
         # Mock async stream
         async def mock_stream():
@@ -607,7 +610,7 @@ class TestGoogleAiEndpoints:
                 thought=None,
             )
 
-        google_client.models.generate_content_stream = AsyncMock(
+        google_aio_mock.models.generate_content_stream = AsyncMock(
             side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
         )
 
@@ -632,9 +635,11 @@ class TestGoogleAiEndpoints:
             )
 
         assert response.status_code == 200, response.text
-        prompt = google_client.models.generate_content_stream.call_args.kwargs[
-            "contents"
-        ]
+        prompt = (
+            google_aio_mock.models.generate_content_stream.call_args.kwargs[
+                "contents"
+            ]
+        )
         assert prompt[0]["parts"][0]["text"] == "Help me create a dataframe"
 
     @staticmethod
