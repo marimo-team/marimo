@@ -32,13 +32,13 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 from marimo._utils.narwhals_utils import (
     can_narwhalify,
     dataframe_to_csv,
+    downgrade_narwhals_df_to_v1,
     is_narwhals_integer_type,
     is_narwhals_lazyframe,
     is_narwhals_string_type,
     is_narwhals_temporal_type,
     is_narwhals_time_type,
     unwrap_py_scalar,
-    upgrade_narwhals_df,
 )
 
 LOGGER = _loggers.marimo_logger()
@@ -58,9 +58,6 @@ class NarwhalsTableManager(
         if is_narwhals_lazyframe(self.data):
             return self.data.collect()
         return self.data
-
-    def upgrade(self) -> NarwhalsTableManager[Any]:
-        return NarwhalsTableManager(upgrade_narwhals_df(self.data))
 
     def as_lazy_frame(self) -> nw.LazyFrame[Any]:
         if is_narwhals_lazyframe(self.data):
@@ -86,7 +83,7 @@ class NarwhalsTableManager(
     def to_json_str(
         self, format_mapping: Optional[FormatMapping] = None
     ) -> str:
-        frame = self.upgrade().apply_formatting(format_mapping).as_frame()
+        frame = self.apply_formatting(format_mapping).as_frame()
         return sanitize_json_bigint(frame.rows(named=True))
 
     def to_parquet(self) -> bytes:
@@ -100,7 +97,7 @@ class NarwhalsTableManager(
         if not format_mapping:
             return self
 
-        frame = self.upgrade().as_frame()
+        frame = self.as_frame()
         _data = frame.to_dict(as_series=False).copy()
         for col in _data.keys():
             if col in format_mapping:
@@ -456,7 +453,9 @@ class NarwhalsTableManager(
         if not dtype.is_numeric():
             return []
 
-        col = self.as_frame().get_column(column)
+        # Downgrade to v1 since v2 does not support the hist() method yet
+        downgraded_df = downgrade_narwhals_df_to_v1(self.as_frame())
+        col = downgraded_df.get_column(column)
         bin_start = col.min()
         bin_values: list[BinValue] = []
 
@@ -484,10 +483,12 @@ class NarwhalsTableManager(
         nw.hist does not support temporal columns, so we convert to numeric
         and then convert back to temporal values.
         """
-        # Convert to timestamp in ms
-        col = self.as_frame().get_column(column)
+        # Downgrade to v1 since v2 does not support the hist() method yet
+        downgraded_df = downgrade_narwhals_df_to_v1(self.as_frame())
+        col = downgraded_df.get_column(column)
 
         if dtype == nw.Time:
+            # Convert to timestamp in ms
             col_in_ms = (
                 col.dt.hour().cast(nw.Int64) * 3600000
                 + col.dt.minute().cast(nw.Int64) * 60000

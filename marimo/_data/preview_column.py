@@ -21,6 +21,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._runtime.requests import PreviewDatasetColumnRequest
 from marimo._sql.utils import wrapped_sql
+from marimo._utils.narwhals_utils import downgrade_narwhals_df_to_v1
 
 LOGGER = _loggers.marimo_logger()
 
@@ -274,7 +275,10 @@ def _get_altair_chart(
     # We may not know number of rows, so we can check for max rows error
     try:
         chart_spec = _get_chart_spec(
-            column_data=column_data,
+            # Downgrade to v1 since altair doesn't support v2 yet
+            # This is valiadted with our tests, so if the tests pass with this
+            # removed, we can remove the downgrade.
+            column_data=downgrade_narwhals_df_to_v1(column_data),
             column_type=column_type,
             column_name=column_name,
             should_limit_to_10_items=should_limit_to_10_items,
