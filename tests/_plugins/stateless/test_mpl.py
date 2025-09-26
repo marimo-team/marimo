@@ -214,3 +214,81 @@ def test_template_contains_html_structure() -> None:
         assert '<div id="figure"></div>' in result
         assert "12345" in result
         assert "9000" in result
+
+
+def test_mpl_server_manager() -> None:
+    """Test MplServerManager basic functionality"""
+    from marimo._plugins.stateless.mpl._mpl import MplServerManager
+
+    manager = MplServerManager()
+
+    # Initially should not be running
+    assert not manager.is_running()
+
+    # Mock threading.Thread to avoid actually starting a server
+    with patch("threading.Thread") as mock_thread_class:
+        mock_thread = MagicMock()
+        mock_thread.is_alive.return_value = True
+        mock_thread_class.return_value = mock_thread
+
+        # Start should create and return an app
+        app = manager.start(app_host="localhost", free_port=12345)
+
+        # Should now be running
+        assert manager.is_running()
+
+        # Verify app state
+        assert app.state.host == "localhost"
+        assert app.state.port == 12345
+
+        # Thread should have been started
+        mock_thread.start.assert_called_once()
+
+        # Stop should mark as not running
+        manager.stop()
+        assert not manager.is_running()
+
+
+def test_get_or_create_application_with_restart() -> None:
+    """Test get_or_create_application handles server restart"""
+    from marimo._plugins.stateless.mpl._mpl import (
+        get_or_create_application,
+        _server_manager,
+        _app,
+        figure_managers
+    )
+
+    # Clear any existing state
+    globals()["_app"] = None
+    figure_managers.figure_managers.clear()
+
+    with patch("threading.Thread") as mock_thread_class:
+        # First thread: running
+        mock_thread1 = MagicMock()
+        mock_thread1.is_alive.return_value = True
+
+        # Second thread: also running (for restart)
+        mock_thread2 = MagicMock()
+        mock_thread2.is_alive.return_value = True
+
+        mock_thread_class.side_effect = [mock_thread1, mock_thread2]
+
+        # First call should create app
+        app1 = get_or_create_application()
+        assert app1 is not None
+        assert _server_manager.is_running()
+
+        # Simulate server death
+        mock_thread1.is_alive.return_value = False
+
+        # Add a figure to test cleanup
+        figure_managers.figure_managers["test"] = MagicMock()
+
+        # Next call should restart server and clear figures
+        app2 = get_or_create_application()
+        assert app2 is not None
+        assert app2 is not app1  # Should be a new app instance
+        assert len(figure_managers.figure_managers) == 0  # Figures should be cleared
+
+        # Should have started two threads (original + restart)
+        assert mock_thread_class.call_count == 2

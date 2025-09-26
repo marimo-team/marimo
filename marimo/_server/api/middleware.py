@@ -408,13 +408,28 @@ class ProxyMiddleware:
             content=request.stream(),
         )
 
-        rp_resp = await client.send(rp_req, stream=True)
-        response = StreamingResponse(
-            rp_resp.aiter_raw(),
-            status_code=rp_resp.status_code,
-            headers=rp_resp.headers,
-            background=BackgroundTask(rp_resp.aclose),
-        )
+        try:
+            rp_resp = await client.send(rp_req, stream=True)
+            response = StreamingResponse(
+                rp_resp.aiter_raw(),
+                status_code=rp_resp.status_code,
+                headers=rp_resp.headers,
+                background=BackgroundTask(rp_resp.aclose),
+            )
+        except ConnectionRefusedError:
+            # Check if this is a matplotlib server request (contains /mpl/ in path)
+            if "/mpl/" in request.url.path:
+                # Log at debug level and return a helpful error response
+                # instead of letting the exception bubble up
+                LOGGER.debug(f"Matplotlib server connection refused for {request.url.path}")
+                return Response(
+                    content="Matplotlib server is not available. Please re-run the cell containing this plot.",
+                    status_code=503,
+                    media_type="text/plain"
+                )
+            else:
+                # For non-matplotlib requests, re-raise the exception
+                raise
         await response(scope, receive, send)
 
     async def _proxy_websocket(
