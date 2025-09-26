@@ -1992,7 +1992,7 @@ describe("CollapsibleTree.fromWithPreviousShape", () => {
     expect(tree.topLevelIds).toEqual(["one", "three", "four"]);
   });
 
-  it("reproduces GitHub issue #6188: simplified case with nested collapses", () => {
+  it("reproduces GitHub issue #6188: inOrderIds with nested collapses", () => {
     // Simplified reproduction case:
     // Cell A (markdown): # Section 1 Header
     // Cell B (markdown): ## Subsection 1.1 Header
@@ -2021,7 +2021,7 @@ describe("CollapsibleTree.fromWithPreviousShape", () => {
     // Follow the exact reproduction steps from the GitHub issue:
     // 1. Collapse B (subsection 1.1) - includes C, D (stops before E)
     notebook = notebook.transform(columnId, (tree) =>
-      tree.collapse("CellB", "CellE"),
+      tree.collapse("CellB", "CellD"),
     );
 
     // 2. Collapse E (subsection 1.2) - includes F (to end)
