@@ -72,7 +72,7 @@ Below we describe how to connect marimo to your AI provider.
 
 **Requirements**
 
-* `pip install openai`
+* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -142,19 +142,42 @@ Use `profile_name` for a non-default named profile, or rely on env vars/standard
 
 **Requirements**
 
-* API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 * `pip install google-genai`
 
-**Configuration**
+You can use Google AI via two backends: **Google AI Studio** (API key) or **Google Vertex AI** (no API key required).
+
+#### Using Google AI Studio (API key)
+
+1. Sign up at [Google AI Studio](https://aistudio.google.com/app/apikey) and obtain your API key.
+2. Configure `marimo.toml` (or set these in the editor Settings):
 
 ```toml title="marimo.toml"
 [ai.models]
-chat_model = "google/gemini-2.5-pro" # also see gemini-2.0-flash, etc.
-# Model list: https://ai.google.dev/gemini-api/docs/models/gemini
+chat_model = "google/gemini-2.5-pro"
+# or any model from https://ai.google.dev/gemini-api/docs/models/gemini
 
 [ai.google]
 api_key = "AI..."
 ```
+
+#### Using Google Vertex AI (no API key required)
+
+1. Ensure you have access to a Google Cloud project with Vertex AI enabled.
+2. Set the following environment variables before starting marimo:
+
+```bash
+export GOOGLE_GENAI_USE_VERTEXAI=true
+export GOOGLE_CLOUD_PROJECT='your-project-id'
+export GOOGLE_CLOUD_LOCATION='us-central1'
+```
+
+* `GOOGLE_GENAI_USE_VERTEXAI=true` tells the client to use Vertex AI.
+* `GOOGLE_CLOUD_PROJECT` is your GCP project ID.
+* `GOOGLE_CLOUD_LOCATION` is your region (e.g., `us-central1`).
+
+3. No API key is needed in your `marimo.toml` for Vertex AI.
+
+For details and advanced configuration, see the `google-genai` Python client docs: `https://googleapis.github.io/python-genai/#create-a-client`.
 
 ### GitHub Copilot
 
@@ -193,7 +216,7 @@ Route to many providers through OpenRouter with a single API.
 **Requirements**
 
 * Create an API key: [OpenRouter Dashboard](https://openrouter.ai/)
-* `pip install openai` (OpenRouter is OpenAI‑compatible)
+* `pip install openai` or `uv add openai` (OpenRouter is OpenAI‑compatible)
 
 **Configuration**
 
@@ -219,7 +242,11 @@ Run open-source LLMs locally and connect via an OpenAI‑compatible API.
 **Requirements**
 
 * Install [Ollama](https://ollama.com/)
-* Pull a model
+* `pip install openai` or `uv add openai`
+
+**Setup**
+
+1. Pull a model
 
    ```bash
    # View available models at https://ollama.com/library
@@ -230,7 +257,7 @@ Run open-source LLMs locally and connect via an OpenAI‑compatible API.
    ollama ls
    ```
 
-3. Start the Ollama server:
+2. Start the Ollama server:
 
    ```bash
    ollama serve
@@ -238,18 +265,19 @@ Run open-source LLMs locally and connect via an OpenAI‑compatible API.
    ollama run codellama
    ```
 
-4. Visit <http://127.0.0.1:11434> to confirm that the server is running.
+3. Visit <http://127.0.0.1:11434> to confirm that the server is running.
 
 !!! note "Port already in use"
     If you get a "port already in use" error, you may need to close an existing Ollama instance. On Windows, click the up arrow in the taskbar, find the Ollama icon, and select "Quit". This is a known issue (see [Ollama Issue #3575](https://github.com/ollama/ollama/issues/3575)). Once you've closed the existing Ollama instance, you should be able to run `ollama serve` successfully.
 
-5. Install the OpenAI client (`pip install openai` or `uv add openai`).
+**Configuration**
 
-6. Start marimo:
-
-   ```bash
-   marimo edit notebook.py
-   ```
+```toml title="marimo.toml"
+[ai.models]
+chat_model = "ollama/llama3.1:latest"
+edit_model = "ollama/codellama"
+autocomplete_model = "ollama/codellama" # or another model from `ollama ls`
+```
 
 ??? warning "Important: Use the `/v1` endpoint"
 
@@ -270,15 +298,6 @@ Run open-source LLMs locally and connect via an OpenAI‑compatible API.
     curl http://127.0.0.1:11434/v1/models
     ```
 
-7. Configure `marimo.toml` (or use Settings):
-
-```toml title="marimo.toml"
-[ai.models]
-chat_model = "ollama/llama3.1:latest"
-edit_model = "ollama/codellama"
-autocomplete_model = "ollama/codellama" # or another model from `ollama ls`
-```
-
 ### OpenAI-compatible providers
 
 Many providers expose OpenAI-compatible endpoints. Point `base_url` at the provider and use their models.
@@ -288,7 +307,7 @@ Common examples include [GROQ](https://console.groq.com/docs/openai), DeepSeek, 
 
 * Provider API key
 * Provider OpenAI-compatible `base_url`
-* `pip install openai`
+* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -334,7 +353,7 @@ Use DeepSeek via its OpenAI‑compatible API.
 **Requirements**
 
 * DeepSeek API key
-* `pip install openai`
+* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -354,7 +373,7 @@ Use Grok models via xAI's OpenAI‑compatible API.
 **Requirements**
 
 * xAI API key
-* `pip install openai`
+* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -374,7 +393,7 @@ Connect to a local model served by LM Studio's OpenAI‑compatible endpoint.
 **Requirements**
 
 * Install LM Studio and start its server
-* `pip install openai`
+* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -393,7 +412,7 @@ Use Mistral via its OpenAI‑compatible API.
 **Requirements**
 
 * Mistral API key
-* `pip install openai`
+* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -413,7 +432,7 @@ Access multiple hosted models via Together AI's OpenAI‑compatible API.
 **Requirements**
 
 * Together AI API key
-* `pip install openai`
+* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -433,7 +452,7 @@ Use Vercel's v0 OpenAI‑compatible models for app-oriented generation.
 **Requirements**
 
 * v0 API key
-* `pip install openai`
+* `pip install openai` or `uv add openai`
 
 **Configuration**
 
