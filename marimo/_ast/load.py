@@ -187,6 +187,13 @@ def get_notebook_status(filename: str) -> LoadResult:
     return LoadResult(status="valid", notebook=notebook, contents=contents)
 
 
+FAILED_LOAD_NOTEBOOK_MESSAGE = (
+    "Static loading of notebook failed; falling back to dynamic loading. "
+    "If you can, please report this issue to the marimo team and include your notebook if possible — "
+    "https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml"
+)
+
+
 def load_app(filename: Optional[str]) -> Optional[App]:
     """Load and return app from a marimo-generated module.
 
@@ -225,10 +232,5 @@ def load_app(filename: Optional[str]) -> Optional[App]:
         # Security advantages of static load are lost here, but reasonable
         # fallback for now.
         _app = _dynamic_load(filename)
-        LOGGER.warning(
-            "Static loading of notebook failed; "
-            "falling back to dynamic loading. "
-            "If you can, please report this issue to the marimo team — "
-            "https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml"
-        )
+        LOGGER.warning(FAILED_LOAD_NOTEBOOK_MESSAGE)
         return _app
