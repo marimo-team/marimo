@@ -77,15 +77,17 @@ export class TreeNode<T> {
   @Memoize()
   get inOrderIds(): T[] {
     const result: T[] = [];
-    const queue = [...this.children];
 
-    while (queue.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const node = queue.shift()!;
+    // Use depth-first traversal to preserve logical document order
+    const traverse = (node: TreeNode<T>) => {
       result.push(node.value);
+      for (const child of node.children) {
+        traverse(child);
+      }
+    };
 
-      // Add children to queue to maintain breadth-first traversal
-      queue.push(...node.children);
+    for (const child of this.children) {
+      traverse(child);
     }
 
     return result;
