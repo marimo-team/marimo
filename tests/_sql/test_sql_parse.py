@@ -692,3 +692,68 @@ FROM users"""
         FROM users
         """)
         assert offset_record == {12: 2}
+
+    def test_insert_json(self):
+        query = "INSERT INTO users VALUES (1, '{\"id\": 1}')"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+
+        assert result_sql == "INSERT INTO users VALUES (1, '{\"id\": 1}')"
+        assert offset_record == {}
+
+    def test_brackets_inside_quotes(self):
+        # Brackets inside single quotes should not be replaced
+        query = "SELECT '{id}' FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id}' FROM users"
+        assert offset_record == {}
+
+        # Brackets inside double quotes should not be replaced
+        query = 'SELECT "{id}" FROM users'
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == 'SELECT "{id}" FROM users'
+        assert offset_record == {}
+
+    def test_multiple_brackets_on_same_line(self):
+        query = "SELECT {id}, {name}, {age} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id}', '{name}', '{age}' FROM users"
+        assert offset_record == {7: 2, 13: 2, 21: 2}
+
+    @pytest.mark.xfail(reason="Nested brackets are not supported")
+    def test_nested_brackets(self):
+        query = "SELECT {id_{nested}} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id_{nested}}' FROM users"
+        assert offset_record == {7: 2}
+
+    def test_brackets_with_escaped_quotes(self):
+        # Brackets inside a quoted string with escaped quotes
+        query = "SELECT '{id}\\'s' FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id}\\'s' FROM users"
+        assert offset_record == {}
+
+    def test_brackets_at_start_and_end(self):
+        query = "{id} FROM users WHERE name = {name}"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "'{id}' FROM users WHERE name = '{name}'"
+        assert offset_record == {0: 2, 29: 2}
+
+    def test_brackets_with_special_characters(self):
+        query = "SELECT {id_1$-foo} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id_1$-foo}' FROM users"
+        assert offset_record == {7: 2}
+
+    def test_brackets_in_comment(self):
+        # Brackets in SQL comments should be replaced, as comments are not parsed
+        query = "SELECT id -- {comment}\nFROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT id -- '{comment}'\nFROM users"
+        assert offset_record == {13: 2}
+
+    def test_adjacent_brackets(self):
+        query = "SELECT {id}{name}{age} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id}''{name}''{age}' FROM users"
+        assert offset_record == {7: 2, 11: 2, 17: 2}
