@@ -53,6 +53,35 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+def _handle_proxy_connection_error(
+    _error: ConnectionRefusedError,
+    path: str,
+    custom_message: str | None = None,
+) -> Response:
+    """Handle connection errors for proxy requests to backend services."""
+    LOGGER.debug(f"Connection refused for {path}")
+    content = (
+        custom_message
+        or "Service is not available. Please try again or restart the service."
+    )
+    return Response(
+        content=content,
+        status_code=503,
+        media_type="text/plain",
+    )
+
+
+def create_proxy_error_handler(
+    custom_message: str,
+) -> Callable[[ConnectionRefusedError, str], Response]:
+    """Create a custom error handler that wraps the default with a custom message."""
+
+    def handler(error: ConnectionRefusedError, path: str) -> Response:
+        return _handle_proxy_connection_error(error, path, custom_message)
+
+    return handler
+
+
 class AuthBackend(AuthenticationBackend):
     def __init__(self, should_authenticate: bool = True) -> None:
         self.should_authenticate = should_authenticate
@@ -340,11 +369,20 @@ class ProxyMiddleware:
         proxy_path: str,
         target_url: Union[str, Callable[[str], str]],
         path_rewrite: Callable[[str], str] | None = None,
+        connection_error_handler: Callable[
+            [ConnectionRefusedError, str], Response
+        ]
+        | None = None,
     ) -> None:
         self.app = app
         self.path = proxy_path.rstrip("/")
         self.target_url = target_url
         self.path_rewrite = path_rewrite
+        self.connection_error_handler = (
+            connection_error_handler
+            if connection_error_handler
+            else _handle_proxy_connection_error
+        )
 
     def _get_target_url(self, path: str) -> str:
         """Get target URL either from rewrite function or default MPL logic."""
@@ -416,22 +454,12 @@ class ProxyMiddleware:
                 headers=rp_resp.headers,
                 background=BackgroundTask(rp_resp.aclose),
             )
-        except ConnectionRefusedError:
-            # Check if this is a matplotlib server request (contains /mpl/ in path)
-            if "/mpl/" in request.url.path:
-                # Log at debug level and return a helpful error response
-                # instead of letting the exception bubble up
-                LOGGER.debug(
-                    f"Matplotlib server connection refused for {request.url.path}"
-                )
-                return Response(
-                    content="Matplotlib server is not available. Please re-run the cell containing this plot.",
-                    status_code=503,
-                    media_type="text/plain",
-                )
+        except ConnectionRefusedError as e:
+            if self.connection_error_handler:
+                response = self.connection_error_handler(e, request.url.path)
             else:
-                # For non-matplotlib requests, re-raise the exception
                 raise
+
         await response(scope, receive, send)
 
     async def _proxy_websocket(

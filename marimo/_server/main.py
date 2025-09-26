@@ -22,6 +22,7 @@ from marimo._server.api.middleware import (
     ProxyMiddleware,
     SkewProtectionMiddleware,
     TimeoutMiddleware,
+    create_proxy_error_handler,
 )
 from marimo._server.api.router import build_routes
 from marimo._server.api.status import (
@@ -172,11 +173,16 @@ def _create_mpl_proxy_middleware(base_url: str) -> Middleware:
         rest_parts = parts[2:]
         return "/" + "/".join(rest_parts) if rest_parts else "/"
 
+    mpl_error_handler = create_proxy_error_handler(
+        "Matplotlib server is not available. Please rerun this cell or restart the service."
+    )
+
     return Middleware(
         ProxyMiddleware,
         proxy_path=proxy_path,
         target_url=mpl_target_url,
         path_rewrite=mpl_path_rewrite,
+        connection_error_handler=mpl_error_handler,
     )
 
 
