@@ -89,7 +89,7 @@ const replaceSrcScripts = (domNode: DOMNode): JSX.Element | undefined => {
       script.src = src;
       document.head.append(script);
     }
-    // eslint-disable-next-line react/jsx-no-useless-fragment
+    // biome-ignore lint/complexity/noUselessFragments: this is intentional
     return <></>;
   }
 };
@@ -163,7 +163,6 @@ export const renderHTML = ({ html, additionalReplacements = [] }: Options) => {
           return transformed;
         }
       }
-      // eslint-disable-next-line react/jsx-no-useless-fragment
       return reactNode as JSX.Element;
     },
   });

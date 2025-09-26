@@ -192,7 +192,7 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
       scripts.forEach((script) => {
         const src = script.getAttribute("src");
 
-        if (src && src.startsWith("./assets/")) {
+        if (src?.startsWith("./assets/")) {
           return;
         }
 

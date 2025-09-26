@@ -20,7 +20,7 @@ function createMockCell(id: string, value: unknown): Cell<unknown, unknown> {
 function createMockColumn(id: string): Column<unknown> {
   return {
     id: id,
-    getIndex: () => Number.parseInt(id),
+    getIndex: () => Number.parseInt(id, 10),
   } as unknown as Column<unknown>;
 }
 
@@ -30,7 +30,7 @@ function createMockRow(
 ): Row<unknown> {
   return {
     id,
-    index: Number.parseInt(id),
+    index: Number.parseInt(id, 10),
     getAllCells: () => cells,
     original: {},
     depth: 0,

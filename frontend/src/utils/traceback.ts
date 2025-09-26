@@ -73,6 +73,7 @@ export function getTracebackInfo(domNode: DOMNode): TracebackInfo | null {
         )?.[1];
         const lineNumber = Number.parseInt(
           lineSibling.firstChild.nodeValue || "0",
+          10,
         );
         if (cellId && lineNumber) {
           return { cellId: cellId as CellId, lineNumber };

@@ -41,7 +41,7 @@ const BIG_INT_MIDDLEWARE: Middleware = () => {
       return result;
     }
 
-    const parsedInt = Number.parseInt(v);
+    const parsedInt = Number.parseInt(v, 10);
     if (isNumber(parsedInt)) {
       const needsBigInt = Math.abs(parsedInt) > Number.MAX_SAFE_INTEGER;
       if (!needsBigInt) {
