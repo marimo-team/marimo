@@ -9,7 +9,7 @@ from contextlib import redirect_stderr
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager

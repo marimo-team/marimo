@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 
 from marimo import _loggers
 from marimo._data.charts import get_chart_builder

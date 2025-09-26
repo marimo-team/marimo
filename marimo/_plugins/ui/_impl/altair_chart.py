@@ -14,7 +14,7 @@ from typing import (
     cast,
 )
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 from narwhals.typing import IntoDataFrame
 
 from marimo import _loggers

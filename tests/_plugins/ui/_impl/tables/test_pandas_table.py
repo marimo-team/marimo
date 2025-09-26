@@ -7,7 +7,7 @@ from math import isnan
 from typing import Any
 from unittest.mock import Mock
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._data.models import ColumnStats

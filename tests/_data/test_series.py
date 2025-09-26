@@ -20,7 +20,7 @@ HAS_DEPS = (
     and DependencyManager.polars.has()
 )
 
-# We exclude ibis because it neither eager_or_interchange_only
+# We exclude ibis because it neither eager_only
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

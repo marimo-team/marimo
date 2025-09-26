@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Any, Union, overload
 
 import narwhals as nw_main
 import narwhals.dtypes as nw_dtypes
-import narwhals.stable.v1 as nw
+import narwhals.stable.v1 as nw1
+import narwhals.stable.v2 as nw
 
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -56,7 +57,7 @@ def can_narwhalify(
     if obj is None:
         return False
     try:
-        nw.from_native(obj, strict=True, eager_only=eager_only)  # type: ignore[call-overload]
+        nw.from_native(obj, pass_through=False, eager_only=eager_only)  # type: ignore[call-overload]
         return True
     except TypeError:
         return False
@@ -75,7 +76,7 @@ def dataframe_to_csv(df: IntoFrame) -> str:
     Convert a dataframe to a CSV string.
     """
     assert_can_narwhalify(df)
-    df = nw.from_native(df, strict=True)
+    df = nw.from_native(df, pass_through=False)
     df = upgrade_narwhals_df(df)
     if is_narwhals_lazyframe(df):
         return df.collect().write_csv()
@@ -198,7 +199,11 @@ def is_narwhals_lazyframe(df: Any) -> TypeIs[nw.LazyFrame[Any]]:
 
     Checks both v1 and main.
     """
-    return isinstance(df, nw.LazyFrame) or isinstance(df, nw_main.LazyFrame)
+    return (
+        isinstance(df, nw.LazyFrame)
+        or isinstance(df, nw_main.LazyFrame)
+        or isinstance(df, nw1.LazyFrame)
+    )
 
 
 def is_narwhals_dataframe(df: Any) -> TypeIs[nw.DataFrame[Any]]:
@@ -207,4 +212,8 @@ def is_narwhals_dataframe(df: Any) -> TypeIs[nw.DataFrame[Any]]:
 
     Checks both v1 and main.
     """
-    return isinstance(df, nw.DataFrame) or isinstance(df, nw_main.DataFrame)
+    return (
+        isinstance(df, nw.DataFrame)
+        or isinstance(df, nw_main.DataFrame)
+        or isinstance(df, nw1.DataFrame)
+    )

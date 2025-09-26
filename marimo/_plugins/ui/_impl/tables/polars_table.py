@@ -6,7 +6,7 @@ import io
 from functools import cached_property
 from typing import Any, Optional, Union
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 
 from marimo import _loggers
 from marimo._data.models import (
