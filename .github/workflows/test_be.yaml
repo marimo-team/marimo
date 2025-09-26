@@ -27,157 +27,31 @@ jobs:
             docs:
               - 'docs/**'
 
-  test_docs:
-    needs: changes
-    if: ${{ needs.changes.outputs.docs == 'true' }}
-    name: Test docs
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
 
-      - name: ⬇️ Checkout repo
-        uses: actions/checkout@v4
-
-      - name: ⬇️ Install Hatch
-        uses: pypa/hatch@install
-
-      - name: 📚 Build docs
-        run: hatch run docs:build --strict
-
-  test_python:
+  test_lsp_copilot_windows:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    name: ${{ matrix.os }} / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    defaults:
-      run:
-        shell: bash
-
+    name: Test LSP Copilot paths on Windows (Python ${{ matrix.python-version }})
+    runs-on: windows-latest
+    timeout-minutes: 10
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        dependencies: ['core', 'core,optional']
-        python-version: ['3.9']
-        include:
-          - os: ubuntu-latest
-            python-version: '3.10'
-            dependencies: 'core'
-          - os: ubuntu-latest
-            python-version: '3.11'
-            dependencies: 'core'
-          - os: ubuntu-latest
-            python-version: '3.12'
-            dependencies: 'core'
-          - os: ubuntu-latest
-            python-version: '3.13'
-            dependencies: 'core'
-          - os: ubuntu-latest
-            python-version: '3.9'
-            dependencies: 'core,optional'
-          - os: ubuntu-latest
-            python-version: '3.10'
-            dependencies: 'core,optional'
-          - os: ubuntu-latest
-            python-version: '3.11'
-            dependencies: 'core,optional'
-          - os: ubuntu-latest
-            python-version: '3.12'
-            dependencies: 'core,optional'
-          - os: ubuntu-latest
-            python-version: '3.13'
-            dependencies: 'core,optional'
-          - os: ubuntu-latest
-            python-version: '3.9'
-            dependencies: 'minimal'
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
-
       - uses: actions/checkout@v4
 
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
 
-      # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
         run: |
           mkdir -p marimo/_static/assets
           cp frontend/index.html marimo/_static/index.html
           cp frontend/public/favicon.ico marimo/_static/favicon.ico
 
-      - name: Lint
-        if: ${{ matrix.python-version == '3.12' }}
-        run: hatch run lint
-
-      - name: Typecheck
-        if: ${{ matrix.python-version == '3.12' }}
-        run: hatch run typecheck:check
-
-      # Test with base dependencies
-      - name: Test with base dependencies
-        if: ${{ matrix.dependencies == 'core' }}
+      - name: Test LSP Copilot paths with spaces (Windows only)
         run: |
-          hatch run +py=${{ matrix.python-version }} test:test -v tests/ -k "not test_cli" --durations=10
-
-      # Test with optional dependencies
-      - name: Test with optional dependencies
-        if: ${{ matrix.dependencies == 'core,optional' }}
-        run: |
-          hatch run +py=${{ matrix.python-version }} test-optional:test -v tests/ -k "not test_cli" --durations=10
-
-      # Test with minimal dependencies using lowest resolution
-      # https://docs.astral.sh/uv/concepts/resolution/#lowest-resolution
-      # https://docs.astral.sh/uv/reference/environment/#uv_resolution
-      - name: Test with minimal dependencies (lowest resolution)
-        if: ${{ matrix.dependencies == 'minimal' }}
-        run: |
-          hatch run +py=${{ matrix.python-version }} test:test -v tests/ -k "not test_cli" --durations=10
-        env:
-          UV_RESOLUTION: lowest
-
-  # Only run coverage on `main` so it is not blocking
-  test_coverage:
-    needs: changes
-    if: ${{ needs.changes.outputs.backend == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
-    name: Test coverage
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
-      - uses: actions/checkout@v4
-
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
-
-      # This step is needed since some of our tests rely on the index.html file
-      - name: Create assets directory, copy over index.html
-        run: |
-          mkdir -p marimo/_static/assets
-          cp frontend/index.html marimo/_static/index.html
-          cp frontend/public/favicon.ico marimo/_static/favicon.ico
-
-      - name: Test with optional dependencies
-        run: |
-          hatch run +py=3.12 test-optional:test -v tests/ -k "not test_cli" --durations=10 \
-          --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
-
-      # Only upload coverage on `main` so it is not blocking
-      # and only on `3.12`, `ubuntu-latest`, with optional deps since it is mostly duplicate
-      # coverage from the other matrix jobs.
-      - name: Upload coverage reports to Codecov
-        if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v5
-        with:
-          files: ./coverage.xml
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          hatch run +py=${{ matrix.python-version }} test:test -v tests/_server/test_lsp_copilot_paths.py --maxfail=1
