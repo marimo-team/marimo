@@ -162,7 +162,7 @@ class AnyProviderConfig:
             ai_config,
             "Google AI",
             fallback_key=fallback_key,
-            require_key=True,
+            require_key=False,
         )
         return cls(
             base_url=_get_base_url(ai_config),

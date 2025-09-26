@@ -506,14 +506,16 @@ class TestProviderConfigWithFallback:
 
     @patch.dict(os.environ, {}, clear=True)
     def test_for_google_no_fallback_available(self) -> None:
-        """Test Google config fails when no config key and no env vars."""
+        """Test Google config succeeds with empty key when no env vars."""
         config: AiConfig = {"google": {}}
 
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_google(config)
+        provider_config = AnyProviderConfig.for_google(config)
 
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Google AI API key not configured" in str(exc_info.value.detail)
+        assert provider_config == AnyProviderConfig(
+            base_url=None,
+            api_key="",
+            ssl_verify=True,
+        )
 
     @patch.dict(os.environ, {"GITHUB_TOKEN": "env-github-token"})
     def test_for_github_with_fallback_key(self) -> None:
@@ -996,14 +998,15 @@ class TestEdgeCases:
         assert "Anthropic API key not configured" in str(exc_info.value.detail)
 
     def test_google_config_missing(self):
-        """Test error when Google config is missing."""
+        """Test Google config defaults to empty key when config is missing."""
         config: AiConfig = {}
 
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_google(config)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "Google AI API key not configured" in str(exc_info.value.detail)
+        provider_config = AnyProviderConfig.for_google(config)
+        assert provider_config == AnyProviderConfig(
+            base_url=None,
+            api_key="",
+            ssl_verify=True,
+        )
 
     def test_bedrock_config_missing(self):
         """Test when Bedrock config is missing, should not error since could use environment variables."""
