@@ -54,6 +54,7 @@ from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
 from marimo._types.ids import CellId_t, RequestId, WidgetModelId
+from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
@@ -501,7 +502,7 @@ class VariableDeclaration(msgspec.Struct):
     used_by: list[CellId_t]
 
 
-class VariableValue(msgspec.Struct):
+class VariableValue(BaseStruct):
     name: str
     value: Optional[str]
     datatype: Optional[str]
