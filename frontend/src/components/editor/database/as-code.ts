@@ -57,6 +57,9 @@ abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
       case "duckdb":
         imports.add("import duckdb");
         break;
+      case "ibis":
+        imports.add("import ibis");
+        break;
     }
     return imports;
   }
@@ -587,7 +590,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
 class DataFusionGenerator extends CodeGenerator<"datafusion"> {
   generateImports(): string[] {
     // To trigger installation of ibis-datafusion
-    return ["import ibis", "from datafusion import SessionContext"];
+    return ["from datafusion import SessionContext"];
   }
 
   generateConnectionCode(): string {
@@ -608,7 +611,7 @@ class DataFusionGenerator extends CodeGenerator<"datafusion"> {
 
 class PySparkGenerator extends CodeGenerator<"pyspark"> {
   generateImports(): string[] {
-    return ["import ibis", "from pyspark.sql import SparkSession"];
+    return ["from pyspark.sql import SparkSession"];
   }
 
   generateConnectionCode(): string {

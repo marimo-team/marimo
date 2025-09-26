@@ -51,7 +51,8 @@ engine = sqlalchemy.create_engine(DATABASE_URL)"
 `;
 
 exports[`generateDatabaseCode > basic connections > databricks with ibis 1`] = `
-"import os
+"import ibis
+import os
 
 _access_token = os.environ.get("DATABRICKS_ACCESS_TOKEN", "my_access_token")
 _server_hostname = os.environ.get("DATABRICKS_SERVER_HOSTNAME", "localhost")
