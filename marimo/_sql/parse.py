@@ -65,14 +65,13 @@ def parse_sql(
     """
     dialect = dialect.strip().lower()
 
-    # Handle DuckDB
-    if "duckdb" in dialect:
-        return _parse_sql_duckdb(query)
-
-    return None, "Unsupported dialect: " + dialect
-
-
-# DuckDB
+    try:
+        if "duckdb" in dialect:
+            return _parse_sql_duckdb(query)
+        else:
+            return None, "Unsupported dialect: " + dialect
+    except Exception as e:
+        return None, str(e)
 
 
 class DuckDBParseError(msgspec.Struct):
@@ -85,7 +84,8 @@ class DuckDBParseError(msgspec.Struct):
 
 # skip to reduce the response size
 # the response doesn't matter too much, we are interested in the errors
-JSON_SERIALIZE_QUERY = "SELECT JSON_SERIALIZE_SQL(CAST(? AS VARCHAR), skip_null := true, skip_empty := true, skip_default := true)"
+JSON_SERIALIZE_LEGACY_QUERY = "SELECT JSON_SERIALIZE_SQL(CAST(? AS VARCHAR), skip_null := true, skip_empty := true, skip_default := true)"
+JSON_SERIALIZE_QUERY = "SELECT JSON_SERIALIZE_SQL(?, skip_null := true, skip_empty := true, skip_default := true)"
 
 
 def _parse_sql_duckdb(
@@ -98,11 +98,18 @@ def _parse_sql_duckdb(
     - Invalid function names do not throw errors
     - Some syntax errors do not throw errors since they are not errors in the AST parser
     """
-    DependencyManager.duckdb.require("to parse sql")
+    if not DependencyManager.duckdb.has():
+        return None, "DuckDB not installed"
 
     import duckdb
 
-    relation = duckdb.execute(JSON_SERIALIZE_QUERY, [query])
+    json_serialize_query = (
+        JSON_SERIALIZE_QUERY
+        if duckdb.__version__ >= "1.1.0"
+        else JSON_SERIALIZE_LEGACY_QUERY
+    )
+
+    relation = duckdb.execute(json_serialize_query, [query])
     fetch_result = relation.fetchone()
     if fetch_result is None:
         return None, "No result from DuckDB parse query"

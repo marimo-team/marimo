@@ -421,3 +421,11 @@ class TestEdgeCases:
             assert result is not None
             assert result.success is True
             assert result.errors == []
+
+
+@pytest.mark.skipif(HAS_DUCKDB, reason="DuckDB is installed")
+def test_fails_gracefully_no_duckdb():
+    """Test that the function fails gracefully if DuckDB is not installed."""
+    result, error = parse_sql("SELECT 1", "duckdb")
+    assert result is None
+    assert error is not None
