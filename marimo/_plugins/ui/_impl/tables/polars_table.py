@@ -38,7 +38,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
         import polars as pl
 
         class PolarsTableManager(
-            NarwhalsTableManager[Union[pl.DataFrame, pl.LazyFrame]]
+            NarwhalsTableManager[pl.DataFrame, pl.LazyFrame]
         ):
             type = "polars"
 

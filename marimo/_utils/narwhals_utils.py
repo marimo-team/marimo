@@ -8,6 +8,7 @@ import narwhals as nw_main
 import narwhals.dtypes as nw_dtypes
 import narwhals.stable.v1 as nw1
 import narwhals.stable.v2 as nw
+from narwhals.typing import IntoDataFrame
 
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -18,11 +19,21 @@ else:
 
 
 if TYPE_CHECKING:
-    from narwhals.typing import IntoFrame
+    from narwhals.typing import IntoDataFrame, IntoFrame, IntoLazyFrame
     from typing_extensions import TypeIs
 
 
-def empty_df(native_df: IntoFrame) -> IntoFrame:
+@overload
+def empty_df(native_df: IntoDataFrame) -> IntoDataFrame: ...
+
+
+@overload
+def empty_df(native_df: IntoLazyFrame) -> IntoLazyFrame: ...
+
+
+def empty_df(
+    native_df: Union[IntoDataFrame, IntoLazyFrame],
+) -> Union[IntoDataFrame, IntoLazyFrame]:
     """
     Get an empty dataframe with the same schema as the given dataframe.
     """

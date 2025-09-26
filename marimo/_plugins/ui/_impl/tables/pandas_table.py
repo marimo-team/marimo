@@ -57,7 +57,7 @@ class PandasTableManagerFactory(TableManagerFactory):
     def create() -> type[TableManager[Any]]:
         import pandas as pd
 
-        class PandasTableManager(NarwhalsTableManager[pd.DataFrame]):
+        class PandasTableManager(NarwhalsTableManager[pd.DataFrame, Any]):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
