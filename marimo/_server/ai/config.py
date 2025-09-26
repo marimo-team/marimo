@@ -167,6 +167,7 @@ class AnyProviderConfig:
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
+            ssl_verify=True,
             tools=_get_tools(config.get("mode", "manual")),
         )
 
