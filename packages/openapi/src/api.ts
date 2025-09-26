@@ -2686,6 +2686,7 @@ export interface components {
      *         - `azure`: the Azure config
      *         - `ollama`: the Ollama config
      *         - `github`: the GitHub config
+     *         - `openrouter`: the OpenRouter config
      *         - `open_ai_compatible`: the OpenAI-compatible config
      */
     AiConfig: {
@@ -2701,6 +2702,7 @@ export interface components {
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
       open_ai_compatible?: components["schemas"]["OpenAiConfig"];
+      openrouter?: components["schemas"]["OpenAiConfig"];
       rules?: string;
     };
     /** AiInlineCompletionRequest */

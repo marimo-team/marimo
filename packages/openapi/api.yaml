@@ -94,7 +94,8 @@ components:
         \ the OpenAI config\n    - `anthropic`: the Anthropic config\n    - `google`:\
         \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
         \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
-        \ GitHub config\n    - `open_ai_compatible`: the OpenAI-compatible config"
+        \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `open_ai_compatible`:\
+        \ the OpenAI-compatible config"
       properties:
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
@@ -119,6 +120,8 @@ components:
         open_ai:
           $ref: '#/components/schemas/OpenAiConfig'
         open_ai_compatible:
+          $ref: '#/components/schemas/OpenAiConfig'
+        openrouter:
           $ref: '#/components/schemas/OpenAiConfig'
         rules:
           type: string
