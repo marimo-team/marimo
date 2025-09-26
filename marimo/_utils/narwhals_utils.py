@@ -32,11 +32,13 @@ def empty_df(native_df: IntoFrame) -> IntoFrame:
     return native_df
 
 
-def assert_narwhals_dataframe(df: nw.DataFrame[Any]) -> None:
+def assert_narwhals_dataframe_or_lazyframe(
+    df: nw.DataFrame[Any] | nw.LazyFrame[Any],
+) -> None:
     """
-    Assert that the given dataframe is a valid narwhals dataframe.
+    Assert that the given dataframe is a valid narwhals dataframe or lazyframe.
     """
-    if not is_narwhals_dataframe(df):
+    if not is_narwhals_dataframe(df) and not is_narwhals_lazyframe(df):
         raise ValueError(f"Unsupported dataframe type. Got {type(df)}")
 
 
@@ -191,6 +193,27 @@ def upgrade_narwhals_df(
     Upgrade a narwhals dataframe to the latest version.
     """
     return nw_main.from_native(df.to_native())  # type: ignore[no-any-return]
+
+
+@overload
+def downgrade_narwhals_df_to_v1(
+    df: nw.LazyFrame[Any],
+) -> nw.LazyFrame[Any]: ...
+
+
+@overload
+def downgrade_narwhals_df_to_v1(
+    df: nw.DataFrame[Any],
+) -> nw.DataFrame[Any]: ...
+
+
+def downgrade_narwhals_df_to_v1(
+    df: Union[nw.DataFrame[Any], nw.LazyFrame[Any]],
+) -> Union[nw.DataFrame[Any], nw.LazyFrame[Any]]:
+    """
+    Downgrade a narwhals dataframe to the latest version.
+    """
+    return nw1.from_native(df.to_native())  # type: ignore[no-any-return]
 
 
 def is_narwhals_lazyframe(df: Any) -> TypeIs[nw.LazyFrame[Any]]:
