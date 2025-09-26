@@ -172,6 +172,7 @@ nav:
       - Configuration:
           - Configuration: guides/configuration/index.md
           - Runtime configuration: guides/configuration/runtime_configuration.md
+          - LLM Providers: guides/configuration/llm_providers.md
           - HTML head: guides/configuration/html_head.md
           - Theming: guides/configuration/theming.md
           - Snippets: guides/configuration/snippets.md
