@@ -8,8 +8,8 @@ from functools import cached_property
 from typing import Any, Optional, Union, cast
 
 import msgspec
-import narwhals.stable.v1 as nw
-from narwhals.stable.v1.typing import IntoFrameT
+import narwhals.stable.v2 as nw
+from narwhals.stable.v2.typing import IntoFrameT
 
 from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Generic, TypeVar
 
+from narwhals.dependencies import is_narwhals_dataframe
+
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.handlers import (
     IbisTransformHandler,
@@ -84,9 +86,7 @@ def get_handler_for_dataframe(
             return IbisTransformHandler()
 
     if DependencyManager.narwhals.imported():
-        import narwhals as nw
-
-        if isinstance(df, nw.DataFrame):
+        if is_narwhals_dataframe(df):
             return get_handler_for_dataframe(df.to_native())
 
     raise ValueError(

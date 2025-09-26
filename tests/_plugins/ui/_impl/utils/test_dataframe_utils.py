@@ -69,7 +69,7 @@ def test_get_row_headers_list() -> None:
     reason="optional dependencies not installed",
 )
 def test_get_table_manager() -> None:
-    import narwhals.stable.v1 as nw
+    import narwhals.stable.v2 as nw
     import pandas as pd
     import polars as pl
     import pyarrow as pa

@@ -7,7 +7,7 @@ from datetime import time
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 
 from marimo._data.models import DataType
 from marimo._utils import assert_never

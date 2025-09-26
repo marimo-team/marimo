@@ -4,7 +4,7 @@ from __future__ import annotations
 import base64
 from typing import Any, Literal, TypedDict, Union
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
@@ -137,7 +137,9 @@ def _maybe_sanitize_dataframe(data: Any) -> Any:
     ):
         narwhals_data = nw.from_native(data)
         try:
-            res: nw.DataFrame[Any] = alt.utils.sanitize_narwhals_dataframe(
+            import narwhals.stable.v1 as nw1
+
+            res: nw1.DataFrame[Any] = alt.utils.sanitize_narwhals_dataframe(
                 narwhals_data  # type: ignore[arg-type]
             )
             return res.to_native()  # type: ignore[return-value]

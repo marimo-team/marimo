@@ -6,7 +6,7 @@ import re
 from enum import Enum
 from typing import Any
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
