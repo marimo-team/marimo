@@ -281,7 +281,9 @@ class TestCopilotLspServerPaths:
 
     def test_copilot_command_double_escaping_verification(self):
         """Verify that double escaping produces the expected command structure."""
-        with tempfile.TemporaryDirectory(prefix="Test Path With Spaces ") as temp_dir:
+        with tempfile.TemporaryDirectory(
+            prefix="Test Path With Spaces "
+        ) as temp_dir:
             temp_path = Path(temp_dir)
 
             # Create directory structure with standard copilot directory name
@@ -299,7 +301,9 @@ class TestCopilotLspServerPaths:
             with (
                 patch.object(server, "_lsp_dir", return_value=temp_path),
                 patch.object(server, "_lsp_bin", return_value=lsp_bin),
-                patch("marimo._loggers.get_log_directory", return_value=temp_path),
+                patch(
+                    "marimo._loggers.get_log_directory", return_value=temp_path
+                ),
                 # Mock Windows behavior to test double escaping
                 patch("marimo._utils.strings.is_windows", return_value=True),
             ):
@@ -319,4 +323,8 @@ class TestCopilotLspServerPaths:
                 # Verify some form of quoting/escaping is present for paths with spaces
                 if " " in str(copilot_bin):
                     # Should have some form of quoting/escaping
-                    assert '"' in lsp_command or "'" in lsp_command or "\\" in lsp_command
+                    assert (
+                        '"' in lsp_command
+                        or "'" in lsp_command
+                        or "\\" in lsp_command
+                    )
