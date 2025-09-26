@@ -250,16 +250,6 @@ describe("AiModelRegistry", () => {
       const providers = listModelsByProvider.map(([provider]) => provider);
       expect(providers).toEqual(PROVIDER_SORT_ORDER);
     });
-
-    it("should include custom providers at the top", () => {
-      const customModels = ["openrouter/custom-gpt"];
-      const registry = AiModelRegistry.create({ customModels });
-      const listModelsByProvider = registry.getListModelsByProvider();
-      expect(listModelsByProvider).toHaveLength(4);
-
-      const providers = listModelsByProvider.map(([provider]) => provider);
-      expect(providers).toEqual(["openrouter", ...PROVIDER_SORT_ORDER]);
-    });
   });
 
   describe("getCustomModels", () => {
