@@ -276,3 +276,44 @@ class TestCopilotLspServerPaths:
                     copilot_bin_str in lsp_command
                     or f'"{copilot_bin_str}"' in lsp_command
                 ), f"Copilot binary path not found in: {lsp_command}"
+
+    def test_copilot_command_double_escaping_verification(self):
+        """Verify that double escaping produces the expected command structure."""
+        with tempfile.TemporaryDirectory(prefix="Test Path With Spaces ") as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create directory structure with spaces
+            copilot_dir = temp_path / "copilot with spaces"
+            copilot_dir.mkdir()
+            copilot_bin = copilot_dir / "language-server.js"
+            copilot_bin.write_text("// mock copilot binary")
+
+            lsp_bin = temp_path / "index.cjs"
+            lsp_bin.write_text("// mock lsp binary")
+
+            server = CopilotLspServer(port=8080)
+
+            with (
+                patch.object(server, "_lsp_dir", return_value=temp_path),
+                patch.object(server, "_lsp_bin", return_value=lsp_bin),
+                patch("marimo._loggers.get_log_directory", return_value=temp_path),
+                # Mock Windows behavior to test double escaping
+                patch("marimo._utils.strings.is_windows", return_value=True),
+            ):
+                command = server.get_command()
+
+                # Get the LSP command string
+                lsp_arg_index = command.index("--lsp") + 1
+                lsp_command = command[lsp_arg_index]
+
+                # With double escaping, we should see nested quotes or proper escaping
+                print(f"Double escaped command: {lsp_command}")
+
+                # Verify the command contains node and --stdio
+                assert "node" in lsp_command
+                assert "--stdio" in lsp_command
+
+                # Verify some form of quoting/escaping is present for paths with spaces
+                if " " in str(copilot_bin):
+                    # Should have some form of quoting/escaping
+                    assert '"' in lsp_command or "'" in lsp_command or "\\" in lsp_command
