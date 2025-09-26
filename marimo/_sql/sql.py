@@ -123,9 +123,11 @@ def sql(
     if df is None:
         return None
 
-    has_limit = _query_includes_limit(query)
+    has_limit = False
     try:
         default_result_limit = get_default_result_limit()
+        if default_result_limit is not None:
+            has_limit = _query_includes_limit(query)
     except OSError:
         default_result_limit = None
 
