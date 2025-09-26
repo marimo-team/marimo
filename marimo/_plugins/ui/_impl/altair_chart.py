@@ -15,7 +15,6 @@ from typing import (
 )
 
 import narwhals.stable.v2 as nw
-from narwhals.dependencies import is_narwhals_lazyframe
 from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
 from marimo import _loggers
@@ -55,7 +54,9 @@ VegaSpec = dict[str, Any]
 RowOrientedData = list[dict[str, Any]]
 ColumnOrientedData = dict[str, list[Any]]
 
-ChartDataType = Union[IntoDataFrame, RowOrientedData, ColumnOrientedData]
+ChartDataType = Union[
+    IntoDataFrame, IntoLazyFrame, RowOrientedData, ColumnOrientedData
+]
 
 # Union of all possible chart types
 AltairChartType: TypeAlias = "altair.vegalite.v5.api.ChartType"
@@ -98,12 +99,8 @@ def _using_vegafusion() -> bool:
 
 def _filter_dataframe(
     native_df: Union[IntoDataFrame, IntoLazyFrame], selection: ChartSelection
-) -> IntoDataFrame:
-    df = nw.from_native(native_df).lazy()
-    if is_narwhals_lazyframe(df):
-        raise ValueError(
-            "Lazyframes are not supported for filtering. Run `df.collect()` before filtering."
-        )
+) -> Union[IntoDataFrame, IntoLazyFrame]:
+    df = nw.from_native(native_df)
     if not isinstance(selection, dict):
         raise TypeError("Input 'selection' must be a dictionary")
 
@@ -187,14 +184,9 @@ def _resolve_values(values: Any, dtype: Any) -> list[Any]:
         if nw.Datetime == dtype and isinstance(dtype, nw.Datetime):
             if isinstance(value, str):
                 res = datetime.datetime.fromisoformat(value)
-                # If dtype has no timezone, shift by local timezone offset
-                if dtype.time_zone is None:
-                    local_tz = datetime.datetime.now().astimezone().tzinfo
-                    LOGGER.warning(
-                        f"Datetime was given with a timezone when not expected. "
-                        f"Shifting by local timezone offset {local_tz}."
-                    )
-                    return res.astimezone(local_tz).replace(tzinfo=None)
+                # If dtype has no timezone, but value has timezone, remove timezone without shifting
+                if dtype.time_zone is None and res.tzinfo is not None:
+                    return res.replace(tzinfo=None)
                 return res
 
             # Value is milliseconds since epoch
