@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Callable, Optional, cast
+from typing import Any, Callable, Optional, cast
 
 from marimo._ai._convert import (
     convert_to_anthropic_messages,
@@ -211,10 +211,7 @@ class anthropic(ChatModel):
         DependencyManager.anthropic.require(
             "chat model requires anthropic. `pip install anthropic`"
         )
-        from anthropic import (  # type: ignore[import-not-found]
-            NOT_GIVEN,
-            Anthropic,
-        )
+        from anthropic import Anthropic
 
         client = Anthropic(
             api_key=self._require_api_key,
@@ -222,18 +219,21 @@ class anthropic(ChatModel):
         )
 
         anthropic_messages = convert_to_anthropic_messages(messages)
-        response = client.messages.create(
-            model=self.model,
-            system=self.system_message,
-            max_tokens=config.max_tokens or 4096,
-            messages=anthropic_messages,
-            top_p=config.top_p if config.top_p is not None else NOT_GIVEN,
-            top_k=config.top_k if config.top_k is not None else NOT_GIVEN,
-            stream=False,
-            temperature=config.temperature
-            if config.temperature is not None
-            else NOT_GIVEN,
-        )
+        params: dict[str, Any] = {
+            "model": self.model,
+            "system": self.system_message,
+            "max_tokens": config.max_tokens or 4096,
+            "messages": anthropic_messages,
+            "stream": False,
+        }
+        if config.top_p is not None:
+            params["top_p"] = config.top_p
+        if config.top_k is not None:
+            params["top_k"] = config.top_k
+        if config.temperature is not None:
+            params["temperature"] = config.temperature
+
+        response = client.messages.create(**params)
 
         content = response.content
         if len(content) > 0:
