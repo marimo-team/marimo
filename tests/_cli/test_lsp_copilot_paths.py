@@ -36,7 +36,9 @@ class TestCopilotLspServerPaths:
             with (
                 patch.object(server, "_lsp_dir", return_value=temp_path),
                 patch.object(server, "_lsp_bin", return_value=lsp_bin),
-                patch("marimo._loggers.get_log_directory", return_value=temp_path),
+                patch(
+                    "marimo._loggers.get_log_directory", return_value=temp_path
+                ),
             ):
                 command = server.get_command()
 
@@ -57,13 +59,20 @@ class TestCopilotLspServerPaths:
 
                 # The lsp_command should contain the quoted copilot binary path
                 assert "node" in lsp_command
-                assert str(copilot_bin) in lsp_command or f'"{copilot_bin}"' in lsp_command
+                assert (
+                    str(copilot_bin) in lsp_command
+                    or f'"{copilot_bin}"' in lsp_command
+                )
                 assert "--stdio" in lsp_command
 
-    @pytest.mark.skipif(not is_windows(), reason="Windows-specific path quoting test")
+    @pytest.mark.skipif(
+        not is_windows(), reason="Windows-specific path quoting test"
+    )
     def test_copilot_command_windows_path_quoting(self):
         """Test Windows-specific path quoting for copilot binary paths."""
-        with tempfile.TemporaryDirectory(prefix="Program Files Space Test ") as temp_dir:
+        with tempfile.TemporaryDirectory(
+            prefix="Program Files Space Test "
+        ) as temp_dir:
             temp_path = Path(temp_dir)
 
             # Create directory structure with spaces similar to "Program Files"
@@ -80,7 +89,9 @@ class TestCopilotLspServerPaths:
             with (
                 patch.object(server, "_lsp_dir", return_value=temp_path),
                 patch.object(server, "_lsp_bin", return_value=lsp_bin),
-                patch("marimo._loggers.get_log_directory", return_value=temp_path),
+                patch(
+                    "marimo._loggers.get_log_directory", return_value=temp_path
+                ),
             ):
                 command = server.get_command()
 
@@ -124,7 +135,10 @@ class TestCopilotLspServerPaths:
         """Test that copilot validation fails when node is missing."""
         server = CopilotLspServer(port=8080)
 
-        with patch("marimo._dependencies.dependencies.DependencyManager.which", return_value=None):
+        with patch(
+            "marimo._dependencies.dependencies.DependencyManager.which",
+            return_value=None,
+        ):
             result = server.validate_requirements()
             assert result != True
             assert "node.js binary is missing" in result
@@ -134,13 +148,15 @@ class TestCopilotLspServerPaths:
         server = CopilotLspServer(port=8080)
 
         with (
-            patch("marimo._dependencies.dependencies.DependencyManager.which", return_value="/usr/bin/node"),
+            patch(
+                "marimo._dependencies.dependencies.DependencyManager.which",
+                return_value="/usr/bin/node",
+            ),
             patch("subprocess.run") as mock_run,
         ):
             # Mock node version check to return old version
             mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="v18.20.0\n"
+                returncode=0, stdout="v18.20.0\n"
             )
 
             result = server.validate_requirements()
@@ -153,13 +169,15 @@ class TestCopilotLspServerPaths:
         server = CopilotLspServer(port=8080)
 
         with (
-            patch("marimo._dependencies.dependencies.DependencyManager.which", return_value="/usr/bin/node"),
+            patch(
+                "marimo._dependencies.dependencies.DependencyManager.which",
+                return_value="/usr/bin/node",
+            ),
             patch("subprocess.run") as mock_run,
         ):
             # Mock node version check to return good version
             mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="v20.10.0\n"
+                returncode=0, stdout="v20.10.0\n"
             )
 
             result = server.validate_requirements()
@@ -184,7 +202,9 @@ class TestCopilotLspServerPaths:
             with (
                 patch.object(server, "_lsp_dir", return_value=temp_path),
                 patch.object(server, "_lsp_bin", return_value=lsp_bin),
-                patch("marimo._loggers.get_log_directory", return_value=temp_path),
+                patch(
+                    "marimo._loggers.get_log_directory", return_value=temp_path
+                ),
             ):
                 command = server.get_command()
 
@@ -202,13 +222,19 @@ class TestCopilotLspServerPaths:
                 ]
 
                 assert len(command) == len(expected_structure)
-                for i, (actual, expected) in enumerate(zip(command, expected_structure)):
+                for i, (actual, expected) in enumerate(
+                    zip(command, expected_structure)
+                ):
                     if expected != mock.ANY:
-                        assert actual == expected, f"Mismatch at index {i}: {actual} != {expected}"
+                        assert actual == expected, (
+                            f"Mismatch at index {i}: {actual} != {expected}"
+                        )
 
     def test_copilot_command_windows_quoting_simulation(self):
         """Test Windows path quoting behavior by mocking is_windows()."""
-        with tempfile.TemporaryDirectory(prefix="Program Files Test ") as temp_dir:
+        with tempfile.TemporaryDirectory(
+            prefix="Program Files Test "
+        ) as temp_dir:
             temp_path = Path(temp_dir)
 
             # Create directory structure with spaces
@@ -225,7 +251,9 @@ class TestCopilotLspServerPaths:
             with (
                 patch.object(server, "_lsp_dir", return_value=temp_path),
                 patch.object(server, "_lsp_bin", return_value=lsp_bin),
-                patch("marimo._loggers.get_log_directory", return_value=temp_path),
+                patch(
+                    "marimo._loggers.get_log_directory", return_value=temp_path
+                ),
                 # Mock is_windows to return True to test Windows quoting behavior
                 patch("marimo._utils.strings.is_windows", return_value=True),
             ):
@@ -240,7 +268,9 @@ class TestCopilotLspServerPaths:
                 copilot_bin_str = str(copilot_bin)
                 if " " in copilot_bin_str:
                     # Path has spaces, so it should be quoted in the command
-                    assert '"' in lsp_command, f"Expected quotes in command: {lsp_command}"
+                    assert '"' in lsp_command, (
+                        f"Expected quotes in command: {lsp_command}"
+                    )
 
                 # Verify the basic structure is still correct
                 assert "node" in lsp_command
@@ -248,7 +278,9 @@ class TestCopilotLspServerPaths:
 
     def test_copilot_command_move_lsp_bin_to_space_path(self):
         """Test moving the lsp_bin to a path with spaces, specifically targeting Windows scenarios."""
-        with tempfile.TemporaryDirectory(prefix="Space Path Test ") as temp_dir:
+        with tempfile.TemporaryDirectory(
+            prefix="Space Path Test "
+        ) as temp_dir:
             temp_path = Path(temp_dir)
 
             # Create a nested directory structure with multiple spaces
@@ -270,7 +302,9 @@ class TestCopilotLspServerPaths:
             with (
                 patch.object(server, "_lsp_dir", return_value=space_dir),
                 patch.object(server, "_lsp_bin", return_value=lsp_bin),
-                patch("marimo._loggers.get_log_directory", return_value=space_dir),
+                patch(
+                    "marimo._loggers.get_log_directory", return_value=space_dir
+                ),
             ):
                 command = server.get_command()
 
