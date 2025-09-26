@@ -7,6 +7,9 @@ import {
 } from "../dom/events";
 import { UI_ELEMENT_REGISTRY, type UIElementRegistry } from "../dom/uiregistry";
 import type { RunRequests } from "../network/types";
+import { store } from "../state/jotai";
+import { uiElementLoadingAtom } from "../cells/cells";
+import type { UIElementId } from "../cells/ids";
 
 /**
  * Manager to track running cells.
@@ -81,17 +84,35 @@ export class RuntimeState {
 
     const value = this.uiElementRegistry.lookupValue(objectId);
     if (value !== undefined) {
+      // Add to loading state
+      const currentLoading = store.get(uiElementLoadingAtom);
+      const newLoading = new Set(currentLoading);
+      newLoading.add(objectId as UIElementId);
+      store.set(uiElementLoadingAtom, newLoading);
+
       this.sendComponentValues({
         objectIds: [objectId],
         values: [value],
+      }).then(() => {
+        // Remove from loading state on success
+        this.clearLoadingState(objectId as UIElementId);
       }).catch(
         // This happens if the run failed to register (401, 403, network
         // error, etc.) A run may fail if the kernel is restarted or the
         // notebook is closed.
         (error) => {
           Logger.warn(error);
+          // Remove from loading state on error too
+          this.clearLoadingState(objectId as UIElementId);
         },
       );
     }
+  };
+
+  private clearLoadingState = (objectId: UIElementId) => {
+    const currentLoading = store.get(uiElementLoadingAtom);
+    const newLoading = new Set(currentLoading);
+    newLoading.delete(objectId);
+    store.set(uiElementLoadingAtom, newLoading);
   };
 }

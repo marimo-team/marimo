@@ -8,7 +8,7 @@ import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { generateUUID } from "@/utils/uuid";
-import { notebookIsRunningAtom } from "../cells/cells";
+import { notebookOrUIElementsIsRunningAtom } from "../cells/cells";
 import { getMarimoVersion } from "../meta/globals";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
@@ -288,7 +288,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     // Because the Pyodide worker is single-threaded, sending
     // code completion requests while the kernel is running is useless
     // and runs the risk of choking the kernel
-    const isRunning = store.get(notebookIsRunningAtom);
+    const isRunning = store.get(notebookOrUIElementsIsRunningAtom);
     if (!isRunning) {
       await this.rpc.proxy.request.bridge({
         functionName: "code_complete",

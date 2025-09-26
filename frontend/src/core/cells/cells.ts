@@ -29,7 +29,7 @@ import type { CellConfig } from "../network/types";
 import { isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { CellId } from "./ids";
+import { CellId, type UIElementId } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
   focusAndScrollCellIntoView,
@@ -1605,6 +1605,20 @@ export const notebookIsRunningAtom = atom((get) =>
 export const notebookQueuedOrRunningCountAtom = atom((get) =>
   notebookQueueOrRunningCount(get(notebookAtom)),
 );
+
+/**
+ * Set of UI element IDs that are currently loading (pending server response)
+ */
+export const uiElementLoadingAtom = atom<Set<UIElementId>>(new Set());
+
+/**
+ * Combined loading state: notebook is running OR UI elements are loading
+ */
+export const notebookOrUIElementsIsRunningAtom = atom((get) => {
+  const notebookRunning = notebookIsRunning(get(notebookAtom));
+  const uiElementsLoading = get(uiElementLoadingAtom).size > 0;
+  return notebookRunning || uiElementsLoading;
+});
 
 export const numColumnsAtom = atom(
   (get) => get(notebookAtom).cellIds.colLength,

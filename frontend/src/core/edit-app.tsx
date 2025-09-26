@@ -21,7 +21,7 @@ import { useHotkey } from "../hooks/useHotkey";
 import {
   cellIdsAtom,
   hasCellsAtom,
-  notebookIsRunningAtom,
+  notebookOrUIElementsIsRunningAtom,
   numColumnsAtom,
   useCellActions,
 } from "./cells/cells";
@@ -70,7 +70,7 @@ export const EditApp: React.FC<AppProps> = ({
 
   const isEditing = viewState.mode === "edit";
   const isPresenting = viewState.mode === "present";
-  const isRunning = useAtomValue(notebookIsRunningAtom);
+  const isRunning = useAtomValue(notebookOrUIElementsIsRunningAtom);
 
   // Initialize RuntimeState event-listeners
   useEffect(() => {
