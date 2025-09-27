@@ -147,6 +147,10 @@ const SliderComponent = ({
           <NumberField
             value={valueMap(internalValue)}
             onChange={(nextValue) => {
+              // If nextValue is null/undefined (input cleared), set to start
+              if (nextValue == null) {
+                nextValue = Number(start);
+              }
               setInternalValue(nextValue);
               if (!debounce) {
                 setValue(nextValue);
