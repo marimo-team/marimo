@@ -2491,8 +2491,8 @@ class SqlCallbacks:
     async def _validate_sql_query(self, request: ValidateSQLRequest) -> None:
         """Validate an SQL query
 
-        This will validate:
-        - the syntax (parsing)
+        This will either validate:
+        - the syntax (parsing) or
         - the catalog (table and column names)
         """
         request_id = request.request_id
@@ -2541,17 +2541,10 @@ class SqlCallbacks:
             ).broadcast()
             return
 
-        # Get the parse error for linting
-        parse_result, parse_error = parse_sql(request.query, engine.dialect)
-        if parse_error is not None:
-            # We don't want to fail the validation if there is a parse error
-            LOGGER.debug("Parse error: %s", parse_error)
-
         if not isinstance(engine, QueryEngine):
             ValidateSQLResult(
                 request_id=request_id,
                 error=f"Engine {variable_name} does not support catalog validation.",
-                parse_result=parse_result,
             ).broadcast()
             return
 
@@ -2561,10 +2554,7 @@ class SqlCallbacks:
             error_message=error_message,
         )
         ValidateSQLResult(
-            request_id=request_id,
-            validate_result=validate_result,
-            parse_result=parse_result,
-            error=None,
+            request_id=request_id, validate_result=validate_result, error=None
         ).broadcast()
 
     @kernel_tracer.start_as_current_span("validate_sql")
