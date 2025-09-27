@@ -365,7 +365,7 @@ class TestSQLValidate:
         latest_validate_sql_result = validate_sql_results[-1]
         assert latest_validate_sql_result.request_id == RequestId("2")
 
-        # if not only_parse, parse_result is not None
+        # if not only_parse, parse_result is None
         assert latest_validate_sql_result.parse_result is None
         # query is syntactically valid
         # assert latest_validate_sql_result.parse_result.success is True
