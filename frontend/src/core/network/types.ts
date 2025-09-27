@@ -142,7 +142,7 @@ export interface EditRequests {
     request: PreviewDataSourceConnectionRequest,
   ) => Promise<null>;
   validateSQL: (request: ValidateSQLRequest) => Promise<null>;
-  openFile: (request: { path: string }) => Promise<null>;
+  openFile: (request: { path: string; lineNumber?: number }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
   // Debugger
   sendPdb: (request: PdbRequest) => Promise<null>;

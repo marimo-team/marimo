@@ -32,6 +32,7 @@ class FileDetailsRequest(msgspec.Struct, rename="camel"):
 class FileOpenRequest(msgspec.Struct, rename="camel"):
     # The path of the file to open
     path: str
+    line_number: Optional[int] = None
 
 
 class FileTreeRequest(msgspec.Struct, rename="camel"):
