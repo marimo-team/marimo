@@ -41,6 +41,52 @@ def get_github_src_url(url: str) -> str:
     return f"https://raw.githubusercontent.com{path}"
 
 
+def is_gist_src(url: str) -> bool:
+    if not is_url(url):
+        return False
+
+    hostname = urllib.parse.urlparse(url).hostname
+    if (
+        hostname != "gist.github.com"
+        and hostname != "gist.githubusercontent.com"
+    ):
+        return False
+    return True
+
+
+def get_gist_src_url(url: str) -> str:
+    # Return url if it's a direct link to a raw file,
+    # or get the first python or markdown file of the gist
+    # by getting the raw_url from api.github.com
+    path_parts = urllib.parse.urlparse(url).path.strip("/").split("/")
+    if "raw" in path_parts:
+        if not path_parts[-1].endswith((".py", ".md")):
+            raise ValueError("No python or markdown files found in the Gist")
+        return url
+    else:
+        gist_id = path_parts[1]
+        api_url = f"https://api.github.com/gists/{gist_id}"
+        api_response = requests.get(api_url, headers=USER_AGENT_HEADER)
+        api_response.raise_for_status()
+        gist_data = api_response.json()
+
+        files_dict = gist_data.get("files", {})
+        if not files_dict:
+            raise ValueError("No files found in the Gist")
+
+        py_or_md_url_generator = (
+            file_info["raw_url"]
+            for filename, file_info in files_dict.items()
+            if filename.lower().endswith((".py", ".md"))
+        )
+        raw_url = next(py_or_md_url_generator, "")
+
+        if raw_url == "":
+            raise ValueError("No python or markdown files found in the Gist")
+
+        return raw_url
+
+
 class FileReader(abc.ABC):
     @abc.abstractmethod
     def can_read(self, name: str) -> bool:
@@ -178,6 +224,18 @@ class GitHubSourceReader(FileReader):
         return content, os.path.basename(url)
 
 
+class GistSourceReader(FileReader):
+    def can_read(self, name: str) -> bool:
+        return is_gist_src(name) or is_gist_src(name)
+
+    def read(self, name: str) -> tuple[str, str]:
+        url = get_gist_src_url(name)
+        response = requests.get(url, headers=USER_AGENT_HEADER)
+        response.raise_for_status()
+        content = response.text()
+        return content, os.path.basename(url)
+
+
 class GenericURLReader(FileReader):
     def can_read(self, name: str) -> bool:
         return is_url(name)
@@ -198,6 +256,7 @@ class FileContentReader:
             GitHubIssueReader(),
             StaticNotebookReader(),
             GitHubSourceReader(),
+            GistSourceReader(),
             GenericURLReader(),
         ]
 
