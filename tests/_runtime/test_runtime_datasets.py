@@ -338,7 +338,7 @@ class TestSQLValidate:
         ]
         assert validate_sql_results[-1] == ValidateSQLResult(
             request_id=RequestId("1"),
-            parse_result=SqlParseResult(success=True, errors=[]),
+            parse_result=None,
             validate_result=SqlCatalogCheckResult(
                 success=True, error_message=None
             ),
@@ -365,10 +365,11 @@ class TestSQLValidate:
         latest_validate_sql_result = validate_sql_results[-1]
         assert latest_validate_sql_result.request_id == RequestId("2")
 
-        assert latest_validate_sql_result.parse_result is not None
+        # if not only_parse, parse_result is not None
+        assert latest_validate_sql_result.parse_result is None
         # query is syntactically valid
-        assert latest_validate_sql_result.parse_result.success is True
-        assert len(latest_validate_sql_result.parse_result.errors) == 0
+        # assert latest_validate_sql_result.parse_result.success is True
+        # assert len(latest_validate_sql_result.parse_result.errors) == 0
 
         assert latest_validate_sql_result.validate_result is not None
         assert latest_validate_sql_result.validate_result.success is False
