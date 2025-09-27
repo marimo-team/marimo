@@ -319,7 +319,7 @@ class OSFileSystem(FileSystem):
         results.sort(key=sort_key)
         return results[:limit]
 
-    def open_in_editor(self, path: str) -> bool:
+    def open_in_editor(self, path: str, line_number: int | None) -> bool:
         try:
             # First try to get editor from environment variable
             editor = os.environ.get("EDITOR")
@@ -328,9 +328,17 @@ class OSFileSystem(FileSystem):
             # otherwise it silently opens the terminal in the same window that is
             # running marimo.
             if editor and not _is_terminal_editor(editor):
+                args = (
+                    [path]
+                    if line_number is None
+                    else editor_open_file_in_line_args(
+                        editor, path, line_number
+                    )
+                )
+
                 try:
                     # For GUI editors
-                    subprocess.run([editor, path])
+                    subprocess.run([editor, *args])
                     return True
                 except Exception as e:
                     LOGGER.error(f"Error opening with EDITOR: {e}")
@@ -348,6 +356,17 @@ class OSFileSystem(FileSystem):
         except Exception as e:
             LOGGER.error(f"Error opening file: {e}")
             return False
+
+
+def editor_open_file_in_line_args(
+    editor: str, path: str, line_number: int
+) -> list[str]:
+    if editor == "code":
+        return ["--goto", f"{path}:{line_number}"]
+    elif editor == "subl":
+        return [f"{path}:{line_number}"]
+    else:
+        return [f"+{line_number}", path]
 
 
 def natural_sort_file(file: FileInfo) -> list[Union[int, str]]:
