@@ -108,7 +108,7 @@ export const MarimoTracebackOutput = ({
             Fix with AI
           </Button>
         )}
-        {tracebackInfo && !isWasm() && (
+        {tracebackInfo && tracebackInfo.kind === "cell" && !isWasm() && (
           <Tooltip content={"Attach pdb to the exception point."}>
             <Button
               size="xs"
@@ -180,7 +180,7 @@ function lastLine(text: string): string {
 
 export const replaceTracebackFilenames = (domNode: DOMNode) => {
   const info = getTracebackInfo(domNode);
-  if (info) {
+  if (info?.kind === "cell") {
     const tooltipContent = <InsertBreakpointContent />;
     return (
       <span className="nb">
@@ -209,6 +209,18 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
           )}
         </span>
       </span>
+    );
+  }
+  if (info?.kind === "file") {
+    return (
+      <div
+        className="inline-block cursor-pointer text-destructive hover:underline"
+        onClick={(_) => {
+          getRequestClient().openFile({ path: info.filePath });
+        }}
+      >
+        <span className="nb">"{info.filePath}"</span>
+      </div>
     );
   }
 };

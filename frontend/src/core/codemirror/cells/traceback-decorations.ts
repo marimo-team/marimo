@@ -29,7 +29,7 @@ function createErrorDecorations(state: EditorState, errors: TracebackInfos) {
 
   // Filter and sort errors by line number to ensure they're added in order
   const relevantErrors = errors
-    .filter((error) => error.cellId === cellId)
+    .filter((error) => error.kind === "cell" && error.cellId === cellId)
     .sort((a, b) => a.lineNumber - b.lineNumber);
 
   for (const error of relevantErrors) {
