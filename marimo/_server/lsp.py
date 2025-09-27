@@ -201,17 +201,19 @@ class CopilotLspServer(BaseLspServer):
         log_file = _loggers.get_log_directory() / "github-copilot-lsp.log"
 
         # Properly quote the copilot binary path to handle spaces and special characters
-        copilot_command = f"node {cmd_quote(str(copilot_bin))} --stdio"
+        # Use double escaping for nested command execution
+        quoted_path = cmd_quote(str(copilot_bin))
+        copilot_command = f"node {cmd_quote(quoted_path)} --stdio"
 
         return [
             "node",
-            str(lsp_bin),
+            cmd_quote(str(lsp_bin)),
             "--port",
             str(self.port),
             "--lsp",
             copilot_command,
             "--log-file",
-            str(log_file),
+            cmd_quote(str(log_file)),
         ]
 
     def missing_binary_alert(self) -> Alert:
@@ -288,13 +290,13 @@ class BasedpyrightServer(BaseLspServer):
 
         return [
             "node",
-            str(lsp_bin),
+            cmd_quote(str(lsp_bin)),
             "--port",
             str(self.port),
             "--lsp",
             "basedpyright-langserver --stdio",
             "--log-file",
-            str(log_file),
+            cmd_quote(str(log_file)),
         ]
 
     def missing_binary_alert(self) -> Alert:
@@ -335,13 +337,13 @@ class TyServer(BaseLspServer):
 
         return [
             "node",
-            str(lsp_bin),
+            cmd_quote(str(lsp_bin)),
             "--port",
             str(self.port),
             "--lsp",
             ty_command,
             "--log-file",
-            str(log_file),
+            cmd_quote(str(log_file)),
         ]
 
     def missing_binary_alert(self) -> Alert:
