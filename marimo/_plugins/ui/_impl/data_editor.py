@@ -17,7 +17,7 @@ from typing import (
     cast,
 )
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
@@ -303,7 +303,7 @@ def _apply_edits_row_oriented(
 def _apply_edits_dataframe(
     native_df: IntoDataFrame, edits: DataEdits, schema: Optional[nw.Schema]
 ) -> IntoDataFrame:
-    df = nw.from_native(native_df, eager_or_interchange_only=True)
+    df = nw.from_native(native_df, eager_only=True)
     column_oriented = df.to_dict(as_series=False)
     schema = schema or cast(nw.Schema, df.schema)
 

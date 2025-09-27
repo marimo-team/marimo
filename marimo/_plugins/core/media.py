@@ -8,7 +8,7 @@ import pathlib
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from urllib.parse import urlparse
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.narwhals_utils import can_narwhalify
@@ -129,7 +129,9 @@ def io_to_data_url(
 
     # Handle Pandas DataFrames (convert to CSV)
     if can_narwhalify(src, eager_only=True):
-        df = nw.from_native(src, pass_through=False, eager_only=True)
+        df: nw.DataFrame[Any] = nw.from_native(
+            src, pass_through=True, eager_only=True
+        )
         file = io.BytesIO()
         df.write_csv(file)
         file.seek(0)
