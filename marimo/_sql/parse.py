@@ -1,5 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
 
+import re
 from typing import Literal, Optional, Union
 
 import msgspec
@@ -109,6 +110,12 @@ def _parse_sql_duckdb(
         else JSON_SERIALIZE_LEGACY_QUERY
     )
 
+    idx_to_offset_dict: dict[int, int] = {}
+    try:
+        query, idx_to_offset_dict = replace_brackets_with_quotes(query)
+    except Exception as e:
+        LOGGER.debug(f"Error sanitizing SQL query: {e}")
+
     relation = duckdb.execute(json_serialize_query, [query])
     fetch_result = relation.fetchone()
     if fetch_result is None:
@@ -128,7 +135,26 @@ def _parse_sql_duckdb(
     position = int(parsed_error.position or 0)
     subquery = query[:position]
     line_number = subquery.count("\n") + 1
-    column_number = position - subquery.rfind("\n") - 1
+
+    last_newline_idx = subquery.rfind("\n")
+    column_number = position - last_newline_idx - 1
+
+    # Adjust column_number to account for any added quotes from bracket replacements
+    # SELECT {id} FRO users
+    #             ^ error position should be here
+    # SELECT {id} FRO users
+    #               ^ user sees this
+    # So in this case, we subtract the offset from the column position.
+    # If the error is before the brackets, we don't need to add the offset because it just increases the string length
+    # Column position will be the same as the user sees.
+    error_line_start = last_newline_idx + 1
+    cumulative_offset = 0
+    for idx, offset in idx_to_offset_dict.items():
+        # Only count replacements that are on the same line as the error
+        # and come before the error position
+        if error_line_start <= idx < position:
+            cumulative_offset += offset
+    column_number -= cumulative_offset
 
     sql_parse_result = SqlParseResult(
         success=False,
@@ -142,3 +168,52 @@ def _parse_sql_duckdb(
         ],
     )
     return sql_parse_result, None
+
+
+def replace_brackets_with_quotes(sql: str) -> tuple[str, dict[int, int]]:
+    """
+    Replaces unquoted curly bracket expressions (e.g., {id}) with quoted strings (e.g., '{id}'),
+    ignoring brackets already inside single or double quotes.
+
+    Returns the modified SQL and a record mapping the index of each replaced bracket to the
+    number of characters added (for offset tracking).
+
+    Args:
+        sql (str): The SQL string to process.
+
+    Returns:
+        tuple[str, dict[int, int]]: A tuple containing:
+            - The modified SQL string
+            - A dictionary mapping original bracket positions to the number of characters added (0-based)
+
+    Example:
+        replace_brackets_with_quotes("SELECT {id}, '{name}' FROM users")
+        # => ("SELECT '{id}', '{name}' FROM users", {7: 2})
+    """
+    QUOTE_LENGTH = 2  # Length of the added quotes around brackets
+
+    offset_record: dict[int, int] = {}
+
+    # Pattern to match quoted strings or unquoted brackets
+    # Groups: 1=double quoted, 2=single quoted, 3=bracket
+    pattern = r'("(?:[^"\\]|\\.)*")|(\'(?:[^\'\\]|\\.)*\')|(\{[^}]*\})'
+
+    def replacement_func(match: re.Match[str]) -> str:
+        double_quoted = match.group(1)
+        single_quoted = match.group(2)
+        bracket = match.group(3)
+
+        # If it's a quoted string, return it as-is
+        if double_quoted or single_quoted:
+            return match.group(0)
+
+        # If it's a bracket, quote it and record the offset
+        if bracket:
+            offset_record[match.start()] = QUOTE_LENGTH
+            return f"'{bracket}'"
+
+        return match.group(0)
+
+    replaced_sql = re.sub(pattern, replacement_func, sql)
+
+    return replaced_sql, offset_record

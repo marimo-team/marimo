@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+from textwrap import dedent
+
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.parse import SqlParseError, SqlParseResult, parse_sql
+from marimo._sql.parse import (
+    SqlParseError,
+    SqlParseResult,
+    parse_sql,
+    replace_brackets_with_quotes,
+)
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 
@@ -222,20 +229,29 @@ class TestDuckDBInvalidQueries:
 class TestErrorPositionCalculation:
     """Test that error positions (line and column) are calculated correctly."""
 
+    def assert_line_column(
+        self,
+        result: SqlParseResult | None,
+        parse_error: str | None,
+        expected_line: int,
+        expected_column: int,
+    ):
+        assert result is not None
+        assert parse_error is None
+
+        assert result.success is False
+        assert len(result.errors) == 1
+        error = result.errors[0]
+
+        assert error.line == expected_line
+        assert error.column == expected_column
+
     def test_single_line_error_position(self):
         """Test position calculation for single-line queries."""
         query = "SELECT * FRM table"  # Error at position of "FRM"
 
         result, error = parse_sql(query, "duckdb")
-        assert result is not None
-        assert error is None
-
-        assert result.success is False
-        assert len(result.errors) == 1
-
-        error = result.errors[0]
-        assert error.line == 1
-        assert error.column == 13
+        self.assert_line_column(result, error, 1, 13)
 
     @pytest.mark.xfail(reason="DuckDB does not raise errors for this case")
     def test_multiline_error_position(self):
@@ -245,14 +261,7 @@ class TestErrorPositionCalculation:
         FRM users"""  # Error on line 3
 
         result, error = parse_sql(query, "duckdb")
-        assert result is not None
-
-        assert result.success is False
-        assert len(result.errors) == 1
-
-        error = result.errors[0]
-        assert error.line == 3
-        assert error.column == 0
+        self.assert_line_column(result, error, 3, 0)
 
     def test_error_at_beginning_of_line(self):
         """Test position calculation when error is at beginning of line."""
@@ -260,14 +269,7 @@ class TestErrorPositionCalculation:
 FRM table"""
 
         result, error = parse_sql(query, "duckdb")
-        assert result is not None
-
-        assert result.success is False
-        assert len(result.errors) == 1
-
-        error = result.errors[0]
-        assert error.line == 2
-        assert error.column == 4
+        self.assert_line_column(result, error, 2, 4)
 
     def test_error_with_leading_whitespace(self):
         """Test position calculation with leading whitespace."""
@@ -303,6 +305,130 @@ FRM table"""
         error = result.errors[0]
         assert error.line == 3
         assert error.column >= 0
+
+    def test_error_position_after_offset(self):
+        """Test position calculation with offset."""
+        query = """SELECT id FRM users"""
+        result, error = parse_sql(query, "duckdb")
+
+        expected_line = 1
+        expected_column = 14
+        self.assert_line_column(result, error, expected_line, expected_column)
+
+        query_with_brackets = "SELECT {id} FRM users"
+        result, error = parse_sql(query_with_brackets, "duckdb")
+        # Add 2 for the brackets
+        self.assert_line_column(
+            result, error, expected_line, expected_column + 2
+        )
+
+        # Multiple brackets
+        query_with_multiple_vars = "SELECT id, name FRM users"
+        result, error = parse_sql(query_with_multiple_vars, "duckdb")
+
+        expected_line = 1
+        expected_column = 20
+        self.assert_line_column(result, error, expected_line, expected_column)
+
+        query_multiple_vars_brackets = "SELECT {id}, {name} FRM users"
+        result, error = parse_sql(query_multiple_vars_brackets, "duckdb")
+        self.assert_line_column(
+            result,
+            error,
+            expected_line,
+            expected_column + (2 * 2),  # 2 for each bracket
+        )
+
+    def test_offset_after_position(self):
+        query = "SELECT * FRM users WHERE id = id"
+        result, error = parse_sql(query, "duckdb")
+        expected_column = 13
+        expected_line = 1
+        self.assert_line_column(result, error, expected_line, expected_column)
+
+        query_with_brackets = "SELECT * FRM users WHERE id = {id}"
+        result, error = parse_sql(query_with_brackets, "duckdb")
+        # No change since the error is before the brackets
+        self.assert_line_column(result, error, expected_line, expected_column)
+
+        # Multiple variables with brackets
+        query_multiple_vars_brackets = (
+            "SELECT * FRM users WHERE id = id and name = name"
+        )
+        result, error = parse_sql(query_multiple_vars_brackets, "duckdb")
+        self.assert_line_column(result, error, expected_line, expected_column)
+
+        query_multiple_vars_brackets_with_brackets = (
+            "SELECT * FRM users WHERE id = {id} and name = {name}"
+        )
+        result, error = parse_sql(
+            query_multiple_vars_brackets_with_brackets, "duckdb"
+        )
+        self.assert_line_column(result, error, expected_line, expected_column)
+
+    def test_mixed_position_brackets(self):
+        query = "SELECT id FRM users WHERE name = name"
+        result, error = parse_sql(query, "duckdb")
+        expected_line = 1
+        expected_column = 14
+        self.assert_line_column(result, error, expected_line, expected_column)
+
+        query_with_brackets = "SELECT {id} FRM users WHERE name = {name}"
+        result, error = parse_sql(query_with_brackets, "duckdb")
+
+        self.assert_line_column(
+            result,
+            error,
+            expected_line,
+            # Only accounts for brackets before the errors
+            expected_column + 2,
+        )
+
+    def test_multiline_brackets_before_error(self):
+        query = """SELECT id
+FRM users"""
+        result, error = parse_sql(query, "duckdb")
+        expected_line = 2
+        expected_column = 4
+        self.assert_line_column(result, error, expected_line, expected_column)
+
+        query_with_brackets = """SELECT {id}
+FRM users"""
+        result, error = parse_sql(query_with_brackets, "duckdb")
+        self.assert_line_column(result, error, expected_line, expected_column)
+
+    @pytest.mark.xfail(
+        reason="There is an incorrect calculation for column position"
+    )
+    def test_brackets_on_error_line(self):
+        # Brackets on error line
+        query_error_line = """SELECT name,
+id FRM users"""
+        result, error = parse_sql(query_error_line, "duckdb")
+        expected_line = 2
+        expected_column = 7
+        self.assert_line_column(result, error, expected_line, expected_column)
+
+        query_error_line_with_brackets = """SELECT {name},
+{id} FRM users"""
+        result, error = parse_sql(query_error_line_with_brackets, "duckdb")
+        self.assert_line_column(
+            result, error, expected_line, expected_column + 2
+        )
+
+    def test_multiline_brackets_after_error(self):
+        query = """SELECT *
+FRM users WHERE name = name"""
+        result, error = parse_sql(query, "duckdb")
+        expected_line = 2
+        expected_column = 4
+        self.assert_line_column(result, error, expected_line, expected_column)
+
+        query_with_brackets = """SELECT *
+FRM users WHERE name = {name}"""
+        result, error = parse_sql(query_with_brackets, "duckdb")
+        # No change since the error is after the brackets
+        self.assert_line_column(result, error, expected_line, expected_column)
 
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
@@ -429,3 +555,205 @@ def test_fails_gracefully_no_duckdb():
     result, error = parse_sql("SELECT 1", "duckdb")
     assert result is None
     assert error is not None
+
+
+class TestReplaceBracketsWithQuotes:
+    """Test the replace_brackets_with_quotes function."""
+
+    def test_basic_replacement(self):
+        """Test basic bracket replacement."""
+        sql = "SELECT {id} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert result_sql == "SELECT '{id}' FROM users"
+        assert offset_record == {7: 2}
+
+    def test_already_quoted_single(self):
+        """Test that already single-quoted brackets are not modified."""
+        sql = "SELECT {id}, '{name}' FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert result_sql == "SELECT '{id}', '{name}' FROM users"
+        assert offset_record == {7: 2}
+
+    def test_already_quoted_double(self):
+        """Test that already double-quoted brackets are not modified."""
+        sql = 'SELECT {id}, "{name}" FROM users'
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert result_sql == "SELECT '{id}', \"{name}\" FROM users"
+        assert offset_record == {7: 2}
+
+    def test_multiple_brackets(self):
+        """Test multiple unquoted brackets."""
+        sql = "SELECT {id}, {name}, {age} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert result_sql == "SELECT '{id}', '{name}', '{age}' FROM users"
+        assert offset_record == {7: 2, 13: 2, 21: 2}
+
+    def test_mixed_quoted_and_unquoted(self):
+        """Test mix of quoted and unquoted brackets."""
+        sql = "SELECT {id}, '{name}', {age}, \"{city}\" FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert (
+            result_sql
+            == "SELECT '{id}', '{name}', '{age}', \"{city}\" FROM users"
+        )
+        assert offset_record == {7: 2, 23: 2}
+
+    def test_no_brackets(self):
+        """Test SQL with no brackets."""
+        sql = "SELECT id, name FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert result_sql == "SELECT id, name FROM users"
+        assert offset_record == {}
+
+    def test_empty_brackets(self):
+        """Test SQL with empty brackets."""
+        sql = "SELECT {} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert result_sql == "SELECT '{}' FROM users"
+        assert offset_record == {7: 2}
+
+    def test_multiple_bracket_in_quotes(self):
+        sql = "SELECT '{id} {name}' FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert result_sql == "SELECT '{id} {name}' FROM users"
+        assert offset_record == {}
+
+    def test_escaped_quotes_in_strings(self):
+        """Test that escaped quotes in strings are handled correctly."""
+        sql = "SELECT 'O\\'Brien', {id} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert result_sql == "SELECT 'O\\'Brien', '{id}' FROM users"
+        assert offset_record == {19: 2}
+
+    def test_complex_nested_quotes(self):
+        """Test complex nested quote scenarios."""
+        sql = "SELECT '{id}', \"{name}\", {status} FROM users WHERE name = 'John\\'s'"
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert (
+            result_sql
+            == "SELECT '{id}', \"{name}\", '{status}' FROM users WHERE name = 'John\\'s'"
+        )
+        assert offset_record == {25: 2}
+
+    def test_multiline(self):
+        """Test multiline query."""
+        sql = """
+        SELECT
+        {id}, {name}, {age}
+        FROM users
+        WHERE name = 'John\\'s'
+        """
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert (
+            result_sql
+            == """
+        SELECT
+        '{id}', '{name}', '{age}'
+        FROM users
+        WHERE name = 'John\\'s'
+        """
+        )
+        assert offset_record == {24: 2, 30: 2, 38: 2}
+
+        sql = """SELECT
+{id}
+FROM users"""
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert (
+            result_sql
+            == """SELECT
+'{id}'
+FROM users"""
+        )
+        assert offset_record == {7: 2}
+
+        sql = dedent("""
+        SELECT
+            {id}
+        FROM users
+        """)
+        result_sql, offset_record = replace_brackets_with_quotes(sql)
+
+        assert result_sql == dedent("""
+        SELECT
+            '{id}'
+        FROM users
+        """)
+        assert offset_record == {12: 2}
+
+    def test_insert_json(self):
+        query = "INSERT INTO users VALUES (1, '{\"id\": 1}')"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+
+        assert result_sql == "INSERT INTO users VALUES (1, '{\"id\": 1}')"
+        assert offset_record == {}
+
+    def test_brackets_inside_quotes(self):
+        # Brackets inside single quotes should not be replaced
+        query = "SELECT '{id}' FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id}' FROM users"
+        assert offset_record == {}
+
+        # Brackets inside double quotes should not be replaced
+        query = 'SELECT "{id}" FROM users'
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == 'SELECT "{id}" FROM users'
+        assert offset_record == {}
+
+    def test_multiple_brackets_on_same_line(self):
+        query = "SELECT {id}, {name}, {age} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id}', '{name}', '{age}' FROM users"
+        assert offset_record == {7: 2, 13: 2, 21: 2}
+
+    @pytest.mark.xfail(reason="Nested brackets are not supported")
+    def test_nested_brackets(self):
+        query = "SELECT {id_{nested}} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id_{nested}}' FROM users"
+        assert offset_record == {7: 2}
+
+    def test_brackets_with_escaped_quotes(self):
+        # Brackets inside a quoted string with escaped quotes
+        query = "SELECT '{id}\\'s' FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id}\\'s' FROM users"
+        assert offset_record == {}
+
+    def test_brackets_at_start_and_end(self):
+        query = "{id} FROM users WHERE name = {name}"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "'{id}' FROM users WHERE name = '{name}'"
+        assert offset_record == {0: 2, 29: 2}
+
+    def test_brackets_with_special_characters(self):
+        query = "SELECT {id_1$-foo} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id_1$-foo}' FROM users"
+        assert offset_record == {7: 2}
+
+    def test_brackets_in_comment(self):
+        # Brackets in SQL comments should be replaced, as comments are not parsed
+        query = "SELECT id -- {comment}\nFROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT id -- '{comment}'\nFROM users"
+        assert offset_record == {13: 2}
+
+    def test_adjacent_brackets(self):
+        query = "SELECT {id}{name}{age} FROM users"
+        result_sql, offset_record = replace_brackets_with_quotes(query)
+        assert result_sql == "SELECT '{id}''{name}''{age}' FROM users"
+        assert offset_record == {7: 2, 11: 2, 17: 2}
