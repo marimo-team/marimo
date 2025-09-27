@@ -264,9 +264,13 @@ const DataTableInternal = <TData,>({
   // - Setting styles on the table's direct wrapper ensures the header sticks
   //   reliably across browsers without changing upstream components.
   React.useEffect(() => {
-    if (!tableRef.current) return;
+    if (!tableRef.current) {
+      return;
+    }
     const wrapper = tableRef.current.parentElement as HTMLDivElement | null;
-    if (!wrapper) return;
+    if (!wrapper) {
+      return;
+    }
     if (maxHeight) {
       wrapper.style.maxHeight = `${maxHeight}px`;
       // Ensure wrapper scrolls

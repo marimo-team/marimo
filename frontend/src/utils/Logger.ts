@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable no-console */
+/** biome-ignore-all lint/suspicious/noConsole: for debugging */
 
 import { Functions } from "./functions";
 

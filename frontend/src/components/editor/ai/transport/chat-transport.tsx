@@ -16,7 +16,7 @@ export class StreamingChunkTransport<
   private onChunkReceived: (chunk: UIMessageChunk) => void;
 
   constructor(
-    options: HttpChatTransportInitOptions<UI_MESSAGE> = {},
+    options: HttpChatTransportInitOptions<UI_MESSAGE>,
     onChunkReceived: (chunk: UIMessageChunk) => void,
   ) {
     super(options);

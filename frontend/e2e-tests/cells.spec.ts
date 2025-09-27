@@ -38,7 +38,7 @@ test("keeps re-renders from growing", async ({ page }) => {
   // It is also ok to decrease the count if we find a way to reduce the number
   // of renders.
   expect(cellRenderCount).toBeDefined();
-  expect(Number.parseInt(cellRenderCount || "")).toBeLessThanOrEqual(6);
+  expect(Number.parseInt(cellRenderCount || "", 10)).toBeLessThanOrEqual(6);
 });
 
 /**

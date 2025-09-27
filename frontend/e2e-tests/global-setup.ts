@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable no-console */
+/** biome-ignore-all lint/suspicious/noConsole: for debugging */
 
 import { chromium, type FullConfig } from "@playwright/test";
 import { type ApplicationNames, getAppUrl } from "../playwright.config";
