@@ -13,7 +13,6 @@ import {
 import React, { type JSX, Suspense, useEffect, useRef, useState } from "react";
 import { useVegaEmbed } from "react-vega";
 import useResizeObserver from "use-resize-observer";
-import type { Spec } from "vega";
 import { compile } from "vega-lite";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useCellIds } from "@/core/cells/cells";
@@ -113,51 +112,6 @@ export const Tracing: React.FC = () => {
 
 // Using vega instead of vegaLite as some parts of the spec get interpreted as vega & will throw warnings
 
-interface ChartProps {
-  className?: string;
-  height: number;
-  vegaSpec: Spec;
-  signalListeners: SignalListener[];
-  theme: ResolvedTheme;
-}
-
-const Chart: React.FC<ChartProps> = (props: ChartProps) => {
-  const { signalListeners, theme, vegaSpec, height, className } = props;
-  const { ref, width = 300 } = useResizeObserver<HTMLDivElement>();
-
-  const vegaRef = useRef<HTMLDivElement>(null);
-  const embed = useVegaEmbed({
-    ref: vegaRef,
-    spec: vegaSpec,
-    options: {
-      theme: theme === "dark" ? "dark" : undefined,
-      width: width - 50,
-      height: height,
-      actions: false,
-    },
-  });
-
-  useEffect(() => {
-    signalListeners.forEach(({ signalName, handler }) => {
-      embed?.view.addSignalListener(signalName, handler);
-    });
-
-    return () => {
-      signalListeners.forEach(({ signalName, handler }) => {
-        embed?.view.removeSignalListener(signalName, handler);
-      });
-    };
-  }, [embed, signalListeners]);
-
-  return (
-    <div className={className} ref={ref}>
-      <Suspense>
-        <div ref={vegaRef} />
-      </Suspense>
-    </div>
-  );
-};
-
 interface VegaHoverCellSignal {
   cell: string[];
   vlPoint: unknown;
@@ -222,17 +176,8 @@ const TraceBlockBody: React.FC<{
   title: React.ReactNode;
 }> = ({ run, chartPosition, theme, title }) => {
   const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
-
-  const signalListeners: SignalListener[] = [
-    {
-      signalName: VEGA_HOVER_SIGNAL,
-      handler: (_name: string, value: unknown) => {
-        const signalValue = value as VegaHoverCellSignal;
-        const hoveredCell = signalValue.cell?.[0] as CellId | undefined;
-        setHoveredCellId(hoveredCell ?? null);
-      },
-    },
-  ];
+  const vegaRef = useRef<HTMLDivElement>(null);
+  const { ref, width = 300 } = useResizeObserver<HTMLDivElement>();
 
   const cellIds = useCellIds();
 
@@ -260,6 +205,40 @@ const TraceBlockBody: React.FC<{
     ),
   ).spec;
 
+  const embed = useVegaEmbed({
+    ref: vegaRef,
+    spec: vegaSpec,
+    options: {
+      theme: theme === "dark" ? "dark" : undefined,
+      width: width - 50,
+      height: chartPosition === "above" ? 120 : 100,
+      actions: false,
+    },
+  });
+
+  useEffect(() => {
+    const signalListeners: SignalListener[] = [
+      {
+        signalName: VEGA_HOVER_SIGNAL,
+        handler: (_name: string, value: unknown) => {
+          const signalValue = value as VegaHoverCellSignal;
+          const hoveredCell = signalValue.cell?.[0] as CellId | undefined;
+          setHoveredCellId(hoveredCell ?? null);
+        },
+      },
+    ];
+
+    signalListeners.forEach(({ signalName, handler }) => {
+      embed?.view.addSignalListener(signalName, handler);
+    });
+
+    return () => {
+      signalListeners.forEach(({ signalName, handler }) => {
+        embed?.view.removeSignalListener(signalName, handler);
+      });
+    };
+  }, [embed]);
+
   const traceRows = (
     <TraceRows
       run={run}
@@ -268,17 +247,23 @@ const TraceBlockBody: React.FC<{
     />
   );
 
+  const chartElement = (
+    <div
+      className={chartPosition === "sideBySide" ? "-mt-0.5 flex-1" : ""}
+      ref={ref}
+    >
+      <Suspense>
+        <div ref={vegaRef} />
+      </Suspense>
+    </div>
+  );
+
   if (chartPosition === "above") {
     return (
       <div key={run.runId} className="flex flex-col">
         <pre className="font-mono font-semibold">
           {title}
-          <Chart
-            vegaSpec={vegaSpec}
-            height={120}
-            signalListeners={signalListeners}
-            theme={theme}
-          />
+          {chartElement}
           {traceRows}
         </pre>
       </div>
@@ -291,13 +276,7 @@ const TraceBlockBody: React.FC<{
         {title}
         {traceRows}
       </pre>
-      <Chart
-        className="-mt-0.5 flex-1"
-        vegaSpec={vegaSpec}
-        height={100}
-        signalListeners={signalListeners}
-        theme={theme}
-      />
+      {chartElement}
     </div>
   );
 };

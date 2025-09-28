@@ -129,6 +129,7 @@ const LoadedVegaComponent = ({
         }
 
         // Debounce the signal listener, otherwise we may create expensive requests
+        // TODO: These aren't triggered
         acc.push({
           signalName: name,
           handler: (signalName, signalValue) =>
@@ -236,12 +237,21 @@ const LoadedVegaComponent = ({
 
   useEffect(() => {
     signalListeners.forEach(({ signalName, handler }) => {
-      embed?.view.addSignalListener(signalName, handler);
+      // Existing bug. TODO: Some signal listeners are invalid
+      try {
+        embed?.view.addSignalListener(signalName, handler);
+      } catch (error) {
+        Logger.error(error);
+      }
     });
 
     return () => {
       signalListeners.forEach(({ signalName, handler }) => {
-        embed?.view.removeSignalListener(signalName, handler);
+        try {
+          embed?.view.removeSignalListener(signalName, handler);
+        } catch (error) {
+          Logger.error(error);
+        }
       });
     };
   }, [embed, signalListeners]);
