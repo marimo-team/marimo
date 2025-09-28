@@ -1,8 +1,8 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-import re
 import ctypes
+import re
 from ctypes import wintypes
 
 from marimo._utils.platform import is_windows
@@ -85,16 +85,21 @@ def _mslex_quote(s: str) -> str:
             return alt
     return quoted
 
+
 def get_short_path_name(long_name):
     """
     Gets the short 8.3 path name for a given long path using ctypes.
     """
     # Load the kernel32.dll library
-    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
     # Define the function signature (GetShortPathNameW for Unicode)
     GetShortPathNameW = kernel32.GetShortPathNameW
-    GetShortPathNameW.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+    GetShortPathNameW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.LPWSTR,
+        wintypes.DWORD,
+    ]
     GetShortPathNameW.restype = wintypes.DWORD
 
     # First call to get the required buffer size
@@ -114,8 +119,9 @@ def get_short_path_name(long_name):
     if result == 0:
         # Handle error
         raise ctypes.WinError(ctypes.get_last_error())
-    
+
     return output_buffer.value
+
 
 def cmd_quote(s: str) -> str:
     """
