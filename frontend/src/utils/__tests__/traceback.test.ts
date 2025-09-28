@@ -6,14 +6,20 @@ import { extractAllTracebackInfo } from "../traceback";
 describe("traceback", () => {
   test("extracts cell-link", () => {
     const errors = extractAllTracebackInfo(Tracebacks.raw);
-    expect(errors).toMatchInlineSnapshot(`
+    expect(
+      errors[0].kind === "file" &&
+        errors[0].filePath.endsWith("marimo/_runtime/executor.py"),
+    ).toBe(true);
+    expect(errors.slice(1)).toMatchInlineSnapshot(`
       [
         {
           "cellId": "Hbol",
+          "kind": "cell",
           "lineNumber": 4,
         },
         {
           "cellId": "Hbol",
+          "kind": "cell",
           "lineNumber": 2,
         },
       ]
@@ -22,10 +28,15 @@ describe("traceback", () => {
 
   test("extracts cell-link from assertion", () => {
     const info = extractAllTracebackInfo(Tracebacks.assertion);
-    expect(info).toMatchInlineSnapshot(`
+    expect(
+      info[0].kind === "file" &&
+        info[0].filePath.endsWith("marimo/_runtime/executor.py"),
+    ).toBe(true);
+    expect(info.slice(1)).toMatchInlineSnapshot(`
       [
         {
           "cellId": "Hbol",
+          "kind": "cell",
           "lineNumber": 1,
         },
       ]

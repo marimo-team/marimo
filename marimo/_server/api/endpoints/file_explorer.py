@@ -253,7 +253,7 @@ async def open_file(
     body = await parse_request(request, cls=FileOpenRequest)
     try:
         file_system.get_details(body.path)
-        success = file_system.open_in_editor(body.path)
+        success = file_system.open_in_editor(body.path, body.line_number)
         return SuccessResponse(success=success)
     except Exception as e:
         LOGGER.error(f"Error opening file: {e}")
