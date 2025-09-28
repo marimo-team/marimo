@@ -102,6 +102,28 @@ class WebSocketAdapter implements IWebSocket {
   }
 }
 
+export function parseTypedCommand(typedCommand: string): string[] {
+  if (!typedCommand.includes(":")) {
+    // Fallback for old format - simple split by spaces
+    return typedCommand.split(" ");
+  }
+
+  const colonIndex = typedCommand.indexOf(":");
+  const serverType = typedCommand.substring(0, colonIndex);
+  const binaryPath = typedCommand.substring(colonIndex + 1);
+
+  switch (serverType) {
+    case "copilot":
+      return ["node", binaryPath, "--stdio"];
+    case "basedpyright":
+      return [binaryPath, "--stdio"];
+    case "ty":
+      return [binaryPath, "server"];
+    default:
+      throw new Error(`Unknown LSP server type: ${serverType}`);
+  }
+}
+
 function handleWebSocketConnection(
   languageServerCommand: string[],
   logger: Logger,
@@ -181,8 +203,9 @@ async function main(): Promise<void> {
 
   const logger = await Logger.create(argv["log-file"]);
   const serverPort = Number.parseInt(argv.port) || 3000;
-  const languageServerCommand = argv.lsp.split(" ");
+  const languageServerCommand = parseTypedCommand(argv.lsp);
 
+  logger.log(`Parsed LSP command: ${languageServerCommand.join(" ")}`);
   startWebSocketServer(serverPort, languageServerCommand, logger);
 }
 
