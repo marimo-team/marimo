@@ -119,6 +119,23 @@ const LoadedVegaComponent = ({
     setValue({ ...value, ...newValue });
   });
 
+  const debouncedSignalHandler = useMemo(
+    () =>
+      debounce((signalName: string, signalValue: unknown) => {
+        Logger.debug("[Vega signal]", signalName, signalValue);
+        let result = Objects.mapValues(
+          signalValue as object,
+          convertDatetimeToEpochMilliseconds,
+        );
+        result = Objects.mapValues(result, convertSetToList);
+
+        handleUpdateValue({
+          [signalName]: result,
+        });
+      }, 100),
+    [handleUpdateValue],
+  );
+
   const namesMemo = useDeepCompareMemoize(names);
   const signalListeners = useMemo(
     () =>
@@ -128,28 +145,16 @@ const LoadedVegaComponent = ({
           return acc;
         }
 
-        // Debounce the signal listener, otherwise we may create expensive requests
-        // TODO: These aren't triggered
         acc.push({
           signalName: name,
           handler: (signalName, signalValue) =>
-            debounce(() => {
-              Logger.debug("[Vega signal]", signalName, signalValue);
-              let result = Objects.mapValues(
-                signalValue as object,
-                convertDatetimeToEpochMilliseconds,
-              );
-              result = Objects.mapValues(result, convertSetToList);
-
-              handleUpdateValue({
-                [signalName]: result,
-              });
-            }, 100),
+            // Debounce the signal listener, otherwise we may create expensive requests
+            debouncedSignalHandler(signalName, signalValue),
         });
 
         return acc;
       }, []),
-    [namesMemo, handleUpdateValue],
+    [namesMemo, debouncedSignalHandler],
   );
 
   const handleError = useEvent((error) => {
