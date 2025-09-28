@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Query } from "compassql/build/src/query";
-import type { VisualizationSpec } from "react-vega";
 import type { NONPOSITION_SCALE_CHANNELS as NONPOSITION_SCALE_CHANNELS_VEGA } from "vega-lite/types_unstable/channel.js";
 import type { NamedData } from "vega-lite/types_unstable/data.js";
 import type { TopLevel } from "vega-lite/types_unstable/spec/toplevel.js";
@@ -18,7 +17,7 @@ export interface ResultPlot {
   /**
    * Spec to be used for rendering.
    */
-  spec: VisualizationSpec;
+  spec: TopLevelFacetedUnitSpec;
 }
 
 export interface Result {
