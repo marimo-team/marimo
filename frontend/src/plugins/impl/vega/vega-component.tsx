@@ -3,11 +3,13 @@
 import { isValid } from "date-fns";
 import { debounce } from "lodash-es";
 import { HelpCircleIcon } from "lucide-react";
-import { type JSX, useMemo, useRef, useState } from "react";
+import { type JSX, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
-import { type SignalListeners, VegaLite, type View } from "react-vega";
+import { useVegaEmbed } from "react-vega";
+import type { View } from "vega";
 // @ts-expect-error vega-typings does not include formats
 import { formats } from "vega-loader";
+import type { SignalListener } from "@/components/charts/types";
 import { tooltipHandler } from "@/components/charts/tooltip";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -94,6 +96,7 @@ const LoadedVegaComponent = ({
   spec,
 }: VegaComponentProps<VegaComponentState>): JSX.Element => {
   const { theme } = useTheme();
+  const vegaRef = useRef<HTMLDivElement>(null);
   const vegaView = useRef<View>(undefined);
   const [error, setError] = useState<Error>();
 
@@ -119,28 +122,32 @@ const LoadedVegaComponent = ({
   const namesMemo = useDeepCompareMemoize(names);
   const signalListeners = useMemo(
     () =>
-      namesMemo.reduce<SignalListeners>((acc, name) => {
+      namesMemo.reduce<SignalListener[]>((acc, name) => {
         // pan/zoom does not count towards selection
         if (ParamNames.PAN_ZOOM === name) {
           return acc;
         }
 
-        // Debounce each signal listener, otherwise we may create expensive requests
-        acc[name] = debounce((signalName, signalValue) => {
-          Logger.debug("[Vega signal]", signalName, signalValue);
+        // Debounce the signal listener, otherwise we may create expensive requests
+        acc.push({
+          signalName: name,
+          handler: (signalName, signalValue) =>
+            debounce(() => {
+              Logger.debug("[Vega signal]", signalName, signalValue);
+              let result = Objects.mapValues(
+                signalValue as object,
+                convertDatetimeToEpochMilliseconds,
+              );
+              result = Objects.mapValues(result, convertSetToList);
 
-          let result = Objects.mapValues(
-            signalValue as object,
-            convertDatetimeToEpochMilliseconds,
-          );
-          result = Objects.mapValues(result, convertSetToList);
+              handleUpdateValue({
+                [signalName]: result,
+              });
+            }, 100),
+        });
 
-          handleUpdateValue({
-            [signalName]: result,
-          });
-        }, 100);
         return acc;
-      }, {}),
+      }, []),
     [namesMemo, handleUpdateValue],
   );
 
@@ -214,6 +221,31 @@ const LoadedVegaComponent = ({
     );
   };
 
+  const embed = useVegaEmbed({
+    ref: vegaRef,
+    spec: selectableSpec,
+    options: {
+      theme: theme === "dark" ? "dark" : undefined,
+      actions: actions,
+      mode: "vega-lite",
+    },
+    tooltip: tooltipHandler.call,
+    onError: handleError,
+    onEmbed: handleNewView,
+  });
+
+  useEffect(() => {
+    signalListeners.forEach(({ signalName, handler }) => {
+      embed?.view.addSignalListener(signalName, handler);
+    });
+
+    return () => {
+      signalListeners.forEach(({ signalName, handler }) => {
+        embed?.view.removeSignalListener(signalName, handler);
+      });
+    };
+  }, [embed, signalListeners]);
+
   return (
     <>
       {error && (
@@ -227,15 +259,7 @@ const LoadedVegaComponent = ({
         // Capture the pointer down event to prevent the parent from handling it
         onPointerDown={Events.stopPropagation()}
       >
-        <VegaLite
-          spec={selectableSpec}
-          theme={theme === "dark" ? "dark" : undefined}
-          actions={actions}
-          signalListeners={signalListeners}
-          onError={handleError}
-          onNewView={handleNewView}
-          tooltip={tooltipHandler.call}
-        />
+        <div ref={vegaRef} />
         {renderHelpContent()}
       </div>
     </>

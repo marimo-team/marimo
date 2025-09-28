@@ -10,9 +10,10 @@ import {
   CirclePlayIcon,
   CircleX,
 } from "lucide-react";
-import React, { type JSX, Suspense, useRef, useState } from "react";
-import type { SignalListeners, VisualizationSpec } from "react-vega";
+import React, { type JSX, Suspense, useEffect, useRef, useState } from "react";
+import { useVegaEmbed } from "react-vega";
 import useResizeObserver from "use-resize-observer";
+import type { Spec } from "vega";
 import { compile } from "vega-lite";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useCellIds } from "@/core/cells/cells";
@@ -28,6 +29,7 @@ import {
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { ClearButton } from "../buttons/clear-button";
+import type { SignalListener } from "../charts/types";
 import { ElapsedTime, formatElapsedTime } from "../editor/cell/CellStatus";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CellLink } from "../editor/links/cell-link";
@@ -101,6 +103,7 @@ export const Tracing: React.FC = () => {
               />
             );
           }
+          return null;
         })}
       </div>
     </div>
@@ -108,30 +111,47 @@ export const Tracing: React.FC = () => {
 };
 
 // Using vega instead of vegaLite as some parts of the spec get interpreted as vega & will throw warnings
-const LazyVega = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.Vega })),
-);
+
 interface ChartProps {
   className?: string;
   height: number;
-  vegaSpec: VisualizationSpec;
-  signalListeners: SignalListeners;
+  vegaSpec: Spec;
+  signalListeners: SignalListener[];
   theme: ResolvedTheme;
 }
 
 const Chart: React.FC<ChartProps> = (props: ChartProps) => {
+  const { signalListeners, theme, vegaSpec, height, className } = props;
   const { ref, width = 300 } = useResizeObserver<HTMLDivElement>();
+
+  const vegaRef = useRef<HTMLDivElement>(null);
+  const embed = useVegaEmbed({
+    ref: vegaRef,
+    spec: vegaSpec,
+    options: {
+      theme: theme === "dark" ? "dark" : undefined,
+      width: width - 50,
+      height: height,
+      actions: false,
+    },
+  });
+
+  useEffect(() => {
+    signalListeners.forEach(({ signalName, handler }) => {
+      embed?.view.addSignalListener(signalName, handler);
+    });
+
+    return () => {
+      signalListeners.forEach(({ signalName, handler }) => {
+        embed?.view.removeSignalListener(signalName, handler);
+      });
+    };
+  }, [embed, signalListeners]);
+
   return (
-    <div className={props.className} ref={ref}>
+    <div className={className} ref={ref}>
       <Suspense>
-        <LazyVega
-          spec={props.vegaSpec}
-          theme={props.theme === "dark" ? "dark" : undefined}
-          width={width - 50}
-          height={props.height}
-          signalListeners={props.signalListeners}
-          actions={false}
-        />
+        <div ref={vegaRef} />
       </Suspense>
     </div>
   );
@@ -202,13 +222,16 @@ const TraceBlockBody: React.FC<{
 }> = ({ run, chartPosition, theme, title }) => {
   const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
 
-  const handleVegaSignal = {
-    [VEGA_HOVER_SIGNAL]: (_name: string, value: unknown) => {
-      const signalValue = value as VegaHoverCellSignal;
-      const hoveredCell = signalValue.cell?.[0] as CellId | undefined;
-      setHoveredCellId(hoveredCell ?? null);
+  const signalListeners: SignalListener[] = [
+    {
+      signalName: VEGA_HOVER_SIGNAL,
+      handler: (_name: string, value: unknown) => {
+        const signalValue = value as VegaHoverCellSignal;
+        const hoveredCell = signalValue.cell?.[0] as CellId | undefined;
+        setHoveredCellId(hoveredCell ?? null);
+      },
     },
-  };
+  ];
 
   const cellIds = useCellIds();
 
@@ -252,7 +275,7 @@ const TraceBlockBody: React.FC<{
           <Chart
             vegaSpec={vegaSpec}
             height={120}
-            signalListeners={handleVegaSignal}
+            signalListeners={signalListeners}
             theme={theme}
           />
           {traceRows}
@@ -271,7 +294,7 @@ const TraceBlockBody: React.FC<{
         className="-mt-0.5 flex-1"
         vegaSpec={vegaSpec}
         height={100}
-        signalListeners={handleVegaSignal}
+        signalListeners={signalListeners}
         theme={theme}
       />
     </div>
