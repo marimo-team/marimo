@@ -124,7 +124,7 @@ const RelativeTime = ({ date }: { date: Date }) => {
   const differenceInSeconds = (currentTime.getTime() - date.getTime()) / 1000;
 
   // Define time units with their thresholds and conversion factors
-  const timeUnits: Array<[number, number, string]> = [
+  const timeUnits: [number, number, string][] = [
     [60, 1, "second"], // Less than 60 seconds
     [60, 60, "minute"], // Less than 60 minutes
     [24, 3600, "hour"], // Less than 24 hours

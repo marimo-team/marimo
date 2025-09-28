@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/** biome-ignore-all lint/suspicious/noConsole: for debugging */
+
+import { Logger } from "./Logger";
 
 type SpanStatus = "ok" | "error";
 
@@ -88,19 +90,19 @@ export class Tracer {
           s.startTime < span.endTime,
       );
       if (childSpans.length > 0) {
-        console.log("Child Spans:");
+        Logger.log("Child Spans:");
         childSpans.forEach((childSpan) => {
-          console.log(`  - ${childSpan.name}`);
+          Logger.log(`  - ${childSpan.name}`);
         });
       }
-      console.log(`Start Time: ${new Date(span.startTime).toISOString()}`);
+      Logger.log(`Start Time: ${new Date(span.startTime).toISOString()}`);
       if (span.endTime) {
-        console.log(`End Time: ${new Date(span.endTime).toISOString()}`);
-        console.log(`Duration: ${span.endTime - span.startTime}ms`);
+        Logger.log(`End Time: ${new Date(span.endTime).toISOString()}`);
+        Logger.log(`Duration: ${span.endTime - span.startTime}ms`);
       }
-      console.log(`Status: ${span.status}`);
-      console.log(`Attributes: ${JSON.stringify(span.attributes)}`);
-      console.log("---");
+      Logger.log(`Status: ${span.status}`);
+      Logger.log(`Attributes: ${JSON.stringify(span.attributes)}`);
+      Logger.log("---");
     });
   }
 }

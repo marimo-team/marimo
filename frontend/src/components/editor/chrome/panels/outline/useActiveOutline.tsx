@@ -18,7 +18,7 @@ function getRootScrollableElement() {
  * React hook to find the active header in the outline
  */
 export function useActiveOutline(
-  headerElements: Array<readonly [HTMLElement, string]>,
+  headerElements: (readonly [HTMLElement, string])[],
 ) {
   const [activeHeaderId, setActiveHeaderId] = useState<string | undefined>(
     undefined,

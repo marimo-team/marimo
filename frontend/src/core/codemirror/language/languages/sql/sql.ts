@@ -281,10 +281,9 @@ export class SQLLanguageAdapter
       );
     }
 
-    // TODO: Re-enable after we optimize the endpoint
-    // if (this.sqlModeEnabled) {
-    //   extensions.push(sqlValidationExtension());
-    // }
+    if (this.sqlModeEnabled) {
+      extensions.push(sqlValidationExtension());
+    }
 
     return extensions;
   }
@@ -641,8 +640,7 @@ function safeDedent(code: string): string {
 
 const SQL_VALIDATION_DEBOUNCE_MS = 300;
 
-// @ts-expect-error: TODO: Re-enable after we optimize the endpoint
-function _sqlValidationExtension(): Extension {
+function sqlValidationExtension(): Extension {
   let debounceTimeout: number | undefined;
   let lastValidationRequest: string | null = null;
 

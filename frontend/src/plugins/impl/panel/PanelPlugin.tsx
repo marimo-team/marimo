@@ -50,9 +50,9 @@ declare global {
           consume: (data: ArrayBuffer | string) => void;
           message: {
             content: {
-              events?: Array<{
+              events?: {
                 model?: { id?: string };
-              }>;
+              }[];
               [key: string]: unknown;
             };
             buffers: ArrayBuffer[];

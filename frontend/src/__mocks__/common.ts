@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable no-console */
+/** biome-ignore-all lint/suspicious/noConsole: for debugging */
 import { type Mock, vi } from "vitest";
 import { invariant } from "@/utils/invariant";
 
@@ -108,8 +108,10 @@ export const SetupMocks = {
           delete store[key];
         }),
         clear: vi.fn(() => {
-          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-          Object.keys(store).forEach((key) => delete store[key]);
+          for (const key of Object.keys(store)) {
+            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+            delete store[key];
+          }
         }),
         key: vi.fn((index: number) => Object.keys(store)[index] || null),
         get length() {

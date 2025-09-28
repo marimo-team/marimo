@@ -69,13 +69,12 @@ const RoutesComponent = ({
   }, [handleFindMatch]);
 
   if (!matched) {
-    // eslint-disable-next-line react/jsx-no-useless-fragment
+    // biome-ignore lint/complexity/noUselessFragments: this is intentional
     return <></>;
   }
 
   const matchedIndex = routes.indexOf(matched);
   const child = React.Children.toArray(children)[matchedIndex];
 
-  // eslint-disable-next-line react/jsx-no-useless-fragment
   return <>{child}</>;
 };

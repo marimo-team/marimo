@@ -157,7 +157,7 @@ const LoadedVegaComponent = ({
   });
 
   const renderHelpContent = () => {
-    const hints: Array<[string, string]> = [];
+    const hints: [string, string][] = [];
     if (ParamNames.hasPoint(names)) {
       hints.push([
         "Point selection",

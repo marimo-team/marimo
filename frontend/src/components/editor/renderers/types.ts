@@ -17,7 +17,7 @@ export interface ICellRendererProps<L> {
   /**
    * The cells to render.
    */
-  cells: Array<CellRuntimeState & CellData>;
+  cells: (CellRuntimeState & CellData)[];
 
   /**
    * The layout configuration.

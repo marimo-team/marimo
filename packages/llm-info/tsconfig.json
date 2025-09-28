@@ -2,6 +2,8 @@
   "extends": "@marimo-team/tsconfig/library.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   }
 }

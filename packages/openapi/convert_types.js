@@ -1,3 +1,5 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+/** biome-ignore-all lint/suspicious/noConsole: for debugging */
 // @ts-check
 import * as fs from "node:fs";
 import * as process from "node:process";

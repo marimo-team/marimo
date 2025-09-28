@@ -26,6 +26,10 @@
         var scrollbarHeight = 20; // Max between windows, mac, and linux
 
         function setHeight() {
+          // Guard against race condition where iframe isn't ready
+          if (!obj.contentWindow?.document?.documentElement) {
+            return;
+          }
           var element = obj.contentWindow.document.documentElement;
           // If there is no vertical scrollbar, we don't need to resize the iframe
           if (element.scrollHeight === element.clientHeight) {
@@ -49,7 +53,10 @@
         const resizeObserver = new ResizeObserver((entries) => {
           setHeight();
         });
-        resizeObserver.observe(obj.contentWindow.document.body);
+        // Only observe if iframe content is ready
+        if (obj.contentWindow?.document?.body) {
+          resizeObserver.observe(obj.contentWindow.document.body);
+        }
       }
     </script>
     <marimo-filename hidden>{{ filename }}</marimo-filename>

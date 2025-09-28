@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 import pytest
 
 from marimo._ai._tools.base import ToolContext
-from marimo._ai._tools.tools.cells import CellVariableValue
 from marimo._ai._tools.tools.tables_and_variables import (
     DataTableMetadata,
     GetTablesAndVariables,
@@ -13,6 +12,7 @@ from marimo._ai._tools.tools.tables_and_variables import (
 )
 from marimo._data.models import DataTableColumn
 from marimo._messaging.ops import VariableValue
+from marimo._server.sessions import Session
 
 
 @dataclass
@@ -39,7 +39,7 @@ class MockSessionView:
 
 
 @dataclass
-class MockSession:
+class MockSession(Session):
     session_view: MockSessionView
 
 
@@ -53,9 +53,9 @@ def tool() -> GetTablesAndVariables:
 def sample_columns() -> list[DataTableColumn]:
     """Sample column information for testing."""
     return [
-        DataTableColumn("id", "int", "INTEGER", [1, 2, 3]),
-        DataTableColumn("name", "str", "VARCHAR", ["Alice", "Bob"]),
-        DataTableColumn("email", "str", "VARCHAR", ["alice@example.com"]),
+        DataTableColumn("id", "integer", "INTEGER", [1, 2, 3]),
+        DataTableColumn("name", "string", "VARCHAR", ["Alice", "Bob"]),
+        DataTableColumn("email", "string", "VARCHAR", ["alice@example.com"]),
     ]
 
 
@@ -78,8 +78,8 @@ def sample_tables(sample_columns: list[DataTableColumn]) -> list[MockDataset]:
             num_rows=50,
             num_columns=2,
             columns=[
-                DataTableColumn("order_id", "int", "INTEGER", [1, 2]),
-                DataTableColumn("user_id", "int", "INTEGER", [1, 2]),
+                DataTableColumn("order_id", "integer", "INTEGER", [1, 2]),
+                DataTableColumn("user_id", "integer", "INTEGER", [1, 2]),
             ],
         ),
     ]
@@ -89,10 +89,10 @@ def sample_tables(sample_columns: list[DataTableColumn]) -> list[MockDataset]:
 def sample_variables() -> dict[str, VariableValue]:
     """Sample variable data for testing."""
     return {
-        "x": VariableValue("x", 42, "int"),
-        "y": VariableValue("y", "hello", "str"),
+        "x": VariableValue("x", "42", "integer"),
+        "y": VariableValue("y", "hello", "string"),
         "df": VariableValue("df", None, "DataFrame"),
-        "my_list": VariableValue("my_list", [1, 2, 3], "list"),
+        "my_list": VariableValue("my_list", "[1, 2, 3]", "list"),
     }
 
 
@@ -140,8 +140,8 @@ def test_get_tables_and_variables_empty_list(
 
     x_var = result.variables["x"]
     assert x_var.name == "x"
-    assert x_var.value == 42
-    assert x_var.data_type == "int"
+    assert x_var.value == "42"
+    assert x_var.datatype == "integer"
 
 
 def test_get_tables_and_variables_specific_variables(
@@ -214,28 +214,9 @@ def test_data_table_metadata_structure(
     id_column = users_table.columns[0]
     assert isinstance(id_column, DataTableColumn)
     assert id_column.name == "id"
-    assert id_column.type == "int"
+    assert id_column.type == "integer"
     assert id_column.external_type == "INTEGER"
     assert id_column.sample_values == [1, 2, 3]
-
-
-def test_cell_variable_value_structure(
-    tool: GetTablesAndVariables, sample_session: MockSession
-):
-    """Test that CellVariableValue is properly structured."""
-    result = tool._get_tables_and_variables(sample_session, ["x", "my_list"])
-
-    x_var = result.variables["x"]
-    assert isinstance(x_var, CellVariableValue)
-    assert x_var.name == "x"
-    assert x_var.value == 42
-    assert x_var.data_type == "int"
-
-    list_var = result.variables["my_list"]
-    assert isinstance(list_var, CellVariableValue)
-    assert list_var.name == "my_list"
-    assert list_var.value == [1, 2, 3]
-    assert list_var.data_type == "list"
 
 
 def test_empty_session(tool: GetTablesAndVariables):
@@ -258,8 +239,8 @@ def test_table_with_no_primary_keys_or_indexes(tool: GetTablesAndVariables):
         num_rows=10,
         num_columns=2,
         columns=[
-            DataTableColumn("col1", "str", "TEXT", ["a", "b"]),
-            DataTableColumn("col2", "int", "INTEGER", [1, 2]),
+            DataTableColumn("col1", "string", "TEXT", ["a", "b"]),
+            DataTableColumn("col2", "integer", "INTEGER", [1, 2]),
         ],
         primary_keys=None,
         indexes=None,
@@ -297,7 +278,7 @@ def test_variable_with_none_value(tool: GetTablesAndVariables):
     none_var = result.variables["none_var"]
     assert none_var.name == "none_var"
     assert none_var.value is None
-    assert none_var.data_type == "NoneType"
+    assert none_var.datatype == "NoneType"
 
 
 def test_filtering_logic_separate_tables_and_variables(

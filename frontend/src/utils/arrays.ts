@@ -55,7 +55,7 @@ export function arrayShallowEquals<T>(a: T[], b: T[]): boolean {
 export const Arrays = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   EMPTY: [] as any,
-  zip: <T, U>(a: T[], b: U[]): Array<[T, U]> => {
+  zip: <T, U>(a: T[], b: U[]): [T, U][] => {
     invariant(a.length === b.length, "Arrays must be the same length");
     return a.map((item, i) => [item, b[i]]);
   },

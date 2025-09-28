@@ -67,7 +67,16 @@ class FormatterRegistry:
             return None
 
         # Search for formatters in the object's type hierarchy
-        for t in top_level_type.mro():
+        try:
+            mro_list = top_level_type.mro()
+        except BaseException as e:  # noqa: E722
+            # Some exotic metaclasses or broken types may raise when calling mro
+            LOGGER.warning(
+                "Failed to read MRO for type %s: %s", top_level_type, str(e)
+            )
+            return None
+
+        for t in mro_list:
             if t in self.formatters:
                 formatter = self.formatters[t]
                 # Add to formatters dict to avoid re-searching

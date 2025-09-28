@@ -28,7 +28,7 @@ interface Props {
   cellId: CellId;
   cellName: string;
   className?: string;
-  consoleOutputs: Array<WithResponse<OutputMessage>>;
+  consoleOutputs: WithResponse<OutputMessage>[];
   stale: boolean;
   debuggerActive: boolean;
   onRefactorWithAI?: (opts: { prompt: string }) => void;

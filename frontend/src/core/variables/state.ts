@@ -38,11 +38,11 @@ const {
   },
   setMetadata: (
     state,
-    metadata: Array<{
+    metadata: {
       name: VariableName;
       value?: string | null;
       dataType?: string | null;
-    }>,
+    }[],
   ) => {
     const newVariables = { ...state };
     for (const { name, value, dataType } of metadata) {

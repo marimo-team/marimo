@@ -22,10 +22,10 @@ export interface NotebookLens {
   reversePosition: (position: LSP.Position, cellId: CellId) => LSP.Position;
 
   /** Clip a range to the given cell */
-  getEditsForNewText: (newText: string) => Array<{
+  getEditsForNewText: (newText: string) => {
     cellId: CellId;
     text: string;
-  }>;
+  }[];
 
   /** Check if a range falls within the given cell */
   isInRange: (range: LSP.Range, cellId: CellId) => boolean;
@@ -84,10 +84,10 @@ export function createNotebookLens(
         throw new Error("Cannot apply rename when there are new lines");
       }
 
-      const edits: Array<{
+      const edits: {
         cellId: CellId;
         text: string;
-      }> = [];
+      }[] = [];
 
       for (const [cellId, code] of Objects.entries(codes)) {
         if (!cellLineOffsets.has(cellId)) {

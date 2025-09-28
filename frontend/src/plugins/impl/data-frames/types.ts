@@ -15,7 +15,7 @@ export type NumPyType = string;
  *
  * We cannot use a js map, since maps don't preserve keys as ints (e.g. "1" and 1 are the same key)
  */
-export type RawColumnDataTypes = Array<[ColumnId, [DataType, NumPyType]]>;
+export type RawColumnDataTypes = [ColumnId, [DataType, NumPyType]][];
 /**
  * Map of column Id and their data types
  * ES6 maps preserve keys as ints (e.g. "1" and 1 are different keys)

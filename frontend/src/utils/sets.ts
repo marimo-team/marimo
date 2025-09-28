@@ -3,7 +3,7 @@ export const Sets = {
   /**
    * Merge multiple iterables into a single set.
    */
-  merge<T>(...sets: Array<Iterable<T>>): Set<T> {
+  merge<T>(...sets: Iterable<T>[]): Set<T> {
     const result = new Set<T>();
     for (const set of sets) {
       for (const item of set) {

@@ -740,7 +740,7 @@ describe("MultiColumn", () => {
   });
 
   it("creates from ids and columns", () => {
-    const idAndColumns: Array<[string, number | undefined | null]> = [
+    const idAndColumns: [string, number | undefined | null][] = [
       ["A1", 0],
       ["A2", 0],
       ["B1", 1],
@@ -1990,5 +1990,53 @@ describe("CollapsibleTree.fromWithPreviousShape", () => {
     // Should not be collapsed since the child is missing
     expect(tree.isCollapsed("one")).toBe(false);
     expect(tree.topLevelIds).toEqual(["one", "three", "four"]);
+  });
+
+  it("reproduces GitHub issue #6188: inOrderIds with nested collapses", () => {
+    // Simplified reproduction case:
+    // Cell A (markdown): # Section 1 Header
+    // Cell B (markdown): ## Subsection 1.1 Header
+    // Cell C (python): print("This cell should be in Subsection 1.1")
+    // Cell D (python): print("This cell should also be in Subsection 1.1")
+    // Cell E (markdown): ## Subsection 1.2 Header
+    // Cell F (python): print("This cell should be in Subsection 1.2")
+
+    const originalOrder = [
+      "CellA", // # Section 1 Header
+      "CellB", // ## Subsection 1.1 Header
+      "CellC", // print("This cell should be in Subsection 1.1")
+      "CellD", // print("This cell should also be in Subsection 1.1")
+      "CellE", // ## Subsection 1.2 Header
+      "CellF", // print("This cell should be in Subsection 1.2")
+    ];
+
+    // Create notebook with one column
+    let notebook = MultiColumn.from([originalOrder]);
+
+    // Before collapsing, order should be correct
+    expect(notebook.inOrderIds).toEqual(originalOrder);
+
+    const columnId = notebook.getColumnIds()[0];
+
+    // Follow the exact reproduction steps from the GitHub issue:
+    // 1. Collapse B (subsection 1.1) - includes C, D (stops before E)
+    notebook = notebook.transform(columnId, (tree) =>
+      tree.collapse("CellB", "CellD"),
+    );
+
+    // 2. Collapse E (subsection 1.2) - includes F (to end)
+    notebook = notebook.transform(columnId, (tree) =>
+      tree.collapse("CellE", undefined),
+    );
+
+    // 3. Collapse A (section 1) - includes all the rest (B, E and their children)
+    notebook = notebook.transform(columnId, (tree) =>
+      tree.collapse("CellA", undefined),
+    );
+
+    const finalOrder = notebook.inOrderIds;
+
+    // inOrderIds now correctly preserves logical order even with nested collapses
+    expect(finalOrder).toEqual(originalOrder);
   });
 });

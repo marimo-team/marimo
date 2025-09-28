@@ -510,7 +510,7 @@ class ExperimentalConfig(TypedDict, total=False):
     performant_table_charts: bool
     mcp_docs: bool
     sql_linter: bool
-    sql_mode: bool  # Not exposed for now
+    sql_mode: bool
 
     # Internal features
     cache: CacheConfig

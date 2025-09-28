@@ -302,7 +302,7 @@ const parseAwarenessUpdate = (
     removed: PeerID[];
   },
   scopeId: ScopeId,
-): Array<StateEffect<CursorEffect>> => {
+): StateEffect<CursorEffect>[] => {
   const effects = [];
   const { updated, added } = arg;
   for (const update of [...updated, ...added]) {

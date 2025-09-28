@@ -300,7 +300,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
   textDocumentCodeAction(
     params: LSP.CodeActionParams,
-  ): Promise<Array<LSP.Command | LSP.CodeAction> | null> {
+  ): Promise<(LSP.Command | LSP.CodeAction)[] | null> {
     const disabledCodeAction = true;
     if (disabledCodeAction) {
       return Promise.resolve(null);

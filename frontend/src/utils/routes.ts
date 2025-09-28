@@ -8,10 +8,10 @@ import {
 } from "path-to-regexp";
 
 export class TinyRouter {
-  private routes: Array<{
+  private routes: {
     template: string;
     pathFunction: MatchFunction<ParamData>;
-  }>;
+  }[];
 
   constructor(templates: string[]) {
     this.routes = templates.map((template) => {

@@ -18,7 +18,7 @@ describe("DataTable", () => {
       { id: 2, name: "Test 2" },
     ];
 
-    const columns: Array<ColumnDef<TestData>> = [
+    const columns: ColumnDef<TestData>[] = [
       { accessorKey: "name", header: "Name" },
     ];
 
@@ -70,7 +70,7 @@ describe("DataTable", () => {
       { id: 2, first: "Jim", last: "Halpert" },
     ];
 
-    const columns: Array<ColumnDef<RowData>> = [
+    const columns: ColumnDef<RowData>[] = [
       { accessorKey: "first", header: "First" },
       { accessorKey: "last", header: "Last" },
     ];
