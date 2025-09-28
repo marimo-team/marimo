@@ -201,9 +201,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  const logger = await Logger.create(argv["log-file"]);
+  const logFile = argv["log-file"] || "/tmp/lsp-server.log";
+  const logger = await Logger.create(logFile);
   const serverPort = Number.parseInt(argv.port) || 3000;
-  const languageServerCommand = parseTypedCommand(argv.lsp);
+  const languageServerCommand = parseTypedCommand(argv.lsp || "echo test");
 
   logger.log(`Parsed LSP command: ${languageServerCommand.join(" ")}`);
   startWebSocketServer(serverPort, languageServerCommand, logger);
