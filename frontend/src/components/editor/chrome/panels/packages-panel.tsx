@@ -300,7 +300,7 @@ const InstallPackageForm: React.FC<{
 
 const PackagesList: React.FC<{
   onSuccess: () => void;
-  packages: Array<{ name: string; version: string }>;
+  packages: { name: string; version: string }[];
 }> = ({ onSuccess, packages }) => {
   if (packages.length === 0) {
     return (

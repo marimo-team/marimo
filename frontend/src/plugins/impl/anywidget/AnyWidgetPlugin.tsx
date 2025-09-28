@@ -29,7 +29,7 @@ interface Data {
   jsUrl: string;
   jsHash: string;
   css?: string | null;
-  bufferPaths?: Array<Array<string | number>> | null;
+  bufferPaths?: (string | number)[][] | null;
   initialValue: T;
 }
 
@@ -179,7 +179,7 @@ async function runAnyWidgetModule(
   el: HTMLElement,
 ): Promise<() => void> {
   const experimental: Experimental = {
-    invoke: async (name, msg, options) => {
+    invoke: async (_name, _msg, _options) => {
       const message =
         "anywidget.invoke not supported in marimo. Please file an issue at https://github.com/marimo-team/marimo/issues";
       Logger.warn(message);
@@ -292,7 +292,7 @@ export const visibleForTesting = {
 
 export function resolveInitialValue(
   raw: Record<string, any>,
-  bufferPaths: ReadonlyArray<ReadonlyArray<string | number>>,
+  bufferPaths: readonly (readonly (string | number)[])[],
 ) {
   const out = structuredClone(raw);
   for (const bufferPath of bufferPaths) {

@@ -13,7 +13,7 @@ import { hasAnyOutputAtom } from "../state";
 
 describe("hasAnyOutputAtom", () => {
   const createNotebookState = (
-    outputs: Array<OutputMessage | null>,
+    outputs: (OutputMessage | null)[],
   ): NotebookState => ({
     ...initialNotebookState(),
     cellIds: new MultiColumn([

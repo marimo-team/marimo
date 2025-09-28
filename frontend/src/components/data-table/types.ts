@@ -27,9 +27,10 @@ export type ColumnHeaderStats = Record<
   number | string | null
 >;
 
-export type FieldTypesWithExternalType = Array<
-  [columnName: string, [dataType: DataType, externalType: string]]
->;
+export type FieldTypesWithExternalType = [
+  columnName: string,
+  [dataType: DataType, externalType: string],
+][];
 export type FieldTypes = Record<string, DataType>;
 
 export function toFieldTypes(

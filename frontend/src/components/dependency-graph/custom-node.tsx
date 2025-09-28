@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import React, { memo, use } from "react";
+import React, { memo, use, useId } from "react";
 import { Handle, Position, useStore } from "reactflow";
 import { TinyCode } from "@/components/editor/cell/TinyCode";
 import { useCellIds } from "@/core/cells/cells";
@@ -23,7 +23,7 @@ const EQUALITY_CHECK = (
   prevProps: CustomNodeProps,
   nextProps: CustomNodeProps,
 ) => {
-  const keys: Array<keyof CustomNodeProps> = ["data", "selected", "id"];
+  const keys: (keyof CustomNodeProps)[] = ["data", "selected", "id"];
   return keys.every((key) => prevProps[key] === nextProps[key]);
 };
 
@@ -37,18 +37,25 @@ export const CustomNode = memo((props: CustomNodeProps) => {
   const reactFlowWidth = useStore(({ width }) => width);
   const edgeMarkers = use(EdgeMarkerContext);
 
+  const inputOneId = useId();
+  const inputTwoId = useId();
+  const outputOneId = useId();
+  const outputTwoId = useId();
+
   const linesOfCode = cell.code.split("\n").length;
   return (
     <div>
       <Handle
         type="target"
-        id="inputs"
+        id={inputOneId}
+        data-testid="input-one"
         position={edgeMarkers === "LR" ? Position.Left : Position.Top}
         style={{ background: color }}
       />
       <Handle
         type="source"
-        id="inputs"
+        id={inputTwoId}
+        data-testid="input-two"
         position={edgeMarkers === "LR" ? Position.Left : Position.Top}
         style={{ background: color }}
       />
@@ -69,13 +76,15 @@ export const CustomNode = memo((props: CustomNodeProps) => {
       </div>
       <Handle
         type="source"
-        id="outputs"
+        id={outputOneId}
+        data-testid="output-one"
         position={edgeMarkers === "LR" ? Position.Right : Position.Bottom}
         style={{ background: color }}
       />
       <Handle
         type="target"
-        id="outputs"
+        id={outputTwoId}
+        data-testid="output-two"
         position={edgeMarkers === "LR" ? Position.Right : Position.Bottom}
         style={{ background: color }}
       />

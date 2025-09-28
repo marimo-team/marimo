@@ -106,7 +106,7 @@ const DebuggerInput: React.FC<{
                 key: "Enter",
                 preventDefault: true,
                 stopPropagation: true,
-                run: (view: EditorView) => {
+                run: () => {
                   const v = value.trim().replaceAll("\n", "\\n");
                   if (!v) {
                     return true;

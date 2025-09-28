@@ -27,7 +27,7 @@ type AxisDatum = unknown;
 
 type T =
   | {
-      points?: Array<Record<AxisName, AxisDatum>> | Plotly.PlotDatum[];
+      points?: Record<AxisName, AxisDatum>[] | Plotly.PlotDatum[];
       indices?: number[];
       range?: {
         x?: number[];
@@ -85,7 +85,7 @@ function initialLayout(figure: Figure): Partial<Plotly.Layout> {
   };
 }
 
-const SUNBURST_DATA_KEYS: Array<keyof Plotly.SunburstPlotDatum> = [
+const SUNBURST_DATA_KEYS: (keyof Plotly.SunburstPlotDatum)[] = [
   "color",
   "curveNumber",
   "entry",
@@ -279,7 +279,7 @@ PlotlyComponent.displayName = "PlotlyComponent";
  */
 function extractPoints(
   points: Plotly.PlotDatum[],
-): Array<Record<AxisName, AxisDatum>> {
+): Record<AxisName, AxisDatum>[] {
   if (!points) {
     return [];
   }

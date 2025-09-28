@@ -36,10 +36,10 @@ export const SettingDescription: React.FC<PropsWithChildren> = ({
   return <p className="text-sm text-muted-foreground">{children}</p>;
 };
 
-export const SQL_OUTPUT_SELECT_OPTIONS: Array<{
+export const SQL_OUTPUT_SELECT_OPTIONS: {
   label: string;
   value: SqlOutputType;
-}> = [
+}[] = [
   { label: "Auto (Default)", value: "auto" },
   { label: "Native", value: "native" },
   { label: "Polars", value: "polars" },

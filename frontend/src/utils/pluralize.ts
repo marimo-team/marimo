@@ -25,7 +25,7 @@ export class PluralWords {
     this.words = words;
   }
 
-  static of(...words: Array<PluralWord | string>) {
+  static of(...words: (PluralWord | string)[]) {
     return new PluralWords(
       words.map((word) => {
         if (typeof word === "string") {

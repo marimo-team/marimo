@@ -22,10 +22,10 @@ export function getNodeHeight(linesOfCode: number) {
 interface ElementsBuilder {
   createElements: (
     cellIds: CellId[],
-    cellAtoms: Array<Atom<CellData>>,
+    cellAtoms: Atom<CellData>[],
     variables: Variables,
     hidePureMarkdown: boolean,
-  ) => { nodes: Array<Node<NodeData>>; edges: Edge[] };
+  ) => { nodes: Node<NodeData>[]; edges: Edge[] };
 }
 
 export class VerticalElementsBuilder implements ElementsBuilder {
@@ -69,12 +69,12 @@ export class VerticalElementsBuilder implements ElementsBuilder {
 
   createElements(
     cellIds: CellId[],
-    cellAtoms: Array<Atom<CellData>>,
+    cellAtoms: Atom<CellData>[],
     variables: Variables,
-    hidePureMarkdown: boolean,
+    _hidePureMarkdown: boolean,
   ) {
     let prevY = 0;
-    const nodes: Array<Node<NodeData>> = [];
+    const nodes: Node<NodeData>[] = [];
     const edges: Edge[] = [];
     for (const [cellId, cellAtom] of Arrays.zip(cellIds, cellAtoms)) {
       const node = this.createNode(cellId, cellAtom, prevY);
@@ -135,11 +135,11 @@ export class TreeElementsBuilder implements ElementsBuilder {
 
   createElements(
     cellIds: CellId[],
-    cellAtoms: Array<Atom<CellData>>,
+    cellAtoms: Atom<CellData>[],
     variables: Variables,
     hidePureMarkdown: boolean,
   ) {
-    const nodes: Array<Node<NodeData>> = [];
+    const nodes: Node<NodeData>[] = [];
     const edges: Edge[] = [];
 
     const nodesWithEdges = new Set<CellId>();

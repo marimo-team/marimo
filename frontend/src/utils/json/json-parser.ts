@@ -34,7 +34,7 @@ export function jsonParseWithSpecialChar<T = unknown>(
       /(?<=\s|^|\[|,|:)(NaN|-Infinity|Infinity)(?=(?:[^"'\\]*(\\.|'([^'\\]*\\.)*[^'\\]*'|"([^"\\]*\\.)*[^"\\]*"))*[^"']*$)/g,
       `"${CHAR}$1${CHAR}"`,
     );
-    return JSON.parse(value, (key, v) => {
+    return JSON.parse(value, (_key, v) => {
       if (typeof v !== "string") {
         return v;
       }
@@ -54,7 +54,7 @@ export function jsonParseWithSpecialChar<T = unknown>(
   }
 }
 
-export function jsonToTSV(json: Array<Record<string, unknown>>) {
+export function jsonToTSV(json: Record<string, unknown>[]) {
   if (json.length === 0) {
     return "";
   }

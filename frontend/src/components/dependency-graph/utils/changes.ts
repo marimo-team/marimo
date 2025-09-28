@@ -11,8 +11,8 @@ import type {
 export function getNodeChanges(
   prevNodes: Node[],
   nextNodes: Node[],
-): Array<NodeAddChange | NodeRemoveChange> {
-  const changes: Array<NodeAddChange | NodeRemoveChange> = [];
+): (NodeAddChange | NodeRemoveChange)[] {
+  const changes: (NodeAddChange | NodeRemoveChange)[] = [];
   const prevNodeIds = new Set(prevNodes.map((node) => node.id));
   const nextNodeIds = new Set(nextNodes.map((node) => node.id));
 
@@ -33,8 +33,8 @@ export function getNodeChanges(
 export function getEdgeChanges(
   prevEdges: Edge[],
   nextEdges: Edge[],
-): Array<EdgeAddChange | EdgeRemoveChange> {
-  const changes: Array<EdgeAddChange | EdgeRemoveChange> = [];
+): (EdgeAddChange | EdgeRemoveChange)[] {
+  const changes: (EdgeAddChange | EdgeRemoveChange)[] = [];
   const prevEdgeIds = new Set(prevEdges.map((edge) => edge.id));
   const nextEdgeIds = new Set(nextEdges.map((edge) => edge.id));
 

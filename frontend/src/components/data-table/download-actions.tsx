@@ -167,7 +167,7 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
   );
 };
 
-function fetchJson(url: string): Promise<Array<Record<string, unknown>>> {
+function fetchJson(url: string): Promise<Record<string, unknown>[]> {
   return fetch(url).then((res) => {
     if (!res.ok) {
       throw new Error(res.statusText);

@@ -68,13 +68,13 @@ export interface GridLayout extends Omit<SerializedGridLayout, "cells"> {
   /**
    * The cells in the layout.
    */
-  cells: Array<{
+  cells: {
     i: string;
     x: number;
     y: number;
     w: number;
     h: number;
-  }>;
+  }[];
 
   scrollableCells: Set<CellId>;
 

@@ -8,7 +8,7 @@ import { VerticalLayoutPlugin } from "./vertical-layout/vertical-layout";
 
 // If more renderers are added, we may want to consider lazy loading them.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const cellRendererPlugins: Array<ICellRendererPlugin<any, any>> = [
+export const cellRendererPlugins: ICellRendererPlugin<any, any>[] = [
   GridLayoutPlugin,
   SlidesLayoutPlugin,
   VerticalLayoutPlugin,

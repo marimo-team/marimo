@@ -115,7 +115,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
 
   async textDocumentCodeAction(
     params: LSP.CodeActionParams,
-  ): Promise<Array<LSP.Command | LSP.CodeAction> | null> {
+  ): Promise<(LSP.Command | LSP.CodeAction)[] | null> {
     const client = this.firstWithCapability("codeActionProvider");
     if (client) {
       return client.textDocumentCodeAction(params);
@@ -206,9 +206,9 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
 }
 
 function mergeCompletions(
-  results: Array<
-    PromiseSettledResult<LSP.CompletionList | LSP.CompletionItem[] | null>
-  >,
+  results: PromiseSettledResult<
+    LSP.CompletionList | LSP.CompletionItem[] | null
+  >[],
 ): LSP.CompletionList {
   const completions: LSP.CompletionItem[] = [];
   let isIncomplete = false;

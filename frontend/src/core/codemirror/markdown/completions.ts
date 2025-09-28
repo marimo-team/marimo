@@ -133,7 +133,7 @@ const latexSymbolCompletionSource: CompletionSource = (context) => {
 
 // Common LaTeX symbols with their UTF-8 equivalents
 const getLatexSymbolList = once((): Completion[] => {
-  const symbols: Array<[string, string, string]> = [
+  const symbols: [string, string, string][] = [
     // Greek letters
     ["alpha", "α", "Greek small letter alpha"],
     ["beta", "β", "Greek small letter beta"],

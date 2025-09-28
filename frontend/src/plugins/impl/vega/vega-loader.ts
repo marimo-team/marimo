@@ -7,7 +7,7 @@ import type { DataType } from "./vega-loader";
 // Re-export the vega-loader functions to add TypeScript types
 
 export function read<T = object>(
-  data: string | Record<string, unknown> | Array<Record<string, unknown>>,
+  data: string | Record<string, unknown> | Record<string, unknown>[],
   format:
     | DataFormat
     | {
@@ -27,7 +27,7 @@ export interface Loader {
   load(
     uri: string,
     options?: unknown,
-  ): Promise<string | Record<string, unknown> | Array<Record<string, unknown>>>;
+  ): Promise<string | Record<string, unknown> | Record<string, unknown>[]>;
   sanitize(uri: string, options?: unknown): Promise<{ href: string }>;
   http(uri: string, options?: unknown): Promise<string>;
   file(filename: string): Promise<string>;

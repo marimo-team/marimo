@@ -740,7 +740,7 @@ describe("MultiColumn", () => {
   });
 
   it("creates from ids and columns", () => {
-    const idAndColumns: Array<[string, number | undefined | null]> = [
+    const idAndColumns: [string, number | undefined | null][] = [
       ["A1", 0],
       ["A2", 0],
       ["B1", 1],

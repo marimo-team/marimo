@@ -86,7 +86,7 @@ export const ColumnSelector = ({
   includeCountField = true,
 }: {
   fieldName: FieldName;
-  columns: Array<{ name: string; type: DataType }>;
+  columns: { name: string; type: DataType }[];
   onValueChange?: (fieldName: string, type: DataType | undefined) => void;
   includeCountField?: boolean;
 }) => {
@@ -197,7 +197,7 @@ export const SelectField = ({
 }: {
   fieldName: FieldName;
   label: string;
-  options: Array<{ display: React.ReactNode; value: string }>;
+  options: { display: React.ReactNode; value: string }[];
   defaultValue: string;
 }) => {
   const form = useFormContext();
