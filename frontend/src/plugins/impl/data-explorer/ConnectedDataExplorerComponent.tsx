@@ -134,6 +134,7 @@ export const DataExplorerComponent = ({
 
     const spec = mainPlot.spec;
     const responsiveSpec = makeResponsive(spec);
+    // TODO: We can optimize by updating the data dynamically. https://github.com/vega/react-vega?tab=readme-ov-file#recipes
     const augmentedSpec = augmentSpecWithData(responsiveSpec, chartData);
 
     return (
@@ -208,7 +209,6 @@ export const DataExplorerComponent = ({
               }
             >
               <VegaEmbed
-                // TODO: data={{ source: chartData }}
                 options={chartOptions(theme)}
                 key={idx}
                 spec={plot.spec}
