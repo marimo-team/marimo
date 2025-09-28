@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import re
+import ctypes
+from ctypes import wintypes
 
 from marimo._utils.platform import is_windows
 
@@ -83,13 +85,44 @@ def _mslex_quote(s: str) -> str:
             return alt
     return quoted
 
+def get_short_path_name(long_name):
+    """
+    Gets the short 8.3 path name for a given long path using ctypes.
+    """
+    # Load the kernel32.dll library
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+
+    # Define the function signature (GetShortPathNameW for Unicode)
+    GetShortPathNameW = kernel32.GetShortPathNameW
+    GetShortPathNameW.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+    GetShortPathNameW.restype = wintypes.DWORD
+
+    # First call to get the required buffer size
+    output_size = GetShortPathNameW(long_name, None, 0)
+
+    if output_size == 0:
+        # Handle error (e.g., file not found, insufficient permission)
+        # You can check ctypes.get_last_error() for a specific WinAPI error code
+        raise ctypes.WinError(ctypes.get_last_error())
+
+    # Create a buffer of the required size
+    output_buffer = ctypes.create_unicode_buffer(output_size)
+
+    # Second call to get the short path name
+    result = GetShortPathNameW(long_name, output_buffer, output_size)
+
+    if result == 0:
+        # Handle error
+        raise ctypes.WinError(ctypes.get_last_error())
+    
+    return output_buffer.value
 
 def cmd_quote(s: str) -> str:
     """
     Quote a string for use as a command line argument in Windows or POSIX.
     """
     if is_windows():
-        return _mslex_quote(s)
+        return get_short_path_name(s)
     import shlex
 
     return shlex.quote(s)
