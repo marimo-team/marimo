@@ -622,7 +622,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     "display": {
         "theme": "light",
         "code_editor_font_size": 14,
-        "cell_output": "above",
+        "cell_output": "below",
         "default_width": "medium",
         "dataframes": "rich",
         "default_table_page_size": 10,
