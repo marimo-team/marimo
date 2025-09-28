@@ -778,14 +778,14 @@ export class ColumnChartSpecModel<T> {
         const yField = "value";
 
         // Calculate xStart and xEnd for each value count
-        const newValueCounts: Array<{
+        const newValueCounts: {
           count: number;
           value: string;
           xStart: number;
           xEnd: number;
           xMid: number;
           proportion: number;
-        }> = [];
+        }[] = [];
         let xStart = 0;
         for (const valueCount of valueCounts) {
           const xEnd = xStart + valueCount.count;

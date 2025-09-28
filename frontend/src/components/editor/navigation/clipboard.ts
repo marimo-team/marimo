@@ -11,9 +11,9 @@ import { Logger } from "@/utils/Logger";
 const MARIMO_CELL_MIMETYPE = "web application/x-marimo-cell";
 
 interface ClipboardCellData {
-  cells: Array<{
+  cells: {
     code: string;
-  }>;
+  }[];
   version: "1.0";
 }
 

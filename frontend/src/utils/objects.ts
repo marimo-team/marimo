@@ -17,14 +17,14 @@ export const Objects = {
   /**
    * Type-safe Object.fromEntries
    */
-  fromEntries<K extends string | number, V>(obj: Array<[K, V]>): Record<K, V> {
+  fromEntries<K extends string | number, V>(obj: [K, V][]): Record<K, V> {
     return Object.fromEntries(obj) as Record<K, V>;
   },
   /**
    * Type-safe Object.entries
    */
-  entries<K extends string | number, V>(obj: Record<K, V>): Array<[K, V]> {
-    return Object.entries(obj) as Array<[K, V]>;
+  entries<K extends string | number, V>(obj: Record<K, V>): [K, V][] {
+    return Object.entries(obj) as [K, V][];
   },
   /**
    * Type-safe Object.keys

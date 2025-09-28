@@ -88,9 +88,7 @@ export function parseMarimoIslandApps(): MarimoIslandApp[] {
   return [...apps.values()];
 }
 
-export function createMarimoFile(app: {
-  cells: Array<{ code: string }>;
-}): string {
+export function createMarimoFile(app: { cells: { code: string }[] }): string {
   const lines = [
     "import marimo",
     "app = marimo.App()",

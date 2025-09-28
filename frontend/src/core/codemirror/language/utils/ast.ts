@@ -10,7 +10,7 @@ export function parseArgsKwargs(
   code: string,
 ): {
   args: SyntaxNode[];
-  kwargs: Array<{ key: string; value: string }>;
+  kwargs: { key: string; value: string }[];
 } {
   // Check we are in an ArgList
   const name = argCursor.name;
@@ -54,8 +54,8 @@ function parseArgs(argCursor: TreeCursor): SyntaxNode[] {
 function parseKwargs(
   argCursor: TreeCursor,
   code: string,
-): Array<{ key: string; value: string }> {
-  const kwargs: Array<{ key: string; value: string }> = [];
+): { key: string; value: string }[] {
+  const kwargs: { key: string; value: string }[] = [];
   let name = argCursor.name;
 
   do {

@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { z } from "zod";
+import { Logger } from "./simple_logger.ts";
 
 const ROLES = ["chat", "edit", "rerank", "embed"] as const;
 
@@ -34,7 +35,7 @@ function ensureDirectoryExists(filePath: string): void {
   } catch (error: any) {
     // Ignore error if directory already exists, otherwise rethrow
     if (error?.code !== "EEXIST") {
-      console.error("Failed to create directory:", error);
+      Logger.error("Failed to create directory:", error);
       throw error;
     }
   }
@@ -53,7 +54,7 @@ function loadAndValidateModels(yamlPath: string): any[] {
     try {
       return LLMInfoSchema.parse(model);
     } catch (error) {
-      console.error(`Validation failed for model at index ${index}:`, error);
+      Logger.error(`Validation failed for model at index ${index}:`, error);
       throw new Error(
         `Model validation failed at index ${index}: ${JSON.stringify(model, null, 2)}`,
       );
@@ -76,7 +77,7 @@ function loadAndValidateProviders(yamlPath: string): any[] {
     try {
       return ProviderSchema.parse(provider);
     } catch (error) {
-      console.error(`Validation failed for provider at index ${index}:`, error);
+      Logger.error(`Validation failed for provider at index ${index}:`, error);
       throw new Error(
         `Provider validation failed at index ${index}: ${JSON.stringify(provider, null, 2)}`,
       );
@@ -113,14 +114,14 @@ async function main(): Promise<void> {
     const providers = loadAndValidateProviders(providersYamlPath);
     writeJsonFile(providersJsonPath, { providers: providers });
 
-    console.log(
+    Logger.info(
       `Generated ${models.length} models and ${providers.length} providers`,
     );
   } catch (error) {
-    console.error("Generation failed:", error);
+    Logger.error("Generation failed:", error);
     process.exit(1);
   }
 }
 
 // Run the script
-main().catch(console.error);
+main().catch(Logger.error);

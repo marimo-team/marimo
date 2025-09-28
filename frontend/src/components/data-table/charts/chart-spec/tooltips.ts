@@ -29,7 +29,7 @@ interface GetTooltipParams {
 
 export function getTooltips(
   params: GetTooltipParams,
-): Array<StringFieldDef<string>> | undefined {
+): StringFieldDef<string>[] | undefined {
   const { formValues, xEncoding, yEncoding, colorByEncoding } = params;
 
   if (!formValues.tooltips) {
@@ -73,7 +73,7 @@ export function getTooltips(
 
   // If autoTooltips is enabled, we manually add the x, y, and color columns to the tooltips
   if (formValues.tooltips.auto) {
-    const tooltips: Array<StringFieldDef<string>> = [];
+    const tooltips: StringFieldDef<string>[] = [];
     const xTooltip = addTooltip(
       xEncoding,
       formValues.general?.xColumn?.type || "string",
@@ -105,7 +105,7 @@ export function getTooltips(
 
   // Selected tooltips from the form.
   const selectedTooltips = formValues.tooltips.fields ?? [];
-  const tooltips: Array<StringFieldDef<string>> = [];
+  const tooltips: StringFieldDef<string>[] = [];
 
   // We need to find the matching columns for the selected tooltips if they exist
   // Otherwise, we can add them without other parameters

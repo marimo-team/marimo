@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }, info) => {
  * This test makes sure that downstream UI elements are re-initialized when
  * upstream source cells are re-run.
  */
-test("correctly initializes cells", async ({ page }, info) => {
+test("correctly initializes cells", async ({ page }) => {
   // Is initialized to 1
   const number = page
     .getByTestId("marimo-plugin-number-input")

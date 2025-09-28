@@ -110,7 +110,8 @@ export const DatasetColumnPreview: React.FC<{
     });
 
   const stats =
-    preview.stats && renderStats(preview.stats, column.type, locale);
+    preview.stats &&
+    renderStats({ stats: preview.stats, dataType: column.type, locale });
 
   const chart = preview.chart_spec && renderChart(preview.chart_spec, theme);
 
@@ -175,11 +176,13 @@ export function renderPreviewError({
   );
 }
 
-export function renderStats(
-  stats: Partial<Record<ColumnHeaderStatsKey, unknown>>,
-  dataType: DataType,
-  locale: string,
-) {
+interface RenderStatsProps {
+  stats: Partial<Record<ColumnHeaderStatsKey, unknown>>;
+  dataType: DataType;
+  locale: string;
+}
+
+export function renderStats({ stats, dataType, locale }: RenderStatsProps) {
   return (
     <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 empty:hidden">
       {Object.entries(stats).map(([key, value]) => {

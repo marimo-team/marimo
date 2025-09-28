@@ -32,7 +32,7 @@ export function renderTableHeader<TData>(
     return null;
   }
 
-  const renderHeaderGroup = (headerGroups: Array<HeaderGroup<TData>>) => {
+  const renderHeaderGroup = (headerGroups: HeaderGroup<TData>[]) => {
     return headerGroups.map((headerGroup) =>
       headerGroup.headers.map((header) => {
         const { className, style } = getPinningStyles(header.column);
@@ -70,7 +70,7 @@ export function renderTableHeader<TData>(
 
 interface DataTableBodyProps<TData> {
   table: Table<TData>;
-  columns: Array<ColumnDef<TData>>;
+  columns: ColumnDef<TData>[];
   rowViewerPanelOpen: boolean;
   getRowIndex?: (row: TData, idx: number) => number;
   viewedRowIdx?: number;
@@ -96,7 +96,7 @@ export const DataTableBody = <TData,>({
 
   function applyHoverTemplate(
     template: string,
-    cells: Array<Cell<TData, unknown>>,
+    cells: Cell<TData, unknown>[],
   ): string {
     const variableRegex = /{{(\w+)}}/g;
     // Map column id -> stringified value
@@ -113,7 +113,7 @@ export const DataTableBody = <TData,>({
     });
   }
 
-  const renderCells = (cells: Array<Cell<TData, unknown>>) => {
+  const renderCells = (cells: Cell<TData, unknown>[]) => {
     return cells.map((cell) => {
       const { className, style: pinningstyle } = getPinningStyles(cell.column);
       const style = Object.assign(

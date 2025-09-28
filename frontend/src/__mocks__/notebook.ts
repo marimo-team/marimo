@@ -134,11 +134,11 @@ export const MockNotebook = {
    * Create a notebook state with error outputs for testing ErrorContextProvider
    */
   notebookStateWithErrors: (
-    errors: Array<{
+    errors: {
       cellId: CellId;
       cellName: string;
       errorData: MarimoError[];
-    }>,
+    }[],
   ): NotebookState => {
     const cellData: Record<string, Partial<CellData>> = {};
 

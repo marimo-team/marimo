@@ -57,7 +57,7 @@ export function headingToIdentifier(heading: Element): OutlineItem["by"] {
   return { path: `//${heading.tagName}[contains(., "${name}")]` };
 }
 
-export function mergeOutlines(outlines: Array<Outline | null>): Outline {
+export function mergeOutlines(outlines: (Outline | null)[]): Outline {
   return {
     items: outlines.filter(Boolean).flatMap((outline) => outline.items),
   };
@@ -104,7 +104,7 @@ export function canCollapseOutline(outline: Outline | null): boolean {
  */
 export function findCollapseRange(
   startIndex: number,
-  outlines: Array<Outline | null>,
+  outlines: (Outline | null)[],
 ): [number, number] | null {
   // Higher header is the lowest value
   const getHighestHeader = (outline: Outline) => {

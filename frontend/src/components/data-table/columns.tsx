@@ -117,7 +117,7 @@ export function generateColumns<T>({
   headerTooltip?: Record<string, string>;
   showDataTypes?: boolean;
   calculateTopKRows?: CalculateTopKRows;
-}): Array<ColumnDef<T>> {
+}): ColumnDef<T>[] {
   // Row-headers are typically index columns
   const rowHeadersSet = new Set(rowHeaders.map(([columnName]) => columnName));
 

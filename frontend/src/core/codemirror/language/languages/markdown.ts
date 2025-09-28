@@ -155,7 +155,7 @@ export class MarkdownLanguageAdapter
     const tree = pythonLanguage.parser.parse(pythonCode);
 
     // This is the exact match of mo.md() signature
-    const enterOrder: Array<{ match: string | RegExp; stop?: boolean }> = [
+    const enterOrder: { match: string | RegExp; stop?: boolean }[] = [
       { match: "Script" },
       { match: "ExpressionStatement" },
       { match: "CallExpression" },

@@ -528,7 +528,7 @@ export const CurrentModeBlock = (props: {
 };
 
 export const ToolNotificationsBlock = (props: {
-  data: Array<ToolCallNotificationEvent | ToolCallUpdateNotificationEvent>;
+  data: (ToolCallNotificationEvent | ToolCallUpdateNotificationEvent)[];
 }) => {
   const toolCalls = mergeToolCalls(props.data);
 
@@ -561,7 +561,7 @@ export const ToolNotificationsBlock = (props: {
 };
 
 export const DiffBlocks = (props: {
-  data: Array<Extract<ToolCallContent, { type: "diff" }>>;
+  data: Extract<ToolCallContent, { type: "diff" }>[];
 }) => {
   return (
     <div className="flex flex-col gap-2 text-muted-foreground">
