@@ -64,7 +64,7 @@ export function getAutoFixes(error: MarimoError): AutoFix[] {
   if (error.type === "sql-error") {
     return [
       {
-        title: "AI Fix: Fix the SQL error",
+        title: "Fix with AI",
         description: "Fix the SQL statement",
         onFix: async (ctx) => {
           ctx.setAiCompletionCell?.({
