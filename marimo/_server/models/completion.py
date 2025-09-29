@@ -6,6 +6,7 @@ from typing import Any, Literal, Optional, Union
 import msgspec
 
 from marimo._ai._types import ChatMessage
+from marimo._server.ai.tools.types import ToolDefinition
 
 
 class SchemaColumn(msgspec.Struct, rename="camel"):
@@ -56,5 +57,6 @@ class ChatRequest(msgspec.Struct, rename="camel"):
     context: AiCompletionContext
     include_other_code: str
     messages: list[ChatMessage]
+    tools: Optional[list[ToolDefinition]] = None
     model: Optional[str] = None
     variables: Optional[list[Union[VariableContext, str]]] = None

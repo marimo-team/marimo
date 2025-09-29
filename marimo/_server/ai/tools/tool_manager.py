@@ -78,16 +78,21 @@ class ToolManager:
         self._tools[tool.name] = tool
         LOGGER.debug(f"Registered frontend tool: {tool.name}")
 
-    def _get_all_tools(self) -> list[ToolDefinition]:
+    def _get_all_tools(self, frontend_tools: Optional[list[ToolDefinition]] = None) -> list[ToolDefinition]:
         """Get all available frontend, backend, and MCP tools."""
         self._init_backend_tools()
 
         local_tools = list(self._tools.values())
         mcp_tools = self._list_mcp_tools()
         all_tools = local_tools + mcp_tools
+        LOGGER.warning(f"Adding {len(all_tools)} tools to the tool manager")
+        LOGGER.warning(f"Adding frontend tools: {frontend_tools}")
+        if frontend_tools:
+            all_tools += frontend_tools
+            LOGGER.warning(f"Adding {len(frontend_tools)} frontend tools to the tool manager")
         return all_tools
 
-    def get_tools_for_mode(self, mode: CopilotMode) -> list[ToolDefinition]:
+    def get_tools_for_mode(self, mode: CopilotMode, frontend_tools: Optional[list[ToolDefinition]] = None) -> list[ToolDefinition]:
         """Get all tools available for a specific mode.
 
         Args:
@@ -96,7 +101,7 @@ class ToolManager:
         Returns:
             A list of tool definitions available for the given mode.
         """
-        all_tools = self._get_all_tools()
+        all_tools = self._get_all_tools(frontend_tools=frontend_tools)
         return [tool for tool in all_tools if mode in tool.mode]
 
     def _get_tool(

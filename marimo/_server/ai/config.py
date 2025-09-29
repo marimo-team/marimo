@@ -131,7 +131,6 @@ class AnyProviderConfig:
             "ca_bundle_path": ai_config.get("ca_bundle_path", None),
             "client_pem": ai_config.get("client_pem", None),
             "extra_headers": ai_config.get("extra_headers", None),
-            "tools": _get_tools(config.get("mode", "manual")),
         }
 
         return AnyProviderConfig(**kwargs)
@@ -149,7 +148,6 @@ class AnyProviderConfig:
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
-            tools=_get_tools(config.get("mode", "manual")),
         )
 
     @classmethod
@@ -168,7 +166,6 @@ class AnyProviderConfig:
             base_url=_get_base_url(ai_config),
             api_key=key,
             ssl_verify=True,
-            tools=_get_tools(config.get("mode", "manual")),
         )
 
     @classmethod
@@ -178,38 +175,44 @@ class AnyProviderConfig:
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
-            tools=_get_tools(config.get("mode", "manual")),
         )
 
     @classmethod
-    def for_model(cls, model: str, config: AiConfig) -> AnyProviderConfig:
+    def for_model(cls, model: str, config: AiConfig, frontend_tools: Optional[list[ToolDefinition]] = None) -> AnyProviderConfig:
+
+        # Get the provider config
         model_id = AiModelId.from_model(model)
         if model_id.provider == "anthropic":
-            return cls.for_anthropic(config)
+            cfg = cls.for_anthropic(config)
         elif model_id.provider == "google":
-            return cls.for_google(config)
+            cfg = cls.for_google(config)
         elif model_id.provider == "bedrock":
-            return cls.for_bedrock(config)
+            cfg = cls.for_bedrock(config)
         elif model_id.provider == "ollama":
-            return cls.for_ollama(config)
+            cfg = cls.for_ollama(config)
         elif model_id.provider == "openai":
-            return cls.for_openai(config)
+            cfg = cls.for_openai(config)
         elif model_id.provider == "azure":
-            return cls.for_azure(config)
+            cfg = cls.for_azure(config)
         elif model_id.provider == "github":
-            return cls.for_github(config)
+            cfg = cls.for_github(config)
         elif model_id.provider == "openrouter":
-            return cls.for_openrouter(config)
+            cfg = cls.for_openrouter(config)
         elif model_id.provider == "openai_compatible":
-            return cls.for_openai_compatible(config)
+            cfg = cls.for_openai_compatible(config)
         else:
             # Catch-all: try OpenAI compatible first, then OpenAI.
             try:
                 if "open_ai_compatible" in config:
-                    return cls.for_openai_compatible(config)
-                return cls.for_openai(config)
+                    cfg = cls.for_openai_compatible(config)
+                cfg = cls.for_openai(config)
             except HTTPException:
-                return cls.for_openai(config)
+                cfg = cls.for_openai(config)
+                
+        # Add the tools
+        mode = _get_mode(config)
+        cfg.tools = _get_tools(mode, frontend_tools)
+        return cfg
 
     @classmethod
     def os_key(cls, key: str) -> Optional[str]:
@@ -218,13 +221,13 @@ class AnyProviderConfig:
         return os.environ.get(key)
 
 
-def _get_tools(mode: CopilotMode) -> list[ToolDefinition]:
+def _get_tools(mode: CopilotMode, frontend_tools: Optional[list[ToolDefinition]] = None) -> list[ToolDefinition]:
     try:
         tool_manager = get_tool_manager()
     except ValueError:
         # ToolManager may not be initialized in some tests or non-server contexts
         return []
-    return tool_manager.get_tools_for_mode(mode)
+    return tool_manager.get_tools_for_mode(mode, frontend_tools)
 
 
 def _get_ai_config(config: AiConfig, key: str) -> dict[str, Any]:
@@ -341,3 +344,6 @@ def _get_base_url(config: Any, name: str = "") -> Optional[str]:
     elif "base_url" in config:
         return cast(str, config["base_url"])
     return None
+
+def _get_mode(config: AiConfig) -> CopilotMode:
+    return config.get("mode", "manual")
