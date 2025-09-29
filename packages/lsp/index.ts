@@ -29,21 +29,25 @@ class Logger {
     try {
       await appendFile(this.logFilePath, `${log}\n`);
     } catch (error) {
+      // biome-ignore lint/suspicious/noConsole: For printing to the console
       console.error("Failed to write to log file:", error);
     }
   }
 
   debug(...args: Parameters<typeof console.log>): void {
+    // biome-ignore lint/suspicious/noConsole: For printing to the console
     console.log(...args);
     void this.appendToLogFile("[DEBUG]", ...args);
   }
 
   log(...args: Parameters<typeof console.log>): void {
+    // biome-ignore lint/suspicious/noConsole: For printing to the console
     console.log(...args);
     void this.appendToLogFile("[INFO]", ...args);
   }
 
   error(...args: Parameters<typeof console.error>): void {
+    // biome-ignore lint/suspicious/noConsole: For printing to the console
     console.error(...args);
     void this.appendToLogFile("[ERROR]", ...args);
   }
@@ -99,6 +103,28 @@ class WebSocketAdapter implements IWebSocket {
 
   dispose(): void {
     this.webSocket.close();
+  }
+}
+
+export function parseTypedCommand(typedCommand: string): string[] {
+  if (!typedCommand.includes(":")) {
+    // Fallback for old format - simple split by spaces
+    return typedCommand.split(" ");
+  }
+
+  const colonIndex = typedCommand.indexOf(":");
+  const serverType = typedCommand.substring(0, colonIndex);
+  const binaryPath = typedCommand.substring(colonIndex + 1);
+
+  switch (serverType) {
+    case "copilot":
+      return ["node", binaryPath, "--stdio"];
+    case "basedpyright":
+      return [binaryPath, "--stdio"];
+    case "ty":
+      return [binaryPath, "server"];
+    default:
+      throw new Error(`Unknown LSP server type: ${serverType}`);
   }
 }
 
@@ -172,6 +198,7 @@ async function main(): Promise<void> {
   const argv = parseArgs(process.argv);
 
   if (argv.help) {
+    // biome-ignore lint/suspicious/noConsole: For printing to the console
     console.log(
       'Usage: node index.cjs --log-file <path> --lsp "<command>" [--port <port>]',
     );
@@ -179,10 +206,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  const logger = await Logger.create(argv["log-file"]);
+  const logFile = argv["log-file"] || "/tmp/lsp-server.log";
+  const logger = await Logger.create(logFile);
   const serverPort = Number.parseInt(argv.port) || 3000;
-  const languageServerCommand = argv.lsp.split(" ");
+  const languageServerCommand = parseTypedCommand(argv.lsp || "echo test");
 
+  logger.log(`Parsed LSP command: ${languageServerCommand.join(" ")}`);
   startWebSocketServer(serverPort, languageServerCommand, logger);
 }
 

@@ -509,8 +509,9 @@ class ExperimentalConfig(TypedDict, total=False):
     rtc_v2: bool
     performant_table_charts: bool
     mcp_docs: bool
+    chat_modes: bool
     sql_linter: bool
-    sql_mode: bool  # Not exposed for now
+    sql_mode: bool
 
     # Internal features
     cache: CacheConfig
@@ -622,7 +623,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     "display": {
         "theme": "light",
         "code_editor_font_size": 14,
-        "cell_output": "above",
+        "cell_output": "below",
         "default_width": "medium",
         "dataframes": "rich",
         "default_table_page_size": 10,

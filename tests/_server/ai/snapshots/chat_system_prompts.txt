@@ -141,8 +141,6 @@ chart
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
-2. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
-3. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
 
 ==================== with custom rules ====================
 
@@ -285,8 +283,6 @@ chart
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
-2. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
-3. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
 
 ## Additional rules:
 Always be polite.
@@ -432,8 +428,6 @@ chart
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
-2. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
-3. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
 
 ## Available variables from other cells:
 - variable: `var1`- variable: `var2`
@@ -579,8 +573,6 @@ chart
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
-2. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
-3. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
 
 ## Available variables from other cells:
 - variable: `df`
@@ -732,8 +724,6 @@ chart
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
-2. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
-3. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
 
 ## Available schema:
 - Table: df_1
@@ -893,8 +883,6 @@ chart
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
-2. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
-3. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
 
 <code_from_other_cells>
 import pandas as pd
@@ -1042,8 +1030,6 @@ chart
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
-2. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
-3. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
 
 ## Additional rules:
 Always be polite.

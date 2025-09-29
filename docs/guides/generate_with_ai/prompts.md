@@ -1,10 +1,10 @@
-marimo offers many tools for [AI assisted coding](/guides/editor_features/ai_completion/). However, sometimes you may want to do something more custom and could benefit from a prompt template to get started from. The goal of this page is to share prompts that have proven to be useful and will help you get started on specific tasks.
+marimo offers many tools for [AI assisted coding](../editor_features/ai_completion.md). However, sometimes you may want to do something more custom and could benefit from a prompt template to get started from. The goal of this page is to share prompts that have proven to be useful and will help you get started on specific tasks.
 
-You can add these prompts to your [custom rules](/guides/editor_features/ai_completion/?h=#custom-rules) but be mindful that doing so will make every call to the LLM more expensive because you're feeding it more tokens. That's why we generally recommend to start your conversations with these snippets if you don't plan on using them very often.
+You can add these prompts to your [custom rules](../editor_features/ai_completion.md#custom-rules) but be mindful that doing so will make every call to the LLM more expensive because you're feeding it more tokens. That's why we generally recommend to start your conversations with these snippets if you don't plan on using them very often.
 
 ## CLAUDE.md
 
-You can run [claude code](https://www.anthropic.com/claude-code) in the terminal and ask it to edit a marimo notebook on your behalf. Make sure that you run your notebook with the [watch flag](/api/watch) turned on, like `marimo edit --watch notebook.py`, to see updates appear live whenever claude makes a change.
+You can run [claude code](https://www.anthropic.com/claude-code) in the terminal and ask it to edit a marimo notebook on your behalf. Make sure that you run your notebook with the [watch flag](../..//api/watch.md) turned on, like `marimo edit --watch notebook.py`, to see updates appear live whenever claude makes a change.
 
 To help claude code, you might want to take the snippet below as starting context for your `CLAUDE.md` file. This snippet should be seen as a starting point and we recommend adding extra context yourself. Things like "prefer polars over pandas" to indicate your preferred libraries and tools.
 
@@ -22,7 +22,7 @@ curl https://docs.marimo.io/CLAUDE.md > CLAUDE.md
 
 ## Anywidget
 
-If you want to generate [custom UIs or widgets for marimo](/api/inputs/anywidget/?h=anywidget#building-custom-ui-elements) then anywidget is the way to go. Because anywidget is a fairly revent project, LLMs have been known to hallucinate when you try to generate custom widgets from scratch. The following prompt contains an example that helps prevent this behaviour and it also points out common failure scenarios that the LLM should avoid.
+If you want to generate [custom UIs or widgets for marimo](../../api/inputs/anywidget.md?#building-custom-ui-elements) then anywidget is the way to go. Because anywidget is a fairly revent project, LLMs have been known to hallucinate when you try to generate custom widgets from scratch. The following prompt contains an example that helps prevent this behaviour and it also points out common failure scenarios that the LLM should avoid.
 
 ```
 When writing an anywidget use vanilla javascript in `_esm` and do not forget about `_css`. The css should look bespoke in light mode and dark mode. Keep the css small unless explicitly asked to go the extra mile. When you display the widget it must be wrapped via `widget = mo.ui.anywidget(OriginalAnywidget())`.

@@ -59,10 +59,10 @@ describe("DATE_MIDDLEWARE", () => {
     const csv = "Date,Value\n2024-13-45,100\n2024-02-30,200";
 
     // When parsing the CSV
-    const data = parseCsvData(csv, false) as Array<{
+    const data = parseCsvData(csv, false) as {
       Date: string;
       Value: number;
-    }>;
+    }[];
 
     // Then invalid dates should remain as strings
     expect(typeof data[0].Date).toBe("string");

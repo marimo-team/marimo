@@ -7,7 +7,7 @@ import { generateUUID } from "@/utils/uuid";
 import type { Banner } from "../kernel/messages";
 
 interface BannerState {
-  banners: Array<Identified<Banner>>;
+  banners: Identified<Banner>[];
 }
 
 const { valueAtom: bannersAtom, useActions } = createReducerAndAtoms(

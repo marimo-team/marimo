@@ -3393,6 +3393,8 @@ export interface components {
     };
     /** FileOpenRequest */
     FileOpenRequest: {
+      /** @default null */
+      lineNumber?: number | null;
       path: string;
     };
     /** FileSearchRequest */

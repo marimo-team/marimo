@@ -48,7 +48,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
   className?: string;
   maxHeight?: number;
-  columns: Array<ColumnDef<TData>>;
+  columns: ColumnDef<TData>[];
   data: TData[];
   // Sorting
   manualSorting?: boolean; // server-side sorting

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/** biome-ignore-all lint/suspicious/noConsole: for debugging */
+/** biome-ignore-all lint/suspicious/noConsole: For console logging */
 
 import { Functions } from "./functions";
 

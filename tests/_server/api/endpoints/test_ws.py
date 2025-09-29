@@ -218,7 +218,7 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         session_manager.mode = SessionMode.RUN
         filename = session_manager.file_router.get_unique_file_key()
         assert filename
-        with open(filename, "a") as f:  # noqa: ASYNC101 ASYNC230
+        with open(filename, "a") as f:  # noqa: ASYNC230
             f.write("\n# test")
             f.close()
         assert session_manager.watcher_manager._watchers

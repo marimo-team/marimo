@@ -24,7 +24,7 @@ export type OutputChannel = schemas["CellChannel"];
 export type CellOutput = schemas["CellOutput"];
 export type MarimoError = Extract<
   CellOutput["data"],
-  Array<{ type: string }>
+  { type: string }[]
 >[number];
 export type OutputMessage = schemas["CellOutput"];
 export type CompletionOption = schemas["CompletionResult"]["options"][0];

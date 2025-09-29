@@ -22,7 +22,7 @@ Immediately start with the following format. Do NOT comment on the code, just ou
 6. If an import already exists, do not import it again.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
-Again, just output the code itself.
+Again, just output the code itself and make sure to return the code as just python.
 
 ==================== markdown ====================
 
@@ -37,7 +37,7 @@ Immediately start with the following format. Do NOT comment on the code, just ou
 {CELL_CODE}
 ```
 
-Again, just output the code itself.
+Again, just output the code itself and make sure to return the code as just markdown.
 
 ==================== sql ====================
 
@@ -54,10 +54,8 @@ Immediately start with the following format. Do NOT comment on the code, just ou
 
 ## Rules for sql
 1. The SQL must use duckdb syntax.
-2. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
-3. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
 
-Again, just output the code itself.
+Again, just output the code itself and make sure to return the code as just sql.
 
 ==================== idk ====================
 
@@ -72,7 +70,7 @@ Immediately start with the following format. Do NOT comment on the code, just ou
 {CELL_CODE}
 ```
 
-Again, just output the code itself.
+Again, just output the code itself and make sure to return the code as just idk.
 
 ==================== with custom rules ====================
 
@@ -99,7 +97,7 @@ Immediately start with the following format. Do NOT comment on the code, just ou
 ## Additional rules:
 Always use type hints.
 
-Again, just output the code itself.
+Again, just output the code itself and make sure to return the code as just python.
 
 ==================== with context ====================
 
@@ -133,7 +131,7 @@ Immediately start with the following format. Do NOT comment on the code, just ou
     - Sample values: Alice, Bob, Charlie
 
 
-Again, just output the code itself.
+Again, just output the code itself and make sure to return the code as just python.
 
 ==================== with is_insert=True ====================
 
@@ -164,7 +162,7 @@ Immediately start with the following format. Do NOT comment on the code, just ou
 6. If an import already exists, do not import it again.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
-Again, just output the code itself.
+Again, just output the code itself and make sure to return the code as just python.
 
 ==================== with cell_code ====================
 
@@ -201,7 +199,7 @@ print('Hello, world!')
 6. If an import already exists, do not import it again.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
-Again, just output the code itself.
+Again, just output the code itself and make sure to return the code as just python.
 
 ==================== with selected_text ====================
 
@@ -238,7 +236,7 @@ print('Hello, world!')
 6. If an import already exists, do not import it again.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
-Again, just output the code itself.
+Again, just output the code itself and make sure to return the code as just python.
 
 ==================== with other_cell_codes ====================
 
@@ -279,7 +277,7 @@ import pandas as pd
 import numpy as np
 </code_from_other_cells>
 
-Again, just output the code itself.
+Again, just output the code itself and make sure to return the code as just python.
 
 ==================== with VariableContext objects ====================
 
@@ -312,7 +310,7 @@ Immediately start with the following format. Do NOT comment on the code, just ou
   - value_preview: <Model object>
 
 
-Again, just output the code itself.
+Again, just output the code itself and make sure to return the code as just python.
 
 ==================== with support_multiple_cells=True ====================
 
@@ -350,8 +348,6 @@ Separate logic into multiple cells to keep the code organized and readable.
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
-2. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
-3. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
 
 ## Available variables from other cells:
 - variable: `df`

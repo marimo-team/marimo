@@ -65,4 +65,8 @@ export class LRUCache<K, V> {
   public entries() {
     return this.cache.entries();
   }
+
+  public delete(key: K) {
+    this.cache.delete(key);
+  }
 }

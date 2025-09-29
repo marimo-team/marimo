@@ -1407,6 +1407,11 @@ components:
       type: object
     FileOpenRequest:
       properties:
+        lineNumber:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
         path:
           type: string
       required:

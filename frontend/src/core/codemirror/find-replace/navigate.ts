@@ -110,7 +110,7 @@ export const findPrev = findInDirection("prev");
  */
 export const replaceAll = searchCommand(({ query }) => {
   const views = getAllEditorViews();
-  const undoHandlers: Array<() => void> = [];
+  const undoHandlers: (() => void)[] = [];
   for (const view of views) {
     if (view.state.readOnly) {
       continue;

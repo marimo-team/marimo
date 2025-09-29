@@ -27,6 +27,7 @@ def run_check(
     fix: bool = False,
     unsafe_fixes: bool = False,
     ignore_scripts: bool = False,
+    formatter: str = "full",
 ) -> Linter:
     """Run linting checks on files matching patterns (CLI entry point).
 
@@ -39,6 +40,7 @@ def run_check(
         fix: Whether to fix files automatically
         unsafe_fixes: Whether to enable unsafe fixes that may change behavior
         ignore_scripts: Whether to ignore files not recognizable as marimo notebooks
+        formatter: Output format for diagnostics ("full" or "json")
 
     Returns:
         Linter with per-file status and diagnostics
@@ -51,6 +53,7 @@ def run_check(
         fix_files=fix,
         unsafe_fixes=unsafe_fixes,
         ignore_scripts=ignore_scripts,
+        formatter=formatter,
     )
     linter.run_streaming(files_to_check)
     return linter

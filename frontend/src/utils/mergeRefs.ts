@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 export function mergeRefs<T>(
-  ...refs: Array<React.Ref<T>>
+  ...refs: React.Ref<T>[]
 ): (value: T | null) => void {
   return (value) => {
     refs.forEach((ref) => {

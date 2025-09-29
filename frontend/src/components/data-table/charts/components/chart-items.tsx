@@ -103,7 +103,7 @@ const ColumnSelectorWithAggregation: React.FC<{
     selectedDataType?: SelectedDataType;
   };
   defaultAggregation?: AggregationFn;
-  columns: Array<{ name: string; type: DataType }>;
+  columns: { name: string; type: DataType }[];
   binFieldName: FieldName;
 }> = ({
   columnFieldName,

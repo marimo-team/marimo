@@ -29,6 +29,10 @@ export function clearSqlValidationError(cellId: CellId) {
   store.set(sqlValidationErrorsAtom, newErrors);
 }
 
+export function clearAllSqlValidationErrors() {
+  store.set(sqlValidationErrorsAtom, new Map<CellId, SQLValidationError>());
+}
+
 export function setSqlValidationError({
   cellId,
   errorMessage,

@@ -30,6 +30,7 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import { ValidateSQL } from "@/core/datasets/request-registry";
+import type { ValidateSQLResult } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { resolvedThemeAtom } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
@@ -49,7 +50,7 @@ import {
   tablesCompletionSource,
 } from "./completion-sources";
 import { SCHEMA_CACHE } from "./completion-store";
-import { getSQLMode } from "./sql-mode";
+import { getSQLMode, type SQLMode } from "./sql-mode";
 
 const DEFAULT_DIALECT = DuckDBDialect;
 const DEFAULT_PARSER_DIALECT = "DuckDB";
@@ -278,13 +279,17 @@ export class SQLLanguageAdapter
             theme: defaultSqlHoverTheme(theme),
           },
         }),
+        EditorView.updateListener.of((update) => {
+          if (update.focusChanged) {
+            parser.setFocusState(update.view.hasFocus);
+          }
+        }),
       );
     }
 
-    // TODO: Re-enable after we optimize the endpoint
-    // if (this.sqlModeEnabled) {
-    //   extensions.push(sqlValidationExtension());
-    // }
+    if (this.sqlModeEnabled) {
+      extensions.push(sqlValidationExtension());
+    }
 
     return extensions;
   }
@@ -293,6 +298,11 @@ export class SQLLanguageAdapter
 class CustomSqlParser extends NodeSqlParser {
   private validationTimeout: number | null = null;
   private readonly VALIDATION_DELAY_MS = 300; // Wait 300ms after user stops typing
+  private isFocused = false; // Only validate if the editor is focused
+
+  setFocusState(focused: boolean) {
+    this.isFocused = focused;
+  }
 
   private async validateWithDelay(
     sql: string,
@@ -307,13 +317,15 @@ class CustomSqlParser extends NodeSqlParser {
     // Set up a new request to be called after the delay
     return new Promise((resolve) => {
       this.validationTimeout = window.setTimeout(async () => {
+        // Only validate if the editor is still focused
+        if (!this.isFocused) {
+          resolve([]);
+          return;
+        }
+
         try {
-          const result = await ValidateSQL.request({
-            onlyParse: true,
-            engine,
-            dialect,
-            query: sql,
-          });
+          const sqlMode = getSQLMode();
+          const result = await validateSQL(sql, engine, dialect, sqlMode);
           if (result.error) {
             Logger.error("Failed to validate SQL", { error: result.error });
             resolve([]);
@@ -334,7 +346,12 @@ class CustomSqlParser extends NodeSqlParser {
   ): Promise<SqlParseError[]> {
     const metadata = getSQLMetadata(opts.state);
 
-    // Only perform custom validation for internal engines
+    // Only validate if the editor is focused
+    if (!this.isFocused) {
+      return [];
+    }
+
+    // Only perform custom validation for DuckDB
     if (!INTERNAL_SQL_ENGINES.has(metadata.engine)) {
       return super.validateSql(sql, opts);
     }
@@ -641,16 +658,20 @@ function safeDedent(code: string): string {
 
 const SQL_VALIDATION_DEBOUNCE_MS = 300;
 
-// @ts-expect-error: TODO: Re-enable after we optimize the endpoint
-function _sqlValidationExtension(): Extension {
+/**
+ * Custom extension to run SQL queries in EXPLAIN mode on keypress.
+ */
+function sqlValidationExtension(): Extension {
   let debounceTimeout: number | undefined;
   let lastValidationRequest: string | null = null;
 
   return EditorView.updateListener.of((update) => {
+    // Only run validation if the document has changed
     if (!update.docChanged) {
       return;
     }
 
+    // Only run validation if the SQL mode is set to validate
     const sqlMode = getSQLMode();
     if (sqlMode !== "validate") {
       return;
@@ -658,7 +679,8 @@ function _sqlValidationExtension(): Extension {
 
     const metadata = getSQLMetadata(update.state);
     const connectionName = metadata.engine;
-    // Currently only internal engines are supported
+
+    // Currently only DuckDB is supported
     if (!INTERNAL_SQL_ENGINES.has(connectionName)) {
       return;
     }
@@ -687,21 +709,17 @@ function _sqlValidationExtension(): Extension {
       }
 
       try {
-        const result = await ValidateSQL.request({
-          onlyParse: false,
-          engine: connectionName,
-          query: sqlContent,
-        });
-
-        if (result.error) {
-          Logger.error("Failed to validate SQL", { error: result.error });
-          return;
-        }
-
+        const dialect = connectionNameToParserDialect(connectionName);
+        const sqlMode = getSQLMode();
+        const result = await validateSQL(
+          sqlContent,
+          connectionName,
+          dialect,
+          sqlMode,
+        );
         const validateResult = result.validate_result;
 
         if (validateResult?.error_message) {
-          const dialect = connectionNameToParserDialect(connectionName);
           setSqlValidationError({
             cellId,
             errorMessage: validateResult.error_message,
@@ -711,8 +729,31 @@ function _sqlValidationExtension(): Extension {
           clearSqlValidationError(cellId);
         }
       } catch (error) {
-        Logger.warn("Failed to validate SQL", { error });
+        Logger.error("Failed to validate SQL", { error });
       }
     }, SQL_VALIDATION_DEBOUNCE_MS);
   });
+}
+
+/**
+ * Determine if we should only parse or validate an SQL query.
+ * The endpoint is cached, so we should use the same mode for all validation requests.
+ */
+async function validateSQL(
+  sql: string,
+  engine: string,
+  dialect: ParserDialects | null,
+  sqlMode: SQLMode,
+): Promise<ValidateSQLResult> {
+  const result = await ValidateSQL.request({
+    onlyParse: sqlMode === "default",
+    engine,
+    dialect,
+    query: sql,
+  });
+
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result;
 }

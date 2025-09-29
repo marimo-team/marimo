@@ -1,10 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/** biome-ignore-all lint/suspicious/noConsole: for debugging */
 
 import { chromium, type FullConfig } from "@playwright/test";
 import { type ApplicationNames, getAppUrl } from "../playwright.config";
 
-async function globalSetup(config: FullConfig) {
+async function globalSetup(_config: FullConfig) {
   // Start a browser to test server connectivity
   const browser = await chromium.launch();
   const page = await browser.newPage();

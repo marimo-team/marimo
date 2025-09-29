@@ -32,6 +32,7 @@ import {
 } from "@/core/datasets/engines";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { useNonce } from "@/hooks/useNonce";
+import { clearAllSqlValidationErrors } from "../languages/sql/banner-validation-errors";
 import { type SQLMode, useSQLMode } from "../languages/sql/sql-mode";
 
 interface SelectProps {
@@ -144,7 +145,11 @@ export const SQLModeSelect: React.FC = () => {
   const { sqlMode, setSQLMode } = useSQLMode();
 
   const handleToggleMode = () => {
-    setSQLMode(sqlMode === "validate" ? "default" : "validate");
+    const nextMode = sqlMode === "validate" ? "default" : "validate";
+    if (nextMode === "default") {
+      clearAllSqlValidationErrors();
+    }
+    setSQLMode(nextMode);
   };
 
   const getModeIcon = (mode: SQLMode) => {

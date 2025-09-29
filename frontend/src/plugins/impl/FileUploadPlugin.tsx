@@ -31,7 +31,7 @@ interface Data {
   max_size: number;
 }
 
-type T = Array<[string, string]>;
+type T = [string, string][];
 
 export class FileUploadPlugin implements IPlugin<T, Data> {
   tagName = "marimo-file";

@@ -16,7 +16,6 @@ from marimo._messaging.ops import Alert
 from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
 from marimo._utils.paths import marimo_package_path
-from marimo._utils.strings import cmd_quote
 
 LOGGER = _loggers.marimo_logger()
 
@@ -200,8 +199,8 @@ class CopilotLspServer(BaseLspServer):
         copilot_bin = self._lsp_dir() / "copilot" / "language-server.js"
         log_file = _loggers.get_log_directory() / "github-copilot-lsp.log"
 
-        # Properly quote the copilot binary path to handle spaces and special characters
-        copilot_command = f"node {cmd_quote(str(copilot_bin))} --stdio"
+        # Use typed format to avoid quoting issues: copilot:<binary_path>
+        copilot_command = f"copilot:{copilot_bin}"
 
         return [
             "node",
@@ -292,7 +291,7 @@ class BasedpyrightServer(BaseLspServer):
             "--port",
             str(self.port),
             "--lsp",
-            "basedpyright-langserver --stdio",
+            "basedpyright:basedpyright-langserver",
             "--log-file",
             str(log_file),
         ]
@@ -330,8 +329,8 @@ class TyServer(BaseLspServer):
         lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
         log_file = _loggers.get_log_directory() / "ty-lsp.log"
 
-        # Properly quote the ty binary path to handle spaces and special characters
-        ty_command = f"{cmd_quote(find_ty_bin())} server"
+        # Use typed format to avoid quoting issues: ty:<binary_path>
+        ty_command = f"ty:{find_ty_bin()}"
 
         return [
             "node",

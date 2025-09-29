@@ -35,7 +35,7 @@ interface Data {
   /**
    * The labels for each item; raw HTML.
    */
-  items: Array<MenuItem | MenuItemGroup>;
+  items: (MenuItem | MenuItemGroup)[];
 
   /**
    * The orientation of the menu.

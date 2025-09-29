@@ -49,7 +49,7 @@ export function isClientWithNotify(
 export function isClientWithPlugins(
   client: ILanguageServerClient,
 ): client is ILanguageServerClient & {
-  plugins: Array<{ documentUri: string; view?: EditorView }>;
+  plugins: { documentUri: string; view?: EditorView }[];
 } {
   return "plugins" in client;
 }

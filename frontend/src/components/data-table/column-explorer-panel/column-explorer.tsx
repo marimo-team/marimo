@@ -211,7 +211,7 @@ const ColumnPreview = ({
       refetchPreview,
     });
 
-  const previewStats = stats && renderStats(stats, dataType, locale);
+  const previewStats = stats && renderStats({ stats, dataType, locale });
 
   const chart = chart_spec && renderChart(chart_spec, theme);
 
