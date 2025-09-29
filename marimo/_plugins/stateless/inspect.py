@@ -27,7 +27,7 @@ class inspect(Html):
         value: Show the object's value/repr.
 
     Returns:
-        An `Html` object.
+        (Html): An `Html` object.
 
     Example:
         ```python
