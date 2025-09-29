@@ -84,7 +84,7 @@ marimo_converter = "marimo._utils.docs:MarimoConverter"
 sql = [
     "duckdb>=1.0.0",
     "polars[pyarrow]>=1.9.0",
-    "sqlglot>=26.2.0"
+    "sqlglot[rs]>=26.2.0"
 ]
 
 # List of deps that are recommended for most users
@@ -94,7 +94,7 @@ recommended = [
     "duckdb>=1.0.0",            # SQL cells
     "altair>=5.4.0",            # Plotting in datasource viewer
     "polars[pyarrow]>=1.9.0",   # SQL output back in Python
-    "sqlglot>=26.2.0",           # SQL cells parsing
+    "sqlglot[rs]>=26.2.0",      # SQL cells parsing
     "openai>=1.55.3",           # AI features
     "ruff",                     # Formatting
     "nbformat>=5.7.0",          # Export as IPYNB
@@ -108,7 +108,7 @@ dev = [
     "opentelemetry-sdk~=1.26.0",
     # For SQL
     "duckdb>=1.0.0",
-    "sqlglot>=26.2.0",
+    "sqlglot[rs]>=26.2.0",
     # For linting
     "ruff>=0.13.1",
     # For AI
@@ -161,7 +161,7 @@ dependencies = [
     # Types in 2.2.0 don't work great with mypy
     "narwhals>=1.34.1, <2.2.0",
     "matplotlib>=3.8.0",
-    "sqlglot>=26.2.0",
+    "sqlglot[rs]>=26.2.0",
     "sqlalchemy>=2.0.40",
     "google-genai>=1.0.0",
     "openai>=1.55.3",
@@ -243,7 +243,7 @@ extra-dependencies = [
     "altair>=5.4.0",
     "plotly>=5.14.0",
     "polars>=1.32.2",
-    "sqlglot>=26.2.0",
+    "sqlglot[rs]>=26.2.0",
     "sqlalchemy>=2.0.40",
     "pyiceberg>=0.9.0",
     # For testing clickhouse
