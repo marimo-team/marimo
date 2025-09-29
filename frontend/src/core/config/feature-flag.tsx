@@ -25,7 +25,7 @@ const defaultValues: ExperimentalFeatures = {
   rtc_v2: false,
   performant_table_charts: false,
   mcp_docs: false,
-  sql_linter: false,
+  sql_linter: true,
   external_agents: import.meta.env.DEV,
   sql_mode: false,
 };
