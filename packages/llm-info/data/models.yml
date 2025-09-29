@@ -4,7 +4,7 @@
 
 - name: Claude 4.5 Sonnet
   model: claude-sonnet-4-5-20250929
-  description: Latest Opus model with enhanced capabilities and performance improvements
+  description: Latest Sonnet model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
