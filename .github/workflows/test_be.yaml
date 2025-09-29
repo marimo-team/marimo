@@ -58,7 +58,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        dependencies: ["core", "core,optional"]
+        dependencies: ["core", "core-optional"]
         python-version: ["3.9"]
         include:
           - os: ubuntu-latest
@@ -75,19 +75,19 @@ jobs:
             dependencies: "core"
           - os: ubuntu-latest
             python-version: "3.9"
-            dependencies: "core,optional"
+            dependencies: "core-optional"
           - os: ubuntu-latest
             python-version: "3.10"
-            dependencies: "core,optional"
+            dependencies: "core-optional"
           - os: ubuntu-latest
             python-version: "3.11"
-            dependencies: "core,optional"
+            dependencies: "core-optional"
           - os: ubuntu-latest
             python-version: "3.12"
-            dependencies: "core,optional"
+            dependencies: "core-optional"
           - os: ubuntu-latest
             python-version: "3.13"
-            dependencies: "core,optional"
+            dependencies: "core-optional"
           - os: ubuntu-latest
             python-version: "3.9"
             dependencies: "minimal"
@@ -139,7 +139,7 @@ jobs:
 
       # Test with optional dependencies (w/ testmon)
       - name: Test with optional dependencies (that have changed)
-        if: ${{ matrix.dependencies == 'core,optional' && matrix.python-version != '3.13' }}
+        if: ${{ matrix.dependencies == 'core-optional' && matrix.python-version != '3.13' }}
         run: |
           hatch run +py=${{ matrix.python-version }} test-optional:test tests/ \
             -v \
@@ -151,7 +151,7 @@ jobs:
       # Test with optional dependencies (no testmon)
       # We only do this for 3.13 since running all tests can be slow and only do it on one various
       - name: Test with optional dependencies (all)
-        if: ${{ matrix.dependencies == 'core,optional' && matrix.python-version == '3.13' }}
+        if: ${{ matrix.dependencies == 'core-optional' && matrix.python-version == '3.13' }}
         run: |
           hatch run +py=${{ matrix.python-version }} test-optional:test tests/ \
             -v \
