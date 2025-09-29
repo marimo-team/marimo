@@ -169,7 +169,7 @@ jobs:
             -v \
             -k "not test_cli" \
             --durations=10 \
-            --picked=first
+            --picked=first \
             --testmon
         env:
           UV_RESOLUTION: lowest
