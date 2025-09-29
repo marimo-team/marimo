@@ -791,8 +791,8 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             form={form}
             config={config}
             name="ai.azure.base_url"
-            placeholder="https://<your-resource-name>.openai.azure.com/<deployment-name>?api-version=<api-version>"
-            defaultValue="https://<your-resource-name>.openai.azure.com/<deployment-name>?api-version=<api-version>"
+            placeholder="https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment-name>?api-version=<api-version>"
+            defaultValue="https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment-name>?api-version=<api-version>"
             testId="ai-azure-base-url-input"
           />
         </AccordionFormItem>

@@ -155,19 +155,19 @@ async def test_azure_openai_provider() -> None:
     """Test that Azure OpenAI provider uses correct parameters."""
     config = AnyProviderConfig(
         api_key="test-key",
-        base_url="https://test.openai.azure.com/gpt-4-1?api-version=2023-05-15",
+        base_url="https://test.openai.azure.com/openai/deployments/gpt-4-1?api-version=2023-05-15",
     )
     provider = AzureOpenAIProvider("gpt-4", config)
 
     api_version, deployment_name, endpoint = provider._handle_azure_openai(
-        "https://test.openai.azure.com/gpt-4-1?api-version=2023-05-15"
+        "https://test.openai.azure.com/openai/deployments/gpt-4-1?api-version=2023-05-15"
     )
     assert api_version == "2023-05-15"
     assert deployment_name == "gpt-4-1"
     assert endpoint == "https://test.openai.azure.com"
 
     api_version, deployment_name, endpoint = provider._handle_azure_openai(
-        "https://unknown_domain.openai/gpt-4-1/gpt-4-1?api-version=2023-05-15"
+        "https://unknown_domain.openai/openai/deployments/gpt-4-1?api-version=2023-05-15"
     )
     assert api_version == "2023-05-15"
     assert deployment_name == "gpt-4-1"

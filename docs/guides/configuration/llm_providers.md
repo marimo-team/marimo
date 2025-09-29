@@ -191,7 +191,7 @@ chat_model = "azure/gpt-4.1-mini"
 
 [ai.azure]
 api_key = "sk-proj-..."
-base_url = "https://<your-resource-name>.openai.azure.com/<deployment_name>?api-version=<api-version>"
+base_url = "https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment_name>?api-version=<api-version>"
 ```
 
 The deployment name is typically the model name.

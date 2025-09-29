@@ -588,7 +588,7 @@ class AzureOpenAIProvider(OpenAIProvider):
 
     def _handle_azure_openai(self, base_url: str) -> tuple[str, str, str]:
         """Handle Azure OpenAI.
-        Sample base URL: https://<your-resource-name>.openai.azure.com/<deployment_name>?api-version=<api-version>
+        Sample base URL: https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment_name>?api-version=<api-version>
 
         Args:
             base_url (str): The base URL of the Azure OpenAI.
@@ -599,7 +599,7 @@ class AzureOpenAIProvider(OpenAIProvider):
 
         parsed_url = urlparse(base_url)
 
-        deployment_name = parsed_url.path.split("/")[1]
+        deployment_name = parsed_url.path.split("/")[3]
         api_version = parse_qs(parsed_url.query)["api-version"][0]
 
         endpoint = f"{parsed_url.scheme}://{parsed_url.hostname}"
