@@ -1,38 +1,17 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
+"""Full formatter for rich terminal output."""
+
 from __future__ import annotations
 
 import os
-from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from marimo._cli.print import bold, cyan, light_blue, red, yellow
 from marimo._lint.diagnostic import Severity
+from marimo._lint.formatters.base import DiagnosticFormatter
 
 if TYPE_CHECKING:
     from marimo._lint.diagnostic import Diagnostic
-
-
-class DiagnosticFormatter(ABC):
-    """Abstract base class for formatting diagnostics."""
-
-    @abstractmethod
-    def format(
-        self,
-        diagnostic: Diagnostic,
-        filename: str,
-        code_lines: list[str] | None = None,
-    ) -> str:
-        """Format a diagnostic for display.
-
-        Args:
-            diagnostic: The diagnostic to format
-            filename: The filename where the diagnostic occurred
-            code_lines: Optional source code lines for context
-
-        Returns:
-            Formatted diagnostic string
-        """
-        pass
 
 
 class FullFormatter(DiagnosticFormatter):
@@ -110,4 +89,4 @@ class FullFormatter(DiagnosticFormatter):
 
         if diagnostic.fix:
             context_lines.append(light_blue("hint: ") + bold(diagnostic.fix))
-        return f"{header}\n" + "\n".join(context_lines)
+        return f"{header}\n" + "\n".join(context_lines) + "\n"

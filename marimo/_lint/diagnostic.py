@@ -44,22 +44,28 @@ class Diagnostic:
         """Format the diagnostic for display.
 
         Args:
-            filename: The filename where the diagnostic occurred (optional)
             code_lines: Optional source code lines for context
-            formatter: The formatter to use ("full" is the only supported option)
+            formatter: The formatter to use ("full" or "json")
 
         Returns:
             Formatted diagnostic string
         """
-        from marimo._lint.formatter import FullFormatter
+        from marimo._lint.formatters import (
+            DiagnosticFormatter,
+            FullFormatter,
+            JSONFormatter,
+        )
+
+        actual_filename = self.filename or "unknown"
 
         if formatter == "full":
-            fmt = FullFormatter()
-            # Use stored filename if available, then parameter, then "unknown"
-            actual_filename = self.filename or "unknown"
-            return fmt.format(self, actual_filename, code_lines)
+            fmt: DiagnosticFormatter = FullFormatter()
+        elif formatter == "json":
+            fmt = JSONFormatter()
         else:
             raise ValueError(f"Unsupported formatter: {formatter}")
+
+        return fmt.format(self, actual_filename, code_lines)
 
     @property
     def sorted_lines(self) -> tuple[tuple[int], tuple[int]]:
