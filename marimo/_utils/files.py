@@ -38,6 +38,19 @@ async def async_get_files(folder: str) -> AsyncGenerator[Path, None]:
                     yield file_path
 
 
+def _get_root(pattern: str) -> str:
+    sep = os.sep
+    root = "."
+    parts = pattern.split(sep)
+    for i, part in enumerate(parts):
+        if "*" in part or "?" in part:
+            root = sep.join(parts[:i]) if i > 0 else "."
+            break
+        elif os.path.isdir(sep.join(parts[: i + 1])):
+            root = sep.join(parts[: i + 1])
+    return root
+
+
 def expand_file_patterns(file_patterns: tuple[str, ...]) -> list[Path]:
     """Expand file patterns to actual file paths.
 
@@ -57,14 +70,7 @@ def expand_file_patterns(file_patterns: tuple[str, ...]) -> list[Path]:
             # Handle glob patterns by walking from root and filtering
             if "**" in pattern or "*" in pattern or "?" in pattern:
                 # Extract root directory to walk from
-                root = "."
-                parts = pattern.split("/")
-                for i, part in enumerate(parts):
-                    if "*" in part or "?" in part:
-                        root = "/".join(parts[:i]) if i > 0 else "."
-                        break
-                    elif os.path.isdir("/".join(parts[: i + 1])):
-                        root = "/".join(parts[: i + 1])
+                root = _get_root(pattern)
 
                 # Get all files from root and filter by pattern
                 if os.path.isdir(root):
@@ -111,14 +117,7 @@ async def async_expand_file_patterns(
             # Handle glob patterns by walking from root and filtering
             if "**" in pattern or "*" in pattern or "?" in pattern:
                 # Extract root directory to walk from
-                root = "."
-                parts = pattern.split("/")
-                for i, part in enumerate(parts):
-                    if "*" in part or "?" in part:
-                        root = "/".join(parts[:i]) if i > 0 else "."
-                        break
-                    elif os.path.isdir("/".join(parts[: i + 1])):
-                        root = "/".join(parts[: i + 1])
+                root = _get_root(pattern)
 
                 # Get all files from root and filter by pattern
                 if os.path.isdir(root):
