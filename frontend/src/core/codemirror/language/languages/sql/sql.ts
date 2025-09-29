@@ -687,6 +687,7 @@ function sqlValidationExtension(): Extension {
       try {
         const result = await ValidateSQL.request({
           onlyParse: false,
+          dialect: connectionNameToParserDialect(connectionName),
           engine: connectionName,
           query: sqlContent,
         });
