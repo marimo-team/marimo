@@ -122,7 +122,7 @@ export const DataTableBody = <TData,>({
         pinningstyle,
       );
 
-      const title = cell.getHoverTitle?.();
+      const title = cell.getHoverTitle?.() ?? undefined;
       return (
         <TableCell
           tabIndex={0}

@@ -68,7 +68,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   cellSelection?: CellSelectionState;
   cellStyling?: CellStyleState | null;
   hoverTemplate?: string | null;
-  cellHoverTexts?: Record<string, Record<string, string>> | null;
+  cellHoverTexts?: Record<string, Record<string, string | null>> | null;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;

@@ -137,8 +137,10 @@ class SearchTableResponse:
     data: str
     total_rows: Union[int, Literal["too_many"]]
     cell_styles: Optional[CellStyles] = None
-    # Mapping of rowId -> columnName -> hover text (plain string)
-    cell_hover_texts: Optional[dict[RowId, dict[ColumnName, str]]] = None
+    # Mapping of rowId -> columnName -> hover text (plain string or None to suppress)
+    cell_hover_texts: Optional[
+        dict[RowId, dict[ColumnName, Optional[str]]]
+    ] = None
 
 
 @dataclass(frozen=True)
@@ -656,7 +658,7 @@ class table(
 
         search_result_styles: Optional[CellStyles] = None
         search_result_hover_texts: Optional[
-            dict[RowId, dict[ColumnName, str]]
+            dict[RowId, dict[ColumnName, Optional[str]]]
         ] = None
         search_result_data: JSONType = []
         field_types: Optional[FieldTypes] = None
@@ -1226,26 +1228,26 @@ class table(
 
     def _hover_cells(
         self, skip: int, take: int, total_rows: Union[int, Literal["too_many"]]
-    ) -> Optional[dict[RowId, dict[ColumnName, str]]]:
-        """Calculate hover text for cells in the table (plain strings)."""
+    ) -> Optional[dict[RowId, dict[ColumnName, Optional[str]]]]:
+        """Calculate hover text for cells in the table (plain strings or None)."""
         if self._hover_cell is None:
             return None
 
-        def do_hover_cell(row: str, col: str) -> str:
+        def do_hover_cell(row: str, col: str) -> Optional[str]:
             selected_cells = self._searched_manager.select_cells(
                 [TableCoordinate(row_id=row, column_name=col)]
             )
             if not selected_cells or self._hover_cell is None:
-                return ""
+                return None
             try:
                 value = selected_cells[0].value
                 result = self._hover_cell(row, col, value)
-                return str(result) if result is not None else ""
+                return str(result) if result is not None else None
             except BaseException as e:
                 LOGGER.warning(
                     "Failed to compute hover text for %s:%s: %s", row, col, e
                 )
-                return ""
+                return None
 
         columns = self._searched_manager.get_column_names()
         response = self._get_row_ids(EmptyArgs())

@@ -192,7 +192,7 @@ interface Data<T> {
   maxColumns: number | "all";
   hasStableRowId: boolean;
   lazy: boolean;
-  cellHoverTexts?: Record<string, Record<string, string>> | null;
+  cellHoverTexts?: Record<string, Record<string, string | null>> | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -215,7 +215,7 @@ type DataTableFunctions = {
     data: TableData<T>;
     total_rows: number | TooManyRows;
     cell_styles?: CellStyleState | null;
-    cell_hover_texts?: Record<string, Record<string, string>> | null;
+    cell_hover_texts?: Record<string, Record<string, string | null>> | null;
   }>;
   get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
@@ -265,7 +265,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       maxHeight: z.number().optional(),
       cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
       hoverTemplate: z.string().optional(),
-      cellHoverTexts: z.record(z.record(z.string())).optional(),
+      cellHoverTexts: z.record(z.record(z.string().nullable())).optional(),
       // Whether to load the data lazily.
       lazy: z.boolean().default(false),
       // If lazy, this will preload the first page of data
@@ -308,7 +308,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           cell_styles: z
             .record(z.record(z.object({}).passthrough()))
             .nullable(),
-          cell_hover_texts: z.record(z.record(z.string())).nullable(),
+          cell_hover_texts: z
+            .record(z.record(z.string().nullable()))
+            .nullable(),
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(
@@ -356,7 +358,12 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
-            cellHoverTexts={props.data.cellHoverTexts}
+            cellHoverTexts={
+              props.data.cellHoverTexts as Record<
+                string,
+                Record<string, string | null>
+              >
+            }
           />
         </LazyDataTableComponent>
       </TableProviders>
@@ -398,7 +405,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
   hoverTemplate?: string | null;
-  cellHoverTexts?: Record<string, Record<string, string>> | null;
+  cellHoverTexts?: Record<string, Record<string, string | null>> | null;
   toggleDisplayHeader?: () => void;
   host: HTMLElement;
   cellId?: CellId | null;
@@ -467,7 +474,7 @@ export const LoadingDataTableComponent = memo(
       rows: T[];
       totalRows: number | TooManyRows;
       cellStyles: CellStyleState | undefined | null;
-      cellHoverTexts?: Record<string, Record<string, string>> | null;
+      cellHoverTexts?: Record<string, Record<string, string | null>> | null;
     }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
@@ -478,7 +485,10 @@ export const LoadingDataTableComponent = memo(
       let tableData = props.data;
       let totalRows = props.totalRows;
       let cellStyles = props.cellStyles;
-      let cellHoverTexts = props.cellHoverTexts;
+      let cellHoverTexts = props.cellHoverTexts as
+        | Record<string, Record<string, string | null>>
+        | undefined
+        | null;
 
       const pageSizeChanged = paginationState.pageSize !== props.pageSize;
 
@@ -663,7 +673,12 @@ export const LoadingDataTableComponent = memo(
         paginationState={paginationState}
         setPaginationState={setPaginationState}
         cellStyles={data?.cellStyles ?? props.cellStyles}
-        cellHoverTexts={data?.cellHoverTexts ?? props.cellHoverTexts}
+        cellHoverTexts={
+          (data?.cellHoverTexts ?? props.cellHoverTexts) as Record<
+            string,
+            Record<string, string | null>
+          > | null
+        }
         toggleDisplayHeader={toggleDisplayHeader}
         getRow={getRow}
         cellId={cellId}

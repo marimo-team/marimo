@@ -3,7 +3,7 @@
 
 import type { RowData } from "@tanstack/react-table";
 
-export type CellHoverTextState = Record<string, Record<string, string>>;
+export type CellHoverTextState = Record<string, Record<string, string | null>>;
 
 export interface CellHoverTextTableState {
   cellHoverTexts: CellHoverTextState;
@@ -13,7 +13,7 @@ export interface CellHoverTextCell {
   /**
    * Returns precomputed hover text for the cell, if any.
    */
-  getHoverTitle?: () => string | undefined;
+  getHoverTitle?: () => string | undefined | null;
 }
 
 // Use declaration merging to add our new feature APIs
