@@ -42,6 +42,18 @@ describe("getAutoFixes", () => {
     expect(fixes[0].title).toBe("Fix: Add 'import numpy as np'");
   });
 
+  it("returns sql fix for sql-error error", () => {
+    const error: MarimoError = {
+      type: "sql-error",
+      msg: "syntax error",
+      sql_statement: "SELECT * FROM table",
+    };
+
+    const fixes = getAutoFixes(error);
+    expect(fixes).toHaveLength(1);
+    expect(fixes[0].title).toBe("AI Fix: Fix the SQL error");
+  });
+
   it("returns no fixes for NameError with unknown import", () => {
     const error: MarimoError = {
       type: "exception",
