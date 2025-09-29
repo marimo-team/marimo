@@ -87,7 +87,9 @@ export function initializeUIElement() {
     private inputListener: (e: MarimoValueInputEventType) => void =
       Functions.NOOP;
     private isProcessingAttributeChange = false;
-    private debouncedBroadcaster: ((child: HTMLElement, objectId: UIElementId, value: unknown) => void) | null = null;
+    private debouncedBroadcaster:
+      | ((child: HTMLElement, objectId: UIElementId, value: unknown) => void)
+      | null = null;
     private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     private createDebouncedBroadcaster(delay: number) {
@@ -107,7 +109,9 @@ export function initializeUIElement() {
 
     private getDebounceDelay(): number {
       const child = this.firstElementChild as HTMLElement;
-      if (!child) return 0;
+      if (!child) {
+        return 0;
+      }
 
       // Check for debounce data attribute (set by component)
       const debounceAttr = child.dataset.debounce;
@@ -131,7 +135,8 @@ export function initializeUIElement() {
       // Set up debounced broadcaster based on component's debounce setting
       const debounceDelay = this.getDebounceDelay();
       if (debounceDelay > 0) {
-        this.debouncedBroadcaster = this.createDebouncedBroadcaster(debounceDelay);
+        this.debouncedBroadcaster =
+          this.createDebouncedBroadcaster(debounceDelay);
       }
 
       this.inputListener = (e: MarimoValueInputEventType) => {

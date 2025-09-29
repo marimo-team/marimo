@@ -154,27 +154,29 @@ function PluginSlotInternal<T>(
   }, [hostElement, plugin.validator]);
 
   // When the value changes, send an input event
-  const setValueAndSendInput = useEvent((value: SetStateAction<T>, isExternalSync = false): void => {
-    setValue((prevValue) => {
-      const updater = Functions.asUpdater(value);
-      const nextValue = updater(prevValue);
+  const setValueAndSendInput = useEvent(
+    (value: SetStateAction<T>, isExternalSync = false): void => {
+      setValue((prevValue) => {
+        const updater = Functions.asUpdater(value);
+        const nextValue = updater(prevValue);
 
-      // Shallow compare the values
-      // If the value hasn't changed, we don't need to send an input event
-      if (shallowCompare(nextValue, prevValue)) {
+        // Shallow compare the values
+        // If the value hasn't changed, we don't need to send an input event
+        if (shallowCompare(nextValue, prevValue)) {
+          return nextValue;
+        }
+
+        // Check if we're remounting
+        const isRemounting = hostElement.hasAttribute("data-is-remounting");
+
+        // Only dispatch input event if we're not remounting AND not from external sync
+        if (!isRemounting && !isExternalSync) {
+          hostElement.dispatchEvent(createInputEvent(nextValue, hostElement));
+        }
         return nextValue;
-      }
-
-      // Check if we're remounting
-      const isRemounting = hostElement.hasAttribute("data-is-remounting");
-
-      // Only dispatch input event if we're not remounting AND not from external sync
-      if (!isRemounting && !isExternalSync) {
-        hostElement.dispatchEvent(createInputEvent(nextValue, hostElement));
-      }
-      return nextValue;
-    });
-  });
+      });
+    },
+  );
 
   // Create a map of functions that can be called by the plugin
   const functionMethods = useMemo<PluginFunctions>(() => {

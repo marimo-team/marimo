@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, expect, it, beforeEach, vi } from "vitest";
-import { UIElementRegistry } from "../uiregistry";
-import { initializeUIElement } from "../ui-element";
-import { MarimoValueInputEvent, MarimoValueUpdateEvent } from "../events";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UIElementId } from "@/core/cells/ids";
+import { MarimoValueInputEvent, MarimoValueUpdateEvent } from "../events";
+import { initializeUIElement } from "../ui-element";
+import { UIElementRegistry } from "../uiregistry";
 
 // Mock the registerReactComponent module
 vi.mock("@/plugins/core/registerReactComponent", () => ({
