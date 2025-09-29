@@ -17,7 +17,14 @@ function passwordField() {
 }
 
 function tokenField(label?: string, required?: boolean) {
-  const field = z.string().describe(
+  let field: z.ZodString | z.ZodOptional<z.ZodString> = z.string();
+  if (required) {
+    field = field.nonempty();
+  } else {
+    field = field.optional();
+  }
+
+  field = field.describe(
     FieldOptions.of({
       label: label || "Token",
       inputType: "password",
@@ -25,7 +32,7 @@ function tokenField(label?: string, required?: boolean) {
       optionRegex: ".*token.*",
     }),
   );
-  return required ? field.nonempty() : field.optional();
+  return field;
 }
 
 function warehouseNameField() {
@@ -42,12 +49,16 @@ function warehouseNameField() {
 }
 
 function uriField(label?: string, required?: boolean) {
-  const field = z
-    .string()
-    .describe(
-      FieldOptions.of({ label: label || "URI", optionRegex: ".*uri.*" }),
-    );
-  return required ? field.nonempty() : field.optional();
+  let field: z.ZodString | z.ZodOptional<z.ZodString> = z.string();
+  if (required) {
+    field = field.nonempty();
+  } else {
+    field = field.optional();
+  }
+
+  return field.describe(
+    FieldOptions.of({ label: label || "URI", optionRegex: ".*uri.*" }),
+  );
 }
 
 function hostField(label?: string) {
@@ -112,7 +123,7 @@ function portField(defaultPort?: number) {
     });
 
   if (defaultPort !== undefined) {
-    return field.default(defaultPort.toString());
+    return field.default(defaultPort);
   }
 
   return field;
@@ -383,6 +394,7 @@ export const IcebergConnectionSchema = z.object({
     ])
     .default({
       type: "REST",
+      token: undefined,
     })
     .describe(FieldOptions.of({ special: "tabs" })),
 });

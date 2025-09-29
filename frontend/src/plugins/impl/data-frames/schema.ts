@@ -99,7 +99,9 @@ const FilterRowsTransformSchema = z.object({
       });
     })
     .describe(FieldOptions.of({ label: "Value" }))
-    .default([{ column_id: "", operator: "==", value: "" }]),
+    .default(() => [
+      { column_id: "" as ColumnId, operator: "==" as const, value: "" },
+    ]),
 });
 
 const GroupByTransformSchema = z

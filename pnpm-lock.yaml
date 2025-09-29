@@ -38,7 +38,7 @@ importers:
     dependencies:
       '@ai-sdk/react':
         specifier: ^2.0.30
-        version: 2.0.30(react@19.1.1)(zod@3.25.76)
+        version: 2.0.30(react@19.1.1)(zod@4.1.11)
       '@anywidget/types':
         specifier: ^0.2.0
         version: 0.2.0
@@ -109,8 +109,8 @@ importers:
         specifier: 6.0.4-alpha16
         version: 6.0.4-alpha16(lodash@4.17.21)(marked@15.0.12)(react-dom@19.1.1(react@19.1.1))(react-responsive-carousel@3.2.23)(react@19.1.1)
       '@hookform/resolvers':
-        specifier: ^3.10.0
-        version: 3.10.0(react-hook-form@7.54.2(react@19.1.1))
+        specifier: ^5.2.2
+        version: 5.2.2(react-hook-form@7.54.2(react@19.1.1))
       '@img-comparison-slider/react':
         specifier: ^8.0.2
         version: 8.0.2
@@ -308,7 +308,7 @@ importers:
         version: 0.3.1
       ai:
         specifier: ^5.0.30
-        version: 5.0.30(zod@3.25.76)
+        version: 5.0.30(zod@4.1.11)
       ansi_up:
         specifier: ^6.0.6
         version: 6.0.6
@@ -496,8 +496,8 @@ importers:
         specifier: ^4.2.4
         version: 4.2.4
       zod:
-        specifier: ^3.25.76
-        version: 3.25.76
+        specifier: ^4.1.11
+        version: 4.1.11
     devDependencies:
       '@babel/plugin-proposal-decorators':
         specifier: ^7.27.1
@@ -662,8 +662,8 @@ importers:
         specifier: ^2.8.1
         version: 2.8.1
       zod:
-        specifier: ^3.25.76
-        version: 3.25.76
+        specifier: ^4.1.11
+        version: 4.1.11
 
   packages/lsp:
     dependencies:
@@ -1556,10 +1556,10 @@ packages:
       react-dom: ^19.1.0
       react-responsive-carousel: ^3.2.7
 
-  '@hookform/resolvers@3.10.0':
-    resolution: {integrity: sha512-79Dv+3mDF7i+2ajj7SkypSKHhl1cbln1OGavqrsF7p6mbUv11xpqpacPsGDCTRvCSjEEIez2ef1NveSVL3b0Ag==}
+  '@hookform/resolvers@5.2.2':
+    resolution: {integrity: sha512-A/IxlMLShx3KjV/HeTcTfaMxdwy690+L/ZADoeaTltLx+CVuzkeVIPuybK3jrRfw7YZnmdKsVVHAlEPIAEUNlA==}
     peerDependencies:
-      react-hook-form: ^7.0.0
+      react-hook-form: ^7.55.0
 
   '@humanwhocodes/config-array@0.13.0':
     resolution: {integrity: sha512-DZLEEqFWQFiyK6h5YIeynKx7JlvCYWL0cImfSRXZ9l4Sg2efkFGTuFf6vzXjK1cq6IYkU+Eg/JizXw+TD2vRNw==}
@@ -3498,6 +3498,9 @@ packages:
 
   '@standard-schema/spec@1.0.0':
     resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
+
+  '@standard-schema/utils@0.3.0':
+    resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
 
   '@storybook/addon-docs@9.1.8':
     resolution: {integrity: sha512-GVrNVEdNRRo6r1hawfgyy6x+HJqPx1oOHm0U0wz0SGAxgS/Xh6SQVZL+RDoh7NpXkNi1GbezVlT931UsHQTyvQ==}
@@ -10097,6 +10100,9 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
+  zod@4.1.11:
+    resolution: {integrity: sha512-WPsqwxITS2tzx1bzhIKsEs19ABD5vmCVa4xBo2tq/SrV4RNZtfws1EnCWQXM6yh8bD08a1idvkB5MZSBiZsjwg==}
+
   zustand@4.5.7:
     resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
     engines: {node: '>=12.7.0'}
@@ -10163,32 +10169,32 @@ snapshots:
 
   '@adobe/css-tools@4.4.3': {}
 
-  '@ai-sdk/gateway@1.0.15(zod@3.25.76)':
+  '@ai-sdk/gateway@1.0.15(zod@4.1.11)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.7(zod@3.25.76)
-      zod: 3.25.76
+      '@ai-sdk/provider-utils': 3.0.7(zod@4.1.11)
+      zod: 4.1.11
 
-  '@ai-sdk/provider-utils@3.0.7(zod@3.25.76)':
+  '@ai-sdk/provider-utils@3.0.7(zod@4.1.11)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
       '@standard-schema/spec': 1.0.0
       eventsource-parser: 3.0.6
-      zod: 3.25.76
+      zod: 4.1.11
 
   '@ai-sdk/provider@2.0.0':
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@2.0.30(react@19.1.1)(zod@3.25.76)':
+  '@ai-sdk/react@2.0.30(react@19.1.1)(zod@4.1.11)':
     dependencies:
-      '@ai-sdk/provider-utils': 3.0.7(zod@3.25.76)
-      ai: 5.0.30(zod@3.25.76)
+      '@ai-sdk/provider-utils': 3.0.7(zod@4.1.11)
+      ai: 5.0.30(zod@4.1.11)
       react: 19.1.1
       swr: 2.3.4(react@19.1.1)
       throttleit: 2.1.0
     optionalDependencies:
-      zod: 3.25.76
+      zod: 4.1.11
 
   '@alloc/quick-lru@5.2.0': {}
 
@@ -11160,8 +11166,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@hookform/resolvers@3.10.0(react-hook-form@7.54.2(react@19.1.1))':
+  '@hookform/resolvers@5.2.2(react-hook-form@7.54.2(react@19.1.1))':
     dependencies:
+      '@standard-schema/utils': 0.3.0
       react-hook-form: 7.54.2(react@19.1.1)
 
   '@humanwhocodes/config-array@0.13.0':
@@ -13715,6 +13722,8 @@ snapshots:
 
   '@standard-schema/spec@1.0.0': {}
 
+  '@standard-schema/utils@0.3.0': {}
+
   '@storybook/addon-docs@9.1.8(@types/react@19.1.12)(storybook@9.1.8(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.3.1)(typescript@5.9.2))(rolldown-vite@7.1.13(@types/node@24.3.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))':
     dependencies:
       '@mdx-js/react': 3.1.0(@types/react@19.1.12)(react@19.1.1)
@@ -14766,13 +14775,13 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai@5.0.30(zod@3.25.76):
+  ai@5.0.30(zod@4.1.11):
     dependencies:
-      '@ai-sdk/gateway': 1.0.15(zod@3.25.76)
+      '@ai-sdk/gateway': 1.0.15(zod@4.1.11)
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.7(zod@3.25.76)
+      '@ai-sdk/provider-utils': 3.0.7(zod@4.1.11)
       '@opentelemetry/api': 1.9.0
-      zod: 3.25.76
+      zod: 4.1.11
 
   ajv-formats@2.1.1(ajv@8.17.1):
     optionalDependencies:
@@ -21750,6 +21759,8 @@ snapshots:
       zod: 3.25.76
 
   zod@3.25.76: {}
+
+  zod@4.1.11: {}
 
   zustand@4.5.7(@types/react@19.1.12)(react@19.1.1):
     dependencies:

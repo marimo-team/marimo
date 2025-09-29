@@ -113,11 +113,9 @@ export const TransformPanel: React.FC<Props> = ({
     selectedTransform === undefined
       ? undefined
       : transforms[selectedTransform]?.type;
-  const selectedTransformSchema = TransformTypeSchema._def.options.find(
-    (option) => {
-      return getUnionLiteral(option)._def.value === selectedTransformType;
-    },
-  );
+  const selectedTransformSchema = TransformTypeSchema.options.find((option) => {
+    return getUnionLiteral(option).value === selectedTransformType;
+  });
 
   const effectiveColumns = useMemo(() => {
     const transformsBeforeSelected = transforms.slice(0, selectedTransform);
@@ -125,7 +123,9 @@ export const TransformPanel: React.FC<Props> = ({
   }, [columns, transforms, selectedTransform]);
 
   const handleAddTransform = (transform: z.ZodType) => {
-    const next: TransformType = getDefaults(transform);
+    const next: TransformType = getDefaults(
+      transform as z.ZodType<TransformType>,
+    );
     const nextIdx = transformsField.fields.length;
     transformsField.append(next);
     setSelectedTransform(nextIdx);
@@ -256,19 +256,19 @@ const AddTransformDropdown: React.FC<
         <DropdownMenuLabel>Add Transform</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {Object.values(TransformTypeSchema._def.options).map((type) => {
+          {Object.values(TransformTypeSchema.options).map((type) => {
             const literal = getUnionLiteral(type);
-            const Icon = ICONS[literal._def.value as TransformType["type"]];
+            const Icon = ICONS[literal.value as TransformType["type"]];
             return (
               <DropdownMenuItem
-                key={literal._def.value}
+                key={literal.value}
                 onSelect={(evt) => {
                   evt.stopPropagation();
                   onAdd(type);
                 }}
               >
                 <Icon className="w-3.5 h-3.5 mr-2" />
-                <span>{Strings.startCase(literal._def.value)}</span>
+                <span>{Strings.startCase(literal.value)}</span>
               </DropdownMenuItem>
             );
           })}

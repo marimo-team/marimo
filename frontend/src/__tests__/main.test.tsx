@@ -4,8 +4,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type AppConfig,
+  defaultUserConfig,
   parseAppConfig,
-  parseUserConfig,
 } from "@/core/config/config-schema";
 import {
   appConfigAtom,
@@ -41,7 +41,7 @@ describe("main", () => {
     store.set(showCodeInRunModeAtom, false);
     store.set(marimoVersionAtom, "unknown");
     store.set(appConfigAtom, parseAppConfig({}));
-    store.set(userConfigAtom, parseUserConfig({}));
+    store.set(userConfigAtom, defaultUserConfig());
     store.set(configOverridesAtom, {});
   });
 
@@ -106,7 +106,7 @@ describe("main", () => {
       el,
     );
     expect(error).toBeUndefined();
-    expect(store.get(userConfigAtom)).toEqual(parseUserConfig({}));
+    expect(store.get(userConfigAtom)).toEqual(defaultUserConfig());
     expect(store.get(configOverridesAtom)).toEqual({});
     expect(store.get(appConfigAtom)).toEqual(parseAppConfig({}));
     expect(store.get(viewStateAtom).mode).toBe("edit");

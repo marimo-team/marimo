@@ -514,7 +514,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
   }
 
   generateConnectionCode(): string {
-    let options: Record<string, string | number | boolean> = {
+    let options: Record<string, string | number | boolean | undefined> = {
       ...this.connection.catalog,
     };
     // Remove k='type' and v=nullish values

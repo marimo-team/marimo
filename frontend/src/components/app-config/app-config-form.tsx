@@ -2,6 +2,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId } from "react";
 import { useForm } from "react-hook-form";
+import type { z } from "zod";
 import {
   Form,
   FormControl,
@@ -42,8 +43,10 @@ export const AppConfigForm: React.FC = () => {
   const ipynbCheckboxId = useId();
 
   // Create form
-  const form = useForm<AppConfig>({
-    resolver: zodResolver(AppConfigSchema),
+  const form = useForm({
+    resolver: zodResolver(
+      AppConfigSchema as unknown as z.ZodType<unknown, AppConfig>,
+    ),
     defaultValues: config,
   });
 

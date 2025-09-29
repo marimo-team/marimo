@@ -3,7 +3,7 @@ import type { PanelGroupStorage } from "react-resizable-panels";
 import { z } from "zod";
 import { Objects } from "@/utils/objects";
 
-const schema = z.record(z.tuple([z.number(), z.number()]));
+const schema = z.record(z.string(), z.tuple([z.number(), z.number()]));
 
 let storedValue: string | null = null;
 

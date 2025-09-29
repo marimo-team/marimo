@@ -214,7 +214,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
 }
 
 const BufferPathSchema = z.array(z.array(z.union([z.string(), z.number()])));
-const StateSchema = z.record(z.any());
+const StateSchema = z.record(z.string(), z.any());
 
 const AnyWidgetMessageSchema = z.discriminatedUnion("method", [
   z.object({

@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { render } from "@testing-library/react";
-import { useForm } from "react-hook-form";
+import { type FieldValues, useForm } from "react-hook-form";
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import { getUnionLiteral } from "@/components/forms/form-utils";
@@ -20,7 +20,7 @@ const ColumnTypes = new Map([
   ["B" as ColumnId, "int"],
 ]);
 
-const Subject = (props: { schema: z.ZodType }) => {
+const Subject = (props: { schema: z.ZodType<unknown, FieldValues> }) => {
   const form = useForm({
     resolver: zodResolver(props.schema),
     defaultValues: {},
@@ -41,12 +41,12 @@ const Subject = (props: { schema: z.ZodType }) => {
 describe("renderZodSchema", () => {
   // Snapshot each form to make sure they don't change unexpectedly
   const options = Objects.keyBy(
-    TransformTypeSchema._def.options,
+    [...TransformTypeSchema.options],
     (z) => getUnionLiteral(z).value,
   );
   it.each(Object.entries(options))(
     "should render a form %s",
-    (name, schema) => {
+    (name, schema: z.ZodType<unknown, FieldValues>) => {
       const expected = render(<Subject schema={schema} />);
 
       expect(expected.asFragment()).toMatchSnapshot();
@@ -62,6 +62,8 @@ const options = [
 ] as const;
 
 it.each(options)("renders custom forms %s", (key, schema) => {
-  const expected = render(<Subject schema={schema} />);
+  const expected = render(
+    <Subject schema={schema as z.ZodType<unknown, FieldValues>} />,
+  );
   expect(expected.asFragment()).toMatchSnapshot();
 });
