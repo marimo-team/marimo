@@ -110,7 +110,7 @@ dev = [
     "duckdb>=1.0.0",
     "sqlglot>=26.2.0",
     # For linting
-    "ruff~=0.9.1",
+    "ruff>=0.13.1",
     # For AI
     "openai>=1.55.3",
 ]
@@ -307,6 +307,7 @@ python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 features = ["docs"]
 dependencies = [
     "marimo_docs @ file://docs",
+    "ruff"
 ]
 
 [tool.uv.sources]
