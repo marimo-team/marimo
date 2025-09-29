@@ -24,6 +24,8 @@ from marimo._server.lsp import (
     PyLspServer,
     any_lsp_server_running,
 )
+from marimo._utils.platform import is_windows
+from marimo._utils.strings import _get_short_path_name_windows
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -161,13 +163,19 @@ def test_copilot_server_command_quotes_path(tmp_path: Path) -> None:
         lsp_arg_index = command.index("--lsp")
         lsp_command = command[lsp_arg_index + 1]
 
-        # The command should contain the quoted path
+        if is_windows():
+            assert (
+                _get_short_path_name_windows(str(copilot_bin)) in lsp_command
+            )
+        else:
+            # The command should contain the quoted path
+            assert (
+                str(copilot_bin) in lsp_command
+                or f"'{copilot_bin}'" in lsp_command
+                or f'"{copilot_bin}"' in lsp_command
+            )
+
         assert "node" in lsp_command
-        assert (
-            str(copilot_bin) in lsp_command
-            or f"'{copilot_bin}'" in lsp_command
-            or f'"{copilot_bin}"' in lsp_command
-        )
         assert "--stdio" in lsp_command
 
 
