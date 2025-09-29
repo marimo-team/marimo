@@ -277,6 +277,7 @@ export default defineConfig({
     "import.meta.env.VITE_MARIMO_VERSION": process.env.VITE_MARIMO_VERSION
       ? JSON.stringify(process.env.VITE_MARIMO_VERSION)
       : JSON.stringify("latest"),
+    "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
   },
   build: {
     minify: isDev ? false : "oxc", // default is "oxc"
