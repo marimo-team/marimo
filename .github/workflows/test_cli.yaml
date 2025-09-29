@@ -49,14 +49,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
 
       - name: 📦 Build frontend
         run: make fe
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-          NODE_OPTIONS: '--max_old_space_size=8192'
 
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
@@ -101,7 +100,7 @@ jobs:
     timeout-minutes: 10 # 2024-01-18 avg: 2.5m max: 4.5m
     strategy:
       matrix:
-        python-version: ['3.12']
+        python-version: ["3.12"]
         # TODO: update to latest once networking issues on macos-15 are resolved
         os: [ubuntu-latest, macos-14, windows-latest]
 
