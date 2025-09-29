@@ -3,8 +3,8 @@ name: Dev Build
 on:
   pull_request:
     paths:
-      - 'Makefile'
-      - 'pyproject.toml'
+      - "Makefile"
+      - "pyproject.toml"
 
 jobs:
   build:
@@ -13,6 +13,9 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+
       - uses: actions/checkout@v4
       - uses: prefix-dev/setup-pixi@v0.8.8
         with:

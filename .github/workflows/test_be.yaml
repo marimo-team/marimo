@@ -107,6 +107,17 @@ jobs:
           cp frontend/index.html marimo/_static/index.html
           cp frontend/public/favicon.ico marimo/_static/favicon.ico
 
+      # Cache testmon database for faster incremental testing
+      - name: Cache testmon database
+        uses: actions/cache@v4
+        with:
+          path: .testmondata
+          key: testmon-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.dependencies }}-${{ github.sha }}
+          restore-keys: |
+            testmon-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.dependencies }}-
+            testmon-${{ matrix.os }}-${{ matrix.python-version }}-
+            testmon-${{ matrix.os }}-
+
       - name: Lint
         if: ${{ matrix.python-version == '3.12' }}
         run: hatch run lint
@@ -115,8 +126,8 @@ jobs:
         if: ${{ matrix.python-version == '3.12' }}
         run: hatch run typecheck:check
 
-      # Test with base dependencies
-      - name: Test with base dependencies
+      # Test with base dependencies (w/ testmon)
+      - name: Test with base dependencies (that have changed)
         if: ${{ matrix.dependencies == 'core' }}
         run: |
           hatch run +py=${{ matrix.python-version }} test:test tests/ \
@@ -124,10 +135,23 @@ jobs:
             -k "not test_cli" \
             --durations=10 \
             --picked=first
+            --testmon
 
-      # Test with optional dependencies
-      - name: Test with optional dependencies
-        if: ${{ matrix.dependencies == 'core,optional' }}
+      # Test with optional dependencies (w/ testmon)
+      - name: Test with optional dependencies (that have changed)
+        if: ${{ matrix.dependencies == 'core,optional' && matrix.python-version != '3.13' }}
+        run: |
+          hatch run +py=${{ matrix.python-version }} test-optional:test tests/ \
+            -v \
+            -k "not test_cli" \
+            --durations=10 \
+            --picked=first
+            --testmon
+
+      # Test with optional dependencies (no testmon)
+      # We only do this for 3.13 since running all tests can be slow and only do it on one various
+      - name: Test with optional dependencies (all)
+        if: ${{ matrix.dependencies == 'core,optional' && matrix.python-version == '3.13' }}
         run: |
           hatch run +py=${{ matrix.python-version }} test-optional:test tests/ \
             -v \
@@ -146,6 +170,7 @@ jobs:
             -k "not test_cli" \
             --durations=10 \
             --picked=first
+            --testmon
         env:
           UV_RESOLUTION: lowest
 
@@ -172,10 +197,19 @@ jobs:
           cp frontend/index.html marimo/_static/index.html
           cp frontend/public/favicon.ico marimo/_static/favicon.ico
 
+      # Cache testmon database for faster incremental testing
+      - name: Cache testmon database
+        uses: actions/cache@v4
+        with:
+          path: .testmondata
+          key: testmon-coverage-${{ github.sha }}
+          restore-keys: |
+            testmon-coverage-
+
       - name: Test with optional dependencies
         run: |
           hatch run +py=3.12 test-optional:test -v tests/ -k "not test_cli" --durations=10 \
-          --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
+          --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy --testmon
 
       # Only upload coverage on `main` so it is not blocking
       # and only on `3.12`, `ubuntu-latest`, with optional deps since it is mostly duplicate
