@@ -202,7 +202,7 @@ export class AiModelRegistry {
     return this.modelsByProviderMap;
   }
 
-  getListModelsByProvider(): Array<[ProviderId, AiModel[]]> {
+  getListModelsByProvider(): [ProviderId, AiModel[]][] {
     const modelsByProvider = this.getGroupedModelsByProvider();
     const arrayModels = [...modelsByProvider.entries()];
     const providerToOrderIdx = getProviderMap().providerToOrderIdx;

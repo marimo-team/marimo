@@ -23,7 +23,7 @@ vi.mock("../utils/vitals", () => ({
 }));
 
 vi.mock("react-dom/client", () => ({
-  createRoot: vi.fn().mockImplementation((el) => {
+  createRoot: vi.fn().mockImplementation((_el) => {
     return {
       render: vi.fn(),
     };
@@ -47,7 +47,7 @@ describe("main", () => {
 
   it.each(["edit", "read", "home", "run"])(
     "should mount with mode %s",
-    (mode) => {
+    (_mode) => {
       const el = document.createElement("div");
       mount({ mode: "edit" }, el);
 

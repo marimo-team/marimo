@@ -59,7 +59,7 @@ interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
   schema: z.ZodType;
   path?: Path<T>;
-  renderers: Array<FormRenderer<T>> | undefined;
+  renderers: FormRenderer<T>[] | undefined;
   children?: React.ReactNode;
 }
 
@@ -82,7 +82,7 @@ export function renderZodSchema<T extends FieldValues, S>(
   schema: z.ZodType<S>,
   form: UseFormReturn<T>,
   path: Path<T>,
-  renderers: Array<FormRenderer<T>>,
+  renderers: FormRenderer<T>[],
 ) {
   // Try custom renderers first
   for (const renderer of renderers) {
@@ -330,7 +330,7 @@ export function renderZodSchema<T extends FieldValues, S>(
   }
 
   if (schema instanceof z.ZodDiscriminatedUnion) {
-    const options = schema._def.options as Array<z.ZodType<unknown>>;
+    const options = schema._def.options as z.ZodType<unknown>[];
     const discriminator = schema._def.discriminator;
     const optionsMap = schema._def.optionsMap;
     return (
@@ -392,7 +392,7 @@ export function renderZodSchema<T extends FieldValues, S>(
         control={form.control}
         name={path}
         render={({ field }) => {
-          const options = schema._def.options as Array<z.ZodType<unknown>>;
+          const options = schema._def.options as z.ZodType<unknown>[];
           let value: string = field.value;
           const types = options.map((option) => {
             return getUnionLiteral(option)._def.value;
@@ -812,6 +812,6 @@ const MultiSelectFormField = ({
   );
 };
 
-function joinPath<T>(...parts: Array<string | number>): Path<T> {
+function joinPath<T>(...parts: (string | number)[]): Path<T> {
   return parts.filter((part) => part !== "").join(".") as Path<T>;
 }

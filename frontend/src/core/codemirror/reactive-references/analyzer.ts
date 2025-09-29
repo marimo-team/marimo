@@ -67,7 +67,7 @@ export function findReactiveVariables(options: {
   // Maps to track variable declarations and scopes
   const allDeclarations = new Map<number, Set<string>>(); // scope position -> variable names
   const scopeTypes = new Map<number, string>(); // scope position -> scope type (e.g., "ClassDefinition")
-  const classLevelDeclarations = new Map<number, Array<[string, number]>>(); // class scope -> [varName, position] pairs
+  const classLevelDeclarations = new Map<number, [string, number][]>(); // class scope -> [varName, position] pairs
 
   // Class-level variables require special handling because they're evaluated sequentially
   // A variable is only available after its assignment statement completes
@@ -555,7 +555,7 @@ function extractAssignmentTargets(
     state: EditorState;
     allDeclarations: Map<number, Set<string>>;
     scopeTypes: Map<number, string>;
-    classLevelDeclarations: Map<number, Array<[string, number]>>;
+    classLevelDeclarations: Map<number, [string, number][]>;
     assignmentPosition: number;
   },
 ) {

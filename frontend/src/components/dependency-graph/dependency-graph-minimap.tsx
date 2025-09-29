@@ -31,7 +31,7 @@ import { useFitToViewOnDimensionChange } from "./utils/useFitToViewOnDimensionCh
 interface Props {
   cellIds: CellId[];
   variables: Variables;
-  cellAtoms: Array<Atom<CellData>>;
+  cellAtoms: Atom<CellData>[];
 }
 
 const elementsBuilder = new VerticalElementsBuilder();
@@ -57,7 +57,7 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
 
   // If the cellIds change, update the nodes.
   const syncChanges = useEvent(
-    (elements: { nodes: Array<Node<NodeData>>; edges: Edge[] }) => {
+    (elements: { nodes: Node<NodeData>[]; edges: Edge[] }) => {
       setNodes(elements.nodes);
       setEdges([]);
     },

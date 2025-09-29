@@ -309,6 +309,11 @@ def test_duckdb_execute_in_explain_mode():
     assert result is None
     assert error is None
 
+    # Test with brackets
+    result, error = engine.execute_in_explain_mode("SELECT {1}")
+    assert result is not None
+    assert error is None
+
     duckdb_conn.close()
 
 
@@ -379,6 +384,11 @@ def test_sqlalchemy_execute_in_explain_mode():
 
     result, error = engine.execute_in_explain_mode("-- SELECT * FROM ")
     assert result is None
+    assert error is None
+
+    # Test with brackets
+    result, error = engine.execute_in_explain_mode("SELECT {1}")
+    assert result is not None
     assert error is None
 
 

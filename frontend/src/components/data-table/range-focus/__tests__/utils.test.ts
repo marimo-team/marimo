@@ -26,7 +26,7 @@ function createMockColumn(id: string): Column<unknown> {
 
 function createMockRow(
   id: string,
-  cells: Array<Cell<unknown, unknown>>,
+  cells: Cell<unknown, unknown>[],
 ): Row<unknown> {
   return {
     id,
@@ -43,8 +43,8 @@ function createMockRow(
 }
 
 function createMockTable(
-  rows: Array<Row<unknown>>,
-  columns: Array<Column<unknown>>,
+  rows: Row<unknown>[],
+  columns: Column<unknown>[],
 ): Table<unknown> {
   return {
     getRow: (id: string) => rows.find((row) => row.id === id),

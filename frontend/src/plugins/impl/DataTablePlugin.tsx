@@ -112,7 +112,7 @@ export type CalculateTopKRows = (req: {
   column: string;
   k: number;
 }) => Promise<{
-  data: Array<[unknown, number]>;
+  data: [unknown, number][];
 }>;
 
 export type PreviewColumn = (opts: { column: string }) => Promise<{
@@ -221,7 +221,7 @@ type DataTableFunctions = {
   preview_column?: PreviewColumn;
 };
 
-type S = Array<number | string | { rowId: string; columnName?: string }>;
+type S = (number | string | { rowId: string; columnName?: string })[];
 
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(

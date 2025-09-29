@@ -209,7 +209,7 @@ describe("generateDatabaseCode", () => {
   };
 
   describe("basic connections", () => {
-    const testCases: Array<[string, DatabaseConnection, ConnectionLibrary]> = [
+    const testCases: [string, DatabaseConnection, ConnectionLibrary][] = [
       ["postgres with SQLModel", basePostgres, "sqlmodel"],
       ["postgres with SQLAlchemy", basePostgres, "sqlalchemy"],
       ["mysql with SQLModel", baseMysql, "sqlmodel"],
@@ -243,7 +243,7 @@ describe("generateDatabaseCode", () => {
       ["databricks with ibis", databricksConnection, "ibis"],
     ];
 
-    it.each(testCases)("%s", (name, connection, orm) => {
+    it.each(testCases)("%s", (_name, connection, orm) => {
       expect(generateDatabaseCode(connection, orm)).toMatchSnapshot();
     });
   });
@@ -315,7 +315,7 @@ describe("generateDatabaseCode", () => {
         },
         "duckdb",
       ],
-    ])("%s", (name, connection, orm) => {
+    ])("%s", (_name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
       ).toMatchSnapshot();
@@ -323,7 +323,7 @@ describe("generateDatabaseCode", () => {
   });
 
   describe("edge cases", () => {
-    const testCases: Array<[string, DatabaseConnection, string]> = [
+    const testCases: [string, DatabaseConnection, string][] = [
       [
         "ENV with special chars SQLModel",
         {
@@ -527,7 +527,7 @@ describe("generateDatabaseCode", () => {
       ],
     ];
 
-    it.each(testCases)("%s", (name, connection, orm) => {
+    it.each(testCases)("%s", (_name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
       ).toMatchSnapshot();
@@ -571,7 +571,7 @@ describe("generateDatabaseCode", () => {
           credentials_json: '{"type": "service_account", "project_id": "test"',
         },
       ],
-    ])("%s", (name, connection) => {
+    ])("%s", (_name, connection) => {
       expect(generateDatabaseCode(connection, "sqlmodel")).toMatchSnapshot();
       expect(generateDatabaseCode(connection, "sqlalchemy")).toMatchSnapshot();
     });
@@ -614,7 +614,7 @@ describe("generateDatabaseCode", () => {
             "sqlmodel",
           ),
       ],
-    ])("%s", (name, fn) => {
+    ])("%s", (_name, fn) => {
       expect(fn).toThrow();
     });
   });

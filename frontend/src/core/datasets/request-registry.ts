@@ -4,6 +4,7 @@ import type {
   SQLTablePreview,
   ValidateSQLResult,
 } from "../kernel/messages";
+import { CachingRequestRegistry } from "../network/CachingRequestRegistry";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { getRequestClient } from "../network/requests";
 import type {
@@ -38,13 +39,19 @@ export const PreviewSQLTableList = new DeferredRequestRegistry<
   });
 });
 
-export const ValidateSQL = new DeferredRequestRegistry<
-  Omit<ValidateSQLRequest, "requestId">,
-  ValidateSQLResult
->("validate-sql", async (requestId, req) => {
-  const client = getRequestClient();
-  await client.validateSQL({
-    requestId: requestId,
-    ...req,
-  });
-});
+export const ValidateSQL = new CachingRequestRegistry(
+  new DeferredRequestRegistry<
+    Omit<ValidateSQLRequest, "requestId">,
+    ValidateSQLResult
+  >("validate-sql", async (requestId, req) => {
+    const client = getRequestClient();
+    await client.validateSQL({
+      requestId: requestId,
+      ...req,
+    });
+  }),
+  {
+    // Only keep the last 3 validation results
+    maxSize: 3,
+  },
+);

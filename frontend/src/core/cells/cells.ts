@@ -84,14 +84,14 @@ export interface NotebookState {
    *
    * (CodeMirror types the serialized config as any.)
    */
-  history: Array<{
+  history: {
     name: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     serializedEditorState: any;
     column: CellColumnId;
     index: CellIndex;
     isSetupCell: boolean;
-  }>;
+  }[];
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
    * array. Call the SCROLL_TO_TARGET action to scroll to the specified cell
@@ -1128,10 +1128,10 @@ const {
 
         // Find the start/end of the collapsed ranges
         const nodes = [...column.nodes];
-        const rangeIndexes: Array<{
+        const rangeIndexes: {
           start: CellIndex;
           end: CellIndex;
-        }> = [];
+        }[] = [];
         const reversedCollapseRanges = [];
 
         // Iterate in reverse order (bottom-up) to process children first
@@ -1668,7 +1668,7 @@ export const getCellEditorView = (cellId: CellId) => {
 
 export function flattenTopLevelNotebookCells(
   state: NotebookState,
-): Array<CellData & CellRuntimeState> {
+): (CellData & CellRuntimeState)[] {
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.getColumns().flatMap((column) =>
     column.topLevelIds.map((cellId) => ({

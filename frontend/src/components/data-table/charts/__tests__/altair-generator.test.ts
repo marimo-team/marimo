@@ -11,7 +11,7 @@ function createSpec(spec: {
   encoding: Record<
     string,
     | { field: string; type?: string }
-    | Array<{ field: string; tooltip?: Record<string, string> }>
+    | { field: string; tooltip?: Record<string, string> }[]
   >;
   resolve?: Record<string, unknown>;
   title?: string;

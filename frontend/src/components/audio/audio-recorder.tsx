@@ -17,7 +17,6 @@ interface AudioRecorderProps {
 export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   onStart,
   onStop,
-  onPause,
   status,
   time,
 }) => {

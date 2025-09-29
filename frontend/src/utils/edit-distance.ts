@@ -134,7 +134,7 @@ export function mergeArray<T, U>(
   arr2: U[],
   equals: (a: T, b: U) => boolean,
   stub: T,
-): { merged: Array<T | null>; edits: EditDistanceResult } {
+): { merged: (T | null)[]; edits: EditDistanceResult } {
   const edits = editDistanceGeneral(arr1, arr2, equals);
   return {
     merged: applyOperationsWithStub(arr1, edits.operations, stub),

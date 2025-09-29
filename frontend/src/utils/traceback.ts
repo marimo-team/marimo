@@ -28,13 +28,38 @@ export const elementContainsMarimoCellFile = (domNode: Element) => {
   );
 };
 
-export interface TracebackInfo {
-  cellId: CellId;
-  lineNumber: number;
-}
+export type TracebackInfo =
+  | {
+      kind: "file";
+      filePath: string;
+      lineNumber: number;
+    }
+  | {
+      kind: "cell";
+      cellId: CellId;
+      lineNumber: number;
+    };
 
 /**
  * Extract the cell id and line number from a traceback DOM node.
+ *
+ * Example transformation:
+ *
+ *   File <span class="nb">"/tmp/marimo_<number>/__marimo__cell_<CellId>.py"</span>
+ *   , line <span class="n">1</span>...
+ *
+ *   becomes
+ *
+ *   { kind: "cell", cellId: <CellID>, lineNumber: 1 }
+ *
+ *   or for files:
+ *
+ *   File <span class="nb">"/path/to/file.py"</span>
+ *   , line <span class="n">42</span>...
+ *
+ *   becomes
+ *
+ *   { kind: "file", filePath: "/path/to/file.py", lineNumber: 42 }
  */
 export function getTracebackInfo(domNode: DOMNode): TracebackInfo | null {
   // The traceback can be manipulated either in output render or in the pygments
@@ -57,7 +82,7 @@ export function getTracebackInfo(domNode: DOMNode): TracebackInfo | null {
   if (
     domNode instanceof Element &&
     domNode.firstChild instanceof Text &&
-    elementContainsMarimoCellFile(domNode)
+    matchesSelector(domNode, "span.nb")
   ) {
     const nextSibling = domNode.next;
     if (nextSibling && nextSibling instanceof Text) {
@@ -68,15 +93,22 @@ export function getTracebackInfo(domNode: DOMNode): TracebackInfo | null {
         lineSibling.firstChild instanceof Text &&
         matchesSelector(lineSibling, "span.m")
       ) {
-        const cellId = /__marimo__cell_(\w+)_/.exec(
-          domNode.firstChild.nodeValue,
-        )?.[1];
         const lineNumber = Number.parseInt(
           lineSibling.firstChild.nodeValue || "0",
           10,
         );
-        if (cellId && lineNumber) {
-          return { cellId: cellId as CellId, lineNumber };
+        if (domNode.firstChild.nodeValue?.includes("__marimo__")) {
+          const cellId = /__marimo__cell_(\w+)_/.exec(
+            domNode.firstChild.nodeValue,
+          )?.[1] as CellId;
+          if (cellId && lineNumber) {
+            return { kind: "cell", cellId, lineNumber };
+          }
+        } else {
+          const filePath = /"(.+?)"/.exec(domNode.firstChild.nodeValue)?.[1];
+          if (filePath && lineNumber) {
+            return { kind: "file", filePath, lineNumber };
+          }
         }
       }
     }
@@ -93,11 +125,8 @@ export function extractAllTracebackInfo(traceback: string): TracebackInfo[] {
     replace: (domNode) => {
       const info = getTracebackInfo(domNode);
       if (info) {
-        infos.push({
-          cellId: info.cellId,
-          lineNumber: info.lineNumber,
-        });
-        return `${info.cellId}:${info.lineNumber}`;
+        infos.push(info);
+        return "dummy";
       }
     },
   });

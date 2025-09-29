@@ -200,7 +200,7 @@ const LEAF_RENDERERS = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const MIME_TYPES: Array<DataType<any>> = Object.entries(LEAF_RENDERERS).map(
+const MIME_TYPES: DataType<any>[] = Object.entries(LEAF_RENDERERS).map(
   ([leafType, render]) => ({
     is: (value) => typeof value === "string" && value.startsWith(leafType),
     PostComponent: PyCopyButton,

@@ -7,7 +7,7 @@ import { NotebookScopedLocalStorage } from "@/utils/localStorage";
 const BASE_KEY = "marimo:notebook-col-sizes";
 
 interface ColumnSizes {
-  widths: Array<number | "contentWidth">;
+  widths: (number | "contentWidth")[];
 }
 
 function initialState(): ColumnSizes {

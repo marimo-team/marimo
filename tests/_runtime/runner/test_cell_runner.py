@@ -1,6 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 import traceback
 
+import pytest
+
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.errors import MarimoSQLError
 from marimo._runtime.capture import capture_stderr
 from marimo._runtime.runner.cell_runner import Runner
 from marimo._runtime.runtime import Kernel
@@ -98,3 +102,38 @@ async def test_base_exception_caught(
     assert "line 3" in "\n".join(
         traceback.format_tb(k.debugger._last_traceback)
     )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.sqlglot.has(), reason="SQLGlot not installed"
+)
+async def test_sql_parse_error_suppresses_python_traceback(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = execution_kernel
+    # first run the cell to populate the graph
+    await k.run(
+        [
+            er := exec_req.get_with_id(
+                "sql-1",
+                """
+from sqlglot.errors import ParseError
+raise ParseError("malformed SQL")
+""",
+            )
+        ]
+    )
+
+    runner = Runner(
+        roots=set(k.graph.cells.keys()),
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+    )
+
+    with capture_stderr() as buffer:
+        await runner.run(er.cell_id)
+
+    stderr = buffer.getvalue()
+    assert "Traceback (most recent call last):" not in stderr
+    assert isinstance(runner.exceptions[er.cell_id], MarimoSQLError)

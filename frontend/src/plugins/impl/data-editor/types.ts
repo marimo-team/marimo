@@ -30,7 +30,7 @@ export interface ColumnEdit {
 }
 
 export interface Edits {
-  edits: Array<PositionalEdit | RowEdit | ColumnEdit>;
+  edits: (PositionalEdit | RowEdit | ColumnEdit)[];
 }
 
 export type ModifiedGridColumn = GridColumn & {

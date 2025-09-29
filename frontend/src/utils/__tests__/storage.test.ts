@@ -29,7 +29,7 @@ interface TestValue {
 
 interface SerializableValue {
   id: string;
-  data: Array<[string, number]>;
+  data: [string, number][];
 }
 
 describe("adaptForLocalStorage", () => {
