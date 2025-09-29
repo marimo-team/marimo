@@ -77,6 +77,7 @@ import {
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
 import { ToolCallAccordion } from "./tool-call-accordion";
+import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";
@@ -585,6 +586,7 @@ const ChatPanelBody = () => {
 
         return {
           body: {
+            tools: FRONTEND_TOOL_REGISTRY.getToolSchemas(),
             ...options,
             ...completionBody,
           },
@@ -601,6 +603,7 @@ const ChatPanelBody = () => {
       });
     },
     onToolCall: async ({ toolCall }) => {
+      // TODO: Add handler for Frontend tool calls
       await handleToolCall({
         invokeAiTool,
         addToolResult,
