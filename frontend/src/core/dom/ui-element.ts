@@ -6,7 +6,6 @@ import { UIElementId } from "../cells/ids";
 import { defineCustomElement } from "./defineCustomElement";
 import {
   MarimoValueInputEvent,
-  MarimoValueUpdateEvent,
   type MarimoValueInputEventType,
 } from "./events";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";

@@ -102,7 +102,6 @@ function PluginSlotInternal<T>(
 
   useImperativeHandle(ref, () => ({
     reset: () => {
-      const objectId = getUIElementObjectId(hostElement);
       const isRemounting = hostElement.hasAttribute("data-is-remounting");
 
       if (!isRemounting) {
