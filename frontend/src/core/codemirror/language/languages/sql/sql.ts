@@ -30,6 +30,7 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import { ValidateSQL } from "@/core/datasets/request-registry";
+import type { ValidateSQLResult } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { resolvedThemeAtom } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
@@ -49,7 +50,7 @@ import {
   tablesCompletionSource,
 } from "./completion-sources";
 import { SCHEMA_CACHE } from "./completion-store";
-import { getSQLMode } from "./sql-mode";
+import { getSQLMode, type SQLMode } from "./sql-mode";
 
 const DEFAULT_DIALECT = DuckDBDialect;
 const DEFAULT_PARSER_DIALECT = "DuckDB";
@@ -307,12 +308,8 @@ class CustomSqlParser extends NodeSqlParser {
     return new Promise((resolve) => {
       this.validationTimeout = window.setTimeout(async () => {
         try {
-          const result = await ValidateSQL.request({
-            onlyParse: true,
-            engine,
-            dialect,
-            query: sql,
-          });
+          const sqlMode = getSQLMode();
+          const result = await validateSQL(sql, engine, dialect, sqlMode);
           if (result.error) {
             Logger.error("Failed to validate SQL", { error: result.error });
             resolve([]);
@@ -333,7 +330,7 @@ class CustomSqlParser extends NodeSqlParser {
   ): Promise<SqlParseError[]> {
     const metadata = getSQLMetadata(opts.state);
 
-    // Only perform custom validation for internal engines
+    // Only perform custom validation for DuckDB
     if (!INTERNAL_SQL_ENGINES.has(metadata.engine)) {
       return super.validateSql(sql, opts);
     }
@@ -640,6 +637,9 @@ function safeDedent(code: string): string {
 
 const SQL_VALIDATION_DEBOUNCE_MS = 300;
 
+/**
+ * Custom extension to run SQL queries in EXPLAIN mode on keypress.
+ */
 function sqlValidationExtension(): Extension {
   let debounceTimeout: number | undefined;
   let lastValidationRequest: string | null = null;
@@ -649,14 +649,10 @@ function sqlValidationExtension(): Extension {
       return;
     }
 
-    const sqlMode = getSQLMode();
-    if (sqlMode !== "validate") {
-      return;
-    }
-
     const metadata = getSQLMetadata(update.state);
     const connectionName = metadata.engine;
-    // Currently only internal engines are supported
+
+    // Currently only DuckDB is supported
     if (!INTERNAL_SQL_ENGINES.has(connectionName)) {
       return;
     }
@@ -685,22 +681,17 @@ function sqlValidationExtension(): Extension {
       }
 
       try {
-        const result = await ValidateSQL.request({
-          onlyParse: false,
-          dialect: connectionNameToParserDialect(connectionName),
-          engine: connectionName,
-          query: sqlContent,
-        });
-
-        if (result.error) {
-          Logger.error("Failed to validate SQL", { error: result.error });
-          return;
-        }
-
+        const dialect = connectionNameToParserDialect(connectionName);
+        const sqlMode = getSQLMode();
+        const result = await validateSQL(
+          sqlContent,
+          connectionName,
+          dialect,
+          sqlMode,
+        );
         const validateResult = result.validate_result;
 
         if (validateResult?.error_message) {
-          const dialect = connectionNameToParserDialect(connectionName);
           setSqlValidationError({
             cellId,
             errorMessage: validateResult.error_message,
@@ -710,8 +701,31 @@ function sqlValidationExtension(): Extension {
           clearSqlValidationError(cellId);
         }
       } catch (error) {
-        Logger.warn("Failed to validate SQL", { error });
+        Logger.error("Failed to validate SQL", { error });
       }
     }, SQL_VALIDATION_DEBOUNCE_MS);
   });
+}
+
+/**
+ * Determine if we should only parse or validate an SQL query.
+ * The endpoint is cached, so we should use the same mode for all validation requests.
+ */
+async function validateSQL(
+  sql: string,
+  engine: string,
+  dialect: ParserDialects | null,
+  sqlMode: SQLMode,
+): Promise<ValidateSQLResult> {
+  const result = await ValidateSQL.request({
+    onlyParse: sqlMode === "default",
+    engine,
+    dialect,
+    query: sql,
+  });
+
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result;
 }
