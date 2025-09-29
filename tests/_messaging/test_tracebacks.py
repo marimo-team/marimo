@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from marimo._messaging.tracebacks import (
     _highlight_traceback,
+    _trim_traceback,
     is_code_highlighting,
     write_traceback,
 )
@@ -79,3 +80,11 @@ class TestTracebacks:
         assert is_code_highlighting("<span>code</span>") is False
         assert is_code_highlighting("") is False
         assert is_code_highlighting('class="not-codehilite"') is False
+
+    def test_trim(self) -> None:
+        prefix = "Traceback (most recent call last):\n"
+        head = '  File ".../marimo/_runtime/executor.py", line 139, in execute_cell\n    return eval(cell.last_expr, glbls)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n'
+        rest = (
+            '  File ".../__marimo__cell_Hbol_.py", line 2, in <module>\n...\n'
+        )
+        assert _trim_traceback(f"{prefix}{head}{rest}") == f"{prefix}{rest}"
