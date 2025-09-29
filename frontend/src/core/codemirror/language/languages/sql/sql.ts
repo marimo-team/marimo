@@ -666,7 +666,14 @@ function sqlValidationExtension(): Extension {
   let lastValidationRequest: string | null = null;
 
   return EditorView.updateListener.of((update) => {
+    // Only run validation if the document has changed
     if (!update.docChanged) {
+      return;
+    }
+
+    // Only run validation if the SQL mode is set to validate
+    const sqlMode = getSQLMode();
+    if (sqlMode !== "validate") {
       return;
     }
 
