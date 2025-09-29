@@ -147,8 +147,8 @@ const SliderComponent = ({
           <NumberField
             value={valueMap(internalValue)}
             onChange={(nextValue) => {
-              // If nextValue is null/undefined (input cleared), set to start
-              if (nextValue == null) {
+              // If nextValue is null/undefined/NaN (input cleared), set to start
+              if (nextValue == null || Number.isNaN(nextValue)) {
                 nextValue = Number(start);
               }
               setInternalValue(nextValue);
