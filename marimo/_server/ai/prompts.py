@@ -29,8 +29,6 @@ language_rules = {
     "markdown": [],
     "sql": [
         "The SQL must use duckdb syntax.",
-        'SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.',
-        "This will automatically display the result in the UI. You do not need to return the dataframe in the cell.",
     ],
 }
 
@@ -194,7 +192,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
     if support_multiple_cells:
         system_prompt += "\n\nAgain, just output code wrapped in cells. Each cell is wrapped in backticks with the appropriate language identifier (python, sql, markdown)."
     else:
-        system_prompt += "\n\nAgain, just output the code itself."
+        system_prompt += f"\n\nAgain, just output the code itself and make sure to return the code as just {language}."
 
     return system_prompt
 
