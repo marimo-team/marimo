@@ -179,6 +179,36 @@ export GOOGLE_CLOUD_LOCATION='us-central1'
 
 For details and advanced configuration, see the `google-genai` Python client docs: `https://googleapis.github.io/python-genai/#create-a-client`.
 
+### Azure
+
+There are two offerings for serving LLMs on Azure
+
+**Azure OpenAI**
+
+```toml title="marimo.toml"
+[ai.models]
+chat_model = "azure/gpt-4.1-mini"
+
+[ai.azure]
+api_key = "sk-proj-..."
+base_url = "https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment_name>?api-version=<api-version>"
+```
+
+The deployment name is typically the model name.
+
+**Azure AI Foundry**
+
+AI Foundry uses OpenAI-compatible models, so you can use the same configuration as OpenAI-compatible providers.
+
+```toml title="marimo.toml"
+[ai.models]
+custom_models = ["custom-azure/mistral-medium"]
+
+[ai.open_ai_compatible]
+api_key = "sk-proj-..."
+base_url = "https://<your-resource-name>.services.ai.azure.com/openai/v1"
+```
+
 ### GitHub Copilot
 
 Use Copilot for code refactoring or the chat panel (Copilot subscription required).

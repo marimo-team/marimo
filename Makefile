@@ -58,7 +58,7 @@ dev:
 	@echo "Starting development servers..."
 	@# Start both processes, with marimo in background
 	@(trap 'kill %1; exit' INT; \
-	uv run marimo edit --no-token --headless /tmp & \
+	uv run marimo edit --no-token --headless /tmp --port 2718 & \
 	pnpm dev)
 dev-sandbox:
 	@echo "Starting development servers..."

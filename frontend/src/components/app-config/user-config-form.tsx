@@ -1359,6 +1359,32 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.chat_modes"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">Chat Mode</FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="chat-mode-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.chat_modes"
+                  />
+                  <FormDescription>
+                    Switch between different modes in the Chat sidebar, to
+                    enable tool use.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }

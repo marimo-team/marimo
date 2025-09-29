@@ -1,24 +1,33 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { useAtomValue, useSetAtom } from "jotai";
 import { WrenchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { aiCompletionCellAtom } from "@/core/ai/state";
 import { notebookAtom, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { aiEnabledAtom } from "@/core/config/config";
 import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
+import { cn } from "@/utils/cn";
 
 export const AutoFixButton = ({
   errors,
   cellId,
+  className,
 }: {
   errors: MarimoError[];
   cellId: CellId;
   className?: string;
 }) => {
   const { createNewCell } = useCellActions();
-  const autoFixes = errors.flatMap((error) => getAutoFixes(error));
+  const aiEnabled = useAtomValue(aiEnabledAtom);
+  const autoFixes = errors.flatMap((error) =>
+    getAutoFixes(error, { aiEnabled }),
+  );
+  const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
 
   if (autoFixes.length === 0) {
     return null;
@@ -33,7 +42,7 @@ export const AutoFixButton = ({
       <Button
         size="xs"
         variant="outline"
-        className="my-2 font-normal"
+        className={cn("my-2 font-normal", className)}
         onClick={() => {
           const editorView =
             store.get(notebookAtom).cellHandles[cellId].current?.editorView;
@@ -48,6 +57,7 @@ export const AutoFixButton = ({
             },
             editor: editorView,
             cellId: cellId,
+            setAiCompletionCell,
           });
           // Focus the editor
           editorView?.focus();

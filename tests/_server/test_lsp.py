@@ -18,10 +18,12 @@ from marimo._config.manager import (
 from marimo._loggers import get_log_directory
 from marimo._messaging.ops import Alert
 from marimo._server.lsp import (
+    BasedpyrightServer,
     BaseLspServer,
     CompositeLspServer,
     CopilotLspServer,
     PyLspServer,
+    TyServer,
     any_lsp_server_running,
 )
 
@@ -132,8 +134,8 @@ def test_copilot_server():
     assert "GitHub Copilot" in alert.title
 
 
-def test_copilot_server_command_quotes_path(tmp_path: Path) -> None:
-    """Test that paths with spaces are properly quoted in the copilot command."""
+def test_copilot_server_uses_typed_format(tmp_path: Path) -> None:
+    """Test that copilot uses the new typed format instead of shell commands."""
     from unittest import mock
 
     server = CopilotLspServer(port=8000)
@@ -161,14 +163,12 @@ def test_copilot_server_command_quotes_path(tmp_path: Path) -> None:
         lsp_arg_index = command.index("--lsp")
         lsp_command = command[lsp_arg_index + 1]
 
-        # The command should contain the quoted path
-        assert "node" in lsp_command
-        assert (
-            str(copilot_bin) in lsp_command
-            or f"'{copilot_bin}'" in lsp_command
-            or f'"{copilot_bin}"' in lsp_command
-        )
-        assert "--stdio" in lsp_command
+        # The command should use the new typed format
+        assert lsp_command.startswith("copilot:")
+        assert str(copilot_bin) in lsp_command
+        # Should NOT contain shell commands like "node" or "--stdio"
+        assert "node" not in lsp_command
+        assert "--stdio" not in lsp_command
 
 
 def test_copilot_server_node_version_validation():
@@ -344,6 +344,70 @@ def test_composite_server():
         assert server._is_enabled(config, "pylsp") is False
         assert server._is_enabled(config, "copilot") is False
         assert server._is_enabled(config, "ty") is False
+
+
+def test_basedpyright_server_uses_typed_format():
+    """Test that basedpyright uses the new typed format."""
+    server = BasedpyrightServer(port=8000)
+    command = server.get_command()
+
+    # Find the --lsp argument
+    lsp_arg_index = command.index("--lsp")
+    lsp_command = command[lsp_arg_index + 1]
+
+    # Should use typed format
+    assert lsp_command == "basedpyright:basedpyright-langserver"
+    assert lsp_command.startswith("basedpyright:")
+    # Should NOT contain shell arguments
+    assert "--stdio" not in lsp_command
+
+
+def test_ty_server_uses_typed_format():
+    """Test that ty server uses the new typed format."""
+    from unittest import mock
+
+    # Mock the entire ty module and its find_ty_bin function
+    mock_ty_module = mock.MagicMock()
+    mock_ty_module.find_ty_bin.return_value = "/path/to/ty/binary"
+
+    with mock.patch.dict(
+        "sys.modules", {"ty": mock_ty_module, "ty.__main__": mock_ty_module}
+    ):
+        server = TyServer(port=8000)
+        command = server.get_command()
+
+        # Find the --lsp argument
+        lsp_arg_index = command.index("--lsp")
+        lsp_command = command[lsp_arg_index + 1]
+
+        # Should use typed format
+        assert lsp_command == "ty:/path/to/ty/binary"
+        assert lsp_command.startswith("ty:")
+        # Should NOT contain shell arguments
+        assert "server" not in lsp_command
+
+
+def test_ty_server_handles_spaces_in_path():
+    """Test that ty server handles paths with spaces correctly."""
+    from unittest import mock
+
+    # Mock the entire ty module and its find_ty_bin function
+    mock_ty_module = mock.MagicMock()
+    mock_ty_module.find_ty_bin.return_value = "/path/with spaces/ty"
+
+    with mock.patch.dict(
+        "sys.modules", {"ty": mock_ty_module, "ty.__main__": mock_ty_module}
+    ):
+        server = TyServer(port=8000)
+        command = server.get_command()
+
+        # Find the --lsp argument
+        lsp_arg_index = command.index("--lsp")
+        lsp_command = command[lsp_arg_index + 1]
+
+        # Should use typed format and preserve the path with spaces
+        assert lsp_command == "ty:/path/with spaces/ty"
+        assert "/path/with spaces/ty" in lsp_command
 
 
 def test_any_lsp_server_running():

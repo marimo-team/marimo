@@ -93,6 +93,7 @@ nav:
           - Import star: guides/understanding_errors/import_star.md
           - Cycles: guides/understanding_errors/cycles.md
           - Setup References: guides/understanding_errors/setup.md
+      - Debugging notebooks: guides/debugging.md
       - Lint Rules:
           - Lint Rules: guides/lint_rules/index.md
           - Rules:
@@ -204,6 +205,7 @@ nav:
           - Chat: api/inputs/chat.md
           - Checkbox: api/inputs/checkbox.md
           - Code Editor: api/inputs/code_editor.md
+          - Data Editor: api/inputs/data_editor.md
           - Data Explorer: api/inputs/data_explorer.md
           - DataFrame: api/inputs/dataframe.md
           - Dates: api/inputs/dates.md
@@ -239,8 +241,8 @@ nav:
           - Plain: api/layouts/plain.md
           - Routes: api/layouts/routes.md
           - Sidebar: api/layouts/sidebar.md
-          - Stat: api/layouts/stat.md
           - Stacks: api/layouts/stacks.md
+          - Stat: api/layouts/stat.md
           - Tree: api/layouts/tree.md
       - Plotting: api/plotting.md
       - Media:
@@ -248,6 +250,7 @@ nav:
           - Audio: api/media/audio.md
           - Download: api/media/download.md
           - Image: api/media/image.md
+          - Image Compare: api/media/image_compare.md
           - PDF: api/media/pdf.md
           - Plain Text: api/media/plain_text.md
           - Video: api/media/video.md
@@ -261,6 +264,7 @@ nav:
       - State: api/state.md
       - App: api/app.md
       - Cell: api/cell.md
+      - Watch: api/watch.md
       - Miscellaneous: api/miscellaneous.md
   - Commands: cli.md
   - FAQ: faq.md
@@ -379,3 +383,6 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to system preference
+
+exclude_docs: |
+  apps/README.md

@@ -3,6 +3,7 @@
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { atom } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import type { NotebookState } from "@/core/cells/cells";
@@ -34,6 +35,11 @@ vi.mock("@/core/cells/utils", () => ({
 
 vi.mock("@/core/config/config", () => ({
   getResolvedMarimoConfig: vi.fn(),
+  resolvedMarimoConfigAtom: atom({
+    display: {
+      theme: "light",
+    },
+  }),
 }));
 
 const updateCellCode = vi.fn();

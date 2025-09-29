@@ -45,7 +45,9 @@ export class DeferredRequestRegistry<REQ, RES> {
   async request(opts: REQ): Promise<RES> {
     if (this.opts.resolveExistingRequests) {
       const result = this.opts.resolveExistingRequests();
-      this.requests.forEach((deferred) => deferred.resolve(result));
+      for (const deferred of this.requests.values()) {
+        deferred.resolve(result);
+      }
       this.requests.clear();
     }
 

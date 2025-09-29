@@ -12,10 +12,19 @@ export interface AutoFix {
     addCodeBelow: (code: string) => void;
     editor: EditorView | undefined;
     cellId: CellId;
+    setAiCompletionCell?: (cell: {
+      cellId: CellId;
+      initialPrompt?: string;
+    }) => void;
   }) => Promise<void>;
 }
 
-export function getAutoFixes(error: MarimoError): AutoFix[] {
+export function getAutoFixes(
+  error: MarimoError,
+  opts: {
+    aiEnabled: boolean;
+  },
+): AutoFix[] {
   if (error.type === "multiple-defs") {
     return [
       {
@@ -52,6 +61,25 @@ export function getAutoFixes(error: MarimoError): AutoFix[] {
         description: "Add a new cell for the missing import",
         onFix: async (ctx) => {
           ctx.addCodeBelow(cellCode);
+        },
+      },
+    ];
+  }
+
+  if (error.type === "sql-error") {
+    // Only show AI fix if AI is enabled
+    if (!opts.aiEnabled) {
+      return [];
+    }
+    return [
+      {
+        title: "Fix with AI",
+        description: "Fix the SQL statement",
+        onFix: async (ctx) => {
+          ctx.setAiCompletionCell?.({
+            cellId: ctx.cellId,
+            initialPrompt: `Fix the SQL statement: ${error.msg}`,
+          });
         },
       },
     ];

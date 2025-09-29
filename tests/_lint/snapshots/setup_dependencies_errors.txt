@@ -4,6 +4,7 @@ critical[setup-cell-dependencies]: Setup cell cannot have dependencies
    9 |     y = x + 1  # This should trigger MR003 - setup cell dependencies
      |     ^
   10 | 
+
 warning[general-formatting]: Unexpected statement, expected cell definitions.
  --> tests/_lint/test_files/setup_dependencies.py:5:1
    5 | 

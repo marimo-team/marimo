@@ -533,7 +533,13 @@ export const MarimoErrorOutput = ({
               </div>
             );
           })}
-          {cellId && <AutoFixButton errors={sqlErrors} cellId={cellId} />}
+          {cellId && (
+            <AutoFixButton
+              errors={sqlErrors}
+              cellId={cellId}
+              className="mt-2.5"
+            />
+          )}
         </div>,
       );
     }

@@ -30,7 +30,7 @@ async def test_polling_file_watcher() -> None:
 
     # Wait a bit and then modify the file
     await asyncio.sleep(0.2)
-    with open(tmp_path, "w") as f:  # noqa: ASYNC101 ASYNC230
+    with open(tmp_path, "w") as f:  # noqa: ASYNC230
         f.write("modification")
 
     # Wait for the watcher to detect the change
@@ -87,7 +87,7 @@ async def test_file_watcher_manager() -> None:
 
         # Modify file1
         await asyncio.sleep(0.2)
-        with open(tmp_path1, "w") as f:  # noqa: ASYNC101 ASYNC230
+        with open(tmp_path1, "w") as f:  # noqa: ASYNC230
             f.write("modification1")
 
         # Wait for callbacks
@@ -104,7 +104,7 @@ async def test_file_watcher_manager() -> None:
         manager.remove_callback(tmp_path1, callback1)
 
         # Modify file1 again
-        with open(tmp_path1, "w") as f:  # noqa: ASYNC101 ASYNC230
+        with open(tmp_path1, "w") as f:  # noqa: ASYNC230
             f.write("modification2")
 
         # Wait for callbacks
@@ -116,7 +116,7 @@ async def test_file_watcher_manager() -> None:
         assert len(callback3_calls) == 0
 
         # Modify file2
-        with open(tmp_path2, "w") as f:  # noqa: ASYNC101 ASYNC230
+        with open(tmp_path2, "w") as f:  # noqa: ASYNC230
             f.write("modification3")
 
         # Wait for callbacks
@@ -133,9 +133,9 @@ async def test_file_watcher_manager() -> None:
         manager.remove_callback(tmp_path2, callback3)
 
         # Modify both files
-        with open(tmp_path1, "w") as f:  # noqa: ASYNC101 ASYNC230
+        with open(tmp_path1, "w") as f:  # noqa: ASYNC230
             f.write("modification4")
-        with open(tmp_path2, "w") as f:  # noqa: ASYNC101 ASYNC230
+        with open(tmp_path2, "w") as f:  # noqa: ASYNC230
             f.write("modification4")
 
         # Wait for potential callbacks
