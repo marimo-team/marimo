@@ -2,9 +2,16 @@
 
 # Anthropic
 
+- name: Claude 4.5 Opus
+  model: claude-sonnet-4-5-20250929
+  description: Latest Opus model with enhanced capabilities and performance improvements
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: true
+  
 - name: Claude 4.1 Opus
   model: claude-opus-4-1-20250805
-  description: Latest Opus model with enhanced capabilities and performance improvements
+  description: Recent Opus model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
