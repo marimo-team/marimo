@@ -279,6 +279,11 @@ export class SQLLanguageAdapter
             theme: defaultSqlHoverTheme(theme),
           },
         }),
+        EditorView.updateListener.of((update) => {
+          if (update.focusChanged) {
+            parser.setFocusState(update.view.hasFocus);
+          }
+        }),
       );
     }
 
@@ -293,6 +298,11 @@ export class SQLLanguageAdapter
 class CustomSqlParser extends NodeSqlParser {
   private validationTimeout: number | null = null;
   private readonly VALIDATION_DELAY_MS = 300; // Wait 300ms after user stops typing
+  private isFocused = false; // Only validate if the editor is focused
+
+  setFocusState(focused: boolean) {
+    this.isFocused = focused;
+  }
 
   private async validateWithDelay(
     sql: string,
@@ -307,6 +317,12 @@ class CustomSqlParser extends NodeSqlParser {
     // Set up a new request to be called after the delay
     return new Promise((resolve) => {
       this.validationTimeout = window.setTimeout(async () => {
+        // Only validate if the editor is still focused
+        if (!this.isFocused) {
+          resolve([]);
+          return;
+        }
+
         try {
           const sqlMode = getSQLMode();
           const result = await validateSQL(sql, engine, dialect, sqlMode);
@@ -329,6 +345,11 @@ class CustomSqlParser extends NodeSqlParser {
     opts: { state: EditorState },
   ): Promise<SqlParseError[]> {
     const metadata = getSQLMetadata(opts.state);
+
+    // Only validate if the editor is focused
+    if (!this.isFocused) {
+      return [];
+    }
 
     // Only perform custom validation for DuckDB
     if (!INTERNAL_SQL_ENGINES.has(metadata.engine)) {
