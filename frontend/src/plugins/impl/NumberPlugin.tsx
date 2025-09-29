@@ -2,7 +2,6 @@
 import { type JSX, useId } from "react";
 import { z } from "zod";
 import { NumberField } from "@/components/ui/number-field";
-import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
