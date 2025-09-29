@@ -145,7 +145,7 @@ jobs:
             -v \
             -k "not test_cli" \
             --durations=10 \
-            --picked=first
+            --picked=first \
             --testmon
 
       # Test with optional dependencies (no testmon)
