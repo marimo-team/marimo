@@ -628,13 +628,13 @@ class AzureOpenAIProvider(OpenAIProvider):
                     detail="To use Azure AI Foundry, use the OpenAI-compatible provider instead.",
                 )
             elif "openai.azure.com" in base_url:
-                api_version, deployment_name, endpoint = self._handle_azure_openai(
-                    base_url
+                api_version, deployment_name, endpoint = (
+                    self._handle_azure_openai(base_url)
                 )
             else:
                 LOGGER.warning(f"Unknown Azure OpenAI base URL: {base_url}")
-                api_version, deployment_name, endpoint = self._handle_azure_openai(
-                    base_url
+                api_version, deployment_name, endpoint = (
+                    self._handle_azure_openai(base_url)
                 )
 
         return AsyncAzureOpenAI(
