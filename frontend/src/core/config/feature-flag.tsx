@@ -12,7 +12,7 @@ export interface ExperimentalFeatures {
   rtc_v2: boolean;
   performant_table_charts: boolean;
   mcp_docs: boolean;
-  chat_mode: boolean;
+  chat_modes: boolean;
   sql_linter: boolean;
   external_agents: boolean;
   sql_mode: boolean;
@@ -26,7 +26,7 @@ const defaultValues: ExperimentalFeatures = {
   rtc_v2: false,
   performant_table_charts: false,
   mcp_docs: false,
-  chat_mode: false,
+  chat_modes: false,
   sql_linter: true,
   external_agents: import.meta.env.DEV,
   sql_mode: false,
