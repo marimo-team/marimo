@@ -1,9 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-import ctypes
 import re
-from ctypes import wintypes
 
 from marimo._utils.platform import is_windows
 
@@ -86,15 +84,18 @@ def _mslex_quote(s: str) -> str:
     return quoted
 
 
-def get_short_path_name(long_name):
+def get_short_path_name(long_name: str) -> str:
     """
     Gets the short 8.3 path name for a given long path using ctypes.
     """
+    import ctypes
+    from ctypes import wintypes
+
     # Load the kernel32.dll library
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
 
     # Define the function signature (GetShortPathNameW for Unicode)
-    GetShortPathNameW = kernel32.GetShortPathNameW
+    GetShortPathNameW = kernel32.GetShortPathNameW  # type: ignore[attr-defined]
     GetShortPathNameW.argtypes = [
         wintypes.LPCWSTR,
         wintypes.LPWSTR,
@@ -103,22 +104,22 @@ def get_short_path_name(long_name):
     GetShortPathNameW.restype = wintypes.DWORD
 
     # First call to get the required buffer size
-    output_size = GetShortPathNameW(long_name, None, 0)
+    output_size: int = GetShortPathNameW(long_name, None, 0)
 
     if output_size == 0:
         # Handle error (e.g., file not found, insufficient permission)
         # You can check ctypes.get_last_error() for a specific WinAPI error code
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise ctypes.WinError(ctypes.get_last_error())  # type: ignore[attr-defined]
 
     # Create a buffer of the required size
     output_buffer = ctypes.create_unicode_buffer(output_size)
 
     # Second call to get the short path name
-    result = GetShortPathNameW(long_name, output_buffer, output_size)
+    result: int = GetShortPathNameW(long_name, output_buffer, output_size)
 
     if result == 0:
         # Handle error
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise ctypes.WinError(ctypes.get_last_error())  # type: ignore[attr-defined]
 
     return output_buffer.value
 
