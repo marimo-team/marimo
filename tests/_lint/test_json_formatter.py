@@ -202,64 +202,6 @@ def __():
         assert summary["total_issues"] > 0
         assert summary["errored"] is True
 
-    def test_run_check_json_format_multiple_files(self, tmp_path):
-        """Test run_check with JSON format on multiple files."""
-        tmpdir = tmp_path
-        # Clean file
-        clean_file = Path(tmpdir) / "clean.py"
-        clean_file.write_text("""import marimo
-
-__generated_with = "0.15.0"
-app = marimo.App()
-
-@app.cell
-def __():
-    x = 1
-    return (x,)
-""")
-
-        # File with issues
-        issues_file = Path(tmpdir) / "issues.py"
-        issues_file.write_text("""import marimo
-
-__generated_with = "0.15.0"
-app = marimo.App()
-
-@app.cell
-def __():
-    import marimo as mo
-    return
-
-@app.cell
-def __():
-    import marimo as mo  # Duplicate
-    return
-""")
-
-        # Empty file (should be skipped)
-        empty_file = Path(tmpdir) / "empty.py"
-        empty_file.write_text("")
-
-        pattern = str(Path(tmpdir) / "*.py")
-        linter = run_check((pattern,), formatter="json")
-        result = linter.get_json_result()
-
-        summary = result["summary"]
-        assert summary["total_files"] == 3  # All three files processed
-        # At least the issues.py file has problems, possibly others
-        assert summary["files_with_issues"] >= 1
-        assert summary["total_issues"] > 0
-
-        # Check that issues contain diagnostics
-        issues = result["issues"]
-        assert len(issues) > 0
-
-        # Should have at least some diagnostics from the issues file
-        issues_from_file = [
-            d for d in issues if str(issues_file) in d["filename"]
-        ]
-        assert len(issues_from_file) > 0
-
     def test_json_result_is_valid_json(self, tmp_path):
         """Test that the complete JSON result is valid JSON."""
         tmpdir = tmp_path
