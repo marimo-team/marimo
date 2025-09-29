@@ -125,26 +125,6 @@ mcp = [
     "pydantic>2; python_version >= '3.10'",
 ]
 
-
-docs = [
-    "mkdocs>=1.6.1",
-    "mkdocs-material>=9.5.49",
-    "mkdocstrings[python]>=0.27.0",
-    "mkdocs-material-extensions>=1.3.1",
-    "mkdocs-autorefs>=1.2.0",
-    "mkdocs-git-revision-date-localized-plugin>=1.3.0",
-    "mkdocs-minify-plugin>=0.8.0",
-    "mkdocs-glightbox>=0.4.0",
-    "mkdocs-macros-plugin>=1.3.7",
-    "mkdocs-redirects>=1.2.2",
-    "mkdocs-click>=0.8.1",
-    "mike>=2.0.0",  # for versioning
-    "pillow>=10.2.0,!=11.3.0",  # for social cards, 11.3.0 doesn't have manylinux wheels
-    "cairosvg>=2.7.1",  # for social cards
-    "mdx-include>=1.4.2",
-    "pymdown-extensions>=10.7",
-]
-
 [tool.hatch]
 installer = "uv"
 
@@ -304,10 +284,25 @@ extra-dependencies = [
 python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.docs]
-features = ["docs"]
 dependencies = [
     "marimo_docs @ file://docs",
     "ruff>=0.13.1",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.5.49",
+    "mkdocstrings[python]>=0.27.0",
+    "mkdocs-material-extensions>=1.3.1",
+    "mkdocs-autorefs>=1.2.0",
+    "mkdocs-git-revision-date-localized-plugin>=1.3.0",
+    "mkdocs-minify-plugin>=0.8.0",
+    "mkdocs-glightbox>=0.4.0",
+    "mkdocs-macros-plugin>=1.3.7",
+    "mkdocs-redirects>=1.2.2",
+    "mkdocs-click>=0.8.1",
+    "mike>=2.0.0",  # for versioning
+    "pillow>=10.2.0,!=11.3.0",  # for social cards, 11.3.0 doesn't have manylinux wheels
+    "cairosvg>=2.7.1",  # for social cards
+    "mdx-include>=1.4.2",
+    "pymdown-extensions>=10.7",
 ]
 
 [tool.uv.sources]
