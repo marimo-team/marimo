@@ -1361,7 +1361,7 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.mcp_docs"
+              name="experimental.chat_mode"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
@@ -1376,7 +1376,7 @@ export const UserConfigForm: React.FC = () => {
                   </FormItem>
                   <IsOverridden
                     userConfig={config}
-                    name="experimental.mcp_docs"
+                    name="experimental.chat_mode"
                   />
                   <FormDescription>
                     Switch between different modes in the Chat sidebar, to
