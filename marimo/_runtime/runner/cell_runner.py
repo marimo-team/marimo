@@ -22,6 +22,7 @@ from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
     Error,
     MarimoExceptionRaisedError,
+    MarimoSQLError,
     MarimoStrictExecutionError,
     UnknownError,
 )
@@ -513,10 +514,26 @@ class Runner:
             # this call as well, so this should be lifted out of `run`.
             self.cancel(cell_id)
 
-            # Stop "errors" aren't actually errors but rather a control
-            # flow mechanism used by mo.stop() to stop execution; as such
-            # a traceback should not be shown for them.
-            if not isinstance(run_result.exception, MarimoStopError):
+            def should_show_traceback(
+                exception: Optional[ErrorObjects],
+            ) -> bool:
+                if exception is None:
+                    return True
+
+                # Stop "errors" aren't actually errors but rather a control
+                # flow mechanism used by mo.stop() to stop execution; as such
+                # a traceback should not be shown for them.
+                if isinstance(exception, MarimoStopError):
+                    return False
+
+                # SQL parsing errors happen in SQL cells so showing a
+                # python traceback is not useful.
+                if isinstance(exception, MarimoSQLError):
+                    return False
+
+                return True
+
+            if should_show_traceback(run_result.exception):
                 tmpio = io.StringIO()
                 # The executors explicitly raise cell exceptions from base
                 # exceptions such that the stack trace is cleaner.
