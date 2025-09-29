@@ -1,7 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UIElementId } from "@/core/cells/ids";
-import { MarimoValueInputEvent, MarimoValueUpdateEvent, type MarimoValueInputEventType, type MarimoValueUpdateEventType } from "../events";
+import {
+  MarimoValueInputEvent,
+  type MarimoValueInputEventType,
+  MarimoValueUpdateEvent,
+  type MarimoValueUpdateEventType,
+} from "../events";
 import { initializeUIElement } from "../ui-element";
 import { UIElementRegistry } from "../uiregistry";
 
