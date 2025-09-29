@@ -450,9 +450,7 @@ if __name__ == "__main__":
         assert "multiple" in diagnostic_issues[0]["message"].lower()
 
         # Check errors
-        error_issues = [
-            i for i in result["issues"] if i["type"] == "error"
-        ]
+        error_issues = [i for i in result["issues"] if i["type"] == "error"]
         assert len(error_issues) == 2
 
         filenames = [e["filename"] for e in error_issues]
