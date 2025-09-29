@@ -27,7 +27,6 @@ class Env:
             .with_exec(["apt", "install", "-y", "nodejs"])
             # install pnpm@9
             .with_exec(["npm", "install", "-g", "pnpm@9"])
-            .with_env_variable("NODE_OPTIONS", "--max-old-space-size=8192")
         )
 
     @function
@@ -70,7 +69,6 @@ class Env:
             dag.container()
             .from_("node:20-slim")
             .with_env_variable("CI", "true")
-            .with_env_variable("NODE_OPTIONS", "--max-old-space-size=8192")
             .with_mounted_cache(
                 "/root/.local/share/pnpm", dag.cache_volume("pnpm")
             )

@@ -54,7 +54,7 @@ uvx pre-commit install
 To build the frontend unminified, run:
 
 ```bash
-NODE_OPTIONS=--max_old_space_size=8192 NODE_ENV=development make fe -B
+NODE_ENV=development make fe -B
 ```
 
 ## `make` commands
