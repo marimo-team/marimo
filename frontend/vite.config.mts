@@ -6,7 +6,6 @@ import { JSDOM } from "jsdom";
 import { defineConfig, type Plugin } from "vite";
 import topLevelAwait from "vite-plugin-top-level-await";
 import wasm from "vite-plugin-wasm";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 const SERVER_PORT = process.env.SERVER_PORT || 2718;
 const HOST = process.env.HOST || "127.0.0.1";
@@ -14,6 +13,8 @@ const TARGET = `http://${HOST}:${SERVER_PORT}`;
 const isDev = process.env.NODE_ENV === "development";
 const isStorybook = process.env.npm_lifecycle_script?.includes("storybook");
 const isPyodide = process.env.PYODIDE === "true";
+
+console.log("Building environment:", process.env.NODE_ENV);
 
 const htmlDevPlugin = (): Plugin => {
   return {
@@ -79,7 +80,7 @@ const htmlDevPlugin = (): Plugin => {
           throw new Error("Failed to fetch");
         }
         serverHtml = await serverHtmlResponse.text();
-      } catch (e) {
+      } catch {
         console.error(
           `Failed to connect to a marimo server at ${TARGET + ctx.originalUrl}`,
         );
@@ -276,12 +277,14 @@ export default defineConfig({
     "import.meta.env.VITE_MARIMO_VERSION": process.env.VITE_MARIMO_VERSION
       ? JSON.stringify(process.env.VITE_MARIMO_VERSION)
       : JSON.stringify("latest"),
+    "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
   },
   build: {
-    minify: isDev ? false : "terser",
+    minify: isDev ? false : "oxc", // default is "oxc"
     sourcemap: isDev,
   },
   resolve: {
+    tsconfigPaths: true,
     dedupe: [
       "react",
       "react-dom",
@@ -291,9 +294,11 @@ export default defineConfig({
       "@codemirror/state",
     ],
   },
+  experimental: {
+    enableNativePlugin: true,
+  },
   worker: {
     format: "es",
-    plugins: () => [tsconfigPaths()],
   },
   plugins: [
     htmlDevPlugin(),
@@ -302,12 +307,10 @@ export default defineConfig({
         presets: ["@babel/preset-typescript"],
         plugins: [
           ["@babel/plugin-proposal-decorators", { legacy: true }],
-          ["@babel/plugin-proposal-class-properties", { loose: true }],
           ["babel-plugin-react-compiler", ReactCompilerConfig],
         ],
       },
     }),
-    tsconfigPaths(),
     codecovVitePlugin({
       enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
       bundleName: "marimo",
