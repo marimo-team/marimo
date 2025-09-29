@@ -5,10 +5,10 @@ import pytest
 
 from marimo._utils.platform import is_windows
 from marimo._utils.strings import (
-    _mslex_quote,
     _quote_for_cmd,
     _wrap_in_quotes,
     cmd_quote,
+    mslex_quote,
     standardize_annotation_quotes,
 )
 
@@ -35,34 +35,30 @@ class TestCmdQuote:
         assert cmd_quote('hello"world') == "'hello\"world'"
         assert cmd_quote("hello$world") == "'hello$world'"
 
-    @pytest.mark.skipif(not is_windows(), reason="Windows-specific test")
     def test_windows_simple_string(self):
         """Test simple strings on Windows."""
-        assert cmd_quote("hello") == "hello"
-        assert cmd_quote("path\\to\\file") == "path\\to\\file"
+        assert mslex_quote("hello") == "hello"
+        assert mslex_quote("path\\to\\file") == "path\\to\\file"
 
-    @pytest.mark.skipif(not is_windows(), reason="Windows-specific test")
     def test_windows_empty_string(self):
         """Test empty string on Windows."""
-        assert cmd_quote("") == '""'
+        assert mslex_quote("") == '""'
 
-    @pytest.mark.skipif(not is_windows(), reason="Windows-specific test")
     def test_windows_strings_with_spaces(self):
         """Test strings with spaces on Windows."""
-        assert cmd_quote("hello world") == '"hello world"'
+        assert mslex_quote("hello world") == '"hello world"'
         assert (
-            cmd_quote("C:\\Program Files\\app") == '"C:\\Program Files\\app"'
+            mslex_quote("C:\\Program Files\\app") == '"C:\\Program Files\\app"'
         )
 
-    @pytest.mark.skipif(not is_windows(), reason="Windows-specific test")
     def test_windows_strings_with_special_chars(self):
         """Test strings with Windows special characters."""
         # Test % character
-        assert cmd_quote("hello%world") == "hello^%world"
+        assert mslex_quote("hello%world") == "hello^%world"
         # Test ! character
-        assert cmd_quote("hello!world") == "hello^!world"
+        assert mslex_quote("hello!world") == "hello^!world"
         # Test with quotes
-        assert cmd_quote('hello"world') == 'hello\\^"world'
+        assert mslex_quote('hello"world') == 'hello\\^"world'
 
 
 class TestWrapInQuotes:
@@ -123,32 +119,32 @@ class TestMslexQuote:
 
     def test_empty_string(self):
         """Test empty string returns double quotes."""
-        assert _mslex_quote("") == '""'
+        assert mslex_quote("") == '""'
 
     def test_simple_string(self):
         """Test simple strings that don't need quoting."""
-        assert _mslex_quote("hello") == "hello"
-        assert _mslex_quote("path\\to\\file") == "path\\to\\file"
+        assert mslex_quote("hello") == "hello"
+        assert mslex_quote("path\\to\\file") == "path\\to\\file"
 
     def test_string_with_spaces(self):
         """Test strings with spaces."""
-        assert _mslex_quote("hello world") == '"hello world"'
+        assert mslex_quote("hello world") == '"hello world"'
 
     def test_string_with_special_chars(self):
         """Test strings with Windows cmd special characters."""
-        assert _mslex_quote("hello%world") == "hello^%world"
-        assert _mslex_quote("hello!world") == "hello^!world"
+        assert mslex_quote("hello%world") == "hello^%world"
+        assert mslex_quote("hello!world") == "hello^!world"
 
     def test_string_with_quotes(self):
         """Test strings with quote characters."""
-        result = _mslex_quote('hello"world')
+        result = mslex_quote('hello"world')
         assert '"' in result  # Should be quoted
         assert "\\" in result  # Should have escaping
 
     def test_optimization_shorter_alt(self):
         """Test that shorter alternative quoting is used when available."""
         # This tests the optimization where a shorter alternative is preferred
-        result = _mslex_quote("x!")
+        result = mslex_quote("x!")
         assert result == "x^!"  # Shorter than "x\\"^!""
 
 

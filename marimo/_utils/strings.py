@@ -53,7 +53,7 @@ def _quote_for_cmd(s: str) -> str:
     return re.sub(r'([^\%\!\"]+)|([\%\!])|"', f, s)
 
 
-def _mslex_quote(s: str) -> str:
+def mslex_quote(s: str) -> str:
     """
     From mslex: https://github.com/smoofra/mslex/blob/master/mslex
     Under Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0
