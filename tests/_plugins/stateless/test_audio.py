@@ -142,7 +142,7 @@ async def test_audio_numpy_constructor() -> None:
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Failing on Windows CI")
 async def test_audio_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
-    with open(__file__, encoding="utf-8") as f:  # noqa: ASYNC101 ASYNC230
+    with open(__file__, encoding="utf-8") as f:  # noqa: ASYNC230
         await k.run(
             [
                 exec_req.get(
