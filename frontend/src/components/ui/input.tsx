@@ -7,7 +7,6 @@ import {
   NumberField,
   type NumberFieldProps,
 } from "@/components/ui/number-field";
-import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 
@@ -63,20 +62,16 @@ export const DebouncedInput = React.forwardRef<
     onValueChange: (value: string) => void;
     delay?: number;
   }
->(({ className, onValueChange, ...props }, ref) => {
-  const { value, onChange } = useDebounceControlledState<string>({
-    initialValue: props.value,
-    delay: props.delay,
-    onChange: onValueChange,
-  });
-
+>(({ className, onValueChange, delay, ...props }, ref) => {
+  // Remove component-level debouncing - let UIElement handle debouncing
+  // This provides immediate UI feedback while UIElement debounces input events
   return (
     <Input
       ref={ref}
       className={className}
       {...props}
-      onChange={(evt) => onChange(evt.target.value)}
-      value={value}
+      onChange={(evt) => onValueChange(evt.target.value)}
+      value={props.value}
     />
   );
 });
@@ -89,20 +84,15 @@ export const DebouncedNumberInput = React.forwardRef<
     onValueChange: (valueAsNumber: number) => void;
   }
 >(({ className, onValueChange, ...props }, ref) => {
-  // Create a debounced value of 200
-  const { value, onChange } = useDebounceControlledState<number>({
-    initialValue: props.value,
-    delay: 200,
-    onChange: onValueChange,
-  });
-
+  // Remove component-level debouncing - let UIElement handle debouncing
+  // This provides immediate UI feedback while UIElement debounces input events
   return (
     <NumberField
       ref={ref}
       className={className}
       {...props}
-      onChange={onChange}
-      value={value}
+      onChange={onValueChange}
+      value={props.value}
     />
   );
 });

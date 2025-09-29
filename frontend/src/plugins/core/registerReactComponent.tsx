@@ -102,7 +102,14 @@ function PluginSlotInternal<T>(
 
   useImperativeHandle(ref, () => ({
     reset: () => {
-      setValue(getInitialValue());
+      const objectId = getUIElementObjectId(hostElement);
+      const isRemounting = hostElement.hasAttribute("data-is-remounting");
+
+      if (!isRemounting) {
+        // Normal reset: set to initial value
+        setValue(getInitialValue());
+      }
+      // During remounting, preserve current value by not calling setValue
       setParsedResult(plugin.validator.safeParse(parseDataset(hostElement)));
     },
     setChildren: (children) => {
@@ -116,7 +123,8 @@ function PluginSlotInternal<T>(
     MarimoValueUpdateEvent.TYPE,
     (e) => {
       if (e.detail.element === hostElement) {
-        setValue(e.detail.value as T);
+        // Use setValueAndSendInput with external sync flag to prevent feedback loop
+        setValueAndSendInput(e.detail.value as T, true);
       }
     },
   );
@@ -147,17 +155,24 @@ function PluginSlotInternal<T>(
   }, [hostElement, plugin.validator]);
 
   // When the value changes, send an input event
-  const setValueAndSendInput = useEvent((value: SetStateAction<T>): void => {
+  const setValueAndSendInput = useEvent((value: SetStateAction<T>, isExternalSync = false): void => {
     setValue((prevValue) => {
       const updater = Functions.asUpdater(value);
       const nextValue = updater(prevValue);
+
       // Shallow compare the values
       // If the value hasn't changed, we don't need to send an input event
       if (shallowCompare(nextValue, prevValue)) {
         return nextValue;
       }
 
-      hostElement.dispatchEvent(createInputEvent(nextValue, hostElement));
+      // Check if we're remounting
+      const isRemounting = hostElement.hasAttribute("data-is-remounting");
+
+      // Only dispatch input event if we're not remounting AND not from external sync
+      if (!isRemounting && !isExternalSync) {
+        hostElement.dispatchEvent(createInputEvent(nextValue, hostElement));
+      }
       return nextValue;
     });
   });
@@ -341,9 +356,14 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
      * And then re-render the plugin.
      */
     reset() {
-      this.dispatchEvent(
-        createInputEvent(parseAttrValue(this.dataset.initialValue), this),
-      );
+      const isRemounting = this.hasAttribute("data-is-remounting");
+
+      if (!isRemounting) {
+        // Only dispatch input event for user-initiated resets, not remounting
+        this.dispatchEvent(
+          createInputEvent(parseAttrValue(this.dataset.initialValue), this),
+        );
+      }
       this.rerender();
     }
 

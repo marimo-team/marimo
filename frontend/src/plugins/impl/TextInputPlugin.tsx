@@ -106,6 +106,7 @@ const TextComponent = (props: TextComponentProps) => {
       <Labeled label={props.label} fullWidth={props.fullWidth}>
         <DebouncedInput
           data-testid="marimo-plugin-text-input"
+          data-debounce={props.debounce}
           type={props.kind}
           icon={icon[props.kind]}
           placeholder={props.placeholder}

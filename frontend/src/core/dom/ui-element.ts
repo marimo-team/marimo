@@ -6,6 +6,7 @@ import { UIElementId } from "../cells/ids";
 import { defineCustomElement } from "./defineCustomElement";
 import {
   MarimoValueInputEvent,
+  MarimoValueUpdateEvent,
   type MarimoValueInputEventType,
 } from "./events";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";
@@ -86,6 +87,38 @@ export function initializeUIElement() {
     private initialized = false;
     private inputListener: (e: MarimoValueInputEventType) => void =
       Functions.NOOP;
+    private isProcessingAttributeChange = false;
+    private debouncedBroadcaster: ((child: HTMLElement, objectId: UIElementId, value: unknown) => void) | null = null;
+    private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    private createDebouncedBroadcaster(delay: number) {
+      return (child: HTMLElement, objectId: UIElementId, value: unknown) => {
+        // Clear any existing timer
+        if (this.debounceTimer) {
+          clearTimeout(this.debounceTimer);
+        }
+
+        // Set new timer to broadcast after delay
+        this.debounceTimer = setTimeout(() => {
+          UI_ELEMENT_REGISTRY.broadcastValueUpdate(child, objectId, value);
+          this.debounceTimer = null;
+        }, delay);
+      };
+    }
+
+    private getDebounceDelay(): number {
+      const child = this.firstElementChild as HTMLElement;
+      if (!child) return 0;
+
+      // Check for debounce data attribute (set by component)
+      const debounceAttr = child.dataset.debounce;
+      if (debounceAttr) {
+        const delay = Number(debounceAttr);
+        return !isNaN(delay) && delay > 0 ? delay : 0;
+      }
+
+      return 0;
+    }
 
     // This needs to happen in connectedCallback because the element may not be
     // set at construction time
@@ -95,7 +128,19 @@ export function initializeUIElement() {
       }
 
       const objectId = UIElementId.parseOrThrow(this);
+
+      // Set up debounced broadcaster based on component's debounce setting
+      const debounceDelay = this.getDebounceDelay();
+      if (debounceDelay > 0) {
+        this.debouncedBroadcaster = this.createDebouncedBroadcaster(debounceDelay);
+      }
+
       this.inputListener = (e: MarimoValueInputEventType) => {
+        // Skip input events if we're processing attribute changes (remounting)
+        if (this.isProcessingAttributeChange) {
+          return;
+        }
+
         // TODO: just fill in the objectId and let the document handle
         // broadcast? that would still let other elements cancel the event
         // while also reducing the number of event listeners on the document
@@ -108,11 +153,20 @@ export function initializeUIElement() {
             );
           }
 
-          UI_ELEMENT_REGISTRY.broadcastValueUpdate(
-            child as HTMLElement,
-            objectId,
-            e.detail.value,
-          );
+          // Use debounced broadcaster if available, otherwise broadcast immediately
+          if (this.debouncedBroadcaster) {
+            this.debouncedBroadcaster(
+              child as HTMLElement,
+              objectId,
+              e.detail.value,
+            );
+          } else {
+            UI_ELEMENT_REGISTRY.broadcastValueUpdate(
+              child as HTMLElement,
+              objectId,
+              e.detail.value,
+            );
+          }
         }
       };
 
@@ -158,6 +212,12 @@ export function initializeUIElement() {
 
     disconnectedCallback() {
       if (this.initialized) {
+        // Clear any pending debounce timer
+        if (this.debounceTimer) {
+          clearTimeout(this.debounceTimer);
+          this.debounceTimer = null;
+        }
+
         // Unregister everything
         document.removeEventListener(
           MarimoValueInputEvent.TYPE,
@@ -200,11 +260,21 @@ export function initializeUIElement() {
       if (this.initialized) {
         const hasChanged = oldValue !== newValue;
         if (name === "random-id" && hasChanged) {
+          const objectId = UIElementId.parseOrThrow(this);
+          const currentValue = UI_ELEMENT_REGISTRY.lookupValue(objectId);
+
+          // Set flag to prevent input events during rerender
+          this.isProcessingAttributeChange = true;
+
           // deregister/clean-up this instance
           this.disconnectedCallback();
-          // remove and re-add its child to force it to re-render; note that
-          // this doesn't reconstruct the UI element, only its child
-          const child = this.firstElementChild;
+
+          // remove and re-add its child to force it to re-render
+          const child = this.firstElementChild as HTMLElement;
+          if (child) {
+            child.setAttribute("data-is-remounting", "true");
+          }
+
           if (isCustomMarimoElement(child)) {
             child.rerender();
           } else {
@@ -212,9 +282,23 @@ export function initializeUIElement() {
               "[marimo-ui-element] first child must have a rerender method",
             );
           }
-          // register the element and reset its initial value
+
+          // register the element
           this.initialized = false;
           this.connectedCallback();
+
+          // Restore the preserved value after remounting
+          if (currentValue !== undefined && UI_ELEMENT_REGISTRY.has(objectId)) {
+            UI_ELEMENT_REGISTRY.entries.get(objectId)!.value = currentValue;
+          }
+
+          // Clean up flags after a short delay to ensure reset() sees them
+          setTimeout(() => {
+            if (child) {
+              child.removeAttribute("data-is-remounting");
+            }
+            this.isProcessingAttributeChange = false;
+          }, 0);
         }
       }
     }
