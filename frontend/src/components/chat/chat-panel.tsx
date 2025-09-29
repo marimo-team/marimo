@@ -369,7 +369,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       <TooltipProvider>
         <div className="px-3 py-2 border-t border-border/20 flex flex-row items-center justify-between">
           <div className="flex items-center gap-2">
-            <FeatureFlagged feature="mcp_docs">
+            <FeatureFlagged feature="chat_modes">
               <Select value={currentMode} onValueChange={saveModeChange}>
                 <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
                   {currentMode}
