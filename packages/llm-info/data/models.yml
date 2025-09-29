@@ -3,28 +3,28 @@
 # Anthropic
 
 - name: Claude 4.5 Sonnet
-  model: claude-sonnet-4-5-20250929
+  model: claude-sonnet-4-5
   description: Latest Sonnet model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
   
 - name: Claude 4.1 Opus
-  model: claude-opus-4-1-20250805
+  model: claude-opus-4-1
   description: Latest Opus model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
 
 - name: Claude 4 Opus
-  model: claude-opus-4-20250514
+  model: claude-opus-4
   description: Most capable model with superior performance on complex tasks and reasoning
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
 
 - name: Claude 4 Sonnet
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4
   description: Next-generation Sonnet model with advanced reasoning and multimodal capabilities
   providers: [anthropic]
   roles: [chat, edit]
