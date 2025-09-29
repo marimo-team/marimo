@@ -137,6 +137,8 @@ class SearchTableResponse:
     data: str
     total_rows: Union[int, Literal["too_many"]]
     cell_styles: Optional[CellStyles] = None
+    # Mapping of rowId -> columnName -> hover text (plain string)
+    cell_hover_texts: Optional[dict[RowId, dict[ColumnName, str]]] = None
 
 
 @dataclass(frozen=True)
@@ -296,6 +298,28 @@ class table(
         table
         ```
 
+        Create a table with per-cell hover text (plain text only):
+
+        ```python
+        import random
+
+
+        # rowId and columnName are strings.
+        def hover_cell(rowId, columnName, value):
+            # Compute a short plain-text title for the visible individual cells.
+            return f"Row {rowId} — {columnName}: {value}"
+
+
+        table = mo.ui.table(
+            data=[random.randint(0, 10) for _ in range(200)],
+            hover_template=hover_cell,
+        )
+        table
+        ```
+
+        Note: when sorting is applied, per-cell hover and styling may not be
+        correctly aligned with rows, similar to cell styling behavior.
+
         In each case, access the table data with `table.value`.
 
     Attributes:
@@ -337,7 +361,12 @@ class table(
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
             Optional callback to run when this element's value changes.
         style_cell (Callable[[str, str, Any], Dict[str, Any]], optional): A function that takes the row id, column name and value and returns a dictionary of CSS styles.
-        hover_template (str, optional): A template for the hover text of the table.
+        hover_template (Union[str, Callable[[str, str, Any], str]], optional):
+            Either a string template applied at the row level, or a callable
+            that computes plain-text hover titles for individual visible cells.
+            When a callable is provided, values are computed per page in Python
+            and passed to the frontend; native HTML `title` is used for display.
+            Plain text only is supported.
         max_columns (int, optional): Maximum number of columns to display. Defaults to the
             configured default_table_max_columns (50 by default). Set to None to show all columns.
         max_height (int, optional): Maximum height of the table body in pixels. When set,
@@ -449,7 +478,9 @@ class table(
             ]
         ] = None,
         style_cell: Optional[Callable[[str, str, Any], dict[str, Any]]] = None,
-        hover_template: Optional[str] = None,
+        hover_template: Optional[
+            Union[str, Callable[[str, str, Any], str]]
+        ] = None,
         max_height: Optional[int] = None,
         # The _internal_* arguments are for overriding and unit tests
         # table should take the value unconditionally
@@ -615,8 +646,18 @@ class table(
                 pagination = False
 
         self._style_cell = style_cell
+        # Store hover callable vs string template separately
+        self._hover_cell: Optional[Callable[[str, str, Any], str]] = None
+        self._hover_template: Optional[str] = None
+        if isinstance(hover_template, str):
+            self._hover_template = hover_template
+        elif callable(hover_template):
+            self._hover_cell = hover_template
 
         search_result_styles: Optional[CellStyles] = None
+        search_result_hover_texts: Optional[
+            dict[RowId, dict[ColumnName, str]]
+        ] = None
         search_result_data: JSONType = []
         field_types: Optional[FieldTypes] = None
         num_columns = 0
@@ -634,6 +675,7 @@ class table(
             )
             search_result_styles = search_result.cell_styles
             search_result_data = search_result.data
+            search_result_hover_texts = search_result.cell_hover_texts
 
             # Validate column configurations
             column_names_set = set(self._manager.get_column_names())
@@ -680,7 +722,8 @@ class table(
                 "header-tooltip": header_tooltip,
                 "has-stable-row-id": self._has_stable_row_id,
                 "cell-styles": search_result_styles,
-                "hover-template": hover_template,
+                "hover-template": self._hover_template,
+                "cell-hover-texts": search_result_hover_texts,
                 "lazy": _internal_lazy,
                 "preload": _internal_preload,
                 "max-height": int(max_height)
@@ -1181,6 +1224,48 @@ class table(
             for row in row_ids
         }
 
+    def _hover_cells(
+        self, skip: int, take: int, total_rows: Union[int, Literal["too_many"]]
+    ) -> Optional[dict[RowId, dict[ColumnName, str]]]:
+        """Calculate hover text for cells in the table (plain strings)."""
+        if self._hover_cell is None:
+            return None
+
+        def do_hover_cell(row: str, col: str) -> str:
+            selected_cells = self._searched_manager.select_cells(
+                [TableCoordinate(row_id=row, column_name=col)]
+            )
+            if not selected_cells or self._hover_cell is None:
+                return ""
+            try:
+                value = selected_cells[0].value
+                result = self._hover_cell(row, col, value)
+                return str(result) if result is not None else ""
+            except BaseException as e:
+                LOGGER.warning(
+                    "Failed to compute hover text for %s:%s: %s", row, col, e
+                )
+                return ""
+
+        columns = self._searched_manager.get_column_names()
+        response = self._get_row_ids(EmptyArgs())
+
+        # Clamp the take to the total number of rows
+        if total_rows != "too_many" and skip + take > total_rows:
+            take = total_rows - skip
+
+        # Determine row range
+        row_ids: Union[list[int], range]
+        if response.all_rows or response.error:
+            row_ids = range(skip, skip + take)
+        else:
+            row_ids = response.row_ids[skip : skip + take]
+
+        return {
+            str(row): {col: do_hover_cell(str(row), col) for col in columns}
+            for row in row_ids
+        }
+
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
 
@@ -1203,6 +1288,7 @@ class table(
                 - data: Filtered and formatted table data for the requested page
                 - total_rows: Total number of rows after applying filters
                 - cell_styles: User defined styling information for each cell in the page
+                - cell_hover_texts: User defined hover text for each cell in the page
         """
         offset = args.page_number * args.page_size
         max_columns = args.max_columns
@@ -1241,6 +1327,9 @@ class table(
                 cell_styles=self._style_cells(
                     offset, args.page_size, total_rows
                 ),
+                cell_hover_texts=self._hover_cells(
+                    offset, args.page_size, total_rows
+                ),
             )
 
         filter_function = (
@@ -1262,15 +1351,18 @@ class table(
         else:
             total_rows = result.get_num_rows(force=True) or 0
 
-        if args.sort and self._style_cell:
+        if args.sort and (self._style_cell or self._hover_cell):
             LOGGER.warning(
-                "Cell styling is not correctly applied when table rows are sorted"
+                "Cell styling/hover may not be correctly applied when table rows are sorted"
             )
 
         return SearchTableResponse(
             data=clamp_rows_and_columns(result),
             total_rows=total_rows,
             cell_styles=self._style_cells(offset, args.page_size, total_rows),
+            cell_hover_texts=self._hover_cells(
+                offset, args.page_size, total_rows
+            ),
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:

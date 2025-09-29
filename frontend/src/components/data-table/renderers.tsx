@@ -122,6 +122,7 @@ export const DataTableBody = <TData,>({
         pinningstyle,
       );
 
+      const title = cell.getHoverTitle?.();
       return (
         <TableCell
           tabIndex={0}
@@ -135,6 +136,7 @@ export const DataTableBody = <TData,>({
             className,
           )}
           style={style}
+          title={title}
           onMouseDown={(e) => handleCellMouseDown(e, cell)}
           onMouseUp={handleCellMouseUp}
           onMouseOver={(e) => handleCellMouseOver(e, cell)}
