@@ -603,7 +603,6 @@ const ChatPanelBody = () => {
       });
     },
     onToolCall: async ({ toolCall }) => {
-      // TODO: Add handler for Frontend tool calls
       await handleToolCall({
         invokeAiTool,
         addToolResult,
