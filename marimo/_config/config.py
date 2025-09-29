@@ -509,7 +509,7 @@ class ExperimentalConfig(TypedDict, total=False):
     rtc_v2: bool
     performant_table_charts: bool
     mcp_docs: bool
-    chat_mode: bool
+    chat_modes: bool
     sql_linter: bool
     sql_mode: bool
 

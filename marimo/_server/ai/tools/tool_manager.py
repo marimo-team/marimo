@@ -47,7 +47,7 @@ class ToolManager:
         # This may be stale but it is ok, since we want to enable MCP on startup
         app_state = AppState.from_app(self.app)
         config = app_state.config_manager.get_config()
-        return bool(config.get("experimental", {}).get("chat_mode", False))
+        return bool(config.get("experimental", {}).get("mcp_docs", False))
 
     @once
     def _init_backend_tools(self) -> None:
