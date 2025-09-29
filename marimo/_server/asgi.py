@@ -298,6 +298,7 @@ def create_asgi_app(
     token: Optional[str] = None,
     skew_protection: bool = False,
     session_ttl: Optional[int] = None,
+    asset_url: Optional[str] = None,
 ) -> ASGIAppBuilder:
     """Public API to create an ASGI app that can serve multiple notebooks.
     This only works for application that are in Run mode.
@@ -310,6 +311,7 @@ def create_asgi_app(
         skew_protection (bool, optional): Enable skew protection middleware to prevent version mismatch issues.
             e.g. if the server is updated, the client will be prompted to reload.
         session_ttl (int, optional): Time-to-live in seconds for sessions. If not provided, uses default TTL (2 minutes).
+        asset_url (str, optional): Custom asset URL for loading static resources. Can include {version} placeholder.
 
     Returns:
         ASGIAppBuilder: A builder object to create multiple ASGI apps
@@ -400,6 +402,7 @@ def create_asgi_app(
 
     config_reader = get_default_config_manager(current_path=None)
     base_app = Starlette()
+    base_app.state.asset_url = asset_url
 
     # Default to an empty token
     # If a user is using the create_asgi_app API,
@@ -487,6 +490,7 @@ def create_asgi_app(
             )
             app.state.session_manager = session_manager
             app.state.base_url = base_url
+            app.state.asset_url = asset_url
             app.state.config_manager = config_reader
             app.state.enable_auth = enable_auth
             return app
