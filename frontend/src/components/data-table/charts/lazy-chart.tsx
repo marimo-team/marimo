@@ -2,14 +2,12 @@
 
 import React from "react";
 import type { TopLevelSpec } from "vega-lite";
+import { LazyVegaEmbed } from "@/components/charts/lazy";
 import { useTheme } from "@/theme/useTheme";
 import type { ErrorMessage } from "./chart-spec/spec";
 import { augmentSpecWithData } from "./chart-spec/spec";
 import { ChartInfoState } from "./components/chart-states";
 
-const LazyVega = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.Vega })),
-);
 export const LazyChart: React.FC<{
   baseSpec: TopLevelSpec | ErrorMessage;
   data?: object[];
@@ -29,15 +27,18 @@ export const LazyChart: React.FC<{
 
     return (
       <React.Suspense fallback={<LoadingChart />}>
-        <LazyVega
+        <LazyVegaEmbed
           spec={spec}
-          theme={theme === "dark" ? "dark" : undefined}
-          height={height}
-          actions={{
-            export: true,
-            source: false,
-            compiled: false,
-            editor: true,
+          options={{
+            theme: theme === "dark" ? "dark" : undefined,
+            height: height,
+            actions: {
+              export: true,
+              source: false,
+              compiled: false,
+              editor: true,
+            },
+            mode: "vega",
           }}
         />
       </React.Suspense>

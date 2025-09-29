@@ -2,7 +2,7 @@
 
 import { mint, orange, slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";
-import type { StringFieldDef } from "vega-lite/build/src/channeldef";
+import type { StringFieldDef } from "vega-lite/types_unstable/channeldef.js";
 // @ts-expect-error vega-typings does not include formats
 import { formats } from "vega-loader";
 import { asRemoteURL } from "@/core/runtime/config";
