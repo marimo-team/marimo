@@ -44,6 +44,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._server.models.secrets as secrets
     import marimo._snippets.snippets as snippets
     from marimo._ai._types import ChatMessage
+    from marimo._server.ai.tools.types import ToolDefinition
     from marimo._ast.cell import CellConfig, RuntimeStateType
     from marimo._messaging.cell_output import CellChannel, CellOutput
     from marimo._messaging.mimetypes import KnownMimeType
@@ -136,6 +137,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.MessageOperation,
         # ai
         ChatMessage,
+        ToolDefinition,
     ]
 
     # dataclass components used in requests/responses
