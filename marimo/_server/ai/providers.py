@@ -17,6 +17,7 @@ from typing import (
     Union,
     cast,
 )
+from urllib.parse import parse_qs, urlparse
 
 from starlette.exceptions import HTTPException
 
@@ -579,24 +580,63 @@ class OpenAIProvider(
 
 
 class AzureOpenAIProvider(OpenAIProvider):
-    def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
-        from urllib.parse import parse_qs, urlparse
+    def _is_reasoning_model(self, model: str) -> bool:
+        # https://learn.microsoft.com/en-us/answers/questions/5519548/does-gpt-5-via-azure-support-reasoning-effort-and
+        # Only custom models support reasoning effort, we can expose this as a parameter in the future
+        del model
+        return False
 
+    def _handle_azure_openai(self, base_url: str) -> tuple[str, str, str]:
+        """Handle Azure OpenAI.
+        Sample base URL: https://<your-resource-name>.openai.azure.com/<deployment_name>?api-version=<api-version>
+
+        Args:
+            base_url (str): The base URL of the Azure OpenAI.
+
+        Returns:
+            tuple[str, str, str]: The API version, deployment name, and endpoint.
+        """
+
+        parsed_url = urlparse(base_url)
+
+        deployment_name = parsed_url.path.split("/")[1]
+        api_version = parse_qs(parsed_url.query)["api-version"][0]
+
+        endpoint = f"{parsed_url.scheme}://{parsed_url.hostname}"
+        return api_version, deployment_name, endpoint
+
+    def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         from openai import AsyncAzureOpenAI
 
         base_url = config.base_url or None
         key = config.api_key
 
-        # Azure OpenAI clients are instantiated slightly differently
-        parsed_url = urlparse(base_url)
-        deployment_model = cast(str, parsed_url.path).split("/")[3]
-        api_version = parse_qs(cast(str, parsed_url.query))["api-version"][0]
+        if base_url is None:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Base URL needed to get the endpoint",
+            )
+
+        api_version = None
+        deployment_name = None
+        endpoint = None
+
+        if base_url:
+            if "services.ai.azure.com" in base_url:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="To use Azure AI Foundry, use the OpenAI-compatible provider instead.",
+                )
+            elif "openai.azure.com" in base_url:
+                api_version, deployment_name, endpoint = (
+                    self._handle_azure_openai(base_url)
+                )
 
         return AsyncAzureOpenAI(
             api_key=key,
             api_version=api_version,
-            azure_deployment=deployment_model,
-            azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
+            azure_deployment=deployment_name,
+            azure_endpoint=endpoint or "",
         )
 
 

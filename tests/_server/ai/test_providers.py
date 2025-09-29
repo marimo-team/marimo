@@ -9,6 +9,7 @@ from marimo._config.config import AiConfig
 from marimo._server.ai.providers import (
     AnthropicProvider,
     AnyProviderConfig,
+    AzureOpenAIProvider,
     BedrockProvider,
     GoogleProvider,
     OpenAIProvider,
@@ -148,3 +149,19 @@ async def test_openai_provider_max_tokens_parameter(
         assert "max_completion_tokens" not in call_kwargs, (
             "max_completion_tokens should not be present for non-reasoning models"
         )
+
+
+async def test_azure_openai_provider() -> None:
+    """Test that Azure OpenAI provider uses correct parameters."""
+    config = AnyProviderConfig(
+        api_key="test-key",
+        base_url="https://test.openai.azure.com/gpt-4-1?api-version=2023-05-15",
+    )
+    provider = AzureOpenAIProvider("gpt-4", config)
+
+    api_version, deployment_name, endpoint = provider._handle_azure_openai(
+        "https://test.openai.azure.com/gpt-4-1?api-version=2023-05-15"
+    )
+    assert api_version == "2023-05-15"
+    assert deployment_name == "gpt-4-1"
+    assert endpoint == "https://test.openai.azure.com"
