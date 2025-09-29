@@ -58,39 +58,39 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        dependencies: ['core', 'core,optional']
-        python-version: ['3.9']
+        dependencies: ["core", "core,optional"]
+        python-version: ["3.9"]
         include:
           - os: ubuntu-latest
-            python-version: '3.10'
-            dependencies: 'core'
+            python-version: "3.10"
+            dependencies: "core"
           - os: ubuntu-latest
-            python-version: '3.11'
-            dependencies: 'core'
+            python-version: "3.11"
+            dependencies: "core"
           - os: ubuntu-latest
-            python-version: '3.12'
-            dependencies: 'core'
+            python-version: "3.12"
+            dependencies: "core"
           - os: ubuntu-latest
-            python-version: '3.13'
-            dependencies: 'core'
+            python-version: "3.13"
+            dependencies: "core"
           - os: ubuntu-latest
-            python-version: '3.9'
-            dependencies: 'core,optional'
+            python-version: "3.9"
+            dependencies: "core,optional"
           - os: ubuntu-latest
-            python-version: '3.10'
-            dependencies: 'core,optional'
+            python-version: "3.10"
+            dependencies: "core,optional"
           - os: ubuntu-latest
-            python-version: '3.11'
-            dependencies: 'core,optional'
+            python-version: "3.11"
+            dependencies: "core,optional"
           - os: ubuntu-latest
-            python-version: '3.12'
-            dependencies: 'core,optional'
+            python-version: "3.12"
+            dependencies: "core,optional"
           - os: ubuntu-latest
-            python-version: '3.13'
-            dependencies: 'core,optional'
+            python-version: "3.13"
+            dependencies: "core,optional"
           - os: ubuntu-latest
-            python-version: '3.9'
-            dependencies: 'minimal'
+            python-version: "3.9"
+            dependencies: "minimal"
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
@@ -119,13 +119,21 @@ jobs:
       - name: Test with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          hatch run +py=${{ matrix.python-version }} test:test -v tests/ -k "not test_cli" --durations=10
+          hatch run +py=${{ matrix.python-version }} test:test tests/ \
+            -v \
+            -k "not test_cli" \
+            --durations=10 \
+            --picked=first
 
       # Test with optional dependencies
       - name: Test with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
-          hatch run +py=${{ matrix.python-version }} test-optional:test -v tests/ -k "not test_cli" --durations=10
+          hatch run +py=${{ matrix.python-version }} test-optional:test tests/ \
+            -v \
+            -k "not test_cli" \
+            --durations=10 \
+            --picked=first
 
       # Test with minimal dependencies using lowest resolution
       # https://docs.astral.sh/uv/concepts/resolution/#lowest-resolution
@@ -133,7 +141,11 @@ jobs:
       - name: Test with minimal dependencies (lowest resolution)
         if: ${{ matrix.dependencies == 'minimal' }}
         run: |
-          hatch run +py=${{ matrix.python-version }} test:test -v tests/ -k "not test_cli" --durations=10
+          hatch run +py=${{ matrix.python-version }} test:test tests/ \
+            -v \
+            -k "not test_cli" \
+            --durations=10 \
+            --picked=first
         env:
           UV_RESOLUTION: lowest
 
