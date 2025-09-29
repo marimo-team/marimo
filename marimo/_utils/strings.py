@@ -84,7 +84,7 @@ def _mslex_quote(s: str) -> str:
     return quoted
 
 
-def get_short_path_name(long_name: str) -> str:
+def _get_short_path_name_windows(long_name: str) -> str:
     """
     Gets the short 8.3 path name for a given long path using ctypes.
     """
@@ -129,7 +129,7 @@ def cmd_quote(s: str) -> str:
     Quote a string for use as a command line argument in Windows or POSIX.
     """
     if is_windows():
-        return get_short_path_name(s)
+        return _get_short_path_name_windows(s)
     import shlex
 
     return shlex.quote(s)
