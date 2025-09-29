@@ -102,7 +102,7 @@ function PluginSlotInternal<T>(
 
   useImperativeHandle(ref, () => ({
     reset: () => {
-      const isRemounting = hostElement.hasAttribute("data-is-remounting");
+      const isRemounting = Object.hasOwn(hostElement.dataset, "isRemounting");
 
       if (!isRemounting) {
         // Normal reset: set to initial value
@@ -167,7 +167,7 @@ function PluginSlotInternal<T>(
         }
 
         // Check if we're remounting
-        const isRemounting = hostElement.hasAttribute("data-is-remounting");
+        const isRemounting = Object.hasOwn(hostElement.dataset, "isRemounting");
 
         // Only dispatch input event if we're not remounting AND not from external sync
         if (!isRemounting && !isExternalSync) {
@@ -357,7 +357,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
      * And then re-render the plugin.
      */
     reset() {
-      const isRemounting = this.hasAttribute("data-is-remounting");
+      const isRemounting = Object.hasOwn(this.dataset, "isRemounting");
 
       if (!isRemounting) {
         // Only dispatch input event for user-initiated resets, not remounting

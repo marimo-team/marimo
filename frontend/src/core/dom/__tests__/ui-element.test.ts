@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UIElementId } from "@/core/cells/ids";
-import { MarimoValueInputEvent, MarimoValueUpdateEvent } from "../events";
+import { MarimoValueInputEvent, MarimoValueUpdateEvent, type MarimoValueInputEventType, type MarimoValueUpdateEventType } from "../events";
 import { initializeUIElement } from "../ui-element";
 import { UIElementRegistry } from "../uiregistry";
 
@@ -45,10 +45,10 @@ describe("UIElement", () => {
     const objectId = "AbCd-widget123" as UIElementId;
     uiElement.setAttribute("object-id", objectId);
     uiElement.setAttribute("random-id", "initial-random-id");
-    uiElement.appendChild(mockChild);
+    uiElement.append(mockChild);
 
     // Add to DOM to trigger connectedCallback
-    document.body.appendChild(uiElement);
+    document.body.append(uiElement);
 
     // Verify initial registration
     expect(registry.has(objectId)).toBe(true);
@@ -58,8 +58,8 @@ describe("UIElement", () => {
     registry.entries.get(objectId)!.value = testValue;
 
     // Track events dispatched
-    const inputEvents: any[] = [];
-    const updateEvents: any[] = [];
+    const inputEvents: MarimoValueInputEventType[] = [];
+    const updateEvents: MarimoValueUpdateEventType[] = [];
 
     document.addEventListener(MarimoValueInputEvent.TYPE, (e) => {
       inputEvents.push(e);
@@ -82,7 +82,7 @@ describe("UIElement", () => {
     expect(updateEvents).toHaveLength(0);
 
     // Cleanup
-    document.body.removeChild(uiElement);
+    uiElement.remove();
   });
 
   it("should handle remounting when no previous value exists", () => {
@@ -101,10 +101,10 @@ describe("UIElement", () => {
     const objectId = "EfGh-widget456" as UIElementId;
     uiElement.setAttribute("object-id", objectId);
     uiElement.setAttribute("random-id", "initial-random-id");
-    uiElement.appendChild(mockChild);
+    uiElement.append(mockChild);
 
     // Add to DOM
-    document.body.appendChild(uiElement);
+    document.body.append(uiElement);
 
     // Verify initial registration
     expect(registry.has(objectId)).toBe(true);
@@ -120,13 +120,13 @@ describe("UIElement", () => {
     expect(registry.lookupValue(objectId)).toBe(initialValue);
 
     // Cleanup
-    document.body.removeChild(uiElement);
+    uiElement.remove();
   });
 
   it("should handle multiple UI elements with different values during remounting", () => {
     // Create mock custom elements
     class MockCustomElement extends HTMLElement {
-      rerender() {}
+      rerender() {} // eslint-disable-line @typescript-eslint/no-empty-function
     }
     customElements.define("mock-custom-element-3", MockCustomElement);
 
@@ -136,18 +136,18 @@ describe("UIElement", () => {
     const objectId1 = "IjKl-widget1" as UIElementId;
     uiElement1.setAttribute("object-id", objectId1);
     uiElement1.setAttribute("random-id", "random-1");
-    uiElement1.appendChild(mockChild1);
+    uiElement1.append(mockChild1);
 
     const uiElement2 = document.createElement("marimo-ui-element");
     const mockChild2 = document.createElement("mock-custom-element-3");
     const objectId2 = "MnOp-widget2" as UIElementId;
     uiElement2.setAttribute("object-id", objectId2);
     uiElement2.setAttribute("random-id", "random-2");
-    uiElement2.appendChild(mockChild2);
+    uiElement2.append(mockChild2);
 
     // Add to DOM
-    document.body.appendChild(uiElement1);
-    document.body.appendChild(uiElement2);
+    document.body.append(uiElement1);
+    document.body.append(uiElement2);
 
     // Set different values for each widget
     const value1 = "search-term";
@@ -165,14 +165,14 @@ describe("UIElement", () => {
     expect(registry.lookupValue(objectId2)).toBe(value2);
 
     // Cleanup
-    document.body.removeChild(uiElement1);
-    document.body.removeChild(uiElement2);
+    uiElement1.remove();
+    uiElement2.remove();
   });
 
   it("should not interfere with normal attribute changes", () => {
     // Create mock custom element
     class MockCustomElement extends HTMLElement {
-      rerender() {}
+      rerender() {} // eslint-disable-line @typescript-eslint/no-empty-function
     }
     customElements.define("mock-custom-element-4", MockCustomElement);
 
@@ -182,9 +182,9 @@ describe("UIElement", () => {
     const objectId = "QrSt-widget789" as UIElementId;
     uiElement.setAttribute("object-id", objectId);
     uiElement.setAttribute("random-id", "random-id");
-    uiElement.appendChild(mockChild);
+    uiElement.append(mockChild);
 
-    document.body.appendChild(uiElement);
+    document.body.append(uiElement);
 
     const testValue = "test-value";
     registry.entries.get(objectId)!.value = testValue;
@@ -196,7 +196,7 @@ describe("UIElement", () => {
     expect(registry.lookupValue(objectId)).toBe(testValue);
 
     // Cleanup
-    document.body.removeChild(uiElement);
+    uiElement.remove();
   });
 
   it("should debounce input events when data-debounce attribute is set", () => {
@@ -204,7 +204,7 @@ describe("UIElement", () => {
 
     // Create mock custom element
     class MockCustomElement extends HTMLElement {
-      rerender() {}
+      rerender() {} // eslint-disable-line @typescript-eslint/no-empty-function
     }
     customElements.define("mock-custom-element-debounce", MockCustomElement);
 
@@ -212,13 +212,13 @@ describe("UIElement", () => {
     const mockChild = document.createElement("mock-custom-element-debounce");
 
     // Set debounce delay on child element
-    mockChild.setAttribute("data-debounce", "300");
+    mockChild.dataset.debounce = "300";
 
     const objectId = "UvWx-debounce123" as UIElementId;
     uiElement.setAttribute("object-id", objectId);
-    uiElement.appendChild(mockChild);
+    uiElement.append(mockChild);
 
-    document.body.appendChild(uiElement);
+    document.body.append(uiElement);
 
     // Spy on broadcastValueUpdate to verify debouncing
     const broadcastSpy = vi.spyOn(registry, "broadcastValueUpdate");
@@ -255,14 +255,14 @@ describe("UIElement", () => {
 
     // Cleanup
     vi.useRealTimers();
-    document.body.removeChild(uiElement);
+    uiElement.remove();
     broadcastSpy.mockRestore();
   });
 
   it("should immediately broadcast when no debounce is set", () => {
     // Create mock custom element
     class MockCustomElement extends HTMLElement {
-      rerender() {}
+      rerender() {} // eslint-disable-line @typescript-eslint/no-empty-function
     }
     customElements.define("mock-custom-element-immediate", MockCustomElement);
 
@@ -271,9 +271,9 @@ describe("UIElement", () => {
 
     const objectId = "YzAb-immediate123" as UIElementId;
     uiElement.setAttribute("object-id", objectId);
-    uiElement.appendChild(mockChild);
+    uiElement.append(mockChild);
 
-    document.body.appendChild(uiElement);
+    document.body.append(uiElement);
 
     // Spy on broadcastValueUpdate
     const broadcastSpy = vi.spyOn(registry, "broadcastValueUpdate");
@@ -290,14 +290,14 @@ describe("UIElement", () => {
     expect(broadcastSpy).toHaveBeenCalledWith(mockChild, objectId, "immediate");
 
     // Cleanup
-    document.body.removeChild(uiElement);
+    uiElement.remove();
     broadcastSpy.mockRestore();
   });
 
   it("should prevent input events during attribute change processing", () => {
     // Create mock custom element
     class MockCustomElement extends HTMLElement {
-      rerender() {}
+      rerender() {} // eslint-disable-line @typescript-eslint/no-empty-function
     }
     customElements.define("mock-custom-element-processing", MockCustomElement);
 
@@ -307,9 +307,9 @@ describe("UIElement", () => {
     const objectId = "CdEf-processing123" as UIElementId;
     uiElement.setAttribute("object-id", objectId);
     uiElement.setAttribute("random-id", "initial");
-    uiElement.appendChild(mockChild);
+    uiElement.append(mockChild);
 
-    document.body.appendChild(uiElement);
+    document.body.append(uiElement);
 
     // Spy on broadcastValueUpdate
     const broadcastSpy = vi.spyOn(registry, "broadcastValueUpdate");
@@ -328,7 +328,7 @@ describe("UIElement", () => {
     expect(broadcastSpy).not.toHaveBeenCalled();
 
     // Cleanup
-    document.body.removeChild(uiElement);
+    uiElement.remove();
     broadcastSpy.mockRestore();
   });
 });

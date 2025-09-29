@@ -117,7 +117,7 @@ export function initializeUIElement() {
       const debounceAttr = child.dataset.debounce;
       if (debounceAttr) {
         const delay = Number(debounceAttr);
-        return !isNaN(delay) && delay > 0 ? delay : 0;
+        return !Number.isNaN(delay) && delay > 0 ? delay : 0;
       }
 
       return 0;
@@ -276,7 +276,7 @@ export function initializeUIElement() {
           // remove and re-add its child to force it to re-render
           const child = this.firstElementChild as HTMLElement;
           if (child) {
-            child.setAttribute("data-is-remounting", "true");
+            child.dataset.isRemounting = "true";
           }
 
           if (isCustomMarimoElement(child)) {
@@ -293,13 +293,16 @@ export function initializeUIElement() {
 
           // Restore the preserved value after remounting
           if (currentValue !== undefined && UI_ELEMENT_REGISTRY.has(objectId)) {
-            UI_ELEMENT_REGISTRY.entries.get(objectId)!.value = currentValue;
+            const entry = UI_ELEMENT_REGISTRY.entries.get(objectId);
+            if (entry) {
+              entry.value = currentValue;
+            }
           }
 
           // Clean up flags after a short delay to ensure reset() sees them
           setTimeout(() => {
             if (child) {
-              child.removeAttribute("data-is-remounting");
+              delete child.dataset.isRemounting;
             }
             this.isProcessingAttributeChange = false;
           }, 0);
