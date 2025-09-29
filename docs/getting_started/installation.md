@@ -122,12 +122,12 @@ conda install -c conda-forge marimo "duckdb>=1.0.0" "altair>=5.4.0" pyarrow "pol
 
 Installing marimo in this way installs the following additional dependencies and unlocks the following features:
 
-| Dependency                 | Feature                          |
-|----------------------------|----------------------------------|
-| duckdb>=1.0.0              | SQL cells                        |
+| Dependency                 | Feature                         |
+|----------------------------|---------------------------------|
+| duckdb>=1.0.0              | SQL cells                       |
 | altair>=5.4.0              | Plotting in datasource viewer   |
 | polars[pyarrow]>=1.9.0     | SQL output back in Python       |
-| sqlglot[rs]>=23.4              | SQL cells parsing               |
+| sqlglot[rs]>=23.4          | SQL cells parsing               |
 | openai>=1.55.3             | AI features                     |
 | ruff                       | Formatting                      |
 | nbformat>=5.7.0            | Export as IPYNB                 |
