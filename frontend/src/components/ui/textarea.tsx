@@ -2,7 +2,6 @@
 
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import * as React from "react";
-import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 
@@ -44,19 +43,13 @@ export const DebouncedTextarea = React.forwardRef<
     delay?: number;
   }
 >(({ className, onValueChange, ...props }, ref) => {
-  const { value, onChange } = useDebounceControlledState<string>({
-    initialValue: props.value,
-    delay: props.delay,
-    onChange: onValueChange,
-  });
-
   return (
     <Textarea
       ref={ref}
       className={className}
       {...props}
-      onChange={(evt) => onChange(evt.target.value)}
-      value={value}
+      onChange={(evt) => onValueChange(evt.target.value)}
+      value={props.value}
     />
   );
 });

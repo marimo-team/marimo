@@ -63,8 +63,6 @@ export const DebouncedInput = React.forwardRef<
     delay?: number;
   }
 >(({ className, onValueChange, delay, ...props }, ref) => {
-  // Remove component-level debouncing - let UIElement handle debouncing
-  // This provides immediate UI feedback while UIElement debounces input events
   return (
     <Input
       ref={ref}
@@ -84,8 +82,6 @@ export const DebouncedNumberInput = React.forwardRef<
     onValueChange: (valueAsNumber: number) => void;
   }
 >(({ className, onValueChange, ...props }, ref) => {
-  // Remove component-level debouncing - let UIElement handle debouncing
-  // This provides immediate UI feedback while UIElement debounces input events
   return (
     <NumberField
       ref={ref}

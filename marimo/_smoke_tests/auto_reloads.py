@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.16.2"
+__generated_with = "0.16.3"
 app = marimo.App(width="medium")
 
 
@@ -49,13 +49,6 @@ def _(dropdown, mo, search):
     single_drop_down = mo.vstack([search, dropdown])
 
     mo.ui.tabs({"Single": single_drop_down})
-    return
-
-
-@app.cell
-def _():
-
-
     return
 
 

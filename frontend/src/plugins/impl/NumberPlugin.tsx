@@ -55,26 +55,17 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
     id = "test-id";
   }
 
-  // Create a debounced value of 200
-  const { value, onChange } = useDebounceControlledState({
-    initialValue: props.value,
-    delay: 200,
-    disabled: !props.debounce,
-    onChange: (v) => {
-      props.setValue(v);
-    },
-  });
-
   return (
     <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
       <NumberField
         data-testid="marimo-plugin-number-input"
+        data-debounce={props.debounce}
         className={cn("min-w-[3em]", props.fullWidth && "w-full")}
         minValue={props.start ?? undefined}
         maxValue={props.stop ?? undefined}
-        value={value ?? undefined}
+        value={props.value ?? undefined}
         step={props.step}
-        onChange={onChange}
+        onChange={props.setValue}
         id={id}
         aria-label={props.label || "Number input"}
         isDisabled={props.disabled}
