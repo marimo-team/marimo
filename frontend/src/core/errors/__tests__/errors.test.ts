@@ -16,6 +16,10 @@ describe("getImportCode", () => {
   });
 });
 
+const opts = {
+  aiEnabled: true,
+};
+
 describe("getAutoFixes", () => {
   it("returns wrap in function fix for multiple-defs error", () => {
     const error: MarimoError = {
@@ -24,7 +28,7 @@ describe("getAutoFixes", () => {
       cells: ["foo"],
     };
 
-    const fixes = getAutoFixes(error);
+    const fixes = getAutoFixes(error, opts);
     expect(fixes).toHaveLength(1);
     expect(fixes[0].title).toBe("Fix: Wrap in a function");
   });
@@ -37,7 +41,7 @@ describe("getAutoFixes", () => {
       raising_cell: null,
     };
 
-    const fixes = getAutoFixes(error);
+    const fixes = getAutoFixes(error, opts);
     expect(fixes).toHaveLength(1);
     expect(fixes[0].title).toBe("Fix: Add 'import numpy as np'");
   });
@@ -49,9 +53,11 @@ describe("getAutoFixes", () => {
       sql_statement: "SELECT * FROM table",
     };
 
-    const fixes = getAutoFixes(error);
+    const fixes = getAutoFixes(error, opts);
     expect(fixes).toHaveLength(1);
-    expect(fixes[0].title).toBe("AI Fix: Fix the SQL error");
+    expect(fixes[0].title).toBe("Fix with AI");
+
+    expect(getAutoFixes(error, { aiEnabled: false })).toHaveLength(0);
   });
 
   it("returns no fixes for NameError with unknown import", () => {
@@ -62,7 +68,7 @@ describe("getAutoFixes", () => {
       raising_cell: null,
     };
 
-    expect(getAutoFixes(error)).toHaveLength(0);
+    expect(getAutoFixes(error, opts)).toHaveLength(0);
   });
 
   it("returns no fixes for other error types", () => {
@@ -71,6 +77,6 @@ describe("getAutoFixes", () => {
       msg: "invalid syntax",
     };
 
-    expect(getAutoFixes(error)).toHaveLength(0);
+    expect(getAutoFixes(error, opts)).toHaveLength(0);
   });
 });

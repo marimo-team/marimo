@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { WrenchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { notebookAtom, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { aiEnabledAtom } from "@/core/config/config";
 import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
@@ -22,7 +23,10 @@ export const AutoFixButton = ({
   className?: string;
 }) => {
   const { createNewCell } = useCellActions();
-  const autoFixes = errors.flatMap((error) => getAutoFixes(error));
+  const aiEnabled = useAtomValue(aiEnabledAtom);
+  const autoFixes = errors.flatMap((error) =>
+    getAutoFixes(error, { aiEnabled }),
+  );
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
 
   if (autoFixes.length === 0) {

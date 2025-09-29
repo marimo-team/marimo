@@ -19,7 +19,12 @@ export interface AutoFix {
   }) => Promise<void>;
 }
 
-export function getAutoFixes(error: MarimoError): AutoFix[] {
+export function getAutoFixes(
+  error: MarimoError,
+  opts: {
+    aiEnabled: boolean;
+  },
+): AutoFix[] {
   if (error.type === "multiple-defs") {
     return [
       {
@@ -62,6 +67,10 @@ export function getAutoFixes(error: MarimoError): AutoFix[] {
   }
 
   if (error.type === "sql-error") {
+    // Only show AI fix if AI is enabled
+    if (!opts.aiEnabled) {
+      return [];
+    }
     return [
       {
         title: "Fix with AI",
