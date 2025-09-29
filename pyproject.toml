@@ -548,7 +548,6 @@ multi_column = true
 performant_table_charts = true
 sql_linter = true
 sql_mode = true
-mcp_docs = true
 
 [tool.marimo.display]
 dataframes = "rich"
