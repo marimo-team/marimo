@@ -2,7 +2,7 @@
 
 # Anthropic
 
-- name: Claude 4.5 Opus
+- name: Claude 4.5 Sonnet
   model: claude-sonnet-4-5-20250929
   description: Latest Opus model with enhanced capabilities and performance improvements
   providers: [anthropic]
@@ -11,7 +11,7 @@
   
 - name: Claude 4.1 Opus
   model: claude-opus-4-1-20250805
-  description: Recent Opus model with enhanced capabilities and performance improvements
+  description: Latest Opus model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
