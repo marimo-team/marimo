@@ -119,10 +119,8 @@ export async function handleToolCall({
 }) {
   try {
     if (FRONTEND_TOOL_REGISTRY.has(toolCall.toolName)) {
-      Logger.warn("Invoking frontend tool:", toolCall.toolName);
       // Invoke the frontend tool
       const response = await FRONTEND_TOOL_REGISTRY.invoke(toolCall.toolName, toolCall.input);
-      Logger.warn("Frontend tool response:", response);
       addToolResult({
         tool: toolCall.toolName,
         toolCallId: toolCall.toolCallId,
