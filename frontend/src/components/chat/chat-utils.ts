@@ -10,6 +10,7 @@ import type { ChatMessage } from "@/plugins/impl/chat/types";
 import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
 import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
+import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 
 export function generateChatTitle(message: string): string {
   return message.length > 50 ? `${message.slice(0, 50)}...` : message;
@@ -117,15 +118,28 @@ export async function handleToolCall({
   };
 }) {
   try {
-    const response = await invokeAiTool({
-      toolName: toolCall.toolName,
-      arguments: toolCall.input,
-    });
-    addToolResult({
-      tool: toolCall.toolName,
-      toolCallId: toolCall.toolCallId,
-      output: response.result || response.error,
-    });
+    if (FRONTEND_TOOL_REGISTRY.has(toolCall.toolName)) {
+      Logger.warn("Invoking frontend tool:", toolCall.toolName);
+      // Invoke the frontend tool
+      const response = await FRONTEND_TOOL_REGISTRY.invoke(toolCall.toolName, toolCall.input);
+      Logger.warn("Frontend tool response:", response);
+      addToolResult({
+        tool: toolCall.toolName,
+        toolCallId: toolCall.toolCallId,
+        output: response,
+      });
+    } else {
+      // Invoke the backend/mcp tool
+      const response = await invokeAiTool({
+        toolName: toolCall.toolName,
+        arguments: toolCall.input,
+      });
+      addToolResult({
+        tool: toolCall.toolName,
+        toolCallId: toolCall.toolCallId,
+        output: response.result || response.error,
+      });
+    }
   } catch (error) {
     Logger.error("Tool call failed:", error);
     addToolResult({
