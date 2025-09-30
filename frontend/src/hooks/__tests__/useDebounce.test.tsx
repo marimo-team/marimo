@@ -68,7 +68,7 @@ describe("useDebounceControlledState", () => {
     vi.useRealTimers();
   });
 
-  it("should call onChange with initial value immediately", () => {
+  it("should not call onChange with initial value immediately", () => {
     const onChange = vi.fn();
     renderHook(() =>
       useDebounceControlledState({
@@ -78,7 +78,7 @@ describe("useDebounceControlledState", () => {
       }),
     );
 
-    expect(onChange).toHaveBeenCalledWith("initial");
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("should debounce subsequent onChange calls", () => {
