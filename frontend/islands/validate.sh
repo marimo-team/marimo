@@ -10,7 +10,7 @@ OUT_DIR=$(pwd)/dist
 echo "validating $OUT_DIR"
 
 echo "[validate: no process.env. variables in any of the js files]"
-grep -R "process.env." $(pwd)/dist
+grep -R "process\.env\." $(pwd)/dist
 if [ $? -eq 0 ]; then
   echo "process.env. variables found in js files"
   exit 1
