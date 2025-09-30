@@ -291,7 +291,7 @@ export function parseConfigOverrides(config: unknown): {} {
 }
 
 export function defaultUserConfig(): UserConfig {
-  return UserConfigSchema.parse({
+  const defaultConfig: Partial<Record<keyof UserConfig, unknown>> = {
     completion: {},
     save: {},
     formatting: {},
@@ -302,5 +302,6 @@ export function defaultUserConfig(): UserConfig {
     server: {},
     ai: {},
     package_management: {},
-  }) as unknown as UserConfig;
+  };
+  return UserConfigSchema.parse(defaultConfig) as UserConfig;
 }

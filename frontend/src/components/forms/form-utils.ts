@@ -4,11 +4,9 @@ import { z } from "zod";
 import { Logger } from "@/utils/Logger";
 import { isZodArray, isZodPipe, isZodTuple } from "@/utils/zod-utils";
 
-export function maybeUnwrap<T extends z.ZodType<unknown>>(
-  schema: T,
-): z.ZodType<unknown> {
+export function maybeUnwrap<T extends z.ZodType>(schema: T): z.ZodType {
   if ("unwrap" in schema) {
-    return (schema as unknown as z.ZodOptional).unwrap() as z.ZodType<unknown>;
+    return (schema as unknown as z.ZodOptional).unwrap() as z.ZodType;
   }
   return schema;
 }
@@ -76,18 +74,16 @@ export function getDefaults<TSchema extends z.ZodType<T>, T>(
   }
 
   return Object.fromEntries(
-    Object.entries(schema.shape).map(
-      ([key, value]: [string, z.ZodType<unknown>]) => {
-        return [key, getDefaultValue(value)];
-      },
-    ),
+    Object.entries(schema.shape).map(([key, value]: [string, z.ZodType]) => {
+      return [key, getDefaultValue(value)];
+    }),
   ) as T;
 }
 
 /**
  * Get the literal value of a union
  */
-export function getUnionLiteral<T extends z.ZodType<unknown>>(
+export function getUnionLiteral<T extends z.ZodType>(
   schema: T,
 ): z.ZodLiteral<string> {
   if (schema instanceof z.ZodLiteral) {
