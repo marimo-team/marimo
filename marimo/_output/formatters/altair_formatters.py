@@ -18,7 +18,6 @@ from marimo._plugins.ui._impl.altair_chart import (
 from marimo._plugins.ui._impl.charts.altair_transformer import (
     sanitize_nan_infs,
 )
-from marimo._utils.theme import get_current_theme
 
 LOGGER = marimo_logger()
 
@@ -84,13 +83,12 @@ class AltairFormatter(FormatterFactory):
             # If vegafusion is enabled, just wrap in altair_chart
             if alt.data_transformers.active.startswith("vegafusion"):
                 # Bug https://github.com/marimo-team/marimo/issues/6601. Vegafusion defaults to white background
-                # So, we set the background to black for dark mode
+                # So, we set the background to transparent
                 if (
                     chart._get("background") is alt.Undefined  # type: ignore
-                    and get_current_theme() == "dark"
                 ):
-                    LOGGER.debug("setting background to black")
-                    chart = chart.properties(background="black")
+                    LOGGER.debug("setting background to transparent")
+                    chart = chart.properties(background="transparent")
 
                 return (
                     "application/vnd.vega.v5+json",

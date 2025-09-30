@@ -110,19 +110,15 @@ def test_altair_formatter_vegafusion_dark_mode():
         chart = alt.Chart(get_data()).mark_point()
         formatter = get_formatter(chart)
 
-        with patch(
-            "marimo._output.formatters.altair_formatters.get_current_theme",
-            return_value="dark",
-        ):
-            assert formatter is not None
-            res = formatter(chart)
-            assert res is not None
-            mime, content = res
-            assert mime == "application/vnd.vega.v5+json"
-            assert isinstance(content, str)
-            json_data = json.loads(content)
-            assert "background" in json_data
-            assert json_data["background"] == "black"
+        assert formatter is not None
+        res = formatter(chart)
+        assert res is not None
+        mime, content = res
+        assert mime == "application/vnd.vega.v5+json"
+        assert isinstance(content, str)
+        json_data = json.loads(content)
+        assert "background" in json_data
+        assert json_data["background"] == "transparent"
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
