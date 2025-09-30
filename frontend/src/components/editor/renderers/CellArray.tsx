@@ -344,7 +344,7 @@ const AddCellButtons: React.FC<{
           isAiButtonOpen &&
             "w-full max-w-4xl shadow-lg shadow-(color:--blue-3)",
           className,
-          // Override parent opacity when AI button is open
+          // Always show the AI input when it's open
           isAiButtonOpen && "opacity-100",
         )}
       >
