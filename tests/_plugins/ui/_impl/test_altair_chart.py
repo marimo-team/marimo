@@ -9,7 +9,7 @@ from contextlib import redirect_stderr
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -665,7 +665,7 @@ def test_parse_spec_pandas() -> None:
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
     spec = _parse_spec(chart)
     # Replace data.url with a placeholder
-    spec["data"]["url"] = "_placeholder_"
+    spec["data"] = {"url": "_placeholder_", "format": spec["data"]["format"]}
     snapshot("parse_spec_pandas.txt", json.dumps(spec, indent=2))
 
 
@@ -673,11 +673,11 @@ def test_parse_spec_pandas() -> None:
 def test_parse_spec_narwhal() -> None:
     import altair as alt
 
-    data = nw.from_native(pd.DataFrame({"values": [1, 2, 3]}))
+    data = pd.DataFrame({"values": [1, 2, 3]})
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
     spec = _parse_spec(chart)
     # Replace data.url with a placeholder
-    spec["data"]["url"] = "_placeholder_"
+    spec["data"] = {"url": "_placeholder_", "format": spec["data"]["format"]}
     snapshot("parse_spec_narwhal.txt", json.dumps(spec, indent=2))
 
 
@@ -690,7 +690,7 @@ def test_parse_spec_polars() -> None:
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
     spec = _parse_spec(chart)
     # Replace data.url with a placeholder
-    spec["data"]["url"] = "_placeholder_"
+    spec["data"] = {"url": "_placeholder_", "format": spec["data"]["format"]}
     snapshot("parse_spec_polars.txt", json.dumps(spec, indent=2))
 
 

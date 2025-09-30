@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.narwhals_utils import (
-    assert_narwhals_dataframe,
+    assert_narwhals_dataframe_or_lazyframe,
     assert_narwhals_series,
     can_narwhalify,
     can_narwhalify_lazyframe,
@@ -54,10 +54,10 @@ def test_empty_df(df: IntoDataFrame) -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_assert_narwhals_dataframe(df: IntoDataFrame) -> None:
     df_wrapped = nw.from_native(df)
-    assert_narwhals_dataframe(df_wrapped)  # Should not raise
+    assert_narwhals_dataframe_or_lazyframe(df_wrapped)  # Should not raise
 
     with pytest.raises(ValueError, match="Unsupported dataframe type"):
-        assert_narwhals_dataframe([])
+        assert_narwhals_dataframe_or_lazyframe([])
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

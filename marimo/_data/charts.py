@@ -7,7 +7,7 @@ from datetime import time
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 
 from marimo._data.models import DataType
 from marimo._utils import assert_never
@@ -351,7 +351,9 @@ class DateChartBuilder(ChartBuilder):
         if not can_narwhalify(data, eager_only=True):
             return self.DEFAULT_DATE_FORMAT, self.DEFAULT_TIME_UNIT
 
-        df = nw.from_native(data, eager_only=True)
+        df: nw.DataFrame[Any] = nw.from_native(
+            data, pass_through=True, eager_only=True
+        )
 
         # Get min and max dates using narwhals
         min_date = df[column].min()

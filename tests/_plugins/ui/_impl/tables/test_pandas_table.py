@@ -7,7 +7,7 @@ from math import isnan
 from typing import Any
 from unittest.mock import Mock
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._data.models import ColumnStats
@@ -1031,7 +1031,7 @@ class TestPandasTableManager(unittest.TestCase):
         summary = manager.get_stats("B")
         assert summary.nulls == 3
         assert summary.total == 3
-        assert summary.unique is None
+        assert summary.unique == 1
 
     def test_dataframe_with_mixed_types(self) -> None:
         df = pd.DataFrame({"A": [1, "two", 3.0, True]})
