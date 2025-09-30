@@ -92,7 +92,6 @@ test("default UserConfig - empty", () => {
         "format_on_save": false,
       },
       "server": {},
-      "sharing": {},
     }
   `);
 });

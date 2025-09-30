@@ -199,7 +199,6 @@ export const UserConfigSchema = z
     display: {},
     experimental: {},
     server: {},
-    sharing: {},
     ai: {},
     package_management: {},
   }));
@@ -303,6 +302,5 @@ export function defaultUserConfig(): UserConfig {
     server: {},
     ai: {},
     package_management: {},
-    sharing: {},
   }) as unknown as UserConfig;
 }
