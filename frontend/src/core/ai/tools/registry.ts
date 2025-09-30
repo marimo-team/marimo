@@ -3,64 +3,40 @@
 import { type ZodObject, z } from "zod";
 import type { BaseTool } from "./base";
 import { testFrontendTool } from "./sample-tool";
+import { Memoize } from "typescript-memoize";
+import type { components } from "@marimo-team/marimo-api"
 
 export type AnyZodObject = ZodObject<z.ZodRawShape>;
 
-interface StoredTool {
-  /** Generic type for to avoid type errors */
-  name: string;
-  description: string;
-  schema: AnyZodObject;
-  outputSchema: AnyZodObject;
-  mode: CopilotMode[];
-  handler: (args: unknown) => Promise<unknown>;
-}
+// Generic type to avoid type errors
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type StoredTool = BaseTool<any, any>;
 
 /** should be the same as marimo/_config/config.py > CopilotMode */
 export type CopilotMode = "manual" | "ask";
 
-export interface FrontendToolDefinition {
-  /** should be the same as marimo/_server/ai/tools/types.py > ToolDefinition */
-  name: string;
-  description: string;
-  parameters: Record<string, unknown>;
+type ToolDefinition = components["schemas"]["ToolDefinition"];
+
+export interface FrontendToolDefinition extends ToolDefinition {
   source: "frontend";
-  mode: CopilotMode[];
 }
 
 export class FrontendToolRegistry {
   /** All registered tools */
   private tools = new Map<string, StoredTool>();
 
-  registerAll<TIn extends AnyZodObject, TOut extends AnyZodObject>(
-    tools: BaseTool<TIn, TOut>[],
+  constructor(
+    // Accept any concrete tool generics; we normalize internally
+    tools: StoredTool[] = [],
   ) {
-    tools.forEach((tool) => {
-      this.register(tool);
-    });
-  }
-
-  private register<TIn extends AnyZodObject, TOut extends AnyZodObject>(
-    tool: BaseTool<TIn, TOut>,
-  ) {
-    // Make type generic to avoid type errors
-    // Let invoke() handle runtime type checking
-    const stored: StoredTool = {
-      name: tool.name,
-      description: tool.description,
-      schema: tool.schema,
-      outputSchema: tool.outputSchema,
-      mode: tool.mode,
-      handler: tool.handler as (args: unknown) => Promise<unknown>,
-    };
-    this.tools.set(tool.name, stored);
+    this.tools = new Map(tools.map(tool => [tool.name, tool]))
   }
 
   has(toolName: string) {
     return this.tools.has(toolName);
   }
 
-  private getTool(toolName: string): StoredTool {
+  private getToolOrThrow(toolName: string): StoredTool {
     const tool = this.tools.get(toolName);
     if (!tool) {
       throw new Error(`Tool ${toolName} not found`);
@@ -72,7 +48,7 @@ export class FrontendToolRegistry {
     toolName: TName,
     rawArgs: unknown,
   ): Promise<unknown> {
-    const tool = this.getTool(toolName);
+    const tool = this.getToolOrThrow(toolName);
     const handler = tool.handler;
     const inputSchema = tool.schema;
     const outputSchema = tool.outputSchema;
@@ -112,6 +88,7 @@ export class FrontendToolRegistry {
     }
   }
 
+  @Memoize()
   getToolSchemas(): FrontendToolDefinition[] {
     return [...this.tools.values()].map((tool) => ({
       name: tool.name,
@@ -123,10 +100,7 @@ export class FrontendToolRegistry {
   }
 }
 
-export const FRONTEND_TOOL_REGISTRY = new FrontendToolRegistry();
-
-/* Register all the frontend tools */
-FRONTEND_TOOL_REGISTRY.registerAll([
+export const FRONTEND_TOOL_REGISTRY = new FrontendToolRegistry([
   testFrontendTool,
   // ADD MORE TOOLS HERE
 ]);
