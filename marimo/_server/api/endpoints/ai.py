@@ -50,7 +50,6 @@ from marimo._server.models.models import (
 )
 from marimo._server.responses import StructResponse
 from marimo._server.router import APIRouter
-from marimo._server.ai.config import _get_tools
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -212,21 +211,12 @@ async def ai_chat(
     app_state.require_current_session()
     session_id = app_state.require_current_session_id()
     config = app_state.app_config_manager.get_config(hide_secrets=False)
-
-    # Get the AI config
-    ai_config = get_ai_config(config)
-    custom_rules = ai_config.get("rules", None)
-
-    # Get the max tokens
-    max_tokens = get_max_tokens(config)
-
-    # Get the bodybody and values
     body = await parse_request(
         request, cls=ChatRequest, allow_unknown_keys=True
     )
+    ai_config = get_ai_config(config)
+    custom_rules = ai_config.get("rules", None)
     messages = body.messages
-    frontend_tools = body.tools
-    model = body.model or get_chat_model(ai_config)
 
     # Get the system prompt
     system_prompt = get_chat_system_prompt(
@@ -237,20 +227,19 @@ async def ai_chat(
         session_id=session_id,
     )
 
-    # Get the provider config
-    provider_config = AnyProviderConfig.for_model(model, ai_config, frontend_tools)
+    max_tokens = get_max_tokens(config)
 
-    # Get the provider
+    model = body.model or get_chat_model(ai_config)
     provider = get_completion_provider(
-        provider_config,
+        AnyProviderConfig.for_model(model, ai_config),
         model=model,
     )
-
-    # Get the response
+    additional_tools = body.tools or []
     response = await provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,
         max_tokens=max_tokens,
+        additional_tools=additional_tools,
     )
 
     return StreamingResponse(
