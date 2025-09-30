@@ -1,8 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { AnyZodObject } from "zod";
+import { type ZodObject, z } from "zod";
 import type { BaseTool } from "./base";
 import { testFrontendTool } from "./sample-tool";
+
+export type AnyZodObject = ZodObject<z.ZodRawShape>;
 
 interface StoredTool {
   /** Generic type for to avoid type errors */
@@ -17,18 +19,11 @@ interface StoredTool {
 /** should be the same as marimo/_config/config.py > CopilotMode */
 export type CopilotMode = "manual" | "ask";
 
-interface FunctionParametersJSON {
-  type: "object";
-  properties: Record<string, unknown>;
-  required?: string[];
-  additionalProperties?: boolean;
-};
-
 export interface FrontendToolDefinition {
   /** should be the same as marimo/_server/ai/tools/types.py > ToolDefinition */
   name: string;
   description: string;
-  parameters: FunctionParametersJSON;
+  parameters: Record<string, unknown>;
   source: "frontend";
   mode: CopilotMode[];
 }
@@ -84,7 +79,8 @@ export class FrontendToolRegistry {
       // Parse input args
       const inputResponse = await inputSchema.safeParseAsync(rawArgs);
       if (inputResponse.error) {
-        throw new Error(`Tool ${toolName} returned invalid input: ${inputResponse.error}`);
+        const strError = z.prettifyError(inputResponse.error);
+        throw new Error(`Tool ${toolName} returned invalid input: ${strError}`);
       }
       const args = inputResponse.data;
 
@@ -94,7 +90,8 @@ export class FrontendToolRegistry {
       // Parse output
       const response = await outputSchema.safeParseAsync(rawOutput);
       if (response.error) {
-        throw new Error(`Tool ${toolName} returned invalid output: ${response.error}`);
+        const strError = z.prettifyError(response.error);
+        throw new Error(`Tool ${toolName} returned invalid output: ${strError}`);
       }
       const output = response.data;
       return output;
@@ -115,36 +112,10 @@ export class FrontendToolRegistry {
     return [...this.tools.values()].map((tool) => ({
       name: tool.name,
       description: tool.description,
-      parameters: this.schemaToOpenAPI(tool.schema),
+      parameters: z.toJSONSchema(tool.schema),
       source: "frontend",
       mode: tool.mode,
     }));
-  }
-
-  private schemaToOpenAPI(schema: AnyZodObject): FunctionParametersJSON {
-    // TODO: use zod-to-json-schema npm package to convert the schema to a JSON schema instead of doing it manually
-    const shape = schema.shape;
-    const properties: Record<string, unknown> = {};
-    const required: string[] = [];
-    for (const key of Object.keys(shape)) {
-      const field = shape[key];
-      // Minimal placeholder schema; providers mainly require object/properties/required
-      properties[key] = {};
-      // Mark required if not optional
-      // zod exposes .isOptional() on schemas; guard in case of older versions
-      const isOptional = typeof (field as unknown as { isOptional?: () => boolean }).isOptional === "function"
-        ? (field as unknown as { isOptional: () => boolean }).isOptional()
-        : false;
-      if (!isOptional) {
-        required.push(key);
-      }
-    }
-    return {
-      type: "object",
-      properties,
-      required: required.length > 0 ? required : undefined,
-      additionalProperties: false,
-    };
   }
 }
 

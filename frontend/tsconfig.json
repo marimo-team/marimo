@@ -23,7 +23,9 @@
     /* Style */
     "allowJs": true /* needed for storybook */,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      /* Pin zod to root (v4); v3 exists via @modelcontextprotocol/sdk */
+      "zod": ["./node_modules/zod"]
     },
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": true,

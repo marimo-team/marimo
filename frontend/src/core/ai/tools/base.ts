@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { AnyZodObject, z } from "zod";
+import type { z } from "zod";
+import type { AnyZodObject } from "./registry";
 
 /**
  * Minimal base class for frontend tools.
