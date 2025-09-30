@@ -312,6 +312,7 @@ def create_asgi_app(
             e.g. if the server is updated, the client will be prompted to reload.
         session_ttl (int, optional): Time-to-live in seconds for sessions. If not provided, uses default TTL (2 minutes).
         asset_url (str, optional): Custom asset URL for loading static resources. Can include {version} placeholder.
+            e.g. https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist
 
     Returns:
         ASGIAppBuilder: A builder object to create multiple ASGI apps
