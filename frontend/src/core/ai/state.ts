@@ -86,7 +86,7 @@ export const activeChatAtom = atom(
     }
     return state.chats.get(state.activeChatId);
   },
-  (get, set, chatId: ChatId | null) => {
+  (_get, set, chatId: ChatId | null) => {
     set(chatStateAtom, (prev) => ({
       ...prev,
       activeChatId: chatId,

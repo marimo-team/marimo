@@ -1,8 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
 import { invariant } from "@/utils/invariant";
+import { cellDataAtom } from "../cells/cells";
 import type { CellId } from "../cells/ids";
+import { LanguageAdapters } from "../codemirror/language/LanguageAdapters";
+import { dataSourceConnectionsAtom } from "../datasets/data-source-connections";
 import type { MarimoError } from "../kernel/messages";
+import { store } from "../state/jotai";
 import { wrapInFunction } from "./utils";
 
 export interface AutoFix {
@@ -71,14 +75,27 @@ export function getAutoFixes(
     if (!opts.aiEnabled) {
       return [];
     }
+
+    // Get the SQL statement.
+    // Get the datasource schema.
+    // For DuckDB, referenced tables?
     return [
       {
         title: "Fix with AI",
         description: "Fix the SQL statement",
         onFix: async (ctx) => {
+          const cellData = store.get(cellDataAtom(ctx.cellId));
+          const code = cellData?.code;
+          const [_sqlStatement, _, metadata] =
+            LanguageAdapters.sql.transformIn(code);
+
+          const datasourceSchema = store
+            .get(dataSourceConnectionsAtom)
+            .connectionsMap.get(metadata.engine);
+
           ctx.setAiCompletionCell?.({
             cellId: ctx.cellId,
-            initialPrompt: `Fix the SQL statement: ${error.msg}`,
+            initialPrompt: `Fix the SQL statement: ${error.msg}.`,
           });
         },
       },
