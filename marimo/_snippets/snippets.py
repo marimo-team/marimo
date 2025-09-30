@@ -9,7 +9,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._ast.load import load_app
-from marimo._config.manager import get_default_config_manager
+from marimo._config.config import MarimoConfig
 from marimo._utils.paths import marimo_package_path
 
 LOGGER = _loggers.marimo_logger()
@@ -30,10 +30,10 @@ class Snippets(msgspec.Struct, rename="camel"):
     snippets: list[Snippet]
 
 
-async def read_snippets() -> Snippets:
+async def read_snippets(config: MarimoConfig) -> Snippets:
     snippets: list[Snippet] = []
 
-    for file in read_snippet_filenames_from_config():
+    for file in read_snippet_filenames_from_config(config):
         app = load_app(file)
         assert app is not None
         sections: list[SnippetSection] = []
@@ -51,14 +51,14 @@ async def read_snippets() -> Snippets:
                 if not title and "# " in code:
                     title = get_title_from_code(code)
 
-                ret = cell.run()
-                if isinstance(ret, Awaitable):
-                    output, _defs = await ret
-                else:
-                    output, _defs = ret
-                sections.append(
-                    SnippetSection(html=output.text, id=cell._cell.cell_id)
-                )
+                    ret = cell.run()
+                    if isinstance(ret, Awaitable):
+                        output, _defs = await ret
+                    else:
+                        output, _defs = ret
+                    sections.append(
+                        SnippetSection(html=output.text, id=cell._cell.cell_id)
+                    )
             else:
                 sections.append(
                     SnippetSection(code=code, id=cell._cell.cell_id)
@@ -102,9 +102,10 @@ def is_markdown(code: str) -> bool:
     return code.strip().startswith("mo.md")
 
 
-def read_snippet_filenames_from_config() -> Generator[str, Any, None]:
+def read_snippet_filenames_from_config(
+    config: MarimoConfig,
+) -> Generator[str, Any, None]:
     # Get custom snippets path from config if present
-    config = get_default_config_manager(current_path=None).get_config()
     custom_paths = config.get("snippets", {}).get("custom_paths", [])
     include_default_snippets = config.get("snippets", {}).get(
         "include_default_snippets", True

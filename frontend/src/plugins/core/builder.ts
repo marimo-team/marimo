@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { JSX } from "react";
-import type { ZodType, ZodTypeDef } from "zod";
+import type { ZodType } from "zod";
 import type { IPlugin, IPluginProps } from "../types";
 import type { FunctionSchemas, PluginFunctions } from "./rpc";
 
@@ -19,7 +19,7 @@ export function createPlugin<S>(
     /**
      * Data schema for the plugin.
      */
-    withData<D>(validator: ZodType<D, ZodTypeDef, unknown>) {
+    withData<D>(validator: ZodType<D>) {
       return {
         /**
          * Functions that the plugin can call.

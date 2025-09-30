@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import TypeVar, cast
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 from narwhals.typing import IntoDataFrame
 
 INDEX_COLUMN_NAME = "_marimo_row_id"

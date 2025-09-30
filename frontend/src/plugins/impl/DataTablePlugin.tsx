@@ -192,6 +192,7 @@ interface Data<T> {
   maxColumns: number | "all";
   hasStableRowId: boolean;
   lazy: boolean;
+  cellHoverTexts?: Record<string, Record<string, string | null>> | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -214,6 +215,7 @@ type DataTableFunctions = {
     data: TableData<T>;
     total_rows: number | TooManyRows;
     cell_styles?: CellStyleState | null;
+    cell_hover_texts?: Record<string, Record<string, string | null>> | null;
   }>;
   get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
@@ -222,6 +224,10 @@ type DataTableFunctions = {
 };
 
 type S = (number | string | { rowId: string; columnName?: string })[];
+
+const cellHoverTextSchema = z
+  .record(z.string(), z.record(z.string(), z.string().nullable()))
+  .optional();
 
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(
@@ -252,17 +258,20 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
       textJustifyColumns: z
-        .record(z.enum(["left", "center", "right"]))
+        .record(z.string(), z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
-      headerTooltip: z.record(z.string()).optional(),
+      headerTooltip: z.record(z.string(), z.string()).optional(),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),
       maxHeight: z.number().optional(),
-      cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
+      cellStyles: z
+        .record(z.string(), z.record(z.string(), z.object({}).passthrough()))
+        .optional(),
       hoverTemplate: z.string().optional(),
+      cellHoverTexts: cellHoverTextSchema,
       // Whether to load the data lazily.
       lazy: z.boolean().default(false),
       // If lazy, this will preload the first page of data
@@ -303,8 +312,12 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           data: z.union([z.string(), z.array(z.object({}).passthrough())]),
           total_rows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
           cell_styles: z
-            .record(z.record(z.object({}).passthrough()))
+            .record(
+              z.string(),
+              z.record(z.string(), z.object({}).passthrough()),
+            )
             .nullable(),
+          cell_hover_texts: cellHoverTextSchema,
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(
@@ -352,6 +365,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
+            cellHoverTexts={props.data.cellHoverTexts}
           />
         </LazyDataTableComponent>
       </TableProviders>
@@ -393,6 +407,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
   hoverTemplate?: string | null;
+  cellHoverTexts?: Record<string, Record<string, string | null>> | null;
   toggleDisplayHeader?: () => void;
   host: HTMLElement;
   cellId?: CellId | null;
@@ -461,6 +476,7 @@ export const LoadingDataTableComponent = memo(
       rows: T[];
       totalRows: number | TooManyRows;
       cellStyles: CellStyleState | undefined | null;
+      cellHoverTexts?: Record<string, Record<string, string | null>> | null;
     }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
@@ -471,6 +487,7 @@ export const LoadingDataTableComponent = memo(
       let tableData = props.data;
       let totalRows = props.totalRows;
       let cellStyles = props.cellStyles;
+      let cellHoverTexts = props.cellHoverTexts;
 
       const pageSizeChanged = paginationState.pageSize !== props.pageSize;
 
@@ -521,12 +538,14 @@ export const LoadingDataTableComponent = memo(
         tableData = searchResults.data;
         totalRows = searchResults.total_rows;
         cellStyles = searchResults.cell_styles || {};
+        cellHoverTexts = searchResults.cell_hover_texts || {};
       }
       tableData = await loadTableData(tableData);
       return {
         rows: tableData,
         totalRows: totalRows,
         cellStyles,
+        cellHoverTexts,
       };
     }, [
       sorting,
@@ -537,6 +556,7 @@ export const LoadingDataTableComponent = memo(
       props.data,
       props.totalRows,
       props.lazy,
+      props.cellHoverTexts,
       paginationState.pageSize,
       paginationState.pageIndex,
     ]);
@@ -652,6 +672,12 @@ export const LoadingDataTableComponent = memo(
         paginationState={paginationState}
         setPaginationState={setPaginationState}
         cellStyles={data?.cellStyles ?? props.cellStyles}
+        cellHoverTexts={
+          (data?.cellHoverTexts ?? props.cellHoverTexts) as Record<
+            string,
+            Record<string, string | null>
+          > | null
+        }
         toggleDisplayHeader={toggleDisplayHeader}
         getRow={getRow}
         cellId={cellId}
@@ -718,6 +744,7 @@ const DataTableComponent = ({
   get_row_ids,
   cellStyles,
   hoverTemplate,
+  cellHoverTexts,
   toggleDisplayHeader,
   calculate_top_k_rows,
   preview_column,
@@ -920,6 +947,7 @@ const DataTableComponent = ({
             cellSelection={cellSelection}
             cellStyling={cellStyles}
             hoverTemplate={hoverTemplate}
+            cellHoverTexts={cellHoverTexts}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
             searchQuery={searchQuery}

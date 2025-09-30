@@ -53,12 +53,12 @@ export const columnIdRenderer = <T extends FieldValues>(): FormRenderer<
   string
 > => ({
   isMatch: (schema: z.ZodType): schema is z.ZodString => {
-    const { special } = FieldOptions.parse(schema._def.description || "");
+    const { special } = FieldOptions.parse(schema.description || "");
     return special === "column_id";
   },
   Component: ({ schema, form, path }) => {
     const columns = React.use(ColumnInfoContext);
-    const { label, description } = FieldOptions.parse(schema._def.description);
+    const { label, description } = FieldOptions.parse(schema.description);
 
     return (
       <FormField
@@ -123,14 +123,16 @@ export const multiColumnIdRenderer = <T extends FieldValues>(): FormRenderer<
 > => ({
   isMatch: (schema: z.ZodType): schema is z.ZodArray<z.ZodString> => {
     if (schema instanceof z.ZodArray) {
-      const childType = schema._def.type;
-      const { special } = FieldOptions.parse(childType._def.description || "");
+      const childType = schema.element;
+      const description =
+        childType instanceof z.ZodType ? childType.description : "";
+      const { special } = FieldOptions.parse(description || "");
       return special === "column_id";
     }
     return false;
   },
   Component: ({ schema, form, path }) => {
-    const { label } = FieldOptions.parse(schema._def.description);
+    const { label } = FieldOptions.parse(schema.description);
     return (
       <MultiColumnFormField
         schema={schema}
@@ -158,7 +160,7 @@ const MultiColumnFormField = ({
   itemLabel?: string;
 }) => {
   const columns = React.use(ColumnInfoContext);
-  const { description } = FieldOptions.parse(schema._def.description);
+  const { description } = FieldOptions.parse(schema.description);
   const placeholder = itemLabel
     ? `Select ${itemLabel.toLowerCase()}`
     : undefined;
@@ -214,14 +216,14 @@ export const columnValuesRenderer = <T extends FieldValues>(): FormRenderer<
 > => ({
   isMatch: (schema: z.ZodType): schema is z.ZodArray<z.ZodString> => {
     if (schema instanceof z.ZodArray) {
-      const { special } = FieldOptions.parse(schema._def.description || "");
+      const { special } = FieldOptions.parse(schema.description || "");
       return special === "column_values";
     }
     return false;
   },
   Component: ({ schema, form, path }) => {
     const { label, description, placeholder } = FieldOptions.parse(
-      schema._def.description,
+      schema.description,
     );
     const column = React.use(ColumnNameContext);
     const fetchValues = React.use(ColumnFetchValuesContext);
@@ -296,7 +298,7 @@ export const multiColumnValuesRenderer = <
   T extends FieldValues,
 >(): FormRenderer<T> => ({
   isMatch: (schema: z.ZodType): schema is z.ZodArray<z.ZodString> => {
-    const { special } = FieldOptions.parse(schema._def.description || "");
+    const { special } = FieldOptions.parse(schema.description || "");
     return special === "column_values" && schema instanceof z.ZodArray;
   },
   Component: ({ schema, form, path }) => {
@@ -367,7 +369,7 @@ export const filterFormRenderer = <T extends FieldValues>(): FormRenderer<
 > => ({
   isMatch: (schema: z.ZodType): schema is z.ZodObject<{}> => {
     if (schema instanceof z.ZodObject) {
-      const { special } = FieldOptions.parse(schema._def.description || "");
+      const { special } = FieldOptions.parse(schema.description || "");
       return special === "column_filter";
     }
     return false;
@@ -392,10 +394,10 @@ const ColumnFilterForm = <T extends FieldValues>({
   form: UseFormReturn<any>;
   path: Path<any>;
 }) => {
-  const { description } = FieldOptions.parse(schema._def.description);
+  const { description } = FieldOptions.parse(schema.description);
   const columns = React.use(ColumnInfoContext);
 
-  const columnIdSchema = Objects.entries(schema._def.shape()).find(
+  const columnIdSchema = Objects.entries(schema.shape).find(
     ([key]) => key === "column_id",
   )?.[1] as unknown as z.ZodString;
 

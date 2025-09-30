@@ -521,7 +521,9 @@ exports[`renderZodSchema > should render a form filter_rows 1`] = `
       >
         <label
           class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        />
+        >
+          Value
+        </label>
         <div
           class="flex flex-col gap-2 min-w-[220px]"
         >

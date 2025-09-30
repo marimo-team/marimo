@@ -1168,7 +1168,11 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
           ))}
         </Tree>
       </div>
-      <AddModelForm form={form} customModels={customModels} />
+      <AddModelForm
+        form={form}
+        customModels={customModels}
+        onSubmit={onSubmit}
+      />
     </SettingGroup>
   );
 };
@@ -1176,7 +1180,8 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 export const AddModelForm: React.FC<{
   form: UseFormReturn<UserConfig>;
   customModels: QualifiedModelId[];
-}> = ({ form, customModels }) => {
+  onSubmit: (values: UserConfig) => void;
+}> = ({ form, customModels, onSubmit }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
@@ -1209,6 +1214,7 @@ export const AddModelForm: React.FC<{
     );
 
     form.setValue("ai.models.custom_models", [newModel.id, ...customModels]);
+    onSubmit(form.getValues());
     resetForm();
 
     // Show model added message for 2 seconds

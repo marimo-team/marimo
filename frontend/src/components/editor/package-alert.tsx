@@ -15,6 +15,7 @@ import {
 import type React from "react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import type { z } from "zod";
 import {
   Form,
   FormControl,
@@ -359,8 +360,10 @@ const PackageManagerForm: React.FC = () => {
   const { saveUserConfig } = useRequestClient();
 
   // Create form
-  const form = useForm<UserConfig>({
-    resolver: zodResolver(UserConfigSchema),
+  const form = useForm({
+    resolver: zodResolver(
+      UserConfigSchema as unknown as z.ZodType<unknown, UserConfig>,
+    ),
     defaultValues: config,
   });
 

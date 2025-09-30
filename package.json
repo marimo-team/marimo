@@ -19,10 +19,20 @@
     "node": ">=20",
     "pnpm": ">=9.15.9"
   },
+  "packageManager": "pnpm@10.15.1",
   "pnpm": {
     "patchedDependencies": {
       "react-plotly.js": "patches/react-plotly.js.patch"
+    },
+    "overrides": {
+      "react": "^19.1.0",
+      "react-dom": "^19.1.0",
+      "vite": "npm:rolldown-vite@latest"
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "vite": "7"
+      }
     }
-  },
-  "packageManager": "pnpm@10.15.1"
+  }
 }

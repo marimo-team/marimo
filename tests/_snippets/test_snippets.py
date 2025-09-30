@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from marimo._config.config import merge_default_config
 from marimo._snippets.snippets import (
     get_title_from_code,
     read_snippet_filenames,
@@ -11,7 +12,7 @@ from marimo._utils.platform import is_windows
 
 
 async def test_snippets() -> None:
-    snippets = await read_snippets()
+    snippets = await read_snippets(merge_default_config({}))
     assert len(snippets.snippets) > 0
     # All have titles
     for s in snippets.snippets:

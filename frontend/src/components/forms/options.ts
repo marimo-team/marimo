@@ -6,6 +6,7 @@ export interface FieldOptions {
   disabled?: boolean;
   hidden?: boolean;
   direction?: "row" | "column" | "two-columns";
+  minLength?: number;
   /**
    * Only valid for string fields
    */

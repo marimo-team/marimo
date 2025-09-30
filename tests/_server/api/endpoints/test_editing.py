@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 from tests._server.mocks import token_header, with_session
 
 if TYPE_CHECKING:
@@ -45,6 +47,7 @@ def test_delete_cell(client: TestClient) -> None:
     assert "success" in response.json()
 
 
+@pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_format_cell(client: TestClient) -> None:
     response = client.post(

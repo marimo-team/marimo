@@ -41,7 +41,7 @@
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@glideapps/glide-data-grid": "6.0.4-alpha16",
-    "@hookform/resolvers": "^3.10.0",
+    "@hookform/resolvers": "^5.2.2",
     "@img-comparison-slider/react": "^8.0.2",
     "@internationalized/date": "^3.9.0",
     "@lezer/common": "^1.2.3",
@@ -170,7 +170,7 @@
     "vscode-jsonrpc": "^8.2.1",
     "vscode-languageserver-protocol": "^3.17.5",
     "web-vitals": "^4.2.4",
-    "zod": "^3.25.76"
+    "zod": "^4.1.11"
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
@@ -178,7 +178,7 @@
     "start": "vite",
     "dev": "vite",
     "build:watch": "vite build --watch --outDir ../marimo/_static",
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build",
+    "build": "cross-env vite build",
     "test": "vitest",
     "typecheck": "tsgo",
     "lint": "run-s lint:biome lint:eslint lint:stylelint",
@@ -198,8 +198,7 @@
     "react-dom": "^17 || ^18 || ^19"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.18.6",
-    "@babel/plugin-proposal-decorators": "^7.28.0",
+    "@babel/plugin-proposal-decorators": "^7.27.1",
     "@babel/preset-typescript": "^7.25.9",
     "@biomejs/biome": "2.2.2",
     "@codecov/vite-plugin": "^1.9.1",
@@ -220,8 +219,7 @@
     "@types/timestring": "^6.0.5",
     "@typescript-eslint/eslint-plugin": "^7.15.0",
     "@typescript-eslint/parser": "^7.15.0",
-    "@vitejs/plugin-react": "^4.7.0",
-    "@vitejs/plugin-react-swc": "^3.11.0",
+    "@vitejs/plugin-react": "^5.0.4",
     "babel-plugin-react-compiler": "19.1.0-rc.3",
     "blob-polyfill": "^7.0.20220408",
     "cross-env": "^7.0.3",
@@ -246,10 +244,9 @@
     "stylelint": "^16.23.1",
     "stylelint-config-standard": "^36.0.1",
     "tailwindcss": "^4.1.13",
-    "vite": "^6.3.6",
+    "vite": "npm:rolldown-vite@^7.1.13",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.5.0",
-    "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4"
   }
 }

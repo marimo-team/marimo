@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import type { ZodType, ZodTypeDef } from "zod";
+import type { ZodType } from "zod";
 
 export type PluginFunction<REQ = any, RES = any> = (args: REQ) => Promise<RES>;
 
@@ -14,12 +14,12 @@ export type PluginFunctions = Record<string, PluginFunction>;
 export type ExtractInputSchema<F extends PluginFunction> = F extends (
   args: infer REQ,
 ) => Promise<any>
-  ? ZodType<REQ, ZodTypeDef, unknown>
+  ? ZodType<REQ>
   : never;
 export type ExtractOutputSchema<F extends PluginFunction> = F extends (
   args: any,
 ) => Promise<infer RES>
-  ? ZodType<RES, ZodTypeDef, unknown>
+  ? ZodType<RES>
   : never;
 
 /**
@@ -42,9 +42,9 @@ export type FunctionSchemas<F extends PluginFunctions> = {
  * RPC builder for plugin functions.
  */
 export const rpc = {
-  input<I>(inputSchema: ZodType<I, ZodTypeDef, unknown>) {
+  input<I>(inputSchema: ZodType<I>) {
     return {
-      output<O>(outputSchema: ZodType<O, ZodTypeDef, unknown>) {
+      output<O>(outputSchema: ZodType<O>) {
         return {
           input: inputSchema,
           output: outputSchema,

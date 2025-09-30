@@ -9,6 +9,7 @@ import {
 } from "../config";
 import {
   AppConfigSchema,
+  defaultUserConfig,
   type UserConfig,
   UserConfigSchema,
 } from "../config-schema";
@@ -40,7 +41,7 @@ test("another AppConfig", () => {
 });
 
 test("default UserConfig - empty", () => {
-  const defaultConfig = UserConfigSchema.parse({});
+  const defaultConfig = defaultUserConfig();
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
