@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { components } from "@marimo-team/marimo-api";
+import { Memoize } from "typescript-memoize";
 import { type ZodObject, z } from "zod";
 import type { BaseTool } from "./base";
 import { testFrontendTool } from "./sample-tool";
-import { Memoize } from "typescript-memoize";
-import type { components } from "@marimo-team/marimo-api"
 
 export type AnyZodObject = ZodObject<z.ZodRawShape>;
 
@@ -29,7 +29,7 @@ export class FrontendToolRegistry {
     // Accept any concrete tool generics; we normalize internally
     tools: StoredTool[] = [],
   ) {
-    this.tools = new Map(tools.map(tool => [tool.name, tool]))
+    this.tools = new Map(tools.map((tool) => [tool.name, tool]));
   }
 
   has(toolName: string) {
