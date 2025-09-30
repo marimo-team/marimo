@@ -154,7 +154,7 @@ def sanitize_nan_infs(data: Any) -> Any:
     """Sanitize NaN and Inf values in Dataframes for JSON serialization."""
     if can_narwhalify(data):
         narwhals_data = nw.from_native(data)
-        is_prev_lazy = isinstance(narwhals_data, nw.LazyFrame)
+        is_prev_lazy = is_narwhals_lazyframe(narwhals_data)
 
         # Convert to lazy for optimization if not already lazy
         if not is_prev_lazy:

@@ -41,8 +41,7 @@ snapshot = snapshotter(__file__)
 SUPPORTED_LIBS: list[DFType] = [
     "pandas",
     "polars",
-    # TODO: Either we can import narwhals `main` or wait for v0.1.0
-    # "ibis",
+    "ibis",
     "lazy-polars",
     "pyarrow",
 ]
@@ -362,6 +361,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             mean=2.0,
             median=2.0,
             std=1.0,
+            unique=3,
             p5=1.0,
             p25=2.0,
             p75=3.0,
@@ -459,6 +459,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             max=5.5,
             mean=3.5,
             median=3.5,
+            unique=5,
             std=1.5811388300841898,
             p5=1.5,
             p25=2.5,
@@ -867,7 +868,6 @@ def test_to_csv(df: Any) -> None:
             "B": ["a", "b", "c"],
             "C": [1.0, 2.0, 3.0],
         },
-        exclude=["ibis", "duckdb"],
     ),
 )
 def test_to_parquet(df: Any) -> None:
@@ -922,7 +922,7 @@ def test_empty_dataframe(df: Any) -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": [None, None, None]}, exclude=["ibis", "duckdb"]
+        {"A": [1, 2, 3], "B": [None, None, None]}, exclude=["duckdb"]
     ),
 )
 def test_dataframe_with_all_null_column(df: Any) -> None:
@@ -1002,7 +1002,6 @@ def test_get_summary_all_types() -> None:
             "string": ["a", "b", "b", "c", "d", "d", "e"],
             "boolean": [True, False, False, True, False, False, True],
         },
-        exclude=["ibis", "duckdb"],
         strict=False,
     ),
 )
@@ -1093,7 +1092,7 @@ def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
                 datetime.date(2021, 1, 1),
             ],
         },
-        exclude=["ibis", "duckdb"],
+        exclude=["ibis"],
     ),
 )
 class TestGetBinValuesTemporal:
@@ -1216,9 +1215,7 @@ class TestGetBinValuesTemporal:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes(
-        {"A": ["apple", "banana", "cherry"]}, exclude=["ibis", "duckdb"]
-    ),
+    create_dataframes({"A": ["apple", "banana", "cherry"]}),
 )
 def test_search_with_regex(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
@@ -1229,7 +1226,7 @@ def test_search_with_regex(df: Any) -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"A": [3, 1, None, 2]}, exclude=["ibis", "duckdb"]),
+    create_dataframes({"A": [3, 1, None, 2]}),
 )
 def test_sort_values_with_nulls(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
@@ -1369,19 +1366,6 @@ def test_calculate_top_k_rows(df: Any) -> None:
     result = manager.calculate_top_k_rows("A", 2)
     normalized_result = _normalize_result(result)
     assert normalized_result == [(3, 3), (None, 2)]
-
-
-@pytest.mark.skipif(
-    not DependencyManager.ibis.has(),
-    reason="Ibis not installed",
-)
-def test_calculate_top_k_rows_metadata_only_frame() -> None:
-    import ibis
-
-    df = ibis.memtable({"A": [1, 2, 3, 3, None, None]})
-    manager = NarwhalsTableManager.from_dataframe(df)
-    result = manager.calculate_top_k_rows("A", 10)
-    assert result == [(None, 2), (3, 2), (1, 1), (2, 1)]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -1586,10 +1570,7 @@ def test_calculate_top_k_rows_caching(df: Any) -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes(
-        {"name": ["Alice", "Eve", None], "age": [25, 35, None]},
-        exclude=["ibis", "duckdb"],
-    ),
+    create_dataframes({"name": ["Alice", "Eve", None], "age": [25, 35, None]}),
 )
 def test_calculate_top_k_rows_cache_invalidation(df: Any) -> None:
     """Test that cache is properly invalidated when data changes."""

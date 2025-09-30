@@ -611,7 +611,7 @@ class TestPandasTableManager(unittest.TestCase):
         assert summary == ColumnStats(
             total=3,
             nulls=0,
-            unique=None,
+            unique=3,
             min=1.0,
             max=3.0,
             mean=2.0,

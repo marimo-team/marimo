@@ -952,24 +952,28 @@ class table(
                     )
 
                 # For boolean columns, we can drop the column since we use stats
-                column_type = self._manager.get_field_type(column)
-                if column_type[0] == "boolean":
+                (column_type, external_type) = self._manager.get_field_type(
+                    column
+                )
+                if column_type == "boolean":
                     data = data.drop_columns([column])
 
-                # Bin values are only supported for numeric and temporal columns
-                if column_type[0] not in [
-                    "integer",
-                    "number",
-                    "date",
-                    "datetime",
-                    "time",
-                    "string",
-                ]:
-                    continue
+                # Handle columns with all nulls first
+                # These get empty bins regardless of type
+                if statistic and statistic.nulls == total_rows:
+                    try:
+                        bin_values[column] = []
+                        data = data.drop_columns([column])
+                        continue
+                    except BaseException as e:
+                        LOGGER.warning(
+                            "Failed to drop all-null column %s: %s", column, e
+                        )
+                        continue
 
                 # For perf, we only compute value counts for categorical columns
-                external_type = column_type[1].lower()
-                if column_type[0] == "string" and (
+                external_type = external_type.lower()
+                if column_type == "string" and (
                     "cat" in external_type or "enum" in external_type
                 ):
                     try:
@@ -987,13 +991,22 @@ class table(
                             e,
                         )
 
+                # Bin values are only supported for numeric and temporal columns
+                if column_type not in [
+                    "integer",
+                    "number",
+                    "date",
+                    "datetime",
+                    "time",
+                ]:
+                    continue
+
                 try:
-                    if statistic and statistic.nulls == total_rows:
-                        bins = []
-                    else:
-                        bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
+                    bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
                     bin_values[column] = bins
-                    data = data.drop_columns([column])
+                    # Only drop column if we got bins to visualize
+                    if len(bins) > 0:
+                        data = data.drop_columns([column])
                     continue
                 except BaseException as e:
                     LOGGER.warning(
