@@ -276,7 +276,7 @@ def _get_altair_chart(
     try:
         chart_spec = _get_chart_spec(
             # Downgrade to v1 since altair doesn't support v2 yet
-            # This is valiadted with our tests, so if the tests pass with this
+            # This is validated with our tests, so if the tests pass with this
             # removed, we can remove the downgrade.
             column_data=downgrade_narwhals_df_to_v1(column_data),
             column_type=column_type,
@@ -369,49 +369,49 @@ def _sanitize_data(
                     total_seconds = diff.total_seconds()
                     if total_seconds >= 604800:
                         # Use weeks if range is at least a week
-                        column_data = column_data.with_columns(
+                        column_data = frame.with_columns(
                             (col.dt.total_seconds() / 604800).alias(
                                 column_name
                             )
                         )
                     elif total_seconds >= 86400:
                         # Use days if range is at least a day
-                        column_data = column_data.with_columns(
+                        column_data = frame.with_columns(
                             (col.dt.total_seconds() / 86400).alias(column_name)
                         )
                     elif total_seconds >= 3600:
                         # Use hours if range is at least an hour
-                        column_data = column_data.with_columns(
+                        column_data = frame.with_columns(
                             (col.dt.total_seconds() / 3600).alias(column_name)
                         )
                     elif total_seconds >= 60:
                         # Use minutes if range is at least a minute
-                        column_data = column_data.with_columns(
+                        column_data = frame.with_columns(
                             col.dt.total_minutes().alias(column_name)
                         )
                     elif total_seconds >= 1:
                         # Use seconds if range is at least a second
-                        column_data = column_data.with_columns(
+                        column_data = frame.with_columns(
                             col.dt.total_seconds().alias(column_name)
                         )
                     elif total_seconds >= 0.001:
                         # Use milliseconds if range is at least a millisecond
-                        column_data = column_data.with_columns(
+                        column_data = frame.with_columns(
                             col.dt.total_milliseconds().alias(column_name)
                         )
                     elif total_seconds >= 0.000001:
                         # Use microseconds if range is at least a microsecond
-                        column_data = column_data.with_columns(
+                        column_data = frame.with_columns(
                             col.dt.total_microseconds().alias(column_name)
                         )
                     elif total_seconds >= 0.000000001:
                         # Use nanoseconds if range is at least a nanosecond
-                        column_data = column_data.with_columns(
+                        column_data = frame.with_columns(
                             col.dt.total_nanoseconds().alias(column_name)
                         )
             except Exception as e:
                 LOGGER.warning("Failed to infer duration precision: %s", e)
-                column_data = column_data.with_columns(
+                column_data = frame.with_columns(
                     col.dt.total_seconds().alias(column_name)
                 )
     except Exception as e:

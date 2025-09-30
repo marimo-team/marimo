@@ -157,19 +157,25 @@ make py-test
 Run a specific test
 
 ```bash
-hatch run test:test tests/_ast/
+hatch run +py=3.13 test:test tests/_ast/
+```
+
+Run all changed tests
+
+```bash
+hatch run +py=3.13 test:test --picked
 ```
 
 Run tests with optional dependencies
 
 ```bash
-hatch run test-optional:test tests/_ast/
+hatch run +py=3.13 test-optional:test tests/_ast/
 ```
 
-Run tests with a specific Python version
+Run tests across all Python versions (omit `+py`)
 
 ```bash
-hatch run +py=3.10 test:test tests/_ast/
+hatch run test:test tests/_ast/
 ```
 
 Run all tests across all Python versions

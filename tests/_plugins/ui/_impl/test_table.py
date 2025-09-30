@@ -33,7 +33,7 @@ from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
 from marimo._utils.data_uri import from_data_uri
 from marimo._utils.platform import is_windows
-from tests._data.mocks import create_dataframes
+from tests._data.mocks import NON_EAGER_LIBS, create_dataframes
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -321,7 +321,7 @@ def test_value_with_sorting_then_selection() -> None:
     "df",
     create_dataframes(
         {"a": ["x", "z", "y"]},
-        exclude=["ibis", "duckdb", "lazy-polars"],
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
@@ -396,7 +396,7 @@ def test_value_with_search_then_selection() -> None:
     "df",
     create_dataframes(
         {"a": ["foo", "bar", "baz"]},
-        exclude=["ibis", "duckdb", "lazy-polars"],
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_value_with_search_then_selection_dfs(df: Any) -> None:
@@ -444,7 +444,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     "df",
     create_dataframes(
         {"a": ["foo", "bar", "baz"]},
-        exclude=["ibis", "duckdb", "lazy-polars"],
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_value_with_search_then_cell_selection_dfs(df: Any) -> None:
@@ -695,7 +695,7 @@ def test_get_row_ids_for_lists() -> None:
             "fruits": ["banana", "apple", "cherry"] * 3,
             "quantity": [10, 20, 30] * 3,
         },
-        exclude=["ibis", "duckdb", "lazy-polars"],
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_get_row_ids_with_df(df: any) -> None:

@@ -15,7 +15,7 @@ from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager_or_none,
 )
 from marimo._utils.data_uri import build_data_url
-from marimo._utils.narwhals_utils import can_narwhalify
+from marimo._utils.narwhals_utils import can_narwhalify, is_narwhals_lazyframe
 
 LOGGER = _loggers.marimo_logger()
 
@@ -154,7 +154,16 @@ def sanitize_nan_infs(data: Any) -> Any:
     """Sanitize NaN and Inf values in Dataframes for JSON serialization."""
     if can_narwhalify(data):
         narwhals_data = nw.from_native(data)
-        for col, dtype in narwhals_data.schema.items():
+        is_prev_lazy = isinstance(narwhals_data, nw.LazyFrame)
+
+        # Convert to lazy for optimization if not already lazy
+        if not is_prev_lazy:
+            narwhals_data = narwhals_data.lazy()
+
+        # Get schema without collecting
+        schema = narwhals_data.collect_schema()
+
+        for col, dtype in schema.items():
             # Only numeric columns can have NaN or Inf values
             if dtype.is_numeric():
                 narwhals_data = narwhals_data.with_columns(
@@ -163,6 +172,11 @@ def sanitize_nan_infs(data: Any) -> Any:
                     .otherwise(nw.col(col))
                     .name.keep()
                 )
+
+        # Collect if input was eager
+        if not is_prev_lazy and is_narwhals_lazyframe(narwhals_data):
+            narwhals_data = narwhals_data.collect()
+
         return narwhals_data.to_native()
     return data
 

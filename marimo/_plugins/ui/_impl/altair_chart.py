@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 from __future__ import annotations
 
 import datetime
@@ -29,6 +30,7 @@ from marimo._utils.narwhals_utils import (
     assert_can_narwhalify,
     can_narwhalify,
     empty_df,
+    is_narwhals_lazyframe,
 )
 
 if sys.version_info < (3, 10):
@@ -100,7 +102,11 @@ def _using_vegafusion() -> bool:
 def _filter_dataframe(
     native_df: Union[IntoDataFrame, IntoLazyFrame], selection: ChartSelection
 ) -> Union[IntoDataFrame, IntoLazyFrame]:
-    df = nw.from_native(native_df)
+    # Use lazy evaluation for efficient chained filtering
+    base = nw.from_native(native_df)
+    is_lazy = is_narwhals_lazyframe(base)
+    df = base.lazy()
+
     if not isinstance(selection, dict):
         raise TypeError("Input 'selection' must be a dictionary")
 
@@ -121,10 +127,12 @@ def _filter_dataframe(
             vgsid = fields.get("_vgsid_", [])
             try:
                 indexes = [int(i) - 1 for i in vgsid]
-                df = cast(nw.DataFrame[Any], df)[indexes]
+                # Need to collect for index-based selection
+                non_lazy = df.collect()[indexes]
+                df = non_lazy.lazy()
             except IndexError:
                 # Out of bounds index, return empty dataframe if it's the
-                df = cast(nw.DataFrame[Any], df)[[]]
+                df = df.head(0)
                 LOGGER.error(f"Invalid index in selection: {vgsid}")
             except ValueError:
                 LOGGER.error(f"Invalid index in selection: {vgsid}")
@@ -140,10 +148,12 @@ def _filter_dataframe(
             if field in ("vlPoint", "_vgsid_"):
                 continue
 
-            if field not in df.columns:
+            # Need to collect schema to check columns and dtypes
+            schema = df.collect_schema()
+            if field not in schema.names():
                 raise ValueError(f"Field '{field}' not found in DataFrame")
 
-            dtype = df[field].dtype
+            dtype = schema[field]
             resolved_values = _resolve_values(values, dtype)
             if is_point_selection:
                 df = df.filter(nw.col(field).is_in(resolved_values))
@@ -168,7 +178,11 @@ def _filter_dataframe(
                     f"Invalid selection: {field}={resolved_values}"
                 )
 
-    return nw.to_native(df)
+    if not is_lazy and is_narwhals_lazyframe(df):
+        # Undo the lazy
+        return df.collect().to_native()  # type: ignore[no-any-return]
+
+    return df.to_native()
 
 
 def _resolve_values(values: Any, dtype: Any) -> list[Any]:
