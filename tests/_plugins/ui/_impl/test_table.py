@@ -2220,3 +2220,144 @@ def test_table_with_timestamp_column_name():
 
     # Should use the default max_columns (50)
     assert table._max_columns == DEFAULT_MAX_COLUMNS
+
+
+def test_cell_initial_hover_texts():
+    def hover_text(row: str, col: str, value: Any) -> str:
+        return f"{row}:{col}={value}"
+
+    table = ui.table([1, 2, 3], hover_template=hover_text)
+    assert "cell-hover-texts" in table._args.args
+    cell_hover = table._args.args["cell-hover-texts"]
+    assert len(cell_hover) == 3
+    assert "1" in cell_hover
+    assert "value" in cell_hover["1"]
+    assert cell_hover["1"]["value"] == "1:value=2"
+
+
+def test_hover_template_string_arg():
+    table = ui.table([1, 2], hover_template="Value: {{value}}")
+    # String template should pass through and per-cell map should be None
+    assert table._args.args["hover-template"] == "Value: {{value}}"
+    assert "cell-hover-texts" in table._args.args
+    assert table._args.args["cell-hover-texts"] is None
+
+
+def test_cell_hover_of_next_page():
+    def hover_text(row: str, col: str, value: Any) -> str:
+        return f"{row}:{col}={value}"
+
+    data = [
+        {"a": 1, "b": 2},
+        {"a": 3, "b": 4},
+        {"a": 5, "b": 6},
+        {"a": 7, "b": 8},
+    ]
+
+    table = ui.table(data, page_size=2, hover_template=hover_text)
+    last_page = table._search(SearchTableArgs(page_size=2, page_number=1))
+    cell_hover = last_page.cell_hover_texts
+    assert len(cell_hover) == 2
+    assert "2" in cell_hover
+    assert "a" in cell_hover["2"]
+    assert cell_hover["2"]["a"] == "2:a=5"
+
+
+def test_cell_hover_last_page():
+    def hover_text(row: str, col: str, value: Any) -> str:
+        return f"{row}:{col}={value}"
+
+    data = [{"a": 1}, {"a": 2}, {"a": 3}]
+    table = ui.table(data, page_size=2, hover_template=hover_text)
+    last_page = table._search(SearchTableArgs(page_size=2, page_number=1))
+    cell_hover = last_page.cell_hover_texts
+    assert len(cell_hover) == 1
+    assert "2" in cell_hover
+    assert "a" in cell_hover["2"]
+    assert cell_hover["2"]["a"] == "2:a=3"
+
+
+def test_cell_hover_edge_cases():
+    def hover_text(row: str, col: str, value: Any) -> str:
+        return f"{row}:{col}={value}"
+
+    # Empty data
+    table = ui.table([], hover_template=hover_text)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_hover_texts == {}
+
+    # Single row
+    table = ui.table([{"a": 1}], hover_template=hover_text)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_hover_texts == {"0": {"a": "0:a=1"}}
+
+    # Page size larger than total rows
+    table = ui.table([{"a": 1}, {"a": 2}], hover_template=hover_text)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_hover_texts == {
+        "0": {"a": "0:a=1"},
+        "1": {"a": "1:a=2"},
+    }
+
+    # Skip beyond total rows
+    response = table._search(SearchTableArgs(page_size=10, page_number=1))
+    assert response.cell_hover_texts == {}
+
+    # With too_many total rows
+    table = ui.table(
+        [{"a": 1}, {"a": 2}],
+        hover_template=hover_text,
+        _internal_total_rows="too_many",
+    )
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_hover_texts == {
+        "0": {"a": "0:a=1"},
+        "1": {"a": "1:a=2"},
+    }
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_cell_search_df_hover_texts():
+    def hover_text(_row: str, _col: str, value: Any) -> str:
+        return f"hover:{value}"
+
+    import polars as pl
+
+    data = ["apples", "apples", "bananas", "bananas", "carrots", "carrots"]
+
+    table = ui.table(pl.DataFrame(data), hover_template=hover_text)
+    page = table._search(
+        SearchTableArgs(page_size=2, page_number=0, query="carrot")
+    )
+    assert page.cell_hover_texts == {
+        "4": {"column_0": "hover:carrots"},
+        "5": {"column_0": "hover:carrots"},
+    }
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+@pytest.mark.xfail(reason="Sorted rows are not supported for hover yet")
+def test_cell_search_df_hover_texts_sorted():
+    def hover_text(_row: str, _col: str, value: Any) -> str:
+        return f"hover:{value}"
+
+    import polars as pl
+
+    data = ["apples", "apples", "bananas", "bananas", "carrots", "carrots"]
+    table = ui.table(pl.DataFrame(data), hover_template=hover_text)
+    page = table._search(
+        SearchTableArgs(
+            page_size=2,
+            page_number=0,
+            query="",
+            sort=SortArgs(by="column_0", descending=True),
+        )
+    )
+    assert page.cell_hover_texts == {
+        "4": {"column_0": "hover:carrots"},
+        "5": {"column_0": "hover:carrots"},
+    }

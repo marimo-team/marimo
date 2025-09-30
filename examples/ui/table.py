@@ -33,6 +33,20 @@ def _(mo):
 
 
 @app.cell
+def _(mo):
+    # Per-cell hover: provide a callable for finer control
+    def cell_hover(row_id: str, column_name: str, value) -> str:
+        return f"{row_id}:{column_name}={value}"
+
+    hover_table = mo.ui.table(
+        [{"a": i, "b": i * i} for i in range(8)],
+        hover_template=cell_hover,
+    )
+    hover_table
+    return (hover_table,)
+
+
+@app.cell
 def _(table):
     table.value
     return

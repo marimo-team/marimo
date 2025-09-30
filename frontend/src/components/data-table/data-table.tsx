@@ -26,6 +26,7 @@ import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
 import type { PanelType } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { CellHoverTemplateFeature } from "./cell-hover-template/feature";
+import { CellHoverTextFeature } from "./cell-hover-text/feature";
 import { CellSelectionFeature } from "./cell-selection/feature";
 import type { CellSelectionState } from "./cell-selection/types";
 import { CellStylingFeature } from "./cell-styling/feature";
@@ -67,6 +68,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   cellSelection?: CellSelectionState;
   cellStyling?: CellStyleState | null;
   hoverTemplate?: string | null;
+  cellHoverTexts?: Record<string, Record<string, string | null>> | null;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;
@@ -109,6 +111,7 @@ const DataTableInternal = <TData,>({
   cellSelection,
   cellStyling,
   hoverTemplate,
+  cellHoverTexts,
   paginationState,
   setPaginationState,
   downloadAs,
@@ -183,6 +186,7 @@ const DataTableInternal = <TData,>({
       ColumnFormattingFeature,
       CellSelectionFeature,
       CellStylingFeature,
+      CellHoverTextFeature,
       CellHoverTemplateFeature,
       CopyColumnFeature,
       FocusRowFeature,
@@ -247,6 +251,7 @@ const DataTableInternal = <TData,>({
       cellStyling,
       columnPinning: columnPinning,
       cellHoverTemplate: hoverTemplate,
+      cellHoverTexts: cellHoverTexts ?? {},
     },
   });
 
