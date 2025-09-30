@@ -86,7 +86,7 @@ class AltairFormatter(FormatterFactory):
                 # Bug https://github.com/marimo-team/marimo/issues/6601. Vegafusion defaults to white background
                 # So, we set the background to black for dark mode
                 if (
-                    chart._get("background") is alt.Undefined
+                    chart._get("background") is alt.Undefined  # type: ignore
                     and get_current_theme() == "dark"
                 ):
                     LOGGER.debug("setting background to black")
