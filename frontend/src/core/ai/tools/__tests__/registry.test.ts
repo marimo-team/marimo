@@ -51,5 +51,3 @@ describe("FrontendToolRegistry", () => {
     expect(schemas2).toBe(schemas1);
   });
 });
-
-
