@@ -521,10 +521,19 @@ exports[`renderZodSchema > should render a form filter_rows 1`] = `
       >
         <label
           class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        />
+        >
+          Value
+        </label>
         <div
           class="flex flex-col gap-2 min-w-[220px]"
         >
+          <div
+            class="text-destructive text-xs font-semibold"
+          >
+            <div>
+              At least 1 required.
+            </div>
+          </div>
           <div>
             <button
               class="disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background opacity-80 hover:opacity-100 active:opacity-100 h-7 px-2 rounded-md text-xs hover:text-accent-foreground"

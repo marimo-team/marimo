@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { Logger } from "@/utils/Logger";
+import { isZodArray, isZodPipe, isZodTuple } from "@/utils/zod-utils";
 
 export function maybeUnwrap<T extends z.ZodType<unknown>>(
   schema: T,
@@ -30,11 +31,11 @@ export function getDefaults<TSchema extends z.ZodType<T>, T>(
       const defValue = schema.def.defaultValue;
       return typeof defValue === "function" ? defValue() : defValue;
     }
-    if (schema instanceof z.ZodPipe) {
-      return getDefaultValue(schema.in as z.ZodType);
+    if (isZodPipe(schema)) {
+      return getDefaultValue(schema.in);
     }
-    if (schema instanceof z.ZodTuple) {
-      return schema.def.items.map((item) => getDefaultValue(item as z.ZodType));
+    if (isZodTuple(schema)) {
+      return schema.def.items.map((item) => getDefaultValue(item));
     }
     if ("unwrap" in schema) {
       return getDefaultValue(maybeUnwrap(schema));
@@ -51,11 +52,11 @@ export function getDefaults<TSchema extends z.ZodType<T>, T>(
   }
 
   // If array, return an array of 1 item
-  if (schema instanceof z.ZodArray) {
+  if (isZodArray(schema)) {
     if (doesArrayRequireMinLength(schema)) {
-      return [getDefaults(schema.element as z.ZodType)] as unknown as T;
+      return [getDefaults(schema.element)] as T;
     }
-    return [] as unknown as T;
+    return [] as T;
   }
 
   // If string, return the default value
@@ -75,9 +76,11 @@ export function getDefaults<TSchema extends z.ZodType<T>, T>(
   }
 
   return Object.fromEntries(
-    Object.entries(schema.shape).map(([key, value]) => {
-      return [key, getDefaultValue(value as z.ZodTypeAny)];
-    }),
+    Object.entries(schema.shape).map(
+      ([key, value]: [string, z.ZodType<unknown>]) => {
+        return [key, getDefaultValue(value)];
+      },
+    ),
   ) as T;
 }
 

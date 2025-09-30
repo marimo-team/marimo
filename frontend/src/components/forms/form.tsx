@@ -97,6 +97,7 @@ export function renderZodSchema<T extends FieldValues, S>(
     description,
     special,
     direction = "column",
+    minLength,
   } = FieldOptions.parse(schema.description || "");
 
   if (schema instanceof z.ZodDefault) {
@@ -325,7 +326,7 @@ export function renderZodSchema<T extends FieldValues, S>(
           form={form}
           path={path}
           key={path}
-          minLength={0}
+          minLength={minLength}
           renderers={renderers}
         />
       </div>

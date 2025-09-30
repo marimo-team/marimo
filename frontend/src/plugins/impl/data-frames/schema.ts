@@ -29,7 +29,7 @@ export const column_id_array = z
   .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
   .min(1, "At least one column is required")
   .default([])
-  .describe(FieldOptions.of({ label: "Columns" }));
+  .describe(FieldOptions.of({ label: "Columns", minLength: 1 }));
 
 const ColumnConversionTransformSchema = z
   .object({
@@ -55,7 +55,7 @@ const RenameColumnTransformSchema = z.object({
     .string()
     .min(1, "Required")
     .transform((v) => v as ColumnId)
-    .describe(FieldOptions.of({ label: "New column name" })),
+    .describe(FieldOptions.of({ label: "New column name", minLength: 1 })),
 });
 
 const SortColumnTransformSchema = z.object({
@@ -93,12 +93,12 @@ const FilterRowsTransformSchema = z.object({
   where: z
     .array(ConditionSchema)
     .min(1)
+    .describe(FieldOptions.of({ label: "Value", minLength: 1 }))
     .transform((value) => {
       return value.filter((condition) => {
         return isConditionValueValid(condition.operator, condition.value);
       });
     })
-    .describe(FieldOptions.of({ label: "Value" }))
     .default(() => [
       { column_id: "" as ColumnId, operator: "==" as const, value: "" },
     ]),
@@ -127,7 +127,7 @@ const AggregateTransformSchema = z
       .array(z.enum(AGGREGATION_FNS))
       .min(1, "At least one aggregation is required")
       .default(["count"])
-      .describe(FieldOptions.of({ label: "Aggregations" })),
+      .describe(FieldOptions.of({ label: "Aggregations", minLength: 1 })),
   })
   .describe(FieldOptions.of({ direction: "row" }));
 
