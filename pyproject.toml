@@ -110,7 +110,7 @@ dev = [
     "duckdb>=1.0.0",
     "sqlglot[rs]>=26.2.0",
     # For linting
-    "ruff>=0.13.1",
+    "ruff>=0.13.2",
     # For AI
     "openai>=1.55.3",
 ]
@@ -287,7 +287,7 @@ python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 [tool.hatch.envs.docs]
 dependencies = [
     "marimo_docs @ file://docs",
-    "ruff>=0.13.1",
+    "ruff>=0.13.2",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.5.49",
     "mkdocstrings[python]>=0.27.0",
