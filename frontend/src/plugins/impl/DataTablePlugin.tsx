@@ -225,6 +225,10 @@ type DataTableFunctions = {
 
 type S = (number | string | { rowId: string; columnName?: string })[];
 
+const cellHoverTextSchema = z
+  .record(z.string(), z.record(z.string(), z.string().nullable()))
+  .optional();
+
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(
     z.object({
@@ -267,7 +271,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .record(z.string(), z.record(z.string(), z.object({}).passthrough()))
         .optional(),
       hoverTemplate: z.string().optional(),
-      cellHoverTexts: z.record(z.record(z.string().nullable())).optional(),
+      cellHoverTexts: cellHoverTextSchema,
       // Whether to load the data lazily.
       lazy: z.boolean().default(false),
       // If lazy, this will preload the first page of data
@@ -313,9 +317,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
               z.record(z.string(), z.object({}).passthrough()),
             )
             .nullable(),
-          cell_hover_texts: z
-            .record(z.record(z.string().nullable()))
-            .nullable(),
+          cell_hover_texts: cellHoverTextSchema,
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(
@@ -363,12 +365,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
-            cellHoverTexts={
-              props.data.cellHoverTexts as Record<
-                string,
-                Record<string, string | null>
-              >
-            }
+            cellHoverTexts={props.data.cellHoverTexts}
           />
         </LazyDataTableComponent>
       </TableProviders>
@@ -490,10 +487,7 @@ export const LoadingDataTableComponent = memo(
       let tableData = props.data;
       let totalRows = props.totalRows;
       let cellStyles = props.cellStyles;
-      let cellHoverTexts = props.cellHoverTexts as
-        | Record<string, Record<string, string | null>>
-        | undefined
-        | null;
+      let cellHoverTexts = props.cellHoverTexts;
 
       const pageSizeChanged = paginationState.pageSize !== props.pageSize;
 
