@@ -295,6 +295,9 @@ importers:
       ansi_up:
         specifier: ^6.0.6
         version: 6.0.6
+      capnweb:
+        specifier: ^0.1.0
+        version: 0.1.0
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -4736,6 +4739,9 @@ packages:
 
   canvas-hypertxt@1.0.3:
     resolution: {integrity: sha512-+VsMpRr64jYgKq2IeFUNel3vCZH/IzS+iXSHxmUV3IUH5dXlC9xHz4AwtPZisDxZ5MWcuK0V+TXgPKFPiZnxzg==}
+
+  capnweb@0.1.0:
+    resolution: {integrity: sha512-+pygKx1JFTZTRdd1hHgaBRg5BwULEDZq8ZoHXkYP2GXNV3lrjXLj5qzlGz+SgBCJjWUmNBtlh7JPWdr0wIbY8w==}
 
   caseless@0.11.0:
     resolution: {integrity: sha512-ODLXH644w9C2fMPAm7bMDQ3GRvipZWZfKc+8As6hIadRIelE0n0xZuN38NS6kiK3KPEVrpymmQD8bvncAHWQkQ==}
@@ -15028,6 +15034,8 @@ snapshots:
       element-size: 1.1.1
 
   canvas-hypertxt@1.0.3: {}
+
+  capnweb@0.1.0: {}
 
   caseless@0.11.0: {}
 
