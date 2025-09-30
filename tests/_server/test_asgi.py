@@ -291,6 +291,7 @@ class TestASGIAppBuilder(unittest.TestCase):
 
         # Check that asset_url is set on the base app
         from marimo._server.api.deps import AppStateBase
+
         state = AppStateBase.from_app(app)
         assert state.asset_url == custom_asset_url
 
@@ -304,6 +305,7 @@ class TestASGIAppBuilder(unittest.TestCase):
         app = builder.with_app(path="/app1", root=self.app1).build()
 
         from marimo._server.api.deps import AppStateBase
+
         state = AppStateBase.from_app(app)
         assert state.asset_url is None
 
