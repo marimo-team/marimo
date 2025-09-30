@@ -3,16 +3,7 @@
 import { CommandList } from "cmdk";
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { sortBy } from "lodash-es";
-import {
-  DatabaseIcon,
-  EyeIcon,
-  PaintRollerIcon,
-  PlusIcon,
-  PlusSquareIcon,
-  RefreshCwIcon,
-  Table2Icon,
-  XIcon,
-} from "lucide-react";
+import { PlusIcon, PlusSquareIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import React from "react";
 import { dbDisplayName } from "@/components/databases/display";
 import { EngineVariable } from "@/components/databases/engine-variable";
@@ -59,6 +50,12 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
+import {
+  DatabaseIcon,
+  SchemaIcon,
+  TableIcon,
+  ViewIcon,
+} from "../databases/namespace-icons";
 import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { PythonIcon } from "../editor/cell/code/icons";
 import { useAddCodeToNewCell } from "../editor/cell/useAddCell";
@@ -420,7 +417,7 @@ const SchemaItem: React.FC<{
         value={uniqueValue}
       >
         <RotatingChevron isExpanded={isExpanded} />
-        <PaintRollerIcon
+        <SchemaIcon
           className={cn(
             "h-4 w-4 text-muted-foreground",
             isSelected && isExpanded && "text-foreground",
@@ -634,7 +631,7 @@ const DatasetTableItem: React.FC<{
       return;
     }
 
-    const TableTypeIcon = table.type === "table" ? Table2Icon : EyeIcon;
+    const TableTypeIcon = table.type === "table" ? TableIcon : ViewIcon;
     return (
       <TableTypeIcon
         className="h-3 w-3"
