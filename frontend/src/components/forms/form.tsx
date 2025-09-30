@@ -27,6 +27,7 @@ import {
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { Strings } from "@/utils/strings";
+import { isZodPipe } from "@/utils/zod-utils";
 import { Objects } from "../../utils/objects";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -101,7 +102,7 @@ export function renderZodSchema<T extends FieldValues, S>(
   } = FieldOptions.parse(schema.description || "");
 
   if (schema instanceof z.ZodDefault) {
-    let inner = schema.unwrap() as z.ZodType<unknown>;
+    let inner = schema.unwrap() as z.ZodType;
     inner =
       !inner.description && schema.description
         ? inner.describe(schema.description)
@@ -110,7 +111,7 @@ export function renderZodSchema<T extends FieldValues, S>(
   }
 
   if (schema instanceof z.ZodOptional) {
-    let inner = schema.unwrap() as z.ZodType<unknown>;
+    let inner = schema.unwrap() as z.ZodType;
     inner =
       !inner.description && schema.description
         ? inner.describe(schema.description)
@@ -134,7 +135,7 @@ export function renderZodSchema<T extends FieldValues, S>(
         {Objects.entries(schema.shape).map(([key, value]) => {
           const isLiteral = value instanceof z.ZodLiteral;
           const childForm = renderZodSchema(
-            value as z.ZodType<unknown>,
+            value as z.ZodType,
             form,
             joinPath(path, key),
             renderers,
@@ -322,7 +323,7 @@ export function renderZodSchema<T extends FieldValues, S>(
       <div className="flex flex-col gap-1">
         <Label>{label}</Label>
         <FormArray
-          schema={schema.element as z.ZodType<unknown>}
+          schema={schema.element as z.ZodType}
           form={form}
           path={path}
           key={path}
@@ -335,7 +336,7 @@ export function renderZodSchema<T extends FieldValues, S>(
 
   if (schema instanceof z.ZodDiscriminatedUnion) {
     const def = schema.def;
-    const options = def.options as z.ZodType<unknown>[];
+    const options = def.options as z.ZodType[];
     const discriminator = def.discriminator;
     const getSchemaValue = (value: string) => {
       return options.find((option) => {
@@ -402,7 +403,7 @@ export function renderZodSchema<T extends FieldValues, S>(
         control={form.control}
         name={path}
         render={({ field }) => {
-          const options = schema.options as z.ZodType<unknown>[];
+          const options = schema.options as z.ZodType[];
           let value: string = field.value;
           const types = options.map((option) => {
             return getUnionLiteral(option).value;
@@ -460,13 +461,8 @@ export function renderZodSchema<T extends FieldValues, S>(
     // Handle ZodEffects (transforms/refinements)
     return renderZodSchema(maybeUnwrap(schema), form, path, renderers);
   }
-  if (schema instanceof z.ZodPipe) {
-    return renderZodSchema(
-      schema.in as z.ZodType<unknown>,
-      form,
-      path,
-      renderers,
-    );
+  if (isZodPipe(schema)) {
+    return renderZodSchema(schema.in, form, path, renderers);
   }
 
   return (
@@ -487,7 +483,7 @@ const FormArray = ({
   minLength,
   renderers,
 }: {
-  schema: z.ZodType<unknown>;
+  schema: z.ZodType;
   form: UseFormReturn<any>;
   path: Path<any>;
   renderers: FormRenderer[];
