@@ -101,6 +101,7 @@ describe("generateDatabaseCode", () => {
       type: "REST",
       uri: "http://localhost:8181",
       warehouse: "/path/to/warehouse",
+      token: undefined,
     },
   };
 
@@ -130,6 +131,7 @@ describe("generateDatabaseCode", () => {
     catalog: {
       type: "Glue",
       warehouse: "/path/to/warehouse",
+      uri: undefined,
     },
   };
 

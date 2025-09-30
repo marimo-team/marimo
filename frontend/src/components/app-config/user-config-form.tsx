@@ -15,6 +15,7 @@ import {
 import React, { useId, useRef } from "react";
 import { useLocale } from "react-aria";
 import { useForm } from "react-hook-form";
+import type z from "zod";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -124,8 +125,10 @@ export const UserConfigForm: React.FC = () => {
   const { saveUserConfig } = useRequestClient();
 
   // Create form
-  const form = useForm<UserConfig>({
-    resolver: zodResolver(UserConfigSchema),
+  const form = useForm({
+    resolver: zodResolver(
+      UserConfigSchema as unknown as z.ZodType<unknown, UserConfig>,
+    ),
     defaultValues: config,
   });
 
