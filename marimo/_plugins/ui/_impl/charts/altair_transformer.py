@@ -15,7 +15,7 @@ from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager_or_none,
 )
 from marimo._utils.data_uri import build_data_url
-from marimo._utils.narwhals_utils import can_narwhalify
+from marimo._utils.narwhals_utils import can_narwhalify, is_narwhals_lazyframe
 
 LOGGER = _loggers.marimo_logger()
 
@@ -174,7 +174,7 @@ def sanitize_nan_infs(data: Any) -> Any:
                 )
 
         # Collect if input was eager
-        if not is_prev_lazy:
+        if not is_prev_lazy and is_narwhals_lazyframe(narwhals_data):
             narwhals_data = narwhals_data.collect()
 
         return narwhals_data.to_native()

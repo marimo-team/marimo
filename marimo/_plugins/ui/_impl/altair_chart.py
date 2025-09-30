@@ -178,7 +178,7 @@ def _filter_dataframe(
                     f"Invalid selection: {field}={resolved_values}"
                 )
 
-    if not is_lazy:
+    if not is_lazy and is_narwhals_lazyframe(df):
         # Undo the lazy
         return df.collect().to_native()
 
