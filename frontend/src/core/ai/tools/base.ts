@@ -22,7 +22,9 @@ export abstract class BaseTool<
   /**
    * Handler exposed to the registry. Calls the subclass implementation.
    */
-  public readonly handler: (args: z.infer<TIn>) => z.infer<TOut> | Promise<z.infer<TOut>>;
+  public readonly handler: (
+    args: z.infer<TIn>,
+  ) => z.infer<TOut> | Promise<z.infer<TOut>>;
 
   constructor(options: {
     name: string;
@@ -40,7 +42,7 @@ export abstract class BaseTool<
   }
 
   /** Implement tool logic in subclasses */
-  protected abstract handle(args: z.infer<TIn>): z.infer<TOut> | Promise<z.infer<TOut>>;
+  protected abstract handle(
+    args: z.infer<TIn>,
+  ): z.infer<TOut> | Promise<z.infer<TOut>>;
 }
-
-

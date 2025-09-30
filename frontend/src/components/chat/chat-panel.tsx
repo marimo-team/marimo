@@ -44,6 +44,7 @@ import {
   type ChatId,
   chatStateAtom,
 } from "@/core/ai/state";
+import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
@@ -77,7 +78,6 @@ import {
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
 import { ToolCallAccordion } from "./tool-call-accordion";
-import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";

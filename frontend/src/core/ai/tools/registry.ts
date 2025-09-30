@@ -27,12 +27,14 @@ export interface FrontendToolDefinition {
   source: "frontend";
   mode: CopilotMode[];
 }
-  
+
 export class FrontendToolRegistry {
   /** All registered tools */
   private tools = new Map<string, StoredTool>();
 
-  registerAll<TIn extends AnyZodObject, TOut extends AnyZodObject>(tools: BaseTool<TIn, TOut>[]) {
+  registerAll<TIn extends AnyZodObject, TOut extends AnyZodObject>(
+    tools: BaseTool<TIn, TOut>[],
+  ) {
     tools.forEach((tool) => {
       this.register(tool);
     });
@@ -75,7 +77,7 @@ export class FrontendToolRegistry {
     const inputSchema = tool.schema;
     const outputSchema = tool.outputSchema;
 
-    try{
+    try {
       // Parse input args
       const inputResponse = await inputSchema.safeParseAsync(rawArgs);
       if (inputResponse.error) {
@@ -86,12 +88,14 @@ export class FrontendToolRegistry {
 
       // Call the handler
       const rawOutput = await handler(args);
-      
+
       // Parse output
       const response = await outputSchema.safeParseAsync(rawOutput);
       if (response.error) {
         const strError = z.prettifyError(response.error);
-        throw new Error(`Tool ${toolName} returned invalid output: ${strError}`);
+        throw new Error(
+          `Tool ${toolName} returned invalid output: ${strError}`,
+        );
       }
       const output = response.data;
       return output;
