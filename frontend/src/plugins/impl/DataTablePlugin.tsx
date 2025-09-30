@@ -317,7 +317,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
               z.record(z.string(), z.object({}).passthrough()),
             )
             .nullable(),
-          cell_hover_texts: cellHoverTextSchema,
+          cell_hover_texts: cellHoverTextSchema.nullable(),
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(
