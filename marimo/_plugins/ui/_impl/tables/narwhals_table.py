@@ -342,6 +342,13 @@ class NarwhalsTableManager(
             "nulls": col.null_count(),
         }
 
+        # As of Sep 2025, pyarrow and ibis do not support quantiles
+        # through narwhals
+        supports_quantiles = (
+            not frame.implementation.is_pyarrow()
+            and not frame.implementation.is_ibis()
+        )
+
         if is_narwhals_string_type(dtype):
             exprs["unique"] = col.n_unique()
         elif dtype == nw.Boolean:
@@ -394,11 +401,7 @@ class NarwhalsTableManager(
                     "max": col.max(),
                 }
             )
-            # Arrow does not support mean or quantile
-            if (
-                not frame.implementation.is_pyarrow()
-                and not frame.implementation.is_ibis()
-            ):
+            if supports_quantiles:
                 exprs.update(
                     {
                         "mean": col.mean(),
@@ -420,11 +423,7 @@ class NarwhalsTableManager(
                     "median": col.median(),
                 }
             )
-            # pyarrow / ibis does not support quantiles
-            if (
-                not frame.implementation.is_pyarrow()
-                and not frame.implementation.is_ibis()
-            ):
+            if supports_quantiles:
                 exprs.update(
                     {
                         "p5": col.quantile(0.05, interpolation="nearest"),
@@ -444,11 +443,7 @@ class NarwhalsTableManager(
                     "median": col.median(),
                 }
             )
-            # pyarrow / ibis does not support quantiles
-            if (
-                not frame.implementation.is_pyarrow()
-                and not frame.implementation.is_ibis()
-            ):
+            if supports_quantiles:
                 exprs.update(
                     {
                         "p5": col.quantile(0.05, interpolation="nearest"),
