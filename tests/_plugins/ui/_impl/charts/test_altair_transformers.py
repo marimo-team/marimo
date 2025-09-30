@@ -18,7 +18,7 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
     _to_marimo_json,
     register_transformers,
 )
-from tests._data.mocks import create_dataframes
+from tests._data.mocks import DFType, create_dataframes
 
 HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
 
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["duckdb"]
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]},
     ),
 )
 def test_to_marimo_json(df: IntoDataFrame):
@@ -46,7 +46,7 @@ def test_to_marimo_json(df: IntoDataFrame):
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["duckdb"]
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]},
     ),
 )
 def test_to_marimo_csv(df: IntoDataFrame):
@@ -62,7 +62,7 @@ def test_to_marimo_csv(df: IntoDataFrame):
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["duckdb"]
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]},
     ),
 )
 def test_to_marimo_inline_csv(df: IntoDataFrame):
@@ -79,7 +79,7 @@ def test_to_marimo_inline_csv(df: IntoDataFrame):
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["duckdb"]
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]},
     ),
 )
 def test_data_to_json_string(df: IntoDataFrame):
@@ -95,9 +95,7 @@ def test_data_to_json_string(df: IntoDataFrame):
 @pytest.mark.parametrize(
     "df",
     # We skip pyarrow because it's csv is formatted differently
-    create_dataframes(
-        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["pyarrow", "duckdb"]
-    ),
+    create_dataframes({"A": [1, 2, 3], "B": ["a", "b", "c"]}),
 )
 def test_data_to_csv_string(df: IntoDataFrame):
     result = _data_to_csv_string(df)
@@ -146,7 +144,6 @@ def test_to_marimo_csv_with_missing_values(df: IntoDataFrame):
     "df",
     create_dataframes(
         {"A": range(10000), "B": [f"value_{i}" for i in range(10000)]},
-        exclude=["pyarrow", "duckdb"],
     ),
 )
 def test_to_marimo_inline_csv_large_dataset(df: IntoDataFrame):
@@ -229,7 +226,7 @@ def test_register_transformers(mock_data_transformers: MagicMock):
     )
 
 
-SUPPORTS_ARROW_IPC = ["pandas", "polars", "lazy-polars"]
+SUPPORTS_ARROW_IPC: list[DFType] = ["pandas", "polars", "lazy-polars"]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

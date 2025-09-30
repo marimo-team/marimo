@@ -224,7 +224,10 @@ def downgrade_narwhals_df_to_v1(
     """
     Downgrade a narwhals dataframe to the latest version.
     """
-    return nw1.from_native(df.to_native())  # type: ignore[no-any-return]
+    if is_narwhals_lazyframe(df) or is_narwhals_dataframe(df):
+        return nw1.from_native(df.to_native())  # type: ignore[no-any-return]
+    # Pass through
+    return df
 
 
 def is_narwhals_lazyframe(df: Any) -> TypeIs[nw.LazyFrame[Any]]:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, time, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
@@ -19,6 +19,7 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
 )
 from marimo._runtime.requests import PreviewDatasetColumnRequest
 from marimo._utils.platform import is_windows
+from tests._data.mocks import create_dataframes
 from tests.mocks import snapshotter
 from tests.utils import assert_serialize_roundtrip
 
@@ -60,12 +61,14 @@ def cleanup() -> Generator[None, None, None]:
     not HAS_DF_DEPS, reason="optional dependencies not installed"
 )
 @pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
-def test_get_column_preview_for_dataframe() -> None:
-    import pandas as pd
-
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "a", "a"]},
+    ),
+)
+def test_get_column_preview_for_dataframe(df: Any) -> None:
     register_transformers()
-
-    df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
 
     for column_name in ["A", "B"]:
         result = get_column_preview_for_dataframe(
@@ -518,9 +521,9 @@ def test_sanitize_dtypes() -> None:
 
 
 @pytest.mark.skipif(
-    not DependencyManager.narwhals.has(), reason="narwhals not installed"
+    not DependencyManager.narwhals.has() or not DependencyManager.polars.has(),
+    reason="narwhals and polars not installed",
 )
-@pytest.mark.xfail(reason="Sanitizing is failing")  # TODO: Fix this
 def test_sanitize_dtypes_enum() -> None:
     import narwhals as nw
     import polars as pl
@@ -534,17 +537,16 @@ def test_sanitize_dtypes_enum() -> None:
     nw_df = nw.from_native(df)
 
     result = _sanitize_data(nw_df, "enum_col")
-    assert result.schema["enum_col"] == nw.String
+    assert result.collect_schema()["enum_col"] == nw.String
+
+    lazy_df = nw_df.lazy()
+    result = _sanitize_data(lazy_df, "enum_col")
+    assert result.collect_schema()["enum_col"] == nw.String
 
 
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="polars not installed"
-)
-def test_preview_column_duration_dtype() -> None:
-    import polars as pl
-
-    # Test days conversion
-    df = pl.DataFrame(
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
         {
             "duration_weeks": [timedelta(weeks=1), timedelta(weeks=2)],
             "duration_days": [timedelta(days=1), timedelta(days=2)],
@@ -559,9 +561,11 @@ def test_preview_column_duration_dtype() -> None:
                 timedelta(microseconds=1),
                 timedelta(microseconds=2),
             ],
-        }
-    )
-
+        },
+        exclude=["pyarrow", "duckdb", "ibis"],
+    ),
+)
+def test_preview_column_duration_dtype(df) -> None:
     for column_name in df.columns:
         result = get_column_preview_dataset(
             table=get_table_manager(df),

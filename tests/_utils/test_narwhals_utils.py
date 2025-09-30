@@ -49,7 +49,7 @@ def test_empty_df(df: IntoDataFrame) -> None:
 
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"a": [1, 2, 3]}, exclude=["lazy-polars"]),
+    create_dataframes({"a": [1, 2, 3]}),
 )
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_assert_narwhals_dataframe(df: IntoDataFrame) -> None:

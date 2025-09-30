@@ -23,7 +23,7 @@ else:
 
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}, exclude=["duckdb"]),
+    create_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
 )
 def test_data_explorer(df: Any) -> None:
     explorer = data_explorer.data_explorer(df)
