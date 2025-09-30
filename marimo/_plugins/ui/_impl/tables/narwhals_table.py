@@ -188,7 +188,7 @@ class NarwhalsTableManager(
                 )
                 .head(k)
             )
-            if isinstance(result, nw.LazyFrame):
+            if is_narwhals_lazyframe(result):
                 return result.collect()
             return result
 
@@ -342,6 +342,13 @@ class NarwhalsTableManager(
             "nulls": col.null_count(),
         }
 
+        # As of Sep 2025, pyarrow and ibis do not support quantiles
+        # through narwhals
+        supports_quantiles = (
+            not frame.implementation.is_pyarrow()
+            and not frame.implementation.is_ibis()
+        )
+
         if is_narwhals_string_type(dtype):
             exprs["unique"] = col.n_unique()
         elif dtype == nw.Boolean:
@@ -394,8 +401,7 @@ class NarwhalsTableManager(
                     "max": col.max(),
                 }
             )
-            # Arrow does not support mean or quantile
-            if not frame.implementation.is_pyarrow():
+            if supports_quantiles:
                 exprs.update(
                     {
                         "mean": col.mean(),
@@ -413,28 +419,39 @@ class NarwhalsTableManager(
                     "min": col.min(),
                     "max": col.max(),
                     "mean": col.mean(),
-                    "median": col.quantile(0.5, interpolation="nearest"),
                     "std": col.std(),
-                    "p5": col.quantile(0.05, interpolation="nearest"),
-                    "p25": col.quantile(0.25, interpolation="nearest"),
-                    "p75": col.quantile(0.75, interpolation="nearest"),
-                    "p95": col.quantile(0.95, interpolation="nearest"),
+                    "median": col.median(),
                 }
             )
+            if supports_quantiles:
+                exprs.update(
+                    {
+                        "p5": col.quantile(0.05, interpolation="nearest"),
+                        "p25": col.quantile(0.25, interpolation="nearest"),
+                        "p75": col.quantile(0.75, interpolation="nearest"),
+                        "p95": col.quantile(0.95, interpolation="nearest"),
+                    }
+                )
         elif dtype.is_numeric():
             exprs.update(
                 {
+                    "unique": col.n_unique(),
                     "min": col.min(),
                     "max": col.max(),
                     "mean": col.mean(),
-                    "median": col.quantile(0.5, interpolation="nearest"),
                     "std": col.std(),
-                    "p5": col.quantile(0.05, interpolation="nearest"),
-                    "p25": col.quantile(0.25, interpolation="nearest"),
-                    "p75": col.quantile(0.75, interpolation="nearest"),
-                    "p95": col.quantile(0.95, interpolation="nearest"),
+                    "median": col.median(),
                 }
             )
+            if supports_quantiles:
+                exprs.update(
+                    {
+                        "p5": col.quantile(0.05, interpolation="nearest"),
+                        "p25": col.quantile(0.25, interpolation="nearest"),
+                        "p75": col.quantile(0.75, interpolation="nearest"),
+                        "p95": col.quantile(0.95, interpolation="nearest"),
+                    }
+                )
 
         stats = frame.select(**exprs)
         stats_dict = stats.collect().rows(named=True)[0]
@@ -573,7 +590,7 @@ class NarwhalsTableManager(
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         frame = self.data.select(nw.col(column))
-        if isinstance(frame, nw.LazyFrame):
+        if is_narwhals_lazyframe(frame):
             frame = frame.collect()
         try:
             return frame[column].unique().to_list()

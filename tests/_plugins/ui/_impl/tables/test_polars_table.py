@@ -400,6 +400,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             mean=2.0,
             median=2.0,
             std=1.0,
+            unique=3,
             p5=1.0,
             p25=2.0,
             p75=3.0,

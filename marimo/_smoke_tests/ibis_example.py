@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.16.3"
 app = marimo.App(width="medium")
 
 
@@ -29,8 +29,14 @@ def _(ibis):
 
 
 @app.cell
-def _(df):
+def _(df, mo):
     # Print Ibis data in a pretty table
+    mo.ui.table(df)
+    return
+
+
+@app.cell
+def _(df):
     df.to_polars()
     return
 
