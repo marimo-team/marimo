@@ -1,16 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import {
-  ColumnsIcon,
-  DatabaseIcon,
-  EyeIcon,
-  HashIcon,
-  InfoIcon,
-  KeyIcon,
-  LayersIcon,
-  TableIcon,
-} from "lucide-react";
+import { HashIcon, InfoIcon } from "lucide-react";
 import type React from "react";
+import {
+  ColumnIcon,
+  DatabaseIcon,
+  IndexIcon,
+  PrimaryKeyIcon,
+  SchemaIcon,
+  TableIcon,
+  ViewIcon,
+} from "@/components/databases/namespace-icons";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Badge } from "@/components/ui/badge";
 import type {
@@ -114,7 +114,7 @@ const getDataTypeColorClass = (dataType: DataType): string => {
 export const renderTableInfo = (table: DataTable): React.ReactNode => {
   const tableIcon =
     table.type === "view" ? (
-      <EyeIcon className="w-4 h-4 text-[var(--blue-9)]" />
+      <ViewIcon className="w-4 h-4 text-[var(--blue-9)]" />
     ) : (
       <TableIcon className="w-4 h-4 text-[var(--green-9)]" />
     );
@@ -202,7 +202,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
         <div className="grid grid-cols-2 gap-2 py-2">
           {table.num_columns != null && (
             <StatisticItem
-              icon={<ColumnsIcon className="w-3 h-3 text-[var(--slate-9)]" />}
+              icon={<ColumnIcon className="w-3 h-3 text-[var(--slate-9)]" />}
               text={`${table.num_columns} columns`}
             />
           )}
@@ -224,7 +224,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
           {hasPrimaryKeys && (
             <div className="flex flex-row gap-1">
               <div className="flex items-center gap-1">
-                <KeyIcon className="w-3 h-3 text-[var(--amber-9)]" />
+                <PrimaryKeyIcon className="w-3 h-3 text-[var(--amber-9)]" />
                 <span className="text-xs font-medium text-[var(--slate-11)]">
                   Primary Keys:
                 </span>
@@ -244,7 +244,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
           {hasIndexes && (
             <div className="flex flex-row gap-1">
               <div className="flex items-center gap-1 mb-1">
-                <LayersIcon className="w-3 h-3 text-[var(--purple-9)]" />
+                <IndexIcon className="w-3 h-3 text-[var(--purple-9)]" />
                 <span className="text-xs font-medium text-[var(--slate-11)]">
                   Indexes:
                 </span>
@@ -345,7 +345,7 @@ export const renderDatabaseInfo = (database: Database): React.ReactNode => {
       className="flex items-center justify-between text-xs rounded hover:bg-[var(--slate-3)]"
     >
       <div className="flex items-center gap-2">
-        <LayersIcon className="w-3 h-3 text-[var(--slate-9)]" />
+        <SchemaIcon className="w-3 h-3 text-[var(--slate-9)]" />
         <span>{schema.name}</span>
       </div>
       <Badge variant="outline" className="text-xs">
@@ -382,7 +382,7 @@ export const renderDatabaseInfo = (database: Database): React.ReactNode => {
       {/* Schema Statistics */}
       <div className="py-2">
         <StatisticItem
-          icon={<LayersIcon className="w-3 h-3 text-[var(--slate-9)]" />}
+          icon={<SchemaIcon className="w-3 h-3 text-[var(--slate-9)]" />}
           text={`${database.schemas.length} schema${database.schemas.length === 1 ? "" : "s"}`}
         />
       </div>
@@ -418,7 +418,7 @@ export const renderSchemaInfo = (schema: DatabaseSchema): React.ReactNode => {
     >
       <div className="flex items-center gap-2">
         {table.type === "view" ? (
-          <EyeIcon className="w-3 h-3 text-[var(--blue-9)]" />
+          <ViewIcon className="w-3 h-3 text-[var(--blue-9)]" />
         ) : (
           <TableIcon className="w-3 h-3 text-[var(--green-9)]" />
         )}
@@ -440,7 +440,7 @@ export const renderSchemaInfo = (schema: DatabaseSchema): React.ReactNode => {
   return (
     <div className={CONTAINER_STYLES}>
       <SectionHeader
-        icon={<LayersIcon className="w-4 h-4 text-[var(--green-9)]" />}
+        icon={<SchemaIcon className="w-4 h-4 text-[var(--green-9)]" />}
         title={schema.name}
         badge={schemaBadge}
       />
