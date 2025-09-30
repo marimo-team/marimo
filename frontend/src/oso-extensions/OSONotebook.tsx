@@ -18,6 +18,8 @@ import { slotsController } from "../core/slots/slots";
 import { useFragmentStore } from "./fragment-store";
 import { viewStateAtom } from "@/core/mode";
 import { useSetAtom } from "jotai";
+import { Panel, PanelGroup } from "react-resizable-panels";
+import { PanelsWrapper } from "@/components/editor/chrome/wrapper/panels";
 
 // Force tailwind classnames
 // tailwind only creates css for classnames that exist the FE files
@@ -74,7 +76,13 @@ export const OSONotebook: React.FC = memo(() => {
       <CssVariables
         variables={{ "--marimo-code-editor-font-size": editorFontSize }}
       >
-        {renderBody(mode)}
+        <PanelsWrapper>
+          <PanelGroup direction="vertical">
+            <Panel id="app" key="app" className="relative h-full">
+              {renderBody(mode)}
+            </Panel>
+          </PanelGroup>
+        </PanelsWrapper>
       </CssVariables>
     </Providers>
   );
