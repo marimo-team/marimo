@@ -666,14 +666,13 @@ function sqlValidationExtension(): Extension {
   let lastValidationRequest: string | null = null;
 
   return EditorView.updateListener.of((update) => {
-    // Only run validation if the document has changed
-    if (!update.docChanged) {
+    // Only run validation if the document has changed and editor is focused
+    if (!update.docChanged || !update.view.hasFocus) {
       return;
     }
 
-    // Only run validation if the SQL mode is set to validate
     const sqlMode = getSQLMode();
-    if (sqlMode !== "validate") {
+    if (sqlMode === "default") {
       return;
     }
 
@@ -710,7 +709,6 @@ function sqlValidationExtension(): Extension {
 
       try {
         const dialect = connectionNameToParserDialect(connectionName);
-        const sqlMode = getSQLMode();
         const result = await validateSQL(
           sqlContent,
           connectionName,
