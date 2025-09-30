@@ -63,7 +63,7 @@ export const CellArray: React.FC<CellArrayProps> = (props) => {
   return (
     <SortableCellsProvider multiColumn={props.appConfig.width === "columns"}>
       <SortableContext
-        id="column-container"
+        data-testid="column-container"
         items={columnIds}
         strategy={horizontalListSortingStrategy}
       >
@@ -342,8 +342,10 @@ const AddCellButtons: React.FC<{
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
           !isAiButtonOpen && "w-fit",
           isAiButtonOpen &&
-            "opacity-100 w-full max-w-4xl shadow-lg shadow-(color:--blue-3)",
+            "w-full max-w-4xl shadow-lg shadow-(color:--blue-3)",
           className,
+          // Always show the AI input when it's open
+          isAiButtonOpen && "opacity-100",
         )}
       >
         {renderBody()}
