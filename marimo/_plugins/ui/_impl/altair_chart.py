@@ -180,7 +180,7 @@ def _filter_dataframe(
 
     if not is_lazy and is_narwhals_lazyframe(df):
         # Undo the lazy
-        return df.collect().to_native()
+        return df.collect().to_native()  # type: ignore[no-any-return]
 
     return df.to_native()
 
