@@ -261,7 +261,7 @@ class PyodideBridge:
         return self._dump(response)
 
     async def read_snippets(self) -> str:
-        snippets = await read_snippets()
+        snippets = await read_snippets(self.session._initial_user_config)
         return self._dump(snippets)
 
     async def format(self, request: str) -> str:
