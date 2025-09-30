@@ -35,8 +35,8 @@ from marimo._ai._types import ChatMessage
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
-from marimo._server.api.status import HTTPStatus
 from marimo._server.ai.tools.types import ToolDefinition
+from marimo._server.api.status import HTTPStatus
 
 TIMEOUT = 30
 
@@ -803,7 +803,10 @@ class GoogleProvider(
         )
 
     def get_config(
-        self, system_prompt: str, max_tokens: int, additional_tools: list[ToolDefinition],
+        self,
+        system_prompt: str,
+        max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> GenerateContentConfig:
         tools = self.config.tools
         config = {
@@ -860,7 +863,9 @@ class GoogleProvider(
             model=self.model,
             contents=convert_to_google_messages(messages),
             config=self.get_config(
-                system_prompt=system_prompt, max_tokens=max_tokens, additional_tools=additional_tools
+                system_prompt=system_prompt,
+                max_tokens=max_tokens,
+                additional_tools=additional_tools,
             ),
         )
 

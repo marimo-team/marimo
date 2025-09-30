@@ -104,7 +104,9 @@ class ToolManager:
                     return tool
             elif source == "frontend":
                 # ToolManager does not handle frontend tools
-                LOGGER.warning(f"Tool {name} is a frontend tool and should not be accessed in the backend.")
+                LOGGER.warning(
+                    f"Tool {name} is a frontend tool and should not be accessed in the backend."
+                )
                 return None
             elif source == "mcp":
                 # Check MCP tools
@@ -343,9 +345,7 @@ def setup_tool_manager(app: Starlette) -> None:
     global _TOOL_MANAGER
     if _TOOL_MANAGER is None:
         _TOOL_MANAGER = ToolManager(app)
-        LOGGER.info(
-            f"ToolManager initialized"
-        )
+        LOGGER.info("ToolManager initialized")
 
 
 def get_tool_manager() -> ToolManager:

@@ -44,12 +44,12 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._server.models.secrets as secrets
     import marimo._snippets.snippets as snippets
     from marimo._ai._types import ChatMessage
-    from marimo._server.ai.tools.types import ToolDefinition
     from marimo._ast.cell import CellConfig, RuntimeStateType
     from marimo._messaging.cell_output import CellChannel, CellOutput
     from marimo._messaging.mimetypes import KnownMimeType
     from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.packages.package_manager import PackageDescription
+    from marimo._server.ai.tools.types import ToolDefinition
     from marimo._server.api.router import build_routes
     from marimo._utils.dataclass_to_openapi import (
         PythonTypeToOpenAPI,
