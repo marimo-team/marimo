@@ -252,16 +252,18 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
       textJustifyColumns: z
-        .record(z.enum(["left", "center", "right"]))
+        .record(z.string(), z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
-      headerTooltip: z.record(z.string()).optional(),
+      headerTooltip: z.record(z.string(), z.string()).optional(),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),
       maxHeight: z.number().optional(),
-      cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
+      cellStyles: z
+        .record(z.string(), z.record(z.string(), z.object({}).passthrough()))
+        .optional(),
       hoverTemplate: z.string().optional(),
       // Whether to load the data lazily.
       lazy: z.boolean().default(false),
@@ -303,7 +305,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           data: z.union([z.string(), z.array(z.object({}).passthrough())]),
           total_rows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
           cell_styles: z
-            .record(z.record(z.object({}).passthrough()))
+            .record(
+              z.string(),
+              z.record(z.string(), z.object({}).passthrough()),
+            )
             .nullable(),
         }),
       ),

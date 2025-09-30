@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { JSX } from "react";
-import type { ZodType, ZodTypeDef } from "zod";
+import type { ZodType } from "zod";
 import type { FunctionSchemas, PluginFunctions } from "./core/rpc";
 
 /**
@@ -68,7 +68,7 @@ export interface IPlugin<
   /**
    * Validate the plugin data. Use [zod](https://zod.dev/) to validate the data.
    */
-  validator: ZodType<D, ZodTypeDef, unknown>;
+  validator: ZodType<D>;
 
   /**
    * Functions definitions and validation.

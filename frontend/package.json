@@ -41,7 +41,7 @@
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@glideapps/glide-data-grid": "6.0.4-alpha16",
-    "@hookform/resolvers": "^3.10.0",
+    "@hookform/resolvers": "^5.2.2",
     "@img-comparison-slider/react": "^8.0.2",
     "@internationalized/date": "^3.9.0",
     "@lezer/common": "^1.2.3",
@@ -170,7 +170,7 @@
     "vscode-jsonrpc": "^8.2.1",
     "vscode-languageserver-protocol": "^3.17.5",
     "web-vitals": "^4.2.4",
-    "zod": "^3.25.76"
+    "zod": "^4.1.11"
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",

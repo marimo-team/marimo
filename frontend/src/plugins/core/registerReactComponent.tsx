@@ -22,7 +22,7 @@ import React, {
 } from "react";
 import ReactDOM, { type Root } from "react-dom/client";
 import useEvent from "react-use-event-hook";
-import type { ZodSchema } from "zod";
+import { type ZodSchema, z } from "zod";
 import { notebookAtom } from "@/core/cells/cells.ts";
 import { HTMLCellId } from "@/core/cells/ids.ts";
 import { isUninstantiated } from "@/core/cells/utils";
@@ -561,13 +561,11 @@ export function isCustomMarimoElement(
   return "__type__" in element && element.__type__ === customElementLocator;
 }
 
-function prettyParse<T>(schema: ZodSchema<T>, data: unknown): T {
+function prettyParse<T>(schema: z.ZodType<T>, data: unknown): T {
   const result = schema.safeParse(data);
   if (!result.success) {
     Logger.log("Failed to parse data", data, result.error);
-    throw new Error(
-      result.error.errors.map((e) => `${e.path}: ${e.message}`).join("\n"),
-    );
+    throw new Error(z.prettifyError(result.error));
   }
   return result.data;
 }

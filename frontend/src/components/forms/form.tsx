@@ -27,6 +27,7 @@ import {
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { Strings } from "@/utils/strings";
+import { isZodPipe } from "@/utils/zod-utils";
 import { Objects } from "../../utils/objects";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -40,16 +41,16 @@ import {
 } from "../ui/form";
 import { DebouncedInput, DebouncedNumberInput } from "../ui/input";
 import { Textarea } from "../ui/textarea";
-import { getDefaults, getUnionLiteral } from "./form-utils";
+import { getDefaults, getUnionLiteral, maybeUnwrap } from "./form-utils";
 import {
   ensureStringArray,
   SwitchableMultiSelect,
   TextAreaMultiSelect,
 } from "./switchable-multi-select";
 export interface FormRenderer<T extends FieldValues = any, S = any> {
-  isMatch: (schema: z.ZodType) => schema is z.ZodType<S, z.ZodTypeDef, unknown>;
+  isMatch: (schema: z.ZodType) => schema is z.ZodType<S>;
   Component: React.ComponentType<{
-    schema: z.ZodType<S, z.ZodTypeDef, unknown>;
+    schema: z.ZodType<S>;
     form: UseFormReturn<T>;
     path: Path<T>;
   }>;
@@ -97,10 +98,11 @@ export function renderZodSchema<T extends FieldValues, S>(
     description,
     special,
     direction = "column",
-  } = FieldOptions.parse(schema._def.description || "");
+    minLength,
+  } = FieldOptions.parse(schema.description || "");
 
   if (schema instanceof z.ZodDefault) {
-    let inner = schema._def.innerType as z.ZodType<unknown>;
+    let inner = schema.unwrap() as z.ZodType;
     inner =
       !inner.description && schema.description
         ? inner.describe(schema.description)
@@ -109,7 +111,7 @@ export function renderZodSchema<T extends FieldValues, S>(
   }
 
   if (schema instanceof z.ZodOptional) {
-    let inner = schema._def.innerType as z.ZodType<unknown>;
+    let inner = schema.unwrap() as z.ZodType;
     inner =
       !inner.description && schema.description
         ? inner.describe(schema.description)
@@ -130,10 +132,10 @@ export function renderZodSchema<T extends FieldValues, S>(
         )}
       >
         <FormLabel>{label}</FormLabel>
-        {Objects.entries(schema._def.shape()).map(([key, value]) => {
+        {Objects.entries(schema.shape).map(([key, value]) => {
           const isLiteral = value instanceof z.ZodLiteral;
           const childForm = renderZodSchema(
-            value as z.ZodType<unknown>,
+            value as z.ZodType,
             form,
             joinPath(path, key),
             renderers,
@@ -282,12 +284,13 @@ export function renderZodSchema<T extends FieldValues, S>(
     return <StringFormField schema={schema} form={form} path={path} />;
   }
   if (schema instanceof z.ZodEnum) {
+    const values = schema.options.map((option) => option.toString());
     return (
       <SelectFormField
         schema={schema}
         form={form}
         path={path}
-        options={schema._def.values}
+        options={values}
       />
     );
   }
@@ -297,11 +300,13 @@ export function renderZodSchema<T extends FieldValues, S>(
     }
 
     // Inspect child type for a better input
-    const childType = schema._def.type;
+    const childType = schema.element;
 
     // Show multi-select for enum array
     if (childType instanceof z.ZodEnum) {
-      const childOptions: string[] = childType._def.values;
+      const childOptions: string[] = childType.options.map((option) =>
+        option.toString(),
+      );
       return (
         <MultiSelectFormField
           schema={schema}
@@ -318,11 +323,11 @@ export function renderZodSchema<T extends FieldValues, S>(
       <div className="flex flex-col gap-1">
         <Label>{label}</Label>
         <FormArray
-          schema={schema._def.type}
+          schema={schema.element as z.ZodType}
           form={form}
           path={path}
           key={path}
-          minLength={schema._def.minLength?.value}
+          minLength={minLength}
           renderers={renderers}
         />
       </div>
@@ -330,9 +335,15 @@ export function renderZodSchema<T extends FieldValues, S>(
   }
 
   if (schema instanceof z.ZodDiscriminatedUnion) {
-    const options = schema._def.options as z.ZodType<unknown>[];
-    const discriminator = schema._def.discriminator;
-    const optionsMap = schema._def.optionsMap;
+    const def = schema.def;
+    const options = def.options as z.ZodType[];
+    const discriminator = def.discriminator;
+    const getSchemaValue = (value: string) => {
+      return options.find((option) => {
+        return getUnionLiteral(option).value === value;
+      });
+    };
+
     return (
       <FormField
         control={form.control}
@@ -340,7 +351,7 @@ export function renderZodSchema<T extends FieldValues, S>(
         render={({ field }) => {
           const value = field.value;
           const types = options.map((option) => {
-            return getUnionLiteral(option)._def.value;
+            return getUnionLiteral(option).value;
           });
 
           const unionTypeValue: string =
@@ -348,7 +359,7 @@ export function renderZodSchema<T extends FieldValues, S>(
               ? value[discriminator]
               : types[0];
 
-          const selectedOption = optionsMap.get(unionTypeValue) || options[0];
+          const selectedOption = getSchemaValue(unionTypeValue);
 
           return (
             <div className="flex flex-col">
@@ -364,7 +375,7 @@ export function renderZodSchema<T extends FieldValues, S>(
                         : "text-muted-foreground"
                     }`}
                     onClick={() => {
-                      const nextSchema = optionsMap.get(type);
+                      const nextSchema = getSchemaValue(type);
                       if (nextSchema) {
                         field.onChange(getDefaults(nextSchema));
                       } else {
@@ -392,10 +403,10 @@ export function renderZodSchema<T extends FieldValues, S>(
         control={form.control}
         name={path}
         render={({ field }) => {
-          const options = schema._def.options as z.ZodType<unknown>[];
+          const options = schema.options as z.ZodType[];
           let value: string = field.value;
           const types = options.map((option) => {
-            return getUnionLiteral(option)._def.value;
+            return getUnionLiteral(option).value;
           });
 
           if (!value) {
@@ -404,7 +415,7 @@ export function renderZodSchema<T extends FieldValues, S>(
           }
 
           const selectedOption = options.find((option) => {
-            return getUnionLiteral(option)._def.value === value;
+            return getUnionLiteral(option).value === value;
           });
 
           return (
@@ -437,22 +448,27 @@ export function renderZodSchema<T extends FieldValues, S>(
         control={form.control}
         name={path}
         render={({ field }) => (
-          <input {...field} type="hidden" value={schema._def.value} />
+          <input
+            {...field}
+            type="hidden"
+            value={String([...schema.values][0] ?? "")}
+          />
         )}
       />
     );
   }
-  if (
-    schema instanceof z.ZodEffects &&
-    ["refinement", "transform"].includes(schema._def.effect.type)
-  ) {
-    return renderZodSchema(schema._def.schema, form, path, renderers);
+  if ("unwrap" in schema) {
+    // Handle ZodEffects (transforms/refinements)
+    return renderZodSchema(maybeUnwrap(schema), form, path, renderers);
+  }
+  if (isZodPipe(schema)) {
+    return renderZodSchema(schema.in, form, path, renderers);
   }
 
   return (
     <div>
       Unknown schema type{" "}
-      {schema == null ? path : JSON.stringify(schema._type ?? schema)}
+      {schema == null ? path : JSON.stringify(schema.type ?? schema)}
     </div>
   );
 }
@@ -467,15 +483,13 @@ const FormArray = ({
   minLength,
   renderers,
 }: {
-  schema: z.ZodType<unknown>;
+  schema: z.ZodType;
   form: UseFormReturn<any>;
   path: Path<any>;
   renderers: FormRenderer[];
   minLength?: number;
 }) => {
-  const { label, description } = FieldOptions.parse(
-    schema._def.description || "",
-  );
+  const { label, description } = FieldOptions.parse(schema.description || "");
 
   const control = form.control;
   // prepend, remove, swap, move, insert, replace
@@ -546,7 +560,7 @@ const StringFormField = ({
   path: Path<any>;
 }) => {
   const { label, description, placeholder, disabled, inputType } =
-    FieldOptions.parse(schema._def.description);
+    FieldOptions.parse(schema.description);
 
   if (inputType === "textarea") {
     return (
@@ -613,7 +627,7 @@ const MultiStringFormField = ({
   path: Path<any>;
 }) => {
   const { label, description, placeholder } = FieldOptions.parse(
-    schema._def.description,
+    schema.description,
   );
 
   return (
@@ -652,7 +666,7 @@ const SelectFormField = ({
   textTransform?: (value: string) => string;
 }) => {
   const { label, description, disabled, special } = FieldOptions.parse(
-    schema._def.description,
+    schema.description,
   );
 
   if (special === "radio_group") {
@@ -760,7 +774,7 @@ const MultiSelectFormField = ({
   showSwitchable?: boolean;
 }) => {
   const { label, description, placeholder } = FieldOptions.parse(
-    schema._def.description,
+    schema.description,
   );
 
   const resolvePlaceholder =

@@ -2,6 +2,7 @@
 
 import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { z } from "zod";
 import type { IPluginProps } from "../../types";
 import { NumberPlugin } from "../NumberPlugin";
 
@@ -22,7 +23,7 @@ describe("NumberPlugin", () => {
     // Initial render with value 5
     const props: IPluginProps<
       number | null,
-      (typeof plugin)["validator"]["_type"]
+      z.infer<(typeof plugin)["validator"]>
     > = {
       host,
       value: 5,

@@ -92,6 +92,7 @@ export function filterToFilterCondition(
     return {
       column_id: columnId,
       operator: filter.operator,
+      value: undefined,
     };
   }
 
@@ -179,12 +180,14 @@ export function filterToFilterCondition(
         return {
           column_id: columnId,
           operator: "is_true",
+          value: undefined,
         };
       }
       if (!filter.value) {
         return {
           column_id: columnId,
           operator: "is_false",
+          value: undefined,
         };
       }
 

@@ -4,7 +4,10 @@ import { cleanup, render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { userConfigAtom } from "@/core/config/config";
-import { parseUserConfig } from "@/core/config/config-schema";
+import {
+  defaultUserConfig,
+  parseUserConfig,
+} from "@/core/config/config-schema";
 import { LocaleProvider } from "../locale-provider";
 
 // Mock navigator.language with a getter
@@ -156,7 +159,7 @@ describe("LocaleProvider", () => {
     mockNavigatorLanguage = "de-DE";
 
     const store = createStore();
-    const config = parseUserConfig({});
+    const config = defaultUserConfig();
     store.set(userConfigAtom, config);
 
     const { getByTestId } = render(

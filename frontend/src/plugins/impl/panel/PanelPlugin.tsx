@@ -86,10 +86,10 @@ export const PanelPlugin = createPlugin<T>("marimo-panel")
   .withData(
     z.object({
       extension: z.string().nullable(),
-      docs_json: z.record(z.unknown()),
+      docs_json: z.record(z.string(), z.unknown()),
       render_json: z
         .object({
-          roots: z.record(z.string()),
+          roots: z.record(z.string(), z.string()),
         })
         .catchall(z.unknown()),
     }),

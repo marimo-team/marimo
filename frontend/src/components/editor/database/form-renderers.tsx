@@ -96,7 +96,7 @@ export const ENV_RENDERER: FormRenderer<z.ZodString | z.ZodNumber> = {
   isMatch: (schema: z.ZodType): schema is z.ZodString | z.ZodNumber => {
     // string or number with optionsRegex
     if (schema instanceof z.ZodString || schema instanceof z.ZodNumber) {
-      const { optionRegex } = FieldOptions.parse(schema._def.description || "");
+      const { optionRegex } = FieldOptions.parse(schema.description || "");
       return Boolean(optionRegex);
     }
 
@@ -110,7 +110,7 @@ export const ENV_RENDERER: FormRenderer<z.ZodString | z.ZodNumber> = {
       label,
       description,
       optionRegex = "",
-    } = FieldOptions.parse(schema._def.description || "");
+    } = FieldOptions.parse(schema.description || "");
 
     const [recommendedKeys, otherKeys] = partition(secretKeys, (key) =>
       new RegExp(optionRegex, "i").test(key),

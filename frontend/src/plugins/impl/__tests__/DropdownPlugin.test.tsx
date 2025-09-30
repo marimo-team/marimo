@@ -1,6 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import type { z } from "zod";
 import type { IPluginProps } from "../../types";
 import { DropdownPlugin } from "../DropdownPlugin";
 
@@ -28,7 +30,7 @@ describe("DropdownPlugin", () => {
       const host = document.createElement("div");
       const props: IPluginProps<
         string[],
-        (typeof plugin)["validator"]["_type"]
+        z.infer<(typeof plugin)["validator"]>
       > = {
         data: {
           label: "Test Label",
@@ -54,7 +56,7 @@ describe("DropdownPlugin", () => {
       const host = document.createElement("div");
       const props: IPluginProps<
         string[],
-        (typeof plugin)["validator"]["_type"]
+        z.infer<(typeof plugin)["validator"]>
       > = {
         data: {
           label: "Test Label",
@@ -79,7 +81,7 @@ describe("DropdownPlugin", () => {
       const setValue = vi.fn();
       const props: IPluginProps<
         string[],
-        (typeof plugin)["validator"]["_type"]
+        z.infer<(typeof plugin)["validator"]>
       > = {
         data: {
           label: "Test Label",
@@ -121,7 +123,7 @@ describe("DropdownPlugin", () => {
       const setValue = vi.fn();
       const props: IPluginProps<
         string[],
-        (typeof plugin)["validator"]["_type"]
+        z.infer<(typeof plugin)["validator"]>
       > = {
         data: {
           label: "Test Label",

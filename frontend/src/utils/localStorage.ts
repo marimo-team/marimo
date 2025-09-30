@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { ZodType, ZodTypeDef } from "zod";
+import type { ZodType } from "zod";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { Logger } from "./Logger";
@@ -36,13 +36,10 @@ export class TypedLocalStorage<T> implements Storage<T> {
 }
 
 export class ZodLocalStorage<T> implements Storage<T> {
-  private schema: ZodType<T, ZodTypeDef, unknown>;
+  private schema: ZodType<T>;
   private getDefaultValue: () => T;
 
-  constructor(
-    schema: ZodType<T, ZodTypeDef, unknown>,
-    getDefaultValue: () => T,
-  ) {
+  constructor(schema: ZodType<T>, getDefaultValue: () => T) {
     this.schema = schema;
     this.getDefaultValue = getDefaultValue;
   }
@@ -82,11 +79,7 @@ export class NotebookScopedLocalStorage<T> extends ZodLocalStorage<T> {
   private filename: string | null;
   private unsubscribeFromFilename: (() => void) | null;
 
-  constructor(
-    key: string,
-    schema: ZodType<T, ZodTypeDef, unknown>,
-    getDefaultValue: () => T,
-  ) {
+  constructor(key: string, schema: ZodType<T>, getDefaultValue: () => T) {
     const filename = store.get(filenameAtom);
     super(schema, getDefaultValue);
     this.filename = filename;
