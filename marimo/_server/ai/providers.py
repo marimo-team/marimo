@@ -797,6 +797,9 @@ class GoogleProvider(
         "gemini-2.5-flash",
     ]
 
+    # Keep a persistent async client to avoid closing during stream iteration
+    _client: Optional[GoogleClient] = None
+
     def is_thinking_model(self, model: str) -> bool:
         return any(
             model.startswith(prefix) for prefix in self.THINKING_MODEL_PREFIXES
@@ -832,6 +835,10 @@ class GoogleProvider(
             )
             from google import genai  # type: ignore
 
+        # Reuse a stored async client if already created
+        if self._client is not None:
+            return self._client
+
         # If no API key is provided, try to use environment variables and ADC
         # This supports Google Vertex AI usage without explicit API keys
         if not config.api_key:
@@ -842,14 +849,18 @@ class GoogleProvider(
             if use_vertex:
                 project = os.getenv("GOOGLE_CLOUD_PROJECT")
                 location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-                return genai.Client(
+                self._client = genai.Client(
                     vertexai=True, project=project, location=location
                 ).aio
             else:
                 # Try default initialization which may work with environment variables
-                return genai.Client().aio
+                self._client = genai.Client().aio
 
-        return genai.Client(api_key=config.api_key).aio
+            # Return vertex or default client
+            return self._client
+
+        self._client = genai.Client(api_key=config.api_key).aio
+        return self._client
 
     async def stream_completion(
         self,
@@ -859,7 +870,7 @@ class GoogleProvider(
         additional_tools: list[ToolDefinition],
     ) -> AsyncIterator[GenerateContentResponse]:
         client = self.get_client(self.config)
-        return await client.models.generate_content_stream(
+        return await client.models.generate_content_stream(  # type: ignore[reportReturnType]
             model=self.model,
             contents=convert_to_google_messages(messages),
             config=self.get_config(
