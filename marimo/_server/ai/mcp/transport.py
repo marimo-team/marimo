@@ -60,12 +60,12 @@ class StdioTransportConnector(MCPTransportConnector):
 
         # Set up environment variables for the server process
         env = os.environ.copy()
-        env.update(config.get("env", {}))
+        env.update(config.get("env") or {})
 
         # Configure server parameters
         server_params = StdioServerParameters(
             command=config["command"],
-            args=config.get("args", []),
+            args=config.get("args") or [],
             env=env,
         )
 
