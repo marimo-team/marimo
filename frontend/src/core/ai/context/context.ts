@@ -25,7 +25,9 @@ export function getAIContextRegistry(store: JotaiStore) {
     .register(new VariableContextProvider(variables, tablesMap))
     .register(new ErrorContextProvider(store))
     .register(new CellOutputContextProvider(store))
-    .register(new DatasourceContextProvider(datasource.connectionsMap));
+    .register(
+      new DatasourceContextProvider(datasource.connectionsMap, tablesMap),
+    );
 }
 
 export function getFileContextProvider(): FileContextProvider {

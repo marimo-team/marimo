@@ -331,4 +331,12 @@ export const allTablesAtom = atom((get) => {
   return tableNames;
 });
 
+/**
+ * Dataframes are tables that are created from local Python dataframes
+ * In-memory engines can access dataframes
+ */
+export function getTableType(table: DataTable): "table" | "dataframe" {
+  return table.variable_name ? "dataframe" : "table";
+}
+
 export type DatasetTablesMap = ReturnType<(typeof allTablesAtom)["read"]>;

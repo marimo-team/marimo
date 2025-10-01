@@ -1,7 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Completion } from "@codemirror/autocomplete";
-import type { DatasetTablesMap } from "@/core/datasets/data-source-connections";
+import {
+  type DatasetTablesMap,
+  getTableType,
+} from "@/core/datasets/data-source-connections";
 import type { DataTable } from "@/core/kernel/messages";
 import type { AIContextItem } from "../registry";
 import { AIContextProvider } from "../registry";
@@ -73,9 +76,9 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
         table.source_type === "local"
           ? Boosts.LOCAL_TABLE
           : Boosts.REMOTE_TABLE,
-      type: table.variable_name ? "dataframe" : "table",
+      type: getTableType(table),
       apply: `@${tableName}`,
-      section: table.variable_name ? "Dataframe" : "Table",
+      section: getTableType(table) === "dataframe" ? "Dataframe" : "Table",
       info: () => this.createTableInfoElement(tableName, table),
     };
   }

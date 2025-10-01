@@ -15,6 +15,10 @@ import {
 } from "@/components/databases/namespace-icons";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Badge } from "@/components/ui/badge";
+import {
+  type ConnectionName,
+  INTERNAL_SQL_ENGINES,
+} from "@/core/datasets/engines";
 import type {
   Database,
   DatabaseSchema,
@@ -488,6 +492,7 @@ const MAX_TABLES_TO_DISPLAY = 3;
 
 export const renderDatasourceInfo = (
   connection: DataSourceConnection,
+  dataframes?: DataTable[],
 ): React.ReactNode => {
   const databaseCount = connection.databases.length;
   const schemasCount = connection.databases.reduce(
@@ -560,11 +565,23 @@ export const renderDatasourceInfo = (
     );
   });
 
+  let title = connection.name;
+  if (INTERNAL_SQL_ENGINES.has(connection.name as ConnectionName)) {
+    title = "In-Memory";
+  }
+
+  const dataframeItems = dataframes?.map((table) => (
+    <div key={table.name} className="flex items-center gap-2">
+      <TableIcon className="w-3 h-3 text-[var(--blue-9)]" />
+      <span className="text-xs">{table.name}</span>
+    </div>
+  ));
+
   return (
     <div className={`${CONTAINER_STYLES} px-1`}>
       <SectionHeader
         icon={<DatasourceIcon className="w-4 h-4 text-[var(--purple-9)]" />}
-        title={connection.name}
+        title={title}
       />
 
       {/* Metadata */}
@@ -605,6 +622,15 @@ export const renderDatasourceInfo = (
       {/* Database Preview */}
       {databaseCount > 0 && (
         <PreviewList items={databaseItems} totalCount={databaseCount} />
+      )}
+
+      {/* Tables Preview */}
+      {dataframeItems && dataframeItems.length > 0 && (
+        <PreviewList
+          title="Dataframes"
+          items={dataframeItems}
+          totalCount={dataframeItems.length}
+        />
       )}
     </div>
   );
