@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     # Instantiate AppFileManager with the temporary file and a mock app
     manager = AppFileManager(filename=str(temp_file))
-    yield manager
+    return manager
 
     # No manual cleanup needed - pytest handles it automatically
 
@@ -473,7 +473,9 @@ if __name__ == "__main__":
     assert changed_cell_ids == {"MJUe"}
 
 
-def test_rename_with_special_chars(app_file_manager: AppFileManager, tmp_path: Path) -> None:
+def test_rename_with_special_chars(
+    app_file_manager: AppFileManager, tmp_path: Path
+) -> None:
     """Test that renaming files with special characters works."""
     # Create a temporary file
     initial_path = tmp_path / "test.py"
@@ -618,7 +620,6 @@ if __name__ == "__main__":
 
     # Check the contents of the cell
     assert manager.app.cell_manager.get_cell_code(cell_two) == new_code
-
 
 
 def test_default_app_settings(tmp_path: Path) -> None:
