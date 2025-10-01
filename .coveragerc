@@ -1,0 +1,3 @@
+[run]
+omit =
+    marimo/_save/save.py
