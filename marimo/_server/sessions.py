@@ -50,6 +50,7 @@ from marimo._runtime import requests, runtime
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
+    DeleteCellRequest,
     ExecuteMultipleRequest,
     ExecutionRequest,
     HTTPRequest,
@@ -1205,24 +1206,36 @@ class SessionFileChangeHandler:
 
         # Auto-run cells if configured
         if should_autorun:
-            changed_cell_ids_list = list(changed_cell_ids)
             cell_ids_to_idx = {
                 cell_id: idx for idx, cell_id in enumerate(cell_ids)
             }
+            deleted = {
+                cell_id
+                for cell_id in changed_cell_ids
+                if cell_id not in cell_ids_to_idx
+            }
+            changed_cell_ids_list = list(changed_cell_ids - deleted)
             changed_codes = [
                 codes[cell_ids_to_idx[cell_id]]
                 for cell_id in changed_cell_ids_list
+                if cell_id not in deleted
             ]
 
-            # This runs the request and also runs UpdateCellCodes
-            session.put_control_request(
-                ExecuteMultipleRequest(
-                    cell_ids=changed_cell_ids_list,
-                    codes=changed_codes,
-                    request=None,
-                ),
-                from_consumer_id=None,
-            )
+            if changed_cell_ids_list:
+                # This runs the request and also runs UpdateCellCodes
+                session.put_control_request(
+                    ExecuteMultipleRequest(
+                        cell_ids=changed_cell_ids_list,
+                        codes=changed_codes,
+                        request=None,
+                    ),
+                    from_consumer_id=None,
+                )
+            for to_delete in deleted:
+                session.put_control_request(
+                    DeleteCellRequest(cell_id=to_delete),
+                    from_consumer_id=None,
+                )
         else:
             session.write_operation(
                 UpdateCellCodes(
