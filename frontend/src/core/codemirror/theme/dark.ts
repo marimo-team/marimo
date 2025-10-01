@@ -17,7 +17,7 @@ export const darkTheme = [
       gutterForeground: "var(--gray-10)",
     },
     styles: [
-      { tag: t.comment, color: "#5c6370" },
+      { tag: t.comment, color: "#6b7280" },
       { tag: t.variableName, color: "#abb2bf" },
       { tag: [t.string, t.special(t.brace)], color: "#98c379" },
       { tag: t.number, color: "#d19a66" },
