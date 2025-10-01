@@ -7,9 +7,9 @@ error[self-import]: Importing module 'requests' conflicts with file name 'reques
 hint: Rename the file to avoid conflicts with the 'requests' module. 
 
 error[self-import]: Importing module 'requests' conflicts with file name 'requests.py'
- --> tests/_lint/test_files/requests.py:14:1
-  14 | def _():
+ --> tests/_lint/test_files/requests.py:15:1
   15 |     # Test different import style
-     |     ^
   16 |     from requests import get
+     |     ^
+  17 |     return
 hint: Rename the file to avoid conflicts with the 'requests' module. 

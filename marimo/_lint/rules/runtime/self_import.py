@@ -89,9 +89,6 @@ class SelfImportRule(GraphRule):
             # For .md or other extensions, we can't determine conflicts
             return
 
-        # Get the dependency graph to access compiled cell data
-        graph = ctx.get_graph()
-
         # Get directory containing the notebook file for local package checking
         notebook_dir = os.path.dirname(ctx.notebook.filename)
 
