@@ -1,8 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import pathlib
-import site
 import sys
 from typing import TYPE_CHECKING, Any, Callable
 

@@ -47,7 +47,7 @@ def module_exists_in_site_packages(module_name: str) -> bool:
     try:
         # Get all site-packages directories
         site_packages_dirs = site.getsitepackages()
-        if hasattr(site, 'getusersitepackages'):
+        if hasattr(site, "getusersitepackages"):
             site_packages_dirs.append(site.getusersitepackages())
 
         for site_dir in site_packages_dirs:
@@ -61,18 +61,16 @@ def module_exists_in_site_packages(module_name: str) -> bool:
 
             # Check for .py file
             py_file = os.path.join(site_dir, f"{module_name}.py")
-            print(site_dir, py_file)
             if os.path.isfile(py_file):
                 return True
 
             # Check for .pth files or other package indicators
             for entry in os.listdir(site_dir):
-                print(entry)
                 module = entry.split("-", 0)[0]
                 if module == module_name and (
-                    entry.endswith('.egg-info') or
-                    entry.endswith('.dist-info') or
-                    entry.endswith('.egg')
+                    entry.endswith(".egg-info")
+                    or entry.endswith(".dist-info")
+                    or entry.endswith(".egg")
                 ):
                     return True
 
@@ -96,7 +94,9 @@ def has_local_conflict(module_name: str, directory: str) -> bool:
 
     # Check for local package directory
     local_pkg = os.path.join(directory, module_name)
-    if os.path.isdir(local_pkg) and os.path.isfile(os.path.join(local_pkg, "__init__.py")):
+    if os.path.isdir(local_pkg) and os.path.isfile(
+        os.path.join(local_pkg, "__init__.py")
+    ):
         return True
 
     return False
