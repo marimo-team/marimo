@@ -855,7 +855,7 @@ class GoogleProvider(
             else:
                 # Try default initialization which may work with environment variables
                 self._client = genai.Client().aio
-            
+
             # Return vertex or default client
             return self._client
 
@@ -870,7 +870,7 @@ class GoogleProvider(
         additional_tools: list[ToolDefinition],
     ) -> AsyncIterator[GenerateContentResponse]:
         client = self.get_client(self.config)
-        stream = await client.models.generate_content_stream(
+        return await client.models.generate_content_stream(  # type: ignore[reportReturnType]
             model=self.model,
             contents=convert_to_google_messages(messages),
             config=self.get_config(
@@ -879,9 +879,6 @@ class GoogleProvider(
                 additional_tools=additional_tools,
             ),
         )
-        # GoogleProvider returns an Awaitable[AsyncIterator[GenerateContentResponse]]
-        # so we need to cast it to AsyncIterator[GenerateContentResponse]
-        return cast("AsyncIterator[GenerateContentResponse]", stream)
 
     def _get_tool_call_id(self, tool_call_id: Optional[str]) -> Optional[str]:
         # Custom tools don't have an id, so we have to generate a random uuid
@@ -1005,8 +1002,7 @@ class BedrockProvider(
             all_tools = tools + additional_tools
             config["tools"] = convert_to_openai_tools(all_tools)
 
-        result = await litellm_completion(**config)
-        return cast("LitellmStream", result)
+        return await litellm_completion(**config)
 
     def extract_content(
         self,
