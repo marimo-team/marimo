@@ -9,6 +9,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "AFQ": "pyAFQ",
         "AG_fft_tools": "agpy",
         "Adafruit": "Adafruit-Libraries",
+        "airflow": "apache-airflow",
         "Asterisk": "py-Asterisk",
         "BB_jekyll_hook": "bitbucket-jekyll-hook",
         "Banzai": "Banzai-NGS",
