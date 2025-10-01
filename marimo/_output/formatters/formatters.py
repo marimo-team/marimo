@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import pathlib
+import site
 import sys
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -84,6 +86,41 @@ NATIVE_FACTORIES: Sequence[FormatterFactory] = [
 ]
 
 
+def _is_local_module(spec: Any) -> bool:
+    """Check if a module is local (not under site-packages).
+
+    Uses Python's site module to get actual site-packages directories,
+    making it more robust across different Python installations and OS.
+    """
+    if spec is None or spec.origin is None:
+        return True  # Assume local if we can't determine
+
+    module_path = pathlib.Path(spec.origin).resolve()
+
+    # Get site-packages directories
+    try:
+        # Try to get global site-packages (not available in virtual envs)
+        site_packages_dirs = site.getsitepackages()
+    except AttributeError:
+        # Fallback for virtual environments or restricted environments
+        try:
+            site_packages_dirs = [site.getusersitepackages()]
+        except AttributeError:
+            # Ultimate fallback: use string matching
+            return "site-packages" not in module_path.parts
+
+    # Check if module is in any site-packages directory
+    for site_dir in site_packages_dirs:
+        try:
+            if module_path.is_relative_to(pathlib.Path(site_dir)):
+                return False  # Module is in site-packages
+        except (OSError, ValueError):
+            # Handle path resolution issues
+            continue
+
+    return True  # Module is local
+
+
 def patch_finder(
     finder: Any,
     third_party_factories: dict[str, FormatterFactory] | None = None,
@@ -121,6 +158,10 @@ def patch_finder(
         del self
         spec = original_find_spec(fullname, path, target)
         if spec is None:
+            return spec
+
+        # Skip patching for local modules (not under site-packages)
+        if _is_local_module(spec):
             return spec
 
         if spec.loader is not None and fullname in third_party_factories:
