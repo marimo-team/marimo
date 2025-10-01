@@ -5,7 +5,7 @@ import datetime
 import functools
 import io
 from functools import cached_property
-from typing import Any, Optional, Union, cast
+from typing import Any, Literal, Optional, Union, cast
 
 import msgspec
 import narwhals.stable.v2 as nw
@@ -353,7 +353,7 @@ class NarwhalsTableManager(
             and not frame.implementation.is_ibis()
         )
 
-        quantile_interpolation = "nearest"
+        quantile_interpolation: Literal["nearest", "linear"] = "nearest"
         if frame.implementation.is_duckdb():
             # As of Oct 2025, DuckDB does not support "nearest" interpolation
             quantile_interpolation = "linear"
