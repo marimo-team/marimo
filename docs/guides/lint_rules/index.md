@@ -33,6 +33,14 @@ These errors prevent notebook execution.
 | [MB004](rules/setup_cell_dependencies.md) | setup-cell-dependencies | Setup cell cannot have dependencies | ❌ |
 | [MB005](rules/invalid_syntax.md) | invalid-syntax | Cell contains code that throws a SyntaxError on compilation | ❌ |
 
+### ⚠️ Runtime Rules
+
+These issues may cause runtime problems.
+
+| Code | Name | Description | Fixable |
+|------|------|-------------|----------|
+| [MR001](rules/self_import.md) | self-import | Importing a module with the same name as the file | ❌ |
+
 ### ✨ Formatting Rules
 
 These are style and formatting issues.

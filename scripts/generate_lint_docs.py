@@ -30,7 +30,6 @@ from typing import Any
 class Severity(Enum):
     """Severity levels for diagnostic errors."""
     FORMATTING = "formatting"
-    # Retained for future use: RUNTIME severity is intended for runtime-related lint rules.
     RUNTIME = "runtime"
     BREAKING = "breaking"
 
@@ -111,40 +110,30 @@ def discover_all_rules() -> dict[str, RuleInfo]:
     # First, get the registered rule codes from the init files
     breaking_init = MARIMO_ROOT / "marimo" / "_lint" / "rules" / "breaking" / "__init__.py"
     formatting_init = MARIMO_ROOT / "marimo" / "_lint" / "rules" / "formatting" / "__init__.py"
+    runtime_init = MARIMO_ROOT / "marimo" / "_lint" / "rules" / "runtime" / "__init__.py"
 
     registered_codes = set()
 
-    # Parse the breaking rules init file
-    try:
-        content = breaking_init.read_text()
-        # Extract codes from BREAKING_RULE_CODES dictionary
-        for line in content.split('\n'):
-            if '"MB' in line and ':' in line:
-                # Extract the code between quotes
-                start = line.find('"MB')
-                if start != -1:
-                    end = line.find('"', start + 1)
-                    if end != -1:
-                        code = line[start + 1:end]
-                        registered_codes.add(code)
-    except Exception as e:
-        print(f"Warning: Could not parse breaking rules init: {e}")
+    def process(init_file: Path, prefix: str, registered_codes: set[str]) -> None:
+        try:
+            content = init_file.read_text()
+            # Extract codes from BREAKING_RULE_CODES dictionary
+            for line in content.split('\n'):
+                if f'"{prefix}' in line and ':' in line:
+                    # Extract the code between quotes
+                    start = line.find(f'"{prefix}')
+                    if start != -1:
+                        end = line.find('"', start + 1)
+                        if end != -1:
+                            code = line[start + 1:end]
+                            registered_codes.add(code)
+        except Exception as e:
+            print(f"Warning: Could not parse rules init: {e}")
 
-    # Parse the formatting rules init file
-    try:
-        content = formatting_init.read_text()
-        # Extract codes from FORMATTING_RULE_CODES dictionary
-        for line in content.split('\n'):
-            if '"MF' in line and ':' in line:
-                # Extract the code between quotes
-                start = line.find('"MF')
-                if start != -1:
-                    end = line.find('"', start + 1)
-                    if end != -1:
-                        code = line[start + 1:end]
-                        registered_codes.add(code)
-    except Exception as e:
-        print(f"Warning: Could not parse formatting rules init: {e}")
+    # Parse the breaking rules init file
+    process(breaking_init, "MB", registered_codes)
+    process(runtime_init, "MR", registered_codes)
+    process(formatting_init, "MF", registered_codes)
 
     # Now discover rules from source files
     rules_dir = MARIMO_ROOT / "marimo" / "_lint" / "rules"
