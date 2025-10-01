@@ -797,6 +797,9 @@ class GoogleProvider(
         "gemini-2.5-flash",
     ]
 
+    # Keep a persistent async client to avoid closing during stream iteration
+    _client: Optional[GoogleClient] = None
+
     def is_thinking_model(self, model: str) -> bool:
         return any(
             model.startswith(prefix) for prefix in self.THINKING_MODEL_PREFIXES
@@ -832,6 +835,10 @@ class GoogleProvider(
             )
             from google import genai  # type: ignore
 
+        # Reuse a stored async client if already created
+        if self._client is not None:
+            return self._client
+
         # If no API key is provided, try to use environment variables and ADC
         # This supports Google Vertex AI usage without explicit API keys
         if not config.api_key:
@@ -842,14 +849,18 @@ class GoogleProvider(
             if use_vertex:
                 project = os.getenv("GOOGLE_CLOUD_PROJECT")
                 location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-                return genai.Client(
+                self._client = genai.Client(
                     vertexai=True, project=project, location=location
                 ).aio
             else:
                 # Try default initialization which may work with environment variables
-                return genai.Client().aio
+                self._client = genai.Client().aio
+            
+            # Return vertex or default client
+            return self._client
 
-        return genai.Client(api_key=config.api_key).aio
+        self._client = genai.Client(api_key=config.api_key).aio
+        return self._client
 
     async def stream_completion(
         self,
@@ -859,7 +870,7 @@ class GoogleProvider(
         additional_tools: list[ToolDefinition],
     ) -> AsyncIterator[GenerateContentResponse]:
         client = self.get_client(self.config)
-        return await client.models.generate_content_stream(
+        stream = await client.models.generate_content_stream(
             model=self.model,
             contents=convert_to_google_messages(messages),
             config=self.get_config(
@@ -868,6 +879,9 @@ class GoogleProvider(
                 additional_tools=additional_tools,
             ),
         )
+        # GoogleProvider returns an Awaitable[AsyncIterator[GenerateContentResponse]]
+        # so we need to cast it to AsyncIterator[GenerateContentResponse]
+        return cast("AsyncIterator[GenerateContentResponse]", stream)
 
     def _get_tool_call_id(self, tool_call_id: Optional[str]) -> Optional[str]:
         # Custom tools don't have an id, so we have to generate a random uuid
@@ -991,7 +1005,8 @@ class BedrockProvider(
             all_tools = tools + additional_tools
             config["tools"] = convert_to_openai_tools(all_tools)
 
-        return await litellm_completion(**config)
+        result = await litellm_completion(**config)
+        return cast("LitellmStream", result)
 
     def extract_content(
         self,
