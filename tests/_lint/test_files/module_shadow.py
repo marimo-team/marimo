@@ -6,7 +6,7 @@ app = marimo.App()
 
 @app.cell
 def _():
-    import requests  # Should trigger MR001 - file named requests.py importing requests
+    import requests  # Should trigger MR001 - file will be named requests.py importing requests
     return
 
 

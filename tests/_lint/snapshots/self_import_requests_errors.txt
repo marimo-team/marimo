@@ -1,7 +1,7 @@
 error[self-import]: Importing module 'requests' conflicts with file name 'requests.py'
  --> tests/_lint/test_files/requests.py:8:1
    8 | def _():
-   9 |     import requests  # Should trigger MR001 - file named requests.py importing requests
+   9 |     import requests  # Should trigger MR001 - file will be named requests.py importing requests
      |     ^
   10 |     return
 hint: Rename the file to avoid conflicts with the 'requests' module. 
