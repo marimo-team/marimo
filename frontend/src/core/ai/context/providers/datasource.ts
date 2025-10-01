@@ -19,12 +19,23 @@ import { AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
 import { Boosts } from "./common";
 
+// TODO: The AI doesn't use the engine_name when writing queries.
+// Can we feed a prompt to use engine_name, and know to use default_db & default_schema
+
+type NamedDatasource = Omit<
+  DataSourceConnection,
+  "name" | "display_name" | "source"
+> & {
+  // Easier for the AI to write mo.sql with engine name
+  engine_name?: ConnectionName;
+};
+
 export interface DatasourceContextItem extends AIContextItem {
   type: "datasource";
-  // For internal engine, it can have both datasource and data tables
-  // For external engines, the data is a DataSourceConnection
+  // For internal engine, it can have both connection and data tables
+  // For external engines, the data is just a DataSourceConnection
   data: {
-    datasource: DataSourceConnection;
+    connection: DataSourceConnection;
     tables?: DataTable[];
   };
 }
@@ -46,9 +57,9 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
 
   getItems(): DatasourceContextItem[] {
     return [...this.connectionsMap.values()].map((connection) => {
-      let description = "Database schema";
+      let description = "Database schema.";
       const data: DatasourceContextItem["data"] = {
-        datasource: connection,
+        connection: connection,
       };
       if (INTERNAL_SQL_ENGINES.has(connection.name)) {
         data.tables = this.dataframes;
@@ -69,32 +80,37 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
     const data = item.data;
     // Remove certain fields that are not needed in the context
     const { name, display_name, source, ...filteredDatasource } =
-      data.datasource;
+      data.connection;
+
+    const namedDatasource: NamedDatasource = {
+      ...filteredDatasource,
+      engine_name: name as ConnectionName,
+    };
 
     return contextToXml({
       type: this.contextType,
       data: {
-        datasource: filteredDatasource,
+        connection: namedDatasource,
         tables: data.tables,
       },
     });
   }
 
   formatCompletion(item: DatasourceContextItem): Completion {
-    const connection = item.data;
+    const datasource = item.data;
 
-    const datasource = connection.datasource;
-    const dataframes = connection.tables;
+    const dataConnection = datasource.connection;
+    const dataframes = datasource.tables;
 
-    let label = datasource.name;
-    if (INTERNAL_SQL_ENGINES.has(datasource.name as ConnectionName)) {
+    let label = dataConnection.name;
+    if (INTERNAL_SQL_ENGINES.has(dataConnection.name as ConnectionName)) {
       label = "In-Memory";
     }
 
     return {
       label: `@${label}`,
       displayLabel: label,
-      detail: dbDisplayName(datasource.dialect),
+      detail: dbDisplayName(dataConnection.dialect),
       boost: Boosts.LOW,
       type: this.contextType,
       section: "Data Sources",
@@ -104,7 +120,7 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
 
         // Use React to render the datasource info
         const root = createRoot(infoContainer);
-        root.render(renderDatasourceInfo(datasource, dataframes));
+        root.render(renderDatasourceInfo(dataConnection, dataframes));
 
         return infoContainer;
       },
