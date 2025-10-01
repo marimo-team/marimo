@@ -35,4 +35,4 @@ def assert_serialize_roundtrip(obj: msgspec.Struct) -> None:
     serialized = encode_json_bytes(obj)
     cls = type(obj)
     parsed = parse_raw(serialized, cls)
-    assert asdict(obj) == asdict(parsed)
+    assert asdict(obj) == asdict(parsed), f"{asdict(obj)} != {asdict(parsed)}"

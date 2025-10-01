@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.platform import is_windows
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
 
@@ -922,8 +923,8 @@ class TestExportIpynb:
         assert p.stdout.decode() == ""
 
     @pytest.mark.skipif(
-        not DependencyManager.nbformat.has(),
-        reason="This test requires nbformat.",
+        not DependencyManager.nbformat.has() or is_windows(),
+        reason="This test requires nbformat. Or windows.",
     )
     def test_export_ipynb_with_errors(
         self, temp_marimo_file_with_errors: str

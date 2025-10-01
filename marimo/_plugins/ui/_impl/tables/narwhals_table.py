@@ -342,12 +342,21 @@ class NarwhalsTableManager(
             "nulls": col.null_count(),
         }
 
-        # As of Sep 2025, pyarrow and ibis do not support quantiles
+        # As of Oct 2025, pyarrow and ibis do not support quantiles
         # through narwhals
-        supports_quantiles = (
+        supports_numeric_quantiles = (
             not frame.implementation.is_pyarrow()
             and not frame.implementation.is_ibis()
         )
+        supports_temporal_quantiles = (
+            not frame.implementation.is_pyarrow()
+            and not frame.implementation.is_ibis()
+        )
+
+        quantile_interpolation = "nearest"
+        if frame.implementation.is_duckdb():
+            # As of Oct 2025, DuckDB does not support "nearest" interpolation
+            quantile_interpolation = "linear"
 
         if is_narwhals_string_type(dtype):
             exprs["unique"] = col.n_unique()
@@ -401,15 +410,25 @@ class NarwhalsTableManager(
                     "max": col.max(),
                 }
             )
-            if supports_quantiles:
+            if supports_temporal_quantiles:
                 exprs.update(
                     {
                         "mean": col.mean(),
-                        "median": col.quantile(0.5, interpolation="nearest"),
-                        "p5": col.quantile(0.05, interpolation="nearest"),
-                        "p25": col.quantile(0.25, interpolation="nearest"),
-                        "p75": col.quantile(0.75, interpolation="nearest"),
-                        "p95": col.quantile(0.95, interpolation="nearest"),
+                        "median": col.quantile(
+                            0.5, interpolation=quantile_interpolation
+                        ),
+                        "p5": col.quantile(
+                            0.05, interpolation=quantile_interpolation
+                        ),
+                        "p25": col.quantile(
+                            0.25, interpolation=quantile_interpolation
+                        ),
+                        "p75": col.quantile(
+                            0.75, interpolation=quantile_interpolation
+                        ),
+                        "p95": col.quantile(
+                            0.95, interpolation=quantile_interpolation
+                        ),
                     }
                 )
         elif is_narwhals_integer_type(dtype):
@@ -423,13 +442,21 @@ class NarwhalsTableManager(
                     "median": col.median(),
                 }
             )
-            if supports_quantiles:
+            if supports_numeric_quantiles:
                 exprs.update(
                     {
-                        "p5": col.quantile(0.05, interpolation="nearest"),
-                        "p25": col.quantile(0.25, interpolation="nearest"),
-                        "p75": col.quantile(0.75, interpolation="nearest"),
-                        "p95": col.quantile(0.95, interpolation="nearest"),
+                        "p5": col.quantile(
+                            0.05, interpolation=quantile_interpolation
+                        ),
+                        "p25": col.quantile(
+                            0.25, interpolation=quantile_interpolation
+                        ),
+                        "p75": col.quantile(
+                            0.75, interpolation=quantile_interpolation
+                        ),
+                        "p95": col.quantile(
+                            0.95, interpolation=quantile_interpolation
+                        ),
                     }
                 )
         elif dtype.is_numeric():
@@ -443,13 +470,21 @@ class NarwhalsTableManager(
                     "median": col.median(),
                 }
             )
-            if supports_quantiles:
+            if supports_numeric_quantiles:
                 exprs.update(
                     {
-                        "p5": col.quantile(0.05, interpolation="nearest"),
-                        "p25": col.quantile(0.25, interpolation="nearest"),
-                        "p75": col.quantile(0.75, interpolation="nearest"),
-                        "p95": col.quantile(0.95, interpolation="nearest"),
+                        "p5": col.quantile(
+                            0.05, interpolation=quantile_interpolation
+                        ),
+                        "p25": col.quantile(
+                            0.25, interpolation=quantile_interpolation
+                        ),
+                        "p75": col.quantile(
+                            0.75, interpolation=quantile_interpolation
+                        ),
+                        "p95": col.quantile(
+                            0.95, interpolation=quantile_interpolation
+                        ),
                     }
                 )
 
@@ -460,6 +495,10 @@ class NarwhalsTableManager(
         for key, value in stats_dict.items():
             if key in units:
                 stats_dict[key] = f"{value} {units[key]}"
+
+        # Maybe coerce null count to int
+        if stats_dict["nulls"] is not None:
+            stats_dict["nulls"] = int(stats_dict["nulls"])
 
         return ColumnStats(**stats_dict)
 
