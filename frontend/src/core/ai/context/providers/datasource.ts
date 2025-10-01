@@ -19,9 +19,6 @@ import { AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
 import { Boosts } from "./common";
 
-// TODO: The AI doesn't use the engine_name when writing queries.
-// Can we feed a prompt to use engine_name, and know to use default_db & default_schema
-
 type NamedDatasource = Omit<
   DataSourceConnection,
   "name" | "display_name" | "source"
