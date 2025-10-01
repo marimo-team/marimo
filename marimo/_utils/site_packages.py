@@ -66,7 +66,7 @@ def module_exists_in_site_packages(module_name: str) -> bool:
 
             # Check for .pth files or other package indicators
             for entry in os.listdir(site_dir):
-                module = entry.split("-", 0)[0]
+                module = entry.split("-", 1)[0]
                 if module == module_name and (
                     entry.endswith(".egg-info")
                     or entry.endswith(".dist-info")
