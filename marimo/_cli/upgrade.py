@@ -24,15 +24,24 @@ FETCH_TIMEOUT = 3
 LOGGER = _loggers.marimo_logger()
 
 
-def print_latest_version(current_version: str, latest_version: str) -> None:
-    message = f"Update available {current_version} → {latest_version}"
+def print_latest_version(current_version: str, state: MarimoCLIState) -> None:
+    message = f"Update available {current_version} → {state.latest_version}"
     echo(orange(message))
     echo(f"Run {green('pip install --upgrade marimo')} to upgrade.")
+
+    if state.notices:
+        echo()
+        echo("Recent updates:")
+        for notice in state.notices:
+            echo(f"• {notice}")
+
     echo()
 
 
 @server_tracer.start_as_current_span("check_for_updates")
-def check_for_updates(on_update: Callable[[str, str], None]) -> None:
+def check_for_updates(
+    on_update: Callable[[str, MarimoCLIState], None],
+) -> None:
     try:
         _check_for_updates_internal(on_update)
     except Exception as e:
@@ -41,7 +50,9 @@ def check_for_updates(on_update: Callable[[str, str], None]) -> None:
         pass
 
 
-def _check_for_updates_internal(on_update: Callable[[str, str], None]) -> None:
+def _check_for_updates_internal(
+    on_update: Callable[[str, MarimoCLIState], None],
+) -> None:
     from packaging import version
 
     state = get_cli_state()
@@ -59,7 +70,7 @@ def _check_for_updates_internal(on_update: Callable[[str, str], None]) -> None:
     if current_version and version.parse(state.latest_version) > version.parse(
         current_version
     ):
-        on_update(current_version, state.latest_version)
+        on_update(current_version, state)
 
     # Save the state, create directories if necessary
     write_cli_state(state)
@@ -96,6 +107,7 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
         # Fetch the latest version from PyPI
         response = _fetch_data_from_url(api_url)
         version = response["info"]["version"]
+        state.notices = update_notices(response)
         state.latest_version = version
         state.last_checked_at = now.strftime(DATE_FORMAT)
         return state
@@ -128,3 +140,40 @@ def _fetch_data_from_url(url: str) -> dict[str, Any]:
 
 def _is_same_day(date1: datetime, date2: datetime) -> bool:
     return date1.date() == date2.date()
+
+
+def update_notices(response: dict[str, Any]) -> list[str]:
+    """
+    Extract notices from the version endpoint response.
+    Work down through versions and collect notices for versions
+    greater than current but less than or equal to latest.
+    Add them to the list in reverse order and break early.
+    """
+    from packaging import version
+
+    LOGGER.debug(f"Updating notices from version response, {response}")
+    notices = response.get("info", {}).get("notices", {})
+    if not notices:
+        return []
+
+    current_ver = version.parse(current_version)
+    latest_ver = version.parse(response["info"]["version"])
+
+    collected_notices: list[str] = []
+
+    # Work down through the notices dict
+    for version_str, notice_text in notices.items():
+        notice_version = version.parse(version_str)
+
+        # If we've gone below the current version, we can break
+        if notice_version <= current_ver:
+            break
+
+        # Add notice if version is greater than current but <= latest
+        if current_ver < notice_version <= latest_ver:
+            if notice_text:
+                collected_notices.insert(
+                    0, notice_text
+                )  # Add to front (reverse order)
+
+    return collected_notices
