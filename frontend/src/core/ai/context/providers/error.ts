@@ -5,6 +5,7 @@ import { cellErrorsAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { MarimoError } from "@/core/kernel/messages";
 import type { JotaiStore } from "@/core/state/jotai";
+import { logNever } from "@/utils/assertNever";
 import { PluralWord } from "@/utils/pluralize";
 import { type AIContextItem, AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
@@ -56,6 +57,13 @@ function describeError(error: MarimoError): string {
   if (error.type === "unknown") {
     return error.msg;
   }
+  if (error.type === "sql-error") {
+    return error.msg;
+  }
+  if (error.type === "internal") {
+    return error.msg || "An internal error occurred";
+  }
+  logNever(error);
   return "Unknown error";
 }
 

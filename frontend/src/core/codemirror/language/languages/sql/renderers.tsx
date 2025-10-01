@@ -2,9 +2,11 @@
 
 import { HashIcon, InfoIcon } from "lucide-react";
 import type React from "react";
+import { dbDisplayName } from "@/components/databases/display";
 import {
   ColumnIcon,
   DatabaseIcon,
+  DatasourceIcon,
   IndexIcon,
   PrimaryKeyIcon,
   SchemaIcon,
@@ -13,13 +15,19 @@ import {
 } from "@/components/databases/namespace-icons";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Badge } from "@/components/ui/badge";
+import {
+  type ConnectionName,
+  INTERNAL_SQL_ENGINES,
+} from "@/core/datasets/engines";
 import type {
   Database,
   DatabaseSchema,
+  DataSourceConnection,
   DataTable,
   DataTableColumn,
   DataType,
 } from "@/core/kernel/messages";
+import { PluralWord } from "@/utils/pluralize";
 
 // Configuration constants
 const PREVIEW_ITEM_LIMIT = 5;
@@ -45,6 +53,12 @@ const SOURCE_TYPE_COLORS = {
 } as const;
 
 const CONTAINER_STYLES = "p-3 min-w-[250px] flex flex-col divide-y";
+
+const columnsText = new PluralWord("column", "columns");
+const rowsText = new PluralWord("row", "rows");
+const schemasText = new PluralWord("schema", "schemas");
+const tablesText = new PluralWord("table", "tables");
+const databasesText = new PluralWord("database", "databases");
 
 // Helper components and functions
 const SectionHeader: React.FC<{
@@ -85,6 +99,10 @@ const PreviewList: React.FC<{
   totalCount: number;
   limit?: number;
 }> = ({ title = "", items, totalCount, limit = PREVIEW_ITEM_LIMIT }) => {
+  if (items.length === 0) {
+    return null;
+  }
+
   const visibleItems = items.slice(0, limit);
   const hasMore = totalCount > limit;
 
@@ -203,13 +221,13 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
           {table.num_columns != null && (
             <StatisticItem
               icon={<ColumnIcon className="w-3 h-3 text-[var(--slate-9)]" />}
-              text={`${table.num_columns} columns`}
+              text={`${table.num_columns} ${columnsText.pluralize(table.num_columns)}`}
             />
           )}
           {table.num_rows != null && (
             <StatisticItem
               icon={<HashIcon className="w-3 h-3 text-[var(--slate-9)]" />}
-              text={`${table.num_rows} rows`}
+              text={`${table.num_rows} ${rowsText.pluralize(table.num_rows)}`}
             />
           )}
         </div>
@@ -349,7 +367,7 @@ export const renderDatabaseInfo = (database: Database): React.ReactNode => {
         <span>{schema.name}</span>
       </div>
       <Badge variant="outline" className="text-xs">
-        {schema.tables.length} tables
+        {schema.tables.length} {tablesText.pluralize(schema.tables.length)}
       </Badge>
     </div>
   ));
@@ -462,6 +480,156 @@ export const renderSchemaInfo = (schema: DatabaseSchema): React.ReactNode => {
           title="Tables"
           items={tableItems}
           totalCount={schema.tables.length}
+        />
+      )}
+    </div>
+  );
+};
+
+const DefaultBadge = <Badge variant="outline">default</Badge>;
+const MAX_SCHEMAS_TO_DISPLAY = 8;
+const MAX_TABLES_TO_DISPLAY = 3;
+
+export const renderDatasourceInfo = (
+  connection: DataSourceConnection,
+  dataframes?: DataTable[],
+): React.ReactNode => {
+  const databaseCount = connection.databases.length;
+  const schemasCount = connection.databases.reduce(
+    (count, db) => count + db.schemas.length,
+    0,
+  );
+
+  const renderSchema = (schema: DatabaseSchema, isDefaultDb: boolean) => {
+    if (schema.tables.length === 0) {
+      return null;
+    }
+
+    const isDefaultSchema =
+      schema.name === connection.default_schema && isDefaultDb;
+
+    let tableItems: React.ReactNode[] = [];
+    // Don't display table items if there are many schemas
+    if (schemasCount < MAX_SCHEMAS_TO_DISPLAY) {
+      tableItems = schema.tables
+        .slice(0, MAX_TABLES_TO_DISPLAY + 1)
+        .map((table) => {
+          return (
+            <div key={table.name} className="flex items-center gap-2 ml-4">
+              <TableIcon className="w-3 h-3 text-[var(--green-9)]" />
+              <span className="text-xs">{table.name}</span>
+            </div>
+          );
+        });
+    }
+
+    return (
+      <div key={schema.name}>
+        <div className="flex items-center gap-2 text-xs rounded hover:bg-[var(--slate-3)] ml-2">
+          <SchemaIcon className="w-3 h-3 text-[var(--slate-9)]" />
+          <span>{schema.name}</span>
+          {isDefaultSchema && DefaultBadge}
+          <Badge variant="outline" className="text-xs ml-auto">
+            {schema.tables.length} tables
+          </Badge>
+        </div>
+        <PreviewList
+          items={tableItems}
+          totalCount={schema.tables.length}
+          limit={MAX_TABLES_TO_DISPLAY}
+        />
+      </div>
+    );
+  };
+
+  const databaseItems = connection.databases.map((db) => {
+    const isDefaultDb =
+      db.name === connection.default_database ||
+      connection.databases.length === 1;
+
+    const schemaItems = db.schemas.map((schema) =>
+      renderSchema(schema, isDefaultDb),
+    );
+
+    return (
+      <div key={db.name}>
+        <div className="flex items-center gap-2">
+          <DatabaseIcon className="w-3 h-3 text-[var(--blue-9)]" />
+          <span className="text-xs">{db.name}</span>
+          {isDefaultDb && DefaultBadge}
+        </div>
+        {schemaItems && (
+          <PreviewList items={schemaItems} totalCount={db.schemas.length} />
+        )}
+      </div>
+    );
+  });
+
+  let title = connection.name;
+  if (INTERNAL_SQL_ENGINES.has(connection.name as ConnectionName)) {
+    title = "In-Memory";
+  }
+
+  const dataframeItems = dataframes?.map((table) => (
+    <div key={table.name} className="flex items-center gap-2">
+      <TableIcon className="w-3 h-3 text-[var(--blue-9)]" />
+      <span className="text-xs">{table.name}</span>
+    </div>
+  ));
+
+  return (
+    <div className={`${CONTAINER_STYLES} px-1`}>
+      <SectionHeader
+        icon={<DatasourceIcon className="w-4 h-4 text-[var(--purple-9)]" />}
+        title={title}
+      />
+
+      {/* Metadata */}
+      <div className="flex flex-col gap-2 py-2">
+        <MetadataRow
+          label="Dialect"
+          value={
+            <span className="font-medium">
+              {dbDisplayName(connection.dialect)}
+            </span>
+          }
+        />
+        <MetadataRow
+          label="Source"
+          value={
+            <Badge
+              variant="outline"
+              className="text-xs bg-[var(--green-4)] text-[var(--green-11)]"
+            >
+              {connection.source}
+            </Badge>
+          }
+        />
+      </div>
+
+      {/* Statistics */}
+      <div className="flex flex-row justify-between py-2">
+        <StatisticItem
+          icon={<DatabaseIcon className="w-3 h-3 text-[var(--slate-9)]" />}
+          text={`${databaseCount} ${databasesText.pluralize(databaseCount)}`}
+        />
+        <StatisticItem
+          icon={<SchemaIcon className="w-3 h-3 text-[var(--slate-9)]" />}
+          text={`${schemasCount} ${schemasText.pluralize(schemasCount)}`}
+        />
+      </div>
+
+      {/* Database Preview */}
+      {databaseCount > 0 && (
+        <PreviewList items={databaseItems} totalCount={databaseCount} />
+      )}
+
+      {/* Tables Preview */}
+      {dataframeItems && dataframeItems.length > 0 && (
+        <PreviewList
+          title="Dataframes"
+          items={dataframeItems}
+          totalCount={dataframeItems.length}
         />
       )}
     </div>

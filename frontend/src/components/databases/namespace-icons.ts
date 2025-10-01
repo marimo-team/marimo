@@ -2,6 +2,7 @@
 
 export {
   BookMarkedIcon as IndexIcon,
+  Cog as DatasourceIcon,
   ColumnsIcon as ColumnIcon,
   DatabaseIcon,
   EyeIcon as ViewIcon,
