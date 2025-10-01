@@ -182,8 +182,7 @@ def test_template_with_remote_url() -> None:
         result = _template("test_fig", 8080)
 
         assert "wss://example.com/mpl/8080/ws?figure=test_fig" in result
-        assert "test_fig" in result
-        assert "https://example.com/mpl/8080" in result
+        assert "://example.com/mpl/test_fig" in result
 
 
 def test_template_without_remote_url() -> None:
@@ -195,8 +194,7 @@ def test_template_without_remote_url() -> None:
         result = _template("test_fig", 8080)
 
         assert "/mpl/8080/ws?figure=test_fig" in result
-        assert "test_fig" in result
-        assert "/mpl/8080" in result
+        assert "/mpl/test_fig" in result
 
 
 def test_template_contains_html_structure() -> None:
