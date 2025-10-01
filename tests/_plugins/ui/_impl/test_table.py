@@ -2162,7 +2162,7 @@ def test_show_toggles_app_mode():
 
     with patch("marimo._plugins.ui._impl.table.get_mode", return_value="run"):
         table_default = ui.table(data)
-        assert table_default._component_args["show-column-explorer"] is False
+        assert table_default._component_args["show-column-explorer"] is True
         assert table_default._component_args["show-chart-builder"] is False
 
 

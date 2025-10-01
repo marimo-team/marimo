@@ -563,8 +563,8 @@ class table(
             )
 
         app_mode = get_mode()
-        # These panels are not as useful in non-edit mode and require an external dependency
-        show_column_explorer = app_mode == "edit"
+        # Some panels are not as useful in non-edit mode and require an external dependency
+        show_column_explorer = app_mode == "edit" or app_mode == "run"
         show_chart_builder = app_mode == "edit"
 
         show_page_size_selector = True
