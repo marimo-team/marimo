@@ -5,6 +5,7 @@ import datetime
 import string
 from typing import TYPE_CHECKING, Optional, cast
 
+import narwhals.stable.v2 as nw
 import pytest
 from hypothesis import assume, given, settings, strategies as st
 
@@ -13,9 +14,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     _apply_transforms,
 )
 from marimo._plugins.ui._impl.dataframes.transforms.handlers import (
-    IbisTransformHandler,
-    PandasTransformHandler,
-    PolarsTransformHandler,
+    NarwhalsTransformHandler,
 )
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
     python_print_ibis,
@@ -50,7 +49,6 @@ any_column_id = st.one_of(
         min_size=1,
         alphabet=string.ascii_letters + string.digits + "_",
     ),
-    st.integers(),
 )
 
 defined_column_id = st.sampled_from(
@@ -70,7 +68,7 @@ defined_column_id = st.sampled_from(
 
 
 def create_transform_strategy(
-    column_id: st.SearchStrategy[str | int],
+    column_id: st.SearchStrategy[str],
     string_column_id: Optional[st.SearchStrategy[str | int] | None] = None,
     bool_column_id: Optional[st.SearchStrategy[str | int] | None] = None,
     comparison_column_id: Optional[st.SearchStrategy[str | int] | None] = None,
@@ -378,11 +376,13 @@ def test_print_code_result_matches_actual_transform_pandas(
         code_result = code_error
 
     try:
-        real_result = _apply_transforms(
-            my_df.copy(),
-            PandasTransformHandler(),
+        nw_df = nw.from_native(my_df.copy(), eager_only=True).lazy()
+        result_nw = _apply_transforms(
+            nw_df,
+            NarwhalsTransformHandler(),
             transformations,
         )
+        real_result = result_nw.collect().to_native()
     except Exception as real_error:
         real_result = real_error
 
@@ -485,11 +485,13 @@ def test_print_code_result_matches_actual_transform_polars(
         code_result = code_error
 
     try:
-        real_result = _apply_transforms(
-            my_df.clone(),
-            PolarsTransformHandler(),
+        nw_df = nw.from_native(my_df.clone(), eager_only=True).lazy()
+        result_nw = _apply_transforms(
+            nw_df,
+            NarwhalsTransformHandler(),
             transformations,
         )
+        real_result = result_nw.collect().to_native()
     except Exception as real_error:
         real_result = real_error
 
@@ -553,11 +555,13 @@ def test_print_code_result_matches_actual_transform_ibis(
     )
 
     try:
-        real_result = _apply_transforms(
-            my_df.__copy__(),
-            IbisTransformHandler(),
+        nw_df = nw.from_native(my_df.__copy__()).lazy()
+        result_nw = _apply_transforms(
+            nw_df,
+            NarwhalsTransformHandler(),
             Transformations([transform]),
         )
+        real_result = result_nw.collect().to_native()
     except Exception:
         real_result = None
 
@@ -567,28 +571,23 @@ def test_print_code_result_matches_actual_transform_ibis(
     assert real_result is not None
     assert ibis.to_sql(real_result) is not None
 
-    # TODO: test ibis python print
-    # ibis_code = python_print_transforms(
-    #     "my_df",
-    #     list(my_df.columns),
-    #     transformations.transforms,
-    #     python_print_ibis,
-    # )
-    # assert ibis_code
+    ibis_code = python_print_transforms(
+        "my_df",
+        list(my_df.columns),
+        [transform],
+        python_print_ibis,
+    )
+    assert ibis_code
 
-    # loc = {"ibis": ibis, "my_df": my_df.__copy__()}
-    # exec(ibis_code, {}, loc)
-    # code_result = loc.get("my_df_next")
+    loc = {"ibis": ibis, "my_df": my_df.__copy__()}
+    exec(ibis_code, {}, loc)
+    code_result = loc.get("my_df_next")
 
-    # print("code_result", code_result)
-    # print("real_result", real_result)
+    print("code_result", code_result)
+    print("real_result", real_result)
 
-    # assert real_result is not None
-    # assert code_result is not None
-    # pl_testing.assert_frame_equal(
-    #     cast(ibis.Table, code_result).to_polars(),
-    #     real_result.to_polars(),
-    # )
+    assert real_result is not None
+    assert code_result is not None
 
 
 @pytest.mark.skipif(
@@ -621,16 +620,21 @@ class TestCombinedTransforms:
         import polars.testing as pl_testing
 
         if isinstance(df, pl.DataFrame):
-            handler = PolarsTransformHandler()
             print_func = python_print_polars
             testing_func = pl_testing.assert_frame_equal
-
+            df_copy = df.clone()
         elif isinstance(df, pd.DataFrame):
-            handler = PandasTransformHandler()
             print_func = python_print_pandas
             testing_func = pd_testing.assert_frame_equal
+            df_copy = df.copy()
 
-        result = _apply_transforms(df, handler, transforms)
+        # Convert to narwhals and apply transforms
+        nw_df = nw.from_native(df_copy, eager_only=True).lazy()
+        result_nw = _apply_transforms(
+            nw_df, NarwhalsTransformHandler(), transforms
+        )
+        result = result_nw.collect().to_native()
+
         code = python_print_transforms(
             "df", df.columns, transforms.transforms, print_func
         )

@@ -5,6 +5,7 @@ import inspect
 import sys
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Final,
@@ -12,6 +13,8 @@ from typing import (
     Optional,
     Union,
 )
+
+import narwhals.stable.v2 as nw
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -44,7 +47,11 @@ from marimo._plugins.validators import (
 )
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.memoize import memoize_last_value
+from marimo._utils.narwhals_utils import is_narwhals_lazyframe
 from marimo._utils.parse_dataclass import parse_raw
+
+if TYPE_CHECKING:
+    from narwhals.typing import IntoLazyFrame
 
 
 @dataclass
@@ -86,7 +93,7 @@ class GetDataFrameError(Exception):
 class dataframe(UIElement[dict[str, Any], DataFrameType]):
     """Run transformations on a DataFrame or series.
 
-    Currently only Pandas or Polars DataFrames are supported.
+    Currently supports Pandas, Polars, Ibis, Pyarrow, and DuckDB.
 
     Examples:
         ```python
@@ -138,14 +145,17 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         except Exception:
             pass
 
+        # Make the dataframe lazy and keep track of whether it was lazy originally
+        nw_df: nw.LazyFrame[Any] = nw.from_native(df, pass_through=False)
+        self._was_lazy = is_narwhals_lazyframe(nw_df)
+        nw_df = nw_df.lazy()
+
         self._limit = limit
         self._dataframe_name = dataframe_name
         self._data = df
         self._handler = handler
         self._manager = self._get_cached_table_manager(df, self._limit)
-        self._transform_container = TransformsContainer[DataFrameType](
-            df, handler
-        )
+        self._transform_container = TransformsContainer(nw_df, handler)
         self._error: Optional[str] = None
         self._last_transforms = Transformations([])
         self._page_size = page_size or 5  # Default to 5 rows (.head())
@@ -210,12 +220,14 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             row_headers=manager.get_row_headers(),
             field_types=manager.get_field_types(),
             python_code=self._handler.as_python_code(
+                self._transform_container._snapshot_df,
                 self._dataframe_name,
-                # manager.get_column_names(),
                 self._manager.get_column_names(),
                 self._last_transforms.transforms,
             ),
-            sql_code=self._handler.as_sql_code(manager.data),
+            sql_code=self._handler.as_sql_code(
+                self._transform_container._snapshot_df
+            ),
         )
 
     def _get_column_values(
@@ -245,19 +257,19 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
     def _convert_value(self, value: dict[str, Any]) -> DataFrameType:
         if value is None:
             self._error = None
-            return self._data
+            return _maybe_collect(self._data, self._was_lazy)
 
         try:
             transformations = parse_raw(value, Transformations)
             result = self._transform_container.apply(transformations)
             self._error = None
             self._last_transforms = transformations
-            return result
+            return _maybe_collect(result, self._was_lazy)
         except Exception as e:
             error = f"Error applying dataframe transform: {str(e)}\n\n"
             sys.stderr.write(error)
             self._error = error
-            return self._data
+            return _maybe_collect(self._data, self._was_lazy)
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         offset = args.page_number * args.page_size
@@ -304,7 +316,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self,
         query: Optional[str],
         sort: Optional[list[SortArgs]],
-    ) -> TableManager[Any]:
+    ) -> TableManager[DataFrameType]:
         result = self._get_cached_table_manager(self._value, self._limit)
 
         if query:
@@ -320,9 +332,17 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
     @memoize_last_value
     def _get_cached_table_manager(
-        self, value: Any, limit: Optional[int]
-    ) -> TableManager[Any]:
+        self, value: DataFrameType, limit: Optional[int]
+    ) -> TableManager[DataFrameType]:
         tm = get_table_manager(value)
         if limit is not None:
             tm = tm.take(limit, 0)
         return tm
+
+
+def _maybe_collect(
+    df: nw.LazyFrame[IntoLazyFrame], was_lazy: bool
+) -> DataFrameType:
+    if was_lazy:
+        return df.collect().to_native()
+    return df.to_native()
