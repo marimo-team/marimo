@@ -70,21 +70,13 @@ class ToolManager:
 
         LOGGER.debug(f"Registered backend tool: {name}")
 
-    def _register_frontend_tool(self, tool: ToolDefinition) -> None:
-        """Register a frontend tool (definition only - no handler or validator needed)."""
-        if tool.source != "frontend":
-            raise ValueError("Tool source must be 'frontend'")
-
-        self._tools[tool.name] = tool
-        LOGGER.debug(f"Registered frontend tool: {tool.name}")
-
     def _get_all_tools(self) -> list[ToolDefinition]:
-        """Get all available frontend, backend, and MCP tools."""
+        """Get all available backend, and MCP tools."""
         self._init_backend_tools()
 
-        local_tools = list(self._tools.values())
+        backend_tools = list(self._tools.values())
         mcp_tools = self._list_mcp_tools()
-        all_tools = local_tools + mcp_tools
+        all_tools = backend_tools + mcp_tools
         return all_tools
 
     def get_tools_for_mode(self, mode: CopilotMode) -> list[ToolDefinition]:
@@ -111,10 +103,11 @@ class ToolManager:
                 if tool and tool.source == "backend":
                     return tool
             elif source == "frontend":
-                # Check if it's a frontend tool
-                tool = self._tools.get(name)
-                if tool and tool.source == "frontend":
-                    return tool
+                # ToolManager does not handle frontend tools
+                LOGGER.warning(
+                    f"Tool {name} is a frontend tool and should not be accessed in the backend."
+                )
+                return None
             elif source == "mcp":
                 # Check MCP tools
                 mcp_tools = self._list_mcp_tools()
@@ -295,7 +288,7 @@ class ToolManager:
 
             else:
                 # Unknown tool source
-                system_error = f"Unknown tool source: {tool.source} for tool {tool_name}. Supported sources are: backend, frontend, mcp."
+                system_error = f"Unknown tool source: {tool.source} for tool {tool_name}. Supported sources are: backend and mcp."
                 LOGGER.error(system_error)
                 return ToolCallResult(
                     tool_name=tool_name,
@@ -352,9 +345,7 @@ def setup_tool_manager(app: Starlette) -> None:
     global _TOOL_MANAGER
     if _TOOL_MANAGER is None:
         _TOOL_MANAGER = ToolManager(app)
-        LOGGER.info(
-            f"ToolManager initialized with {len(_TOOL_MANAGER._tools)} backend/frontend tools"
-        )
+        LOGGER.info("ToolManager initialized")
 
 
 def get_tool_manager() -> ToolManager:

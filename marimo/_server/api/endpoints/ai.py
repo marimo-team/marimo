@@ -164,6 +164,7 @@ async def ai_completion(
         messages=messages,
         system_prompt=system_prompt,
         max_tokens=get_max_tokens(config),
+        additional_tools=[],
     )
 
     # Pass back the entire SDK message if the frontend can handle it
@@ -234,10 +235,12 @@ async def ai_chat(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,
     )
+    additional_tools = body.tools or []
     response = await provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,
         max_tokens=max_tokens,
+        additional_tools=additional_tools,
     )
 
     return StreamingResponse(
@@ -303,6 +306,7 @@ async def ai_inline_completion(
             messages=messages,
             system_prompt=system_prompt,
             max_tokens=INLINE_COMPLETION_MAX_TOKENS,
+            additional_tools=[],
         )
 
         content = await provider.collect_stream(response)

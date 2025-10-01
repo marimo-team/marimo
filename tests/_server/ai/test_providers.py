@@ -127,7 +127,7 @@ async def test_openai_provider_max_tokens_parameter(
 
     # Call stream_completion
     messages = [ChatMessage(role="user", content="test message")]
-    await provider.stream_completion(messages, "system prompt", 1000)
+    await provider.stream_completion(messages, "system prompt", 1000, [])
 
     # Verify the correct parameters were passed
     mock_client.chat.completions.create.assert_called_once()

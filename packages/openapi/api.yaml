@@ -486,6 +486,13 @@ components:
           - type: string
           - type: 'null'
           default: null
+        tools:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ToolDefinition'
+            type: array
+          - type: 'null'
+          default: null
         variables:
           anyOf:
           - items:
@@ -3261,6 +3268,34 @@ components:
           type: boolean
       required: []
       title: SuccessResponse
+      type: object
+    ToolDefinition:
+      description: Tool definition compatible with ai-sdk-ui format.
+      properties:
+        description:
+          type: string
+        mode:
+          items:
+            enum:
+            - ask
+            - manual
+          type: array
+        name:
+          type: string
+        parameters:
+          type: object
+        source:
+          enum:
+          - backend
+          - frontend
+          - mcp
+      required:
+      - name
+      - description
+      - parameters
+      - source
+      - mode
+      title: ToolDefinition
       type: object
     TyLanguageServerConfig:
       description: 'Configuration options for Ty Language Server.

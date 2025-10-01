@@ -49,6 +49,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._messaging.mimetypes import KnownMimeType
     from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.packages.package_manager import PackageDescription
+    from marimo._server.ai.tools.types import ToolDefinition
     from marimo._server.api.router import build_routes
     from marimo._utils.dataclass_to_openapi import (
         PythonTypeToOpenAPI,
@@ -136,6 +137,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.MessageOperation,
         # ai
         ChatMessage,
+        ToolDefinition,
     ]
 
     # dataclass components used in requests/responses

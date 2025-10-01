@@ -2,6 +2,7 @@
 
 import type { components } from "@marimo-team/marimo-api";
 import type { FileUIPart, ToolUIPart, UIMessage } from "ai";
+import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 import type {
   InvokeAiToolRequest,
   InvokeAiToolResponse,
@@ -117,15 +118,29 @@ export async function handleToolCall({
   };
 }) {
   try {
-    const response = await invokeAiTool({
-      toolName: toolCall.toolName,
-      arguments: toolCall.input,
-    });
-    addToolResult({
-      tool: toolCall.toolName,
-      toolCallId: toolCall.toolCallId,
-      output: response.result || response.error,
-    });
+    if (FRONTEND_TOOL_REGISTRY.has(toolCall.toolName)) {
+      // Invoke the frontend tool
+      const response = await FRONTEND_TOOL_REGISTRY.invoke(
+        toolCall.toolName,
+        toolCall.input,
+      );
+      addToolResult({
+        tool: toolCall.toolName,
+        toolCallId: toolCall.toolCallId,
+        output: response,
+      });
+    } else {
+      // Invoke the backend/mcp tool
+      const response = await invokeAiTool({
+        toolName: toolCall.toolName,
+        arguments: toolCall.input,
+      });
+      addToolResult({
+        tool: toolCall.toolName,
+        toolCallId: toolCall.toolCallId,
+        output: response.result || response.error,
+      });
+    }
   } catch (error) {
     Logger.error("Tool call failed:", error);
     addToolResult({

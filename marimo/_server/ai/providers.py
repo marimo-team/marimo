@@ -35,6 +35,7 @@ from marimo._ai._types import ChatMessage
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
+from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
 
 TIMEOUT = 30
@@ -120,6 +121,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> StreamT:
         """Create a completion stream."""
         pass
@@ -477,6 +479,7 @@ class OpenAIProvider(
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> OpenAiStream[ChatCompletionChunk]:
         client = self.get_client(self.config)
         tools = self.config.tools
@@ -495,7 +498,8 @@ class OpenAIProvider(
             "timeout": TIMEOUT,
         }
         if tools:
-            create_params["tools"] = convert_to_openai_tools(tools)
+            all_tools = tools + additional_tools
+            create_params["tools"] = convert_to_openai_tools(all_tools)
         if self._is_reasoning_model(self.model):
             create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
             create_params["max_completion_tokens"] = max_tokens
@@ -693,6 +697,7 @@ class AnthropicProvider(
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> AnthropicStream[RawMessageStreamEvent]:
         client = self.get_client(self.config)
         tools = self.config.tools
@@ -708,7 +713,8 @@ class AnthropicProvider(
             "temperature": self.get_temperature(),
         }
         if tools:
-            create_params["tools"] = convert_to_anthropic_tools(tools)
+            all_tools = tools + additional_tools
+            create_params["tools"] = convert_to_anthropic_tools(all_tools)
         if self.is_extended_thinking_model(self.model):
             create_params["thinking"] = {
                 "type": "enabled",
@@ -797,7 +803,10 @@ class GoogleProvider(
         )
 
     def get_config(
-        self, system_prompt: str, max_tokens: int
+        self,
+        system_prompt: str,
+        max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> GenerateContentConfig:
         tools = self.config.tools
         config = {
@@ -806,7 +815,8 @@ class GoogleProvider(
             "max_output_tokens": max_tokens,
         }
         if tools:
-            config["tools"] = convert_to_google_tools(tools)
+            all_tools = tools + additional_tools
+            config["tools"] = convert_to_google_tools(all_tools)
         if self.is_thinking_model(self.model):
             config["thinking_config"] = {
                 "include_thoughts": True,
@@ -846,13 +856,16 @@ class GoogleProvider(
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> AsyncIterator[GenerateContentResponse]:
         client = self.get_client(self.config)
         return await client.models.generate_content_stream(
             model=self.model,
             contents=convert_to_google_messages(messages),
             config=self.get_config(
-                system_prompt=system_prompt, max_tokens=max_tokens
+                system_prompt=system_prompt,
+                max_tokens=max_tokens,
+                additional_tools=additional_tools,
             ),
         )
 
@@ -952,6 +965,7 @@ class BedrockProvider(
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> LitellmStream:
         DependencyManager.litellm.require(why="for AI assistance with Bedrock")
         DependencyManager.boto3.require(why="for AI assistance with Bedrock")
@@ -974,7 +988,8 @@ class BedrockProvider(
             "timeout": TIMEOUT,
         }
         if tools:
-            config["tools"] = convert_to_openai_tools(tools)
+            all_tools = tools + additional_tools
+            config["tools"] = convert_to_openai_tools(all_tools)
 
         return await litellm_completion(**config)
 

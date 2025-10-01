@@ -2938,6 +2938,8 @@ export interface components {
       /** @default null */
       model?: string | null;
       /** @default null */
+      tools?: components["schemas"]["ToolDefinition"][] | null;
+      /** @default null */
       variables?: (string | components["schemas"]["VariableContext"])[] | null;
     };
     /** CodeCompletionRequest */
@@ -4390,6 +4392,18 @@ export interface components {
     SuccessResponse: {
       /** @default true */
       success?: boolean;
+    };
+    /**
+     * ToolDefinition
+     * @description Tool definition compatible with ai-sdk-ui format.
+     */
+    ToolDefinition: {
+      description: string;
+      mode: ("ask" | "manual")[];
+      name: string;
+      parameters: Record<string, any>;
+      /** @enum {unknown} */
+      source: "backend" | "frontend" | "mcp";
     };
     /**
      * TyLanguageServerConfig

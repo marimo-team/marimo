@@ -44,6 +44,7 @@ import {
   type ChatId,
   chatStateAtom,
 } from "@/core/ai/state";
+import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
@@ -585,6 +586,7 @@ const ChatPanelBody = () => {
 
         return {
           body: {
+            tools: FRONTEND_TOOL_REGISTRY.getToolSchemas(),
             ...options,
             ...completionBody,
           },
