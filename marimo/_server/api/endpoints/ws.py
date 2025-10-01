@@ -10,6 +10,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._cli.upgrade import check_for_updates
+from marimo._config.cli_state import MarimoCLIState
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import (
@@ -730,7 +731,7 @@ class WebsocketHandler(SessionConsumer):
         ):
             return
 
-        def on_update(current_version: str, latest_version: str) -> None:
+        def on_update(current_version: str, state: MarimoCLIState) -> None:
             # Let's only toast once per marimo server
             # so we can just store this in memory.
             # We still want to check for updates (which are debounced 24 hours)
@@ -741,9 +742,21 @@ class WebsocketHandler(SessionConsumer):
 
             has_toasted = True
 
-            title = f"Update available {current_version} → {latest_version}"
+            title = (
+                f"Update available {current_version} → {state.latest_version}"
+            )
             release_url = "https://github.com/marimo-team/marimo/releases"
+
+            # Build description with notices if present
             description = f"Check out the <a class='underline' target='_blank' href='{release_url}'>latest release on GitHub.</a>"  # noqa: E501
+
+            if state.notices:
+                notices_text = (
+                    "<br><br><strong>Recent updates:</strong><br>"
+                    + "<br>".join(f"• {notice}" for notice in state.notices)
+                )
+                description += notices_text
+
             self.write_operation(Alert(title=title, description=description))
 
         check_for_updates(on_update)

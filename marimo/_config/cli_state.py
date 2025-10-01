@@ -12,6 +12,7 @@ class MarimoCLIState:
     latest_version: Optional[str] = None
     last_checked_at: Optional[str] = None
     accepted_text_to_notebook_terms_at: Optional[str] = None
+    notices: Optional[list[str]] = None
 
 
 FILE_NAME = "state.toml"
