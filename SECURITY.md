@@ -19,3 +19,5 @@ acknowledge the contributions of the following individuals for their reporting:
  - @AlexanderBarabanov
  - @pwntester
  - @s-celles
+ - @acepace
+ - @devgi
