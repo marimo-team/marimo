@@ -60,12 +60,12 @@ class StdioTransportConnector(MCPTransportConnector):
 
         # Set up environment variables for the server process
         env = os.environ.copy()
-        env.update(config.get("env") or {})
+        env.update(config.get("env", {}))
 
         # Configure server parameters
         server_params = StdioServerParameters(
             command=config["command"],
-            args=config.get("args") or [],
+            args=config.get("args", []),
             env=env,
         )
 
@@ -94,7 +94,7 @@ class StreamableHTTPTransportConnector(MCPTransportConnector):
         read, write, *_ = await exit_stack.enter_async_context(
             streamablehttp_client(
                 config["url"],
-                headers=config.get("headers") or {},
+                headers=config.get("headers", {}),
                 timeout=server_def.timeout,
             )
         )

@@ -110,8 +110,6 @@ class MCPServerDefinitionFactory:
         Raises:
             ValueError: If configuration type is not supported
         """
-        # Import here to avoid circular imports
-
         if "command" in config:
             return MCPServerDefinition(
                 name=name,
