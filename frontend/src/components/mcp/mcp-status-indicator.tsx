@@ -34,7 +34,8 @@ export const MCPStatusIndicator: React.FC = () => {
     }
   };
 
-  const hasServers = Object.keys(status?.servers || {}).length > 0;
+  const servers = status?.servers || {};
+  const hasServers = Object.keys(servers).length > 0;
 
   return (
     <Popover>
@@ -82,27 +83,25 @@ export const MCPStatusIndicator: React.FC = () => {
                   {status.error}
                 </div>
               )}
-              {Object.keys(status.servers).length > 0 && (
+              {hasServers && (
                 <div className="space-y-1">
                   <div className="text-muted-foreground font-medium">
                     Servers:
                   </div>
-                  {Object.entries(status.servers).map(
-                    ([name, serverStatus]) => (
-                      <div
-                        key={name}
-                        className="flex justify-between items-center pl-2"
-                      >
-                        <span className="text-muted-foreground truncate max-w-[180px]">
-                          {name}
-                        </span>
-                        <McpStatusText status={serverStatus} />
-                      </div>
-                    ),
-                  )}
+                  {Object.entries(servers).map(([name, serverStatus]) => (
+                    <div
+                      key={name}
+                      className="flex justify-between items-center pl-2"
+                    >
+                      <span className="text-muted-foreground truncate max-w-[180px]">
+                        {name}
+                      </span>
+                      <McpStatusText status={serverStatus} />
+                    </div>
+                  ))}
                 </div>
               )}
-              {Object.keys(status.servers).length === 0 && (
+              {!hasServers && (
                 <div className="text-muted-foreground text-center py-2">
                   No MCP servers configured. <br /> Configure under{" "}
                   <b>Settings &gt; AI &gt; MCP</b>
