@@ -3737,6 +3737,19 @@ export interface components {
     ListSecretKeysResponse: {
       keys: components["schemas"]["SecretKeysWithProvider"][];
     };
+    /**
+     * MCPConfig
+     * @description Configuration for MCP servers
+     *
+     *     Note: the field name `mcpServers` is camelCased to match MCP server
+     *     config conventions used by popular AI applications (e.g. Cursor, Claude Desktop, etc.)
+     */
+    MCPConfig: {
+      mcpServers: {
+        [key: string]: Record<string, any>;
+      };
+      presets?: ("context7" | "marimo")[];
+    };
     /** MarimoAncestorPreventedError */
     MarimoAncestorPreventedError: {
       blamed_cell: string | null;
@@ -3766,6 +3779,7 @@ export interface components {
       formatting: components["schemas"]["FormattingConfig"];
       keymap: components["schemas"]["KeymapConfig"];
       language_servers?: components["schemas"]["LanguageServersConfig"];
+      mcp?: components["schemas"]["MCPConfig"];
       package_management: components["schemas"]["PackageManagementConfig"];
       runtime: components["schemas"]["RuntimeConfig"];
       save: components["schemas"]["SaveConfig"];

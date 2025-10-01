@@ -77,6 +77,7 @@ import { SettingSubtitle } from "./common";
 import { AWS_REGIONS } from "./constants";
 import { IncorrectModelId } from "./incorrect-model-id";
 import { IsOverridden } from "./is-overridden";
+import { MCPConfig } from "./mcp-config";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 
@@ -1370,6 +1371,7 @@ export const AiConfig: React.FC<AiConfigProps> = ({
         <TabsTrigger value="ai-features">AI Features</TabsTrigger>
         <TabsTrigger value="ai-providers">AI Providers</TabsTrigger>
         <TabsTrigger value="ai-models">AI Models</TabsTrigger>
+        <TabsTrigger value="mcp">MCP</TabsTrigger>
       </TabsList>
 
       <TabsContent value="ai-features">
@@ -1385,6 +1387,9 @@ export const AiConfig: React.FC<AiConfigProps> = ({
       </TabsContent>
       <TabsContent value="ai-models">
         <AiModelDisplayConfig form={form} config={config} onSubmit={onSubmit} />
+      </TabsContent>
+      <TabsContent value="mcp">
+        <MCPConfig form={form} onSubmit={onSubmit} />
       </TabsContent>
     </Tabs>
   );

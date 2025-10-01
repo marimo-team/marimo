@@ -2037,6 +2037,29 @@ components:
       - keys
       title: ListSecretKeysResponse
       type: object
+    MCPConfig:
+      description: 'Configuration for MCP servers
+
+
+        Note: the field name `mcpServers` is camelCased to match MCP server
+
+        config conventions used by popular AI applications (e.g. Cursor, Claude Desktop,
+        etc.)'
+      properties:
+        mcpServers:
+          additionalProperties:
+            type: object
+          type: object
+        presets:
+          items:
+            enum:
+            - context7
+            - marimo
+          type: array
+      required:
+      - mcpServers
+      title: MCPConfig
+      type: object
     MarimoAncestorPreventedError:
       properties:
         blamed_cell:
@@ -2093,6 +2116,8 @@ components:
           $ref: '#/components/schemas/KeymapConfig'
         language_servers:
           $ref: '#/components/schemas/LanguageServersConfig'
+        mcp:
+          $ref: '#/components/schemas/MCPConfig'
         package_management:
           $ref: '#/components/schemas/PackageManagementConfig'
         runtime:
@@ -3586,7 +3611,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.16.2
+  version: 0.16.3
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

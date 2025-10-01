@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from starlette.applications import (
@@ -12,7 +11,7 @@ from marimo import _loggers
 from marimo._ai._tools.base import ToolBase, ToolContext
 from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
 from marimo._config.config import CopilotMode
-from marimo._server.ai.mcp import get_mcp_client
+from marimo._server.ai.mcp.client import get_mcp_client
 from marimo._server.ai.tools.types import (
     FunctionArgs,
     ToolCallResult,
@@ -20,7 +19,6 @@ from marimo._server.ai.tools.types import (
     ToolSource,
     ValidationFunction,
 )
-from marimo._server.api.deps import AppState
 from marimo._utils.once import once
 
 if TYPE_CHECKING:
@@ -41,13 +39,6 @@ class ToolManager:
         self._backend_handlers: dict[str, Callable[[FunctionArgs], Any]] = {}
         self._validation_functions: dict[str, ValidationFunction] = {}
         self.app: Starlette = app
-
-    @cached_property
-    def _enable_mcp_tools(self) -> bool:
-        # This may be stale but it is ok, since we want to enable MCP on startup
-        app_state = AppState.from_app(self.app)
-        config = app_state.config_manager.get_config()
-        return bool(config.get("experimental", {}).get("mcp_docs", False))
 
     @once
     def _init_backend_tools(self) -> None:
@@ -161,9 +152,6 @@ class ToolManager:
 
     def _list_mcp_tools(self) -> list[ToolDefinition]:
         """Get all MCP tools from the MCP client."""
-        if not self._enable_mcp_tools:
-            return []
-
         try:
             mcp_client = get_mcp_client()
             mcp_tools = mcp_client.get_all_tools()

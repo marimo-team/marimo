@@ -2,31 +2,32 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import time
-from abc import ABC, abstractmethod
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Optional, Union
 
 from marimo import _loggers
-from marimo._config.config import (
-    DEFAULT_MCP_CONFIG,
-    MCPConfig,
-    MCPServerConfig,
-    MCPServerStdioConfig,
-    MCPServerStreamableHttpConfig,
-)
+from marimo._config.config import MCPConfig
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.ai.mcp.config import (
+    MCPConfigComparator,
+    MCPServerDefinition,
+    MCPServerDefinitionFactory,
+    append_presets,
+)
+from marimo._server.ai.mcp.transport import (
+    MCPTransportRegistry,
+)
+from marimo._server.ai.mcp.types import MCPToolArgs
 
 if TYPE_CHECKING:
-    from typing import Protocol, TypedDict
-
     from anyio.streams.memory import (
         MemoryObjectReceiveStream,
         MemoryObjectSendStream,
     )
+
     from mcp import ClientSession  # type: ignore[import-not-found]
     from mcp.shared.message import SessionMessage
     from mcp.types import (  # type: ignore[import-not-found]
@@ -36,39 +37,7 @@ if TYPE_CHECKING:
         Tool,
     )
 
-    class MCPToolMeta(TypedDict):
-        """Metadata that marimo adds to MCP tools."""
-
-        server_name: str
-        namespaced_name: str
-
-    class MCPToolWithMeta(Protocol):
-        """MCP Tool with marimo-specific metadata."""
-
-        name: str
-        description: str | None
-        inputSchema: dict[str, Any]
-        meta: MCPToolMeta
-
-
-# Type alias that matches the MCP SDK's CallToolRequestParams.arguments type
-MCPToolArgs = Optional[dict[str, Any]]
-
-# Type alias for MCP transport connection streams
-TransportConnectorResponse = tuple[
-    "MemoryObjectReceiveStream[Union[SessionMessage, Exception]]",
-    "MemoryObjectSendStream[SessionMessage]",
-]
-
 LOGGER = _loggers.marimo_logger()
-
-
-class MCPTransportType(str, Enum):
-    """Supported MCP transport types."""
-
-    # based on https://modelcontextprotocol.io/docs/concepts/transports
-    STDIO = "stdio"
-    STREAMABLE_HTTP = "streamable_http"
 
 
 class MCPServerStatus(Enum):
@@ -78,160 +47,6 @@ class MCPServerStatus(Enum):
     CONNECTING = "connecting"
     CONNECTED = "connected"
     ERROR = "error"
-
-
-@dataclass
-class MCPServerDefinition:
-    """Runtime server definition wrapping config with computed fields."""
-
-    name: str
-    transport: MCPTransportType
-    config: MCPServerConfig
-    timeout: float = 30.0
-
-
-class MCPServerDefinitionFactory:
-    """Factory for creating transport-specific server definitions."""
-
-    @classmethod
-    def from_config(
-        cls, name: str, config: MCPServerConfig
-    ) -> MCPServerDefinition:
-        """Create server definition with automatic transport detection.
-
-        Args:
-            name: Server name
-            config: Server configuration from config file
-
-        Returns:
-            Server definition with detected transport type
-
-        Raises:
-            ValueError: If configuration type is not supported
-        """
-        # Import here to avoid circular imports
-
-        if "command" in config:
-            return MCPServerDefinition(
-                name=name,
-                transport=MCPTransportType.STDIO,
-                config=config,
-                timeout=30.0,  # default timeout for STDIO
-            )
-        elif "url" in config:
-            return MCPServerDefinition(
-                name=name,
-                transport=MCPTransportType.STREAMABLE_HTTP,
-                config=config,
-                timeout=config.get("timeout") or 30.0,
-            )
-        else:
-            raise ValueError(f"Unsupported config type: {type(config)}")
-
-
-class MCPTransportConnector(ABC):
-    """Abstract base class for MCP transport connectors."""
-
-    @abstractmethod
-    async def connect(
-        self, server_def: MCPServerDefinition, exit_stack: AsyncExitStack
-    ) -> TransportConnectorResponse:
-        """Connect to the MCP server and return read/write streams.
-
-        Args:
-            server_def: Server definition with transport-specific parameters
-            exit_stack: Async exit stack for resource management
-
-        Returns:
-            Tuple of (read_stream, write_stream) for the ClientSession
-        """
-        pass
-
-
-class StdioTransportConnector(MCPTransportConnector):
-    """STDIO transport connector for process-based MCP servers."""
-
-    async def connect(
-        self, server_def: MCPServerDefinition, exit_stack: AsyncExitStack
-    ) -> TransportConnectorResponse:
-        # Import MCP SDK components for stdio transport
-        from mcp import StdioServerParameters
-        from mcp.client.stdio import stdio_client
-
-        # Type narrowing for mypy
-        assert "command" in server_def.config
-        config = cast(MCPServerStdioConfig, server_def.config)
-
-        # Set up environment variables for the server process
-        env = os.environ.copy()
-        env.update(config.get("env") or {})
-
-        # Configure server parameters
-        server_params = StdioServerParameters(
-            command=config["command"],
-            args=config.get("args") or [],
-            env=env,
-        )
-
-        # Establish connection with proper resource management
-        read, write, *_ = await exit_stack.enter_async_context(
-            stdio_client(server_params)
-        )
-
-        return read, write
-
-
-class StreamableHTTPTransportConnector(MCPTransportConnector):
-    """Streamable HTTP transport connector for modern HTTP-based MCP servers."""
-
-    async def connect(
-        self, server_def: MCPServerDefinition, exit_stack: AsyncExitStack
-    ) -> TransportConnectorResponse:
-        # Import MCP SDK components for streamable HTTP transport
-        from mcp.client.streamable_http import streamablehttp_client
-
-        # Type narrowing for mypy
-        assert "url" in server_def.config
-        config = cast(MCPServerStreamableHttpConfig, server_def.config)
-
-        # Establish streamable HTTP connection
-        read, write, *_ = await exit_stack.enter_async_context(
-            streamablehttp_client(
-                config["url"],
-                headers=config.get("headers") or {},
-                timeout=server_def.timeout,
-            )
-        )
-
-        return read, write
-
-
-class MCPTransportRegistry:
-    """Registry for MCP transport connectors."""
-
-    def __init__(self) -> None:
-        self._connectors: dict[MCPTransportType, MCPTransportConnector] = {
-            MCPTransportType.STDIO: StdioTransportConnector(),
-            MCPTransportType.STREAMABLE_HTTP: StreamableHTTPTransportConnector(),
-        }
-
-    def get_connector(
-        self, transport_type: MCPTransportType
-    ) -> MCPTransportConnector:
-        """Get the appropriate transport connector for the given transport type.
-
-        Args:
-            transport_type: The type of transport to connect with
-
-        Returns:
-            Transport connector instance
-
-        Raises:
-            ValueError: If transport type is not supported
-        """
-        if transport_type not in self._connectors:
-            raise ValueError(f"Unsupported transport type: {transport_type}")
-        return self._connectors[transport_type]
 
 
 @dataclass
@@ -259,9 +74,12 @@ class MCPServerConnection:
 class MCPClient:
     """Client for managing connections to multiple MCP servers."""
 
-    def __init__(self, config: Optional[MCPConfig] = None):
-        """Initialize MCP client with server configuration."""
-        self.config: MCPConfig = config or MCPConfig(mcpServers={})
+    def __init__(self) -> None:
+        """Initialize MCP client.
+
+        Note: For dynamic reconfiguration, use await client.configure(new_config)
+              which will handle adding/removing/updating connections automatically.
+        """
         self.servers: dict[str, MCPServerDefinition] = {}
         self.connections: dict[str, MCPServerConnection] = {}
         self.tool_registry: dict[str, Tool] = {}
@@ -274,15 +92,108 @@ class MCPClient:
         self.health_check_timeout: float = (
             5.0  # seconds - shorter timeout for health checks
         )
-        self._parse_config()
 
-    def _parse_config(self) -> None:
+    async def configure(self, config: MCPConfig) -> None:
+        """Configure the MCP client with the given configuration.
+
+        This method:
+        1. Parses the new configuration
+        2. Compares it with current configuration
+        3. Disconnects from removed servers
+        4. Disconnects and reconnects to updated servers
+        5. Connects to new servers
+
+        Args:
+            config: MCP configuration to apply
+        """
+        # Parse new configuration
+        new_servers = self._parse_config(config)
+
+        # Compute differences
+        diff = MCPConfigComparator.compute_diff(self.servers, new_servers)
+
+        # Early return if no changes
+        if not diff.has_changes():
+            LOGGER.debug(
+                "MCP configuration unchanged, skipping reconfiguration"
+            )
+            return
+
+        LOGGER.info(
+            f"MCP configuration changed: "
+            f"{len(diff.servers_to_add)} to add, "
+            f"{len(diff.servers_to_remove)} to remove, "
+            f"{len(diff.servers_to_update)} to update, "
+            f"{len(diff.servers_unchanged)} unchanged"
+        )
+
+        # Disconnect from removed servers
+        for server_name in diff.servers_to_remove:
+            LOGGER.info(f"Removing server: {server_name}")
+            await self.disconnect_from_server(server_name)
+            # Clean up from servers and connections registries
+            if server_name in self.servers:
+                del self.servers[server_name]
+            if server_name in self.connections:
+                del self.connections[server_name]
+
+        # Disconnect from servers that need to be updated (will reconnect below)
+        for server_name in diff.servers_to_update.keys():
+            LOGGER.info(f"Updating server: {server_name}")
+            await self.disconnect_from_server(server_name)
+            # Clean up old connection, will be recreated below
+            if server_name in self.connections:
+                del self.connections[server_name]
+
+        # Update servers registry with new configuration
+        # Add new servers
+        self.servers.update(diff.servers_to_add)
+        # Update modified servers
+        self.servers.update(diff.servers_to_update)
+
+        # Connect to new and updated servers
+        servers_to_connect = {**diff.servers_to_add, **diff.servers_to_update}
+
+        if servers_to_connect:
+            # Connect to servers concurrently
+            tasks = [
+                self.connect_to_server(server_name)
+                for server_name in servers_to_connect.keys()
+            ]
+            connection_results = await asyncio.gather(
+                *tasks, return_exceptions=True
+            )
+
+            for server_name, result in zip(
+                servers_to_connect.keys(), connection_results
+            ):
+                if isinstance(result, Exception):
+                    LOGGER.error(
+                        f"Failed to connect to {server_name}: {result}"
+                    )
+                elif not result:
+                    LOGGER.warning(
+                        f"Connection to {server_name} did not succeed"
+                    )
+
+    def _parse_config(
+        self, config: MCPConfig
+    ) -> dict[str, MCPServerDefinition]:
         """Parse MCP server configuration.
 
-        Note: Servers with invalid configurations are logged but excluded from self.servers,
+        Note: Servers with invalid configurations are logged but excluded from returned dict,
         making them unavailable for connection attempts.
+
+        Args:
+            config: MCP configuration to parse
+
+        Returns:
+            Dictionary of server name to server definition for valid servers
         """
-        mcp_servers = self.config.get("mcpServers", {})
+        # Apply presets before parsing
+        config = append_presets(config)
+        mcp_servers = config.get("mcpServers", {})
+        parsed_servers: dict[str, MCPServerDefinition] = {}
 
         for server_name, server_config in mcp_servers.items():
             try:
@@ -290,20 +201,22 @@ class MCPClient:
                     server_name, server_config
                 )
 
-                self.servers[server_name] = server_def
+                parsed_servers[server_name] = server_def
                 LOGGER.debug(
-                    f"Registered MCP server: {server_name} (transport: {server_def.transport})"
+                    f"Parsed MCP server: {server_name} (transport: {server_def.transport})"
                 )
             except KeyError as e:
                 LOGGER.error(
                     f"Invalid configuration for server {server_name}: missing {e}"
                 )
-                # Note: Server with invalid configuration is not added to self.servers
+                # Note: Server with invalid configuration is not added to parsed_servers
             except ValueError as e:
                 LOGGER.error(
                     f"Invalid configuration for server {server_name}: {e}"
                 )
-                # Note: Server with invalid configuration is not added to self.servers
+                # Note: Server with invalid configuration is not added to parsed_servers
+
+        return parsed_servers
 
     async def _connection_lifecycle(self, server_name: str) -> None:
         """Minimal wrapper to run existing connection and disconnection logic in task-owned AsyncExitStack."""
@@ -498,8 +411,12 @@ class MCPClient:
         return f"mcp_{server_name}{counter}_{tool_name}"
 
     async def connect_to_all_servers(self) -> dict[str, bool]:
-        """Connect to all configured MCP servers."""
-        results = {}
+        """Connect to all configured MCP servers.
+
+        Returns:
+            Dictionary mapping server names to connection success status
+        """
+        results: dict[str, bool] = {}
 
         # Connect to servers concurrently
         tasks = [
@@ -545,7 +462,9 @@ class MCPClient:
         return hasattr(result, "isError") and result.isError is True
 
     async def invoke_tool(
-        self, namespaced_tool_name: str, params: CallToolRequestParams
+        self,
+        namespaced_tool_name: str,
+        params: CallToolRequestParams,
     ) -> CallToolResult:
         """Invoke an MCP tool using properly typed CallToolRequestParams."""
         tool = self.tool_registry.get(namespaced_tool_name)
@@ -619,7 +538,9 @@ class MCPClient:
             )
 
     def create_tool_params(
-        self, namespaced_tool_name: str, arguments: MCPToolArgs = None
+        self,
+        namespaced_tool_name: str,
+        arguments: MCPToolArgs = None,
     ) -> CallToolRequestParams:
         """Create properly typed CallToolRequestParams for a tool."""
         from mcp.types import CallToolRequestParams
@@ -890,13 +811,21 @@ class MCPClient:
 
                 # Wait for all tasks to complete
                 await asyncio.gather(
-                    *self.health_check_tasks.values(), return_exceptions=True
+                    *self.health_check_tasks.values(),
+                    return_exceptions=True,
                 )
                 self.health_check_tasks.clear()
                 LOGGER.debug("Cancelled all health monitoring tasks")
 
     async def disconnect_from_server(self, server_name: str) -> bool:
-        """Disconnect from a specific MCP server."""
+        """Disconnect from a specific MCP server.
+
+        Args:
+            server_name: Name of the server to disconnect from
+
+        Returns:
+            True if disconnection was successful or server wasn't connected, False otherwise
+        """
         connection = self.connections.get(server_name)
         if not connection:
             return True
@@ -942,19 +871,22 @@ class MCPClient:
 _MCP_CLIENT: Optional[MCPClient] = None
 
 
-def get_mcp_client(config: Optional[MCPConfig] = None) -> MCPClient:
-    """Get the global MCP client instance, initializing it if needed."""
+def get_mcp_client() -> MCPClient:
+    """Get the global MCP client instance, initializing it if needed.
+
+    Note: The client must be configured using await client.configure(config)
+          before connecting to servers.
+    """
     global _MCP_CLIENT
     if _MCP_CLIENT is None:
         if not DependencyManager.mcp.has():
-            LOGGER.info("MCP SDK not available")
-            raise ModuleNotFoundError("MCP SDK not available")
+            msg = "MCP dependencies not available. Install with `pip install marimo[mcp]` or `uv add marimo[mcp]`"
+            LOGGER.info(msg)
+            raise ModuleNotFoundError(
+                msg,
+                name="mcp",
+            )
 
-        _MCP_CLIENT = MCPClient(config or _get_default_config())
+        _MCP_CLIENT = MCPClient()
         LOGGER.info("MCP client initialized")
     return _MCP_CLIENT
-
-
-def _get_default_config() -> MCPConfig:
-    """Get default MCP configuration."""
-    return DEFAULT_MCP_CONFIG
