@@ -82,15 +82,20 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
     const { name, display_name, source, ...filteredDatasource } =
       data.connection;
 
-    const namedDatasource: NamedDatasource = {
-      ...filteredDatasource,
-      engine_name: name as ConnectionName,
-    };
+    let datasource = filteredDatasource;
+    const isInternalEngine = INTERNAL_SQL_ENGINES.has(name as ConnectionName);
+    if (!isInternalEngine) {
+      const namedDatasource: NamedDatasource = {
+        ...filteredDatasource,
+        engine_name: name as ConnectionName, // Add the engine name for external engines
+      };
+      datasource = namedDatasource;
+    }
 
     return contextToXml({
       type: this.contextType,
       data: {
-        connection: namedDatasource,
+        connection: datasource,
         tables: data.tables,
       },
     });

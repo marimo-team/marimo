@@ -391,6 +391,7 @@ describe("DatasourceContextProvider", () => {
       const duckdbItem = items.find((item) => item.name === DUCKDB_ENGINE)!;
       const context = provider.formatContext(duckdbItem);
 
+      expect(context).not.toContain('"engine_name":"__marimo_duckdb"');
       expect(context).toMatchSnapshot("internal-datasource-context");
     });
 
@@ -413,6 +414,7 @@ describe("DatasourceContextProvider", () => {
       const postgresItem = items.find((item) => item.name === "postgres")!;
       const context = provider.formatContext(postgresItem);
 
+      expect(context).toContain('"engine_name":"postgres"');
       expect(context).toMatchSnapshot("postgres-datasource-context");
     });
 
