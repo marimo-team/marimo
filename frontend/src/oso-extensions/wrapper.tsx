@@ -9,8 +9,7 @@ import { runtimeConfigAtom } from "@/core/runtime/config";
 import { setLatestEngineSelected, useDataSourceActions } from "@/core/datasets/data-source-connections";
 import type { ConnectionName } from "@/core/datasets/engines";
 import type { AddCellWithAIHook } from "@/components/editor/ai/add-cell-with-ai";
-
-const COMMAND_PREFIX = "oso_commands:";
+import { useNotebookRpcServer } from "./notebook-rpc";
 
 declare global {
   interface WindowEventMap {
@@ -29,39 +28,17 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
   const fragmentStore = useFragmentStore();
   const actions = useCellActions();
   const dataSourceActions = useDataSourceActions();
-  const createCellAtEnd = (code: string) => {
+  const notebookRpcServer = useNotebookRpcServer();
+
+  const createCellAtEnd = useCallback((code: string) => {
     actions.createNewCell({
       cellId: "__end__",
       code: code,
       before: false,
     });
-  };
-
-  const windowMessageCallback = useCallback((event: MessageEvent<any>) => {
-    console.log("Received message:", event.data);
-    // Don't really do anything for now.
-    if (typeof event.data === "string") {
-      if (event.data.startsWith(COMMAND_PREFIX)) {
-        // Strip oso commands prefix and parse the remainder as JSON
-        const json = event.data.slice(COMMAND_PREFIX.length);
-        try {
-          const command = JSON.parse(json) as {
-            type?: string;
-            code?: string;
-          };
-          if (command?.type === "create_cell") {
-            if (command?.code) {
-              createCellAtEnd(command.code);
-            }
-          }
-          console.log("Parsed command:", command);
-          // Handle the command as needed
-        } catch (error) {
-          console.error("Failed to parse command:", error);
-        }
-      }
-    }
   }, []);
+
+  notebookRpcServer.registerHandler("createCell", createCellAtEnd);
 
   const addCellWithAICallback = useCallback((ev: CustomEvent<AddCellWithAIHook>) => {
     const { setInput } = ev.detail;
@@ -104,8 +81,6 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
       await bridge.initialized.promise;
 
       console.log("Bridge initialized");
-
-      window.addEventListener("message", windowMessageCallback);
 
       // Parse the fragment identifier for the `env` parameter and JSON parse it
       const envVars = fragmentStore.getJSON<Record<string, string>>("env", {});
@@ -186,9 +161,6 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
     }
 
     setTimeout(setOSOWarehouseAsDefaultSQLConnection, 0);
-    return () => {
-      window.removeEventListener("message", windowMessageCallback);
-    };
   }, []);
 
   return children;

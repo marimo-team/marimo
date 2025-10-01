@@ -19,7 +19,6 @@ interface Props {
 const showWatermark = isWasm() || isStaticNotebook();
 
 const OSORunPage = (props: Props) => {
-  console.log("LOADING RUN PAGE")
   return (
     <PanelsWrapper>
       <PanelGroup

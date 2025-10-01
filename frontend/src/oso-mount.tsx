@@ -48,7 +48,10 @@ import { reportVitals } from "./utils/vitals";
 import { OSOWrapper } from "./oso-extensions/wrapper";
 import { OSONotebook, preloadPage } from "./oso-extensions/OSONotebook";
 import { FragmentStore, FragmentStoreProvider } from "./oso-extensions/fragment-store";
+import { DummyNotebookRpc, NotebookRpc, NotebookRpcServerProvider, type NotebookRpcServer } from "./oso-extensions/notebook-rpc";
+import { PostMessageFileStore } from "./oso-extensions/post-message-filestore";
 import { SupabaseFileStore } from "./oso-extensions/supabase-filestore";
+//import { createIframeMessengerInIframe } from "./oso-extensions/iframe-messenger";
 
 
 let hasMounted = false;
@@ -65,7 +68,7 @@ def _():
  *
  * Sets up the mairmo app with a theme provider.
  */
-export function mount(options: unknown, el: Element): Error | undefined {
+export async function mount(options: unknown, el: Element): Promise<Error | undefined> {
   if (hasMounted) {
     Logger.warn("marimo app has already been mounted.");
     return new Error("marimo app has already been mounted.");
@@ -80,6 +83,18 @@ export function mount(options: unknown, el: Element): Error | undefined {
     window.__fragmentStore = fragmentStore;
   }
 
+  const enablePostMessageStore = fragmentStore.getBoolean("enablePostMessageStore", false);
+  let notebookRpc: NotebookRpcServer;
+
+  if (enablePostMessageStore) {
+    const allowedDomains: string = import.meta.env.VITE_ALLOWED_DOMAINS || window.location.hostname;
+    const allowedDomainsList = allowedDomains.split(",").map((o) => o.trim());
+    notebookRpc = new NotebookRpc(allowedDomainsList);
+    notebookRpc.listen();
+    Logger.log("Connected to notebook host via postMessage");
+  } else {
+    notebookRpc = new DummyNotebookRpc();
+  }
 
   try {
     // Init side-effects
@@ -95,15 +110,19 @@ export function mount(options: unknown, el: Element): Error | undefined {
     }
 
     // Init store
-    initStore(fragmentStore, options);
+    await initStore({
+      fragmentStore, notebookRpc, options, enablePostMessageStore
+    });
 
     root.render(
       <Provider store={store}>
         <ThemeProvider>
           <FragmentStoreProvider>
-            <OSOWrapper>
-              <OSONotebook />
-            </OSOWrapper>
+            <NotebookRpcServerProvider notebookRpcServer={notebookRpc}>
+              <OSOWrapper>
+                <OSONotebook />
+              </OSOWrapper>
+            </NotebookRpcServerProvider>
           </FragmentStoreProvider>
         </ThemeProvider>
       </Provider>,
@@ -267,7 +286,7 @@ const mountOptionsSchema = z.object({
 /**
  * A FileStore that is stored in the fragment identifier of the URL.
  */
-class OSOFileStore implements FileStore {
+class FragmentNotebookFileStore implements FileStore {
 
   private fragmentStore: FragmentStore;
   constructor(fragmentStore: FragmentStore) {
@@ -286,8 +305,18 @@ class OSOFileStore implements FileStore {
   }
 }
 
-function initStore(fragmentStore: FragmentStore, options: unknown) {
+interface InitStoreOptions {
+  fragmentStore: FragmentStore;
+  notebookRpc: NotebookRpcServer;
+  enablePostMessageStore?: boolean;
+  options: unknown;
+}
+
+async function initStore({ fragmentStore, enablePostMessageStore, notebookRpc, options }: InitStoreOptions) {
+  // Get the parent origin from the fragment store
   const parsedOptions = mountOptionsSchema.safeParse(options);
+  const enableSupabaseStore = fragmentStore.getBoolean("enableSupabaseStore", true);
+
   if (!parsedOptions.success) {
     Logger.error("Invalid marimo mount options", parsedOptions.error);
     throw new Error("Invalid marimo mount options");
@@ -300,10 +329,8 @@ function initStore(fragmentStore: FragmentStore, options: unknown) {
   const mode = rawMode as AppMode;
   preloadPage(mode);
 
-  // Initialize file stores if provided
-  notebookFileStore.overrideStores([
-    new SupabaseFileStore(fragmentStore),
-    new OSOFileStore(fragmentStore),
+  const stores: FileStore[] = [
+    new FragmentNotebookFileStore(fragmentStore),
     { // This is a fallback store that does nothing but return a default notebook
       saveFile: (_contents: string) => {
         // Do nothing
@@ -312,18 +339,35 @@ function initStore(fragmentStore: FragmentStore, options: unknown) {
         return defaultNotebookCode;
       },
     }
-  ]);
+  ];
+
+  if (enablePostMessageStore) {
+    Logger.log("Enabling postMessage filestore");
+    await notebookRpc.waitForFsReady();
+    stores.unshift(new PostMessageFileStore(notebookRpc));
+  } else {
+    // This is a legacy path that we should eventually remove. It is the default
+    // if no notebookRpc is provided. To disable it, set enableSupabaseStore to
+    // false
+    if (enableSupabaseStore) {
+      Logger.log("Using supabase filestore");
+      stores.unshift(new SupabaseFileStore(fragmentStore))
+    }
+  }
+
+  // Initialize file stores if provided
+  notebookFileStore.overrideStores(stores);
   if (
     parsedOptions.data.fileStores &&
     parsedOptions.data.fileStores.length > 0
   ) {
-    Logger.log("🗄️ Initializing file stores via mount...");
+    Logger.log("Initializing file stores via mount...");
     // Inject file stores if they exist
     for (let i = parsedOptions.data.fileStores.length - 1; i >= 0; i--) {
       notebookFileStore.insert(0, parsedOptions.data.fileStores[i]);
     }
     Logger.log(
-      `🗄️ injected ${parsedOptions.data.fileStores.length} file store(s) into notebookFileStore`,
+      `️Injected ${parsedOptions.data.fileStores.length} file store(s) into notebookFileStore`,
     );
   }
 
