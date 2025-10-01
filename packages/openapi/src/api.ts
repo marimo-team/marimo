@@ -201,6 +201,76 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ai/mcp/refresh": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Refresh MCP server configuration */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["MCPRefreshResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ai/mcp/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Get MCP server status */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["MCPStatusResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/datasources/preview_column": {
     parameters: {
       query?: never;
@@ -3749,6 +3819,27 @@ export interface components {
         [key: string]: Record<string, any>;
       };
       presets?: ("context7" | "marimo")[];
+    };
+    /** MCPRefreshResponse */
+    MCPRefreshResponse: {
+      /** @default null */
+      error?: string | null;
+      /** @default {} */
+      servers?: {
+        [key: string]: boolean;
+      };
+      success: boolean;
+    };
+    /** MCPStatusResponse */
+    MCPStatusResponse: {
+      /** @default null */
+      error?: string | null;
+      /** @default {} */
+      servers?: {
+        [key: string]: "connected" | "disconnected" | "failed" | "pending";
+      };
+      /** @enum {unknown} */
+      status: "error" | "ok" | "partial";
     };
     /** MarimoAncestorPreventedError */
     MarimoAncestorPreventedError: {

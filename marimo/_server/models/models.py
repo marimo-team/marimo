@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 import msgspec
 
@@ -161,3 +161,16 @@ class InvokeAiToolResponse(BaseResponse):
     tool_name: str
     result: Any
     error: Optional[str] = None
+
+
+class MCPStatusResponse(msgspec.Struct, rename="camel"):
+    status: Literal["ok", "partial", "error"]
+    error: Optional[str] = None
+    servers: dict[
+        str, Literal["pending", "connected", "disconnected", "failed"]
+    ] = {}  # server_name -> status
+
+
+class MCPRefreshResponse(BaseResponse):
+    error: Optional[str] = None
+    servers: dict[str, bool] = {}  # server_name -> connected

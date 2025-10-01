@@ -209,6 +209,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.UpdateComponentValuesRequest,
         models.InvokeAiToolRequest,
         models.InvokeAiToolResponse,
+        models.MCPStatusResponse,
+        models.MCPRefreshResponse,
         requests.CodeCompletionRequest,
         requests.DeleteCellRequest,
         requests.HTTPRequest,

@@ -1294,6 +1294,46 @@ class TestInvokeToolEndpoint:
         # Should fail without proper session
         assert response.status_code in [400, 401, 403], response.text
 
+
+class TestMCPEndpoints:
+    """Tests for MCP status and refresh endpoints."""
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_mcp_status(client: TestClient) -> None:
+        """Test MCP status endpoint returns error when dependencies not installed."""
+        response = client.get(
+            "/api/ai/mcp/status",
+            headers=HEADERS,
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+
+        # Should have required fields
+        assert "status" in data
+        assert "servers" in data
+        # Will likely error due to missing dependencies or no config
+        assert data["status"] in ["ok", "partial", "error"]
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_mcp_refresh(client: TestClient) -> None:
+        """Test MCP refresh endpoint returns error when dependencies not installed."""
+        response = client.post(
+            "/api/ai/mcp/refresh",
+            headers=HEADERS,
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+
+        # Should have required fields
+        assert "success" in data
+        assert "servers" in data
+        # Will likely fail due to missing dependencies or no config
+        assert isinstance(data["success"], bool)
+
     @staticmethod
     @with_session(SESSION_ID)
     @patch("marimo._server.api.endpoints.ai.get_tool_manager")

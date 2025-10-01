@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { CheckSquareIcon } from "lucide-react";
+import { CheckSquareIcon, Loader2, RefreshCwIcon } from "lucide-react";
 import React from "react";
 import type { UseFormReturn } from "react-hook-form";
 import {
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/card";
 import { FormField, FormItem } from "@/components/ui/form";
 import type { UserConfig } from "@/core/config/config-schema";
+import { useMCPRefresh, useMCPStatus } from "../mcp/hooks";
+import { McpStatusText } from "../mcp/mcp-status-indicator";
 import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
 import { SettingSubtitle } from "./common";
@@ -45,10 +47,48 @@ const PRESET_CONFIGS: PresetConfig[] = [
 
 export const MCPConfig: React.FC<MCPConfigProps> = ({ form, onSubmit }) => {
   const { handleClick } = useOpenSettingsToTab();
+  const { data: status, refetch, isFetching } = useMCPStatus();
+  const { refresh, isRefreshing } = useMCPRefresh();
+
+  const handleRefresh = async () => {
+    await refresh();
+    refetch();
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      <SettingSubtitle>MCP Servers</SettingSubtitle>
+      <div className="flex items-center justify-between">
+        <SettingSubtitle>MCP Servers</SettingSubtitle>
+        <div className="flex items-center gap-2">
+          {status && <McpStatusText status={status.status} />}
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={handleRefresh}
+            disabled={isRefreshing || isFetching}
+          >
+            {isRefreshing || isFetching ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <RefreshCwIcon className="h-3 w-3" />
+            )}
+          </Button>
+        </div>
+      </div>
+      {status?.error && (
+        <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 p-2 rounded">
+          {status.error}
+        </div>
+      )}
+      {status?.servers && (
+        <div className="text-xs text-muted-foreground">
+          {Object.entries(status.servers).map(([server, status]) => (
+            <div key={server}>
+              {server}: <McpStatusText status={status} />
+            </div>
+          ))}
+        </div>
+      )}
       <p className="text-sm text-muted-foreground">
         Enable Model Context Protocol (MCP) servers to provide additional
         capabilities and data sources for AI features.
