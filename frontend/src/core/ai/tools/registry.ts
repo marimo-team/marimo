@@ -3,19 +3,18 @@
 import type { components } from "@marimo-team/marimo-api";
 import { Memoize } from "typescript-memoize";
 import { type ZodObject, z } from "zod";
-import type { BaseTool } from "./base";
-import { testFrontendTool } from "./sample-tool";
+import type { AiTool } from "./base";
+import { TestFrontendTool } from "./sample-tool";
 
 export type AnyZodObject = ZodObject<z.ZodRawShape>;
 
-// Generic type to avoid type errors
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type StoredTool = BaseTool<any, any>;
+type StoredTool = AiTool<any, any>;
 
 /** should be the same as marimo/_config/config.py > CopilotMode */
-export type CopilotMode = "manual" | "ask";
 
 type ToolDefinition = components["schemas"]["ToolDefinition"];
+export type CopilotMode = ToolDefinition["mode"][number];
 
 export interface FrontendToolDefinition extends ToolDefinition {
   source: "frontend";
@@ -25,10 +24,7 @@ export class FrontendToolRegistry {
   /** All registered tools */
   private tools = new Map<string, StoredTool>();
 
-  constructor(
-    // Accept any concrete tool generics; we normalize internally
-    tools: StoredTool[] = [],
-  ) {
+  constructor(tools: StoredTool[] = []) {
     this.tools = new Map(tools.map((tool) => [tool.name, tool]));
   }
 
@@ -101,6 +97,6 @@ export class FrontendToolRegistry {
 }
 
 export const FRONTEND_TOOL_REGISTRY = new FrontendToolRegistry([
-  testFrontendTool,
+  ...(import.meta.env.DEV ? [new TestFrontendTool()] : []),
   // ADD MORE TOOLS HERE
 ]);
