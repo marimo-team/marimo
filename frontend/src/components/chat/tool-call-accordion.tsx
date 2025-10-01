@@ -106,7 +106,7 @@ const ResultRenderer: React.FC<{ result: unknown }> = ({ result }) => {
 
   // Otherwise, fall back to the current JSON viewer
   return (
-    <div className="text-xs font-medium text-muted-foreground mb-1">
+    <div className="text-xs font-medium text-muted-foreground mb-1 max-h-64 overflow-y-auto scrollbar-thin">
       {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
     </div>
   );

@@ -6,7 +6,7 @@ import sys
 from typing import Optional
 
 from marimo._cli.print import bold, green, muted
-from marimo._config.config import MarimoConfig
+from marimo._config.config import MarimoConfig, MCPConfig
 from marimo._server.utils import print_, print_tabbed
 
 UTF8_SUPPORTED = False
@@ -146,6 +146,7 @@ def print_experimental_features(config: MarimoConfig) -> None:
         "reactive_tests",
         "toplevel_defs",
         "setup_cell",
+        "mcp_docs",
     }
     keys = keys - finished_experiments
 
@@ -157,7 +158,7 @@ def print_experimental_features(config: MarimoConfig) -> None:
     )
 
 
-def print_mcp(mcp_url: str, server_token: str | None) -> None:
+def print_mcp_server(mcp_url: str, server_token: str | None) -> None:
     """Print MCP server configuration when MCP is enabled."""
     print_()
     print_tabbed(
@@ -171,3 +172,15 @@ def print_mcp(mcp_url: str, server_token: str | None) -> None:
             f"{_utf8('➜')}  {green('Add Header')}: Marimo-Server-Token: {muted(server_token)}"
         )
     print_()
+
+
+def print_mcp_client(config: MCPConfig) -> None:
+    keys = set(config.get("mcpServers", {}).keys()) | set(
+        config.get("presets", [])
+    )
+    if len(keys) == 0:
+        return
+
+    print_tabbed(
+        f"{_utf8('🌐')} {green('MCP servers', bold=True)}: {', '.join(keys)}"
+    )

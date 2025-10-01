@@ -188,6 +188,12 @@ export const UserConfigSchema = z
         wasm: z.boolean().optional(),
       })
       .optional(),
+    mcp: z
+      .looseObject({
+        presets: z.array(z.enum(["marimo", "context7"])).optional(),
+      })
+      .optional()
+      .prefault({}),
   })
   .partial()
   .prefault(() => ({
@@ -201,6 +207,7 @@ export const UserConfigSchema = z
     server: {},
     ai: {},
     package_management: {},
+    mcp: {},
   }));
 export type UserConfig = MarimoConfig;
 export type SaveConfig = UserConfig["save"];
@@ -302,6 +309,7 @@ export function defaultUserConfig(): UserConfig {
     server: {},
     ai: {},
     package_management: {},
+    mcp: {},
   };
   return UserConfigSchema.parse(defaultConfig) as UserConfig;
 }

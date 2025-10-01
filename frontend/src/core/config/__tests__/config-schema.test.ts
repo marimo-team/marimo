@@ -75,6 +75,7 @@ test("default UserConfig - empty", () => {
         "overrides": {},
         "preset": "default",
       },
+      "mcp": {},
       "package_management": {
         "manager": "pip",
       },
@@ -139,6 +140,7 @@ test("default UserConfig - one level", () => {
         "overrides": {},
         "preset": "default",
       },
+      "mcp": {},
       "package_management": {
         "manager": "pip",
       },

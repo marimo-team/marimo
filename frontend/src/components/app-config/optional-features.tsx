@@ -76,6 +76,12 @@ const OPTIONAL_DEPENDENCIES: OptionalFeature[] = [
     description: "AI features",
   },
   {
+    id: "mcp",
+    packagesRequired: [{ name: "mcp", minVersion: "1" }],
+    additionalPackageInstalls: [{ name: "pydantic", minVersion: "2" }],
+    description: "Connect to MCP servers",
+  },
+  {
     id: "ipy-export",
     packagesRequired: [{ name: "nbformat" }],
     additionalPackageInstalls: [],

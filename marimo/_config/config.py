@@ -14,6 +14,7 @@ else:
     from typing import NotRequired
 
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     Optional,
@@ -508,7 +509,6 @@ class ExperimentalConfig(TypedDict, total=False):
     wasm_layouts: bool  # Used in playground (community cloud)
     rtc_v2: bool
     performant_table_charts: bool
-    mcp_docs: bool
     chat_modes: bool
     sql_linter: bool
     sql_mode: bool
@@ -543,8 +543,7 @@ class MarimoConfig(TypedDict):
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
-    # We don't support configuring MCP servers yet
-    # mcp: NotRequired[MCPConfig]
+    mcp: NotRequired[MCPConfig]
 
 
 @mddoc
@@ -570,7 +569,12 @@ class MCPServerStreamableHttpConfig(TypedDict):
     disabled: NotRequired[Optional[bool]]
 
 
-MCPServerConfig = Union[MCPServerStdioConfig, MCPServerStreamableHttpConfig]
+if TYPE_CHECKING:
+    MCPServerConfig = Union[
+        MCPServerStdioConfig, MCPServerStreamableHttpConfig
+    ]
+else:
+    MCPServerConfig = dict[str, Any]
 
 
 @mddoc
@@ -584,16 +588,7 @@ class MCPConfig(TypedDict):
     """
 
     mcpServers: dict[str, MCPServerConfig]
-
-
-DEFAULT_MCP_CONFIG: MCPConfig = MCPConfig(
-    mcpServers={
-        "marimo": MCPServerStreamableHttpConfig(
-            url="https://mcp.marimo.app/mcp"
-        ),
-        # TODO(bjoaquinc): add more Marimo MCP servers here after they are implemented
-    }
-)
+    presets: NotRequired[list[Literal["marimo", "context7"]]]
 
 
 @mddoc
@@ -676,6 +671,10 @@ DEFAULT_CONFIG: MarimoConfig = {
     "snippets": {
         "custom_paths": [],
         "include_default_snippets": True,
+    },
+    "mcp": {
+        "mcpServers": {},
+        "presets": [],
     },
 }
 
