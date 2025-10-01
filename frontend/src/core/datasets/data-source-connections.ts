@@ -36,7 +36,7 @@ export interface DataSourceConnection
   name: ConnectionName;
 }
 
-type ConnectionsMap = ReadonlyMap<ConnectionName, DataSourceConnection>;
+export type ConnectionsMap = ReadonlyMap<ConnectionName, DataSourceConnection>;
 
 export interface DataSourceState {
   latestEngineSelected: ConnectionName;
