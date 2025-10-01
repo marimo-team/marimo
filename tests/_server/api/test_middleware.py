@@ -672,4 +672,3 @@ class TestProxyMiddleware:
         assert proxy_calls[-1] == "wss://example.com/proxy/test"
 
         # Could be good to go on to test the happy path for mpl but we're already doing that with the test client above so leaving just this invalid ID test for
-

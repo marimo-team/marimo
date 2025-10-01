@@ -4,11 +4,10 @@ from __future__ import annotations
 import asyncio
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
-import httpx
 import websockets
-from starlette.responses import Response, StreamingResponse
+from starlette.responses import Response
 
 # import StaticFiles from starlette
 from starlette.staticfiles import StaticFiles
@@ -157,28 +156,50 @@ async def _mpl_handler(
     }
 
     try:
-        async with httpx.AsyncClient() as client:
-            content = None
-            if request.method in ("POST", "PUT", "PATCH"):
-                content = await request.body()
+        import urllib.parse
+        import urllib.request
+        from urllib.error import URLError
 
-            response = await client.request(
-                method=request.method,
-                url=target_url,
-                headers=headers,
-                content=content,
-                params=request.query_params,
-                timeout=30.0,
-            )
+        # Construct full URL with query parameters
+        if request.query_params:
+            query_string = urllib.parse.urlencode(request.query_params)
+            full_url = f"{target_url}?{query_string}"
+        else:
+            full_url = target_url
 
-            return StreamingResponse(
-                response.aiter_bytes(),
-                status_code=response.status_code,
-                headers=dict(response.headers),
-                media_type=response.headers.get("content-type"),
-            )
+        # Prepare request data
+        data = None
+        if request.method in ("POST", "PUT", "PATCH"):
+            data = await request.body()
 
-    except httpx.ConnectError:
+        # Create urllib request
+        req = urllib.request.Request(
+            full_url, data=data, headers=headers, method=request.method
+        )
+
+        # Execute request in thread pool to avoid blocking
+        def _make_request() -> dict[str, Any]:
+            try:
+                with urllib.request.urlopen(req, timeout=30.0) as response:
+                    return {
+                        "status": response.status,
+                        "headers": dict(response.headers),
+                        "content": response.read(),
+                    }
+            except URLError as e:
+                raise ConnectionError() from e
+
+        loop = asyncio.get_event_loop()
+        response_data = await loop.run_in_executor(None, _make_request)
+
+        return Response(
+            content=response_data["content"],
+            status_code=response_data["status"],
+            headers=response_data["headers"],
+            media_type=response_data["headers"].get("content-type"),
+        )
+
+    except ConnectionError:
         LOGGER.info(f"Failed to connect to matplotlib server at port {port}")
         return Response(
             content="Matplotlib server is not available. Please rerun this cell or restart the service.",
