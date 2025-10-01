@@ -8,7 +8,7 @@
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
-  
+
 - name: Claude 4.1 Opus
   model: claude-opus-4-1
   description: Latest Opus model with enhanced capabilities and performance improvements
@@ -17,14 +17,14 @@
   thinking: true
 
 - name: Claude 4 Opus
-  model: claude-opus-4
+  model: claude-opus-4-0
   description: Most capable model with superior performance on complex tasks and reasoning
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
 
 - name: Claude 4 Sonnet
-  model: claude-sonnet-4
+  model: claude-sonnet-4-0
   description: Next-generation Sonnet model with advanced reasoning and multimodal capabilities
   providers: [anthropic]
   roles: [chat, edit]
