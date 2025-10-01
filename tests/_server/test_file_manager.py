@@ -699,3 +699,201 @@ def test_overload_app_settings() -> None:
     finally:
         os.environ.pop("_MARIMO_APP_OVERLOAD_SQL_OUTPUT", None)
         os.environ.pop("_MARIMO_APP_OVERLOAD_AUTO_DOWNLOAD", None)
+
+
+def test_reload_detects_deleted_cells() -> None:
+    """Test that reload() correctly detects deleted cells."""
+    # Create a temporary file with two cells
+    temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
+    initial_content = """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+@app.cell
+def cell2():
+    y = 2
+    return y
+
+if __name__ == "__main__":
+    app.run()
+"""
+    temp_file.write(initial_content.encode())
+    temp_file.close()
+
+    # Initialize AppFileManager with the temp file
+    manager = AppFileManager(filename=temp_file.name)
+    original_cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert len(original_cell_ids) == 2
+
+    # Modify the file content - remove one cell
+    modified_content = """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    with open(temp_file.name, "w") as f:
+        f.write(modified_content)
+
+    # Reload the file
+    changed_cell_ids = manager.reload()
+
+    # The deleted cell should be included in changed_cell_ids
+    reloaded_cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert len(reloaded_cell_ids) == 1
+    deleted_cell_ids = set(original_cell_ids) - set(reloaded_cell_ids)
+    assert len(deleted_cell_ids) == 1
+    assert deleted_cell_ids.issubset(changed_cell_ids)
+
+    # Clean up
+    os.remove(temp_file.name)
+
+
+def test_reload_detects_multiple_deleted_cells() -> None:
+    """Test that reload() correctly detects multiple deleted cells."""
+    # Create a temporary file with three cells
+    temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
+    initial_content = """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+@app.cell
+def cell2():
+    y = 2
+    return y
+
+@app.cell
+def cell3():
+    z = 3
+    return z
+
+if __name__ == "__main__":
+    app.run()
+"""
+    temp_file.write(initial_content.encode())
+    temp_file.close()
+
+    # Initialize AppFileManager with the temp file
+    manager = AppFileManager(filename=temp_file.name)
+    original_cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert len(original_cell_ids) == 3
+
+    # Modify the file content - keep only one cell
+    modified_content = """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App()
+
+@app.cell
+def cell2():
+    y = 2
+    return y
+
+if __name__ == "__main__":
+    app.run()
+"""
+    with open(temp_file.name, "w") as f:
+        f.write(modified_content)
+
+    # Reload the file
+    changed_cell_ids = manager.reload()
+
+    # Two cells should be deleted and included in changed_cell_ids
+    reloaded_cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert len(reloaded_cell_ids) == 1
+    deleted_cell_ids = set(original_cell_ids) - set(reloaded_cell_ids)
+    assert len(deleted_cell_ids) == 2
+    assert deleted_cell_ids.issubset(changed_cell_ids)
+
+    # Clean up
+    os.remove(temp_file.name)
+
+
+def test_reload_detects_added_and_deleted_cells() -> None:
+    """Test that reload() correctly detects both added and deleted cells."""
+    # Create a temporary file with two cells
+    temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
+    initial_content = """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+@app.cell
+def cell2():
+    y = 2
+    return y
+
+if __name__ == "__main__":
+    app.run()
+"""
+    temp_file.write(initial_content.encode())
+    temp_file.close()
+
+    # Initialize AppFileManager with the temp file
+    manager = AppFileManager(filename=temp_file.name)
+    original_cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert len(original_cell_ids) == 2
+
+    # Modify the file content - remove cell1, keep cell2, add cell3
+    modified_content = """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App()
+
+@app.cell
+def cell2():
+    y = 2
+    return y
+
+@app.cell
+def cell3():
+    z = 3
+    return z
+
+if __name__ == "__main__":
+    app.run()
+"""
+    with open(temp_file.name, "w") as f:
+        f.write(modified_content)
+
+    # Reload the file
+    changed_cell_ids = manager.reload()
+
+    # Should detect both deleted and added cells
+    reloaded_cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert len(reloaded_cell_ids) == 2
+
+    deleted_cell_ids = set(original_cell_ids) - set(reloaded_cell_ids)
+    added_cell_ids = set(reloaded_cell_ids) - set(original_cell_ids)
+
+    assert len(deleted_cell_ids) == 1
+    assert len(added_cell_ids) == 1
+    assert deleted_cell_ids.issubset(changed_cell_ids)
+    assert added_cell_ids.issubset(changed_cell_ids)
+
+    # Clean up
+    os.remove(temp_file.name)
