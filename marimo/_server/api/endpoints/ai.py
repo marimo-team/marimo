@@ -379,3 +379,49 @@ async def invoke_tool(
                 error=f"Tool invocation failed: {str(e)}",
             )
         )
+
+
+@router.get("/mcp/status")
+@requires("edit")
+async def mcp_status(
+    *,
+    request: Request,
+) -> Response:
+    """
+    responses:
+        200:
+            description: Get MCP server status
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        additionalProperties: true
+    """
+    app_state = AppState(request)
+    app_state.require_current_session()
+
+    # TODO: Implement MCP status logic
+    return StructResponse({"status": "ok"})
+
+
+@router.post("/mcp/refresh")
+@requires("edit")
+async def mcp_refresh(
+    *,
+    request: Request,
+) -> Response:
+    """
+    responses:
+        200:
+            description: Refresh MCP server configuration
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        additionalProperties: true
+    """
+    app_state = AppState(request)
+    app_state.require_current_session()
+
+    # TODO: Implement MCP refresh logic
+    return StructResponse({"success": True})

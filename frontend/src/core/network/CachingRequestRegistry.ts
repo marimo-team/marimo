@@ -56,9 +56,9 @@ export class CachingRequestRegistry<REQ, RES> {
 
     const promise = this.delegate.request(req);
     this.cache.set(key, promise);
-    return promise.catch((err) => {
+    return promise.catch((error) => {
       this.cache.delete(key);
-      throw err;
+      throw error;
     });
   }
 

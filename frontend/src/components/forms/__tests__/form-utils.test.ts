@@ -189,18 +189,18 @@ describe("getDefaults", () => {
     const schema = z.object({
       map: z.map(z.string(), z.number()).default(new Map([["a", 1]])),
     });
-    const result = getDefaults(schema) as { map: Map<string, number> };
+    const result = getDefaults(schema);
     expect(result.map instanceof Map).toBe(true);
-    expect(Array.from(result.map.entries())).toEqual([["a", 1]]);
+    expect([...result.map.entries()]).toEqual([["a", 1]]);
   });
 
   it("should handle ZodSet with default", () => {
     const schema = z.object({
       set: z.set(z.string()).default(new Set(["a", "b"])),
     });
-    const result = getDefaults(schema) as { set: Set<string> };
+    const result = getDefaults(schema);
     expect(result.set instanceof Set).toBe(true);
-    expect(Array.from(result.set)).toEqual(["a", "b"]);
+    expect([...result.set]).toEqual(["a", "b"]);
   });
 
   it("should handle deeply nested defaults", () => {
