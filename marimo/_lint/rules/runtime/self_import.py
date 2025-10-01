@@ -5,7 +5,6 @@ import os
 from typing import TYPE_CHECKING
 
 from marimo._lint.diagnostic import Diagnostic, Severity
-from marimo._lint.rules.base import LintRule
 from marimo._lint.rules.breaking.graph import GraphRule
 from marimo._utils.site_packages import (
     has_local_conflict,
@@ -17,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class SelfImportRule(GraphRule):
-    """MB006: Importing a module with the same name as the file.
+    """MR001: Importing a module with the same name as the file.
 
     This rule detects attempts to import a module that has the same name as the
     current file. This can cause import conflicts, circular import issues, and
@@ -37,7 +36,7 @@ class SelfImportRule(GraphRule):
     - It makes the code confusing and hard to debug
     - It can prevent the notebook from running correctly
 
-    This is a breaking error because it can cause import failures and runtime errors.
+    This is a runtime issue because it can cause import confusion and unexpected behavior.
 
     ## Examples
 
@@ -69,14 +68,14 @@ class SelfImportRule(GraphRule):
     - [Python Import System](https://docs.python.org/3/reference/import.html)
     """
 
-    code = "MB006"
+    code = "MR001"
     name = "self-import"
     description = "Importing a module with the same name as the file"
-    severity = Severity.BREAKING
+    severity = Severity.RUNTIME
     fixable = False
 
     async def _validate_graph(
-        self, graph: DirectedGraph, ctx: RuleContex
+        self, graph: DirectedGraph, ctx: RuleContext
     ) -> None:
         """Check for imports that conflict with the file name."""
         # Get the file name without extension

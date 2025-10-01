@@ -125,3 +125,54 @@ def test_star_import_snapshot():
         error_output.append(error.format())
 
     snapshot("star_import_errors.txt", "\n".join(error_output))
+
+
+def test_self_import_pandas_snapshot():
+    """Test snapshot for self-import pandas error."""
+    file = "tests/_lint/test_files/pandas.py"
+    with open(file) as f:
+        code = f.read()
+
+    notebook = parse_notebook(code, filepath=file)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format())
+
+    snapshot("self_import_pandas_errors.txt", "\n".join(error_output))
+
+
+def test_transitive_site_import_snapshot():
+    """Test snapshot for transitive site import error."""
+    file = "tests/_lint/test_files/test_transitive_site_import.py"
+    with open(file) as f:
+        code = f.read()
+
+    notebook = parse_notebook(code, filepath=file)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format())
+
+    snapshot("transitive_site_import_errors.txt", "\n".join(error_output))
+
+
+def test_self_import_requests_snapshot():
+    """Test snapshot for self-import requests error."""
+    file = "tests/_lint/test_files/requests.py"
+    with open(file) as f:
+        code = f.read()
+
+    notebook = parse_notebook(code, filepath=file)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format())
+
+    snapshot("self_import_requests_errors.txt", "\n".join(error_output))

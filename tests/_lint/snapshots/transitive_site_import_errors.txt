@@ -1,0 +1,15 @@
+error[self-import]: Importing module 'pandas' conflicts with a module in site-packages, and may cause import ambiguity.
+ --> tests/_lint/test_files/test_transitive_site_import.py:8:1
+   8 | def _():
+   9 |     import pandas as pd  # Should trigger MR001 - conflicts with pandas in site-packages
+     |     ^
+  10 |     return
+hint: Rename the file to avoid conflicts with the 'pandas' module. 
+
+error[self-import]: Importing module 'pandas' conflicts with a module in site-packages, and may cause import ambiguity.
+ --> tests/_lint/test_files/test_transitive_site_import.py:14:1
+  14 | def _():
+  15 |     # Test a different import style
+     |     ^
+  16 |     from pandas import DataFrame
+hint: Rename the file to avoid conflicts with the 'pandas' module. 
