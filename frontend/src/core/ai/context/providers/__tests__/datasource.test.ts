@@ -309,7 +309,7 @@ describe("DatasourceContextProvider", () => {
         label: "@In-Memory",
         displayLabel: "In-Memory",
         detail: "DuckDB",
-        boost: Boosts.LOW,
+        boost: Boosts.MEDIUM,
         type: "datasource",
         section: "Data Sources",
       });
@@ -353,7 +353,7 @@ describe("DatasourceContextProvider", () => {
         label: "@postgres",
         displayLabel: "postgres",
         detail: "PostgreSQL",
-        boost: Boosts.LOW,
+        boost: Boosts.MEDIUM,
         type: "datasource",
         section: "Data Sources",
       });
@@ -378,7 +378,7 @@ describe("DatasourceContextProvider", () => {
         label: "@In-Memory",
         displayLabel: "In-Memory",
         detail: "DuckDB",
-        boost: Boosts.LOW,
+        boost: Boosts.MEDIUM,
         type: "datasource",
         section: "Data Sources",
       });

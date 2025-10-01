@@ -111,7 +111,7 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
       label: `@${label}`,
       displayLabel: label,
       detail: dbDisplayName(dataConnection.dialect),
-      boost: Boosts.LOW,
+      boost: Boosts.MEDIUM,
       type: this.contextType,
       section: "Data Sources",
       info: () => {
