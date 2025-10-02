@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import datetime
-import urllib.error
 import urllib.parse
-import urllib.request
 from typing import Optional
 
 import marimo._utils.requests as requests
