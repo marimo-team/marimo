@@ -1,10 +1,26 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import os
 import pathlib
 import site
 from typing import Any
+
+
+@functools.cache
+def _getsitepackages() -> list[str]:
+    try:
+        # Try to get global site-packages (not available in virtual envs)
+        site_packages_dirs = site.getsitepackages()
+    except AttributeError:
+        # Fallback for virtual environments or restricted environments
+        try:
+            site_packages_dirs = [site.getusersitepackages()]
+        except AttributeError:
+            # Fallback to empty, and handle other ways.
+            return []
+    return site_packages_dirs
 
 
 def is_local_module(spec: Any) -> bool:
@@ -18,17 +34,10 @@ def is_local_module(spec: Any) -> bool:
 
     module_path = pathlib.Path(spec.origin).resolve()
 
-    # Get site-packages directories
-    try:
-        # Try to get global site-packages (not available in virtual envs)
-        site_packages_dirs = site.getsitepackages()
-    except AttributeError:
-        # Fallback for virtual environments or restricted environments
-        try:
-            site_packages_dirs = [site.getusersitepackages()]
-        except AttributeError:
-            # Ultimate fallback: use string matching
-            return "site-packages" not in module_path.parts
+    site_packages_dirs = _getsitepackages()
+    if not site_packages_dirs:
+        # Ultimate fallback: use string matching
+        return "site-packages" not in module_path.parts
 
     # Check if module is in any site-packages directory
     for site_dir in site_packages_dirs:
