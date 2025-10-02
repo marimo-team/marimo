@@ -16,7 +16,8 @@ FIM_PREFIX_TAG = "<|fim_prefix|>"
 FIM_SUFFIX_TAG = "<|fim_suffix|>"
 FIM_MIDDLE_TAG = "<|fim_middle|>"
 
-language_rules = {
+LANGUAGES: list[Language] = ["python", "sql", "markdown"]
+language_rules: dict[Language, list[str]] = {
     "python": [
         "For matplotlib: use plt.gca() as the last expression instead of plt.show().",
         "For plotly: return the figure object directly.",
@@ -30,6 +31,15 @@ language_rules = {
     "sql": [
         "The SQL must use duckdb syntax.",
     ],
+}
+
+
+language_rules_multiple_cells: dict[Language, list[str]] = {
+    "sql": [
+        'SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.',
+        "This will automatically display the result in the UI. You do not need to return the dataframe in the cell.",
+        "The SQL must use the syntax of the database engine specified in the `engine` variable. If no engine, then use duckdb syntax.",
+    ]
 }
 
 
@@ -166,10 +176,13 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
 
     if support_multiple_cells:
         # Add all language rules for multi-cell scenarios
-        for lang in language_rules:
-            if len(language_rules[lang]) > 0:
+        for lang in LANGUAGES:
+            language_rule = language_rules_multiple_cells.get(
+                lang, language_rules.get(lang, [])
+            )
+            if language_rule:
                 system_prompt += (
-                    f"\n\n## Rules for {lang}:\n{_rules(language_rules[lang])}"
+                    f"\n\n## Rules for {lang}:\n{_rules(language_rule)}"
                 )
     elif language in language_rules and language_rules[language]:
         system_prompt += (
