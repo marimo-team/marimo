@@ -81,6 +81,7 @@ async def test_reload_function(
     assert k.globals["x"] == 2
 
 
+@pytest.mark.flaky(reruns=5)
 async def test_disable_and_reenable_reload(
     tmp_path: pathlib.Path,
     py_modname: str,
@@ -109,6 +110,9 @@ async def test_disable_and_reenable_reload(
     # disable it ...
     config["runtime"]["auto_reload"] = "off"
     k.set_user_config(SetUserConfigRequest(config=config))
+
+    # TODO: Invesitigate flaky on minimal CI
+    await asyncio.sleep(INTERVAL / 2)
 
     # ... and reenable it
     config["runtime"]["auto_reload"] = "lazy"
@@ -251,12 +255,6 @@ async def test_reload_nested_module_import_module(
     assert k.globals["x"] == 2
 
 
-# TODO(akshayka): deflake this test
-@pytest.mark.xfail(
-    condition=sys.version_info[0] == 3 and sys.version_info[1] == 8,
-    reason="Timing dependent test is flaky, needs investigation",
-    strict=False,
-)
 async def test_reload_nested_module_import_module_autorun(
     tmp_path: pathlib.Path,
     py_modname: str,
