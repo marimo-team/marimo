@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from marimo._save.stubs.stubs import (
+from marimo._save.stubs import (
     CUSTOM_STUBS,
     STUB_REGISTRATIONS,
     CustomStub,
@@ -33,8 +33,8 @@ class TestStubRegistration:
         """Test registering a pydantic model."""
         from pydantic import BaseModel
 
+        from marimo._save.stubs import _REGISTERED_NAMES
         from marimo._save.stubs.pydantic_stub import PydanticStub
-        from marimo._save.stubs.stubs import _REGISTERED_NAMES
 
         class TestModel(BaseModel):
             value: int
@@ -72,7 +72,7 @@ class TestStubRegistration:
         """Test that already registered stubs return True immediately."""
         from pydantic import BaseModel
 
-        from marimo._save.stubs.stubs import _REGISTERED_NAMES
+        from marimo._save.stubs import _REGISTERED_NAMES
 
         class TestModel(BaseModel):
             value: int
@@ -123,7 +123,7 @@ class TestStubRegistration:
         """Test that MRO traversal finds base class registration."""
         from pydantic import BaseModel
 
-        from marimo._save.stubs.stubs import _REGISTERED_NAMES
+        from marimo._save.stubs import _REGISTERED_NAMES
 
         # Clear registrations
         if BaseModel in CUSTOM_STUBS:
@@ -250,8 +250,8 @@ class TestStubIntegration:
         from pydantic import BaseModel
 
         from marimo._save.cache import Cache
+        from marimo._save.stubs import _REGISTERED_NAMES
         from marimo._save.stubs.pydantic_stub import PydanticStub
-        from marimo._save.stubs.stubs import _REGISTERED_NAMES
 
         class TestModel(BaseModel):
             name: str
