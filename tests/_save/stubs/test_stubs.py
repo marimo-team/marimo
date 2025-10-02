@@ -26,7 +26,9 @@ class TestStubRegistration:
 
     @staticmethod
     @pytest.mark.skipif(
-        not pytest.importorskip("pydantic_core", reason="pydantic not installed"),
+        not pytest.importorskip(
+            "pydantic_core", reason="pydantic not installed"
+        ),
         reason="pydantic required",
     )
     def test_maybe_register_stub_pydantic() -> None:
@@ -65,7 +67,9 @@ class TestStubRegistration:
 
     @staticmethod
     @pytest.mark.skipif(
-        not pytest.importorskip("pydantic_core", reason="pydantic not installed"),
+        not pytest.importorskip(
+            "pydantic_core", reason="pydantic not installed"
+        ),
         reason="pydantic required",
     )
     def test_maybe_register_stub_already_registered() -> None:
@@ -242,7 +246,9 @@ class TestStubIntegration:
 
     @staticmethod
     @pytest.mark.skipif(
-        not pytest.importorskip("pydantic_core", reason="pydantic not installed"),
+        not pytest.importorskip(
+            "pydantic_core", reason="pydantic not installed"
+        ),
         reason="pydantic required",
     )
     def test_cache_integration() -> None:
