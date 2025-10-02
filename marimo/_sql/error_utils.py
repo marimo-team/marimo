@@ -225,8 +225,7 @@ def log_sql_error(
 
 
 def create_sql_error_from_exception(
-    exception: BaseException,
-    cell: object,
+    exception: BaseException, cell: object
 ) -> "MarimoSQLError":
     """Create a MarimoSQLError from a SQL parsing exception."""
     # Get SQL statement from cell
@@ -247,28 +246,12 @@ def create_sql_error_from_exception(
             sql_col=exception.sql_col,
         )
 
-    # Create metadata using centralized function
-    metadata = create_sql_error_metadata(
-        exception,
-        rule_code="runtime",
-        node=None,
-        sql_content=sql_statement,
-        context="cell_execution",
+    from marimo._messaging.errors import MarimoSQLError
+
+    return MarimoSQLError(
+        msg=str(exception),
+        sql_statement=sql_statement,
+        hint=None,
+        sql_line=None,
+        sql_col=None,
     )
-
-    # Enhance error messages based on exception type
-    exception_type = metadata["error_type"]
-    clean_message = metadata["clean_message"]
-    if exception_type == "ParserException":
-        clean_message = f"SQL syntax error: {clean_message}"
-    elif "ParseError" in exception_type:
-        clean_message = f"SQL parse error: {clean_message}"
-    elif "ProgrammingError" in exception_type:
-        clean_message = f"SQL programming error: {clean_message}"
-
-    # Update metadata with enhanced message
-    enhanced_metadata = metadata.copy()
-    enhanced_metadata["clean_message"] = clean_message
-
-    # Convert to MarimoSQLError using converter
-    return metadata_to_sql_error(enhanced_metadata)

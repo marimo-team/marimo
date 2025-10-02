@@ -1,10 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import {
-  InfoIcon,
-  NotebookPenIcon,
-  SquareArrowOutUpRightIcon,
-} from "lucide-react";
+import { NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 import { Fragment, type JSX } from "react";
 import {
   Accordion,
@@ -499,37 +495,11 @@ export const MarimoErrorOutput = ({
       messages.push(
         <div key="sql-errors">
           {sqlErrors.map((error, idx) => {
-            const line =
-              error.sql_line == null ? null : Math.trunc(error?.sql_line) + 1;
-            const col =
-              error.sql_col == null ? null : Math.trunc(error?.sql_col) + 1;
             return (
               <div key={`sql-error-${idx}`} className="space-y-2 mt-2">
-                <p className="text-muted-foreground font-medium">{error.msg}</p>
-                {error.hint && (
-                  <div className="flex items-start gap-2">
-                    <InfoIcon
-                      size={11}
-                      className="text-muted-foreground mt-1 flex-shrink-0"
-                    />
-                    <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                      {error.hint}
-                    </p>
-                  </div>
-                )}
-                {error.sql_statement && (
-                  <pre
-                    lang="sql"
-                    className="text-xs bg-muted/80 rounded whitespace-pre-wrap p-3.5"
-                  >
-                    {error.sql_statement.trim()}
-                  </pre>
-                )}
-                {line !== null && col !== null && (
-                  <p className="text-xs text-muted-foreground">
-                    Error at line {line}, column {col}
-                  </p>
-                )}
+                <p className="text-muted-foreground whitespace-pre-wrap">
+                  {error.msg}
+                </p>
               </div>
             );
           })}
