@@ -6,6 +6,7 @@ import functools
 import inspect
 import io
 import sys
+import time
 import traceback
 from collections import abc
 
@@ -379,12 +380,15 @@ class _cache_call(CacheContext):
                 attempt.restore(scope)
                 return attempt.meta["return"]
 
+            start_time = time.time()
             response = self.__wrapped__(*args, **kwargs)
+            runtime = time.time() - start_time
+
             # stateful variables may be global
             scope = {
                 k: v for k, v in scope.items() if k in attempt.stateful_refs
             }
-            attempt.update(scope, meta={"return": response})
+            attempt.update(scope, meta={"return": response, "runtime": runtime})
             self.loader.save_cache(attempt)
         except Exception as e:
             failed = True
@@ -416,6 +420,7 @@ class _cache_context(SkipContext, CacheContext):
         self.hash_type = hash_type
         # Wrap loader in State to match CacheContext's _loader type
         self._loader = State(loader, _name=name)
+        self._start_time: float = 0.0
 
     @property
     def hit(self) -> bool:
@@ -480,6 +485,9 @@ class _cache_context(SkipContext, CacheContext):
                 # whitespace in `With`, changes behavior.
                 self._body_start = save_module.body[0].lineno
 
+                # Start timing for runtime tracking
+                self._start_time = time.time()
+
                 if self._cache and self._cache.hit:
                     if lineno >= self._body_start:
                         self.skip()
@@ -529,7 +537,8 @@ class _cache_context(SkipContext, CacheContext):
                 return True
 
             # Fill the cache object and save.
-            self._cache.update(self._frame.f_locals)
+            runtime = time.time() - self._start_time
+            self._cache.update(self._frame.f_locals, meta={"runtime": runtime})
 
             try:
                 self.loader.save_cache(self._cache)

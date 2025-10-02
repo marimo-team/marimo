@@ -51,9 +51,9 @@ CACHE_PREFIX: dict[CacheType, str] = {
 }
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
-MetaKey = Literal["return", "version"]
+MetaKey = Literal["return", "version", "runtime"]
 # Matches functools
-CacheInfo = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize"])
+CacheInfo = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize", "time_saved"])
 
 
 class ModuleStub:
@@ -381,6 +381,7 @@ class CacheContext:
             misses=self.misses,
             maxsize=self.maxsize,
             currsize=self.currsize,
+            time_saved=self.time_saved,
         )
 
     @property
@@ -421,3 +422,9 @@ class CacheContext:
             return int(self.loader.current_size)
         # Assume all misses leave an entry
         return self.misses
+
+    @property
+    def time_saved(self) -> float:
+        if self._loader is None:
+            return 0.0
+        return self.loader.time_saved

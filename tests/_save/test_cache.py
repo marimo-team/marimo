@@ -280,8 +280,8 @@ class TestScriptCache:
                 X = 7
             assert X == 7
             assert cache._cache.defs == {"X": 7, "Y": 8}
-            assert cache._loader._saved
-            assert not cache._loader._loaded
+            assert cache.loader._saved
+            assert not cache.loader._loaded
             return X, Y, persistent_cache
 
         # Coverage's trace override conflicts with cache introspection. Letting
@@ -310,8 +310,8 @@ class TestScriptCache:
                 X = 10
             assert X == 7
             assert cache._cache.defs == {"X": 7, "Y": 8}
-            assert not cache._loader._saved
-            assert cache._loader._loaded
+            assert not cache.loader._saved
+            assert cache.loader._loaded
             return X, Y, persistent_cache
 
     @staticmethod
@@ -325,8 +325,8 @@ class TestScriptCache:
                 X = 10
             assert X == 7
             assert cache._cache.defs == {"X": 7, "Y": 8}
-            assert not cache._loader._saved
-            assert cache._loader._loaded
+            assert not cache.loader._saved
+            assert cache.loader._loaded
             return X, Y
 
     @staticmethod
@@ -346,8 +346,8 @@ class TestScriptCache:
             # fmt: on
             assert X == 7
             assert cache._cache.defs == {"X": 7, "Y": 8}
-            assert not cache._loader._saved
-            assert cache._loader._loaded
+            assert not cache.loader._saved
+            assert cache.loader._loaded
             return X, Y, persistent_cache
 
     @staticmethod
@@ -2621,6 +2621,7 @@ class TestCacheStatistics:
         assert info0.misses == 0
         assert info0.maxsize is None
         assert info0.currsize == 0
+        assert info0.time_saved == 0.0
 
         # After calls
         info1 = k.globals["info1"]
@@ -2682,3 +2683,56 @@ class TestCacheStatistics:
         # After calling again: should be a miss
         info4 = k.globals["info4"]
         assert info4.misses >= 1
+
+    async def test_cache_time_tracking(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify time_saved is tracked and included in cache_info()."""
+        await k.run(
+            [
+                exec_req.get("""
+                    import time
+                    from marimo._save.save import cache
+
+                    @cache
+                    def slow_func(x):
+                        time.sleep(0.01)  # Simulate slow operation
+                        return x * 2
+
+                    # Initial state
+                    info0 = slow_func.cache_info()
+
+                    # First call - miss (should record runtime)
+                    r1 = slow_func(5)
+                    info1 = slow_func.cache_info()
+
+                    # Second call - hit (should add to time_saved)
+                    r2 = slow_func(5)
+                    info2 = slow_func.cache_info()
+
+                    # Third call - another hit (should accumulate time_saved)
+                    r3 = slow_func(5)
+                    info3 = slow_func.cache_info()
+                    """),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+
+        # Initial state: no time saved yet
+        info0 = k.globals["info0"]
+        assert info0.time_saved == 0.0
+
+        # After first call (miss): still no time saved
+        info1 = k.globals["info1"]
+        assert info1.time_saved == 0.0
+
+        # After first hit: should have some time saved
+        info2 = k.globals["info2"]
+        assert info2.time_saved > 0.0
+        first_saving = info2.time_saved
+
+        # After second hit: time_saved should accumulate
+        info3 = k.globals["info3"]
+        assert info3.time_saved > first_saving
+        assert info3.hits == 2
