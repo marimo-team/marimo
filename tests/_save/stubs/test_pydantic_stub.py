@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import pytest
+
+pytest.importorskip("pydantic_core")
+
+
 from marimo._save.stubs.pydantic_stub import PydanticStub
 
 
