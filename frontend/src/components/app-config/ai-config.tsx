@@ -930,6 +930,29 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
   return (
     <SettingGroup>
       <SettingSubtitle>AI Assistant</SettingSubtitle>
+
+      <FormField
+        control={form.control}
+        name="ai.inline_tooltip"
+        render={({ field }) => (
+          <div className="flex flex-col gap-y-1">
+            <FormItem className={formItemClasses}>
+              <FormLabel className="font-normal">AI Edit Tooltip</FormLabel>
+              <FormControl>
+                <Checkbox
+                  data-testid="inline-ai-checkbox"
+                  checked={field.value === true}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+            <FormDescription>
+              Enable "Edit with AI" tooltip when selecting code.
+            </FormDescription>
+          </div>
+        )}
+      />
+
       <FormErrorsBanner />
       <ModelSelector
         label="Chat Model"
