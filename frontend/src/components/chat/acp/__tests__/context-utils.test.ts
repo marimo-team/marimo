@@ -133,7 +133,7 @@ describe("parseContextFromPrompt", () => {
       type: "resource",
       resource: {
         uri: "context.md",
-        mimeType: "text/markdown",
+        mimeType: "text/plain",
         text: "formatted context",
       },
     });

@@ -30,7 +30,7 @@ const SessionTab: React.FC<SessionTabProps> = memo(
       <div
         className={cn(
           "flex items-center gap-1 px-2 py-1 text-xs border-r border-border bg-muted/30 hover:bg-muted/50 cursor-pointer min-w-0",
-          isActive && "bg-background border-b-0 relative z-10",
+          isActive && "bg-background border-b-0 relative z-1",
         )}
         onClick={() => onSelect(session.tabId)}
       >

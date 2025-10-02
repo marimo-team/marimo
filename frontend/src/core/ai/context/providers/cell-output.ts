@@ -13,7 +13,7 @@ import { parseHtmlContent } from "@/utils/dom";
 import { Logger } from "@/utils/Logger";
 import { type AIContextItem, AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
-import { Boosts } from "./common";
+import { Boosts, Sections } from "./common";
 
 export interface CellOutputContextItem extends AIContextItem {
   type: "cell-output";
@@ -150,13 +150,14 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
 
   formatCompletion(item: CellOutputContextItem): Completion {
     const { data } = item;
+
     return {
       label: `@${data.cellName}`,
       displayLabel: data.cellName,
       detail: `${data.outputType} output`,
-      boost: Boosts.CELL_OUTPUT,
+      boost: data.outputType === "media" ? Boosts.HIGH : Boosts.MEDIUM,
       type: this.contextType,
-      section: "Cell Output",
+      section: Sections.CELL_OUTPUT,
       apply: `@${data.cellName}`,
       info: () => {
         const infoContainer = document.createElement("div");
@@ -247,8 +248,7 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
             "italic",
             "mb-2",
           );
-          mediaDiv.textContent =
-            "Contains media content (image, SVG, or canvas)";
+          mediaDiv.textContent = "A screenshot of the output will be attached";
           infoContainer.append(mediaDiv);
         }
 

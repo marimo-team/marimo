@@ -867,7 +867,7 @@ const AgentPanel: React.FC = () => {
             type: "resource",
             resource: {
               uri: "marimo_rules.md",
-              mimeType: "text/markdown",
+              mimeType: "text/plain",
               text: getAgentPrompt(filename),
             },
           },
