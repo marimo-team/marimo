@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { DatabaseIcon, PlusIcon } from "lucide-react";
+import { DatabaseIcon, DiamondPlusIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/editor/inputs/Inputs";
 import {
   ContextMenu,
@@ -69,7 +69,7 @@ const CreateCellButtonContextMenu = (props: {
   children: React.ReactNode;
 }) => {
   const { children, onClick } = props;
-  const { createNewCell } = useCellActions();
+  const { createNewCell, addSetupCellIfDoesntExist } = useCellActions();
 
   if (!onClick) {
     return children;
@@ -124,6 +124,18 @@ const CreateCellButtonContextMenu = (props: {
             <DatabaseIcon size={13} strokeWidth={1.5} />
           </div>
           SQL cell
+        </ContextMenuItem>
+        <ContextMenuItem
+          key="setup"
+          onSelect={(evt) => {
+            evt.stopPropagation();
+            addSetupCellIfDoesntExist({});
+          }}
+        >
+          <div className="mr-3 text-muted-foreground">
+            <DiamondPlusIcon size={13} strokeWidth={1.5} />
+          </div>
+          Setup cell
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

@@ -102,7 +102,7 @@ export function useNotebookActions() {
     updateCellConfig,
     undoDeleteCell,
     clearAllCellOutputs,
-    upsertSetupCell,
+    addSetupCellIfDoesntExist,
     collapseAllCells,
     expandAllCells,
   } = useCellActions();
@@ -401,9 +401,7 @@ export function useNotebookActions() {
       icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
       label: "Add setup cell",
       handle: () => {
-        upsertSetupCell({
-          code: "# Initialization code that runs before all other cells",
-        });
+        addSetupCellIfDoesntExist({});
       },
     },
     {
