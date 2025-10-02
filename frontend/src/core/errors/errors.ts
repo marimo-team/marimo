@@ -1,13 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
 import { invariant } from "@/utils/invariant";
+import { getDatasourceContext } from "../ai/context/providers/datasource";
 import type { AiCompletionCell } from "../ai/state";
-import { cellDataAtom } from "../cells/cells";
 import type { CellId } from "../cells/ids";
-import { LanguageAdapters } from "../codemirror/language/LanguageAdapters";
-import { dataSourceConnectionsAtom } from "../datasets/data-source-connections";
 import type { MarimoError } from "../kernel/messages";
-import { store } from "../state/jotai";
 import { wrapInFunction } from "./utils";
 
 interface AIFix {
@@ -139,16 +136,3 @@ const IMPORT_MAPPING: Record<string, string> = {
   re: "re",
   sys: "sys",
 };
-
-function getDatasourceContext(cellId: CellId): string | null {
-  const cellData = store.get(cellDataAtom(cellId));
-  const code = cellData?.code;
-  const [_sqlStatement, _, metadata] = LanguageAdapters.sql.transformIn(code);
-  const datasourceSchema = store
-    .get(dataSourceConnectionsAtom)
-    .connectionsMap.get(metadata.engine);
-  if (datasourceSchema) {
-    return `@datasource://${datasourceSchema.name}`;
-  }
-  return null;
-}

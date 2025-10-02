@@ -3,10 +3,14 @@
 import type { Completion } from "@codemirror/autocomplete";
 import { createRoot } from "react-dom/client";
 import { dbDisplayName } from "@/components/databases/display";
+import { cellDataAtom } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { renderDatasourceInfo } from "@/core/codemirror/language/languages/sql/renderers";
 import {
   type ConnectionsMap,
   type DatasetTablesMap,
+  dataSourceConnectionsAtom,
   getTableType,
 } from "@/core/datasets/data-source-connections";
 import {
@@ -14,6 +18,7 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import type { DataSourceConnection, DataTable } from "@/core/kernel/messages";
+import { store } from "@/core/state/jotai";
 import type { AIContextItem } from "../registry";
 import { AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
@@ -37,10 +42,12 @@ export interface DatasourceContextItem extends AIContextItem {
   };
 }
 
+const CONTEXT_TYPE = "datasource";
+
 export class DatasourceContextProvider extends AIContextProvider<DatasourceContextItem> {
   readonly title = "Datasource";
   readonly mentionPrefix = "@";
-  readonly contextType = "datasource";
+  readonly contextType = CONTEXT_TYPE;
   private connectionsMap: ConnectionsMap;
   private dataframes: DataTable[];
 
@@ -139,4 +146,17 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
       },
     };
   }
+}
+
+export function getDatasourceContext(cellId: CellId): string | null {
+  const cellData = store.get(cellDataAtom(cellId));
+  const code = cellData?.code;
+  const [_sqlStatement, _, metadata] = LanguageAdapters.sql.transformIn(code);
+  const datasourceSchema = store
+    .get(dataSourceConnectionsAtom)
+    .connectionsMap.get(metadata.engine);
+  if (datasourceSchema) {
+    return `${CONTEXT_TYPE}://${datasourceSchema.name}`;
+  }
+  return null;
 }
