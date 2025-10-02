@@ -388,7 +388,9 @@ class _cache_call(CacheContext):
             scope = {
                 k: v for k, v in scope.items() if k in attempt.stateful_refs
             }
-            attempt.update(scope, meta={"return": response, "runtime": runtime})
+            attempt.update(
+                scope, meta={"return": response, "runtime": runtime}
+            )
             self.loader.save_cache(attempt)
         except Exception as e:
             failed = True

@@ -53,7 +53,9 @@ CACHE_PREFIX: dict[CacheType, str] = {
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
 MetaKey = Literal["return", "version", "runtime"]
 # Matches functools
-CacheInfo = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize", "time_saved"])
+CacheInfo = namedtuple(
+    "CacheInfo", ["hits", "misses", "maxsize", "currsize", "time_saved"]
+)
 
 
 class ModuleStub:
