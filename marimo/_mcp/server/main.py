@@ -9,7 +9,6 @@ notebook context and functionality.
 from typing import TYPE_CHECKING
 
 from mcp.server.fastmcp import FastMCP
-from starlette.routing import Mount
 
 from marimo._ai._tools.base import ToolContext
 from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
@@ -34,6 +33,7 @@ def setup_mcp_server(app: "Starlette") -> "StreamableHTTPSessionManager":
     Returns:
         StreamableHTTPSessionManager: MCP session manager
     """
+    from starlette.routing import Mount
 
     mcp = FastMCP(
         "marimo-mcp-server",

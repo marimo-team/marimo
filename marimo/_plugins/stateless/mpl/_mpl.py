@@ -17,8 +17,6 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from starlette.responses import HTMLResponse, Response
-
 from marimo import _loggers
 from marimo._output.builder import h
 from marimo._output.formatting import as_html
@@ -42,6 +40,7 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure, SubFigure
     from starlette.applications import Starlette
     from starlette.requests import Request
+    from starlette.responses import HTMLResponse, Response
     from starlette.websockets import WebSocket
 
 
@@ -222,38 +221,37 @@ def _template(fig_id: str, port: int) -> str:
     }
 
 
-async def mpl_js(request: Request) -> Response:
-    from matplotlib.backends.backend_webagg_core import (
-        FigureManagerWebAgg,
-    )
-
-    del request
-    return Response(
-        content=patch_javascript(FigureManagerWebAgg.get_javascript()),  # type: ignore[no-untyped-call]
-        media_type="application/javascript",
-    )
-
-
-async def mpl_custom_css(request: Request) -> Response:
-    del request
-    return Response(
-        content=css_content,
-        media_type="text/css",
-    )
-
-
 def create_application() -> Starlette:
     import matplotlib as mpl
     from matplotlib.backends.backend_webagg_core import (
         FigureManagerWebAgg,
     )
     from starlette.applications import Starlette
+    from starlette.responses import HTMLResponse, Response
     from starlette.routing import Mount, Route, WebSocketRoute
     from starlette.staticfiles import StaticFiles
     from starlette.websockets import (
         WebSocketDisconnect,
         WebSocketState,
     )
+
+    async def mpl_js(request: Request) -> Response:
+        from matplotlib.backends.backend_webagg_core import (
+            FigureManagerWebAgg,
+        )
+
+        del request
+        return Response(
+            content=patch_javascript(FigureManagerWebAgg.get_javascript()),  # type: ignore[no-untyped-call]
+            media_type="application/javascript",
+        )
+
+    async def mpl_custom_css(request: Request) -> Response:
+        del request
+        return Response(
+            content=css_content,
+            media_type="text/css",
+        )
 
     async def main_page(request: Request) -> HTMLResponse:
         figure_id = request.query_params.get("figure")
