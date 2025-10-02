@@ -221,7 +221,21 @@ class BasePersistenceLoader(Loader):
             raise LoaderError("Unexpected cache miss.") from e
 
     def clear(self) -> None:
-        self.store.clear.get(str(self.build_path(key)))
+        """Clear all cached items for this loader."""
+        # Clear all files in the loader's directory
+        import glob
+
+        from marimo._save.stores.file import FileStore
+
+        # Only FileStore has save_path, so we need to check
+        if not isinstance(self.store, FileStore):
+            return
+
+        pattern = str(Path(self.name) / f"*.{self.suffix}")
+        # Get all matching cache files through the store's base path
+        for cache_file in glob.glob(str(self.store.save_path / pattern)):
+            key = str(Path(cache_file).relative_to(self.store.save_path))
+            self.store.clear(key)
 
     @abstractmethod
     def restore_cache(self, key: HashKey, blob: bytes) -> Cache:

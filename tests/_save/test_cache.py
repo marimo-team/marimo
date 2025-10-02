@@ -2635,3 +2635,50 @@ class TestCacheStatistics:
         # After clear
         info2 = k.globals["info2"]
         assert info2.currsize == 0
+
+    async def test_persistent_cache_clear(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify cache_clear() works with persistent cache decorator."""
+        await k.run(
+            [
+                exec_req.get("""
+                    from marimo._save.loaders.memory import MemoryLoader
+                    from marimo._save.save import persistent_cache
+
+                    @persistent_cache(_loader=MemoryLoader)
+                    def calc(x):
+                        return x * 2
+
+                    # First call - miss
+                    r1 = calc(5)
+                    info1 = calc.cache_info()
+
+                    # Second call - hit
+                    r2 = calc(5)
+                    info2 = calc.cache_info()
+
+                    # Clear
+                    calc.cache_clear()
+                    info3 = calc.cache_info()
+
+                    # Call again - should be miss
+                    r3 = calc(5)
+                    info4 = calc.cache_info()
+                    """),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+
+        # Should have 1 hit before clear
+        info2 = k.globals["info2"]
+        assert info2.hits == 1
+
+        # After clear: should be empty
+        info3 = k.globals["info3"]
+        assert info3.currsize == 0
+
+        # After calling again: should be a miss
+        info4 = k.globals["info4"]
+        assert info4.misses >= 1

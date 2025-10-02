@@ -414,7 +414,8 @@ class _cache_context(SkipContext, CacheContext):
         # TODO: Consider having a user level setting.
         self.pin_modules = pin_modules
         self.hash_type = hash_type
-        self._loader = loader
+        # Wrap loader in State to match CacheContext's _loader type
+        self._loader = State(loader, _name=name)
 
     @property
     def hit(self) -> bool:
@@ -468,7 +469,7 @@ class _cache_context(SkipContext, CacheContext):
                     graph,
                     cell_id,
                     {**globals(), **with_frame.f_locals},
-                    loader=self._loader,
+                    loader=self.loader,
                     context=pre_module,
                     pin_modules=self.pin_modules,
                     hash_type=self.hash_type,
@@ -531,7 +532,7 @@ class _cache_context(SkipContext, CacheContext):
             self._cache.update(self._frame.f_locals)
 
             try:
-                self._loader.save_cache(self._cache)
+                self.loader.save_cache(self._cache)
             except Exception as e:
                 sys.stderr.write(
                     "An exception was raised when attempting to cache this code "
@@ -657,11 +658,10 @@ def _invoke_context(
             "hash_type": kwargs.pop("hash_type", DEFAULT_HASH),
         }
         # Create through partial for meaningful error message.
-        loader = (
-            cast(Loader, loader)
-            .partial(**kwargs)
-            .create_or_reconfigure(name)()
+        loader_state = (
+            cast(Loader, loader).partial(**kwargs).create_or_reconfigure(name)
         )
+        loader = loader_state()
         kwargs = cache_args
     return _cache_context(name, loader, *args, **kwargs)
 

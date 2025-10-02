@@ -418,6 +418,6 @@ class CacheContext:
             return 0
         # Use current_size if available, otherwise fall back to misses
         if hasattr(self.loader, "current_size"):
-            return self.loader.current_size
+            return int(self.loader.current_size)
         # Assume all misses leave an entry
         return self.misses

@@ -23,4 +23,5 @@ class Store(ABC):
         del key
         return False
 
+
 StoreType = type[Store]
