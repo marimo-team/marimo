@@ -10,6 +10,8 @@ __all__ = ["CustomStub", "CUSTOM_STUBS", "register_stub"]
 class CustomStub(abc.ABC):
     """Base class for custom stubs that can be registered in the cache."""
 
+    __slots__ = ()
+
     @abc.abstractmethod
     def __init__(self, _obj: Any) -> None:
         """Initializes the stub with the object to be stubbed."""

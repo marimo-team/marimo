@@ -12,8 +12,17 @@ class PydanticStub(CustomStub):
     """Stub for pydantic BaseModel instances.
 
     Pydantic models have non-deterministic pickling due to __pydantic_fields_set__
-    being a set. This stub ensures deterministic serialization by sorting fields.
+    being a set. This stub ensures deterministic serialization by sorting fields
+    and preserves complete pydantic state including private and extra fields.
     """
+
+    __slots__ = (
+        "model_class",
+        "pydantic_dict",
+        "pydantic_extra",
+        "pydantic_fields_set",
+        "pydantic_private",
+    )
 
     def __init__(self, model: Any) -> None:
         """Initialize stub with pydantic model data.
@@ -21,11 +30,26 @@ class PydanticStub(CustomStub):
         Args:
             model: A pydantic BaseModel instance
         """
+        from pydantic_core import PydanticUndefined
+
         self.model_class = model.__class__
-        # Use model_dump to get a serializable representation
-        self.data = model.model_dump()
+
+        # Store pydantic state as individual attributes
+        self.pydantic_dict = model.__dict__
+        self.pydantic_extra = getattr(model, "__pydantic_extra__", None)
+
         # Sort fields_set for deterministic serialization
-        self.fields_set = sorted(model.model_fields_set)
+        self.pydantic_fields_set = sorted(
+            getattr(model, "__pydantic_fields_set__", set())
+        )
+
+        # Capture private fields, filtering out undefined values
+        private = getattr(model, "__pydantic_private__", None)
+        if private:
+            private = {
+                k: v for k, v in private.items() if v is not PydanticUndefined
+            }
+        self.pydantic_private = private
 
     def load(self, glbls: dict[str, Any]) -> Any:
         """Reconstruct the pydantic model.
@@ -37,10 +61,28 @@ class PydanticStub(CustomStub):
             Reconstructed pydantic model instance
         """
         del glbls  # Unused for pydantic models
-        # Reconstruct using model_validate
-        instance = self.model_class.model_validate(self.data)
-        # Restore the fields_set using the private attribute
-        instance.__pydantic_fields_set__ = set(self.fields_set)
+        # Use model_construct to bypass validation (matches pickle behavior)
+        instance = self.model_class.model_construct()
+
+        # Reconstruct the state dict for __setstate__
+        state = {
+            "__dict__": self.pydantic_dict,
+            "__pydantic_extra__": self.pydantic_extra,
+            "__pydantic_fields_set__": set(self.pydantic_fields_set),
+            "__pydantic_private__": self.pydantic_private,
+        }
+
+        # Restore state using pydantic's __setstate__
+        if hasattr(instance, "__setstate__"):
+            instance.__setstate__(state)
+        else:
+            # Fallback: manually restore each piece of state
+            instance.__dict__.update(state["__dict__"])
+            if state.get("__pydantic_extra__"):
+                instance.__pydantic_extra__ = state["__pydantic_extra__"]
+            instance.__pydantic_fields_set__ = state["__pydantic_fields_set__"]
+            if state.get("__pydantic_private__"):
+                instance.__pydantic_private__ = state["__pydantic_private__"]
         return instance
 
     @staticmethod
