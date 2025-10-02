@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { RefObject } from "react";
-import type { CellHandle } from "@/components/editor/Cell";
 import {
   isAnyCellFocused,
   tryFocus,
 } from "@/components/editor/navigation/focus-utils";
+import type { CellHandle } from "@/components/editor/notebook-cell";
 import { retryWithTimeout } from "@/utils/timeout";
 import { Logger } from "../../utils/Logger";
 import { goToVariableDefinition } from "../codemirror/go-to-definition/commands";

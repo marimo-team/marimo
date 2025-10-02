@@ -15,7 +15,7 @@ import {
   useRunAllCells,
   useRunStaleCells,
 } from "../components/editor/cell/useRunCells";
-import { CellArray } from "../components/editor/renderers/CellArray";
+import { CellArray } from "../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useHotkey } from "../hooks/useHotkey";
 import {

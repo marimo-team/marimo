@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 import { StartupLogsAlert } from "@/components/editor/alerts/startup-logs-alert";
-import { Cell } from "@/components/editor/Cell";
+import { Cell } from "@/components/editor/notebook-cell";
 import { PackageAlert } from "@/components/editor/package-alert";
 import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 import { Button } from "@/components/ui/button";

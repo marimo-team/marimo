@@ -5,7 +5,7 @@ import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { isEqual, zip } from "lodash-es";
 import { createRef, type ReducerWithoutAction } from "react";
-import type { CellHandle } from "@/components/editor/Cell";
+import type { CellHandle } from "@/components/editor/notebook-cell";
 import {
   type CellColumnId,
   type CellIndex,
@@ -1324,21 +1324,19 @@ const {
       cellRuntime: newCellRuntime,
     };
   },
-  upsertSetupCell: (state, action: { code: string }) => {
-    const { code } = action;
+  addSetupCellIfDoesntExist: (state, action: { code?: string }) => {
+    let { code } = action;
+    if (code == null) {
+      code = "# Initialization code that runs before all other cells";
+    }
 
     // First check if setup cell already exists
     if (SETUP_CELL_ID in state.cellData) {
-      // Update existing setup cell
-      return updateCellData({
-        state,
-        cellId: SETUP_CELL_ID,
-        cellReducer: (cell) => ({
-          ...cell,
-          code,
-          edited: code.trim() !== cell.lastCodeRun?.trim(),
-        }),
-      });
+      // Just focus on the existing setup cell
+      return {
+        ...state,
+        scrollKey: SETUP_CELL_ID,
+      };
     }
 
     return {
@@ -1365,6 +1363,7 @@ const {
         ...state.cellHandles,
         [SETUP_CELL_ID]: createRef(),
       },
+      scrollKey: SETUP_CELL_ID,
     };
   },
 });
