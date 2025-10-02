@@ -2060,6 +2060,49 @@ components:
       - mcpServers
       title: MCPConfig
       type: object
+    MCPRefreshResponse:
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        servers:
+          additionalProperties:
+            type: boolean
+          default: {}
+          type: object
+        success:
+          type: boolean
+      required:
+      - success
+      title: MCPRefreshResponse
+      type: object
+    MCPStatusResponse:
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        servers:
+          additionalProperties:
+            enum:
+            - connected
+            - disconnected
+            - failed
+            - pending
+          default: {}
+          type: object
+        status:
+          enum:
+          - error
+          - ok
+          - partial
+      required:
+      - status
+      title: MCPStatusResponse
+      type: object
     MarimoAncestorPreventedError:
       properties:
         blamed_cell:
@@ -3690,6 +3733,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/InvokeAiToolResponse'
           description: Tool invocation result
+  /api/ai/mcp/refresh:
+    post:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MCPRefreshResponse'
+          description: Refresh MCP server configuration
+  /api/ai/mcp/status:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MCPStatusResponse'
+          description: Get MCP server status
   /api/datasources/preview_column:
     post:
       requestBody:

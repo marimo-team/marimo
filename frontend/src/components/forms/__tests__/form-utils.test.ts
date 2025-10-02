@@ -191,7 +191,7 @@ describe("getDefaults", () => {
     });
     const result = getDefaults(schema) as { map: Map<string, number> };
     expect(result.map instanceof Map).toBe(true);
-    expect(Array.from(result.map.entries())).toEqual([["a", 1]]);
+    expect([...result.map.entries()]).toEqual([["a", 1]]);
   });
 
   it("should handle ZodSet with default", () => {
@@ -200,7 +200,7 @@ describe("getDefaults", () => {
     });
     const result = getDefaults(schema) as { set: Set<string> };
     expect(result.set instanceof Set).toBe(true);
-    expect(Array.from(result.set)).toEqual(["a", "b"]);
+    expect([...result.set]).toEqual(["a", "b"]);
   });
 
   it("should handle deeply nested defaults", () => {

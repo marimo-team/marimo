@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
@@ -22,6 +22,7 @@ from marimo._server.ai.config import (
     get_edit_model,
     get_max_tokens,
 )
+from marimo._server.ai.mcp import MCPServerStatus, get_mcp_client
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
     FIM_PREFIX_TAG,
@@ -47,6 +48,8 @@ from marimo._server.models.completion import (
 from marimo._server.models.models import (
     InvokeAiToolRequest,
     InvokeAiToolResponse,
+    MCPRefreshResponse,
+    MCPStatusResponse,
 )
 from marimo._server.responses import StructResponse
 from marimo._server.router import APIRouter
@@ -377,5 +380,186 @@ async def invoke_tool(
                 tool_name=body.tool_name,
                 result=None,
                 error=f"Tool invocation failed: {str(e)}",
+            )
+        )
+
+
+@router.get("/mcp/status")
+@requires("edit")
+async def mcp_status(
+    *,
+    request: Request,
+) -> Response:
+    """
+    responses:
+        200:
+            description: Get MCP server status
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/MCPStatusResponse"
+    """
+    app_state = AppState(request)
+    app_state.require_current_session()
+
+    try:
+        # Try to get MCP client
+        mcp_client = get_mcp_client()
+
+        # Get all server statuses
+        server_statuses = mcp_client.get_all_server_statuses()
+
+        # Map internal status enum to API status strings
+        status_map: dict[
+            MCPServerStatus,
+            Literal["pending", "connected", "disconnected", "failed"],
+        ] = {
+            MCPServerStatus.CONNECTED: "connected",
+            MCPServerStatus.CONNECTING: "pending",
+            MCPServerStatus.DISCONNECTED: "disconnected",
+            MCPServerStatus.ERROR: "failed",
+        }
+
+        servers = {
+            name: status_map.get(status, "failed")
+            for name, status in server_statuses.items()
+        }
+
+        # Determine overall status
+        overall_status: Literal["ok", "partial", "error"] = "ok"
+        if not servers:
+            # No servers configured
+            overall_status = "ok"
+            error = None
+        elif all(s == "connected" for s in servers.values()):
+            # All servers connected
+            overall_status = "ok"
+            error = None
+        elif any(s == "connected" for s in servers.values()):
+            # Some servers connected
+            overall_status = "partial"
+            failed_servers = [
+                name for name, status in servers.items() if status == "failed"
+            ]
+            error = (
+                f"Some servers failed to connect: {', '.join(failed_servers)}"
+            )
+        else:
+            # No servers connected or all failed
+            overall_status = "error"
+            error = "No MCP servers connected"
+
+        return StructResponse(
+            MCPStatusResponse(
+                status=overall_status,
+                error=error,
+                servers=servers,
+            )
+        )
+
+    except ModuleNotFoundError:
+        # MCP dependencies not installed
+        return StructResponse(
+            MCPStatusResponse(
+                status="error",
+                error="Missing dependencies. Install with: pip install marimo[mcp]",
+                servers={},
+            )
+        )
+    except Exception as e:
+        LOGGER.error(f"Error getting MCP status: {e}")
+        return StructResponse(
+            MCPStatusResponse(
+                status="error",
+                error=str(e),
+                servers={},
+            )
+        )
+
+
+@router.post("/mcp/refresh")
+@requires("edit")
+async def mcp_refresh(
+    *,
+    request: Request,
+) -> Response:
+    """
+    responses:
+        200:
+            description: Refresh MCP server configuration
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/MCPRefreshResponse"
+    """
+    app_state = AppState(request)
+    app_state.require_current_session()
+
+    try:
+        # Get the MCP client
+        mcp_client = get_mcp_client()
+
+        # Get current config
+        config = app_state.app_config_manager.get_config(hide_secrets=False)
+        mcp_config = config.get("mcp")
+
+        if mcp_config is None:
+            return StructResponse(
+                MCPRefreshResponse(
+                    success=False,
+                    error="MCP configuration is not set",
+                    servers={},
+                )
+            )
+
+        # Reconfigure the client with the current configuration
+        # This will handle disconnecting/reconnecting as needed
+        await mcp_client.configure(mcp_config)
+
+        # Get updated server statuses
+        server_statuses = mcp_client.get_all_server_statuses()
+
+        # Map status to success boolean
+        servers = {
+            name: status == MCPServerStatus.CONNECTED
+            for name, status in server_statuses.items()
+        }
+
+        # Overall success if all servers are connected (or no servers)
+        success = len(servers) == 0 or all(servers.values())
+
+        error = None
+        if not success:
+            failed_servers = [
+                name for name, connected in servers.items() if not connected
+            ]
+            error = (
+                f"Some servers failed to connect: {', '.join(failed_servers)}"
+            )
+
+        return StructResponse(
+            MCPRefreshResponse(
+                success=success,
+                error=error,
+                servers=servers,
+            )
+        )
+
+    except ModuleNotFoundError:
+        # MCP dependencies not installed
+        return StructResponse(
+            MCPRefreshResponse(
+                success=False,
+                error="Missing dependencies. Install with: pip install marimo[mcp]",
+                servers={},
+            )
+        )
+    except Exception as e:
+        LOGGER.error(f"Error refreshing MCP: {e}")
+        return StructResponse(
+            MCPRefreshResponse(
+                success=False,
+                error=str(e),
+                servers={},
             )
         )

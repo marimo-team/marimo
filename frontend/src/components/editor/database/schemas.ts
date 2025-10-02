@@ -18,11 +18,7 @@ function passwordField() {
 
 function tokenField(label?: string, required?: boolean) {
   let field: z.ZodString | z.ZodOptional<z.ZodString> = z.string();
-  if (required) {
-    field = field.nonempty();
-  } else {
-    field = field.optional();
-  }
+  field = required ? field.nonempty() : field.optional();
 
   field = field.describe(
     FieldOptions.of({
@@ -50,11 +46,7 @@ function warehouseNameField() {
 
 function uriField(label?: string, required?: boolean) {
   let field: z.ZodString | z.ZodOptional<z.ZodString> = z.string();
-  if (required) {
-    field = field.nonempty();
-  } else {
-    field = field.optional();
-  }
+  field = required ? field.nonempty() : field.optional();
 
   return field.describe(
     FieldOptions.of({ label: label || "URI", optionRegex: ".*uri.*" }),

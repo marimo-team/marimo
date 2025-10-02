@@ -63,6 +63,7 @@ import {
 } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
+import { MCPStatusIndicator } from "../mcp/mcp-status-indicator";
 import { Input } from "../ui/input";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
@@ -120,6 +121,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </Button>
       </Tooltip>
       <div className="flex items-center gap-2">
+        <MCPStatusIndicator />
         <Tooltip content="AI Settings">
           <Button
             variant="text"
