@@ -55,15 +55,13 @@ describe("getAICompletionBody", () => {
     expect(result).toMatchInlineSnapshot(`
       {
         "context": {
-          "plainText": "<data name="dataset1" source="unknown">
-      Columns:
-        - col1: number
-        - col2: string</data>
+          "plainText": "<data name="dataset1" source="unknown">Columns:
+        col1 (number)
+        col2 (string)</data>
 
-      <data name="dataset2" source="unknown">
-      Columns:
-        - col3: boolean
-        - col4: date</data>",
+      <data name="dataset2" source="unknown">Columns:
+        col3 (boolean)
+        col4 (date)</data>",
           "schema": [],
           "variables": [],
         },
@@ -108,10 +106,9 @@ describe("getAICompletionBody", () => {
     expect(result).toMatchInlineSnapshot(`
       {
         "context": {
-          "plainText": "<data name="existingDataset" source="unknown">
-      Columns:
-        - col1: number
-        - col2: string</data>",
+          "plainText": "<data name="existingDataset" source="unknown">Columns:
+        col1 (number)
+        col2 (string)</data>",
           "schema": [],
           "variables": [],
         },
@@ -144,14 +141,12 @@ describe("getAICompletionBody", () => {
     expect(result).toMatchInlineSnapshot(`
       {
         "context": {
-          "plainText": "<data name="dataset.with.dots" source="unknown">
-      Columns:
-        - col1: number
-        - col2: string</data>
+          "plainText": "<data name="dataset.with.dots" source="unknown">Columns:
+        col1 (number)
+        col2 (string)</data>
 
-      <data name="regular_dataset" source="unknown">
-      Columns:
-        - col3: boolean</data>",
+      <data name="regular_dataset" source="unknown">Columns:
+        col3 (boolean)</data>",
           "schema": [],
           "variables": [],
         },
@@ -198,9 +193,8 @@ describe("getAICompletionBody", () => {
     expect(result).toMatchInlineSnapshot(`
       {
         "context": {
-          "plainText": "<data name="table1" source="unknown">
-      Columns:
-        - col1: number</data>",
+          "plainText": "<data name="table1" source="unknown">Columns:
+        col1 (number)</data>",
           "schema": [],
           "variables": [],
         },
@@ -276,10 +270,9 @@ describe("getAICompletionBody", () => {
     expect(result).toMatchInlineSnapshot(`
       {
         "context": {
-          "plainText": "<data name="dataset1" source="unknown">
-      Columns:
-        - col1: number
-        - col2: string</data>
+          "plainText": "<data name="dataset1" source="unknown">Columns:
+        col1 (number)
+        col2 (string)</data>
 
       <variable name="var1" dataType="string">"string value"</variable>",
           "schema": [],
@@ -346,9 +339,8 @@ describe("getAICompletionBody", () => {
     expect(result).toMatchInlineSnapshot(`
       {
         "context": {
-          "plainText": "<data name="conflict" source="unknown">
-      Columns:
-        - col1: number</data>",
+          "plainText": "<data name="conflict" source="unknown">Columns:
+        col1 (number)</data>",
           "schema": [],
           "variables": [],
         },
