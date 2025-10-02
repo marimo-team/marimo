@@ -6,14 +6,12 @@ from typing import Any
 
 import pytest
 
-from marimo._save.stubs.base import (
-    CUSTOM_STUBS,
-    CustomStub,
-    register_stub,
-)
 from marimo._save.stubs.stubs import (
+    CUSTOM_STUBS,
     STUB_REGISTRATIONS,
+    CustomStub,
     maybe_register_stub,
+    register_stub,
 )
 
 
@@ -74,7 +72,6 @@ class TestStubRegistration:
         """Test that already registered stubs return True immediately."""
         from pydantic import BaseModel
 
-        from marimo._save.stubs.pydantic_stub import PydanticStub
         from marimo._save.stubs.stubs import _REGISTERED_NAMES
 
         class TestModel(BaseModel):
@@ -198,6 +195,7 @@ class TestRegisterStub:
                 self.obj = obj
 
             def load(self, glbls: dict[str, Any]) -> Any:
+                del glbls  # Unused
                 return self.obj
 
             @staticmethod
@@ -225,6 +223,7 @@ class TestRegisterStub:
                 pass
 
             def load(self, glbls: dict[str, Any]) -> Any:
+                del glbls  # Unused
                 return None
 
             @staticmethod

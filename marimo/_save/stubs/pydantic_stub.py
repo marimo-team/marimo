@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from marimo._save.stubs.base import CustomStub
+from marimo._save.stubs.stubs import CustomStub
 
 __all__ = ["PydanticStub"]
 
@@ -84,6 +84,24 @@ class PydanticStub(CustomStub):
             if state.get("__pydantic_private__"):
                 instance.__pydantic_private__ = state["__pydantic_private__"]
         return instance
+
+    def to_bytes(self) -> bytes:
+        """Serialize the stub to bytes.
+
+        Returns:
+            Serialized bytes of the stub
+        """
+        import pickle
+
+        return pickle.dumps(
+            (
+                self.model_class,
+                self.pydantic_dict,
+                self.pydantic_extra,
+                self.pydantic_fields_set,
+                self.pydantic_private,
+            )
+        )
 
     @staticmethod
     def get_type() -> type:

@@ -3,49 +3,72 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+import abc
+from typing import Any
 
-from marimo._save.stubs.base import CUSTOM_STUBS
-from marimo._save.stubs.pydantic_stub import PydanticStub
-
-# Track which class names we've already attempted to register
-_REGISTERED_NAMES: set[str] = set()
-
-# Dictionary mapping fully qualified class names to registration functions
-STUB_REGISTRATIONS: dict[str, Callable[[Any], None]] = {
-    "pydantic.main.BaseModel": PydanticStub.register,
-}
+__all__ = ["CustomStub", "CUSTOM_STUBS", "register_stub"]
 
 
-def maybe_register_stub(value: Any) -> bool:
-    """Lazily register a stub for a value's type if not already registered.
+class CustomStub(abc.ABC):
+    """Base class for custom stubs that can be registered in the cache."""
 
-    This allows us to avoid importing third-party packages until they're
-    actually used in the cache. Walks the MRO to check if any parent class
-    matches a registered stub type.
+    __slots__ = ()
 
-    Returns:
-        True if the value's type is in CUSTOM_STUBS (either already registered
-        or newly registered), False otherwise.
+    @abc.abstractmethod
+    def __init__(self, _obj: Any) -> None:
+        """Initializes the stub with the object to be stubbed."""
+
+    @abc.abstractmethod
+    def load(self, glbls: dict[str, Any]) -> Any:
+        """Loads the stub, restoring the original object."""
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def get_type() -> type:
+        """Get the type this stub handles.
+
+        May raise ImportError if the required package is not available.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def to_bytes(self) -> bytes:
+        """Serialize the stub to bytes."""
+        raise NotImplementedError
+
+    @classmethod
+    def register(cls, value: Any) -> None:
+        """Register this stub for its target type.
+
+        Handles the common registration pattern: get type, check isinstance,
+        and register the stub. Catches ImportError if the target type's
+        package is not available.
+
+        Registers both the base type and the specific value's type to handle
+        subclasses correctly.
+        """
+        try:
+            target_type = cls.get_type()
+            if isinstance(value, target_type):
+                register_stub(target_type, cls)
+                # Also register the specific subclass type
+                value_type = type(value)
+                if value_type != target_type:
+                    register_stub(value_type, cls)
+        except ImportError:
+            pass
+
+
+CUSTOM_STUBS: dict[type, type[CustomStub]] = {}
+
+
+def register_stub(cls: type | None, stub: type[CustomStub]) -> None:
+    """Register a custom stub for a given class type.
+
+    Args:
+        cls: The class type to register a stub for
+        stub: The stub class to use for serialization
     """
-    value_type = type(value)
-
-    # Already registered in CUSTOM_STUBS
-    if value_type in CUSTOM_STUBS:
-        return True
-
-    # Walk MRO to find matching base class
-    for cls in value_type.__mro__:
-        if not (hasattr(cls, "__module__") and hasattr(cls, "__name__")):
-            continue
-
-        cls_name = f"{cls.__module__}.{cls.__name__}"
-
-        if cls_name in STUB_REGISTRATIONS:
-            if cls_name not in _REGISTERED_NAMES:
-                _REGISTERED_NAMES.add(cls_name)
-                STUB_REGISTRATIONS[cls_name](value)
-            # After registration attempt, check if now in CUSTOM_STUBS
-            return value_type in CUSTOM_STUBS
-
-    return False
+    if cls is not None:
+        CUSTOM_STUBS[cls] = stub
