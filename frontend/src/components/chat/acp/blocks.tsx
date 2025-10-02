@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/popover";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
-import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { Strings } from "@/utils/strings";
 import { MarkdownRenderer } from "../markdown-renderer";
 import { SimpleAccordion } from "./common";
@@ -289,7 +288,7 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
 
 export const UserMessagesBlock = (props: { data: UserNotificationEvent[] }) => {
   return (
-    <div className="flex flex-col gap-2 text-muted-foreground border p-2 bg-background rounded break-words">
+    <div className="flex flex-col gap-2 text-muted-foreground border p-2 bg-background rounded break-words overflow-x-hidden">
       <ContentBlocks data={props.data.map((item) => item.content)} />
     </div>
   );
@@ -364,58 +363,28 @@ export const ResourceBlock = (props: { data: ContentBlockOf<"resource"> }) => {
     return (
       <Popover>
         <PopoverTrigger>
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 hover:bg-muted rounded-md px-1">
             {props.data.resource.mimeType && (
               <MimeIcon mimeType={props.data.resource.mimeType} />
             )}
             {props.data.resource.uri}
           </span>
         </PopoverTrigger>
-        <PopoverContent className="max-h-96 overflow-y-auto scrollbar-thin">
-          <MarkdownRenderer content={props.data.resource.text} />
+        <PopoverContent className="max-h-96 overflow-y-auto scrollbar-thin whitespace-pre-wrap w-full max-w-[500px]">
+          <span className="text-muted-foreground text-xs mb-1 italic">
+            Formatted for agents, not humans.
+          </span>
+          {props.data.resource.mimeType === "text/plain" ? (
+            <pre className="text-xs whitespace-pre-wrap p-2 bg-muted rounded-md break-words">
+              {props.data.resource.text}
+            </pre>
+          ) : (
+            <MarkdownRenderer content={props.data.resource.text} />
+          )}
         </PopoverContent>
       </Popover>
     );
   }
-
-  if ("blob" in props.data.resource) {
-    if (props.data.resource.mimeType?.startsWith("image/")) {
-      return (
-        <ImageBlock
-          data={{
-            type: "image",
-            mimeType: props.data.resource.mimeType,
-            data: props.data.resource.blob,
-          }}
-        />
-      );
-    }
-    if (props.data.resource.mimeType?.startsWith("audio/")) {
-      return (
-        <AudioBlock
-          data={{
-            type: "audio",
-            mimeType: props.data.resource.mimeType,
-            data: props.data.resource.blob,
-          }}
-        />
-      );
-    }
-    const dataURL = base64ToDataURL(
-      props.data.resource.blob as Base64String,
-      props.data.resource.mimeType ?? "",
-    );
-    return (
-      <a href={dataURL} className="flex items-center gap-1" download={true}>
-        {props.data.resource.mimeType && (
-          <MimeIcon mimeType={props.data.resource.mimeType} />
-        )}
-        {props.data.resource.uri}
-      </a>
-    );
-  }
-  logNever(props.data.resource);
-  return null;
 };
 
 export const ResourceLinkBlock = (props: {
@@ -427,15 +396,38 @@ export const ResourceLinkBlock = (props: {
         href={props.data.uri}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-link hover:underline"
+        className="text-link hover:underline px-1"
       >
         {props.data.name}
       </a>
     );
   }
 
+  // Show image in popover for image mime types
+  if (props.data.mimeType?.startsWith("image/")) {
+    return (
+      <div>
+        <Popover>
+          <PopoverTrigger>
+            <span className="flex items-center gap-1 hover:bg-muted rounded-md px-1 cursor-pointer">
+              <MimeIcon mimeType={props.data.mimeType} />
+              {props.data.name || props.data.title || props.data.uri}
+            </span>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto max-w-[500px] p-2">
+            <img
+              src={props.data.uri}
+              alt={props.data.name || props.data.title || "Image"}
+              className="max-w-full max-h-96 object-contain"
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  }
+
   return (
-    <span className="flex items-center gap-1">
+    <span className="flex items-center gap-1 px-1">
       {props.data.mimeType && <MimeIcon mimeType={props.data.mimeType} />}
       {props.data.name || props.data.title || props.data.uri}
     </span>
@@ -443,22 +435,23 @@ export const ResourceLinkBlock = (props: {
 };
 
 export const MimeIcon = (props: { mimeType: string }) => {
+  const classNames = "h-2 w-2 flex-shrink-0";
   if (props.mimeType.startsWith("image/")) {
-    return <FileImageIcon className="h-2 w-2" />;
+    return <FileImageIcon className={classNames} />;
   }
   if (props.mimeType.startsWith("audio/")) {
-    return <FileAudio2Icon className="h-2 w-2" />;
+    return <FileAudio2Icon className={classNames} />;
   }
   if (props.mimeType.startsWith("video/")) {
-    return <FileVideoCameraIcon className="h-2 w-2" />;
+    return <FileVideoCameraIcon className={classNames} />;
   }
   if (props.mimeType.startsWith("text/")) {
-    return <FileTextIcon className="h-2 w-2" />;
+    return <FileTextIcon className={classNames} />;
   }
   if (props.mimeType.startsWith("application/")) {
-    return <FileJsonIcon className="h-2 w-2" />;
+    return <FileJsonIcon className={classNames} />;
   }
-  return <FileIcon className="h-2 w-2" />;
+  return <FileIcon className={classNames} />;
 };
 
 export const SessionNotificationsBlock = <
@@ -533,7 +526,7 @@ export const ToolNotificationsBlock = (props: {
   const toolCalls = mergeToolCalls(props.data);
 
   return (
-    <div className="flex flex-col text-muted-foreground">
+    <div className="flex flex-col text-muted-foreground overflow-x-hidden">
       {toolCalls.map((item) => (
         <SimpleAccordion
           key={item.toolCallId}

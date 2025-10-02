@@ -68,7 +68,7 @@ export const SimpleAccordion: React.FC<SimpleAccordionProps> = ({
         >
           <span className="flex items-center gap-1">
             {getStatusIcon()}
-            <code className="font-mono text-xs">{title}</code>
+            <code className="font-mono text-xs truncate">{title}</code>
           </span>
         </AccordionTrigger>
         <AccordionContent className="p-2">

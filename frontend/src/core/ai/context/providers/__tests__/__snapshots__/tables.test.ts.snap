@@ -1,34 +1,28 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`TableContextProvider > formatContext > should format context for basic table > basic-table-context 1`] = `
-"<data name="products" source="memory">
-Shape: 100 rows, 3 columns
+"<data name="products" source="memory">Shape: 100 rows, 3 columns
 Columns:
-  - id: integer
-  - name: string
-  - active: boolean</data>"
+  id (integer) - samples: [sample_id_1, sample_id_2]
+  name (string) - samples: [sample_name_1, sample_name_2]
+  active (boolean) - samples: [sample_active_1, sample_active_2]</data>"
 `;
 
 exports[`TableContextProvider > formatContext > should format context for remote database table > remote-table-context 1`] = `
-"<data name="remote_table" source="postgresql://localhost:5432/mydb">
-Shape: 100 rows, 3 columns
+"<data name="remote_table" source="postgresql://localhost:5432/mydb">Shape: 100 rows, 3 columns
 Columns:
-  - uuid: string
-  - created_at: string
-  - metadata: string</data>"
+  uuid (string) - samples: [sample_uuid_1, sample_uuid_2]
+  created_at (string) - samples: [sample_created_at_1, sample_created_at_2]
+  metadata (string) - samples: [sample_metadata_1, sample_metadata_2]</data>"
 `;
 
-exports[`TableContextProvider > formatContext > should format context for table without columns > no-columns-table-context 1`] = `
-"<data name="no_columns" source="memory">
-Shape: 100 rows, 3 columns</data>"
-`;
+exports[`TableContextProvider > formatContext > should format context for table without columns > no-columns-table-context 1`] = `"<data name="no_columns" source="memory">Shape: 100 rows, 3 columns</data>"`;
 
 exports[`TableContextProvider > formatContext > should format context for table without shape info > no-shape-table-context 1`] = `
-"<data name="no_shape" source="memory">
-Columns:
-  - id: integer
-  - name: string
-  - active: boolean</data>"
+"<data name="no_shape" source="memory">Columns:
+  id (integer) - samples: [sample_id_1, sample_id_2]
+  name (string) - samples: [sample_name_1, sample_name_2]
+  active (boolean) - samples: [sample_active_1, sample_active_2]</data>"
 `;
 
 exports[`TableContextProvider > getItems > should handle dataframe tables with variable names > dataframe-table 1`] = `

@@ -17,7 +17,7 @@ import type { DataSourceConnection, DataTable } from "@/core/kernel/messages";
 import type { AIContextItem } from "../registry";
 import { AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
-import { Boosts } from "./common";
+import { Boosts, Sections } from "./common";
 
 type NamedDatasource = Omit<
   DataSourceConnection,
@@ -53,24 +53,35 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
   }
 
   getItems(): DatasourceContextItem[] {
-    return [...this.connectionsMap.values()].map((connection) => {
-      let description = "Database schema.";
-      const data: DatasourceContextItem["data"] = {
-        connection: connection,
-      };
-      if (INTERNAL_SQL_ENGINES.has(connection.name)) {
-        data.tables = this.dataframes;
-        description = "Database schema and the dataframes that can be queried";
-      }
+    return [...this.connectionsMap.values()]
+      .map((connection): DatasourceContextItem | null => {
+        let description = "Database schema.";
+        const data: DatasourceContextItem["data"] = {
+          connection: connection,
+        };
 
-      return {
-        uri: this.asURI(connection.name),
-        name: connection.name,
-        description: description,
-        type: this.contextType,
-        data: data,
-      };
-    });
+        if (INTERNAL_SQL_ENGINES.has(connection.name)) {
+          data.tables = this.dataframes;
+          description =
+            "Database schema and the dataframes that can be queried";
+        }
+
+        // Hide empty datasources
+        const hasNoTables =
+          connection.databases.length === 0 && (data.tables?.length ?? 0) === 0;
+        if (hasNoTables) {
+          return null;
+        }
+
+        return {
+          uri: this.asURI(connection.name),
+          name: connection.name,
+          description: description,
+          type: this.contextType,
+          data: data,
+        };
+      })
+      .filter(Boolean);
   }
 
   formatContext(item: DatasourceContextItem): string {
@@ -115,7 +126,7 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
       detail: dbDisplayName(dataConnection.dialect),
       boost: Boosts.MEDIUM,
       type: this.contextType,
-      section: "Data Sources",
+      section: Sections.DATA_SOURCES,
       info: () => {
         const infoContainer = document.createElement("div");
         infoContainer.classList.add("mo-cm-tooltip", "docs-documentation");

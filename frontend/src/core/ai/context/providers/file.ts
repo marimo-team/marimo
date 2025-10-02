@@ -15,7 +15,7 @@ import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { type AIContextItem, AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
-import { Boosts } from "./common";
+import { Boosts, Sections } from "./common";
 export interface FileContextItem extends AIContextItem {
   type: "file";
   data: {
@@ -190,7 +190,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
     return {
       ...this.createBasicCompletion(item),
       type: "file",
-      section: "File",
+      section: Sections.FILE,
       boost: data.isDirectory ? Boosts.MEDIUM : Boosts.LOW,
       detail: data.path,
       displayLabel: `${icon} ${name}`,

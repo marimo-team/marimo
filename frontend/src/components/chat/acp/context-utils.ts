@@ -93,7 +93,7 @@ export async function parseContextFromPrompt(
         type: "resource",
         resource: {
           uri: "context.md",
-          mimeType: "text/markdown",
+          mimeType: "text/plain",
           text: contextString,
         },
       });

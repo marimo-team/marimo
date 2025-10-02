@@ -6,7 +6,7 @@ import type { DatasetTablesMap } from "@/core/datasets/data-source-connections";
 import type { Variable, Variables } from "@/core/variables/types";
 import { type AIContextItem, AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
-import { Boosts } from "./common";
+import { Sections } from "./common";
 
 export interface VariableContextItem extends AIContextItem {
   type: "variable";
@@ -58,9 +58,8 @@ export class VariableContextProvider extends AIContextProvider<VariableContextIt
       label: `@${variable.name}`,
       displayLabel: variable.name,
       detail: variable.dataType ?? "",
-      boost: Boosts.VARIABLE,
       type: this.contextType,
-      section: "Variable",
+      section: Sections.VARIABLE,
       info: () => {
         return createVariableInfoElement(variable);
       },

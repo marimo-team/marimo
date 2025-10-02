@@ -187,7 +187,6 @@ describe("CellOutputContextProvider", () => {
       expect(completion.displayLabel).toBe(item.data.cellName);
       expect(completion.detail).toContain("output");
       expect(completion.type).toBe("cell-output");
-      expect(completion.section).toBe("Cell Output");
       expect(typeof completion.info).toBe("function");
     });
   });
