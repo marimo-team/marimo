@@ -59,7 +59,7 @@ export class GenericWatcher {
 
   watchFiles() {
     console.log(`Watching for file changes in ${this.rebuilder.pathToWatch}`);
-    fs.watch(this.rebuilder.pathToWatch, {recursive: true }, (event, filename) => {
+    fs.watch(this.rebuilder.pathToWatch, {recursive: true }, (_event, filename) => {
       // Check if the filename matches any of the patterns in filesToWatch
       if (!filename) {
         return;

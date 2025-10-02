@@ -12,21 +12,12 @@ import type { Server } from "node:http";
 dotenv.config();
 
 export type BuildOptions = {
-  targetHostname: string;
-  targetScheme: string;
-  targetPort: number;
   publicPackagesScheme: string;
   publicPackagesHost: string;
   publicPackagesPort: number;
   publicPackagesBasePath: string;
-  proxyHost: string;
-  proxyPort: number;
-  osoApiKey: string;
   otherUvPackagesToInclude: string;
   marimoRepoDir?: string;
-  enableLocalAiCompletionsHost: boolean;
-  aiCompletionsHost: string;
-  aiCompletionsPort: number;
 }
 export type LockFileGenerator = () => Promise<string>;
 export type ServerKill = () => Promise<void>;
@@ -39,8 +30,17 @@ export type PostServerStartResponse = {
   options: BuildOptions;
 }
 
-export type BuildConfig = BuildOptions & {
+export type ServerConfig = BuildOptions & {
   postServerStart: (response: PostServerStartResponse) => void;
+  targetHostname: string;
+  targetScheme: string;
+  targetPort: number;
+  enableWildcardCors: boolean;
+  enableLocalAiCompletionsHost: boolean;
+  aiCompletionsHost: string;
+  aiCompletionsPort: number;
+  proxyHost: string;
+  proxyPort: number;
 }
 
 
@@ -54,7 +54,7 @@ type UVProjectDefinition = {
   outputDir: string;
 }
 
-export async function startServer(config: BuildConfig) {
+export async function startServer(config: ServerConfig) {
   let TARGET_URL = `${config.targetScheme}://${config.targetHostname}:${config.targetPort}`;
   // If the port is 80 or 443, we don't need the port in the url
   if (config.targetPort === 80 || config.targetPort === 443) {
@@ -106,18 +106,15 @@ export async function startServer(config: BuildConfig) {
       outputDir,
     });
   }
-
-  // HACK TO SUPPORT PYOSO
-  app.all("/sql", async (req, res) => {
-    // Add authorization header
-    proxy.web(req, res, { 
-      target: "https://www.opensource.observer/api/v1/sql",
-      changeOrigin: true,
-      headers: {
-        Authorization: `Bearer ${config.osoApiKey}`,
-      },
-      ignorePath: true,
-    });
+  
+  // Allow CORS for all responses. This is needed so that local testing is
+  // possible in many scenarios. Particularly when using the notebook in an
+  // iframe locally
+  proxy.on("proxyRes", (proxyRes, _req, _res) => {
+    proxyRes.headers["Access-Control-Allow-Origin"] = "*";
+    proxyRes.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS";
+    proxyRes.headers["Access-Control-Allow-Headers"] = "Content-Type";
+    proxyRes.headers["Access-Control-Max-Age"] = "86400";
   });
 
   app.all('/wasm/controller.js', async (req, res) => {

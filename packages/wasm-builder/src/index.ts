@@ -1,11 +1,12 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import fsPromises from "node:fs/promises";
-import { startServer, type BuildOptions } from "./server";
+import { type ServerConfig, startServer } from "./server";
 import path from "node:path";
 import type { ArgumentsCamelCase } from "yargs";
 
-type WasmTesterArgs = ArgumentsCamelCase<BuildOptions>;
+type ServerArgs = ArgumentsCamelCase<Omit<ServerConfig, "postServerStart">>;
+type BuildArgs = ServerArgs & { isProduction: boolean; outputDir: string };
 
 const cli = yargs(hideBin(process.argv))
   .option("target-hostname", {
@@ -53,11 +54,6 @@ const cli = yargs(hideBin(process.argv))
     type: "number",
     default: parseInt(process.env.PROXY_PORT || "6008"),
   })
-  .option("oso-api-key", {
-    description: "The OSO API key",
-    type: "string",
-    default: process.env.OSO_API_KEY || "",
-  })
   .option("other-uv-packages-to-include", {
     description: "Other UV packages to include",
     type: "string",
@@ -71,7 +67,10 @@ const cli = yargs(hideBin(process.argv))
   .option("enable-local-ai-completions-host", {
     description: "Whether to enable a local AI completions host",
     type: "boolean",
-    default: ["true", "0"].indexOf(process.env.ENABLE_LOCAL_AI_COMPLETIONS_HOST || "false") !== -1,
+    default:
+      ["true", "1"].indexOf(
+        process.env.ENABLE_LOCAL_AI_COMPLETIONS_HOST || "false",
+      ) !== -1,
   })
   .option("ai-completions-host", {
     description: "The hostname for the AI completions host",
@@ -83,14 +82,23 @@ const cli = yargs(hideBin(process.argv))
     type: "number",
     default: parseInt(process.env.AI_COMPLETIONS_PORT || "3001"),
   })
-  .command<WasmTesterArgs>(
+  .command<ServerArgs>(
     "serve",
     "Start the server",
-    () => {},
+    (yargs) => {
+      yargs
+        .option("enable-wildcard-cors", {
+          description: "Whether to enable wildcard CORS for all origins",
+          type: "boolean",
+          default:
+            ["true", "1"].indexOf(process.env.ENABLE_WILDCARD_CORS || "true") !==
+            -1,
+        });
+    },
     (argv) => {
       startServer({
         ...argv,
-        postServerStart: async ({lockFileGenerator}) => {
+        postServerStart: async ({ lockFileGenerator }) => {
           // Do something with the lockfileGenerator, watchers, and option
           // Build the initial pyodide lock file
           await lockFileGenerator();
@@ -98,21 +106,23 @@ const cli = yargs(hideBin(process.argv))
           console.log("Initial pyodide-lock.json generated");
         },
       });
-    }
+    },
   )
-  .command<WasmTesterArgs & { isProduction: boolean, outputDir: string }>(
+  .command<BuildArgs>(
     "build",
     "Build the project for production",
     (yargs) => {
-      yargs.option("is-production", {
-        description: "Whether the build is for production",
-        type: "boolean",
-        default: false,
-      }).option("output-dir", {
-        description: "The output directory for the built project",
-        type: "string",
-        demandOption: true,
-      });
+      yargs
+        .option("is-production", {
+          description: "Whether the build is for production",
+          type: "boolean",
+          default: false,
+        })
+        .option("output-dir", {
+          description: "The output directory for the built project",
+          type: "string",
+          demandOption: true,
+        });
     },
     (argv) => {
       // Assert that the public host is not localhost
@@ -121,23 +131,24 @@ const cli = yargs(hideBin(process.argv))
           throw new Error("Public packages host cannot be localhost");
         }
         if (argv.publicPackagesScheme === "http") {
-          console.warn("Public packages host should not be http. Rewriting as https")
+          console.warn(
+            "Public packages host should not be http. Rewriting as https",
+          );
           argv.publicPackagesScheme = "https";
         }
         // Force port 443
         argv.publicPackagesPort = 443;
 
         // Ignore additional packages
-        argv.otherUvPackagesToInclude = '[]';
-
+        argv.otherUvPackagesToInclude = "[]";
       }
 
       startServer({
         ...argv,
-        postServerStart: async ({lockFileGenerator, watchers, server}) => {
+        postServerStart: async ({ lockFileGenerator, watchers, server }) => {
           // Output the lock file to the output dir
           const outputDir = argv.outputDir;
-          
+
           // Build the initial pyodide lock file
           const lockfileContent = await lockFileGenerator();
           // Write out lockfile
@@ -162,11 +173,11 @@ const cli = yargs(hideBin(process.argv))
           // kill the server
           server.close();
           server.closeAllConnections();
-          console.log("Build complete")
+          console.log("Build complete");
           process.exit(0);
         },
       });
-    }
+    },
   )
   .demandCommand(1, "You need at least one command before moving on")
   .help();
