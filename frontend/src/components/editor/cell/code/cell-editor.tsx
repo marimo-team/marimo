@@ -187,6 +187,7 @@ const CellEditorInternal = ({
       hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
       diagnosticsConfig: userConfig.diagnostics,
       displayConfig: userConfig.display,
+      inlineAiTooltip: userConfig.ai?.inline_tooltip ?? false,
     });
 
     extensions.push(
