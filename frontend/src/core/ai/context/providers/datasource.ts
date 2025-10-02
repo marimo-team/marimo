@@ -151,12 +151,16 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
 export function getDatasourceContext(cellId: CellId): string | null {
   const cellData = store.get(cellDataAtom(cellId));
   const code = cellData?.code;
+  if (!code || code.trim() === "") {
+    return null;
+  }
+
   const [_sqlStatement, _, metadata] = LanguageAdapters.sql.transformIn(code);
   const datasourceSchema = store
     .get(dataSourceConnectionsAtom)
     .connectionsMap.get(metadata.engine);
   if (datasourceSchema) {
-    return `${CONTEXT_TYPE}://${datasourceSchema.name}`;
+    return `@${CONTEXT_TYPE}://${datasourceSchema.name}`;
   }
   return null;
 }
