@@ -9,14 +9,14 @@ from typing import Any
 
 
 @functools.cache
-def _getsitepackages() -> list[str]:
+def _getsitepackages() -> list[pathlib.Path]:
     try:
         # Try to get global site-packages (not available in virtual envs)
-        site_packages_dirs = site.getsitepackages()
+        site_packages_dirs = [pathlib.Path(p) for p in site.getsitepackages()]
     except AttributeError:
         # Fallback for virtual environments or restricted environments
         try:
-            site_packages_dirs = [site.getusersitepackages()]
+            site_packages_dirs = [pathlib.Path(site.getusersitepackages())]
         except AttributeError:
             # Fallback to empty, and handle other ways.
             return []
@@ -32,8 +32,10 @@ def is_local_module(spec: Any) -> bool:
     if spec is None or spec.origin is None:
         return True  # Assume local if we can't determine
 
-    module_path = pathlib.Path(spec.origin).resolve()
+    if "site-packages" in spec.origin:
+        return False
 
+    module_path = pathlib.Path(spec.origin).resolve()
     site_packages_dirs = _getsitepackages()
     if not site_packages_dirs:
         # Ultimate fallback: use string matching
@@ -42,7 +44,7 @@ def is_local_module(spec: Any) -> bool:
     # Check if module is in any site-packages directory
     for site_dir in site_packages_dirs:
         try:
-            if module_path.is_relative_to(pathlib.Path(site_dir)):
+            if module_path.is_relative_to(site_dir):
                 return False  # Module is in site-packages
         except (OSError, ValueError):
             # Handle path resolution issues
