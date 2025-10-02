@@ -2572,3 +2572,66 @@ class TestPersistentCache:
         )
         assert not k.stdout.messages, k.stdout
         assert not k.stderr.messages, k.stderr
+
+
+class TestCacheStatistics:
+    """Tests for cache statistics API (cache_info(), cache_clear())"""
+
+    async def test_cache_info_and_clear(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify cache_info() and cache_clear() work correctly."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache, lru_cache
+
+                    @cache
+                    def func(x):
+                        return x * 2
+
+                    @lru_cache(maxsize=2)
+                    def lru_func(x):
+                        return x * 3
+
+                    # Test basic cache_info
+                    info0 = func.cache_info()
+                    func(1)
+                    func(1)  # hit
+                    func(2)  # miss
+                    info1 = func.cache_info()
+
+                    # Test lru_cache maxsize
+                    lru_info = lru_func.cache_info()
+
+                    # Test cache_clear
+                    func.cache_clear()
+                    info2 = func.cache_info()
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+
+        # Initial state
+        info0 = k.globals["info0"]
+        assert info0.hits == 0
+        assert info0.misses == 0
+        assert info0.maxsize is None
+        assert info0.currsize == 0
+
+        # After calls
+        info1 = k.globals["info1"]
+        assert info1.hits == 1
+        assert info1.misses == 2
+        assert info1.currsize == 2
+
+        # LRU maxsize
+        lru_info = k.globals["lru_info"]
+        assert lru_info.maxsize == 2
+
+        # After clear
+        info2 = k.globals["info2"]
+        assert info2.currsize == 0

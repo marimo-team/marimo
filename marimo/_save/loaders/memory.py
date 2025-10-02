@@ -107,3 +107,11 @@ class MemoryLoader(Loader):
     @max_size.setter
     def max_size(self, value: int) -> None:
         self.resize(value)
+
+    @property
+    def current_size(self) -> int:
+        return len(self._cache)
+
+    def clear(self) -> None:
+        """Clear all cached items."""
+        self._maybe_lock(lambda: self._cache.clear())

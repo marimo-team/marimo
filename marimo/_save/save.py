@@ -33,7 +33,12 @@ from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context, safe_get_context
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
-from marimo._save.cache import Cache, CacheException
+from marimo._save.cache import (
+    UNEXPECTED_FAILURE_BOILERPLATE,
+    Cache,
+    CacheContext,
+    CacheException,
+)
 from marimo._save.hash import (
     DEFAULT_HASH,
     BlockHasher,
@@ -53,15 +58,6 @@ from marimo._save.toplevel import get_cell_id_from_scope, graph_from_scope
 from marimo._types.ids import CellId_t
 from marimo._utils.with_skip import SkipContext
 
-# Many assertions are for typing and should always pass. This message is a
-# catch all to motive users to report if something does fail.
-UNEXPECTED_FAILURE_BOILERPLATE = (
-    "— this is"
-    " unexpected and is likely a bug in marimo. "
-    "Please file an issue at "
-    "https://github.com/marimo-team/marimo/issues"
-)
-
 if TYPE_CHECKING:
     from types import FrameType, TracebackType
 
@@ -69,7 +65,7 @@ if TYPE_CHECKING:
     from marimo._save.stores import Store
 
 
-class _cache_call:
+class _cache_call(CacheContext):
     """Like functools.cache but notebook-aware. See `cache` docstring"""
 
     __slots__ = (
@@ -81,6 +77,7 @@ class _cache_call:
         "_args",
         "_var_arg",
         "_var_kwarg",
+        "_misses",
         "_loader",
         "_loader_partial",
         "_bound",
@@ -98,6 +95,7 @@ class _cache_call:
     _args: list[str]
     _var_arg: Optional[str]
     _var_kwarg: Optional[str]
+    _misses: int
     _loader: Optional[State[Loader]]
     _loader_partial: LoaderPartial
     _bound: Optional[dict[str, Any]]
@@ -126,6 +124,7 @@ class _cache_call:
         self._last_hash = None
         self._var_arg = None
         self._var_kwarg = None
+        self._misses = 0
         self._loader = None
         self._bound = {}
         self._external = False
@@ -133,12 +132,6 @@ class _cache_call:
             self.__wrapped__ = None
         else:
             self._set_context(_fn)
-
-    @property
-    def hits(self) -> int:
-        if self._loader is None:
-            return 0
-        return self.loader.hits
 
     def _set_context(self, fn: Callable[..., Any]) -> None:
         ctx = safe_get_context()
@@ -256,9 +249,10 @@ class _cache_call:
         )
 
     @property
-    def loader(self) -> Loader:
-        assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
-        return self._loader()
+    def misses(self) -> int:
+        if self._loader is None:
+            return 0
+        return self._misses
 
     @property
     def __name__(self) -> str:
@@ -384,6 +378,7 @@ class _cache_call:
             if attempt.hit:
                 attempt.restore(scope)
                 return attempt.meta["return"]
+
             response = self.__wrapped__(*args, **kwargs)
             # stateful variables may be global
             scope = {
@@ -398,10 +393,11 @@ class _cache_call:
             # NB. Exceptions raise their own side effects.
             if ctx and not failed:
                 ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
+        self._misses += 1
         return response
 
 
-class _cache_context(SkipContext):
+class _cache_context(SkipContext, CacheContext):
     def __init__(
         self,
         name: str,

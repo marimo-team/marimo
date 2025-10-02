@@ -13,9 +13,21 @@ from marimo._plugins.ui._core.ui_element import S, T, UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.state import SetFunctor
 
+# Many assertions are for typing and should always pass. This message is a
+# catch all to motive users to report if something does fail.
+UNEXPECTED_FAILURE_BOILERPLATE = (
+    "— this is"
+    " unexpected and is likely a bug in marimo. "
+    "Please file an issue at "
+    "https://github.com/marimo-team/marimo/issues"
+)
+
+
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
+    from marimo._runtime.state import State
     from marimo._save.hash import HashKey
+    from marimo._save.loaders import Loader
 
 # NB. Increment on cache breaking changes.
 MARIMO_CACHE_VERSION: int = 3
@@ -40,6 +52,8 @@ CACHE_PREFIX: dict[CacheType, str] = {
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
 MetaKey = Literal["return", "version"]
+# Matches functools
+CacheInfo = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize"])
 
 
 class ModuleStub:
@@ -351,3 +365,59 @@ class Cache:
             hit=True,
             meta=loaded.meta,
         )
+
+
+class CacheContext:
+    """Tracks cache loader state and statistics.
+    Base class for cache interfaces."""
+
+    __slots__ = "_loader"
+    _loader: Optional[State[Loader]]
+
+    # Match functools api
+    def cache_info(self) -> CacheInfo:
+        return CacheInfo(
+            hits=self.hits,
+            misses=self.misses,
+            maxsize=self.maxsize,
+            currsize=self.currsize,
+        )
+
+    @property
+    def loader(self) -> Loader:
+        assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
+        return self._loader()
+
+    def cache_clear(self) -> None:
+        if self._loader is not None:
+            self.loader.clear()
+
+    @property
+    def hits(self) -> int:
+        if self._loader is None:
+            return 0
+        return self.loader.hits
+
+    @property
+    def misses(self) -> int:
+        # Not something explicitly recorded.
+        return 0
+
+    @property
+    def maxsize(self) -> int | None:
+        if self._loader is None:
+            return None
+        maxsize = getattr(self.loader, "_max_size", -1)
+        if maxsize < 0:
+            return None
+        return maxsize
+
+    @property
+    def currsize(self) -> int:
+        if self._loader is None:
+            return 0
+        # Use current_size if available, otherwise fall back to misses
+        if hasattr(self.loader, "current_size"):
+            return self.loader.current_size
+        # Assume all misses leave an entry
+        return self.misses

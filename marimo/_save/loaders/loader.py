@@ -170,6 +170,10 @@ class Loader(ABC):
     def save_cache(self, cache: Cache) -> bool:
         """Save Cache"""
 
+    @abstractmethod
+    def clear(self) -> None:
+        """Clear all cached items. Default implementation does nothing."""
+
 
 class BasePersistenceLoader(Loader):
     """Abstract base for cache written to disk."""
@@ -215,6 +219,9 @@ class BasePersistenceLoader(Loader):
             return self.restore_cache(key, blob)
         except FileNotFoundError as e:
             raise LoaderError("Unexpected cache miss.") from e
+
+    def clear(self) -> None:
+        self.store.clear.get(str(self.build_path(key)))
 
     @abstractmethod
     def restore_cache(self, key: HashKey, blob: bytes) -> Cache:

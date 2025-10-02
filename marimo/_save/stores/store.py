@@ -18,5 +18,9 @@ class Store(ABC):
     def hit(self, key: str) -> bool:
         """Check if the cache is in the store"""
 
+    def clear(self, key: str) -> bool:
+        """Check if the cache is in the store"""
+        del key
+        return False
 
 StoreType = type[Store]
