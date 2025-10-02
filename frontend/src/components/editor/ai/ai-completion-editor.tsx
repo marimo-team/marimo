@@ -22,6 +22,7 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { selectAllText } from "@/core/codemirror/utils";
 import { useRuntimeManager } from "@/core/runtime/config";
+import { useEvent } from "@/hooks/useEvent";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
@@ -45,7 +46,7 @@ interface Props {
   declineChange: () => void;
   acceptChange: (rightHandCode: string) => void;
   enabled: boolean;
-  initialTrigger?: boolean;
+  triggerImmediately?: boolean;
   /**
    * Children shown when there is no completion
    */
@@ -68,13 +69,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
   declineChange,
   acceptChange,
   enabled,
-  initialTrigger,
+  triggerImmediately,
   children,
 }) => {
-  const [hasTriggered, setHasTriggered] = useState(false);
-  const [completionBody, setCompletionBody] = useState<object>(
-    initialPrompt ? getAICompletionBody({ input: initialPrompt }) : {},
-  );
+  const [completionBody, setCompletionBody] = useState<object>({});
 
   const [includeOtherCells, setIncludeOtherCells] = useAtom(
     includeOtherCellsAtom,
@@ -99,7 +97,11 @@ export const AiCompletionEditor: React.FC<Props> = ({
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
     body: {
-      ...completionBody,
+      ...(Object.keys(completionBody).length > 0
+        ? completionBody
+        : initialPrompt
+          ? getAICompletionBody({ input: initialPrompt })
+          : {}),
       includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
       code: currentCode,
       language: currentLanguageAdapter,
@@ -119,6 +121,12 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
   const completion = untrimmedCompletion.trimEnd();
 
+  const initialSubmit = useEvent(() => {
+    if (triggerImmediately && !isLoading && initialPrompt) {
+      handleSubmit();
+    }
+  });
+
   // Focus the input
   useEffect(() => {
     if (enabled) {
@@ -127,6 +135,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
           const input = inputRef.current;
           if (input?.view) {
             input.view.focus();
+            initialSubmit();
             return true;
           }
           return false;
@@ -136,7 +145,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
       selectAllText(inputRef.current?.view);
     }
-  }, [enabled]);
+  }, [enabled, initialSubmit]);
 
   // Reset the input when the prompt changes
   useEffect(() => {
@@ -144,18 +153,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
       setInput(initialPrompt || "");
     }
   }, [enabled, initialPrompt, setInput]);
-
-  // TODO: Does not work properly
-  if (!hasTriggered && initialTrigger) {
-    setHasTriggered(true);
-    // Use requestAnimationFrame for better timing
-    requestAnimationFrame(() => {
-      if (inputRef.current?.view) {
-        storePrompt(inputRef.current.view);
-      }
-      handleSubmit();
-    });
-  }
 
   const { theme } = useTheme();
 

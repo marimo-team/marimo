@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { WrenchIcon, ZapIcon } from "lucide-react";
+import { WrenchIcon, ZapIcon, ZapOffIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { notebookAtom, useCellActions } from "@/core/cells/cells";
@@ -12,6 +13,7 @@ import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { cn } from "@/utils/cn";
+import { useInstantAIFix } from "./auto-fix-atom";
 
 export const AutoFixButton = ({
   errors,
@@ -22,6 +24,7 @@ export const AutoFixButton = ({
   cellId: CellId;
   className?: string;
 }) => {
+  const { instantAIFix, setInstantAIFix } = useInstantAIFix();
   const { createNewCell } = useCellActions();
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const autoFixes = errors.flatMap((error) =>
@@ -37,7 +40,7 @@ export const AutoFixButton = ({
   // multiple fixes.
   const firstFix = autoFixes[0];
 
-  const handleFix = (aiInstantFix = false) => {
+  const handleFix = () => {
     const editorView =
       store.get(notebookAtom).cellHandles[cellId].current?.editorView;
     firstFix.onFix({
@@ -53,7 +56,7 @@ export const AutoFixButton = ({
       cellId: cellId,
       aiFix: {
         setAiCompletionCell,
-        instantFix: aiInstantFix,
+        instantFix: instantAIFix,
       },
     });
     // Focus the editor
@@ -61,13 +64,13 @@ export const AutoFixButton = ({
   };
 
   return (
-    <div className={cn("flex gap-2 my-2", className)}>
+    <div className={cn("flex gap-2 my-2 items-center", className)}>
       <Tooltip content={firstFix.description} align="start">
         <Button
           size="xs"
           variant="outline"
           className="font-normal"
-          onClick={() => handleFix(false)}
+          onClick={handleFix}
         >
           <WrenchIcon className="h-3 w-3 mr-2" />
           {firstFix.title}
@@ -75,11 +78,26 @@ export const AutoFixButton = ({
       </Tooltip>
 
       {firstFix.fixType === "ai" && (
-        <Tooltip content="Instant fix" align="start">
-          <Button size="xs" variant="ghost" onClick={() => handleFix(true)}>
-            <ZapIcon className="h-3 w-3" />
-          </Button>
-        </Tooltip>
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={instantAIFix}
+            onCheckedChange={() => setInstantAIFix(!instantAIFix)}
+            size="sm"
+            className="h-4 w-8"
+            title="Toggle instant AI fix mode"
+          />
+          <Tooltip
+            content={
+              instantAIFix ? "Instant fix enabled" : "Instant fix disabled"
+            }
+          >
+            {instantAIFix ? (
+              <ZapIcon className="h-3 w-3 text-amber-500" />
+            ) : (
+              <ZapOffIcon className="h-3 w-3 text-muted-foreground" />
+            )}
+          </Tooltip>
+        </div>
       )}
     </div>
   );
