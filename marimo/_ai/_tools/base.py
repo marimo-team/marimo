@@ -1,7 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-import dataclasses
 import inspect
 import re
 from abc import ABC, abstractmethod
@@ -18,7 +17,10 @@ from typing import (
     get_origin,
 )
 
+import msgspec
+
 from marimo import _loggers
+from marimo._ai._tools.types import SuccessResult
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._config.config import CopilotMode
 from marimo._server.ai.tools.types import (
@@ -179,9 +181,11 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
         async def handler(args: ArgsT) -> OutT:  # type: ignore[type-var]
             result = await self.__call__(args)
             # Ensure JSON-serializable output for MCP
-            if is_dataclass(result):
+            if is_dataclass(result) or isinstance(result, msgspec.Struct):
+                if isinstance(result, SuccessResult):
+                    return asdict(result)
                 # Some MCP clients expect dicts only
-                return cast(OutT, asdict(result))  # type: ignore[arg-type]
+                return msgspec.to_builtins(result)
             return result
 
         # name/doc metadata (guard for None types)
@@ -237,7 +241,7 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
     # helpers
     def _coerce_args(self, args: Any) -> ArgsT:  # type: ignore[override]
         """If Args is a dataclass and args is a dict, construct it; else pass through."""
-        if dataclasses.is_dataclass(args):
+        if is_dataclass(args):
             # Already parsed
             return args  # type: ignore[return-value]
         return parse_raw(args, self.Args)
