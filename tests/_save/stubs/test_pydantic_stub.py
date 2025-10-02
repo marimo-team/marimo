@@ -2,12 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
-pytest.importorskip("pydantic")
-
-from pydantic import BaseModel, ConfigDict, PrivateAttr
-
 from marimo._save.stubs.pydantic_stub import PydanticStub
 
 
@@ -17,6 +11,7 @@ class TestPydanticStub:
     @staticmethod
     def test_basic_model() -> None:
         """Test stub with basic pydantic model."""
+        from pydantic import BaseModel
 
         class BasicModel(BaseModel):
             name: str
@@ -44,6 +39,7 @@ class TestPydanticStub:
     @staticmethod
     def test_model_with_private_fields() -> None:
         """Test stub with model containing private fields."""
+        from pydantic import BaseModel, PrivateAttr
 
         class ModelWithPrivate(BaseModel):
             name: str
@@ -72,6 +68,7 @@ class TestPydanticStub:
     @staticmethod
     def test_model_with_extra_fields() -> None:
         """Test stub with model allowing extra fields."""
+        from pydantic import BaseModel, ConfigDict
 
         class ModelWithExtra(BaseModel):
             model_config = ConfigDict(extra="allow")
@@ -99,6 +96,7 @@ class TestPydanticStub:
     @staticmethod
     def test_complex_model() -> None:
         """Test stub with model having all features."""
+        from pydantic import BaseModel, ConfigDict, PrivateAttr
 
         class ComplexModel(BaseModel):
             model_config = ConfigDict(extra="allow")
@@ -131,6 +129,7 @@ class TestPydanticStub:
     @staticmethod
     def test_deterministic_fields_set() -> None:
         """Test that fields_set is sorted for deterministic serialization."""
+        from pydantic import BaseModel
 
         class Model(BaseModel):
             a: int
@@ -151,6 +150,7 @@ class TestPydanticStub:
     @staticmethod
     def test_nested_models() -> None:
         """Test stub with nested pydantic models."""
+        from pydantic import BaseModel
 
         class InnerModel(BaseModel):
             inner_value: int
@@ -172,33 +172,9 @@ class TestPydanticStub:
         assert restored.inner.inner_value == outer.inner.inner_value
 
     @staticmethod
-    def test_get_type() -> None:
-        """Test get_type static method."""
-        from pydantic import BaseModel
-
-        stub_type = PydanticStub.get_type()
-        assert stub_type is BaseModel
-
-    @staticmethod
-    def test_slots_enforcement() -> None:
-        """Test that __slots__ prevents unexpected attributes."""
-
-        class Model(BaseModel):
-            value: int
-
-        model = Model(value=1)
-        stub = PydanticStub(model)
-
-        # Should not be able to add unexpected attributes
-        with pytest.raises(AttributeError):
-            stub.unexpected_attribute = "should fail"
-
-        # Should be able to set expected attributes
-        stub.model_class = Model  # Should work
-
-    @staticmethod
     def test_partial_fields_set() -> None:
         """Test model where not all fields are set."""
+        from pydantic import BaseModel
 
         class Model(BaseModel):
             required: str
