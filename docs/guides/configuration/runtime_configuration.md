@@ -115,7 +115,7 @@ pythonpath = ["project/src"]
     ```
 
     This will make it easier to share your library code. For multiple packages,
-    consider confguring [uv workspaces](https://docs.astral.sh/uv/concepts/projects/workspaces/).
+    consider configuring [uv workspaces](https://docs.astral.sh/uv/concepts/projects/workspaces/).
 
     See our guide on [notebooks in existing
     projects](../package_management/notebooks_in_projects.md) for more details.

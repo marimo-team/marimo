@@ -169,9 +169,9 @@ class Extractor:
         #    - Multiline statements need to be accounted for
         #    - Painstaking testing can be found in test/_ast/test_{load, parse}
 
-        function_code_reult = self.extract_from_code(node)
-        violations = function_code_reult.violations
-        function_code = function_code_reult.unwrap()
+        function_code_result = self.extract_from_code(node)
+        violations = function_code_result.violations
+        function_code = function_code_result.unwrap()
 
         lineno_offset, col_offset = extract_offsets_post_colon(
             function_code,
