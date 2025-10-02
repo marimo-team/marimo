@@ -4,7 +4,7 @@ name: Publish marimo-base release
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
+      - "[0-9]+.[0-9]+.[0-9]+"
   workflow_dispatch: {}
 
 env:
@@ -27,6 +27,19 @@ jobs:
 
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - name: ⎔ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
+
+      - name: 📦 Build frontend
+        run: make fe
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
