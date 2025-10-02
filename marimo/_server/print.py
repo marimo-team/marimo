@@ -137,6 +137,7 @@ def print_experimental_features(config: MarimoConfig) -> None:
         "rtc",
         "lsp",
         "chat_sidebar",
+        "inline_ai_tooltip",
         "multi_column",
         "scratchpad",
         "tracing",

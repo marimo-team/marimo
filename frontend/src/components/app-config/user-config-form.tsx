@@ -1230,7 +1230,7 @@ export const UserConfigForm: React.FC = () => {
 
             <FormField
               control={form.control}
-              name="experimental.inline_ai_tooltip"
+              name="ai.inline_tooltip"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>

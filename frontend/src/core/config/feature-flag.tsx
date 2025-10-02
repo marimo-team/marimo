@@ -7,7 +7,6 @@ import { getResolvedMarimoConfig } from "./config";
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ExperimentalFeatures {
   markdown: boolean; // Used in playground (community cloud)
-  inline_ai_tooltip: boolean;
   wasm_layouts: boolean; // Used in playground (community cloud)
   rtc_v2: boolean;
   performant_table_charts: boolean;
@@ -20,7 +19,6 @@ export interface ExperimentalFeatures {
 
 const defaultValues: ExperimentalFeatures = {
   markdown: true,
-  inline_ai_tooltip: import.meta.env.DEV,
   wasm_layouts: false,
   rtc_v2: false,
   performant_table_charts: false,

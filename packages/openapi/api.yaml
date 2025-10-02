@@ -90,8 +90,9 @@ components:
         \ custom rules to include in all AI completion prompts\n    - `max_tokens`:\
         \ the maximum number of tokens to use in AI completions\n    - `mode`: the\
         \ mode to use for AI completions. Can be one of: `\"ask\"` or `\"manual\"\
-        `\n    - `models`: the models to use for AI completions\n    - `open_ai`:\
-        \ the OpenAI config\n    - `anthropic`: the Anthropic config\n    - `google`:\
+        `\n    - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions\n\
+        \    - `models`: the models to use for AI completions\n    - `open_ai`: the\
+        \ OpenAI config\n    - `anthropic`: the Anthropic config\n    - `google`:\
         \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
         \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
         \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `open_ai_compatible`:\
@@ -107,6 +108,8 @@ components:
           $ref: '#/components/schemas/GitHubConfig'
         google:
           $ref: '#/components/schemas/GoogleAiConfig'
+        inline_tooltip:
+          type: boolean
         max_tokens:
           type: integer
         mode:
@@ -3654,7 +3657,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.16.3
+  version: 0.16.4
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

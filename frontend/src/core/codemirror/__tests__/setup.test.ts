@@ -67,6 +67,7 @@ function getOpts() {
     hotkeys: new OverridingHotkeyProvider({}),
     theme: "light",
     displayConfig: { reference_highlighting: false },
+    inlineAiTooltip: false,
   } as const;
 }
 

@@ -265,6 +265,7 @@ class AiConfig(TypedDict, total=False):
     - `rules`: custom rules to include in all AI completion prompts
     - `max_tokens`: the maximum number of tokens to use in AI completions
     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+    - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
     - `models`: the models to use for AI completions
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
@@ -280,6 +281,7 @@ class AiConfig(TypedDict, total=False):
     rules: NotRequired[str]
     max_tokens: NotRequired[int]
     mode: NotRequired[CopilotMode]
+    inline_tooltip: NotRequired[bool]
     models: AiModelConfig
 
     # providers
@@ -505,7 +507,6 @@ class ExperimentalConfig(TypedDict, total=False):
     """
 
     markdown: bool  # Used in playground (community cloud)
-    inline_ai_tooltip: bool
     wasm_layouts: bool  # Used in playground (community cloud)
     rtc_v2: bool
     performant_table_charts: bool
