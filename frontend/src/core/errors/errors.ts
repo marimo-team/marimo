@@ -87,7 +87,7 @@ export function getAutoFixes(
           const datasourceContext = getDatasourceContext(ctx.cellId);
           let initialPrompt = `Fix the SQL statement: ${error.msg}.`;
           if (datasourceContext) {
-            initialPrompt += `\nUse the following tables and schema to form your query: ${datasourceContext}`;
+            initialPrompt += `\nDatabase schema: ${datasourceContext}`;
           }
           ctx.aiFix?.setAiCompletionCell({
             cellId: ctx.cellId,
