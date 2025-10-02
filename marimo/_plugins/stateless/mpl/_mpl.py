@@ -221,6 +221,31 @@ def _template(fig_id: str, port: int) -> str:
     }
 
 
+# Toplevel for reuse in endpoints.
+async def mpl_js(request: Request) -> Response:
+    from matplotlib.backends.backend_webagg_core import (
+        FigureManagerWebAgg,
+    )
+    from starlette.responses import Response
+
+    del request
+    return Response(
+        content=patch_javascript(FigureManagerWebAgg.get_javascript()),  # type: ignore[no-untyped-call]
+        media_type="application/javascript",
+    )
+
+
+async def mpl_custom_css(request: Request) -> Response:
+    from starlette.responses import Response
+
+    del request
+    return Response(
+        content=css_content,
+        media_type="text/css",
+    )
+
+
+# Over all application for handling figures on a per kernel basis
 def create_application() -> Starlette:
     import matplotlib as mpl
     from matplotlib.backends.backend_webagg_core import (
@@ -234,24 +259,6 @@ def create_application() -> Starlette:
         WebSocketDisconnect,
         WebSocketState,
     )
-
-    async def mpl_js(request: Request) -> Response:
-        from matplotlib.backends.backend_webagg_core import (
-            FigureManagerWebAgg,
-        )
-
-        del request
-        return Response(
-            content=patch_javascript(FigureManagerWebAgg.get_javascript()),  # type: ignore[no-untyped-call]
-            media_type="application/javascript",
-        )
-
-    async def mpl_custom_css(request: Request) -> Response:
-        del request
-        return Response(
-            content=css_content,
-            media_type="text/css",
-        )
 
     async def main_page(request: Request) -> HTMLResponse:
         figure_id = request.query_params.get("figure")
