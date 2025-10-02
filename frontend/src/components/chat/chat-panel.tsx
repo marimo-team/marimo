@@ -9,7 +9,6 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   AtSignIcon,
   BotMessageSquareIcon,
-  ClockIcon,
   Loader2,
   PaperclipIcon,
   PlusIcon,
@@ -17,16 +16,9 @@ import {
   SettingsIcon,
   SquareIcon,
 } from "lucide-react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { useLocale } from "react-aria";
+import { memo, useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -52,8 +44,8 @@ import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
-import { timeAgo } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
+
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
@@ -68,6 +60,7 @@ import { Input } from "../ui/input";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 import { AttachmentRenderer, FileAttachmentPill } from "./chat-components";
+import { ChatHistoryPopover } from "./chat-history-popover";
 import {
   buildCompletionRequestBody,
   convertToFileUIPart,
@@ -105,13 +98,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   setActiveChat,
 }) => {
   const { handleClick } = useOpenSettingsToTab();
-  const chatState = useAtomValue(chatStateAtom);
-  const { locale } = useLocale();
-  const chats = useMemo(() => {
-    return [...chatState.chats.values()].sort(
-      (a, b) => b.updatedAt - a.updatedAt,
-    );
-  }, [chatState.chats]);
 
   return (
     <div className="flex border-b px-2 py-1 justify-between shrink-0 items-center">
@@ -132,46 +118,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             <SettingsIcon className="h-4 w-4" />
           </Button>
         </Tooltip>
-        <Popover>
-          <Tooltip content="Previous chats">
-            <PopoverTrigger asChild={true}>
-              <Button variant="text" size="icon">
-                <ClockIcon className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-          </Tooltip>
-          <PopoverContent className="w-[520px] p-0" align="start" side="right">
-            <ScrollArea className="h-[500px] p-4">
-              <div className="space-y-4">
-                {chats.length === 0 && (
-                  <PanelEmptyState
-                    title="No chats yet"
-                    description="Start a new chat to get started"
-                    icon={<BotMessageSquareIcon />}
-                  />
-                )}
-                {chats.map((chat) => (
-                  <button
-                    key={chat.id}
-                    className={cn(
-                      "w-full p-3 rounded-md cursor-pointer hover:bg-accent text-left",
-                      chat.id === activeChatId && "bg-accent",
-                    )}
-                    onClick={() => {
-                      setActiveChat(chat.id);
-                    }}
-                    type="button"
-                  >
-                    <div className="font-medium">{chat.title}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {timeAgo(chat.updatedAt, locale)}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </ScrollArea>
-          </PopoverContent>
-        </Popover>
+        <ChatHistoryPopover
+          activeChatId={activeChatId}
+          setActiveChat={setActiveChat}
+        />
       </div>
     </div>
   );
