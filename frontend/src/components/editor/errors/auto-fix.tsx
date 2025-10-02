@@ -13,7 +13,7 @@ import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { cn } from "@/utils/cn";
-import { useInstantAIFix } from "./auto-fix-atom";
+import { useInstantAIFix } from "./instant-fix";
 
 export const AutoFixButton = ({
   errors,
