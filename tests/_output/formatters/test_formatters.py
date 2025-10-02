@@ -11,7 +11,9 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.df_formatters import polars_dot_to_mermaid
-from marimo._output.formatters.formatters import register_formatters
+from marimo._output.formatters.formatters import (
+    register_formatters,
+)
 from marimo._output.formatting import (
     Plain,
     as_dom_node,

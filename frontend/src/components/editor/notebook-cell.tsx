@@ -1051,12 +1051,16 @@ const SetupCellComponent = ({
           data-status={cellRuntime.status}
           ref={cellRef}
           {...mergeProps(navigationProps, {
-            className,
+            className: cn(
+              className,
+              "focus:ring-1 focus:ring-(--blue-7) focus:ring-offset-0",
+            ),
             onBlur: closeCompletionHandler,
             onKeyDown: resumeCompletionHandler,
           })}
           {...cellDomProps(cellId, cellData.name)}
           title={renderCellTitle()}
+          tabIndex={-1}
           data-setup-cell={true}
         >
           <div className={cn("tray")} data-hidden={!isCellCodeShown}>

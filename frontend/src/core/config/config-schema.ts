@@ -152,6 +152,7 @@ export const UserConfigSchema = z
       .looseObject({
         rules: z.string().prefault(""),
         mode: z.enum(["manual", "ask"]).prefault("manual"),
+        inline_tooltip: z.boolean().prefault(false),
         open_ai: AiConfigSchema.optional(),
         anthropic: AiConfigSchema.optional(),
         google: AiConfigSchema.optional(),
@@ -216,6 +217,7 @@ export type KeymapConfig = UserConfig["keymap"];
 export type LSPConfig = UserConfig["language_servers"];
 export type DiagnosticsConfig = UserConfig["diagnostics"];
 export type DisplayConfig = UserConfig["display"];
+export type AiConfig = UserConfig["ai"];
 
 export const AppTitleSchema = z.string();
 export const SqlOutputSchema = z

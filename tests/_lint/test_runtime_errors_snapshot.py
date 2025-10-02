@@ -125,3 +125,85 @@ def test_star_import_snapshot():
         error_output.append(error.format())
 
     snapshot("star_import_errors.txt", "\n".join(error_output))
+
+
+def test_self_import_pandas_snapshot(tmp_path):
+    """Test snapshot for self-import pandas error."""
+    source_file = "tests/_lint/test_files/self_import_conflict.py"
+    with open(source_file) as f:
+        code = f.read()
+
+    # Create file with conflicting name in temporary directory
+    conflicting_file = tmp_path / "pandas.py"
+    conflicting_file.write_text(code)
+
+    notebook = parse_notebook(code, filepath=str(conflicting_file))
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot - manually normalize paths to avoid tmp path differences
+    error_output = []
+    for error in errors:
+        formatted = error.format()
+        # Replace temporary path with expected test path for consistent snapshots
+        # Normalize path separators to forward slashes for cross-platform compatibility
+        normalized = formatted.replace(
+            str(tmp_path), "tests/_lint/test_files"
+        ).replace("\\", "/")
+        error_output.append(normalized)
+
+    snapshot("self_import_pandas_errors.txt", "\n".join(error_output))
+
+
+def test_transitive_site_import_snapshot(tmp_path):
+    """Test snapshot for transitive site import error."""
+    source_file = "tests/_lint/test_files/test_transitive_site_import.py"
+    with open(source_file) as f:
+        code = f.read()
+
+    # Create file with conflicting name in temporary directory
+    # This file imports pandas, so we need to create a pandas.py file to trigger the conflict
+    conflicting_file = tmp_path / "pandas.py"
+    conflicting_file.write_text(code)
+
+    notebook = parse_notebook(code, filepath=str(conflicting_file))
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot - manually normalize paths to avoid tmp path differences
+    error_output = []
+    for error in errors:
+        formatted = error.format()
+        # Replace temporary path with expected test path for consistent snapshots
+        # Normalize path separators to forward slashes for cross-platform compatibility
+        normalized = formatted.replace(
+            str(tmp_path), "tests/_lint/test_files"
+        ).replace("\\", "/")
+        error_output.append(normalized)
+
+    snapshot("transitive_site_import_errors.txt", "\n".join(error_output))
+
+
+def test_self_import_requests_snapshot(tmp_path):
+    """Test snapshot for self-import requests error."""
+    source_file = "tests/_lint/test_files/module_shadow.py"
+    with open(source_file) as f:
+        code = f.read()
+
+    # Create file with conflicting name in temporary directory
+    conflicting_file = tmp_path / "requests.py"
+    conflicting_file.write_text(code)
+
+    notebook = parse_notebook(code, filepath=str(conflicting_file))
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot - manually normalize paths to avoid tmp path differences
+    error_output = []
+    for error in errors:
+        formatted = error.format()
+        # Replace temporary path with expected test path for consistent snapshots
+        # Normalize path separators to forward slashes for cross-platform compatibility
+        normalized = formatted.replace(
+            str(tmp_path), "tests/_lint/test_files"
+        ).replace("\\", "/")
+        error_output.append(normalized)
+
+    snapshot("self_import_requests_errors.txt", "\n".join(error_output))

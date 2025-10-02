@@ -7,15 +7,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import websockets
-from starlette.responses import Response
-
-# import StaticFiles from starlette
-from starlette.staticfiles import StaticFiles
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable
 
     from starlette.requests import Request
+    from starlette.responses import Response
     from starlette.websockets import WebSocket
 
 
@@ -39,6 +36,7 @@ def mpl_fallback_handler(
     Args:
         path_prefix: Prefix to add to path when calling _mpl_handler (default "")
     """
+    from starlette.responses import Response
 
     def decorator(
         func: Callable[[Request], Awaitable[Response]],
@@ -80,6 +78,7 @@ async def mpl_static(request: Request) -> Response:
     from matplotlib.backends.backend_webagg_core import (
         FigureManagerWebAgg,
     )
+    from starlette.staticfiles import StaticFiles
 
     static_app = StaticFiles(
         directory=FigureManagerWebAgg.get_static_file_path()  # type: ignore[no-untyped-call]
@@ -93,6 +92,7 @@ async def mpl_images(request: Request) -> Response:
     """Fallback for image files from matplotlib."""
     path = request.path_params["path"]
     import matplotlib as mpl
+    from starlette.staticfiles import StaticFiles
 
     static_app = StaticFiles(directory=Path(mpl.get_data_path(), "images"))
     return await static_app.get_response(path, request.scope)
@@ -130,6 +130,8 @@ async def _mpl_handler(
     Returns:
         Response from the matplotlib server or error response
     """
+    from starlette.responses import Response
+
     # Proxy to matplotlib server
     # Determine the target port
     port = figure_endpoints.get(figurenum, None)

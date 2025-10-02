@@ -1230,30 +1230,6 @@ export const UserConfigForm: React.FC = () => {
 
             <FormField
               control={form.control}
-              name="experimental.inline_ai_tooltip"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      AI Edit Tooltip
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="inline-ai-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Enable experimental "Edit with AI" tooltip when selecting
-                    code.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="experimental.rtc_v2"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">

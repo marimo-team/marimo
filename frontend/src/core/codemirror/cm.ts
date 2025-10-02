@@ -46,7 +46,6 @@ import type {
   KeymapConfig,
   LSPConfig,
 } from "../config/config-schema";
-import { getFeatureFlag } from "../config/feature-flag";
 import type { HotkeyProvider } from "../hotkeys/hotkeys";
 import { store } from "../state/jotai";
 import { requestEditCompletion } from "./ai/request";
@@ -83,6 +82,7 @@ export interface CodeMirrorSetupOpts {
   lspConfig: LSPConfig;
   diagnosticsConfig: DiagnosticsConfig;
   displayConfig: Pick<DisplayConfig, "reference_highlighting">;
+  inlineAiTooltip: boolean;
 }
 
 function getPlaceholderType(opts: CodeMirrorSetupOpts) {
@@ -104,6 +104,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     lspConfig,
     diagnosticsConfig,
     displayConfig,
+    inlineAiTooltip,
   } = opts;
   const placeholderType = getPlaceholderType(opts);
 
@@ -128,7 +129,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     goToDefinitionBundle(),
     diagnosticsConfig?.enabled ? lintGutter() : [],
     // AI edit inline
-    enableAI && getFeatureFlag("inline_ai_tooltip")
+    enableAI && inlineAiTooltip
       ? [
           aiExtension({
             prompt: (req) => {

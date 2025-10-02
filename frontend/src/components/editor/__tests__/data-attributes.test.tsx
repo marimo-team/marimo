@@ -12,7 +12,7 @@ import type { UserConfig } from "@/core/config/config-schema";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { AppMode } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
-import { Cell } from "../Cell";
+import { Cell } from "../notebook-cell";
 import { OutputArea } from "../Output";
 
 function createTestWrapper() {

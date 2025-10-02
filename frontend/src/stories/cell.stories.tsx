@@ -16,7 +16,7 @@ import type { CellConfig } from "@/core/network/types";
 import { WebSocketState } from "@/core/websocket/types";
 import { MultiColumn } from "@/utils/id-tree";
 import type { Milliseconds, Seconds } from "@/utils/time";
-import { Cell as EditorCell } from "../components/editor/Cell";
+import { Cell as EditorCell } from "../components/editor/notebook-cell";
 import { TooltipProvider } from "../components/ui/tooltip";
 import type { CellId } from "../core/cells/ids";
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import os
 import urllib.error
-import urllib.request
 from datetime import datetime
 from typing import Any, Callable, cast
 

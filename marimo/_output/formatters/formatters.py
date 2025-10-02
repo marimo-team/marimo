@@ -38,6 +38,7 @@ from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
 from marimo._output.formatters.sympy_formatters import SympyFormatter
 from marimo._output.formatters.tqdm_formatters import TqdmFormatter
+from marimo._utils.site_packages import is_local_module
 
 LOGGER = _loggers.marimo_logger()
 
@@ -121,6 +122,10 @@ def patch_finder(
         del self
         spec = original_find_spec(fullname, path, target)
         if spec is None:
+            return spec
+
+        # Skip patching for local modules (not under site-packages)
+        if is_local_module(spec):
             return spec
 
         if spec.loader is not None and fullname in third_party_factories:

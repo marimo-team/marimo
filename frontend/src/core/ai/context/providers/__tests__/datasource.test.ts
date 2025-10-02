@@ -8,7 +8,7 @@ import type {
 } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import type { DataSourceConnection, DataTable } from "@/core/kernel/messages";
-import { Boosts } from "../common";
+import { Boosts, Sections } from "../common";
 import { DatasourceContextProvider } from "../datasource";
 
 // Mock data for testing
@@ -268,8 +268,7 @@ describe("DatasourceContextProvider", () => {
       );
 
       const items = providerWithEmpty.getItems();
-      expect(items).toHaveLength(1);
-      expect(items[0].data.connection.databases).toEqual([]);
+      expect(items).toHaveLength(0);
     });
 
     it("should handle connections with databases but no schemas", () => {
@@ -311,7 +310,7 @@ describe("DatasourceContextProvider", () => {
         detail: "DuckDB",
         boost: Boosts.MEDIUM,
         type: "datasource",
-        section: "Data Sources",
+        section: Sections.DATA_SOURCES,
       });
 
       expect(completion.info).toBeDefined();
@@ -355,7 +354,7 @@ describe("DatasourceContextProvider", () => {
         detail: "PostgreSQL",
         boost: Boosts.MEDIUM,
         type: "datasource",
-        section: "Data Sources",
+        section: Sections.DATA_SOURCES,
       });
     });
 
@@ -380,7 +379,7 @@ describe("DatasourceContextProvider", () => {
         detail: "DuckDB",
         boost: Boosts.MEDIUM,
         type: "datasource",
-        section: "Data Sources",
+        section: Sections.DATA_SOURCES,
       });
     });
   });

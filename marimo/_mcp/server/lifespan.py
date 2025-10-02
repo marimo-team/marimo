@@ -1,17 +1,19 @@
 # Copyright 2025 Marimo. All rights reserved.
 import contextlib
 from collections.abc import AsyncIterator
-
-from starlette.applications import Starlette
+from typing import TYPE_CHECKING
 
 from marimo._loggers import marimo_logger
 from marimo._mcp.server.main import setup_mcp_server
 
 LOGGER = marimo_logger()
 
+if TYPE_CHECKING:
+    from starlette.applications import Starlette
+
 
 @contextlib.asynccontextmanager
-async def mcp_server_lifespan(app: Starlette) -> AsyncIterator[None]:
+async def mcp_server_lifespan(app: "Starlette") -> AsyncIterator[None]:
     """Lifespan for MCP server functionality (exposing marimo as MCP server)."""
 
     try:
