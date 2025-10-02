@@ -7,8 +7,10 @@ import {
   Button,
   type ButtonProps,
   Input as RACInput,
+  useLocale,
 } from "react-aria-components";
 import { cn } from "@/utils/cn";
+import { maxFractionalDigits } from "@/utils/numbers";
 
 export interface NumberFieldProps extends AriaNumberFieldProps {
   placeholder?: string;
@@ -17,12 +19,13 @@ export interface NumberFieldProps extends AriaNumberFieldProps {
 
 export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
   ({ placeholder, variant = "default", ...props }, ref) => {
+    const { locale } = useLocale();
     return (
       <AriaNumberField
         {...props}
         formatOptions={{
           minimumFractionDigits: 0,
-          maximumFractionDigits: 100,
+          maximumFractionDigits: maxFractionalDigits(locale),
         }}
       >
         <div
