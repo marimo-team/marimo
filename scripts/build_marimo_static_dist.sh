@@ -29,6 +29,12 @@ fi
 pushd frontend
 PYODIDE=true NODE_OPTIONS=--max-old-space-size=${NODE_HEAP_SIZE:-6144} pnpm vite build --config oso.viteconfig.mts
 
+# Copy the built files to marimo/_static
+# This makes sure our frontend files match the files in marimo WASM.
+rm -rf "${repo_dir}/marimo/_static"
+mkdir -p "${repo_dir}/marimo/_static"
+cp -r dist/ "${repo_dir}/marimo/_static/"
+
 # Move files to the build directory
 mv dist "${build_path}"
 
