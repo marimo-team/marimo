@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import abc
 import importlib
 import inspect
 import re
@@ -40,6 +41,27 @@ CACHE_PREFIX: dict[CacheType, str] = {
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
 MetaKey = Literal["return", "version"]
+
+
+class CustomStub(abc.ABC):
+    """Base class for custom stubs that can be registered in the cache."""
+
+    @abc.abstractmethod
+    def __init__(self, _obj: Any) -> None:
+        """Initializes the stub with the object to be stubbed."""
+
+    @abc.abstractmethod
+    def load(self, glbls: dict[str, Any]) -> None:
+        """Loads the stub into the global scope."""
+        raise NotImplementedError
+
+
+CUSTOM_STUBS: dict[type, type[CustomStub]] = {}
+
+
+def register_stub(cls: type | None, stub: type[CustomStub]) -> None:
+    if cls is not None:
+        CUSTOM_STUBS[cls] = stub
 
 
 class ModuleStub:
@@ -188,6 +210,10 @@ class Cache:
             value.clear()
             value.update(result)
             result = value
+        elif isinstance(value, CustomStub):
+            # CustomStub is a placeholder for a custom type, which cannot be
+            # restored directly.
+            result = value.load(scope)
         else:
             result = value
 
@@ -246,9 +272,19 @@ class Cache:
             self.meta[key] = self._convert_to_stub_if_needed(value, memo)
 
     def _convert_to_stub_if_needed(
-        self, value: Any, memo: dict[int, Any] | None = None
+        self,
+        value: Any,
+        memo: dict[int, Any] | None = None,
+        preserve_pointers: bool = True,
     ) -> Any:
-        """Convert objects to stubs if needed, recursively handling collections."""
+        """Convert objects to stubs if needed, recursively handling collections.
+
+        Args:
+            value: The value to convert
+            memo: Memoization dict to handle cycles
+            preserve_pointers: If True, modifies containers in-place to preserve
+                             object identity. If False, creates new containers.
+        """
         if memo is None:
             memo = {}
 
@@ -269,36 +305,74 @@ class Cache:
             # tuples are immutable and cannot be recursive, but we still want to
             # iteratively convert the internal items.
             result = tuple(
-                self._convert_to_stub_if_needed(item, memo) for item in value
+                self._convert_to_stub_if_needed(item, memo, preserve_pointers)
+                for item in value
             )
         elif isinstance(value, set):
-            # sets cannot be recursive (require hasable items), but we still
-            # maintain the original set reference.
-            result = set(
-                self._convert_to_stub_if_needed(item, memo) for item in value
+            # sets cannot be recursive (require hashable items)
+            converted = set(
+                self._convert_to_stub_if_needed(item, memo, preserve_pointers)
+                for item in value
             )
-            value.clear()
-            value.update(result)
-            result = value
+            if preserve_pointers:
+                value.clear()
+                value.update(converted)
+                result = value
+            else:
+                result = converted
         elif isinstance(value, list):
-            # Store placeholder to handle cycles
-            memo[obj_id] = value
-            result = [
-                self._convert_to_stub_if_needed(item, memo) for item in value
-            ]
-            value.clear()
-            value.extend(result)
-            result = value
+            if preserve_pointers:
+                # Preserve original list reference
+                memo[obj_id] = value
+                converted_list = [
+                    self._convert_to_stub_if_needed(
+                        item, memo, preserve_pointers
+                    )
+                    for item in value
+                ]
+                value.clear()
+                value.extend(converted_list)
+                result = value
+            else:
+                # Create new list
+                result = []
+                memo[obj_id] = result
+                result.extend(
+                    [
+                        self._convert_to_stub_if_needed(
+                            item, memo, preserve_pointers
+                        )
+                        for item in value
+                    ]
+                )
         elif isinstance(value, dict):
-            # Recursively convert dictionary values
-            memo[obj_id] = value
-            result = {
-                k: self._convert_to_stub_if_needed(v, memo)
-                for k, v in value.items()
-            }
-            value.clear()
-            value.update(result)
-            result = value
+            if preserve_pointers:
+                # Preserve original dict reference
+                memo[obj_id] = value
+                converted_dict = {
+                    k: self._convert_to_stub_if_needed(
+                        v, memo, preserve_pointers
+                    )
+                    for k, v in value.items()
+                }
+                value.clear()
+                value.update(converted_dict)
+                result = value
+            else:
+                # Create new dict
+                result = {}
+                memo[obj_id] = result
+                result.update(
+                    {
+                        k: self._convert_to_stub_if_needed(
+                            v, memo, preserve_pointers
+                        )
+                        for k, v in value.items()
+                    }
+                )
+        elif type(value) in CUSTOM_STUBS:
+            # If the value is a custom stub, we store it as such.
+            result = CUSTOM_STUBS[type(value)](value)
         else:
             result = value
         memo[obj_id] = result
