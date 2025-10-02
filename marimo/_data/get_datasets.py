@@ -133,6 +133,8 @@ def _get_databases_from_duckdb_internal(
     # databases_dict[database][schema] = [table1, table2, ...]
     databases_dict: dict[str, dict[str, list[DataTable]]] = {}
 
+    SKIP_TABLES = ["duckdb_functions()", "duckdb_types()", "duckdb_settings()"]
+
     for (
         database,
         schema,
@@ -141,6 +143,9 @@ def _get_databases_from_duckdb_internal(
         column_types,
         *_rest,
     ) in tables_result:
+        if name in SKIP_TABLES:
+            continue
+
         assert len(column_names) == len(column_types)
         assert isinstance(column_names, list)
         assert isinstance(column_types, list)
