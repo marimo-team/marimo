@@ -1,18 +1,23 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import abc
-import importlib
 import inspect
 import re
-import textwrap
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args
 
-from marimo._plugins.ui._core.ui_element import S, T, UIElement
+from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.state import SetFunctor
+from marimo._save.stubs import (
+    CUSTOM_STUBS,
+    CustomStub,
+    FunctionStub,
+    ModuleStub,
+    UIElementStub,
+    maybe_register_stub,
+)
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
@@ -41,66 +46,6 @@ CACHE_PREFIX: dict[CacheType, str] = {
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
 MetaKey = Literal["return", "version"]
-
-
-class CustomStub(abc.ABC):
-    """Base class for custom stubs that can be registered in the cache."""
-
-    @abc.abstractmethod
-    def __init__(self, _obj: Any) -> None:
-        """Initializes the stub with the object to be stubbed."""
-
-    @abc.abstractmethod
-    def load(self, glbls: dict[str, Any]) -> None:
-        """Loads the stub into the global scope."""
-        raise NotImplementedError
-
-
-CUSTOM_STUBS: dict[type, type[CustomStub]] = {}
-
-
-def register_stub(cls: type | None, stub: type[CustomStub]) -> None:
-    if cls is not None:
-        CUSTOM_STUBS[cls] = stub
-
-
-class ModuleStub:
-    def __init__(self, module: Any) -> None:
-        self.name = module.__name__
-
-    def load(self) -> Any:
-        return importlib.import_module(self.name)
-
-
-class FunctionStub:
-    def __init__(self, function: Any) -> None:
-        self.code = textwrap.dedent(inspect.getsource(function))
-
-    def load(self, glbls: dict[str, Any]) -> Any:
-        # TODO: Fix line cache and associate with the correct module.
-        code_obj = compile(self.code, "<string>", "exec")
-        lcls: dict[str, Any] = {}
-        exec(code_obj, glbls, lcls)
-        # Update the global scope with the function.
-        for value in lcls.values():
-            return value
-
-
-class UIElementStub:
-    def __init__(self, element: UIElement[S, T]) -> None:
-        self.args = element._args
-        self.cls = element.__class__
-        # Ideally only hashable attributes are stored on the subclass level.
-        defaults = set(self.cls.__new__(self.cls).__dict__.keys())
-        defaults |= {"_ctx"}
-        self.data = {
-            k: v
-            for k, v in element.__dict__.items()
-            if hasattr(v, "__hash__") and k not in defaults
-        }
-
-    def load(self) -> UIElement[S, T]:
-        return self.cls.from_args(self.data, self.args)  # type: ignore
 
 
 # BaseException because "raise _ as e" is utilized.
@@ -370,11 +315,11 @@ class Cache:
                         for k, v in value.items()
                     }
                 )
-        elif type(value) in CUSTOM_STUBS:
-            # If the value is a custom stub, we store it as such.
+        elif type(value) in CUSTOM_STUBS or maybe_register_stub(value):
             result = CUSTOM_STUBS[type(value)](value)
         else:
             result = value
+
         memo[obj_id] = result
 
         return result
