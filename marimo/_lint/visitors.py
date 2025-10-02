@@ -38,3 +38,27 @@ class VariableLineVisitor(ast.NodeVisitor):
             self.column_number = node.col_offset + 1
             return
         self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        """Visit ImportFrom nodes to find imported variable definitions."""
+        for alias in node.names:
+            if (
+                alias.asname == self.target_variable
+                or alias.name == self.target_variable
+            ):
+                self.line_number = node.lineno
+                self.column_number = node.col_offset + 1
+                return
+        self.generic_visit(node)
+
+    def visit_Import(self, node: ast.Import) -> None:
+        """Visit Import nodes to find imported variable definitions."""
+        for alias in node.names:
+            if (
+                alias.asname == self.target_variable
+                or alias.name == self.target_variable
+            ):
+                self.line_number = node.lineno
+                self.column_number = node.col_offset + 1
+                return
+        self.generic_visit(node)

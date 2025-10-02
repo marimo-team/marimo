@@ -1,0 +1,15 @@
+error[self-import]: Importing module 'pandas' conflicts with file name 'pandas.py'
+ --> tests/_lint/test_files/pandas.py:8:1
+   8 | def _():
+   9 |     import pandas as pd  # Should trigger MR001 - conflicts with pandas in site-packages
+     |     ^
+  10 |     return
+hint: Rename the file to avoid conflicts with the 'pandas' module. 
+
+error[self-import]: Importing module 'pandas' conflicts with file name 'pandas.py'
+ --> tests/_lint/test_files/pandas.py:15:1
+  15 |     # Test a different import style
+  16 |     from pandas import DataFrame
+     |     ^
+  17 |     return
+hint: Rename the file to avoid conflicts with the 'pandas' module. 
