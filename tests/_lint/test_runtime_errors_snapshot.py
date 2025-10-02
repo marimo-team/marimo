@@ -146,7 +146,9 @@ def test_self_import_pandas_snapshot(tmp_path):
         formatted = error.format()
         # Replace temporary path with expected test path for consistent snapshots
         # Normalize path separators to forward slashes for cross-platform compatibility
-        normalized = formatted.replace(str(tmp_path), "tests/_lint/test_files").replace("\\", "/")
+        normalized = formatted.replace(
+            str(tmp_path), "tests/_lint/test_files"
+        ).replace("\\", "/")
         error_output.append(normalized)
 
     snapshot("self_import_pandas_errors.txt", "\n".join(error_output))
@@ -172,7 +174,9 @@ def test_transitive_site_import_snapshot(tmp_path):
         formatted = error.format()
         # Replace temporary path with expected test path for consistent snapshots
         # Normalize path separators to forward slashes for cross-platform compatibility
-        normalized = formatted.replace(str(tmp_path), "tests/_lint/test_files").replace("\\", "/")
+        normalized = formatted.replace(
+            str(tmp_path), "tests/_lint/test_files"
+        ).replace("\\", "/")
         error_output.append(normalized)
 
     snapshot("transitive_site_import_errors.txt", "\n".join(error_output))
@@ -197,7 +201,9 @@ def test_self_import_requests_snapshot(tmp_path):
         formatted = error.format()
         # Replace temporary path with expected test path for consistent snapshots
         # Normalize path separators to forward slashes for cross-platform compatibility
-        normalized = formatted.replace(str(tmp_path), "tests/_lint/test_files").replace("\\", "/")
+        normalized = formatted.replace(
+            str(tmp_path), "tests/_lint/test_files"
+        ).replace("\\", "/")
         error_output.append(normalized)
 
     snapshot("self_import_requests_errors.txt", "\n".join(error_output))
