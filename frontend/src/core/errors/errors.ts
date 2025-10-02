@@ -1,21 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
 import { invariant } from "@/utils/invariant";
+import type { AiCompletionCell } from "../ai/state";
+import { cellDataAtom } from "../cells/cells";
 import type { CellId } from "../cells/ids";
+import { LanguageAdapters } from "../codemirror/language/LanguageAdapters";
+import { dataSourceConnectionsAtom } from "../datasets/data-source-connections";
 import type { MarimoError } from "../kernel/messages";
+import { store } from "../state/jotai";
 import { wrapInFunction } from "./utils";
+
+interface AIFix {
+  setAiCompletionCell: (opts: AiCompletionCell) => void;
+  instantFix: boolean;
+}
 
 export interface AutoFix {
   title: string;
   description: string;
+  fixType: "manual" | "ai";
   onFix: (ctx: {
     addCodeBelow: (code: string) => void;
     editor: EditorView | undefined;
     cellId: CellId;
-    setAiCompletionCell?: (cell: {
-      cellId: CellId;
-      initialPrompt?: string;
-    }) => void;
+    aiFix?: AIFix;
   }) => Promise<void>;
 }
 
@@ -31,6 +39,7 @@ export function getAutoFixes(
         title: "Fix: Wrap in a function",
         description:
           "Make this cell's variables local by wrapping the cell in a function.",
+        fixType: "manual",
         onFix: async (ctx) => {
           invariant(ctx.editor, "Editor is null");
           const code = wrapInFunction(ctx.editor.state.doc.toString());
@@ -59,6 +68,7 @@ export function getAutoFixes(
       {
         title: `Fix: Add '${cellCode}'`,
         description: "Add a new cell for the missing import",
+        fixType: "manual",
         onFix: async (ctx) => {
           ctx.addCodeBelow(cellCode);
         },
@@ -75,10 +85,17 @@ export function getAutoFixes(
       {
         title: "Fix with AI",
         description: "Fix the SQL statement",
+        fixType: "ai",
         onFix: async (ctx) => {
-          ctx.setAiCompletionCell?.({
+          const datasourceContext = getDatasourceContext(ctx.cellId);
+          let initialPrompt = `Fix the SQL statement: ${error.msg}.`;
+          if (datasourceContext) {
+            initialPrompt += `\nUse the following tables and schema to form your query: ${datasourceContext}`;
+          }
+          ctx.aiFix?.setAiCompletionCell({
             cellId: ctx.cellId,
-            initialPrompt: `Fix the SQL statement: ${error.msg}`,
+            initialPrompt: initialPrompt,
+            triggerImmediately: ctx.aiFix.instantFix,
           });
         },
       },
@@ -122,3 +139,16 @@ const IMPORT_MAPPING: Record<string, string> = {
   re: "re",
   sys: "sys",
 };
+
+function getDatasourceContext(cellId: CellId): string | null {
+  const cellData = store.get(cellDataAtom(cellId));
+  const code = cellData?.code;
+  const [_sqlStatement, _, metadata] = LanguageAdapters.sql.transformIn(code);
+  const datasourceSchema = store
+    .get(dataSourceConnectionsAtom)
+    .connectionsMap.get(metadata.engine);
+  if (datasourceSchema) {
+    return `@datasource://${datasourceSchema.name}`;
+  }
+  return null;
+}

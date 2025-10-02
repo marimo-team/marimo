@@ -45,6 +45,7 @@ interface Props {
   declineChange: () => void;
   acceptChange: (rightHandCode: string) => void;
   enabled: boolean;
+  initialTrigger?: boolean;
   /**
    * Children shown when there is no completion
    */
@@ -67,9 +68,13 @@ export const AiCompletionEditor: React.FC<Props> = ({
   declineChange,
   acceptChange,
   enabled,
+  initialTrigger,
   children,
 }) => {
-  const [completionBody, setCompletionBody] = useState<object>({});
+  const [hasTriggered, setHasTriggered] = useState(false);
+  const [completionBody, setCompletionBody] = useState<object>(
+    initialPrompt ? getAICompletionBody({ input: initialPrompt }) : {},
+  );
 
   const [includeOtherCells, setIncludeOtherCells] = useAtom(
     includeOtherCellsAtom,
@@ -139,6 +144,18 @@ export const AiCompletionEditor: React.FC<Props> = ({
       setInput(initialPrompt || "");
     }
   }, [enabled, initialPrompt, setInput]);
+
+  // TODO: Does not work properly
+  if (!hasTriggered && initialTrigger) {
+    setHasTriggered(true);
+    // Use requestAnimationFrame for better timing
+    requestAnimationFrame(() => {
+      if (inputRef.current?.view) {
+        storePrompt(inputRef.current.view);
+      }
+      handleSubmit();
+    });
+  }
 
   const { theme } = useTheme();
 

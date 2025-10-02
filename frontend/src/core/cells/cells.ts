@@ -1615,7 +1615,7 @@ export const columnIdsAtom = atom((get) =>
   get(notebookAtom).cellIds.getColumnIds(),
 );
 
-const cellDataAtom = atomFamily((cellId: CellId) =>
+export const cellDataAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellData[cellId]),
 );
 const cellRuntimeAtom = atomFamily((cellId: CellId) =>

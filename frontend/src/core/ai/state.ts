@@ -13,10 +13,13 @@ const KEY = "marimo:ai:chatState:v5";
 
 export type ChatId = TypedString<"ChatId">;
 
-export const aiCompletionCellAtom = atom<{
+export interface AiCompletionCell {
   cellId: CellId;
   initialPrompt?: string;
-} | null>(null);
+  triggerImmediately?: boolean;
+}
+
+export const aiCompletionCellAtom = atom<AiCompletionCell | null>(null);
 
 const INCLUDE_OTHER_CELLS_KEY = "marimo:ai:includeOtherCells";
 export const includeOtherCellsAtom = atomWithStorage<boolean>(
@@ -86,7 +89,7 @@ export const activeChatAtom = atom(
     }
     return state.chats.get(state.activeChatId);
   },
-  (get, set, chatId: ChatId | null) => {
+  (_get, set, chatId: ChatId | null) => {
     set(chatStateAtom, (prev) => ({
       ...prev,
       activeChatId: chatId,
