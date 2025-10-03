@@ -506,15 +506,15 @@ export const LoadingDataTableComponent = memo(
         !props.lazy &&
         !pageSizeChanged;
 
+      // Convert sorting state to API format
+      const sortArgs =
+        sorting.length > 0
+          ? sorting.map((s) => ({ by: s.id, descending: s.desc }))
+          : undefined;
+
       // If we have sort/search/filter, use the search function
       const searchResultsPromise = search<T>({
-        sort:
-          sorting.length > 0
-            ? sorting.map((column) => ({
-                by: column.id,
-                descending: column.desc,
-              }))
-            : undefined,
+        sort: sortArgs,
         query: searchQuery,
         page_number: paginationState.pageIndex,
         page_size: paginationState.pageSize,
@@ -564,16 +564,15 @@ export const LoadingDataTableComponent = memo(
 
     const getRow = useCallback(
       async (rowId: number) => {
+        const sortArgs =
+          sorting.length > 0
+            ? sorting.map((s) => ({ by: s.id, descending: s.desc }))
+            : undefined;
+
         const result = await search<T>({
           page_number: rowId,
           page_size: 1,
-          sort:
-            sorting.length > 0
-              ? sorting.map((column) => ({
-                  by: column.id,
-                  descending: column.desc,
-                }))
-              : undefined,
+          sort: sortArgs,
           query: searchQuery,
           filters: filters.flatMap((filter) => {
             return filterToFilterCondition(

@@ -193,29 +193,28 @@ export function renderSorts<TData, TValue>(
       }
     };
 
+    const isActiveSort = (desc: boolean) =>
+      sortIndex && currentSort && currentSort.desc === desc;
+
     return (
       <>
         <DropdownMenuItem
           onClick={() => handleSort(false)}
-          className={
-            sortIndex && currentSort && !currentSort.desc ? "bg-accent" : ""
-          }
+          className={isActiveSort(false) ? "bg-accent" : ""}
         >
           <AscIcon className="mo-dropdown-icon" />
           Asc
-          {sortIndex && currentSort && !currentSort.desc && (
+          {isActiveSort(false) && (
             <span className="ml-auto text-xs font-medium">{sortIndex}</span>
           )}
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => handleSort(true)}
-          className={
-            sortIndex && currentSort && currentSort.desc ? "bg-accent" : ""
-          }
+          className={isActiveSort(true) ? "bg-accent" : ""}
         >
           <DescIcon className="mo-dropdown-icon" />
           Desc
-          {sortIndex && currentSort && currentSort.desc && (
+          {isActiveSort(true) && (
             <span className="ml-auto text-xs font-medium">{sortIndex}</span>
           )}
         </DropdownMenuItem>
