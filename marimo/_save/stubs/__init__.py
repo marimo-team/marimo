@@ -42,7 +42,13 @@ def maybe_register_stub(value: Any) -> bool:
         return True
 
     # Walk MRO to find matching base class
-    for cls in value_type.__mro__:
+    try:
+        mro_list = value_type.mro()
+    except BaseException:
+        # Some exotic metaclasses or broken types may raise when calling mro
+        mro_list = [value_type]
+
+    for cls in mro_list:
         if not (hasattr(cls, "__module__") and hasattr(cls, "__name__")):
             continue
 
