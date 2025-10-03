@@ -84,6 +84,7 @@ export const PANELS: PanelDescriptor[] = [
     Icon: DatabaseZapIcon,
     tooltip: "Manage cache",
     position: "sidebar",
+    hidden: !getFeatureFlag("cache_panel"),
   },
   {
     type: "outline",
