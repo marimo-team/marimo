@@ -365,63 +365,46 @@ class DefaultTableManager(TableManager[JsonTableData]):
         if not by:
             return self
 
+        def _make_sort_key(value: Any) -> tuple[bool, Any]:
+            """Create a sort key that puts None values last."""
+            try:
+                return (value is None, value)
+            except TypeError:
+                # Fallback to string comparison for non-comparable types
+                return (value is None, str(value))
+
         if isinstance(self.data, dict) and self.is_column_oriented:
-            # For column-oriented data (dict of lists)
+            # Column-oriented: sort indices, then reorder all columns
             data_dict = cast(dict[str, list[Any]], self.data)
             indices = list(range(len(next(iter(data_dict.values())))))
 
-            # Sort by each column in reverse order for stable multi-column sorting
-            sorted_indices = indices
+            # Apply sorts in reverse order for stable multi-column sorting
             for sort_arg in reversed(by):
-                col = sort_arg.by
-                desc = sort_arg.descending
-                values = data_dict[col]
-                try:
-                    # Try sorting with original values
-                    sorted_indices = sorted(
-                        sorted_indices,
-                        key=lambda i: (values[i] is None, values[i]),
-                        reverse=desc,
-                    )
-                except TypeError:
-                    # Fallback to string comparison for non-comparable types
-                    sorted_indices = sorted(
-                        sorted_indices,
-                        key=lambda i: (values[i] is None, str(values[i])),
-                        reverse=desc,
-                    )
+                values = data_dict[sort_arg.by]
+                indices = sorted(
+                    indices,
+                    key=lambda i: _make_sort_key(values[i]),
+                    reverse=sort_arg.descending,
+                )
 
-            # Apply sorted indices to each column
             return DefaultTableManager(
                 cast(
                     JsonTableData,
                     {
-                        col: [col_values[i] for i in sorted_indices]
+                        col: [col_values[i] for i in indices]
                         for col, col_values in data_dict.items()
                     },
                 )
             )
 
-        # For row-major data, sort by each column in reverse order for stable sorting
+        # Row-oriented: sort rows directly
         data = self._normalize_data(self.data)
-
         for sort_arg in reversed(by):
-            col = sort_arg.by
-            desc = sort_arg.descending
-            try:
-                # Try sorting with original values
-                data = sorted(
-                    data,
-                    key=lambda x: (x[col] is None, x[col]),
-                    reverse=desc,
-                )
-            except TypeError:
-                # Fallback to string comparison for non-comparable types
-                data = sorted(
-                    data,
-                    key=lambda x: (x[col] is None, str(x[col])),
-                    reverse=desc,
-                )
+            data = sorted(
+                data,
+                key=lambda row: _make_sort_key(row[sort_arg.by]),
+                reverse=sort_arg.descending,
+            )
 
         return DefaultTableManager(data)
 
