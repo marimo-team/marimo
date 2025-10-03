@@ -56,6 +56,7 @@ const LazySecretsPanel = React.lazy(() => import("../panels/secrets-panel"));
 const LazySnippetsPanel = React.lazy(() => import("../panels/snippets-panel"));
 const LazyTracingPanel = React.lazy(() => import("../panels/tracing-panel"));
 const LazyVariablePanel = React.lazy(() => import("../panels/variable-panel"));
+const LazyCachePanel = React.lazy(() => import("../panels/cache-panel"));
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isSidebarOpen, isTerminalOpen, selectedPanel } = useChromeState();
@@ -176,6 +177,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "logs" && <LazyLogsPanel />}
             {selectedPanel === "tracing" && <LazyTracingPanel />}
             {selectedPanel === "secrets" && <LazySecretsPanel />}
+            {selectedPanel === "cache" && <LazyCachePanel />}
           </TooltipProvider>
         </Suspense>
       </div>

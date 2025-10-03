@@ -24,6 +24,7 @@ import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useAlertActions } from "../alerts/state";
+import { cacheInfoAtom } from "../cache/requests";
 import type { CellId, UIElementId } from "../cells/ids";
 import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
@@ -87,6 +88,7 @@ export function useMarimoWebSocket(opts: {
   const setKioskMode = useSetAtom(kioskModeAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
+  const setCacheInfo = useSetAtom(cacheInfoAtom);
 
   const handleMessage = (e: MessageEvent<JsonString<OperationMessage>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
@@ -247,6 +249,12 @@ export function useMarimoWebSocket(opts: {
         return;
       case "secret-keys-result":
         SECRETS_REGISTRY.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "cache-info-fetched":
+        setCacheInfo(msg.data);
+        return;
+      case "cache-cleared":
+        // Cache cleared, could refresh cache info if needed
         return;
       case "data-source-connections":
         addDataSourceConnection({

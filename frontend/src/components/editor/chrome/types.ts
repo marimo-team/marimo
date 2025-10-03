@@ -5,6 +5,7 @@ import {
   BotMessageSquareIcon,
   BoxIcon,
   DatabaseIcon,
+  DatabaseZapIcon,
   FileTextIcon,
   FolderTreeIcon,
   FunctionSquareIcon,
@@ -35,6 +36,7 @@ export type PanelType =
   | "scratchpad"
   | "chat"
   | "agents"
+  | "cache"
   | "secrets"
   | "logs";
 
@@ -75,6 +77,12 @@ export const PANELS: PanelDescriptor[] = [
     type: "packages",
     Icon: BoxIcon,
     tooltip: "Manage packages",
+    position: "sidebar",
+  },
+  {
+    type: "cache",
+    Icon: DatabaseZapIcon,
+    tooltip: "Manage cache",
     position: "sidebar",
   },
   {

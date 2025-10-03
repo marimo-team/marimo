@@ -271,6 +271,84 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/cache/clear": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ClearCacheRequest"];
+        };
+      };
+      responses: {
+        /** @description Clear all caches */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/cache/info": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["GetCacheInfoRequest"];
+        };
+      };
+      responses: {
+        /** @description Get cache statistics */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/datasources/preview_column": {
     parameters: {
       query?: never;
@@ -2869,6 +2947,28 @@ export interface components {
       region_name?: string;
     };
     /**
+     * CacheCleared
+     * @description Result of clearing cache.
+     */
+    CacheCleared: {
+      bytes_freed: number;
+      /** @enum {unknown} */
+      op: "cache-cleared";
+    };
+    /**
+     * CacheInfoFetched
+     * @description Cache statistics information.
+     */
+    CacheInfoFetched: {
+      disk_to_free: number;
+      disk_total: number;
+      hits: number;
+      misses: number;
+      /** @enum {unknown} */
+      op: "cache-info-fetched";
+      time: number;
+    };
+    /**
      * CellChannel
      * @description The channel of a cell's output.
      * @enum {unknown}
@@ -3014,6 +3114,8 @@ export interface components {
       /** @default null */
       variables?: (string | components["schemas"]["VariableContext"])[] | null;
     };
+    /** ClearCacheRequest */
+    ClearCacheRequest: Record<string, any>;
     /** CodeCompletionRequest */
     CodeCompletionRequest: {
       cellId: string;
@@ -3550,6 +3652,8 @@ export interface components {
       return_value: unknown;
       status: components["schemas"]["HumanReadableStatus"];
     };
+    /** GetCacheInfoRequest */
+    GetCacheInfoRequest: Record<string, any>;
     /**
      * GitHubConfig
      * @description Configuration options for GitHub.
@@ -3775,6 +3879,8 @@ export interface components {
         | components["schemas"]["DataSourceConnections"]
         | components["schemas"]["ValidateSQLResult"]
         | components["schemas"]["SecretKeysResult"]
+        | components["schemas"]["CacheCleared"]
+        | components["schemas"]["CacheInfoFetched"]
         | components["schemas"]["FocusCell"]
         | components["schemas"]["UpdateCellCodes"]
         | components["schemas"]["UpdateCellIdsRequest"];
