@@ -63,12 +63,29 @@ const CachePanel = () => {
     return <Spinner size="medium" centered={true} />;
   }
 
+  const refreshButton = (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleRefresh}
+      disabled={refreshing}
+    >
+      {refreshing ? (
+        <Spinner size="small" className="w-4 h-4 mr-2" />
+      ) : (
+        <RefreshCwIcon className="w-4 h-4 mr-2" />
+      )}
+      Refresh
+    </Button>
+  );
+
   if (!cacheInfo) {
     return (
       <PanelEmptyState
         title="No cache data"
         description="Cache information is not available."
         icon={<DatabaseIcon />}
+        action={refreshButton}
       />
     );
   }
@@ -125,21 +142,7 @@ const CachePanel = () => {
         title="No cache activity"
         description="The cache has not been used yet. Cached functions will appear here once they are executed."
         icon={<DatabaseIcon />}
-        action={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
-            {refreshing ? (
-              <Spinner size="small" className="w-4 h-4 mr-2" />
-            ) : (
-              <RefreshCwIcon className="w-4 h-4 mr-2" />
-            )}
-            Refresh
-          </Button>
-        }
+        action={refreshButton}
       />
     );
   }
