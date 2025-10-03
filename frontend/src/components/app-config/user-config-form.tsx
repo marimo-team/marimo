@@ -559,6 +559,35 @@ export const UserConfigForm: React.FC = () => {
               />
             </SettingGroup>
 
+            <SettingGroup title="Diagnostics">
+              <FormField
+                control={form.control}
+                name="diagnostics.sql_linter"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>SQL Linter</FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="sql-linter-checkbox"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="diagnostics.sql_linter"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      Enable custom SQL linting for SQL cells.
+                    </FormDescription>
+                  </div>
+                )}
+              />
+            </SettingGroup>
+
             <SettingGroup title="Keymap">
               <FormField
                 control={form.control}
@@ -1277,31 +1306,6 @@ export const UserConfigForm: React.FC = () => {
                   <FormDescription>
                     Enable experimental table charts which are computed on the
                     backend.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="experimental.sql_linter"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">SQL Linter</FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="sql-linter-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <IsOverridden
-                    userConfig={config}
-                    name="experimental.sql_linter"
-                  />
-                  <FormDescription>
-                    Enable experimental SQL linting and autocompletion.
                   </FormDescription>
                 </div>
               )}

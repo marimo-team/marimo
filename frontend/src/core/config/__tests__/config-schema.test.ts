@@ -57,6 +57,7 @@ test("default UserConfig - empty", () => {
         "activate_on_typing": true,
         "copilot": false,
       },
+      "diagnostics": {},
       "display": {
         "cell_output": "above",
         "code_editor_font_size": 14,
@@ -123,6 +124,7 @@ test("default UserConfig - one level", () => {
         "activate_on_typing": true,
         "copilot": false,
       },
+      "diagnostics": {},
       "display": {
         "cell_output": "above",
         "code_editor_font_size": 14,
@@ -172,6 +174,7 @@ test("default UserConfig - one level", () => {
       runtime: {},
       display: {},
       experimental: {},
+      diagnostics: {},
     }),
   ).toEqual(UserConfigSchema.parse({}));
 });

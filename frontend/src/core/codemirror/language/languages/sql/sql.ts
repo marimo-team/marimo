@@ -19,6 +19,7 @@ import {
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import dedent from "string-dedent";
 import { cellIdState } from "@/core/codemirror/cells/state";
+import { isSqlLinterEnabled } from "@/core/config/config";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   dataSourceConnectionsAtom,
@@ -82,7 +83,7 @@ export class SQLLanguageAdapter
 
   constructor() {
     try {
-      this.sqlLinterEnabled = getFeatureFlag("sql_linter");
+      this.sqlLinterEnabled = isSqlLinterEnabled();
       this.sqlModeEnabled = getFeatureFlag("sql_mode");
     } catch {
       this.sqlLinterEnabled = false;
