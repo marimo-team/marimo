@@ -513,7 +513,6 @@ class ExperimentalConfig(TypedDict, total=False):
     rtc_v2: bool
     performant_table_charts: bool
     chat_modes: bool
-    sql_mode: bool
 
     # Internal features
     cache: CacheConfig

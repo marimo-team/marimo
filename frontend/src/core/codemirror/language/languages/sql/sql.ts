@@ -88,6 +88,7 @@ export class SQLLanguageAdapter
   sqlModeEnabled: boolean;
 
   constructor() {
+    this.sqlModeEnabled = true;
     try {
       this.sqlModeEnabled = getFeatureFlag("sql_mode");
     } catch {

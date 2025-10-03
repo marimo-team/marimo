@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { normalizeName } from "@/core/cells/names";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
 import { formatSQL } from "../../format";
@@ -71,8 +70,6 @@ export const LanguagePanelComponent: React.FC<{
       updateSQLDialectFromConnection(view, engine);
     };
 
-    const sqlModeEnabled = getFeatureFlag("sql_mode");
-
     actions = (
       <div className="flex flex-1 gap-2 items-center">
         <label className="flex gap-2 items-center">
@@ -98,9 +95,7 @@ export const LanguagePanelComponent: React.FC<{
           onChange={switchEngine}
         />
         <div className="flex items-center gap-2 ml-auto">
-          {sqlModeEnabled && metadata.engine === DUCKDB_ENGINE && (
-            <SQLModeSelect />
-          )}
+          {metadata.engine === DUCKDB_ENGINE && <SQLModeSelect />}
           <Tooltip content="Format SQL">
             <Button
               variant="text"

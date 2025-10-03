@@ -12,7 +12,6 @@ export interface ExperimentalFeatures {
   performant_table_charts: boolean;
   chat_modes: boolean;
   external_agents: boolean;
-  sql_mode: boolean;
   // Add new feature flags here
 }
 
@@ -23,7 +22,6 @@ const defaultValues: ExperimentalFeatures = {
   performant_table_charts: false,
   chat_modes: false,
   external_agents: import.meta.env.DEV,
-  sql_mode: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
