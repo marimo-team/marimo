@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi } from "vitest";
+
 import type { SortingState } from "@tanstack/react-table";
+import { describe, expect, it, vi } from "vitest";
 
 describe("multi-column sorting logic", () => {
   // Extract the core sorting logic to test in isolation
