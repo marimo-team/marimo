@@ -94,10 +94,6 @@ export function isAiEnabled(config: UserConfig) {
   );
 }
 
-export function isSqlLinterEnabled() {
-  return getResolvedMarimoConfig().diagnostics?.sql_linter ?? false;
-}
-
 /**
  * Atom for storing the app config.
  */
