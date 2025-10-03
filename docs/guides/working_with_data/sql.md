@@ -359,6 +359,44 @@ df = catalog.load_table(("my-namespace", "my-table")).to_polars()
 SUMMARIZE df;
 ```
 
+## Utilities
+
+marimo provides a few utilities when working with SQL
+
+**SQL Linter**
+
+Lint your SQL code and provide better autocompletions and error highlighting.
+
+<div align="center">
+  <figure>
+    <img width="600" src="/_static/docs-sql-linter.webp"/>
+  </figure>
+</div>
+
+To disable the linter, you can set the `sql_linter` configuration to `false` in your `pyproject.toml` file or disable it in the marimo editor's settings menu.
+
+**SQL Formatting**
+
+Click on the paint roller icon at the bottom right of the SQL cell to format your SQL code.
+
+<div align="center">
+  <figure>
+    <img width="300" src="/_static/docs-sql-format-icon.webp"/>
+  </figure>
+</div>
+
+**SQL Mode**
+
+For In-Memory DuckDB, marimo offers a Validate mode that will validate your SQL as you write it.
+
+<figure>
+<video autoplay muted loop playsinline width="600px" align="center">
+    <source src="/_static/docs-sql-validate-mode.mp4" type="video/mp4">
+</video>
+</figure>
+
+Under the hood, this runs a debounced query in EXPLAIN mode and returns the parsed errors.
+
 ## Interactive tutorial
 
 For an interactive tutorial, run

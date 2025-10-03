@@ -158,6 +158,8 @@ nav:
           - Self-host WASM: guides/publishing/self_host_wasm.md
           - View outputs on GitHub: guides/publishing/view_outputs_on_github.md
           - Deploy a backend: guides/publishing/deploy.md
+          - MkDocs: guides/publishing/mkdocs.md
+          - Quarto: guides/publishing/quarto.md
       - Deployment:
           - Deploy notebooks: guides/deploying/index.md
           - Authentication: guides/deploying/authentication.md
@@ -171,6 +173,7 @@ nav:
           - Programmatic: guides/deploying/programmatically.md
           - Scheduled jobs: guides/deploying/scheduled.md
       - WebAssembly notebooks: guides/wasm.md
+      - Islands example: guides/island_example.md
       - Configuration:
           - Configuration: guides/configuration/index.md
           - Runtime configuration: guides/configuration/runtime_configuration.md
@@ -194,6 +197,34 @@ nav:
   - Examples:
       - Examples: examples/index.md
       - Recipes: recipes.md
+      - Running cells:
+          - Basic execution: examples/running_cells/basics.md
+          - Multiple definitions: examples/running_cells/multiple_definitions.md
+          - Stop cells: examples/running_cells/stop.md
+          - Run button: examples/running_cells/run_button.md
+          - Refresh timer: examples/running_cells/refresh.md
+          - Async/await: examples/running_cells/async_await.md
+          - Memory cache: examples/running_cells/memory_cache.md
+          - Persistent cache: examples/running_cells/persistent_cache.md
+          - Debugging: examples/running_cells/debugging.md
+      - Visual Outputs:
+          - Basic output: examples/outputs/basic_output.md
+          - Basic markdown: examples/outputs/basic_markdown.md
+          - Console outputs: examples/outputs/console_outputs.md
+          - Capture console: examples/outputs/capture_console_outputs.md
+          - Conditional output: examples/outputs/conditional_output.md
+          - DataFrames: examples/outputs/dataframes.md
+          - Multiple outputs: examples/outputs/multiple_outputs.md
+          - Plots: examples/outputs/plots.md
+          - Progress bar: examples/outputs/progress_bar.md
+          - Spinner: examples/outputs/spinner.md
+          - Stacks: examples/outputs/stacks.md
+      - Markdown:
+          - Dynamic markdown: examples/markdown/dynamic_markdown.md
+          - Mermaid diagrams: examples/markdown/mermaid.md
+          - Admonitions: examples/markdown/admonitions.md
+          - Details: examples/markdown/details.md
+          - Emoji: examples/markdown/emoji.md
   - API Reference:
       - API Reference: api/index.md
       - Markdown: api/markdown.md
@@ -387,3 +418,4 @@ theme:
 
 exclude_docs: |
   apps/README.md
+  _static/CLAUDE.md
