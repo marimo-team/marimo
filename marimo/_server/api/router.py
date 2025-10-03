@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from marimo._server.api.endpoints.ai import router as ai_router
 from marimo._server.api.endpoints.assets import router as assets_router
+from marimo._server.api.endpoints.cache import router as cache_router
 from marimo._server.api.endpoints.config import router as config_router
 from marimo._server.api.endpoints.datasources import (
     router as datasources_router,
@@ -53,6 +54,7 @@ def build_routes(base_url: str = "") -> list[BaseRoute]:
     app_router.include_router(
         secrets_router, prefix="/api/secrets", name="secrets"
     )
+    app_router.include_router(cache_router, prefix="/api/cache", name="cache")
     app_router.include_router(
         documentation_router, prefix="/api/documentation", name="documentation"
     )

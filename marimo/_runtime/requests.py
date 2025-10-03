@@ -377,6 +377,14 @@ class RefreshSecretsRequest(msgspec.Struct, rename="camel"):
     pass
 
 
+class ClearCacheRequest(msgspec.Struct, rename="camel"):
+    pass
+
+
+class GetCacheInfoRequest(msgspec.Struct, rename="camel"):
+    pass
+
+
 # IMPORTANT: This is NOT a discriminated union. In WASM/Pyodide, we parse requests
 # by trying each type in order until one succeeds (see PyodideBridge.put_control_request).
 # The order matters because some types have overlapping structures when parsed with
@@ -421,5 +429,7 @@ ControlRequest = Union[
     # Requests with no fields (will match any empty object)
     StopRequest,
     RefreshSecretsRequest,
+    ClearCacheRequest,
+    GetCacheInfoRequest,
     ExecuteStaleRequest,  # only comes from backend set low priority
 ]

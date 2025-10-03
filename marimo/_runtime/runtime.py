@@ -54,6 +54,8 @@ from marimo._messaging.errors import (
     UnknownError,
 )
 from marimo._messaging.ops import (
+    CacheCleared,
+    CacheInfoFetched,
     CellOp,
     CompletedRun,
     DataColumnPreview,
@@ -127,6 +129,7 @@ from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher
 from marimo._runtime.requests import (
     AppMetadata,
+    ClearCacheRequest,
     CodeCompletionRequest,
     ControlRequest,
     CreationRequest,
@@ -136,6 +139,7 @@ from marimo._runtime.requests import (
     ExecuteStaleRequest,
     ExecutionRequest,
     FunctionCallRequest,
+    GetCacheInfoRequest,
     InstallMissingPackagesRequest,
     ListSecretKeysRequest,
     PdbRequest,
@@ -532,6 +536,7 @@ class Kernel:
         self.datasets_callbacks = DatasetCallbacks(self)
         self.packages_callbacks = PackagesCallbacks(self)
         self.sql_callbacks = SqlCallbacks(self)
+        self.cache_callbacks = CacheCallbacks(self)
 
         # Apply pythonpath from config at initialization
         pythonpath = user_config["runtime"].get("pythonpath")
@@ -2238,6 +2243,11 @@ class Kernel:
         handler.register(
             RefreshSecretsRequest, self.secrets_callbacks.refresh_secrets
         )
+        # Cache
+        handler.register(ClearCacheRequest, self.cache_callbacks.clear_cache)
+        handler.register(
+            GetCacheInfoRequest, self.cache_callbacks.get_cache_info
+        )
 
         return handler
 
@@ -2856,6 +2866,51 @@ class PackagesCallbacks:
             )
         except Exception as e:
             LOGGER.error("Failed to add script metadata to notebook: %s", e)
+
+
+class CacheCallbacks:
+    def __init__(self, kernel: Kernel):
+        self._kernel = kernel
+
+    async def clear_cache(self, request: ClearCacheRequest) -> None:
+        del request
+        from marimo._save.cache import CacheContext
+        from marimo._save.loaders import BasePersistenceLoader
+
+        ctx = get_context()
+        saved = 0
+        for obj in ctx.globals.values():
+            if isinstance(obj, CacheContext):
+                if isinstance(obj.loader, BasePersistenceLoader):
+                    obj.loader.clear()
+
+        CacheCleared(bytes_freed=saved).broadcast()
+
+    async def get_cache_info(self, request: GetCacheInfoRequest) -> None:
+        del request
+        from marimo._save.cache import CacheContext
+
+        ctx = get_context()
+        total_hits = 0
+        total_misses = 0
+        total_time = 0
+        disk_to_free = -1  # TODO: sum up disk usage
+        disk_total = -1
+
+        for obj in ctx.globals.values():
+            if isinstance(obj, CacheContext):
+                hits, misses, _, _, time = obj.cache_info()
+                total_hits += hits
+                total_misses += misses
+                total_time += time
+                # d2f, dt = obj.loader.disk_usage()
+        CacheInfoFetched(
+            hits=total_hits,
+            misses=total_misses,
+            time=total_time,
+            disk_to_free=disk_to_free,
+            disk_total=disk_total,
+        ).broadcast()
 
 
 class RequestHandler:
