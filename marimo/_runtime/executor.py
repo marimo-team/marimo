@@ -48,6 +48,11 @@ def get_executor(
     if config.is_strict:
         base = StrictExecutor(base)
 
+    if config.is_lazy:
+        from marimo._runtime.lazy_executor import CachedExecutor
+
+        base = CachedExecutor(base)
+
     for executor in executors:
         base = executor(base)
     return base
@@ -58,6 +63,7 @@ class ExecutionConfig:
     """Configuration for cell execution."""
 
     is_strict: bool = False
+    is_lazy: bool = False
 
 
 def _raise_name_error(

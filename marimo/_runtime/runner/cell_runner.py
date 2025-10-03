@@ -107,7 +107,10 @@ class Runner:
         self.debugger = debugger
         self.excluded_cells = excluded_cells or set()
         self._executor = get_executor(
-            ExecutionConfig(is_strict=execution_type == "strict")
+            ExecutionConfig(
+                is_strict=execution_type == "strict",
+                is_lazy=execution_type == "cached",
+            )
         )
         # injected context and hooks
         self.execution_context = execution_context
