@@ -8,6 +8,12 @@ import { PostgreSQL } from "@codemirror/lang-sql";
 import { EditorState, type Extension } from "@codemirror/state";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { CellId } from "@/core/cells/ids";
+import type {
+  CompletionConfig,
+  DiagnosticsConfig,
+  LSPConfig,
+} from "@/core/config/config-schema";
 import type { DataSourceConnection } from "@/core/datasets/data-source-connections";
 import {
   dataSourceConnectionsAtom,
@@ -16,7 +22,9 @@ import {
 import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
+import type { PlaceholderType } from "../../config/types";
 import { TestSQLCompletionStore } from "../languages/sql/completion-store";
 import {
   SQLLanguageAdapter,
@@ -27,6 +35,16 @@ import { languageMetadataField } from "../metadata";
 const adapter = new SQLLanguageAdapter();
 
 const TEST_ENGINE = "test_engine" as ConnectionName;
+
+const TEST_EXTENSION_ARGS = [
+  {} as CellId,
+  {} as CompletionConfig,
+  {} as HotkeyProvider,
+  {} as PlaceholderType,
+  {} as LSPConfig & {
+    diagnostics: DiagnosticsConfig;
+  },
+] as const;
 
 describe("SQLLanguageAdapter", () => {
   describe("defaultMetadata", () => {
@@ -1716,7 +1734,7 @@ describe("tablesCompletionSource", () => {
           const ctx = createCompletionContext(state, 14);
 
           const adapter = new SQLLanguageAdapter();
-          const extensions = adapter.getExtension();
+          const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
           const completion = getCompletion(extensions);
 
           expect(completion).toBeDefined();
@@ -1779,7 +1797,7 @@ describe("tablesCompletionSource", () => {
           const ctx = createCompletionContext(state, 15, "u", 14);
 
           const adapter = new SQLLanguageAdapter();
-          const extensions = adapter.getExtension();
+          const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
           const completion = getCompletion(extensions);
 
           expect(completion).toBeDefined();
@@ -1810,7 +1828,7 @@ describe("tablesCompletionSource", () => {
           const ctx = createCompletionContext(state, 15, "d", 14);
 
           const adapter = new SQLLanguageAdapter();
-          const extensions = adapter.getExtension();
+          const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
           const completion = getCompletion(extensions);
 
           expect(completion).toBeDefined();
@@ -1843,7 +1861,7 @@ describe("tablesCompletionSource", () => {
           const ctx = createCompletionContext(state, 3, "SEL", 0);
 
           const adapter = new SQLLanguageAdapter();
-          const extensions = adapter.getExtension();
+          const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
           const completion = getCompletion(extensions);
 
           expect(completion).toBeDefined();
@@ -1874,7 +1892,7 @@ describe("tablesCompletionSource", () => {
           const ctx = createCompletionContext(state, 14, ".n", 12);
 
           const adapter = new SQLLanguageAdapter();
-          const extensions = adapter.getExtension();
+          const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
           const completion = getCompletion(extensions);
 
           expect(completion).toBeDefined();
@@ -1906,7 +1924,7 @@ describe("tablesCompletionSource", () => {
       describe("variableCompletionSource", () => {
         it("should be included in extension overrides", () => {
           const adapter = new SQLLanguageAdapter();
-          const extensions = adapter.getExtension();
+          const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
           const completion = getCompletion(extensions);
 
           expect(completion).toBeDefined();
