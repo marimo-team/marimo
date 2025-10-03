@@ -179,7 +179,8 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
             result = await self.__call__(args)
             # Ensure JSON-serializable output for MCP
             if is_dataclass(result):
-                return cast(OutT, asdict(result))
+                # Some MCP clients expect dicts only
+                return cast(OutT, asdict(result))  # type: ignore[arg-type]
             return result
 
         # name/doc metadata (guard for None types)
