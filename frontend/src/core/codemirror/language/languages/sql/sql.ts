@@ -256,7 +256,7 @@ export class SQLLanguageAdapter
       }),
     ];
 
-    const sqlLinterEnabled = lspConfig.diagnostics?.sql_linter ?? false;
+    const sqlLinterEnabled = lspConfig?.diagnostics?.sql_linter ?? false;
 
     if (sqlLinterEnabled) {
       const theme = store.get(resolvedThemeAtom);
