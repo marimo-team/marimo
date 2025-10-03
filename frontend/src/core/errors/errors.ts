@@ -1,21 +1,26 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
 import { invariant } from "@/utils/invariant";
+import { getDatasourceContext } from "../ai/context/providers/datasource";
+import type { AiCompletionCell } from "../ai/state";
 import type { CellId } from "../cells/ids";
 import type { MarimoError } from "../kernel/messages";
 import { wrapInFunction } from "./utils";
 
+interface AIFix {
+  setAiCompletionCell: (opts: AiCompletionCell) => void;
+  triggerFix: boolean;
+}
+
 export interface AutoFix {
   title: string;
   description: string;
+  fixType: "manual" | "ai";
   onFix: (ctx: {
     addCodeBelow: (code: string) => void;
     editor: EditorView | undefined;
     cellId: CellId;
-    setAiCompletionCell?: (cell: {
-      cellId: CellId;
-      initialPrompt?: string;
-    }) => void;
+    aiFix?: AIFix;
   }) => Promise<void>;
 }
 
@@ -31,6 +36,7 @@ export function getAutoFixes(
         title: "Fix: Wrap in a function",
         description:
           "Make this cell's variables local by wrapping the cell in a function.",
+        fixType: "manual",
         onFix: async (ctx) => {
           invariant(ctx.editor, "Editor is null");
           const code = wrapInFunction(ctx.editor.state.doc.toString());
@@ -59,6 +65,7 @@ export function getAutoFixes(
       {
         title: `Fix: Add '${cellCode}'`,
         description: "Add a new cell for the missing import",
+        fixType: "manual",
         onFix: async (ctx) => {
           ctx.addCodeBelow(cellCode);
         },
@@ -75,10 +82,17 @@ export function getAutoFixes(
       {
         title: "Fix with AI",
         description: "Fix the SQL statement",
+        fixType: "ai",
         onFix: async (ctx) => {
-          ctx.setAiCompletionCell?.({
+          const datasourceContext = getDatasourceContext(ctx.cellId);
+          let initialPrompt = `Fix the SQL statement: ${error.msg}.`;
+          if (datasourceContext) {
+            initialPrompt += `\nDatabase schema: ${datasourceContext}`;
+          }
+          ctx.aiFix?.setAiCompletionCell({
             cellId: ctx.cellId,
-            initialPrompt: `Fix the SQL statement: ${error.msg}`,
+            initialPrompt: initialPrompt,
+            triggerImmediately: ctx.aiFix.triggerFix,
           });
         },
       },

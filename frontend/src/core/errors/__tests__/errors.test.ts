@@ -57,6 +57,7 @@ describe("getAutoFixes", () => {
     expect(fixes).toHaveLength(1);
     expect(fixes[0].title).toBe("Fix with AI");
 
+    // No fixes without AI
     expect(getAutoFixes(error, { aiEnabled: false })).toHaveLength(0);
   });
 
