@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { beforeEach, describe, expect, it } from "vitest";
+import type { CellId } from "@/core/cells/ids";
 import type {
   ConnectionsMap,
   DatasetTablesMap,
@@ -9,7 +10,7 @@ import type {
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import type { DataSourceConnection, DataTable } from "@/core/kernel/messages";
 import { Boosts, Sections } from "../common";
-import { DatasourceContextProvider } from "../datasource";
+import { DatasourceContextProvider, getDatasourceContext } from "../datasource";
 
 // Mock data for testing
 const createMockDataSourceConnection = (
@@ -628,5 +629,12 @@ describe("DatasourceContextProvider", () => {
       expect(context).toContain('"dialect":"duckdb"');
       expect(context).not.toContain('"source":"duckdb"');
     });
+  });
+});
+
+describe("getDatasourceContext", () => {
+  it("should return null if no cell ID is found", () => {
+    const context = getDatasourceContext("1" as CellId);
+    expect(context).toBeNull();
   });
 });
