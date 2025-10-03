@@ -149,6 +149,7 @@ def print_experimental_features(config: MarimoConfig) -> None:
         "setup_cell",
         "mcp_docs",
         "sql_linter",
+        "sql_mode",
     }
     keys = keys - finished_experiments
 
