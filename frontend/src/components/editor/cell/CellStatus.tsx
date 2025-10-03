@@ -4,6 +4,7 @@ import {
   MoreHorizontalIcon,
   RefreshCwIcon,
   WorkflowIcon,
+  ZapIcon,
 } from "lucide-react";
 import { useDateFormatter } from "react-aria";
 import { MultiIcon } from "@/components/icons/multi-icon";
@@ -19,7 +20,11 @@ import { Time } from "@/utils/time";
 export interface CellStatusComponentProps
   extends Pick<
     CellRuntimeState,
-    "status" | "runStartTimestamp" | "interrupted" | "lastRunStartTimestamp"
+    | "status"
+    | "runStartTimestamp"
+    | "interrupted"
+    | "lastRunStartTimestamp"
+    | "cache"
   > {
   editing: boolean;
   edited: boolean;
@@ -40,6 +45,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   runStartTimestamp,
   lastRunStartTimestamp,
   uninstantiated,
+  cache,
 }) => {
   if (!editing) {
     return null;
@@ -270,6 +276,20 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
     );
   }
 
+  // finished and cached
+  if (status === "idle" && cache === "hit") {
+    return (
+      <Tooltip content="This cell was retrieved from cache">
+        <div className="cell-status-icon cell-status-cached">
+          <ZapIcon
+            className="h-6 w-6 text-(--grass-11) bg-(--grass-2) border border-(--grass-6) rounded-full p-[1px]"
+            strokeWidth={1.5}
+          />
+        </div>
+      </Tooltip>
+    );
+  }
+
   // either running or finished
   if (elapsedTime !== null) {
     const elapsedTimeStr = formatElapsedTime(elapsedTime);
@@ -287,12 +307,21 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
         }
         usePortal={true}
       >
-        <div
-          className={"cell-status-icon elapsed-time hover-action"}
-          data-testid="cell-status"
-          data-status="idle"
-        >
-          <span>{elapsedTimeStr}</span>
+        <div className="flex flex-row gap-1 hover-action">
+          <div
+            className={"cell-status-icon elapsed-time hover-action"}
+            data-testid="cell-status"
+            data-status="idle"
+          >
+            <span>{elapsedTimeStr}</span>
+          </div>
+          {cache === "cached" ? (
+            <Tooltip content="This cell was cached after running">
+              <div className="cell-status-icon cell-status-cached">
+                <ZapIcon className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+            </Tooltip>
+          ) : null}
         </div>
       </Tooltip>
     );

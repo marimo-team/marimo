@@ -74,6 +74,7 @@ export function transitionCell(
   nextCell.staleInputs = message.stale_inputs ?? nextCell.staleInputs;
   nextCell.status = message.status ?? nextCell.status;
   nextCell.serialization = message.serialization;
+  nextCell.cache = message.cache ?? nextCell.cache;
 
   let didInterruptFromThisMessage = false;
 

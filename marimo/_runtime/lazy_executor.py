@@ -5,6 +5,7 @@ import traceback
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
+from marimo._messaging.ops import CellOp
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.executor import Executor
@@ -104,10 +105,13 @@ class CachedExecutor(Executor):
         loader = LazyLoader(name=cell.cell_id)
         attempt = process(cell, glbls, graph, loader)
         if attempt.hit:
+            CellOp.broadcast_cache(cell_id=cell.cell_id, cache="hit")
             return attempt.meta.get("return")
         hydrate(cell.refs, glbls, graph, loader)
         result = self.base.execute_cell(cell, glbls, graph)
-        return backfill(cell, glbls, result, attempt, loader)
+        backfilled_result = backfill(cell, glbls, result, attempt, loader)
+        CellOp.broadcast_cache(cell_id=cell.cell_id, cache="cached")
+        return backfilled_result
 
     async def execute_cell_async(
         self,
@@ -119,7 +123,10 @@ class CachedExecutor(Executor):
         loader = LazyLoader(name=cell.cell_id)
         attempt = process(cell, glbls, graph, loader)
         if attempt.hit:
+            CellOp.broadcast_cache(cell_id=cell.cell_id, cache="hit")
             return attempt.meta.get("return")
         hydrate(cell.refs, glbls, graph, loader)
         result = await self.base.execute_cell_async(cell, glbls, graph)
-        return backfill(cell, glbls, result, attempt, loader)
+        backfilled_result = backfill(cell, glbls, result, attempt, loader)
+        CellOp.broadcast_cache(cell_id=cell.cell_id, cache="cached")
+        return backfilled_result

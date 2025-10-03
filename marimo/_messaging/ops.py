@@ -123,6 +123,7 @@ class CellOp(Op, tag="cell-op"):
     stale_inputs  - whether the cell has stale inputs (variables, modules, ...)
     run_id        - the run associated with this cell.
     serialization - the serialization status of the cell
+    cache         - the cache status of the cell ("hit", "cached", or None)
 
     Omitting a field means that its value should be unchanged!
 
@@ -139,6 +140,7 @@ class CellOp(Op, tag="cell-op"):
     stale_inputs: Optional[bool] = None
     run_id: Optional[RunId_t] = None
     serialization: Optional[str] = None
+    cache: Optional[Literal["hit", "cached"]] = None
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
@@ -328,6 +330,21 @@ class CellOp(Op, tag="cell-op"):
     ) -> None:
         status: Optional[TopLevelHints] = serialization.hint
         CellOp(cell_id=cell_id, serialization=str(status)).broadcast(stream)
+
+    @staticmethod
+    def broadcast_cache(
+        cell_id: CellId_t,
+        cache: Literal["hit", "cached"],
+        stream: Stream | None = None,
+    ) -> None:
+        """Broadcast cache status for a cell.
+
+        Args:
+            cell_id: The cell ID
+            cache: Cache status - "hit" if retrieved from cache, "cached" if saved to cache
+            stream: Optional stream to broadcast on
+        """
+        CellOp(cell_id=cell_id, cache=cache).broadcast(stream)
 
 
 class HumanReadableStatus(msgspec.Struct):
