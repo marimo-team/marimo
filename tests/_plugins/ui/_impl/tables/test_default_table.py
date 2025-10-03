@@ -10,9 +10,8 @@ from typing import Any
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.table import SortArgs
 from marimo._output.hypertext import Html
-from marimo._plugins.ui._impl.table import _validate_header_tooltip
+from marimo._plugins.ui._impl.table import SortArgs, _validate_header_tooltip
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
@@ -109,7 +108,9 @@ class TestDefaultTable(unittest.TestCase):
         assert limited_manager.data == []
 
     def test_sort(self) -> None:
-        sorted_data = self.manager.sort_values([SortArgs(by="name", descending=True)]).data
+        sorted_data = self.manager.sort_values(
+            [SortArgs(by="name", descending=True)]
+        ).data
         expected_data = [
             {"name": "Eve", "age": 22, "birth_year": date(2002, 1, 30)},
             {"name": "Dave", "age": 28, "birth_year": date(1996, 3, 5)},
@@ -119,7 +120,9 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert sorted_data == expected_data
         # reverse sort
-        sorted_data = self.manager.sort_values([SortArgs(by="name", descending=False)]).data
+        sorted_data = self.manager.sort_values(
+            [SortArgs(by="name", descending=False)]
+        ).data
         expected_data = [
             {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
             {"name": "Bob", "age": 25, "birth_year": date(1999, 7, 14)},
@@ -133,7 +136,9 @@ class TestDefaultTable(unittest.TestCase):
         data_with_nan = self.data.copy()
         data_with_nan[1]["age"] = None
         manager_with_nan = DefaultTableManager(data_with_nan)
-        sorted_data = manager_with_nan.sort_values([SortArgs(by="age", descending=False)]).data
+        sorted_data = manager_with_nan.sort_values(
+            [SortArgs(by="age", descending=False)]
+        ).data
         last_row = sorted_data[-1]
 
         expected_last_row = {
@@ -146,7 +151,9 @@ class TestDefaultTable(unittest.TestCase):
         assert last_row == expected_last_row
 
         # descending
-        sorted_data = manager_with_nan.sort_values([SortArgs(by="age", descending=False)]).data
+        sorted_data = manager_with_nan.sort_values(
+            [SortArgs(by="age", descending=False)]
+        ).data
         last_row = sorted_data[-1]
         assert last_row == expected_last_row
 
@@ -167,17 +174,23 @@ class TestDefaultTable(unittest.TestCase):
 
     def test_sort_single_values(self) -> None:
         manager = DefaultTableManager([1, 3, 2])
-        sorted_data = manager.sort_values([SortArgs(by="value", descending=True)]).data
+        sorted_data = manager.sort_values(
+            [SortArgs(by="value", descending=True)]
+        ).data
         expected_data = [{"value": 3}, {"value": 2}, {"value": 1}]
         assert sorted_data == expected_data
         # reverse sort
-        sorted_data = manager.sort_values([SortArgs(by="value", descending=False)]).data
+        sorted_data = manager.sort_values(
+            [SortArgs(by="value", descending=False)]
+        ).data
         expected_data = [{"value": 1}, {"value": 2}, {"value": 3}]
         assert sorted_data == expected_data
 
     def test_mixed_values(self) -> None:
         manager = DefaultTableManager([1, "foo", 2, False])
-        sorted_data = manager.sort_values([SortArgs(by="value", descending=True)]).data
+        sorted_data = manager.sort_values(
+            [SortArgs(by="value", descending=True)]
+        ).data
         expected_data = [
             {"value": "foo"},
             {"value": False},
@@ -186,7 +199,9 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert sorted_data == expected_data
         # reverse sort
-        sorted_data = manager.sort_values([SortArgs(by="value", descending=False)]).data
+        sorted_data = manager.sort_values(
+            [SortArgs(by="value", descending=False)]
+        ).data
         expected_data = [
             {"value": 1},
             {"value": 2},
@@ -559,7 +574,9 @@ class TestColumnarDefaultTable(unittest.TestCase):
         assert limited_manager.data["name"] == []
 
     def test_sort(self) -> None:
-        sorted_data = self.manager.sort_values([SortArgs(by="name", descending=True)]).data
+        sorted_data = self.manager.sort_values(
+            [SortArgs(by="name", descending=True)]
+        ).data
         expected_data = {
             "name": ["Eve", "Dave", "Charlie", "Bob", "Alice"],
             "age": [22, 28, 35, 25, 30],
@@ -577,13 +594,17 @@ class TestColumnarDefaultTable(unittest.TestCase):
         data_with_nan = self.data.copy()
         data_with_nan["age"][1] = None
         manager_with_nan = DefaultTableManager(data_with_nan)
-        sorted_data = manager_with_nan.sort_values([SortArgs(by="age", descending=False)]).data
+        sorted_data = manager_with_nan.sort_values(
+            [SortArgs(by="age", descending=False)]
+        ).data
 
         assert sorted_data["age"][-1] is None
         assert sorted_data["name"][-1] == "Bob"
 
         # ascending
-        sorted_data = manager_with_nan.sort_values([SortArgs(by="age", descending=False)]).data
+        sorted_data = manager_with_nan.sort_values(
+            [SortArgs(by="age", descending=False)]
+        ).data
         assert sorted_data["age"][-1] is None
         assert sorted_data["name"][-1] == "Bob"
 
@@ -937,7 +958,9 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         assert limited_manager.data == []
 
     def test_sort(self) -> None:
-        sorted_manager = self.manager.sort_values([SortArgs(by="value", descending=True)])
+        sorted_manager = self.manager.sort_values(
+            [SortArgs(by="value", descending=True)]
+        )
         expected_data = [{"key": "b", "value": 2}, {"key": "a", "value": 1}]
         assert sorted_manager.data == expected_data
 
@@ -945,14 +968,18 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         data = self.manager.data.copy()
         data["b"] = None
         manager_with_nan = DefaultTableManager(data)
-        sorted_data = manager_with_nan.sort_values([SortArgs(by="value", descending=False)]).data
+        sorted_data = manager_with_nan.sort_values(
+            [SortArgs(by="value", descending=False)]
+        ).data
         assert sorted_data == [
             {"key": "a", "value": 1},
             {"key": "b", "value": None},
         ]
 
         # descending
-        sorted_data = manager_with_nan.sort_values([SortArgs(by="value", descending=False)]).data
+        sorted_data = manager_with_nan.sort_values(
+            [SortArgs(by="value", descending=False)]
+        ).data
         assert sorted_data == [
             {"key": "a", "value": 1},
             {"key": "b", "value": None},
@@ -962,7 +989,9 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         data_with_strings = DefaultTableManager(
             {"a": "foo", "b": None, "c": "bar"}
         )
-        sorted_data = data_with_strings.sort_values([SortArgs(by="value", descending=False)]).data
+        sorted_data = data_with_strings.sort_values(
+            [SortArgs(by="value", descending=False)]
+        ).data
         assert sorted_data == [
             {"key": "c", "value": "bar"},
             {"key": "a", "value": "foo"},
@@ -970,7 +999,9 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         ]
 
         # strings descending
-        sorted_data = data_with_strings.sort_values([SortArgs(by="value", descending=False)]).data
+        sorted_data = data_with_strings.sort_values(
+            [SortArgs(by="value", descending=False)]
+        ).data
         assert sorted_data == [
             {"key": "a", "value": "foo"},
             {"key": "c", "value": "bar"},

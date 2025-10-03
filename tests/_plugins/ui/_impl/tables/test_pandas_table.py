@@ -11,8 +11,8 @@ import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._data.models import ColumnStats
-from marimo._plugins.ui._impl.table import SortArgs
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
@@ -671,7 +671,9 @@ class TestPandasTableManager(unittest.TestCase):
             assert complex_data.get_stats(column) is not None
 
     def test_sort_values(self) -> None:
-        sorted_df = self.manager.sort_values([SortArgs(by="A", descending=True)]).data
+        sorted_df = self.manager.sort_values(
+            [SortArgs(by="A", descending=True)]
+        ).data
         expected_df = self.data.sort_values("A", ascending=False)
         assert_frame_equal(sorted_df, expected_df)
 
@@ -684,7 +686,9 @@ class TestPandasTableManager(unittest.TestCase):
         )
         data.index.name = "index"
         manager = self.factory.create()(data)
-        sorted_df = manager.sort_values([SortArgs(by="A", descending=True)]).data
+        sorted_df = manager.sort_values(
+            [SortArgs(by="A", descending=True)]
+        ).data
         assert sorted_df.to_native().index.tolist() == [3, 2, 1]
 
     def test_get_unique_column_values(self) -> None:
@@ -1048,7 +1052,9 @@ class TestPandasTableManager(unittest.TestCase):
     def test_sort_values_with_nulls(self) -> None:
         df = pd.DataFrame({"A": [3, 1, None, 2]})
         manager = self.factory.create()(df)
-        sorted_manager = manager.sort_values([SortArgs(by="A", descending=True)])
+        sorted_manager = manager.sort_values(
+            [SortArgs(by="A", descending=True)]
+        )
         assert sorted_manager.data["A"].to_list()[:-1] == [
             3.0,
             2.0,
@@ -1058,7 +1064,9 @@ class TestPandasTableManager(unittest.TestCase):
         assert last is None or isnan(last)
 
         # ascending
-        sorted_manager = manager.sort_values([SortArgs(by="A", descending=False)])
+        sorted_manager = manager.sort_values(
+            [SortArgs(by="A", descending=False)]
+        )
         assert sorted_manager.data["A"].to_list()[:-1] == [
             1.0,
             2.0,

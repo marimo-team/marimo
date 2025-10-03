@@ -11,8 +11,8 @@ import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._data.models import BinValue, ColumnStats
-from marimo._plugins.ui._impl.table import SortArgs
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
     NarwhalsTableManager,
@@ -482,7 +482,9 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         assert isinstance(bool_stats.false, int)
 
     def test_sort_values(self) -> None:
-        sorted_df = self.manager.sort_values([SortArgs(by="A", descending=True)]).data
+        sorted_df = self.manager.sort_values(
+            [SortArgs(by="A", descending=True)]
+        ).data
         expected_df = self.data.sort("A", descending=True)
         assert_frame_equal(sorted_df, expected_df)
 

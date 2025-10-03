@@ -228,7 +228,9 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         )
 
     def test_sort_values(self) -> None:
-        sorted_manager = self.manager.sort_values([SortArgs(by="A", descending=True)])
+        sorted_manager = self.manager.sort_values(
+            [SortArgs(by="A", descending=True)]
+        )
         assert sorted_manager.data.collect().to_dict(as_series=False) == {
             "A": [3, 2, 1],
             "B": ["c", "b", "a"],
@@ -322,7 +324,9 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         manager = self.factory.create()(table)
 
         # Descending true
-        sorted_manager = manager.sort_values([SortArgs(by="A", descending=True)])
+        sorted_manager = manager.sort_values(
+            [SortArgs(by="A", descending=True)]
+        )
         sorted_data = sorted_manager.data.collect().to_dict(as_series=False)[
             "A"
         ]
@@ -334,7 +338,9 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         ]
 
         # Descending false
-        sorted_manager = manager.sort_values([SortArgs(by="A", descending=False)])
+        sorted_manager = manager.sort_values(
+            [SortArgs(by="A", descending=False)]
+        )
         sorted_data = sorted_manager.data.collect().to_dict(as_series=False)[
             "A"
         ]
