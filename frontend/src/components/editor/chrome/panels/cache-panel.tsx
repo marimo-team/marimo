@@ -2,14 +2,17 @@
 
 import { useAtomValue } from "jotai";
 import { DatabaseZapIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { useLocale } from "react-aria";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
 import { ConfirmationButton } from "@/components/ui/confirmation-button";
 import { toast } from "@/components/ui/use-toast";
 import { cacheInfoAtom } from "@/core/cache/requests";
 import { useRequestClient } from "@/core/network/requests";
+import { useAsyncData } from "@/hooks/useAsyncData";
 import { cn } from "@/utils/cn";
+import { formatBytes, formatTime } from "@/utils/formatting";
 import { prettyNumber } from "@/utils/numbers";
 import { PanelEmptyState } from "./empty-state";
 
@@ -17,24 +20,13 @@ const CachePanel = () => {
   const { clearCache, getCacheInfo } = useRequestClient();
   const cacheInfo = useAtomValue(cacheInfoAtom);
   const [purging, setPurging] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
+  const { locale } = useLocale();
 
-  useEffect(() => {
-    // Request cache info when panel mounts
-    void getCacheInfo();
-    setInitialLoad(false);
-  }, [getCacheInfo]);
-
-  const handleRefresh = async () => {
-    try {
-      setRefreshing(true);
-      await getCacheInfo();
-    } finally {
-      // Artificially spin the icon if the request is really fast
-      setTimeout(() => setRefreshing(false), 500);
-    }
-  };
+  const { isPending, isFetching, refetch } = useAsyncData(async () => {
+    await getCacheInfo();
+    // Artificially spin the icon if the request is really fast
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }, []);
 
   const handlePurge = async () => {
     try {
@@ -45,7 +37,7 @@ const CachePanel = () => {
         description: "All cached data has been cleared",
       });
       // Request updated cache info after purge
-      void getCacheInfo();
+      refetch();
     } catch (err) {
       toast({
         title: "Error",
@@ -59,18 +51,13 @@ const CachePanel = () => {
   };
 
   // Show spinner only on initial load
-  if (initialLoad && !cacheInfo) {
+  if (isPending && !cacheInfo) {
     return <Spinner size="medium" centered={true} />;
   }
 
   const refreshButton = (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={handleRefresh}
-      disabled={refreshing}
-    >
-      {refreshing ? (
+    <Button variant="outline" size="sm" onClick={refetch} disabled={isFetching}>
+      {isFetching ? (
         <Spinner size="small" className="w-4 h-4 mr-2" />
       ) : (
         <RefreshCwIcon className="w-4 h-4 mr-2" />
@@ -89,42 +76,6 @@ const CachePanel = () => {
       />
     );
   }
-
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0 || bytes === -1) {
-      return "0 B";
-    }
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    const value = bytes / k ** i;
-    return `${prettyNumber(value, "en-US")} ${sizes[i]}`;
-  };
-
-  const formatTime = (seconds: number) => {
-    if (seconds === 0) {
-      return "0s";
-    }
-    if (seconds < 0.001) {
-      return `${prettyNumber(seconds * 1_000_000, "en-US")}µs`;
-    }
-    if (seconds < 1) {
-      return `${prettyNumber(seconds * 1000, "en-US")}ms`;
-    }
-    if (seconds < 60) {
-      return `${prettyNumber(seconds, "en-US")}s`;
-    }
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    if (minutes < 60) {
-      return secs > 0
-        ? `${minutes}m ${prettyNumber(secs, "en-US")}s`
-        : `${minutes}m`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const remainingMins = minutes % 60;
-    return remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
-  };
 
   const totalHits = cacheInfo.hits;
   const totalMisses = cacheInfo.misses;
@@ -156,13 +107,13 @@ const CachePanel = () => {
             variant="ghost"
             size="icon"
             className="h-6 w-6"
-            onClick={handleRefresh}
-            disabled={refreshing}
+            onClick={refetch}
+            disabled={isFetching}
           >
             <RefreshCwIcon
               className={cn(
                 "h-4 w-4 text-muted-foreground hover:text-foreground",
-                refreshing && "animate-[spin_0.5s]",
+                isFetching && "animate-[spin_0.5s]",
               )}
             />
           </Button>
@@ -174,24 +125,24 @@ const CachePanel = () => {
           <div className="grid grid-cols-2 gap-3">
             <StatCard
               label="Time saved"
-              value={formatTime(totalTime)}
+              value={formatTime(totalTime, locale)}
               description="Total execution time saved"
             />
             <StatCard
               label="Hit rate"
               value={
-                totalRequests > 0 ? `${prettyNumber(hitRate, "en-US")}%` : "—"
+                totalRequests > 0 ? `${prettyNumber(hitRate, locale)}%` : "—"
               }
-              description={`${prettyNumber(totalHits, "en-US")} hits / ${prettyNumber(totalRequests, "en-US")} total`}
+              description={`${prettyNumber(totalHits, locale)} hits / ${prettyNumber(totalRequests, locale)} total`}
             />
             <StatCard
               label="Cache hits"
-              value={prettyNumber(totalHits, "en-US")}
+              value={prettyNumber(totalHits, locale)}
               description="Successful cache retrievals"
             />
             <StatCard
               label="Cache misses"
-              value={prettyNumber(totalMisses, "en-US")}
+              value={prettyNumber(totalMisses, locale)}
               description="Cache not found"
             />
           </div>
@@ -204,10 +155,10 @@ const CachePanel = () => {
             <div className="grid grid-cols-1 gap-3">
               <StatCard
                 label="Disk usage"
-                value={formatBytes(diskTotal)}
+                value={formatBytes(diskTotal, locale)}
                 description={
                   diskToFree > 0
-                    ? `${formatBytes(diskToFree)} can be freed`
+                    ? `${formatBytes(diskToFree, locale)} can be freed`
                     : "Cache storage on disk"
                 }
               />
