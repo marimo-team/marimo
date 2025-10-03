@@ -26,7 +26,6 @@ import type {
   DiagnosticsConfig,
   LSPConfig,
 } from "@/core/config/config-schema";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   dataSourceConnectionsAtom,
   setLatestEngineSelected,
@@ -89,11 +88,6 @@ export class SQLLanguageAdapter
 
   constructor() {
     this.sqlModeEnabled = true;
-    try {
-      this.sqlModeEnabled = getFeatureFlag("sql_mode");
-    } catch {
-      this.sqlModeEnabled = false;
-    }
   }
 
   get defaultMetadata(): SQLLanguageAdapterMetadata {
