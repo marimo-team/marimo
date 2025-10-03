@@ -1,9 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAtomValue, useSetAtom } from "jotai";
-import { WrenchIcon, ZapIcon, ZapOffIcon } from "lucide-react";
+import { useAtomValue, useSetAtom, useStore } from "jotai";
+import { ChevronDownIcon, SparklesIcon, WrenchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { notebookAtom, useCellActions } from "@/core/cells/cells";
@@ -11,9 +16,8 @@ import type { CellId } from "@/core/cells/ids";
 import { aiEnabledAtom } from "@/core/config/config";
 import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
-import { store } from "@/core/state/jotai";
 import { cn } from "@/utils/cn";
-import { useInstantAIFix } from "./instant-fix";
+import { useFixMode } from "./fix-mode";
 
 export const AutoFixButton = ({
   errors,
@@ -24,7 +28,7 @@ export const AutoFixButton = ({
   cellId: CellId;
   className?: string;
 }) => {
-  const { instantAIFix, setInstantAIFix } = useInstantAIFix();
+  const store = useStore();
   const { createNewCell } = useCellActions();
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const autoFixes = errors.flatMap((error) =>
@@ -40,7 +44,7 @@ export const AutoFixButton = ({
   // multiple fixes.
   const firstFix = autoFixes[0];
 
-  const handleFix = () => {
+  const handleFix = (triggerFix: boolean) => {
     const editorView =
       store.get(notebookAtom).cellHandles[cellId].current?.editorView;
     firstFix.onFix({
@@ -56,7 +60,7 @@ export const AutoFixButton = ({
       cellId: cellId,
       aiFix: {
         setAiCompletionCell,
-        instantFix: instantAIFix,
+        triggerFix,
       },
     });
     // Focus the editor
@@ -64,41 +68,110 @@ export const AutoFixButton = ({
   };
 
   return (
-    <div className={cn("flex gap-2 my-2 items-center", className)}>
-      <Tooltip content={firstFix.description} align="start">
+    <div className={cn("my-2", className)}>
+      {firstFix.fixType === "ai" ? (
+        <AIFixButton
+          tooltip={firstFix.description}
+          openPrompt={() => handleFix(false)}
+          applyAutofix={() => handleFix(true)}
+        />
+      ) : (
+        <Tooltip content={firstFix.description} align="start">
+          <Button
+            size="xs"
+            variant="outline"
+            className="font-normal"
+            onClick={() => handleFix(false)}
+          >
+            <WrenchIcon className="h-3 w-3 mr-2" />
+            {firstFix.title}
+          </Button>
+        </Tooltip>
+      )}
+    </div>
+  );
+};
+
+const PromptIcon = SparklesIcon;
+const AutofixIcon = WrenchIcon;
+
+const PromptTitle = "Suggest a prompt";
+const AutofixTitle = "Fix with AI";
+
+export const AIFixButton = ({
+  tooltip,
+  openPrompt,
+  applyAutofix,
+}: {
+  tooltip: string;
+  openPrompt: () => void;
+  applyAutofix: () => void;
+}) => {
+  const { fixMode, setFixMode } = useFixMode();
+
+  return (
+    <div className="flex">
+      <Tooltip content={tooltip} align="start">
         <Button
           size="xs"
           variant="outline"
-          className="font-normal"
-          onClick={handleFix}
+          className="font-normal rounded-r-none border-r-0"
+          onClick={fixMode === "prompt" ? openPrompt : applyAutofix}
         >
-          <WrenchIcon className="h-3 w-3 mr-2" />
-          {firstFix.title}
+          {fixMode === "prompt" ? (
+            <PromptIcon className="h-3 w-3 mr-2 mb-0.5" />
+          ) : (
+            <AutofixIcon className="h-3 w-3 mr-2 mb-0.5" />
+          )}
+          {fixMode === "prompt" ? PromptTitle : AutofixTitle}
         </Button>
       </Tooltip>
-
-      {firstFix.fixType === "ai" && (
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={instantAIFix}
-            onCheckedChange={() => setInstantAIFix(!instantAIFix)}
-            size="sm"
-            className="h-4 w-8"
-            title="Toggle instant AI fix mode"
-          />
-          <Tooltip
-            content={
-              instantAIFix ? "Instant fix enabled" : "Instant fix disabled"
-            }
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild={true}>
+          <Button
+            size="xs"
+            variant="outline"
+            className="rounded-l-none px-2"
+            aria-label="Fix options"
           >
-            {instantAIFix ? (
-              <ZapIcon className="h-3 w-3 text-amber-500" />
-            ) : (
-              <ZapOffIcon className="h-3 w-3 text-muted-foreground" />
-            )}
-          </Tooltip>
-        </div>
-      )}
+            <ChevronDownIcon className="h-3 w-3" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem
+            className="flex items-center gap-2"
+            onClick={() => {
+              setFixMode(fixMode === "prompt" ? "autofix" : "prompt");
+            }}
+          >
+            <AiModeItem mode={fixMode === "prompt" ? "autofix" : "prompt"} />
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+};
+
+const AiModeItem = ({ mode }: { mode: "prompt" | "autofix" }) => {
+  const icon =
+    mode === "prompt" ? (
+      <PromptIcon className="h-4 w-4" />
+    ) : (
+      <AutofixIcon className="h-4 w-4" />
+    );
+  const title = mode === "prompt" ? PromptTitle : AutofixTitle;
+  const description =
+    mode === "prompt"
+      ? "Edit the prompt before applying"
+      : "Apply AI fixes automatically";
+
+  return (
+    <div className="flex items-center gap-2">
+      {icon}
+      <div className="flex flex-col">
+        <span className="font-medium">{title}</span>
+        <span className="text-xs text-muted-foreground">{description}</span>
+      </div>
     </div>
   );
 };

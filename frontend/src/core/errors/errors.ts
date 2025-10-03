@@ -9,7 +9,7 @@ import { wrapInFunction } from "./utils";
 
 interface AIFix {
   setAiCompletionCell: (opts: AiCompletionCell) => void;
-  instantFix: boolean;
+  triggerFix: boolean;
 }
 
 export interface AutoFix {
@@ -92,7 +92,7 @@ export function getAutoFixes(
           ctx.aiFix?.setAiCompletionCell({
             cellId: ctx.cellId,
             initialPrompt: initialPrompt,
-            triggerImmediately: ctx.aiFix.instantFix,
+            triggerImmediately: ctx.aiFix.triggerFix,
           });
         },
       },
