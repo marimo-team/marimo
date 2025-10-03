@@ -41,7 +41,7 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
           z.object({
             role: z.enum(["system", "user", "assistant"]),
             content: z.string(),
-            parts: z.array(z.any()),
+            parts: z.array(z.any()).nullable(),
           }),
         ),
       }),
