@@ -43,6 +43,7 @@ export type SecretKeysResult = OperationMessageData<"secret-keys-result">;
 export type StartupLogs = OperationMessageData<"startup-logs">;
 export type CellMessage = OperationMessageData<"cell-op">;
 export type Capabilities = OperationMessageData<"kernel-ready">["capabilities"];
+export type CacheInfoFetched = OperationMessageData<"cache-info-fetched">;
 
 export type MessageOperationUnion = schemas["KnownUnions"]["operation"];
 

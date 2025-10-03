@@ -185,6 +185,10 @@ export async function initialize() {
         return;
       case "reconnected":
         return;
+      case "cache-cleared":
+        return;
+      case "cache-info-fetched":
+        return;
       default:
         logNever(msg.data);
     }

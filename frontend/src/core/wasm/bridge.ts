@@ -551,6 +551,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   invokeAiTool = throwNotImplemented;
+  clearCache = throwNotImplemented;
+  getCacheInfo = throwNotImplemented;
 
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({

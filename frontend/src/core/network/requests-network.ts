@@ -409,5 +409,19 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    clearCache: async () => {
+      return getClient()
+        .POST("/api/cache/clear", {
+          body: {},
+        })
+        .then(handleResponseReturnNull);
+    },
+    getCacheInfo: async () => {
+      return getClient()
+        .POST("/api/cache/info", {
+          body: {},
+        })
+        .then(handleResponseReturnNull);
+    },
   };
 }

@@ -547,6 +547,7 @@ performant_table_charts = true
 sql_linter = true
 sql_mode = true
 chat_modes = true
+cache_panel = true
 
 [tool.marimo.display]
 dataframes = "rich"

@@ -270,6 +270,44 @@ components:
       required: []
       title: BedrockConfig
       type: object
+    CacheCleared:
+      description: Result of clearing cache.
+      properties:
+        bytes_freed:
+          type: integer
+        op:
+          enum:
+          - cache-cleared
+      required:
+      - op
+      - bytes_freed
+      title: CacheCleared
+      type: object
+    CacheInfoFetched:
+      description: Cache statistics information.
+      properties:
+        disk_to_free:
+          type: integer
+        disk_total:
+          type: integer
+        hits:
+          type: integer
+        misses:
+          type: integer
+        op:
+          enum:
+          - cache-info-fetched
+        time:
+          type: number
+      required:
+      - op
+      - hits
+      - misses
+      - time
+      - disk_to_free
+      - disk_total
+      title: CacheInfoFetched
+      type: object
     CellChannel:
       description: The channel of a cell's output.
       enum:
@@ -510,6 +548,11 @@ components:
       - includeOtherCode
       - messages
       title: ChatRequest
+      type: object
+    ClearCacheRequest:
+      properties: {}
+      required: []
+      title: ClearCacheRequest
       type: object
     CodeCompletionRequest:
       properties:
@@ -1571,6 +1614,11 @@ components:
       - status
       title: FunctionCallResult
       type: object
+    GetCacheInfoRequest:
+      properties: {}
+      required: []
+      title: GetCacheInfoRequest
+      type: object
     GitHubConfig:
       description: "Configuration options for GitHub.\n\n    **Keys.**\n\n    - `api_key`:\
         \ the GitHub API token\n    - `base_url`: the base URL for the API"
@@ -1945,6 +1993,8 @@ components:
           - $ref: '#/components/schemas/DataSourceConnections'
           - $ref: '#/components/schemas/ValidateSQLResult'
           - $ref: '#/components/schemas/SecretKeysResult'
+          - $ref: '#/components/schemas/CacheCleared'
+          - $ref: '#/components/schemas/CacheInfoFetched'
           - $ref: '#/components/schemas/FocusCell'
           - $ref: '#/components/schemas/UpdateCellCodes'
           - $ref: '#/components/schemas/UpdateCellIdsRequest'
@@ -1952,6 +2002,8 @@ components:
             mapping:
               alert: '#/components/schemas/Alert'
               banner: '#/components/schemas/Banner'
+              cache-cleared: '#/components/schemas/CacheCleared'
+              cache-info-fetched: '#/components/schemas/CacheInfoFetched'
               cell-op: '#/components/schemas/CellOp'
               completed-run: '#/components/schemas/CompletedRun'
               completion-result: '#/components/schemas/CompletionResult'
@@ -3657,7 +3709,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.16.4
+  version: 0.16.5
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -3754,6 +3806,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/MCPStatusResponse'
           description: Get MCP server status
+  /api/cache/clear:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClearCacheRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Clear all caches
+  /api/cache/info:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetCacheInfoRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Get cache statistics
   /api/datasources/preview_column:
     post:
       requestBody:
