@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { DatabaseIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import { DatabaseZapIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
@@ -84,7 +84,7 @@ const CachePanel = () => {
       <PanelEmptyState
         title="No cache data"
         description="Cache information is not available."
-        icon={<DatabaseIcon />}
+        icon={<DatabaseZapIcon />}
         action={refreshButton}
       />
     );
@@ -141,7 +141,7 @@ const CachePanel = () => {
       <PanelEmptyState
         title="No cache activity"
         description="The cache has not been used yet. Cached functions will appear here once they are executed."
-        icon={<DatabaseIcon />}
+        icon={<DatabaseZapIcon />}
         action={refreshButton}
       />
     );
