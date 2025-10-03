@@ -253,6 +253,18 @@ export const Chatbot: React.FC<Props> = (props) => {
     });
   }, [messages.length, scrollContainerRef]);
 
+  const resetInput = () => {
+    // Clear input immediately by directly manipulating the editor
+    // There is some delay if we use setInput("") only
+    if (codeMirrorInputRef.current?.view) {
+      const docLength = codeMirrorInputRef.current.view.state.doc.length;
+      codeMirrorInputRef.current.view.dispatch({
+        changes: { from: 0, to: docLength, insert: "" },
+      });
+    }
+    setInput("");
+  };
+
   return (
     <div
       className="flex flex-col h-full bg-(--slate-1) rounded-lg shadow border border-(--slate-6) overflow-hidden relative"
@@ -367,6 +379,7 @@ export const Chatbot: React.FC<Props> = (props) => {
             role: "user",
             parts: [{ type: "text", text: input }, ...(fileParts ?? [])],
           });
+          resetInput();
         }}
         ref={formRef}
         className="flex w-full border-t border-(--slate-6) px-2 py-1 items-center"
