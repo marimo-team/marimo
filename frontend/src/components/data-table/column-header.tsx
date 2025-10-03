@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
-import type { Column } from "@tanstack/react-table";
+import type { Column, Table } from "@tanstack/react-table";
 import { capitalize } from "lodash-es";
 import { FilterIcon, MinusIcon, TextIcon, XIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
@@ -67,6 +67,7 @@ interface DataTableColumnHeaderProps<TData, TValue>
   column: Column<TData, TValue>;
   header: React.ReactNode;
   calculateTopKRows?: CalculateTopKRows;
+  table?: Table<TData>;
 }
 
 export const DataTableColumnHeader = <TData, TValue>({
@@ -74,6 +75,7 @@ export const DataTableColumnHeader = <TData, TValue>({
   header,
   className,
   calculateTopKRows,
+  table,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
   const [isFilterValueOpen, setIsFilterValueOpen] = useState(false);
 
@@ -115,7 +117,7 @@ export const DataTableColumnHeader = <TData, TValue>({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           {renderDataType(column)}
-          {renderSorts(column)}
+          {renderSorts(column, table)}
           {renderCopyColumn(column)}
           {renderColumnPinning(column)}
           {renderColumnWrapping(column)}

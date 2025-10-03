@@ -161,7 +161,7 @@ export function generateColumns<T>({
         return row[key as keyof T];
       },
 
-      header: ({ column }) => {
+      header: ({ column, table }) => {
         const stats = chartSpecModel?.getColumnStats(key);
         const dtype = column.columnDef.meta?.dtype;
         const dtypeHeader =
@@ -188,6 +188,7 @@ export function generateColumns<T>({
             header={headerWithType}
             column={column}
             calculateTopKRows={calculateTopKRows}
+            table={table}
           />
         );
 

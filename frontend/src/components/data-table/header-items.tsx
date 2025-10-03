@@ -14,7 +14,6 @@ import {
   ListFilterPlusIcon,
   PinOffIcon,
   WrapTextIcon,
-  XIcon,
 } from "lucide-react";
 import {
   DropdownMenuItem,
@@ -168,62 +167,66 @@ export function renderSorts<TData, TValue>(
     return null;
   }
 
-  // Try to get table from column (TanStack Table should provide this)
-  const tableFromColumn = (column as any).table || table;
-
-  // If table is available (either passed or from column), use full multi-column sort functionality
-  if (tableFromColumn) {
-    const sortingState: SortingState = tableFromColumn.getState().sorting;
+  // If table is available, use full multi-column sort functionality
+  if (table) {
+    const sortingState: SortingState = table.getState().sorting;
     const currentSort = sortingState.find((s) => s.id === column.id);
     const sortIndex = currentSort
       ? sortingState.indexOf(currentSort) + 1
       : null;
 
+    // Handler to implement stack-based sorting: clicking a sort moves it to the end (highest priority)
+    // Clicking the same sort direction again removes it
+    const handleSort = (desc: boolean) => {
+      if (currentSort && currentSort.desc === desc) {
+        // Clicking the same sort again - remove it
+        column.clearSorting();
+      } else {
+        // New sort or different direction - move to end of stack
+        const otherSorts = sortingState.filter((s) => s.id !== column.id);
+        const newSort = { id: column.id, desc };
+        table.setSorting([...otherSorts, newSort]);
+      }
+    };
+
     return (
       <>
         <DropdownMenuItem
-          onClick={() =>
-            column.toggleSorting(
-              false,
-              sortingState.length === 0 ? false : true,
-            )
+          onClick={() => handleSort(false)}
+          className={
+            sortIndex && currentSort && !currentSort.desc ? "bg-accent" : ""
           }
         >
           <AscIcon className="mo-dropdown-icon" />
-          Sort Ascending
+          Asc
           {sortIndex && currentSort && !currentSort.desc && (
-            <span className="ml-auto text-xs bg-blue-100 text-blue-800 px-1 rounded">
-              {sortIndex}
-            </span>
+            <span className="ml-auto text-xs font-medium">{sortIndex}</span>
           )}
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() =>
-            column.toggleSorting(true, sortingState.length === 0 ? false : true)
+          onClick={() => handleSort(true)}
+          className={
+            sortIndex && currentSort && currentSort.desc ? "bg-accent" : ""
           }
         >
           <DescIcon className="mo-dropdown-icon" />
-          Sort Descending
+          Desc
           {sortIndex && currentSort && currentSort.desc && (
-            <span className="ml-auto text-xs bg-blue-100 text-blue-800 px-1 rounded">
-              {sortIndex}
-            </span>
+            <span className="ml-auto text-xs font-medium">{sortIndex}</span>
           )}
         </DropdownMenuItem>
-        {currentSort && (
-          <DropdownMenuItem onClick={() => column.clearSorting()}>
-            <XIcon className="mo-dropdown-icon" />
-            Remove Sort
-            <span className="ml-auto text-xs bg-red-100 text-red-800 px-1 rounded">
-              {sortIndex}
-            </span>
+        {sortingState.length > 1 ? (
+          <DropdownMenuItem onClick={() => table.resetSorting()}>
+            <ChevronsUpDown className="mo-dropdown-icon" />
+            Clear all sorts
           </DropdownMenuItem>
-        )}
-        {sortingState.length > 0 && (
-          <DropdownMenuItem onClick={() => tableFromColumn.resetSorting()}>
-            <FilterX className="mo-dropdown-icon" />
-            Clear All Sorts
-          </DropdownMenuItem>
+        ) : (
+          currentSort && (
+            <DropdownMenuItem onClick={() => column.clearSorting()}>
+              <ChevronsUpDown className="mo-dropdown-icon" />
+              Clear sort
+            </DropdownMenuItem>
+          )
         )}
         <DropdownMenuSeparator />
       </>
@@ -235,28 +238,24 @@ export function renderSorts<TData, TValue>(
 
   return (
     <>
-      <DropdownMenuItem onClick={() => column.toggleSorting(false, true)}>
+      <DropdownMenuItem
+        onClick={() => column.toggleSorting(false, true)}
+        className={isSorted === "asc" ? "bg-accent" : ""}
+      >
         <AscIcon className="mo-dropdown-icon" />
-        Sort Ascending
-        {isSorted === "asc" && (
-          <span className="ml-auto text-xs bg-blue-100 text-blue-800 px-1 rounded">
-            ✓
-          </span>
-        )}
+        Asc
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => column.toggleSorting(true, true)}>
+      <DropdownMenuItem
+        onClick={() => column.toggleSorting(true, true)}
+        className={isSorted === "desc" ? "bg-accent" : ""}
+      >
         <DescIcon className="mo-dropdown-icon" />
-        Sort Descending
-        {isSorted === "desc" && (
-          <span className="ml-auto text-xs bg-blue-100 text-blue-800 px-1 rounded">
-            ✓
-          </span>
-        )}
+        Desc
       </DropdownMenuItem>
       {isSorted && (
         <DropdownMenuItem onClick={() => column.clearSorting()}>
-          <XIcon className="mo-dropdown-icon" />
-          Remove Sort
+          <ChevronsUpDown className="mo-dropdown-icon" />
+          Clear sort
         </DropdownMenuItem>
       )}
       <DropdownMenuSeparator />
