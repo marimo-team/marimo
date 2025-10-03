@@ -17,7 +17,7 @@ import { aiEnabledAtom } from "@/core/config/config";
 import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
-import { useFixMode } from "./fix-mode";
+import { type FixMode, useFixMode } from "./fix-mode";
 
 export const AutoFixButton = ({
   errors,
@@ -152,7 +152,7 @@ export const AIFixButton = ({
   );
 };
 
-const AiModeItem = ({ mode }: { mode: "prompt" | "autofix" }) => {
+const AiModeItem = ({ mode }: { mode: FixMode }) => {
   const icon =
     mode === "prompt" ? (
       <PromptIcon className="h-4 w-4" />

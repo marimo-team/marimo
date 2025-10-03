@@ -3,9 +3,11 @@
 import { useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
+export type FixMode = "prompt" | "autofix";
+
 const BASE_KEY = "marimo:ai-autofix-mode";
 
-const fixModeAtom = atomWithStorage<"prompt" | "autofix">(BASE_KEY, "autofix");
+const fixModeAtom = atomWithStorage<FixMode>(BASE_KEY, "autofix");
 
 export function useFixMode() {
   const [fixMode, setFixMode] = useAtom(fixModeAtom);
