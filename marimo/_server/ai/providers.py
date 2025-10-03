@@ -79,10 +79,16 @@ FinishReason = Literal["tool_calls", "stop"]
 # Types for extract_content method return
 DictContent = tuple[
     dict[str, Any],
-    Literal["tool_call_start", "tool_call_end", "reasoning_signature"],
+    Literal[
+        "tool_call_start",
+        "tool_call_end",
+        "reasoning_signature",
+        "tool_call_delta",
+    ],
 ]
-TextContent = tuple[str, Literal["text", "reasoning", "tool_call_delta"]]
+TextContent = tuple[str, Literal["text", "reasoning"]]
 ExtractedContent = Union[TextContent, DictContent]
+ExtractedContentList = list[ExtractedContent]
 
 # Types for format_stream method parameter
 FinishContent = tuple[FinishReason, Literal["finish_reason"]]
@@ -108,6 +114,13 @@ class StreamOptions:
     format_stream: bool = False
 
 
+@dataclass
+class ActiveToolCall:
+    tool_call_id: str
+    tool_call_name: str
+    tool_call_args: str
+
+
 class CompletionProvider(Generic[ResponseT, StreamT], ABC):
     """Base class for AI completion providers."""
 
@@ -128,8 +141,8 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
 
     @abstractmethod
     def extract_content(
-        self, response: ResponseT, tool_call_id: Optional[str] = None
-    ) -> Optional[ExtractedContent]:
+        self, response: ResponseT, tool_call_ids: list[str] = []
+    ) -> Optional[ExtractedContentList]:
         """Extract content from a response chunk."""
         pass
 
@@ -233,10 +246,9 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         options = options or StreamOptions()
 
         # Tool info collected from the first chunk
-        tool_call_id: Optional[str] = None
-        tool_call_name: Optional[str] = None
-        # Tool args collected from the tool_call_delta chunks
-        tool_call_args: str = ""
+        tool_calls: dict[str, ActiveToolCall] = {}
+        tool_calls_order: list[str] = []
+
         # Finish reason collected from the last chunk
         finish_reason: Optional[FinishReason] = None
 
@@ -252,99 +264,128 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
             # If we check content first, these chunks get skipped and finish reason is never detected
             finish_reason = self.get_finish_reason(chunk) or finish_reason
 
-            content = self.extract_content(chunk, tool_call_id)
+            content = self.extract_content(chunk, tool_calls_order)
             if not content:
                 continue
 
-            content_data, content_type = content
+            # Loop through all content chunks
+            for content_data, content_type in content:
+                if options.text_only and content_type != "text":
+                    continue
 
-            if options.text_only and content_type != "text":
-                continue
+                # Handle text content with start/delta/end pattern
+                if (
+                    content_type == "text"
+                    and isinstance(content_data, str)
+                    and options.format_stream
+                ):
+                    if not has_text_started:
+                        # Emit text-start event
+                        current_text_id = f"text_{uuid.uuid4().hex}"
+                        yield convert_to_ai_sdk_messages(
+                            "", "text_start", current_text_id
+                        )
+                        has_text_started = True
 
-            # Handle text content with start/delta/end pattern
-            if (
-                content_type == "text"
-                and isinstance(content_data, str)
-                and options.format_stream
-            ):
-                if not has_text_started:
-                    # Emit text-start event
-                    current_text_id = f"text_{uuid.uuid4().hex}"
+                    # Emit text-delta event with the actual content
                     yield convert_to_ai_sdk_messages(
-                        "", "text_start", current_text_id
+                        content_data, "text", current_text_id
                     )
-                    has_text_started = True
+                    continue
 
-                # Emit text-delta event with the actual content
-                yield convert_to_ai_sdk_messages(
-                    content_data, "text", current_text_id
-                )
-                continue
+                # Handle reasoning content with start/delta/end pattern
+                elif (
+                    content_type == "reasoning"
+                    and isinstance(content_data, str)
+                    and options.format_stream
+                ):
+                    if not has_reasoning_started:
+                        # Emit reasoning-start event
+                        current_reasoning_id = f"reasoning_{uuid.uuid4().hex}"
+                        yield convert_to_ai_sdk_messages(
+                            "", "reasoning_start", current_reasoning_id
+                        )
+                        has_reasoning_started = True
 
-            # Handle reasoning content with start/delta/end pattern
-            elif (
-                content_type == "reasoning"
-                and isinstance(content_data, str)
-                and options.format_stream
-            ):
-                if not has_reasoning_started:
-                    # Emit reasoning-start event
-                    current_reasoning_id = f"reasoning_{uuid.uuid4().hex}"
+                    # Emit reasoning-delta event with the actual content
                     yield convert_to_ai_sdk_messages(
-                        "", "reasoning_start", current_reasoning_id
+                        content_data, "reasoning", current_reasoning_id
                     )
-                    has_reasoning_started = True
+                    continue
 
-                # Emit reasoning-delta event with the actual content
-                yield convert_to_ai_sdk_messages(
-                    content_data, "reasoning", current_reasoning_id
-                )
-                continue
+                # Tool handling
+                if content_type == "tool_call_start" and isinstance(
+                    content_data, dict
+                ):
+                    tool_call_id: Optional[str] = content_data.get(
+                        "toolCallId", None
+                    )
+                    tool_call_name: Optional[str] = content_data.get(
+                        "toolName", None
+                    )
+                    # Sometimes GoogleProvider emits the args in the tool_call_start chunk
+                    tool_call_args: str = ""
+                    if content_data.get("args"):
+                        # don't yield args in tool_call_start chunk
+                        # it will throw an error in ai-sdk-ui
+                        tool_call_args = content_data.pop("args")
 
-            # Tool handling
-            if content_type == "tool_call_start" and isinstance(
-                content_data, dict
-            ):
-                tool_call_id = content_data.get("toolCallId", None)
-                tool_call_name = content_data.get("toolName", None)
-                # Sometimes GoogleProvider emits the args in the tool_call_start chunk
-                if content_data.get("args"):
-                    # don't yield args in tool_call_start chunk
-                    # it will throw an error in ai-sdk-ui
-                    tool_call_args = content_data.pop("args")
+                    if tool_call_id and tool_call_name:
+                        # Add new tool calls to the list for tracking
+                        tool_calls_order.append(tool_call_id)
+                        tool_calls[tool_call_id] = ActiveToolCall(
+                            tool_call_id=tool_call_id,
+                            tool_call_name=tool_call_name,
+                            tool_call_args=tool_call_args,
+                        )
 
-            if content_type == "tool_call_delta" and isinstance(
-                content_data, str
-            ):
-                if isinstance(self, GoogleProvider):
-                    # For GoogleProvider, each chunk contains the full (possibly updated) args dict as a JSON string.
-                    # Example: first chunk: {"location": "San Francisco"}
-                    #          second chunk: {"location": "San Francisco", "zip": "94107"}
-                    # We overwrite tool_call_args with the latest chunk.
-                    tool_call_args = content_data
-                else:
-                    # For other providers, tool_call_args is built up incrementally from deltas.
-                    tool_call_args += content_data
-                # update tool_call_delta to ai-sdk-ui structure
-                # based on https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#tool-call-delta-part
-                content_data = {
-                    "toolCallId": tool_call_id,
-                    "inputTextDelta": content_data,
-                }
+                if content_type == "tool_call_delta" and isinstance(
+                    content_data, dict
+                ):
+                    tool_call_delta_id = content_data.get("toolCallId", None)
+                    tool_call_delta: str = content_data.get(
+                        "inputTextDelta", ""
+                    )
 
-            content_str = self._content_to_string(content_data)
+                    if not tool_call_delta_id:
+                        if not tool_call_delta_id:
+                            LOGGER.error(
+                                f"Tool call id not found for tool call delta: {content_data}"
+                            )
+                        continue
+                    tool_call = tool_calls.get(tool_call_delta_id, None)
+                    if not tool_call:
+                        continue
 
-            if options.format_stream:
-                stream_content = self._create_stream_content(
-                    content_data, content_type
-                )
-                content_str = self.format_stream(stream_content)
+                    if isinstance(self, GoogleProvider):
+                        # For GoogleProvider, each chunk contains the full (possibly updated) args dict as a JSON string.
+                        # Example: first chunk: {"location": "San Francisco"}
+                        #          second chunk: {"location": "San Francisco", "zip": "94107"}
+                        # We overwrite tool_call_args with the latest chunk.
+                        tool_call.tool_call_args = tool_call_delta
+                    else:
+                        # For other providers, tool_call_args is built up incrementally from deltas.
+                        tool_call.tool_call_args += tool_call_delta
+                    # update tool_call_delta to ai-sdk-ui structure
+                    # based on https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#tool-call-delta-part
+                    content_data = {
+                        "toolCallId": tool_call.tool_call_id,
+                        "inputTextDelta": tool_call.tool_call_args,
+                    }
 
-            buffer += content_str
-            original_content += content_str
+                content_str = self._content_to_string(content_data)
 
-            yield buffer
-            buffer = ""
+                if options.format_stream:
+                    stream_content = self._create_stream_content(
+                        content_data, content_type
+                    )
+                    content_str = self.format_stream(stream_content)
+
+                buffer += content_str
+                original_content += content_str
+
+                yield buffer
+                buffer = ""
 
         # Emit text-end event if we started a text block
         if has_text_started and current_text_id and options.format_stream:
@@ -361,19 +402,20 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
             )
 
         # Handle tool call end after the stream is complete
-        if tool_call_id and tool_call_name and not options.text_only:
-            content_data = {
-                "toolCallId": tool_call_id,
-                "toolName": tool_call_name,
-                "input": self.validate_tool_call_args(tool_call_args)
-                or {},  # empty object if tool doesnt have args
-            }
-            content_type = "tool_call_end"
-            yield self.format_stream((content_data, content_type))
-            # Reset tool call state for next stream just in case
-            tool_call_id = None
-            tool_call_name = None
-            tool_call_args = ""
+        if len(tool_calls_order) > 0 and not options.text_only:
+            for tool_call_id in tool_calls_order:
+                tool_call = tool_calls.get(tool_call_id, None)
+                if not tool_call:
+                    continue
+                content_data = {
+                    "toolCallId": tool_call_id,
+                    "toolName": tool_call.tool_call_name,
+                    "input": self.validate_tool_call_args(
+                        tool_call.tool_call_args
+                    ),
+                }
+                content_type = "tool_call_end"
+                yield self.format_stream((content_data, content_type))
 
         # Add a final finish reason chunk
         if finish_reason and not options.text_only:
@@ -513,9 +555,8 @@ class OpenAIProvider(
     def extract_content(
         self,
         response: ChatCompletionChunk,
-        tool_call_id: Optional[str] = None,
-    ) -> Optional[ExtractedContent]:
-        del tool_call_id
+        tool_call_ids: list[str] = [],
+    ) -> Optional[ExtractedContentList]:
         if (
             hasattr(response, "choices")
             and response.choices
@@ -526,29 +567,42 @@ class OpenAIProvider(
             # Text content
             content = delta.content
             if content:
-                return (content, "text")
+                return [(content, "text")]
 
             # Tool call:
             if delta.tool_calls:
-                tool_calls = delta.tool_calls[0]
+                tool_content: ExtractedContentList = []
+                for tool_call in delta.tool_calls:
+                    tool_index = tool_call.index
 
-                # Start of tool call
-                # id is only present for the first tool call chunk
-                if (
-                    tool_calls.id
-                    and tool_calls.function
-                    and tool_calls.function.name
-                ):
-                    tool_info = {
-                        "toolCallId": tool_calls.id,
-                        "toolName": tool_calls.function.name,
-                    }
-                    return (tool_info, "tool_call_start")
+                    # Start of tool call
+                    # id is only present for the first tool call chunk
+                    if (
+                        tool_call.id
+                        and tool_call.function
+                        and tool_call.function.name
+                    ):
+                        tool_info = {
+                            "toolCallId": tool_call.id,
+                            "toolName": tool_call.function.name,
+                        }
+                        tool_content.append((tool_info, "tool_call_start"))
 
-                # Delta of tool call
-                # arguments is only present second chunk onwards
-                if tool_calls.function and tool_calls.function.arguments:
-                    return (tool_calls.function.arguments, "tool_call_delta")
+                    # Delta of tool call
+                    # arguments is only present second chunk onwards
+                    if (
+                        tool_call.function
+                        and tool_call.function.arguments
+                        and tool_call_ids[tool_index]
+                    ):
+                        tool_delta = {
+                            "toolCallId": tool_call_ids[tool_index],
+                            "inputTextDelta": tool_call.function.arguments,
+                        }
+                        tool_content.append((tool_delta, "tool_call_delta"))
+
+                # return the tool content
+                return tool_content
 
         return None
 
@@ -671,6 +725,9 @@ class AnthropicProvider(
     # 1024 tokens is the minimum budget for extended thinking
     DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS = 1024
 
+    # Map of block index to tool call id for tool call delta chunks
+    block_index_to_tool_call_id_map: dict[int, str] = {}
+
     def is_extended_thinking_model(self, model: str) -> bool:
         return any(
             model.startswith(prefix)
@@ -691,6 +748,9 @@ class AnthropicProvider(
         from anthropic import AsyncClient
 
         return AsyncClient(api_key=config.api_key)
+
+    def maybe_get_tool_call_id(self, block_index: int) -> Optional[str]:
+        return self.block_index_to_tool_call_id_map.get(block_index, None)
 
     async def stream_completion(
         self,
@@ -725,12 +785,15 @@ class AnthropicProvider(
             await client.messages.create(**create_params),
         )
 
+    def block_index_to_tool_call_id(self, block_index: int) -> str:
+        return f"tool_call_{block_index}"
+
     def extract_content(
         self,
         response: RawMessageStreamEvent,
-        tool_call_id: Optional[str] = None,
-    ) -> Optional[ExtractedContent]:
-        del tool_call_id
+        tool_call_ids: list[str] = [],
+    ) -> Optional[ExtractedContentList]:
+        del tool_call_ids
         from anthropic.types import (
             InputJSONDelta,
             RawContentBlockDeltaEvent,
@@ -744,25 +807,46 @@ class AnthropicProvider(
         # For streaming content
         if isinstance(response, RawContentBlockDeltaEvent):
             if isinstance(response.delta, TextDelta):
-                return (response.delta.text, "text")
+                return [(response.delta.text, "text")]
             if isinstance(response.delta, ThinkingDelta):
-                return (response.delta.thinking, "reasoning")
+                return [(response.delta.thinking, "reasoning")]
             if isinstance(response.delta, InputJSONDelta):
-                return (response.delta.partial_json, "tool_call_delta")
+                block_index = response.index
+                tool_call_id = self.maybe_get_tool_call_id(block_index)
+                if not tool_call_id:
+                    LOGGER.error(
+                        f"Tool call id not found for block index: {response.index}"
+                    )
+                    return None
+                delta_json = response.delta.partial_json
+                tool_delta = {
+                    "toolCallId": tool_call_id,
+                    "inputTextDelta": delta_json,
+                }
+                return [(tool_delta, "tool_call_delta")]
             if isinstance(response.delta, SignatureDelta):
-                return (
-                    {"signature": response.delta.signature},
-                    "reasoning_signature",
-                )
+                return [
+                    (
+                        {"signature": response.delta.signature},
+                        "reasoning_signature",
+                    )
+                ]
 
         # For the beginning of a tool use block
         if isinstance(response, RawContentBlockStartEvent):
             if isinstance(response.content_block, ToolUseBlock):
+                tool_call_id = response.content_block.id
+                tool_call_name = response.content_block.name
+                block_index = response.index
+                # Store the tool call id for the block index
+                self.block_index_to_tool_call_id_map[block_index] = (
+                    tool_call_id
+                )
                 tool_info = {
-                    "toolCallId": response.content_block.id,
-                    "toolName": response.content_block.name,
+                    "toolCallId": tool_call_id,
+                    "toolName": tool_call_name,
                 }
-                return (tool_info, "tool_call_start")
+                return [(tool_info, "tool_call_start")]
 
         return None
 
@@ -880,7 +964,7 @@ class GoogleProvider(
             ),
         )
 
-    def _get_tool_call_id(self, tool_call_id: Optional[str]) -> Optional[str]:
+    def _get_tool_call_id(self, tool_call_id: Optional[str]) -> str:
         # Custom tools don't have an id, so we have to generate a random uuid
         # https://ai.google.dev/gemini-api/docs/function-calling?example=meeting
         if not tool_call_id:
@@ -891,8 +975,8 @@ class GoogleProvider(
     def extract_content(
         self,
         response: GenerateContentResponse,
-        tool_call_id: Optional[str] = None,
-    ) -> Optional[ExtractedContent]:
+        tool_call_ids: list[str] = [],
+    ) -> Optional[ExtractedContentList]:
         if not response.candidates:
             return None
 
@@ -903,33 +987,56 @@ class GoogleProvider(
         if not candidate.content.parts:
             return None
 
-        for part in candidate.content.parts:
-            # Start of tool call
-            # GoogleProvider may emit the function_call object in every chunk, not just the first.
-            # We use tool_call_id to ensure we only emit one tool_call_start event per tool call.
-            if part.function_call and not tool_call_id:
-                tool_info = {
-                    "toolCallId": self._get_tool_call_id(
-                        part.function_call.id
-                    ),
-                    "toolName": part.function_call.name,
-                    "args": json.dumps(part.function_call.args),
-                }
-                return (tool_info, "tool_call_start")
-            # Tool call args (not delta)
-            elif part.function_call and part.function_call.args:
-                return (json.dumps(part.function_call.args), "tool_call_delta")
+        # Build events by first scanning parts and rectifying tool calls by position
+        content: ExtractedContentList = []
+        function_call_index = -1
+        seen_in_frame: set[int] = set()
 
-            # Skip non-text content
-            elif part.text:
-                # Reasoning content
-                if part.thought:
-                    return (part.text, "reasoning")
+        for part in candidate.content.parts:
+            # Handle function calls (may appear multiple times per chunk)
+            if part.function_call:
+                function_call_index += 1
+                # Resolve a stable id by position if provided from the caller; else synthesize
+                stable_id = (
+                    tool_call_ids[function_call_index]
+                    if function_call_index < len(tool_call_ids)
+                    and tool_call_ids[function_call_index]
+                    else self._get_tool_call_id(part.function_call.id)
+                )
+
+                # First sight of this call index in this frame => emit start
+                if function_call_index not in seen_in_frame:
+                    tool_info = {
+                        "toolCallId": stable_id,
+                        "toolName": part.function_call.name,
+                        "args": json.dumps(part.function_call.args),
+                    }
+                    content.append((tool_info, "tool_call_start"))
+                    seen_in_frame.add(function_call_index)
                 else:
-                    return (part.text, "text")
-            else:
+                    # Subsequent occurrences for the same index => treat as delta (snapshot semantics)
+                    if part.function_call.args is not None:
+                        tool_delta = {
+                            "toolCallId": stable_id,
+                            "inputTextDelta": json.dumps(
+                                part.function_call.args
+                            ),
+                        }
+                        content.append((tool_delta, "tool_call_delta"))
                 continue
-        return None
+
+            # Text/Reasoning handling
+            if part.text:
+                if part.thought:
+                    content.append((part.text, "reasoning"))
+                else:
+                    content.append((part.text, "text"))
+                continue
+
+            # Ignore other non-text parts (e.g., images) at this layer
+            continue
+
+        return content
 
     def get_finish_reason(
         self, response: GenerateContentResponse
@@ -1007,9 +1114,8 @@ class BedrockProvider(
     def extract_content(
         self,
         response: LitellmStreamResponse,
-        tool_call_id: Optional[str] = None,
-    ) -> Optional[ExtractedContent]:
-        del tool_call_id
+        tool_call_ids: list[str] = [],
+    ) -> Optional[ExtractedContentList]:
         if (
             hasattr(response, "choices")
             and response.choices
@@ -1020,30 +1126,42 @@ class BedrockProvider(
             # Text content
             content = delta.content
             if content:
-                return (str(content), "text")
+                return [(str(content), "text")]
 
             # Tool call: LiteLLM follows OpenAI format for tool calls
+
             if hasattr(delta, "tool_calls") and delta.tool_calls:
-                tool_calls = delta.tool_calls[0]
+                tool_content: ExtractedContentList = []
 
-                # Start of tool call
-                # id is only present for the first tool call chunk
-                if hasattr(tool_calls, "id") and tool_calls.id:
-                    tool_info = {
-                        "toolCallId": tool_calls.id,
-                        "toolName": tool_calls.function.name,
-                    }
-                    return (tool_info, "tool_call_start")
+                for tool_call in delta.tool_calls:
+                    tool_index: int = tool_call.index
 
-                # Delta of tool call
-                # arguments is only present second chunk onwards
-                if (
-                    hasattr(tool_calls, "function")
-                    and tool_calls.function
-                    and hasattr(tool_calls.function, "arguments")
-                    and tool_calls.function.arguments
-                ):
-                    return (tool_calls.function.arguments, "tool_call_delta")
+                    # Start of tool call
+                    # id is only present for the first tool call chunk
+                    if hasattr(tool_call, "id") and tool_call.id:
+                        tool_info = {
+                            "toolCallId": tool_call.id,
+                            "toolName": tool_call.function.name,
+                        }
+                        tool_content.append((tool_info, "tool_call_start"))
+
+                    # Delta of tool call
+                    # arguments is only present second chunk onwards
+                    if (
+                        hasattr(tool_call, "function")
+                        and tool_call.function
+                        and hasattr(tool_call.function, "arguments")
+                        and tool_call.function.arguments
+                        and tool_call_ids[tool_index]
+                    ):
+                        tool_delta = {
+                            "toolCallId": tool_call_ids[tool_index],
+                            "inputTextDelta": tool_call.function.arguments,
+                        }
+                        tool_content.append((tool_delta, "tool_call_delta"))
+
+                # return the tool content
+                return tool_content
 
         return None
 
