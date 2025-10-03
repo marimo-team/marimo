@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -109,6 +110,7 @@ class Loader(ABC):
     def __init__(self, name: str) -> None:
         self.name = name
         self._hits = 0
+        self._time_saved = 0.0
 
     def build_path(self, key: HashKey) -> Path:
         prefix = CACHE_PREFIX.get(key.cache_type, "U_")
@@ -120,15 +122,25 @@ class Loader(ABC):
         key: HashKey,
         stateful_refs: set[Name],
     ) -> Cache:
+        start_time = time.time()
         loaded = self.load_cache(key)
         if not loaded:
             return Cache.empty(defs=defs, key=key, stateful_refs=stateful_refs)
+        load_time = time.time() - start_time
+
         # TODO: Consider more robust verification
         if loaded.hash != key.hash:
             raise LoaderError("Hash mismatch in loaded cache.")
         if (defs | stateful_refs) != set(loaded.defs):
             raise LoaderError("Variable mismatch in loaded cache.")
         self._hits += 1
+
+        # Track time savings: original runtime - time to load from cache
+        runtime = loaded.meta.get("runtime", 0)
+        if runtime > 0:
+            time_saved = runtime - load_time
+            self._time_saved += max(0, time_saved)
+
         return Cache.new(
             loaded=loaded,
             key=key,
@@ -138,6 +150,10 @@ class Loader(ABC):
     @property
     def hits(self) -> int:
         return self._hits
+
+    @property
+    def time_saved(self) -> float:
+        return self._time_saved
 
     @classmethod
     def partial(cls, **kwargs: Any) -> LoaderPartial:
@@ -169,6 +185,11 @@ class Loader(ABC):
     @abstractmethod
     def save_cache(self, cache: Cache) -> bool:
         """Save Cache"""
+
+    def clear(self) -> None:
+        """Clear all cached items. Default implementation does nothing."""
+        # Default implementation: no-op for loaders that don't support clearing
+        return
 
 
 class BasePersistenceLoader(Loader):
@@ -215,6 +236,23 @@ class BasePersistenceLoader(Loader):
             return self.restore_cache(key, blob)
         except FileNotFoundError as e:
             raise LoaderError("Unexpected cache miss.") from e
+
+    def clear(self) -> None:
+        """Clear all cached items for this loader."""
+        # Clear all files in the loader's directory
+        import glob
+
+        from marimo._save.stores.file import FileStore
+
+        # Only FileStore has save_path, so we need to check
+        if not isinstance(self.store, FileStore):
+            return
+
+        pattern = str(Path(self.name) / f"*.{self.suffix}")
+        # Get all matching cache files through the store's base path
+        for cache_file in glob.glob(str(self.store.save_path / pattern)):
+            key = str(Path(cache_file).relative_to(self.store.save_path))
+            self.store.clear(key)
 
     @abstractmethod
     def restore_cache(self, key: HashKey, blob: bytes) -> Cache:

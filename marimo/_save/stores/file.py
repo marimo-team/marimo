@@ -47,3 +47,11 @@ class FileStore(Store):
     def hit(self, key: str) -> bool:
         path = self.save_path / key
         return _valid_path(path)
+
+    def clear(self, key: str) -> bool:
+        path = self.save_path / key
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not _valid_path(path):
+            return False
+        path.unlink()
+        return True

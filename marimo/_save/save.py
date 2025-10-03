@@ -6,6 +6,7 @@ import functools
 import inspect
 import io
 import sys
+import time
 import traceback
 from collections import abc
 
@@ -33,7 +34,12 @@ from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context, safe_get_context
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
-from marimo._save.cache import Cache, CacheException
+from marimo._save.cache import (
+    UNEXPECTED_FAILURE_BOILERPLATE,
+    Cache,
+    CacheContext,
+    CacheException,
+)
 from marimo._save.hash import (
     DEFAULT_HASH,
     BlockHasher,
@@ -53,15 +59,6 @@ from marimo._save.toplevel import get_cell_id_from_scope, graph_from_scope
 from marimo._types.ids import CellId_t
 from marimo._utils.with_skip import SkipContext
 
-# Many assertions are for typing and should always pass. This message is a
-# catch all to motive users to report if something does fail.
-UNEXPECTED_FAILURE_BOILERPLATE = (
-    "— this is"
-    " unexpected and is likely a bug in marimo. "
-    "Please file an issue at "
-    "https://github.com/marimo-team/marimo/issues"
-)
-
 if TYPE_CHECKING:
     from types import FrameType, TracebackType
 
@@ -69,7 +66,7 @@ if TYPE_CHECKING:
     from marimo._save.stores import Store
 
 
-class _cache_call:
+class _cache_call(CacheContext):
     """Like functools.cache but notebook-aware. See `cache` docstring"""
 
     __slots__ = (
@@ -81,6 +78,7 @@ class _cache_call:
         "_args",
         "_var_arg",
         "_var_kwarg",
+        "_misses",
         "_loader",
         "_loader_partial",
         "_bound",
@@ -98,6 +96,7 @@ class _cache_call:
     _args: list[str]
     _var_arg: Optional[str]
     _var_kwarg: Optional[str]
+    _misses: int
     _loader: Optional[State[Loader]]
     _loader_partial: LoaderPartial
     _bound: Optional[dict[str, Any]]
@@ -126,6 +125,7 @@ class _cache_call:
         self._last_hash = None
         self._var_arg = None
         self._var_kwarg = None
+        self._misses = 0
         self._loader = None
         self._bound = {}
         self._external = False
@@ -133,12 +133,6 @@ class _cache_call:
             self.__wrapped__ = None
         else:
             self._set_context(_fn)
-
-    @property
-    def hits(self) -> int:
-        if self._loader is None:
-            return 0
-        return self.loader.hits
 
     def _set_context(self, fn: Callable[..., Any]) -> None:
         ctx = safe_get_context()
@@ -256,9 +250,10 @@ class _cache_call:
         )
 
     @property
-    def loader(self) -> Loader:
-        assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
-        return self._loader()
+    def misses(self) -> int:
+        if self._loader is None:
+            return 0
+        return self._misses
 
     @property
     def __name__(self) -> str:
@@ -384,12 +379,18 @@ class _cache_call:
             if attempt.hit:
                 attempt.restore(scope)
                 return attempt.meta["return"]
+
+            start_time = time.time()
             response = self.__wrapped__(*args, **kwargs)
+            runtime = time.time() - start_time
+
             # stateful variables may be global
             scope = {
                 k: v for k, v in scope.items() if k in attempt.stateful_refs
             }
-            attempt.update(scope, meta={"return": response})
+            attempt.update(
+                scope, meta={"return": response, "runtime": runtime}
+            )
             self.loader.save_cache(attempt)
         except Exception as e:
             failed = True
@@ -398,10 +399,11 @@ class _cache_call:
             # NB. Exceptions raise their own side effects.
             if ctx and not failed:
                 ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
+        self._misses += 1
         return response
 
 
-class _cache_context(SkipContext):
+class _cache_context(SkipContext, CacheContext):
     def __init__(
         self,
         name: str,
@@ -418,7 +420,9 @@ class _cache_context(SkipContext):
         # TODO: Consider having a user level setting.
         self.pin_modules = pin_modules
         self.hash_type = hash_type
-        self._loader = loader
+        # Wrap loader in State to match CacheContext's _loader type
+        self._loader = State(loader, _name=name)
+        self._start_time: float = 0.0
 
     @property
     def hit(self) -> bool:
@@ -472,7 +476,7 @@ class _cache_context(SkipContext):
                     graph,
                     cell_id,
                     {**globals(), **with_frame.f_locals},
-                    loader=self._loader,
+                    loader=self.loader,
                     context=pre_module,
                     pin_modules=self.pin_modules,
                     hash_type=self.hash_type,
@@ -482,6 +486,9 @@ class _cache_context(SkipContext):
                 # Raising on the first valid line, prevents a discrepancy where
                 # whitespace in `With`, changes behavior.
                 self._body_start = save_module.body[0].lineno
+
+                # Start timing for runtime tracking
+                self._start_time = time.time()
 
                 if self._cache and self._cache.hit:
                     if lineno >= self._body_start:
@@ -532,10 +539,11 @@ class _cache_context(SkipContext):
                 return True
 
             # Fill the cache object and save.
-            self._cache.update(self._frame.f_locals)
+            runtime = time.time() - self._start_time
+            self._cache.update(self._frame.f_locals, meta={"runtime": runtime})
 
             try:
-                self._loader.save_cache(self._cache)
+                self.loader.save_cache(self._cache)
             except Exception as e:
                 sys.stderr.write(
                     "An exception was raised when attempting to cache this code "
@@ -661,11 +669,10 @@ def _invoke_context(
             "hash_type": kwargs.pop("hash_type", DEFAULT_HASH),
         }
         # Create through partial for meaningful error message.
-        loader = (
-            cast(Loader, loader)
-            .partial(**kwargs)
-            .create_or_reconfigure(name)()
+        loader_state = (
+            cast(Loader, loader).partial(**kwargs).create_or_reconfigure(name)
         )
+        loader = loader_state()
         kwargs = cache_args
     return _cache_context(name, loader, *args, **kwargs)
 
