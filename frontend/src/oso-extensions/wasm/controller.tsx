@@ -130,6 +130,7 @@ export class DefaultWasmController implements WasmController {
       print("[py] Starting marimo...")
       import asyncio
       import js
+      import os
       from marimo._pyodide.bootstrap import create_session, instantiate
       from marimo.oso import InterceptingPyodideBridge, ensure_pyoso_setup_in_file
 
@@ -137,6 +138,11 @@ export class DefaultWasmController implements WasmController {
       assert js.query_params, "query_params is not defined"
 
       ensure_pyoso_setup_in_file("${nbFilename}")
+
+      # Hack to trick marimo into overloading the app config
+      # See the marimo/_ast/app_config.py#overloads_from_env() 
+      # function for details
+      os.environ["_MARIMO_APP_OVERLOAD_WIDTH"] = "full"
 
       session, bridge = create_session(
         filename="${nbFilename}",
