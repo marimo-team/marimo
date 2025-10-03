@@ -32,7 +32,7 @@ import { ContributeSnippetButton } from "../components/contribute-snippet-button
 
 const extensions = [EditorView.lineWrapping];
 
-export const SnippetsPanel: React.FC = () => {
+const SnippetsPanel: React.FC = () => {
   const { readSnippets } = useRequestClient();
   const [selectedSnippet, setSelectedSnippet] = React.useState<Snippet>();
   const {
@@ -97,6 +97,8 @@ export const SnippetsPanel: React.FC = () => {
     </div>
   );
 };
+
+export default SnippetsPanel;
 
 const SnippetViewer: React.FC<{ snippet: Snippet; onClose: () => void }> = ({
   snippet,

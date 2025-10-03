@@ -6,7 +6,7 @@ import React from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Button } from "../inputs/Inputs";
-import { commandPaletteAtom } from "./command-palette";
+import { commandPaletteAtom } from "./state";
 
 export const CommandPaletteButton: React.FC = () => {
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);

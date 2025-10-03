@@ -7,7 +7,7 @@ import { useCellErrors } from "../../../../core/cells/cells";
 import { MarimoErrorOutput } from "../../output/MarimoErrorOutput";
 import { PanelEmptyState } from "./empty-state";
 
-export const ErrorsPanel: React.FC = () => {
+const ErrorsPanel: React.FC = () => {
   const errors = useCellErrors();
 
   if (errors.length === 0) {
@@ -33,3 +33,5 @@ export const ErrorsPanel: React.FC = () => {
     </div>
   );
 };
+
+export default ErrorsPanel;

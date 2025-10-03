@@ -442,7 +442,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
 
 ChatInput.displayName = "ChatInput";
 
-export const ChatPanel = () => {
+const ChatPanel = () => {
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const { handleClick } = useOpenSettingsToTab();
 
@@ -935,3 +935,5 @@ async function convertToChatAttachments(
 
   return attachments;
 }
+
+export default ChatPanel;

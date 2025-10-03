@@ -1256,6 +1256,11 @@ class table(
         else:
             total_rows = result.get_num_rows(force=True) or 0
 
+        if args.sort and self._style_cell:
+            LOGGER.warning(
+                "Cell styling is not correctly applied when table rows are sorted"
+            )
+
         return SearchTableResponse(
             data=clamp_rows_and_columns(result),
             total_rows=total_rows,

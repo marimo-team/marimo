@@ -101,6 +101,10 @@ class AppStateBase:
     def remote_url(self) -> Optional[str]:
         return getattr(self.state, "remote_url", None)
 
+    @property
+    def asset_url(self) -> Optional[str]:
+        return getattr(self.state, "asset_url", None)
+
 
 class AppState(AppStateBase):
     """The app state with a request."""

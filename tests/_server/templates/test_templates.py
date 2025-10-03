@@ -270,6 +270,28 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert "<style title='marimo-custom'>" not in result
         _assert_no_leftover_replacements(result)
 
+    def test_notebook_page_template_with_asset_url(self) -> None:
+        """Test notebook page template with custom asset URL."""
+        asset_url = "https://cdn.example.com/v{version}"
+
+        result = templates.notebook_page_template(
+            self.html,
+            self.base_url,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            self.app_config,
+            str(self.filename),
+            self.mode,
+            asset_url=asset_url,
+        )
+
+        # Asset URLs should be replaced
+        assert 'href="https://cdn.example.com/' in result
+        assert 'src="https://cdn.example.com/' in result
+        assert 'crossorigin="anonymous"' in result
+        _assert_no_leftover_replacements(result)
+
 
 class TestHomePageTemplate(unittest.TestCase):
     def setUp(self) -> None:
@@ -304,6 +326,25 @@ class TestHomePageTemplate(unittest.TestCase):
         assert json.dumps({}) in result
         assert "" in result
         assert "home" in result
+        _assert_no_leftover_replacements(result)
+
+    def test_home_page_template_with_asset_url(self) -> None:
+        """Test home page template with custom asset URL."""
+        asset_url = "https://cdn.example.com/v{version}"
+
+        result = templates.home_page_template(
+            self.html,
+            self.base_url,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            asset_url=asset_url,
+        )
+
+        # Asset URLs should be replaced
+        assert 'href="https://cdn.example.com/' in result
+        assert 'src="https://cdn.example.com/' in result
+        assert 'crossorigin="anonymous"' in result
         _assert_no_leftover_replacements(result)
 
 
@@ -768,3 +809,44 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         assert "#filename-input" in result
         assert "<title>My App</title>" in result
         _assert_no_leftover_replacements(result)
+
+
+class TestReplaceAssetUrls(unittest.TestCase):
+    """Test the _replace_asset_urls function."""
+
+    def test_replace_asset_urls_basic(self) -> None:
+        """Test basic asset URL replacement."""
+        html = """<link href="./assets/style.css" rel="stylesheet">
+<script src="./assets/app.js"></script>"""
+
+        result = templates._replace_asset_urls(html, "https://cdn.example.com")
+
+        assert (
+            result
+            == """<link crossorigin="anonymous" href="https://cdn.example.com/assets/style.css" rel="stylesheet">
+<script crossorigin="anonymous" src="https://cdn.example.com/assets/app.js"></script>"""
+        )
+
+    def test_replace_asset_urls_with_version(self) -> None:
+        """Test asset URL replacement with version placeholder."""
+        from marimo._version import __version__
+
+        html = """<link href="./assets/style.css" rel="stylesheet">"""
+
+        result = templates._replace_asset_urls(
+            html, "https://cdn.example.com/v{version}"
+        )
+
+        expected = f"""<link crossorigin="anonymous" href="https://cdn.example.com/v{__version__}/assets/style.css" rel="stylesheet">"""
+        assert result == expected
+
+    def test_replace_asset_urls_double_quotes(self) -> None:
+        """Test asset URL replacement with double quotes."""
+        html = '<link href="./assets/style.css" rel="stylesheet">'
+
+        result = templates._replace_asset_urls(html, "https://cdn.example.com")
+
+        assert (
+            result
+            == '<link crossorigin="anonymous" href="https://cdn.example.com/assets/style.css" rel="stylesheet">'
+        )
