@@ -247,7 +247,7 @@
 
   .cm-completionInfo.cm-completionInfo-right-narrow {
     /* CodeMirror's default makes the completionInfo overlap with the
-      * compeletion symbol */
+      * completion symbol */
     left: 100%;
   }
 
