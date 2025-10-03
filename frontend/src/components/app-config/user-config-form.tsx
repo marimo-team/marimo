@@ -581,7 +581,7 @@ export const UserConfigForm: React.FC = () => {
                       />
                     </FormItem>
                     <FormDescription>
-                      Enable custom SQL linting for SQL cells.
+                      Better linting and autocompletions for SQL cells.
                     </FormDescription>
                   </div>
                 )}
