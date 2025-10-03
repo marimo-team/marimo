@@ -221,6 +221,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
     void this.rpc.proxy.request.saveNotebook(request).catch((error) => {
       Logger.error(error);
     });
+    // HTML export wasn't working with our custom controller without this
+    // TODO(oso): make it work without this
+    void this.rpc.proxy.request.bridge({
+      functionName: "save",
+      payload: request,
+    });
     return null;
   };
 
