@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from marimo._server.api.endpoints.cache import router as cache_router
+
 from marimo._server.api.endpoints.ai import router as ai_router
 from marimo._server.api.endpoints.assets import router as assets_router
-from marimo._server.api.endpoints.cache import router as cache_router
 from marimo._server.api.endpoints.config import router as config_router
 from marimo._server.api.endpoints.datasources import (
     router as datasources_router,
