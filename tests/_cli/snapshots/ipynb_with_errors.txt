@@ -31,8 +31,6 @@
      "output_type": "stream",
      "text": [
       "<span class=\"codehilite\"><div class=\"highlight\"><pre><span></span><span class=\"gt\">Traceback (most recent call last):</span>\n",
-      "<span class=\"w\">    </span><span class=\"k\">return</span> <span class=\"nb\">eval</span><span class=\"p\">(</span><span class=\"n\">cell</span><span class=\"o\">.</span><span class=\"n\">last_expr</span><span class=\"p\">,</span> <span class=\"n\">glbls</span><span class=\"p\">)</span>\n",
-      "<span class=\"w\">           </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n",
       "<span class=\"w\">    </span><span class=\"mi\">1</span> <span class=\"o\">/</span> <span class=\"mi\">0</span>\n",
       "<span class=\"w\">    </span><span class=\"pm\">~~^~~</span>\n",
       "<span class=\"gr\">ZeroDivisionError</span>: <span class=\"n\">division by zero</span>\n",

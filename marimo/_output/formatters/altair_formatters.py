@@ -82,6 +82,14 @@ class AltairFormatter(FormatterFactory):
 
             # If vegafusion is enabled, just wrap in altair_chart
             if alt.data_transformers.active.startswith("vegafusion"):
+                # Bug https://github.com/marimo-team/marimo/issues/6601. Vegafusion defaults to white background
+                # So, we set the background to transparent
+                if (
+                    chart._get("background") is alt.Undefined  # type: ignore
+                ):
+                    LOGGER.debug("setting background to transparent")
+                    chart = chart.properties(background="transparent")
+
                 return (
                     "application/vnd.vega.v5+json",
                     chart_to_json(chart=chart, spec_format="vega"),

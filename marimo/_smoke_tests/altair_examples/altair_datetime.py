@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.33"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     from datetime import datetime, timedelta, timezone
 
     import altair as alt
@@ -23,11 +23,11 @@ def __():
             for i in range(1000)
         ]
     )
-    return alt, datetime, df, mo, pd, timedelta, timezone
+    return alt, df, mo
 
 
 @app.cell
-def __(alt, df, mo):
+def _(alt, df, mo):
     bars = (
         alt.Chart(df)
         .mark_bar()
@@ -35,11 +35,11 @@ def __(alt, df, mo):
     )
     selection = mo.ui.altair_chart(bars)
     selection
-    return bars, selection
+    return (selection,)
 
 
 @app.cell
-def __(selection):
+def _(selection):
     selection.value
     return
 

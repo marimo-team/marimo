@@ -102,7 +102,7 @@ export const StyleForm: React.FC = () => {
           <SliderField
             fieldName="xAxis.width"
             label="Width"
-            value={400}
+            defaultValue={400}
             start={200}
             stop={800}
           />
@@ -118,7 +118,7 @@ export const StyleForm: React.FC = () => {
           <SliderField
             fieldName="yAxis.height"
             label="Height"
-            value={300}
+            defaultValue={300}
             start={150}
             stop={600}
           />

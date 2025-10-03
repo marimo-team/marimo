@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import pytest
 
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._pyodide.bootstrap import create_session, save_file
 from marimo._pyodide.pyodide_session import PyodideSession
 from marimo._server.model import SessionMode
@@ -169,10 +170,29 @@ def test_save_file(
 
     # Save the file
     save_file(
-        request=json.dumps(request.__dict__),
+        request=encode_json_str(request),
         filename=str(mock_app_file),
     )
 
     # Verify the file was saved correctly
     saved_content = mock_app_file.read_text()
     assert "print('hello')" in saved_content
+
+
+async def test_message_callback_format(
+    mock_app_file: Path,
+) -> None:
+    """Test that message_callback receives properly formatted JSON."""
+    received_messages: list[str] = []
+
+    session, _ = create_session(
+        filename=str(mock_app_file),
+        query_params={},
+        message_callback=lambda text: received_messages.append(text),
+        user_config=DEFAULT_CONFIG,
+    )
+
+    assert len(received_messages) >= 1
+    parsed = json.loads(received_messages[0])
+    assert parsed["op"] == "kernel-ready"
+    assert isinstance(parsed["data"], dict)

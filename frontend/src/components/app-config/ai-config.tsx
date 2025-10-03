@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import type { SupportedRole } from "@/core/ai/config";
 import {
   AiModelId,
   PROVIDERS,
@@ -76,6 +77,7 @@ import { SettingSubtitle } from "./common";
 import { AWS_REGIONS } from "./constants";
 import { IncorrectModelId } from "./incorrect-model-id";
 import { IsOverridden } from "./is-overridden";
+import { MCPConfig } from "./mcp-config";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 
@@ -225,6 +227,7 @@ interface ModelSelectorProps {
   description?: React.ReactNode;
   disabled?: boolean;
   label: string;
+  forRole: SupportedRole;
   onSubmit: (values: UserConfig) => void;
 }
 
@@ -237,6 +240,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   description,
   disabled = false,
   label,
+  forRole,
   onSubmit,
 }) => {
   return (
@@ -289,6 +293,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                     </div>
                   </>
                 }
+                forRole={forRole}
               />
             </FormControl>
             <FormMessage />
@@ -420,6 +425,7 @@ const renderCopilotProvider = ({
         testId="custom-model-input"
         description="Model to use for code completion when using a custom provider."
         onSubmit={onSubmit}
+        forRole="autocomplete"
       />
     );
   }
@@ -730,6 +736,36 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         </AccordionFormItem>
 
         <AccordionFormItem
+          title="OpenRouter"
+          provider="openrouter"
+          isConfigured={hasValue("ai.openrouter.api_key")}
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.openrouter.api_key"
+            placeholder="or-..."
+            testId="ai-openrouter-api-key-input"
+            description={
+              <>
+                Your OpenRouter API key from {""}
+                <ExternalLink href="https://openrouter.ai/keys">
+                  openrouter.ai
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.openrouter.base_url"
+            placeholder="https://openrouter.ai/api/v1/"
+            testId="ai-openrouter-base-url-input"
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
           title="Azure"
           provider="azure"
           isConfigured={
@@ -756,7 +792,8 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             form={form}
             config={config}
             name="ai.azure.base_url"
-            placeholder="https://<your-resource-name>.openai.azure.com"
+            placeholder="https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment-name>?api-version=<api-version>"
+            defaultValue="https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment-name>?api-version=<api-version>"
             testId="ai-azure-base-url-input"
           />
         </AccordionFormItem>
@@ -893,6 +930,29 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
   return (
     <SettingGroup>
       <SettingSubtitle>AI Assistant</SettingSubtitle>
+
+      <FormField
+        control={form.control}
+        name="ai.inline_tooltip"
+        render={({ field }) => (
+          <div className="flex flex-col gap-y-1">
+            <FormItem className={formItemClasses}>
+              <FormLabel className="font-normal">AI Edit Tooltip</FormLabel>
+              <FormControl>
+                <Checkbox
+                  data-testid="inline-ai-checkbox"
+                  checked={field.value === true}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+            <FormDescription>
+              Enable "Edit with AI" tooltip when selecting code.
+            </FormDescription>
+          </div>
+        )}
+      />
+
       <FormErrorsBanner />
       <ModelSelector
         label="Chat Model"
@@ -905,6 +965,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         description={
           <span>Model to use for chat conversations in the Chat panel.</span>
         }
+        forRole="chat"
         onSubmit={onSubmit}
       />
       <ModelSelector
@@ -921,6 +982,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
             <Kbd className="inline">Generate with AI</Kbd> button.
           </span>
         }
+        forRole="edit"
         onSubmit={onSubmit}
       />
 
@@ -1130,7 +1192,11 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
           ))}
         </Tree>
       </div>
-      <AddModelForm form={form} customModels={customModels} />
+      <AddModelForm
+        form={form}
+        customModels={customModels}
+        onSubmit={onSubmit}
+      />
     </SettingGroup>
   );
 };
@@ -1138,7 +1204,8 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 export const AddModelForm: React.FC<{
   form: UseFormReturn<UserConfig>;
   customModels: QualifiedModelId[];
-}> = ({ form, customModels }) => {
+  onSubmit: (values: UserConfig) => void;
+}> = ({ form, customModels, onSubmit }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
@@ -1171,6 +1238,7 @@ export const AddModelForm: React.FC<{
     );
 
     form.setValue("ai.models.custom_models", [newModel.id, ...customModels]);
+    onSubmit(form.getValues());
     resetForm();
 
     // Show model added message for 2 seconds
@@ -1320,12 +1388,15 @@ export const AiConfig: React.FC<AiConfigProps> = ({
   config,
   onSubmit,
 }) => {
+  // MCP is not supported in WASM
+  const wasm = isWasm();
   return (
     <Tabs defaultValue="ai-features" className="flex-1">
       <TabsList className="mb-2">
         <TabsTrigger value="ai-features">AI Features</TabsTrigger>
         <TabsTrigger value="ai-providers">AI Providers</TabsTrigger>
         <TabsTrigger value="ai-models">AI Models</TabsTrigger>
+        {!wasm && <TabsTrigger value="mcp">MCP</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="ai-features">
@@ -1342,6 +1413,11 @@ export const AiConfig: React.FC<AiConfigProps> = ({
       <TabsContent value="ai-models">
         <AiModelDisplayConfig form={form} config={config} onSubmit={onSubmit} />
       </TabsContent>
+      {!wasm && (
+        <TabsContent value="mcp">
+          <MCPConfig form={form} onSubmit={onSubmit} />
+        </TabsContent>
+      )}
     </Tabs>
   );
 };

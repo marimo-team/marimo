@@ -11,18 +11,18 @@
 
 import marimo
 
-__generated_with = "0.7.20"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Data""")
     return
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
     import numpy as np
     import pandas as pd
@@ -38,17 +38,17 @@ def __():
     traces = pd.DataFrame(data)
 
     print(traces.head())
-    return alt, data, mo, np, pd, traces
+    return alt, mo, traces
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Plain Altair""")
     return
 
 
 @app.cell
-def __(alt, traces):
+def _(alt, traces):
     _brush = alt.selection_interval(encodings=["x"])
 
     _chart_overview = (
@@ -70,13 +70,13 @@ def __(alt, traces):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Example of the Or ( | ) operator""")
     return
 
 
 @app.cell
-def __(alt, mo, traces):
+def _(alt, mo, traces):
     _brush = alt.selection_interval(encodings=["x"])
 
     chart_overview = mo.ui.altair_chart(
@@ -100,20 +100,20 @@ def __(alt, mo, traces):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Example of the Or ( | ) operator with selection""")
     return
 
 
 @app.cell
-def __(chart_detail, chart_overview):
+def _(chart_detail, chart_overview):
     combined = chart_overview | chart_detail
     combined
     return (combined,)
 
 
 @app.cell
-def __(combined):
+def _(combined):
     combined.value
     return
 

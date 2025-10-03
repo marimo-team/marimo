@@ -8,18 +8,18 @@
 
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         Re-run this with notebook with the following command line:
@@ -33,7 +33,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.cli_args().to_dict()
     return
 

@@ -1,22 +1,21 @@
 import marimo
 
-__generated_with = "0.9.9"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
     import pandas as pd
     import polars as pl
 
     import marimo as mo
-
     return alt, mo, pd, pl
 
 
 @app.cell
-def __(mo, pd, pl):
+def _(mo, pd, pl):
     url = "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv"
 
     df_selection = mo.ui.dropdown(
@@ -24,11 +23,11 @@ def __(mo, pd, pl):
         value="polars",
     )
     df_selection
-    return df_selection, url
+    return (df_selection,)
 
 
 @app.cell
-def __(alt, df_selection, mo):
+def _(alt, df_selection, mo):
     df = df_selection.value
     chart = mo.ui.altair_chart(
         alt.Chart(df)
@@ -40,25 +39,25 @@ def __(alt, df_selection, mo):
 
 
 @app.cell
-def __(chart):
+def _(chart):
     chart.data
     return
 
 
 @app.cell
-def __(chart, df):
+def _(chart, df):
     ["Types", type(df), type(chart.dataframe), type(chart.value)]
     return
 
 
 @app.cell
-def __(chart):
+def _(chart):
     chart.value
     return
 
 
 @app.cell
-def __(chart):
+def _(chart):
     chart.dataframe
     return
 

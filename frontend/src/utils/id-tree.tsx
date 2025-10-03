@@ -23,11 +23,15 @@ export type CellIndex = number & { __brand?: "CellIndex" };
  * Tree data structure for handling ids with nested children
  */
 export class TreeNode<T> {
-  constructor(
-    public value: T,
-    public isCollapsed: boolean,
-    public children: Array<TreeNode<T>>,
-  ) {}
+  public value: T;
+  public isCollapsed: boolean;
+  public children: TreeNode<T>[];
+
+  constructor(value: T, isCollapsed: boolean, children: TreeNode<T>[]) {
+    this.value = value;
+    this.isCollapsed = isCollapsed;
+    this.children = children;
+  }
 
   /**
    * Recursively count the number of nodes in the tree
@@ -73,15 +77,17 @@ export class TreeNode<T> {
   @Memoize()
   get inOrderIds(): T[] {
     const result: T[] = [];
-    const queue = [...this.children];
 
-    while (queue.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const node = queue.shift()!;
+    // Use depth-first traversal to preserve logical document order
+    const traverse = (node: TreeNode<T>) => {
       result.push(node.value);
+      for (const child of node.children) {
+        traverse(child);
+      }
+    };
 
-      // Add children to queue to maintain breadth-first traversal
-      queue.push(...node.children);
+    for (const child of this.children) {
+      traverse(child);
     }
 
     return result;
@@ -102,10 +108,13 @@ export class TreeNode<T> {
 let uniqueId = 0;
 
 export class CollapsibleTree<T> {
-  private constructor(
-    public readonly nodes: Array<TreeNode<T>>,
-    public readonly id: CellColumnId,
-  ) {}
+  public readonly nodes: TreeNode<T>[];
+  public readonly id: CellColumnId;
+
+  private constructor(nodes: TreeNode<T>[], id: CellColumnId) {
+    this.nodes = nodes;
+    this.id = id;
+  }
 
   static from<T>(ids: T[]): CollapsibleTree<T> {
     const id = `tree_${uniqueId++}` as CellColumnId;
@@ -153,7 +162,7 @@ export class CollapsibleTree<T> {
     return newTree;
   }
 
-  withNodes(nodes: Array<TreeNode<T>>): CollapsibleTree<T> {
+  withNodes(nodes: TreeNode<T>[]): CollapsibleTree<T> {
     return new CollapsibleTree(nodes, this.id);
   }
 
@@ -298,7 +307,7 @@ export class CollapsibleTree<T> {
    * Does not collapse the children of already collapsed nodes
    */
   collapseAll(
-    collapseRanges: Array<{ id: T; until: T | undefined } | null>,
+    collapseRanges: ({ id: T; until: T | undefined } | null)[],
   ): CollapsibleTree<T> {
     const nodes = [...this.nodes];
     if (collapseRanges.length === 0) {
@@ -532,7 +541,7 @@ export class CollapsibleTree<T> {
    */
   find(id: T): T[] {
     // We need to recursively find the node
-    function findNode(nodes: Array<TreeNode<T>>, path: T[]): T[] {
+    function findNode(nodes: TreeNode<T>[], path: T[]): T[] {
       for (const node of nodes) {
         if (node.value === id) {
           return [...path, id];
@@ -578,7 +587,7 @@ export class CollapsibleTree<T> {
   toString(): string {
     let depth = 0;
     let result = "";
-    const asString = (nodes: Array<TreeNode<T>>) => {
+    const asString = (nodes: TreeNode<T>[]) => {
       for (const node of nodes) {
         result += `${" ".repeat(depth * 2)}${node.toString()}\n`;
         depth += 1;
@@ -592,7 +601,11 @@ export class CollapsibleTree<T> {
 }
 
 export class MultiColumn<T> {
-  constructor(private readonly columns: ReadonlyArray<CollapsibleTree<T>>) {
+  private readonly columns: readonly CollapsibleTree<T>[];
+
+  constructor(columns: readonly CollapsibleTree<T>[]) {
+    this.columns = columns;
+
     // Ensure there is always at least one column
     if (columns.length === 0) {
       this.columns = [CollapsibleTree.from([])];
@@ -651,7 +664,7 @@ export class MultiColumn<T> {
   }
 
   static fromIdsAndColumns<T>(
-    idAndColumns: Array<[T, number | undefined | null]>,
+    idAndColumns: [T, number | undefined | null][],
   ): MultiColumn<T> {
     // If column is undefined, use the previous column
     // Ensure there is always at least one column
@@ -733,7 +746,7 @@ export class MultiColumn<T> {
     return this.columns.length === 1;
   }
 
-  getColumns(): ReadonlyArray<CollapsibleTree<T>> {
+  getColumns(): readonly CollapsibleTree<T>[] {
     return this.columns;
   }
 

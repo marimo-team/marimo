@@ -238,7 +238,7 @@ const FieldOptions = ({
     return null;
   }
 
-  let options: Array<[string, FieldFunction[]]> = [];
+  let options: [string, FieldFunction[]][] = [];
 
   if (field.type === ExpandedType.QUANTITATIVE) {
     options = [["", QUANTITATIVE_FUNCTIONS]];

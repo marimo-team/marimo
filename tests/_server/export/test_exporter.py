@@ -12,8 +12,8 @@ from marimo._ast.app import App, InternalApp
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.ops import CellOp
-from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._server.export import (
     export_as_wasm,
     run_app_then_export_as_ipynb,
@@ -422,7 +422,9 @@ def _print_messages(messages: list[CellOp]) -> str:
                 "status": message.status,
             }
         )
-    return json.dumps(result, indent=2, cls=WebComponentEncoder)
+    # Use msgspec for encoding, then format with json for readable snapshots
+    encoded = encode_json_str(result)
+    return json.dumps(json.loads(encoded), indent=2)
 
 
 def _as_list(data: Any) -> list[Any]:
@@ -493,7 +495,7 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
     )
 
 
-def test_export_as_html_with_serialization():
+def test_export_as_html_with_serialization(session_view: SessionView):
     """Test HTML export uses new serialization approach correctly."""
     app = App()
 
@@ -510,7 +512,6 @@ def test_export_as_html_with_serialization():
         return (mo,)
 
     file_manager = AppFileManager.from_app(InternalApp(app))
-    session_view = SessionView()
 
     # Add some test data to session view
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
@@ -572,7 +573,7 @@ def test_export_as_html_with_serialization():
     assert 'data-marimo="true"' in html
 
 
-def test_export_as_html_without_code():
+def test_export_as_html_without_code(session_view: SessionView):
     """Test HTML export clears code when include_code=False."""
     app = App()
 
@@ -583,7 +584,6 @@ def test_export_as_html_without_code():
         return secret_value
 
     file_manager = AppFileManager.from_app(InternalApp(app))
-    session_view = SessionView()
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
     session_view.cell_operations[cell_ids[0]] = CellOp(
@@ -634,7 +634,7 @@ def test_export_as_html_without_code():
     # The exact format depends on template implementation
 
 
-def test_export_as_html_with_files():
+def test_export_as_html_with_files(session_view: SessionView):
     """Test HTML export includes virtual files."""
     app = App()
 
@@ -643,7 +643,6 @@ def test_export_as_html_with_files():
         return "test"
 
     file_manager = AppFileManager.from_app(InternalApp(app))
-    session_view = SessionView()
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
     session_view.cell_operations[cell_ids[0]] = CellOp(
@@ -682,7 +681,7 @@ def test_export_as_html_with_files():
     assert "data:" in html
 
 
-def test_export_as_html_with_cell_configs():
+def test_export_as_html_with_cell_configs(session_view: SessionView):
     """Test HTML export preserves cell configurations through serialization."""
     app = App()
 
@@ -691,7 +690,6 @@ def test_export_as_html_with_cell_configs():
         return "configured"
 
     file_manager = AppFileManager.from_app(InternalApp(app))
-    session_view = SessionView()
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
     session_view.cell_operations[cell_ids[0]] = CellOp(
@@ -731,7 +729,7 @@ def test_export_as_html_with_cell_configs():
     assert "configured" in html
 
 
-def test_export_as_html_preserves_output_order():
+def test_export_as_html_preserves_output_order(session_view: SessionView):
     """Test HTML export preserves cell execution order in session snapshot."""
     app = App()
 
@@ -748,7 +746,6 @@ def test_export_as_html_preserves_output_order():
         return "third"
 
     file_manager = AppFileManager.from_app(InternalApp(app))
-    session_view = SessionView()
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
 
@@ -790,7 +787,7 @@ def test_export_as_html_preserves_output_order():
     assert "output_2" in html
 
 
-def test_export_as_html_with_error_outputs():
+def test_export_as_html_with_error_outputs(session_view: SessionView):
     """Test HTML export handles error outputs correctly."""
     app = App()
 
@@ -799,7 +796,6 @@ def test_export_as_html_with_error_outputs():
         raise ValueError("Test error")
 
     file_manager = AppFileManager.from_app(InternalApp(app))
-    session_view = SessionView()
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
 
@@ -807,7 +803,6 @@ def test_export_as_html_with_error_outputs():
     from marimo._messaging.errors import MarimoExceptionRaisedError
 
     error = MarimoExceptionRaisedError(
-        type="exception",
         exception_type="ValueError",
         msg="Test error",
         raising_cell=cell_ids[0],
@@ -845,7 +840,7 @@ def test_export_as_html_with_error_outputs():
     assert "Test error" in html or "ValueError" in html
 
 
-def test_export_as_html_code_hash_consistency():
+def test_export_as_html_code_hash_consistency(session_view: SessionView):
     """Test HTML export includes correct code hash regardless of include_code setting."""
     app = App()
 
@@ -854,7 +849,6 @@ def test_export_as_html_code_hash_consistency():
         return "test"
 
     file_manager = AppFileManager.from_app(InternalApp(app))
-    session_view = SessionView()
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
     session_view.cell_operations[cell_ids[0]] = CellOp(

@@ -202,13 +202,25 @@ export const createSelectionLayer = (): Extension =>
  * Renders a blinking cursor to indicate the cursor of another user.
  */
 export class RemoteCursorMarker implements LayerMarker {
+  private left: number;
+  private top: number;
+  private height: number;
+  private name: string;
+  private colorClassName: string;
+
   constructor(
-    private left: number,
-    private top: number,
-    private height: number,
-    private name: string,
-    private colorClassName: string,
-  ) {}
+    left: number,
+    top: number,
+    height: number,
+    name: string,
+    colorClassName: string,
+  ) {
+    this.left = left;
+    this.top = top;
+    this.height = height;
+    this.name = name;
+    this.colorClassName = colorClassName;
+  }
 
   draw(): HTMLElement {
     const elt = document.createElement("div");
@@ -290,7 +302,7 @@ const parseAwarenessUpdate = (
     removed: PeerID[];
   },
   scopeId: ScopeId,
-): Array<StateEffect<CursorEffect>> => {
+): StateEffect<CursorEffect>[] => {
   const effects = [];
   const { updated, added } = arg;
   for (const update of [...updated, ...added]) {
@@ -353,16 +365,30 @@ export interface CursorPosition {
 
 export class AwarenessPlugin implements PluginValue {
   sub: Subscription;
+  public view: EditorView;
+  public doc: LoroDoc;
+  public user: UserState;
+  public awareness: Awareness<AwarenessState>;
+  private getTextFromDoc: (doc: LoroDoc) => LoroText;
+  private scopeId: ScopeId;
+  private getUserId?: () => Uid;
 
   constructor(
-    public view: EditorView,
-    public doc: LoroDoc,
-    public user: UserState,
-    public awareness: Awareness<AwarenessState>,
-    private getTextFromDoc: (doc: LoroDoc) => LoroText,
-    private scopeId: ScopeId,
-    private getUserId?: () => Uid,
+    view: EditorView,
+    doc: LoroDoc,
+    user: UserState,
+    awareness: Awareness<AwarenessState>,
+    getTextFromDoc: (doc: LoroDoc) => LoroText,
+    scopeId: ScopeId,
+    getUserId?: () => Uid,
   ) {
+    this.view = view;
+    this.doc = doc;
+    this.user = user;
+    this.awareness = awareness;
+    this.getTextFromDoc = getTextFromDoc;
+    this.scopeId = scopeId;
+    this.getUserId = getUserId;
     this.sub = this.doc.subscribe((e) => {
       if (e.by === "local") {
         // update remote cursor position
@@ -435,12 +461,21 @@ export class AwarenessPlugin implements PluginValue {
 }
 export class RemoteAwarenessPlugin implements PluginValue {
   _awarenessListener?: AwarenessListener;
+  public view: EditorView;
+  public doc: LoroDoc;
+  public awareness: Awareness<AwarenessState>;
+  private scopeId: ScopeId;
+
   constructor(
-    public view: EditorView,
-    public doc: LoroDoc,
-    public awareness: Awareness<AwarenessState>,
-    private scopeId: ScopeId,
+    view: EditorView,
+    doc: LoroDoc,
+    awareness: Awareness<AwarenessState>,
+    scopeId: ScopeId,
   ) {
+    this.view = view;
+    this.doc = doc;
+    this.awareness = awareness;
+    this.scopeId = scopeId;
     const listener: AwarenessListener = async (arg, origin) => {
       if (origin === "local") {
         return;

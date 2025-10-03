@@ -57,11 +57,13 @@ export class EventBuffer<T> {
   private buffer: T[] = [];
   private isBlocked = false;
   private timeout: number | null = null;
+  private processEvents: () => void;
+  private blockDuration: number;
 
-  constructor(
-    private processEvents: () => void,
-    private blockDuration = 200,
-  ) {}
+  constructor(processEvents: () => void, blockDuration = 200) {
+    this.processEvents = processEvents;
+    this.blockDuration = blockDuration;
+  }
 
   add(event: T) {
     this.buffer.push(event);

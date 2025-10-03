@@ -1,18 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.2.1"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Incrementing functions
@@ -23,7 +24,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         \begin{align}

@@ -9,7 +9,7 @@ from contextlib import redirect_stderr
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -26,12 +26,13 @@ from marimo._plugins.ui._impl.altair_chart import (
     altair_chart,
 )
 from marimo._runtime.runtime import Kernel
-from tests._data.mocks import NON_EAGER_LIBS, create_dataframes
+from marimo._utils.narwhals_utils import is_narwhals_lazyframe
+from tests._data.mocks import create_dataframes
 from tests.conftest import ExecReqProvider
 from tests.mocks import snapshotter
 
 if TYPE_CHECKING:
-    from narwhals.typing import IntoDataFrame
+    from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
 snapshot = snapshotter(__file__)
 
@@ -51,8 +52,18 @@ else:
     pd = Mock()
 
 
-def get_len(df: IntoDataFrame) -> int:
-    return nw.from_native(df).shape[0]
+def get_len(df: IntoDataFrame | IntoLazyFrame) -> int:
+    df = nw.from_native(df, pass_through=False)
+    if is_narwhals_lazyframe(df):
+        return df.collect().shape[0]
+    return df.shape[0]
+
+
+def maybe_collect(df: IntoDataFrame | IntoLazyFrame) -> nw.DataFrame[Any]:
+    nw_df = nw.from_native(df, pass_through=False)
+    if is_narwhals_lazyframe(nw_df):
+        return nw_df.collect()
+    return nw_df
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -67,7 +78,6 @@ class TestAltairChart:
                 "field_2": [1, 2, 3, 4],
                 "field_3": [10, 20, 30, 40],
             },
-            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe(df: ChartDataType) -> None:
@@ -76,7 +86,7 @@ class TestAltairChart:
             "signal_channel_1": {"vlPoint": [1], "field": ["value1", "value2"]}
         }
         # Filter the DataFrame with the point selection
-        assert len(_filter_dataframe(df, point_selection)) == 2
+        assert get_len(_filter_dataframe(df, point_selection)) == 2
 
         # Point selected with a no fields
         point_selection = {
@@ -86,8 +96,9 @@ class TestAltairChart:
             },
         }
         # Filter the DataFrame with the point selection
-        assert len(_filter_dataframe(df, point_selection)) == 2
-        first, second = _filter_dataframe(df, point_selection)["field"]
+        filtered_df = _filter_dataframe(df, point_selection)
+        assert get_len(filtered_df) == 2
+        first, second = maybe_collect(filtered_df)["field"]
         assert str(first) == "value2"
         assert str(second) == "value3"
 
@@ -96,14 +107,16 @@ class TestAltairChart:
             "signal_channel_2": {"field_2": [1, 3]}
         }
         # Filter the DataFrame with the interval selection
-        assert len(_filter_dataframe(df, interval_selection)) == 3
+        filtered_df = _filter_dataframe(df, interval_selection)
+        assert get_len(filtered_df) == 3
 
         # Define an interval selection with multiple fields
         multi_field_selection: ChartSelection = {
             "signal_channel_1": {"field_2": [1, 3], "field_3": [30, 40]}
         }
         # Filter the DataFrame with the multi-field selection
-        assert len(_filter_dataframe(df, multi_field_selection)) == 1
+        filtered_df = _filter_dataframe(df, multi_field_selection)
+        assert get_len(filtered_df) == 1
 
         # Define an interval selection with multiple fields
         interval_and_point_selection: ChartSelection = {
@@ -111,7 +124,8 @@ class TestAltairChart:
             "signal_channel_2": {"vlPoint": [1], "color": ["red"]},
         }
         # Filter the DataFrame with the multi-field selection
-        assert len(_filter_dataframe(df, interval_and_point_selection)) == 1
+        filtered_df = _filter_dataframe(df, interval_and_point_selection)
+        assert get_len(filtered_df) == 1
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -146,7 +160,6 @@ class TestAltairChart:
                     datetime.datetime(2020, 1, 10),
                 ],
             },
-            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_dates(
@@ -168,8 +181,9 @@ class TestAltairChart:
             }
         }
         # Filter the DataFrame with the interval selection
-        assert get_len(_filter_dataframe(df, interval_selection)) == 2
-        first, second = _filter_dataframe(df, interval_selection)["field"]
+        filtered_df = _filter_dataframe(df, interval_selection)
+        assert get_len(filtered_df) == 2
+        first, second = maybe_collect(filtered_df)["field"]
         assert str(first) == "value1"
         assert str(second) == "value2"
 
@@ -182,8 +196,9 @@ class TestAltairChart:
                 ]
             }
         }
-        assert get_len(_filter_dataframe(df, interval_selection)) == 2
-        first, second = _filter_dataframe(df, interval_selection)["field"]
+        filtered_df = _filter_dataframe(df, interval_selection)
+        assert get_len(filtered_df) == 2
+        first, second = maybe_collect(filtered_df)["field"]
         assert str(first) == "value1"
         assert str(second) == "value2"
 
@@ -202,8 +217,9 @@ class TestAltairChart:
                 ]
             }
         }
-        assert get_len(_filter_dataframe(df, interval_selection)) == 2
-        first, second = _filter_dataframe(df, interval_selection)["field"]
+        filtered_df = _filter_dataframe(df, interval_selection)
+        assert get_len(filtered_df) == 2
+        first, second = maybe_collect(filtered_df)["field"]
         assert str(first) == "value1"
         assert str(second) == "value2"
 
@@ -218,8 +234,9 @@ class TestAltairChart:
             }
         }
         # Filter the DataFrame with the interval selection
-        assert len(_filter_dataframe(df, interval_selection)) == 2
-        first, second = _filter_dataframe(df, interval_selection)["field"]
+        filtered_df = _filter_dataframe(df, interval_selection)
+        assert get_len(filtered_df) == 2
+        first, second = maybe_collect(filtered_df)["field"]
         assert str(first) == "value1"
         assert str(second) == "value2"
 
@@ -244,7 +261,6 @@ class TestAltairChart:
                     datetime.datetime(2020, 1, 1),
                 ],
             },
-            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_datetimes_as_strings(
@@ -400,7 +416,6 @@ class TestAltairChart:
                     datetime.datetime.fromtimestamp(20000),
                 ],
             },
-            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_datetimes_as_numbers(
@@ -665,7 +680,7 @@ def test_parse_spec_pandas() -> None:
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
     spec = _parse_spec(chart)
     # Replace data.url with a placeholder
-    spec["data"]["url"] = "_placeholder_"
+    spec["data"] = {"url": "_placeholder_", "format": spec["data"]["format"]}
     snapshot("parse_spec_pandas.txt", json.dumps(spec, indent=2))
 
 
@@ -673,11 +688,11 @@ def test_parse_spec_pandas() -> None:
 def test_parse_spec_narwhal() -> None:
     import altair as alt
 
-    data = nw.from_native(pd.DataFrame({"values": [1, 2, 3]}))
+    data = pd.DataFrame({"values": [1, 2, 3]})
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
     spec = _parse_spec(chart)
     # Replace data.url with a placeholder
-    spec["data"]["url"] = "_placeholder_"
+    spec["data"] = {"url": "_placeholder_", "format": spec["data"]["format"]}
     snapshot("parse_spec_narwhal.txt", json.dumps(spec, indent=2))
 
 
@@ -690,7 +705,7 @@ def test_parse_spec_polars() -> None:
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
     spec = _parse_spec(chart)
     # Replace data.url with a placeholder
-    spec["data"]["url"] = "_placeholder_"
+    spec["data"] = {"url": "_placeholder_", "format": spec["data"]["format"]}
     snapshot("parse_spec_polars.txt", json.dumps(spec, indent=2))
 
 
@@ -806,7 +821,7 @@ def test_no_selection_polars() -> None:
     "df",
     create_dataframes(
         {"x": [1, 2, 3], "y1": [4, 5, 6], "y2": [7, 8, 9]},
-        exclude=["ibis", "lazy-polars"],
+        exclude=["lazy-polars"],
     ),
 )
 def test_layered_chart(df: IntoDataFrame):
@@ -851,7 +866,7 @@ def test_chart_with_binning(df: IntoDataFrame):
             "y": [1, 2, 3, 4],
             "category": ["A", "A", "B", "B"],
         },
-        exclude=["ibis", "pyarrow", "duckdb", "lazy-polars"],
+        exclude=["lazy-polars"],
     ),
 )
 def test_apply_selection(df: IntoDataFrame):
@@ -863,8 +878,8 @@ def test_apply_selection(df: IntoDataFrame):
     marimo_chart._chart_selection = {"signal_channel": {"category": ["A"]}}
 
     filtered_data = marimo_chart.apply_selection(df)
-    assert len(filtered_data) == 2
-    assert all(filtered_data["category"] == "A")
+    assert get_len(filtered_data) == 2
+    assert all(maybe_collect(filtered_data)["category"] == "A")
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

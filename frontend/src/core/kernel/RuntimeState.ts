@@ -29,8 +29,11 @@ export class RuntimeState {
    * ObjectIds of UIElements whose values need to be updated in the kernel
    */
   private _sendComponentValues: RunRequests["sendComponentValues"] | undefined;
+  private uiElementRegistry: UIElementRegistry;
 
-  constructor(private uiElementRegistry: UIElementRegistry) {}
+  constructor(uiElementRegistry: UIElementRegistry) {
+    this.uiElementRegistry = uiElementRegistry;
+  }
 
   private get sendComponentValues(): RunRequests["sendComponentValues"] {
     if (!this._sendComponentValues) {

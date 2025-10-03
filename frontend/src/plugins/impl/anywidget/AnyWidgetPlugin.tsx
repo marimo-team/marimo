@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { AnyWidget, Experimental } from "@anywidget/types";
-import { isEqual } from "lodash-es";
+import { get, isEqual, set } from "lodash-es";
 import { useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
@@ -16,7 +16,11 @@ import {
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import type { IPluginProps } from "@/plugins/types";
-import { updateBufferPaths } from "@/utils/data-views";
+import {
+  type Base64String,
+  byteStringToBinary,
+  typedAtob,
+} from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
 import { MODEL_MANAGER, Model } from "./model";
@@ -25,7 +29,7 @@ interface Data {
   jsUrl: string;
   jsHash: string;
   css?: string | null;
-  bufferPaths?: Array<Array<string | number>> | null;
+  bufferPaths?: (string | number)[][] | null;
   initialValue: T;
 }
 
@@ -59,6 +63,11 @@ type Props = IPluginProps<T, Data, PluginFunctions>;
 
 const AnyWidgetSlot = (props: Props) => {
   const { css, jsUrl, jsHash, bufferPaths } = props.data;
+
+  const valueWithBuffers = useMemo(() => {
+    return resolveInitialValue(props.value, bufferPaths ?? []);
+  }, [props.value, bufferPaths]);
+
   // JS is an ESM file with a render function on it
   // export function render({ model, el }) {
   //   ...
@@ -84,10 +93,6 @@ const AnyWidgetSlot = (props: Props) => {
       refetch();
     }
   }, [hasError, jsUrl]);
-
-  const valueWithBuffer = useMemo(() => {
-    return updateBufferPaths(props.value, bufferPaths);
-  }, [props.value, bufferPaths]);
 
   // Mount the CSS
   useEffect(() => {
@@ -157,7 +162,7 @@ const AnyWidgetSlot = (props: Props) => {
       key={key}
       {...props}
       widget={module.default}
-      value={valueWithBuffer}
+      value={valueWithBuffers}
     />
   );
 };
@@ -174,7 +179,7 @@ async function runAnyWidgetModule(
   el: HTMLElement,
 ): Promise<() => void> {
   const experimental: Experimental = {
-    invoke: async (name, msg, options) => {
+    invoke: async (_name, _msg, _options) => {
       const message =
         "anywidget.invoke not supported in marimo. Please file an issue at https://github.com/marimo-team/marimo/issues";
       Logger.warn(message);
@@ -284,3 +289,16 @@ export const visibleForTesting = {
   isAnyWidgetModule,
   getDirtyFields,
 };
+
+export function resolveInitialValue(
+  raw: Record<string, any>,
+  bufferPaths: readonly (readonly (string | number)[])[],
+) {
+  const out = structuredClone(raw);
+  for (const bufferPath of bufferPaths) {
+    const base64String: Base64String = get(raw, bufferPath);
+    const bytes = byteStringToBinary(typedAtob(base64String));
+    set(out, bufferPath, new DataView(bytes.buffer));
+  }
+  return out;
+}

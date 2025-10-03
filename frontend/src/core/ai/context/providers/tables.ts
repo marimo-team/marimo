@@ -1,12 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Completion } from "@codemirror/autocomplete";
-import type { DatasetTablesMap } from "@/core/datasets/data-source-connections";
+import {
+  type DatasetTablesMap,
+  getTableType,
+} from "@/core/datasets/data-source-connections";
 import type { DataTable } from "@/core/kernel/messages";
 import type { AIContextItem } from "../registry";
 import { AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
-import { Boosts } from "./common";
+import { Boosts, Sections } from "./common";
 
 export interface TableContextItem extends AIContextItem {
   type: "data";
@@ -17,9 +20,10 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
   readonly title = "Tables";
   readonly mentionPrefix = "@";
   readonly contextType = "data";
-
-  constructor(private tablesMap: DatasetTablesMap) {
+  private tablesMap: DatasetTablesMap;
+  constructor(tablesMap: DatasetTablesMap) {
     super();
+    this.tablesMap = tablesMap;
   }
 
   getItems(): TableContextItem[] {
@@ -34,21 +38,46 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
 
   formatContext(item: TableContextItem): string {
     const { data } = item;
-    const { columns, source, num_rows, num_columns, name } = data;
+    const { columns, source, num_rows, num_columns, name, variable_name } =
+      data;
+
+    // Build shape information
     const shape = [
-      num_rows == null ? undefined : `${num_rows} rows`,
-      num_columns == null ? undefined : `${num_columns} columns`,
+      num_rows != null ? `${num_rows} rows` : undefined,
+      num_columns != null ? `${num_columns} columns` : undefined,
     ]
       .filter(Boolean)
       .join(", ");
 
     let details = "";
+
+    // Add shape information
     if (shape) {
-      details += `\nShape: ${shape}`;
+      details += `Shape: ${shape}\n`;
     }
 
+    // Add variable name if available
+    if (variable_name) {
+      details += `Variable: ${variable_name}\n`;
+    }
+
+    // Add column information with sample values
     if (columns && columns.length > 0) {
-      details += `\nColumns:\n${columns.map((col) => `  - ${col.name}: ${col.type}`).join("\n")}`;
+      details += "Columns:\n";
+      for (const col of columns) {
+        let columnInfo = `  ${col.name} (${col.type})`;
+
+        // Add sample values if available
+        if (col.sample_values && col.sample_values.length > 0) {
+          const samples = col.sample_values
+            .slice(0, 3) // Limit to first 3 samples
+            .map((val) => (val === null ? "null" : String(val)))
+            .join(", ");
+          columnInfo += ` - samples: [${samples}]`;
+        }
+
+        details += `${columnInfo}\n`;
+      }
     }
 
     return contextToXml({
@@ -57,7 +86,7 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
         name: name,
         source: source ?? "unknown",
       },
-      details: details,
+      details: details.trim(),
     });
   }
 
@@ -72,9 +101,12 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
         table.source_type === "local"
           ? Boosts.LOCAL_TABLE
           : Boosts.REMOTE_TABLE,
-      type: table.variable_name ? "dataframe" : "table",
+      type: getTableType(table),
       apply: `@${tableName}`,
-      section: table.variable_name ? "Dataframe" : "Table",
+      section: {
+        name: getTableType(table) === "dataframe" ? "Dataframe" : "Table",
+        rank: Sections.TABLE.rank,
+      },
       info: () => this.createTableInfoElement(tableName, table),
     };
   }

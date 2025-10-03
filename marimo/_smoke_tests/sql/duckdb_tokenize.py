@@ -6,14 +6,15 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.20"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import duckdb
     import re
@@ -21,7 +22,7 @@ def __():
 
 
 @app.cell
-def __(mo):
+def _(mo):
     default_code = """
     CREATE TABLE
             -- This is a comment
@@ -31,26 +32,26 @@ def __(mo):
     """
     code = mo.ui.code_editor(language="sql", value=default_code.strip())
     code
-    return code, default_code
+    return (code,)
 
 
 @app.cell
-def __(code, duckdb):
+def _(code, duckdb):
     statements = duckdb.extract_statements(code.value)
     print("Number of statements: " + str(len(statements)))
 
     print(duckdb.tokenize(code.value))
-    return statements,
+    return
 
 
 @app.cell
-def __(code, find_created_tables):
+def _(code, find_created_tables):
     find_created_tables(code.value)
     return
 
 
 @app.cell
-def __(re):
+def _(re):
     def find_created_tables(sql_statement: str) -> list[str]:
         """
         Find the tables created in a SQL statement.
@@ -130,7 +131,7 @@ def __(re):
             i += 1
 
         return created_tables
-    return find_created_tables,
+    return (find_created_tables,)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ cells.
 
 <video controls width="100%" height="100%" align="center" src="/_static/docs-runtime-config.mp4"> </video>
 
-## Disable autorun on startup
+## Disable autorun on startup { #on-startup }
 
 By default, marimo notebooks run automatically on startup; just how the command
 

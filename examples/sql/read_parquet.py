@@ -11,12 +11,12 @@
 
 import marimo
 
-__generated_with = "0.9.1"
+__generated_with = "0.16.0"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Read Parquet
@@ -28,22 +28,22 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import marimo as mo
     import polars as pl
 
     pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]}).write_parquet("data.parquet")
-    return mo, pl
+    return (mo,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""Reading from a Parquet file is as easy as `SELECT * from "data.parquet"`, where `data.parquet` is the path or URL to your parquet file.""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: Creating SQL Cells": mo.md(
@@ -63,7 +63,7 @@ def __(mo):
 
 
 @app.cell
-def __(data, mo):
+def _(mo):
     result = mo.sql(
         f"""
         -- Tip: you can also specify the data files using a glob, such as '/path/to/*.parquet'
@@ -75,7 +75,7 @@ def __(data, mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: Query output": mo.md(
@@ -93,13 +93,13 @@ def __(mo):
 
 
 @app.cell
-def __(result):
+def _(result):
     result
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Create an in-memory table from a Parquet file
@@ -111,17 +111,17 @@ def __(mo):
 
 
 @app.cell
-def __(data, mo):
+def _(mo):
     _df = mo.sql(
         f"""
         CREATE OR REPLACE TABLE myTable AS SELECT * FROM 'data.parquet'
         """
     )
-    return (myTable,)
+    return (mytable,)
 
 
 @app.cell
-def __(mo, myTable):
+def _(mo, mytable):
     _df = mo.sql(
         f"""
         SELECT * FROM myTable
@@ -131,13 +131,13 @@ def __(mo, myTable):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""## Advanced usage""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""To customize how your parquet file is read, use [duckdb's `read_parquet` function](https://duckdb.org/docs/data/parquet/overview.html).""")
     return
 

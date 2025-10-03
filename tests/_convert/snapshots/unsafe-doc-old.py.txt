@@ -8,13 +8,13 @@ app = marimo.App(app_title="Casually malicious md")
 def _(mo):
     mo.md(
         r"""
-        What happens if I just leave a \"\"\"
-        " ' ! @ # $ % ^ & * ( ) + = - _ [ ] { } | \ /
+    What happens if I just leave a \"\"\"
+    " ' ! @ # $ % ^ & * ( ) + = - _ [ ] { } | \ /
 
-        # Notebook
-        <!--
-        \
-        """
+    # Notebook
+    <!--
+    \
+    """
     )
     return
 
@@ -29,10 +29,10 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        -->
+    -->
 
-        ```marimo run convert document.md```
-        """
+    ```marimo run convert document.md```
+    """
     )
     return
 
@@ -49,12 +49,12 @@ app._unparsable_cell(
 def _(mo):
     mo.md(
         r"""
-        <!-- Actually markdown -->
-        ```{python} `
-          print("Hello, World!")
+    <!-- Actually markdown -->
+    ```{python} `
+      print("Hello, World!")
 
-        <!-- Disabled code block -->
-        """
+    <!-- Disabled code block -->
+    """
     )
     return
 
@@ -67,11 +67,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        <!-- Hidden code block -->
-        """
-    )
+    mo.md(r"""<!-- Hidden code block -->""")
     return
 
 
@@ -83,11 +79,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        <!-- Empty code block -->
-        """
-    )
+    mo.md(r"""<!-- Empty code block -->""")
     return
 
 
@@ -98,11 +90,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        <!-- Improperly nested code block -->
-        """
-    )
+    mo.md(r"""<!-- Improperly nested code block -->""")
     return
 
 
@@ -120,20 +108,20 @@ app._unparsable_cell(
 def _(mo):
     mo.md(
         r"""
-        \"\"\"
-        ```
+    \"\"\"
+    ```
 
-        <!-- Improperly nested code block -->
-        ```{python}
-        ````{python}
-        print("Hello, World!")
-        ````
-        ```
+    <!-- Improperly nested code block -->
+    ```{python}
+    ````{python}
+    print("Hello, World!")
+    ````
+    ```
 
-        -->
+    -->
 
-        <!-- from the notebook, should remain unchanged -->
-        """
+    <!-- from the notebook, should remain unchanged -->
+    """
     )
     return
 

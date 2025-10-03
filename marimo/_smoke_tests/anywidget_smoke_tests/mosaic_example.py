@@ -5,13 +5,15 @@
 #     "mosaic-widget",
 #     "marimo",
 #     "pyyaml",
+#     "quak==0.3.2",
+#     "polars==1.33.1",
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
 
 import marimo
 
-__generated_with = "0.13.10"
+__generated_with = "0.16.2"
 app = marimo.App(width="medium")
 
 
@@ -50,6 +52,26 @@ def _(w):
 @app.cell
 def _(w):
     w.value
+    return
+
+
+@app.cell
+def _():
+    import quak
+    return (quak,)
+
+
+@app.cell
+def _(quak):
+    import polars as pl
+
+    _df = pl.read_parquet("https://github.com/uwdata/mosaic/raw/main/data/athletes.parquet")
+    quak.Widget(_df)
+    return
+
+
+@app.cell
+def _():
     return
 
 

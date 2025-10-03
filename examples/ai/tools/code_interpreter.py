@@ -9,20 +9,20 @@
 
 import marimo
 
-__generated_with = "0.9.4"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import marimo as mo
     import ell
     import textwrap
-    return ell, mo, textwrap
+    return ell, mo
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Creating a code interpreter
@@ -34,14 +34,14 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     backend = mo.ui.dropdown(["ollama", "openai"], label="Backend", value="ollama")
     backend
     return (backend,)
 
 
 @app.cell(hide_code=True)
-def __(backend, mo):
+def _(backend, mo):
     # OpenAI config
     import os
     import openai
@@ -53,11 +53,11 @@ def __(backend, mo):
         value=os.environ.get("OPENAI_API_KEY", ""),
     )
     input_key if backend.value == "openai" else None
-    return input_key, openai, os, os_key
+    return input_key, openai, os_key
 
 
 @app.cell
-def __(openai):
+def _(openai):
     client = openai.Client(
         api_key="ollama",
         base_url="http://localhost:11434/v1",
@@ -66,7 +66,7 @@ def __(openai):
 
 
 @app.cell(hide_code=True)
-def __(backend, input_key, mo, os_key):
+def _(backend, input_key, mo, os_key):
     def _get_open_ai_client():
         openai_key = os_key or input_key.value
 
@@ -100,45 +100,43 @@ def __(backend, input_key, mo, os_key):
     return (model,)
 
 
-@app.cell(hide_code=True)
-def __():
-    # https://stackoverflow.com/questions/33908794/get-value-of-last-expression-in-exec-call
-    def exec_with_result(script, globals=None, locals=None):
-        """Execute a script and return the value of the last expression"""
-        import ast
+@app.function(hide_code=True)
+# https://stackoverflow.com/questions/33908794/get-value-of-last-expression-in-exec-call
+def exec_with_result(script, globals=None, locals=None):
+    """Execute a script and return the value of the last expression"""
+    import ast
 
-        stmts = list(ast.iter_child_nodes(ast.parse(script)))
-        if not stmts:
-            return None
-        if isinstance(stmts[-1], ast.Expr):
-            # the last one is an expression and we will try to return the results
-            # so we first execute the previous statements
-            if len(stmts) > 1:
-                exec(
-                    compile(
-                        ast.Module(body=stmts[:-1]), filename="<ast>", mode="exec"
-                    ),
-                    globals,
-                    locals,
-                )
-            # then we eval the last one
-            return eval(
+    stmts = list(ast.iter_child_nodes(ast.parse(script)))
+    if not stmts:
+        return None
+    if isinstance(stmts[-1], ast.Expr):
+        # the last one is an expression and we will try to return the results
+        # so we first execute the previous statements
+        if len(stmts) > 1:
+            exec(
                 compile(
-                    ast.Expression(body=stmts[-1].value),
-                    filename="<ast>",
-                    mode="eval",
+                    ast.Module(body=stmts[:-1]), filename="<ast>", mode="exec"
                 ),
                 globals,
                 locals,
             )
-        else:
-            # otherwise we just execute the entire code
-            return exec(script, globals, locals)
-    return (exec_with_result,)
+        # then we eval the last one
+        return eval(
+            compile(
+                ast.Expression(body=stmts[-1].value),
+                filename="<ast>",
+                mode="eval",
+            ),
+            globals,
+            locals,
+        )
+    else:
+        # otherwise we just execute the entire code
+        return exec(script, globals, locals)
 
 
 @app.cell
-def __(ell, exec_with_result, mo):
+def _(ell, mo):
     def code_fence(code):
         return f"```python\n\n{code}\n\n```"
 
@@ -159,11 +157,11 @@ def __(ell, exec_with_result, mo):
                 code_fence(result if result is not None else output),
             ]
             return mo.md("\n\n".join(results))
-    return code_fence, execute_code
+    return (execute_code,)
 
 
 @app.cell
-def __(client, ell, execute_code, mo, model):
+def _(client, ell, execute_code, mo, model):
     @ell.complex(model=model, tools=[execute_code], client=client)
     def custom_chatbot(messages, config) -> str:
         """You are data scientist with access to writing python code."""
@@ -180,11 +178,11 @@ def __(client, ell, execute_code, mo, model):
         if response.tool_calls:
             return response.tool_calls[0]()
         return mo.md(response.text)
-    return custom_chatbot, my_model
+    return (my_model,)
 
 
 @app.cell
-def __(mo, my_model):
+def _(mo, my_model):
     numbers = [x for x in range(1, 10)]
 
     mo.ui.chat(
@@ -194,7 +192,7 @@ def __(mo, my_model):
             f"Can you sum this list using python: {numbers}",
         ],
     )
-    return (numbers,)
+    return
 
 
 if __name__ == "__main__":

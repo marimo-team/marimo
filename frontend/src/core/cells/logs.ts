@@ -56,7 +56,7 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
       CellLogLogger.log({
         level: "stderr",
         cellId: cell.cell_id as CellId,
-        timestamp: cell.timestamp,
+        timestamp: cell.timestamp ?? 0,
         message: JSON.stringify(error),
       });
     });
@@ -87,7 +87,7 @@ const CellLogLogger = {
           ? "red"
           : "orange";
     const status = payload.level.toUpperCase();
-    // eslint-disable-next-line no-console
+    /** biome-ignore lint/suspicious/noConsole: for debugging */
     console.log(
       `%c[${status}]`,
       `color:${color}; padding:2px 0; border-radius:2px; font-weight:bold`,
@@ -102,7 +102,7 @@ export function formatLogTimestamp(timestamp: number): string {
   try {
     // parse from UTC
     const date = fromUnixTime(timestamp);
-    return date.toLocaleTimeString("en-US", {
+    return date.toLocaleTimeString(undefined, {
       hour12: true,
       hour: "numeric",
       minute: "numeric",

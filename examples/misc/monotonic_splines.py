@@ -13,12 +13,12 @@
 
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import matplotlib
     import matplotlib.pyplot as plt
@@ -30,11 +30,11 @@ def __():
     np.random.seed(0)
     matplotlib.style.use("ggplot")
     plt.rcParams["figure.figsize"] = [10, 4]
-    return check_array, make_pipeline, matplotlib, mo, np, plt, sklearn
+    return mo, np, plt
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Introduction to monotonic splines
@@ -50,16 +50,16 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     from drawdata import ScatterWidget
 
     widget = mo.ui.anywidget(ScatterWidget())
     widget
-    return ScatterWidget, widget
+    return (widget,)
 
 
 @app.cell
-def __(mo, widget):
+def _(mo, widget):
     mo.stop(
         not widget.value["data"],
         mo.md("Draw a dataset above to proceed!").callout(),
@@ -71,7 +71,7 @@ def __(mo, widget):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## General splines
@@ -85,7 +85,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(X, np, plt, tfm):
+def _(X, np, plt, tfm):
     X_tfm = tfm.fit_transform(X)
 
     x_range = np.linspace(-50, 900, 2000).reshape(-1, 1)
@@ -96,7 +96,7 @@ def __(X, np, plt, tfm):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         You can see the x-values that our drawing widget can provide and you can also see all the generated features. Each feature is represented with a different colored line and you should also see how each hill goes up and typically goes back down again. At the edges of the samples that we have we see straight lines in an attempt to also have some features for extrapolation. 
@@ -110,7 +110,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     n_knots = mo.ui.slider(
         2, 20, step=1, show_value=True, label="number of knots", value=5
     )
@@ -121,30 +121,30 @@ def __(mo):
 
 
 @app.cell
-def __(degree, knots, n_knots):
+def _(degree, knots, n_knots):
     from sklearn.preprocessing import SplineTransformer
 
     tfm = SplineTransformer(
         n_knots=n_knots.value, knots=knots.value, degree=degree.value
     )
     tfm
-    return SplineTransformer, tfm
+    return (tfm,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""When you then take these generated features and pass them to a linear model, you should be able to see that we're indeed able to fit a very non-linear curve with a linear model.""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""... turn into these features:""")
     return
 
 
 @app.cell
-def __(X_tfm, df, y):
+def _(X_tfm, df, y):
     import altair as alt
     from sklearn.linear_model import Ridge
 
@@ -156,11 +156,11 @@ def __(X_tfm, df, y):
     p2 = alt.Chart(pltr).mark_line(color="red").encode(x="x", y="preds")
 
     (p1 + p2).properties(width=1000)
-    return Ridge, alt, p1, p2, pltr, preds
+    return Ridge, alt, pltr
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Towards monotonic features
@@ -174,25 +174,25 @@ def __(mo):
 
 
 @app.cell
-def __(plt, x_range, x_range_tfm):
+def _(plt, x_range, x_range_tfm):
     plt.plot(x_range, x_range_tfm)
     return
 
 
 @app.cell
-def __(plt, x_range, x_range_tfm):
+def _(plt, x_range, x_range_tfm):
     plt.plot(x_range, x_range_tfm.cumsum(axis=0))
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""Note the correspondence between the lines here. The color in the chart above has a direct correspondence with the line below.""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         You could wonder ... what would happen if I use these 'cumsum' features? Would I still be able to get a nice fit?
@@ -204,7 +204,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     strictly_positive = mo.ui.checkbox(label="Strictly positive")
     show_iso = mo.ui.checkbox(label="Show Isotonic Regression")
 
@@ -213,13 +213,13 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import pandas as pd
     return (pd,)
 
 
 @app.cell
-def __(Ridge, X, X_tfm, alt, pd, pltr, show_iso, strictly_positive, y):
+def _(Ridge, X, X_tfm, alt, pd, pltr, show_iso, strictly_positive, y):
     from sklearn.isotonic import IsotonicRegression
 
     preds_mono = (
@@ -244,20 +244,11 @@ def __(Ridge, X, X_tfm, alt, pd, pltr, show_iso, strictly_positive, y):
         )
 
     together.properties(width=1000).interactive()
-    return (
-        IsotonicRegression,
-        df_iso,
-        final_df,
-        iso,
-        p1_mono,
-        p2_mono,
-        preds_mono,
-        together,
-    )
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         You can choose to compare the results with a prediction made by an [IsotonicRegression](https://scikit-learn.org/1.5/modules/isotonic.html) model. It may help to appreciate the feature generation technique, especially when you force the linear model to only learn strictly positive weights. 

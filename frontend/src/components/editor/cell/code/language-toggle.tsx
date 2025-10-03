@@ -7,8 +7,7 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { switchLanguage } from "@/core/codemirror/language/extension";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
+import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import type { LanguageAdapter } from "@/core/codemirror/language/types";
 import { Functions } from "@/utils/functions";
 import { MarkdownIcon, PythonIcon } from "./icons";
@@ -27,11 +26,11 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
   onAfterToggle,
 }) => {
   const canUseMarkdown = useMemo(
-    () => new MarkdownLanguageAdapter().isSupported(code) || code.trim() === "",
+    () => LanguageAdapters.markdown.isSupported(code) || code.trim() === "",
     [code],
   );
   const canUseSQL = useMemo(
-    () => new SQLLanguageAdapter().isSupported(code) || code.trim() === "",
+    () => LanguageAdapters.sql.isSupported(code) || code.trim() === "",
     [code],
   );
 

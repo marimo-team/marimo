@@ -19,6 +19,7 @@ from marimo._server.ai.providers import (
     OpenAIProvider,
     without_wrapping_backticks,
 )
+from marimo._server.ai.tools.types import ToolCallResult
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
@@ -67,6 +68,23 @@ class FakeChoices:
     choices: list[Choice]
 
 
+def _create_messages(prompt: str) -> list[dict[str, Any]]:
+    return [
+        {
+            "role": "user",
+            "content": prompt,
+            "parts": [
+                {"type": "text", "text": prompt},
+                {
+                    "type": "file",
+                    "mediaType": "text/csv",
+                    "url": "data:text/csv;base64,R29vZGJ5ZQ==",
+                },
+            ],
+        },
+    ]
+
+
 @pytest.mark.skipif(
     not HAS_OPEN_AI_DEPS, reason="optional dependencies not installed"
 )
@@ -90,7 +108,7 @@ class TestOpenAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                     "code": "",
                 },
             )
@@ -130,7 +148,7 @@ class TestOpenAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                     "code": "",
                 },
             )
@@ -138,7 +156,7 @@ class TestOpenAiEndpoints:
             # Assert the prompt it was called with
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][1]["content"]
+            ][1]["content"][0]["text"]
             assert prompt == ("Help me create a dataframe")
             # Assert the model it was called with
             model = oaiclient.chat.completions.create.call_args.kwargs["model"]
@@ -176,14 +194,14 @@ class TestOpenAiEndpoints:
                 json={
                     "prompt": "Help me create a dataframe",
                     "code": "<rewrite_this>import pandas as pd</rewrite_this>",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                 },
             )
             assert response.status_code == 200, response.text
             # Assert the prompt it was called with
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][1]["content"]
+            ][1]["content"][0]["text"]
             assert prompt == "Help me create a dataframe"
 
     @staticmethod
@@ -218,7 +236,7 @@ class TestOpenAiEndpoints:
                 json={
                     "prompt": "Help me create a dataframe",
                     "code": "<rewrite_this>import pandas as pd</rewrite_this>",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                 },
             )
             assert response.status_code == 200, response.text
@@ -258,7 +276,7 @@ class TestOpenAiEndpoints:
                 json={
                     "prompt": "Help me create a dataframe",
                     "code": "<rewrite_this>import pandas as pd</rewrite_this>",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                 },
             )
             assert response.status_code == 200, response.text
@@ -304,7 +322,7 @@ class TestOpenAiEndpoints:
             # Assert the prompt it was called with
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][1]["content"]
+            ][1]["content"][0]["text"]
             assert (
                 prompt
                 == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
@@ -312,7 +330,7 @@ class TestOpenAiEndpoints:
             # Assert the system prompt for FIM models
             system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][0]["content"]
+            ][0]["content"][0]["text"]
             assert (
                 system_prompt
                 == f"You are a python code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
@@ -384,7 +402,7 @@ class TestOpenAiEndpoints:
             # Assert the system prompt for FIM models
             system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][0]["content"]
+            ][0]["content"][0]["text"]
             assert (
                 system_prompt
                 == f"You are a sql code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
@@ -417,7 +435,7 @@ class TestAnthropicAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                     "code": "",
                 },
             )
@@ -454,14 +472,14 @@ class TestAnthropicAiEndpoints:
                 json={
                     "prompt": "Help me create a dataframe",
                     "code": "<rewrite_this>import pandas as pd</rewrite_this>",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                 },
             )
             assert response.status_code == 200, response.text
             # Assert the prompt it was called with
             prompt: str = anthropic_client.messages.create.call_args.kwargs[
                 "messages"
-            ][0]["content"]
+            ][0]["content"][0]["text"]
             assert prompt == "Help me create a dataframe"
             # Assert the model it was called with
             model = anthropic_client.messages.create.call_args.kwargs["model"]
@@ -502,7 +520,7 @@ class TestAnthropicAiEndpoints:
             # Assert the prompt it was called with
             prompt: str = anthropic_client.messages.create.call_args.kwargs[
                 "messages"
-            ][0]["content"]
+            ][0]["content"][0]["text"]
             assert (
                 prompt
                 == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
@@ -557,7 +575,7 @@ class TestGoogleAiEndpoints:
                 json={
                     "prompt": "Help me create a dataframe",
                     "code": "<rewrite_this>import pandas as pd</rewrite_this>",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                 },
             )
             assert response.status_code == 200, response.text
@@ -573,12 +591,28 @@ class TestGoogleAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.client.AsyncClient")
+    @patch("google.genai.Client")
     def test_google_ai_completion_without_token(
         client: TestClient, google_ai_mock: Any
     ) -> None:
-        del google_ai_mock
         user_config_manager = get_session_config_manager(client)
+
+        # Mock the google client and its aio attribute
+        google_client_mock = MagicMock()
+        google_aio_mock = MagicMock()
+        google_client_mock.aio = google_aio_mock
+        google_ai_mock.return_value = google_client_mock
+
+        # Mock async stream
+        async def mock_stream():
+            yield MagicMock(
+                text="import pandas as pd",
+                thought=None,
+            )
+
+        google_aio_mock.models.generate_content_stream = AsyncMock(
+            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+        )
 
         config = {
             "ai": {
@@ -595,14 +629,18 @@ class TestGoogleAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                     "code": "",
                 },
             )
-        assert response.status_code == 400, response.text
-        assert response.json() == {
-            "detail": "Google AI API key not configured. Go to Settings > AI to configure."
-        }
+
+        assert response.status_code == 200, response.text
+        prompt = (
+            google_aio_mock.models.generate_content_stream.call_args.kwargs[
+                "contents"
+            ]
+        )
+        assert prompt[0]["parts"][0]["text"] == "Help me create a dataframe"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -768,10 +806,10 @@ def test_chat_without_code(client: TestClient) -> None:
                 "/api/ai/chat",
                 headers=HEADERS,
                 json={
-                    "messages": [{"role": "user", "content": "Hello"}],
+                    "messages": _create_messages("Hello"),
                     "model": "gpt-4-turbo",
                     "variables": [],
-                    "include_other_code": "",
+                    "includeOtherCode": "",
                     "context": {},
                     "id": "123",
                 },
@@ -780,7 +818,7 @@ def test_chat_without_code(client: TestClient) -> None:
             # Assert the prompt it was called with
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][1]["content"]
+            ][1]["content"][0]["text"]
             assert prompt == "Hello"
 
 
@@ -809,15 +847,10 @@ def test_chat_with_code(client: TestClient) -> None:
                 "/api/ai/chat",
                 headers=HEADERS,
                 json={
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": "Help me create a dataframe",
-                        }
-                    ],
+                    "messages": _create_messages("Help me create a dataframe"),
                     "model": "gpt-4-turbo",
                     "variables": [],
-                    "include_other_code": "import pandas as pd",
+                    "includeOtherCode": "import pandas as pd",
                     "context": {},
                     "id": "123",
                 },
@@ -826,7 +859,7 @@ def test_chat_with_code(client: TestClient) -> None:
             # Assert the prompt it was called with
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
-            ][1]["content"]
+            ][1]["content"][0]["text"]
             assert prompt == "Help me create a dataframe"
 
 
@@ -1018,7 +1051,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test successful tool invocation."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()
@@ -1027,8 +1059,8 @@ class TestInvokeToolEndpoint:
         # Mock successful tool result as a coroutine
         async def mock_invoke_tool(
             _tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name="test_tool",
                 result={
                     "message": "Tool executed successfully",
@@ -1043,7 +1075,7 @@ class TestInvokeToolEndpoint:
             "/api/ai/invoke_tool",
             headers=HEADERS,
             json={
-                "tool_name": "test_tool",
+                "toolName": "test_tool",
                 "arguments": {"param1": "value1", "param2": 42},
             },
         )
@@ -1053,7 +1085,7 @@ class TestInvokeToolEndpoint:
 
         # Verify response structure
         assert response_data["success"] is True
-        assert response_data["tool_name"] == "test_tool"
+        assert response_data["toolName"] == "test_tool"
         assert response_data["result"] == {
             "message": "Tool executed successfully",
             "data": [1, 2, 3],
@@ -1067,7 +1099,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test tool invocation with error."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()
@@ -1076,8 +1107,8 @@ class TestInvokeToolEndpoint:
         # Mock tool result with error as a coroutine
         async def mock_invoke_tool(
             _tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name="failing_tool",
                 result=None,
                 error="Tool execution failed: Invalid parameter",
@@ -1089,7 +1120,7 @@ class TestInvokeToolEndpoint:
             "/api/ai/invoke_tool",
             headers=HEADERS,
             json={
-                "tool_name": "failing_tool",
+                "toolName": "failing_tool",
                 "arguments": {"invalid_param": "bad_value"},
             },
         )
@@ -1099,7 +1130,7 @@ class TestInvokeToolEndpoint:
 
         # Verify response structure for error case
         assert response_data["success"] is False
-        assert response_data["tool_name"] == "failing_tool"
+        assert response_data["toolName"] == "failing_tool"
         assert response_data["result"] is None
         assert (
             response_data["error"]
@@ -1113,7 +1144,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test tool invocation when tool doesn't exist."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()
@@ -1122,8 +1152,8 @@ class TestInvokeToolEndpoint:
         # Mock tool result for non-existent tool as a coroutine
         async def mock_invoke_tool(
             _tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name="nonexistent_tool",
                 result=None,
                 error="Tool 'nonexistent_tool' not found. Available tools: get_server_debug_info",
@@ -1134,7 +1164,7 @@ class TestInvokeToolEndpoint:
         response = client.post(
             "/api/ai/invoke_tool",
             headers=HEADERS,
-            json={"tool_name": "nonexistent_tool", "arguments": {}},
+            json={"toolName": "nonexistent_tool", "arguments": {}},
         )
 
         assert response.status_code == 200, response.text
@@ -1142,7 +1172,7 @@ class TestInvokeToolEndpoint:
 
         # Verify response structure for not found case
         assert response_data["success"] is False
-        assert response_data["tool_name"] == "nonexistent_tool"
+        assert response_data["toolName"] == "nonexistent_tool"
         assert response_data["result"] is None
         assert "not found" in response_data["error"]
 
@@ -1153,7 +1183,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test tool invocation with validation error."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()
@@ -1162,8 +1191,8 @@ class TestInvokeToolEndpoint:
         # Mock tool result with validation error as a coroutine
         async def mock_invoke_tool(
             _tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name="test_tool",
                 result=None,
                 error="Invalid arguments for tool 'test_tool': Missing required parameter 'required_param'",
@@ -1175,7 +1204,7 @@ class TestInvokeToolEndpoint:
             "/api/ai/invoke_tool",
             headers=HEADERS,
             json={
-                "tool_name": "test_tool",
+                "toolName": "test_tool",
                 "arguments": {"optional_param": "value"},
             },
         )
@@ -1185,7 +1214,7 @@ class TestInvokeToolEndpoint:
 
         # Verify response structure for validation error
         assert response_data["success"] is False
-        assert response_data["tool_name"] == "test_tool"
+        assert response_data["toolName"] == "test_tool"
         assert response_data["result"] is None
         assert "Invalid arguments" in response_data["error"]
         assert "required_param" in response_data["error"]
@@ -1197,7 +1226,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test tool invocation with complex argument types."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()
@@ -1206,8 +1234,8 @@ class TestInvokeToolEndpoint:
         # Mock successful tool result with complex data as a coroutine
         async def mock_invoke_tool(
             _tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name="complex_tool",
                 result={
                     "processed_data": [
@@ -1237,7 +1265,7 @@ class TestInvokeToolEndpoint:
         response = client.post(
             "/api/ai/invoke_tool",
             headers=HEADERS,
-            json={"tool_name": "complex_tool", "arguments": complex_args},
+            json={"toolName": "complex_tool", "arguments": complex_args},
         )
 
         assert response.status_code == 200, response.text
@@ -1245,7 +1273,7 @@ class TestInvokeToolEndpoint:
 
         # Verify response structure
         assert response_data["success"] is True
-        assert response_data["tool_name"] == "complex_tool"
+        assert response_data["toolName"] == "complex_tool"
         assert "processed_data" in response_data["result"]
         assert "summary" in response_data["result"]
         assert "metadata" in response_data["result"]
@@ -1260,11 +1288,51 @@ class TestInvokeToolEndpoint:
             headers={
                 "Authorization": "Bearer fake-token"
             },  # No session header
-            json={"tool_name": "test_tool", "arguments": {}},
+            json={"toolName": "test_tool", "arguments": {}},
         )
 
         # Should fail without proper session
         assert response.status_code in [400, 401, 403], response.text
+
+
+class TestMCPEndpoints:
+    """Tests for MCP status and refresh endpoints."""
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_mcp_status(client: TestClient) -> None:
+        """Test MCP status endpoint returns error when dependencies not installed."""
+        response = client.get(
+            "/api/ai/mcp/status",
+            headers=HEADERS,
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+
+        # Should have required fields
+        assert "status" in data
+        assert "servers" in data
+        # Will likely error due to missing dependencies or no config
+        assert data["status"] in ["ok", "partial", "error"]
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_mcp_refresh(client: TestClient) -> None:
+        """Test MCP refresh endpoint returns error when dependencies not installed."""
+        response = client.post(
+            "/api/ai/mcp/refresh",
+            headers=HEADERS,
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+
+        # Should have required fields
+        assert "success" in data
+        assert "servers" in data
+        # Will likely fail due to missing dependencies or no config
+        assert isinstance(data["success"], bool)
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -1273,7 +1341,6 @@ class TestInvokeToolEndpoint:
         client: TestClient, mock_get_tool_manager: Any
     ) -> None:
         """Test tool invocation with empty arguments."""
-        from marimo._server.ai.tools import ToolResult
 
         # Mock the tool manager and its response
         mock_tool_manager = MagicMock()
@@ -1282,8 +1349,8 @@ class TestInvokeToolEndpoint:
         # Mock successful tool result with empty arguments
         async def mock_invoke_tool(
             tool_name: str, _arguments: dict
-        ) -> ToolResult:
-            return ToolResult(
+        ) -> ToolCallResult:
+            return ToolCallResult(
                 tool_name=tool_name,
                 result={"message": "Tool executed with empty args"},
                 error=None,
@@ -1295,13 +1362,13 @@ class TestInvokeToolEndpoint:
             "/api/ai/invoke_tool",
             headers=HEADERS,
             json={
-                "tool_name": "test_tool",
+                "toolName": "test_tool",
                 "arguments": {},  # Empty arguments
             },
         )
 
         assert response.status_code == 200, response.text
         data = response.json()
-        assert data["tool_name"] == "test_tool"
+        assert data["toolName"] == "test_tool"
         assert data["result"]["message"] == "Tool executed with empty args"
         assert data["error"] is None

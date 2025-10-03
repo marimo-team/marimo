@@ -10,12 +10,12 @@
 
 import marimo
 
-__generated_with = "0.8.20"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium", layout_file="layouts/slides.slides.json")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         !!! tip "This notebook is best viewed as an app."
@@ -26,7 +26,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         # DuckDB Tricks 🦆
@@ -41,7 +41,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Installation
@@ -55,13 +55,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""# Creating the example data set""")
     return
 
 
 @app.cell
-def __(duckdb, mo, print_and_run):
+def _(duckdb, mo, print_and_run):
     _SQL = """
         CREATE OR REPLACE TABLE example (s STRING, x DOUBLE);
         INSERT INTO example VALUES ('foo', 10/9), ('bar', 50/7), ('qux', 9/4);
@@ -94,13 +94,13 @@ def __(duckdb, mo, print_and_run):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""# Pretty-printing floating-point numbers""")
     return
 
 
 @app.cell
-def __(mo, print_and_run):
+def _(mo, print_and_run):
     mo.md(
         f"""
         When printing a floating-point number to the output, the fractional parts can be difficult to read and compare. For example, the following query returns three numbers between 1 and 8 but their printed widths are very different due to their fractional parts.
@@ -128,13 +128,13 @@ def __(mo, print_and_run):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""# Copying the schema of a table""")
     return
 
 
 @app.cell
-def __(mo, print_and_run):
+def _(mo, print_and_run):
     mo.md(
         f"""
         To copy the schema from a table without copying its data, we can use LIMIT 0.
@@ -164,19 +164,19 @@ def __(mo, print_and_run):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""# Shuffling data""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     rerun = mo.ui.button(label="Run again")
     return (rerun,)
 
 
 @app.cell
-def __(mo, print_and_run, rerun):
+def _(mo, print_and_run, rerun):
     mo.md(
         f"""
         Sometimes, we need to introduce some entropy into the ordering of the data by shuffling it. To shuffle non-deterministically, we can simply sort on a random value provided the random() function:
@@ -203,7 +203,7 @@ def __(mo, print_and_run, rerun):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Closing thoughts
@@ -215,7 +215,7 @@ def __(mo):
 
 
 @app.cell
-def __(duckdb, mo):
+def _(duckdb, mo):
     # Utils
 
     def print_and_run(sql: str):
@@ -237,7 +237,7 @@ def __(duckdb, mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import duckdb
     return duckdb, mo

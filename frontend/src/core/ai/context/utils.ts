@@ -28,8 +28,13 @@ export function contextToXml(context: AiContextPayload): string {
 
   // Add data as attributes
   for (const [key, value] of Object.entries(data)) {
-    const escapedValue = escapeXml(String(value));
     if (value !== undefined) {
+      // Serialize objects and arrays as JSON
+      const stringValue =
+        typeof value === "object" && value !== null
+          ? JSON.stringify(value)
+          : String(value);
+      const escapedValue = escapeXml(stringValue);
       xml += ` ${key}="${escapedValue}"`;
     }
   }

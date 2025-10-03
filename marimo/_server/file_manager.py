@@ -66,8 +66,10 @@ class AppFileManager:
 
         # Return the changes cell IDs
         prev_cell_ids = set(prev_cell_manager.cell_ids())
-        changed_cell_ids: set[CellId_t] = set()
-        for cell_id in self.app.cell_manager.cell_ids():
+        current_cell_ids = set(self.app.cell_manager.cell_ids())
+        # Capture deleted cells
+        changed_cell_ids: set[CellId_t] = prev_cell_ids - current_cell_ids
+        for cell_id in current_cell_ids:
             if cell_id not in prev_cell_ids:
                 changed_cell_ids.add(cell_id)
             new_code = self.app.cell_manager.get_cell_code(cell_id)

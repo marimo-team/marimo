@@ -9,12 +9,12 @@
 
 import marimo
 
-__generated_with = "0.9.4"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Mapping Example
@@ -26,27 +26,27 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     view_button = mo.ui.switch(value=False)
     mo.hstack([mo.md("Satellite view:"), view_button], justify="start")
     return (view_button,)
 
 
 @app.cell
-def __(get_map, mo, view_button):
+def _(get_map, mo, view_button):
     f = mo.ui.plotly(get_map(satellite=view_button.value))
     f
     return (f,)
 
 
 @app.cell
-def __(f, mo):
+def _(f, mo):
     mo.ui.table(f.value)
     return
 
 
 @app.cell
-def __(px, us_cities):
+def _(px, us_cities):
     def get_map(satellite):
         map = px.scatter_mapbox(
             us_cities,
@@ -81,7 +81,7 @@ def __(px, us_cities):
 
 
 @app.cell
-def __(pd):
+def _(pd):
     us_cities = pd.read_csv(
         "https://raw.githubusercontent.com/plotly/datasets/master/us-cities-top-1k.csv"
     )
@@ -89,7 +89,7 @@ def __(pd):
 
 
 @app.cell
-def __():
+def _():
     import os
     import sys
 
@@ -97,7 +97,7 @@ def __():
     import plotly.express as px
 
     import marimo as mo
-    return mo, os, pd, px, sys
+    return mo, pd, px
 
 
 if __name__ == "__main__":

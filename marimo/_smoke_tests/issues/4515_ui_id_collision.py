@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.12.9-dev12"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -21,7 +21,7 @@ def _():
           return slider._clone()._mime_()
 
     has_mime()
-    return has_mime, mo, slider
+    return (slider,)
 
 
 @app.cell

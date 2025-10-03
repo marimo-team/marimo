@@ -9,32 +9,33 @@
 #     "vega-datasets==0.9.0",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.7.14"
+__generated_with = "0.16.0"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __(data):
+def _(data):
     # Load the cars dataset
     cars_df = data.cars()
     cars_df["Year"] = cars_df["Year"].apply(lambda x: x.year)
-    return cars_df,
+    return (cars_df,)
 
 
 @app.cell
-def __(cars_df, mo):
+def _(cars_df, mo):
     _df = mo.sql(
         f"""
         CREATE OR REPLACE TABLE cars AS SELECT * FROM cars_df;
         """
     )
-    return
+    return (cars,)
 
 
 @app.cell
-def __(cars_df, mo):
+def _(cars_df, mo):
     origin = mo.ui.dropdown.from_series(cars_df["Origin"])
     year_range = mo.ui.range_slider.from_series(cars_df["Year"], show_value=True)
     top_n = mo.ui.number(value=5, start=1, stop=50, label="Top N Cars")
@@ -43,15 +44,15 @@ def __(cars_df, mo):
 
 
 @app.cell
-def __(origin):
+def _(origin):
     origin_filter = (
         f"AND Origin = '{origin.value}'" if origin.value != None else ""
     )
-    return origin_filter,
+    return (origin_filter,)
 
 
 @app.cell
-def __(mo, origin, top_n):
+def _(mo, origin, top_n):
     mo.md(
         f"""##Top {top_n.value} Cars {f"in {origin.value}" if origin.value != None else ""} """
     )
@@ -59,7 +60,7 @@ def __(mo, origin, top_n):
 
 
 @app.cell
-def __(mo, origin_filter, top_n, year_range):
+def _(mo, origin_filter, top_n, year_range):
     _df = mo.sql(
         f"""
         SELECT Name, Year, Origin, Horsepower, Miles_per_Gallon,
@@ -75,13 +76,13 @@ def __(mo, origin_filter, top_n, year_range):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""### Breakdown by Origin""")
     return
 
 
 @app.cell
-def __(cars, mo, year_range):
+def _(cars, mo, year_range):
     _df = mo.sql(
         f"""
         WITH ranked_cars AS (
@@ -107,7 +108,7 @@ def __(cars, mo, year_range):
 
 
 @app.cell
-def __(alt, duckdb, mo, year_range):
+def _(alt, duckdb, mo, year_range):
     _query = f"""
     SELECT Year, 
            AVG(Horsepower) as Avg_Horsepower, 
@@ -139,11 +140,11 @@ def __(alt, duckdb, mo, year_range):
         )
     )
     mo.ui.altair_chart(_chart, chart_selection=None)
-    return base, line1, line2
+    return
 
 
 @app.cell(hide_code=True)
-def __(alt, duckdb, mo, year_range):
+def _(alt, duckdb, mo, year_range):
     _query = f"""
     SELECT Horsepower, Miles_per_Gallon, Origin
     FROM cars
@@ -165,18 +166,18 @@ def __(alt, duckdb, mo, year_range):
 
     chart = mo.ui.altair_chart(_chart)
     chart
-    return chart,
+    return (chart,)
 
 
 @app.cell
-def __(chart, mo):
+def _(chart, mo):
     mo.stop(chart.value.empty, mo.callout("Select cars from the chart above."))
     selected_cars = chart.value
-    return selected_cars,
+    return (selected_cars,)
 
 
 @app.cell(hide_code=True)
-def __(aggs, aggs_selected, mo):
+def _(aggs, aggs_selected, mo):
     def title_case(title):
         return title.title().replace("_", " ")
 
@@ -200,11 +201,11 @@ def __(aggs, aggs_selected, mo):
             for column in aggs.columns
         ]
     )
-    return diff, title_case
+    return
 
 
 @app.cell(hide_code=True)
-def __(cars, mo, selected_cars):
+def _(cars, mo, selected_cars):
     aggs_selected = mo.sql("""
     SELECT 
         COUNT(*) as count,
@@ -232,7 +233,7 @@ def __(cars, mo, selected_cars):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import duckdb
     import altair as alt

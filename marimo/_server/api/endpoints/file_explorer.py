@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo import _loggers
+from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import (
@@ -21,6 +22,8 @@ from marimo._server.models.files import (
     FileMoveRequest,
     FileMoveResponse,
     FileOpenRequest,
+    FileSearchRequest,
+    FileSearchResponse,
     FileUpdateRequest,
     FileUpdateResponse,
 )
@@ -211,10 +214,16 @@ async def update_file(
                     schema:
                         $ref: "#/components/schemas/FileUpdateResponse"
     """
+    app_state = AppState(request)
     body = await parse_request(request, cls=FileUpdateRequest)
     try:
         file_system.get_details(body.path)
         info = file_system.update_file(body.path, body.contents)
+
+        # Handle marimo notebook reload if there's an active session
+        session_manager = app_state.session_manager
+        await session_manager.handle_file_change(body.path)
+
         return FileUpdateResponse(success=True, info=info)
     except Exception as e:
         LOGGER.error(f"Error updating file or directory: {e}")
@@ -244,8 +253,42 @@ async def open_file(
     body = await parse_request(request, cls=FileOpenRequest)
     try:
         file_system.get_details(body.path)
-        success = file_system.open_in_editor(body.path)
+        success = file_system.open_in_editor(body.path, body.line_number)
         return SuccessResponse(success=success)
     except Exception as e:
         LOGGER.error(f"Error opening file: {e}")
         return ErrorResponse(success=False, message=str(e))
+
+
+@router.post("/search")
+@requires("edit")
+async def search_files(
+    *,
+    request: Request,
+) -> FileSearchResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/FileSearchRequest"
+    responses:
+        200:
+            description: Search for files and directories matching a query
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/FileSearchResponse"
+    """
+    body = await parse_request(request, cls=FileSearchRequest)
+    files = file_system.search(
+        query=body.query,
+        path=body.path,
+        include_directories=body.include_directories,
+        include_files=body.include_files,
+        depth=body.depth,
+        limit=body.limit,
+    )
+    return FileSearchResponse(
+        files=files, query=body.query, total_found=len(files)
+    )

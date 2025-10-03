@@ -18,9 +18,20 @@
 
   &:focus-visible {
     /* focus-visible outlines the entire cell body in black, but the cell's
-     * body is an irregular shape because of pseudo-elements that extend
-     * its hit-box / hover area. */
+         * body is an irregular shape because of pseudo-elements that extend
+         * its hit-box / hover area. */
     outline: none;
+  }
+
+  &:has(.mo-ai-generated-cell)::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    pointer-events: none;
+    opacity: 0.5;
+    box-shadow: 0px 0px 10px 0px var(--cyan-9);
+    z-index: 1;
   }
 
   &:focus-within {
@@ -28,16 +39,19 @@
   }
 
   /* Hover z-index is higher than focus-within z-index
-   * This is because you may hover for tooltip docs while
-   * not focused in another cell.
-   */
+     * This is because you may hover for tooltip docs while
+     * not focused in another cell.
+     */
+
   &:hover {
     z-index: 30;
   }
 
   /* Interactive */
+
   &.interactive {
     /* Only restrain output length in edit mode. */
+
     .output-area,
     .console-output-area {
       max-height: 610px;
@@ -45,6 +59,7 @@
     }
 
     /* Special case for particular components */
+
     .output-area:has(> .output > marimo-ui-element > marimo-table) {
       max-height: none;
       overflow: hidden;
@@ -71,14 +86,14 @@
       @apply shadow-lg-solid shadow-shade;
 
       /* a little bit of motion
-      *
-      * Note: we use left/top instead of transform because transform creates a new
-      * stacking context and makes completion tooltip appear below surrounding
-      * cells/outputs. See
-      *
-      * https://stackoverflow.com/questions/20851452/z-index-is-canceled-by-setting-transformrotate,
-      * https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
-      * */
+            *
+            * Note: we use left/top instead of transform because transform creates a new
+            * stacking context and makes completion tooltip appear below surrounding
+            * cells/outputs. See
+            *
+            * https://stackoverflow.com/questions/20851452/z-index-is-canceled-by-setting-transformrotate,
+            * https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
+            * */
       left: -1px;
       top: -1px;
     }
@@ -97,6 +112,7 @@
   }
 
   /* Stale styles for Cell */
+
   &.stale,
   &.disabled.stale {
     .output-area,
@@ -108,6 +124,7 @@
   }
 
   /* Disabled styles for Cell */
+
   &.disabled,
   &.disabled.has-error,
   &.disabled:hover,
@@ -127,6 +144,7 @@
   }
 
   /* Error styles for Cell, less precedence than needs run */
+
   &.has-error,
   &.error-outline {
     outline: 1px solid var(--red-4);
@@ -149,6 +167,7 @@
   }
 
   /* Needs Run */
+
   &.needs-run {
     /* TODO(akshayka): Can give this an outline to make more visible. */
     outline: none;
@@ -174,6 +193,7 @@
   }
 
   /* Focus state */
+
   &.focus-outline {
     transition: all 0.6s;
     border-color: var(--blue-8) !important;
@@ -183,21 +203,28 @@
   }
 
   /* Published - when its just the output */
+
   &.published {
     border: none;
     box-shadow: none;
 
     .output-area {
       /* flow-root interferes with margin collapsing, but appears to be unneeded
-      * when cell outlines are hidden; clear:both is sufficient.
-      *
-      * if developers just use css-grid instead of float, this won't matter.
-      * */
+            * when cell outlines are hidden; clear:both is sufficient.
+            *
+            * if developers just use css-grid instead of float, this won't matter.
+            * */
       display: block;
       padding-top: 0;
       padding-bottom: 0;
       border: none;
       box-shadow: none;
+
+      /*
+                do not restrict the dimensions when outlines are hidden，
+                otherwise text with a scrollbar w/o a container looks weird
+            */
+      overflow: visible;
     }
 
     &:hover {
@@ -211,6 +238,7 @@
   }
 
   /* Borderless styles for Cell */
+
   &.borderless {
     border-color: transparent;
     box-shadow: none;
@@ -220,6 +248,7 @@
     }
 
     /* Apply the original styles */
+
     &:hover {
       border: 1px solid var(--gray-4);
       @apply shadow-sm-solid shadow-shade;
@@ -227,6 +256,7 @@
   }
 
   /* -------------------------- Shoulders/Buttons ---------------------------- */
+
   .shoulder-right {
     display: inline-flex;
     flex-direction: column;
@@ -259,6 +289,7 @@
     }
 
     /* Apply the original styles */
+
     &:hover {
       border: 1px solid var(--gray-4);
       @apply shadow-sm-solid shadow-shade;
@@ -268,6 +299,7 @@
 
 #App.disconnected {
   /* Background determined by disconnected gradient/noise. */
+
   .marimo-cell,
   .console-output-area,
   .cm .cm-gutters,
@@ -278,6 +310,7 @@
   }
 
   /* Hide when disconnected. */
+
   .cell-running-icon,
   .cell-queued-icon,
   .elapsed-time {
@@ -306,6 +339,7 @@
   }
 
   /* expand the hover area left and right */
+
   &::before,
   &::after {
     content: "";
@@ -400,13 +434,11 @@
   padding: 1rem;
 
   /* Prevent floated elements from extending out of the output areas and into
-   * the editor. */
+     * the editor. */
   clear: both;
   display: flow-root;
 
-  /* TODO: Find a way to accommodate large elements, ideally in a way that
-   * doesn't break margin collapse. Setting overflow (eg, overflow: auto)
-   * breaks margin collapse. */
+  overflow: auto;
 }
 
 .marimo-output-stale,

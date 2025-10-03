@@ -5,6 +5,8 @@ export type Milliseconds = number & { __type__: "milliseconds" };
 export type Seconds = number & { __type__: "seconds" };
 
 export class Time {
+  private readonly ms: Milliseconds;
+
   static fromMilliseconds(ms: Milliseconds): Time;
   static fromMilliseconds(ms: Milliseconds | null): Time | null;
   static fromMilliseconds(ms: Milliseconds | null): Time | null {
@@ -27,7 +29,9 @@ export class Time {
     return new Time(Date.now() as Milliseconds);
   }
 
-  private constructor(private readonly ms: Milliseconds) {}
+  private constructor(ms: Milliseconds) {
+    this.ms = ms;
+  }
 
   toMilliseconds(): Milliseconds {
     return this.ms;

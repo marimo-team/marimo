@@ -2,6 +2,7 @@ import time
 
 from marimo._runtime.requests import DeleteCellRequest
 from marimo._runtime.runtime import Kernel
+from tests._messaging.mocks import MockStream
 from tests.conftest import ExecReqProvider
 
 
@@ -89,15 +90,14 @@ async def test_thread_output_append(
     assert not k.errors
     time.sleep(0.01)  # noqa: ASYNC251
     # The main thread should not have any output, but the new thread should
-    stream = k.globals["stream"]
-    for m in stream.messages:
-        if m[0] == "cell-op" and m[1]["output"] is not None:
-            assert "hello" not in m[1]["output"]["data"]
-            assert "world" not in m[1]["output"]["data"]
-    thread_stream = k.globals["thread_stream"]
-    assert len(thread_stream.messages) == 2
-    assert "hello" in thread_stream.messages[0][1]["output"]["data"]
-    assert "world" in thread_stream.messages[1][1]["output"]["data"]
+    cell_ops = MockStream(k.globals["stream"]).cell_ops
+    for m in cell_ops:
+        if m.output is not None:
+            assert "hello" not in m.output.data
+            assert "world" not in m.output.data
+    thread_stream_cell_ops = MockStream(k.globals["thread_stream"]).cell_ops
+    assert "hello" in thread_stream_cell_ops[0].output.data
+    assert "world" in thread_stream_cell_ops[1].output.data
 
 
 async def test_thread_print(k: Kernel, exec_req: ExecReqProvider) -> None:
@@ -126,16 +126,16 @@ async def test_thread_print(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert not k.errors
     time.sleep(0.01)  # noqa: ASYNC251
     # The main thread should not have any output, but the new thread should
-    stream = k.globals["stream"]
-    for m in stream.messages:
-        assert ("console" not in m[1]) or not m[1]["console"]
+    stream = MockStream(k.globals["stream"])
+    for m in stream.operations:
+        assert ("console" not in m) or not m["console"]
 
-    thread_stream = k.globals["thread_stream"]
-    assert len(thread_stream.messages) == 2
-    assert "hello" in thread_stream.messages[0][1]["console"]["data"]
-    assert thread_stream.messages[0][1]["console"]["channel"] == "stdout"
-    assert "world" in thread_stream.messages[1][1]["console"]["data"]
-    assert thread_stream.messages[1][1]["console"]["channel"] == "stdout"
+    thread_stream = MockStream(k.globals["thread_stream"])
+    assert len(thread_stream.operations) == 2
+    assert "hello" in thread_stream.operations[0]["console"]["data"]
+    assert thread_stream.operations[0]["console"]["channel"] == "stdout"
+    assert "world" in thread_stream.operations[1]["console"]["data"]
+    assert thread_stream.operations[1]["console"]["channel"] == "stdout"
 
 
 async def test_thread_should_exit_on_rerun(

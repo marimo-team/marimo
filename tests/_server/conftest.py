@@ -1,8 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
 import sys
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
@@ -14,9 +14,11 @@ from marimo._config.manager import MarimoConfigManager, UserConfigManager
 from marimo._config.utils import CONFIG_FILENAME
 from marimo._server.api.deps import AppState
 from marimo._server.main import create_starlette_app
+from marimo._server.session.session_view import SessionView
 from marimo._server.sessions import SessionManager
 from marimo._server.utils import initialize_asyncio
 from tests._server.mocks import get_mock_session_manager
+from tests.utils import assert_serialize_roundtrip
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
@@ -39,16 +41,15 @@ def client_with_lifespans() -> Generator[TestClient, None, None]:
 @pytest.fixture
 def user_config_manager() -> Iterator[UserConfigManager]:
     tmp = TemporaryDirectory()
-    config_path = os.path.join(tmp.name, CONFIG_FILENAME)
-    with open(config_path, "w") as f:
-        f.write("")
+    config_path = Path(tmp.name) / CONFIG_FILENAME
+    config_path.write_text("")
 
     class TestUserConfigManager(UserConfigManager):
         def __init__(self) -> None:
             super().__init__()
 
         def get_config_path(self) -> str:
-            return config_path
+            return str(config_path)
 
     yield TestUserConfigManager()
 
@@ -89,3 +90,14 @@ def get_session_config_manager(client: TestClient) -> UserConfigManager:
 
 def get_user_config_manager(client: TestClient) -> UserConfigManager:
     return client.app.state.config_manager  # type: ignore
+
+
+@pytest.fixture
+def session_view() -> Generator[SessionView, None, None]:
+    sv = SessionView()
+
+    yield sv
+
+    # Test all operations can be serialized/deserialized
+    for operation in sv.operations:
+        assert_serialize_roundtrip(operation)

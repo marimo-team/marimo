@@ -12,7 +12,7 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.runtime import SecretsCallbacks
 from marimo._types.ids import RequestId
-from marimo._utils.parse_dataclass import parse_raw
+from tests._messaging.mocks import MockStream
 from tests._runtime.test_runtime import MockedKernel
 
 
@@ -34,17 +34,18 @@ async def test_list_secrets_with_values(
     )
 
     # Check that the broadcast message was sent with the correct secrets
-    messages = [
+    stream = MockStream(mocked_kernel.stream)
+    secret_messages = [
         msg
-        for msg in mocked_kernel.stream.messages
-        if msg[0] == "secret-keys-result"
+        for msg in stream.parsed_operations
+        if isinstance(msg, SecretKeysResult)
     ]
-    assert len(messages) == 1
-    secret_messages = parse_raw(messages[0][1], SecretKeysResult)
-    assert len(secret_messages.secrets) == 1
-    assert secret_messages.secrets[0].provider == "env"
+    assert len(secret_messages) == 1
+    first_secret_message = secret_messages[0]
+    assert first_secret_message.secrets[0].provider == "env"
     assert all(
-        secret in secret_messages.secrets[0].keys for secret in test_secrets
+        secret in first_secret_message.secrets[0].keys
+        for secret in test_secrets
     )
 
     # Clean up

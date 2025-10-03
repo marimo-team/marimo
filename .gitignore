@@ -96,6 +96,7 @@ uv.lock
 
 # WIP files
 .wip/
+wip/
 
 # editors
 *.swp
@@ -127,3 +128,6 @@ __marimo__
 # pixi environments
 .pixi
 *.egg-info
+
+# mkdocs
+site

@@ -101,6 +101,7 @@ describe("generateDatabaseCode", () => {
       type: "REST",
       uri: "http://localhost:8181",
       warehouse: "/path/to/warehouse",
+      token: undefined,
     },
   };
 
@@ -130,6 +131,7 @@ describe("generateDatabaseCode", () => {
     catalog: {
       type: "Glue",
       warehouse: "/path/to/warehouse",
+      uri: undefined,
     },
   };
 
@@ -192,8 +194,24 @@ describe("generateDatabaseCode", () => {
     },
   };
 
+  const databricksConnection: DatabaseConnection = {
+    type: "databricks",
+    access_token: "my_access_token",
+    server_hostname: "localhost",
+    http_path: "http://localhost:8080",
+  };
+
+  const databricksWithCatalogSchema: DatabaseConnection = {
+    type: "databricks",
+    access_token: "my_access_token",
+    server_hostname: "localhost",
+    http_path: "http://localhost:8080",
+    catalog: "my_catalog",
+    schema: "my_schema",
+  };
+
   describe("basic connections", () => {
-    const testCases: Array<[string, DatabaseConnection, ConnectionLibrary]> = [
+    const testCases: [string, DatabaseConnection, ConnectionLibrary][] = [
       ["postgres with SQLModel", basePostgres, "sqlmodel"],
       ["postgres with SQLAlchemy", basePostgres, "sqlalchemy"],
       ["mysql with SQLModel", baseMysql, "sqlmodel"],
@@ -218,9 +236,16 @@ describe("generateDatabaseCode", () => {
       ["pyspark with session", pysparkConnSession, "ibis"],
       ["redshift with DB credentials", redshiftDBConnection, "redshift"],
       ["redshift with IAM credentials", redshiftIAMConnection, "redshift"],
+      ["databricks", databricksConnection, "sqlalchemy"],
+      [
+        "databricks with catalog and schema",
+        databricksWithCatalogSchema,
+        "sqlalchemy",
+      ],
+      ["databricks with ibis", databricksConnection, "ibis"],
     ];
 
-    it.each(testCases)("%s", (name, connection, orm) => {
+    it.each(testCases)("%s", (_name, connection, orm) => {
       expect(generateDatabaseCode(connection, orm)).toMatchSnapshot();
     });
   });
@@ -292,7 +317,7 @@ describe("generateDatabaseCode", () => {
         },
         "duckdb",
       ],
-    ])("%s", (name, connection, orm) => {
+    ])("%s", (_name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
       ).toMatchSnapshot();
@@ -300,7 +325,7 @@ describe("generateDatabaseCode", () => {
   });
 
   describe("edge cases", () => {
-    const testCases: Array<[string, DatabaseConnection, string]> = [
+    const testCases: [string, DatabaseConnection, string][] = [
       [
         "ENV with special chars SQLModel",
         {
@@ -504,7 +529,7 @@ describe("generateDatabaseCode", () => {
       ],
     ];
 
-    it.each(testCases)("%s", (name, connection, orm) => {
+    it.each(testCases)("%s", (_name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
       ).toMatchSnapshot();
@@ -548,7 +573,7 @@ describe("generateDatabaseCode", () => {
           credentials_json: '{"type": "service_account", "project_id": "test"',
         },
       ],
-    ])("%s", (name, connection) => {
+    ])("%s", (_name, connection) => {
       expect(generateDatabaseCode(connection, "sqlmodel")).toMatchSnapshot();
       expect(generateDatabaseCode(connection, "sqlalchemy")).toMatchSnapshot();
     });
@@ -591,7 +616,7 @@ describe("generateDatabaseCode", () => {
             "sqlmodel",
           ),
       ],
-    ])("%s", (name, fn) => {
+    ])("%s", (_name, fn) => {
       expect(fn).toThrow();
     });
   });

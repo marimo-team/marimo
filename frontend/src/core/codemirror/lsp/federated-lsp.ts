@@ -4,7 +4,7 @@ import type { LanguageServerPlugin } from "@marimo-team/codemirror-languageserve
 import type * as LSP from "vscode-languageserver-protocol";
 import { Objects } from "@/utils/objects";
 import type { ILanguageServerClient } from "./types";
-import { getLSPDocument } from "./utils.ts";
+import { getLSPDocument } from "./utils";
 
 function removeFalseyValues<T extends object>(obj: T): T {
   return Objects.filter(obj, (value) => value !== false && value !== null) as T;
@@ -115,7 +115,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
 
   async textDocumentCodeAction(
     params: LSP.CodeActionParams,
-  ): Promise<Array<LSP.Command | LSP.CodeAction> | null> {
+  ): Promise<(LSP.Command | LSP.CodeAction)[] | null> {
     const client = this.firstWithCapability("codeActionProvider");
     if (client) {
       return client.textDocumentCodeAction(params);
@@ -206,9 +206,9 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
 }
 
 function mergeCompletions(
-  results: Array<
-    PromiseSettledResult<LSP.CompletionList | LSP.CompletionItem[] | null>
-  >,
+  results: PromiseSettledResult<
+    LSP.CompletionList | LSP.CompletionItem[] | null
+  >[],
 ): LSP.CompletionList {
   const completions: LSP.CompletionItem[] = [];
   let isIncomplete = false;

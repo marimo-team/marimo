@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { ChatAttachment } from "@/core/ai/types";
+import type { UIMessage } from "ai";
+
 export type ChatRole = "system" | "user" | "assistant";
 
 export interface ChatMessage {
   role: ChatRole;
-  content: string;
-  attachments?: ChatAttachment[];
+  content: string; // TODO: Deprecate content
+  parts: UIMessage["parts"] | null;
 }
 
 export interface SendMessageRequest {

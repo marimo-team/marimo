@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 /* eslint-disable unicorn/prefer-spread */
 /**
  * WebComponent Factory for React Components
@@ -7,6 +8,7 @@
  * component. The factory handles the logic of communicating UI element values
  * to and from the rest of marimo.
  */
+import { Provider } from "jotai";
 import React, {
   createRef,
   type JSX,
@@ -20,17 +22,23 @@ import React, {
 } from "react";
 import ReactDOM, { type Root } from "react-dom/client";
 import useEvent from "react-use-event-hook";
-import type { ZodSchema } from "zod";
+import { type ZodSchema, z } from "zod";
+import { notebookAtom } from "@/core/cells/cells.ts";
+import { HTMLCellId } from "@/core/cells/ids.ts";
+import { isUninstantiated } from "@/core/cells/utils";
 import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
 import { getUIElementObjectId } from "@/core/dom/ui-element";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
+import { LocaleProvider } from "@/core/i18n/locale-provider";
+import { store } from "@/core/state/jotai";
 import {
   type HTMLElementNotDerivedFromRef,
   useEventListener,
 } from "@/hooks/useEventListener";
 import { StyleNamespace } from "@/theme/namespace";
 import { useTheme } from "@/theme/useTheme";
+import { CellNotInitializedError } from "@/utils/errors.ts";
 import { Functions } from "@/utils/functions";
 import { shallowCompare } from "@/utils/shallow-compare";
 import { defineCustomElement } from "../../core/dom/defineCustomElement";
@@ -78,6 +86,7 @@ interface PluginSlotProps<T> {
 }
 
 /* Handles synchronization of value on behalf of the component */
+
 // eslint-disable-next-line react/function-component-definition
 function PluginSlotInternal<T>(
   { hostElement, plugin, children, getInitialValue }: PluginSlotProps<T>,
@@ -172,6 +181,31 @@ function PluginSlotInternal<T>(
         );
         const objectId = getUIElementObjectId(hostElement);
         invariant(objectId, "Object ID should exist");
+
+        const htmlId = HTMLCellId.findElementThroughShadowDOMs(hostElement)?.id;
+        const cellId = htmlId ? HTMLCellId.parse(htmlId) : null;
+        if (cellId) {
+          // If the cell is not initialized, throw an error
+          const notebookState = store.get(notebookAtom);
+          const cellRuntime = notebookState.cellRuntime[cellId];
+          const cellData = notebookState.cellData[cellId];
+
+          const cellNotInitialized = isUninstantiated({
+            executionTime:
+              cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
+            status: cellRuntime.status,
+            errored: cellRuntime.errored,
+            interrupted: cellRuntime.interrupted,
+            stopped: cellRuntime.stopped,
+          });
+
+          if (cellNotInitialized) {
+            throw new CellNotInitializedError();
+          }
+        } else {
+          Logger.warn(`Cell ID ${cellId} cannot be found`);
+        }
+
         const response = await FUNCTIONS_REGISTRY.request({
           args: prettyParse(input, args[0]),
           functionName: key,
@@ -335,16 +369,20 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
 
       invariant(this.root, "Root must be defined");
       this.root.render(
-        <PluginSlot
-          hostElement={this}
-          plugin={plugin}
-          ref={this.pluginRef}
-          getInitialValue={() => {
-            return parseInitialValue(this, UIElementRegistry.INSTANCE);
-          }}
-        >
-          {this.getChildren()}
-        </PluginSlot>,
+        <Provider store={store}>
+          <LocaleProvider>
+            <PluginSlot
+              hostElement={this}
+              plugin={plugin}
+              ref={this.pluginRef}
+              getInitialValue={() => {
+                return parseInitialValue(this, UIElementRegistry.INSTANCE);
+              }}
+            >
+              {this.getChildren()}
+            </PluginSlot>
+          </LocaleProvider>
+        </Provider>,
       );
     }
 
@@ -523,13 +561,11 @@ export function isCustomMarimoElement(
   return "__type__" in element && element.__type__ === customElementLocator;
 }
 
-function prettyParse<T>(schema: ZodSchema<T>, data: unknown): T {
+function prettyParse<T>(schema: z.ZodType<T>, data: unknown): T {
   const result = schema.safeParse(data);
   if (!result.success) {
     Logger.log("Failed to parse data", data, result.error);
-    throw new Error(
-      result.error.errors.map((e) => `${e.path}: ${e.message}`).join("\n"),
-    );
+    throw new Error(z.prettifyError(result.error));
   }
   return result.data;
 }

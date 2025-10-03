@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import time
+from collections.abc import AsyncIterable, Iterable, Sized
 from typing import (
     TYPE_CHECKING,
     Any,
+    Generic,
     Literal,
     Optional,
     TypeVar,
+    cast,
+    overload,
 )
 
 import marimo._runtime.output._output as output
@@ -19,7 +23,7 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._utils.debounce import debounce
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable
+    from collections.abc import AsyncIterator, Collection, Iterator
 
 S = TypeVar("S")
 T = TypeVar("T")
@@ -273,7 +277,7 @@ class spinner:
         return self.spinner._mime_()
 
 
-class progress_bar:
+class progress_bar(Generic[S]):
     """Iterate over a collection and show a progress bar.
 
     Examples:
@@ -299,7 +303,7 @@ class progress_bar:
         every 150ms.
 
     Args:
-        collection (Collection[Union[S, int]], optional): Optional collection to iterate over.
+        collection (Union[Collection[S], Iterator[S], AsyncIterable[S]], optional): Optional collection to iterate over.
         title (str, optional): Optional title.
         subtitle (str, optional): Optional subtitle.
         completion_title (str, optional): Optional title to show during completion.
@@ -311,9 +315,59 @@ class progress_bar:
         disabled (bool, optional): If True, disable the progress bar.
     """
 
+    @overload
     def __init__(
         self,
-        collection: Optional[Collection[S | int]] = None,
+        collection: Collection[S] = ...,
+        *,
+        title: Optional[str] = ...,
+        subtitle: Optional[str] = ...,
+        completion_title: Optional[str] = ...,
+        completion_subtitle: Optional[str] = ...,
+        total: Optional[int] = ...,
+        show_rate: bool = ...,
+        show_eta: bool = ...,
+        remove_on_exit: bool = ...,
+        disabled: bool = ...,
+    ): ...
+
+    @overload
+    def __init__(
+        self,
+        collection: Iterator[S] | AsyncIterable[S] = ...,
+        *,
+        title: Optional[str] = ...,
+        subtitle: Optional[str] = ...,
+        completion_title: Optional[str] = ...,
+        completion_subtitle: Optional[str] = ...,
+        total: int = ...,
+        show_rate: bool = ...,
+        show_eta: bool = ...,
+        remove_on_exit: bool = ...,
+        disabled: bool = ...,
+    ): ...
+
+    @overload
+    def __init__(
+        self,
+        collection: None = ...,
+        *,
+        title: Optional[str] = ...,
+        subtitle: Optional[str] = ...,
+        completion_title: Optional[str] = ...,
+        completion_subtitle: Optional[str] = ...,
+        total: int = ...,
+        show_rate: bool = ...,
+        show_eta: bool = ...,
+        remove_on_exit: bool = ...,
+        disabled: bool = ...,
+    ): ...
+
+    def __init__(
+        self,
+        collection: Optional[
+            Collection[S] | Iterator[S] | AsyncIterable[S]
+        ] = None,
         *,
         title: Optional[str] = None,
         subtitle: Optional[str] = None,
@@ -329,20 +383,23 @@ class progress_bar:
         self.completion_subtitle = completion_subtitle
         self.remove_on_exit = remove_on_exit
         self.disabled = disabled
+        self.step: int = 1
+        self.collection = collection
+        self._is_async = isinstance(collection, AsyncIterable)
 
         if collection is not None:
-            self.collection = collection
+            if total is None:
+                if isinstance(collection, Sized):
+                    total = len(collection)
 
-            try:
-                total = total or len(collection)
-                self.step = (
-                    collection.step if isinstance(collection, range) else 1
-                )
-            except TypeError:  # if collection is a generator
-                raise TypeError(
-                    "fail to determine length of collection, use `total`"
-                    + "to specify"
-                ) from None
+                else:
+                    raise TypeError(
+                        "Cannot determine the length of a collection. "
+                        "A `total` must be provided."
+                    )
+
+            if isinstance(collection, range):
+                self.step = cast(range, collection).step
 
         elif total is None:
             raise ValueError(
@@ -359,12 +416,45 @@ class progress_bar:
         if not disabled:
             output.append(self.progress)
 
-    def __iter__(self) -> Iterable[S | int]:
-        for item in self.collection:
-            yield item  # type: ignore[misc]
-            if not self.disabled:
-                self.progress.update(increment=self.step)
-        self._finish()
+    def __iter__(self) -> Iterator[S]:
+        if self.collection is None:
+            raise RuntimeError(
+                "progress_bar can only be iterated over if a collection is provided"
+            )
+
+        if self._is_async:
+            raise RuntimeError(
+                "Cannot iterate over an async collection with `for`. "
+                "Use `async for` instead."
+            )
+
+        try:
+            for item in cast(Iterable[S], self.collection):
+                yield item
+                if not self.disabled:
+                    self.progress.update(increment=self.step)
+        finally:
+            self._finish()
+
+    async def __aiter__(self) -> AsyncIterator[S]:
+        if self.collection is None:
+            raise RuntimeError(
+                "progress_bar can only be iterated over if a collection is provided"
+            )
+
+        if not self._is_async:
+            raise RuntimeError(
+                "Cannot iterate over a sync collection with `async for`. "
+                "Use `for` instead."
+            )
+
+        try:
+            async for item in cast(AsyncIterable[S], self.collection):
+                yield item
+                if not self.disabled:
+                    self.progress.update(increment=self.step)
+        finally:
+            self._finish()
 
     def __enter__(self) -> ProgressBar:
         return self.progress

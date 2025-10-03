@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { TopLevelSpec } from "vega-lite";
+import type { TimeUnit } from "vega-lite/build/src/timeunit";
 import type { CellId } from "@/core/cells/ids";
 import type { CellRun } from "@/core/cells/runs";
 import type { ResolvedTheme } from "@/theme/useTheme";
@@ -30,6 +31,8 @@ export function createGanttBaseSpec(
   chartPosition: ChartPosition,
   theme: ResolvedTheme,
 ): Readonly<TopLevelSpec> {
+  // @ts-expect-error - Supported by vega/vega-lite but invalid "TimeUnit" option from exported type
+  const timeUnit: TimeUnit = "hoursminutessecondsmilliseconds";
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
     background: theme === "dark" ? "black" : undefined,
@@ -76,15 +79,13 @@ export function createGanttBaseSpec(
         {
           field: startTimestampField,
           type: "temporal",
-          // @ts-expect-error - Supported by vega/vega-lite but invalid "TimeUnit" option from exported type
-          timeUnit: "hoursminutessecondsmilliseconds",
+          timeUnit: timeUnit,
           title: "Start",
         },
         {
           field: endTimestampField,
           type: "temporal",
-          // @ts-expect-error - Supported by vega/vega-lite but invalid "TimeUnit" option from exported type
-          timeUnit: "hoursminutessecondsmilliseconds",
+          timeUnit: timeUnit,
           title: "End",
         },
       ],

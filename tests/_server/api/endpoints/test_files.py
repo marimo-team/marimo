@@ -3,17 +3,22 @@ from __future__ import annotations
 
 import os
 import random
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import Mock, patch
 
+import msgspec
 import pytest
 
+from marimo._utils.platform import is_windows
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
     token_header,
     with_session,
     with_websocket_session,
 )
+from tests.mocks import EDGE_CASE_FILENAMES
 from tests.utils import try_assert_n_times
 
 if TYPE_CHECKING:
@@ -78,13 +83,13 @@ def test_save_file(client: TestClient) -> None:
         "/api/kernel/save",
         headers=HEADERS,
         json={
-            "cell_ids": ["1"],
+            "cellIds": ["1"],
             "filename": str(path),
             "codes": ["import marimo as mo"],
             "names": ["my_cell"],
             "configs": [
                 {
-                    "hideCode": True,
+                    "hide_code": True,
                     "disabled": False,
                 }
             ],
@@ -106,13 +111,13 @@ def test_save_file(client: TestClient) -> None:
         "/api/kernel/save",
         headers=HEADERS,
         json={
-            "cell_ids": ["1"],
+            "cellIds": ["1"],
             "filename": str(path),
             "codes": ["import marimo as mo"],
             "names": ["__"],
             "configs": [
                 {
-                    "hideCode": False,
+                    "hide_code": False,
                 }
             ],
         },
@@ -141,13 +146,13 @@ def test_save_with_header(client: TestClient) -> None:
         "/api/kernel/save",
         headers=HEADERS,
         json={
-            "cell_ids": ["1"],
+            "cellIds": ["1"],
             "filename": str(path),
             "codes": ["import marimo as mo"],
             "names": ["my_cell"],
             "configs": [
                 {
-                    "hideCode": True,
+                    "hide_code": True,
                     "disabled": False,
                 }
             ],
@@ -193,13 +198,13 @@ def test_save_with_invalid_file(client: TestClient) -> None:
         "/api/kernel/save",
         headers=HEADERS,
         json={
-            "cell_ids": ["1"],
+            "cellIds": ["1"],
             "filename": str(path),
             "codes": ["import marimo as mo"],
             "names": ["my_cell"],
             "configs": [
                 {
-                    "hideCode": True,
+                    "hide_code": True,
                     "disabled": False,
                 }
             ],
@@ -230,13 +235,13 @@ def test_save_file_cannot_rename(client: TestClient) -> None:
         "/api/kernel/save",
         headers=HEADERS,
         json={
-            "cell_ids": ["1"],
+            "cellIds": ["1"],
             "filename": "random_filename.py",
             "codes": ["import marimo as mo"],
             "names": ["my_cell"],
             "configs": [
                 {
-                    "hideCode": True,
+                    "hide_code": True,
                     "disabled": False,
                 }
             ],
@@ -324,7 +329,7 @@ def test_rename_propagates(
         "/api/kernel/run",
         headers=HEADERS,
         json={
-            "cell_ids": ["cell-1", "cell-2"],
+            "cellIds": ["cell-1", "cell-2"],
             "codes": ["b = __file__", "a = 'x' + __file__"],
         },
     )
@@ -366,3 +371,130 @@ def test_rename_propagates(
 
     assert ("x" + new_filename).startswith(variables["a"])
     assert new_filename.startswith(variables["b"])
+
+
+# Edge case tests
+@with_session(SESSION_ID)
+def test_read_code_without_saved_file(client: TestClient) -> None:
+    """Test read_code when file hasn't been saved yet."""
+    from marimo._server.api.status import HTTPStatus
+
+    # Mock the session to have no file path
+    with patch("marimo._server.api.endpoints.files.AppState") as mock_state:
+        mock_session = Mock()
+        mock_session.app_file_manager.path = None
+        mock_state.return_value.require_current_session.return_value = (
+            mock_session
+        )
+
+        response = client.post(
+            "/api/kernel/read_code",
+            headers=HEADERS,
+            json={},
+        )
+
+        assert response.status_code == HTTPStatus.BAD_REQUEST
+        assert (
+            "File must be saved before downloading"
+            in response.json()["detail"]
+        )
+
+
+@with_session(SESSION_ID)
+def test_save_with_unicode_content(client: TestClient) -> None:
+    """Test save endpoint with unicode and special characters."""
+    filename = get_session_manager(client).file_router.get_unique_file_key()
+    assert filename
+    path = Path(filename)
+
+    unicode_code = """# Unicode test: 你好世界 🌍 ñáéíóú
+def test():
+    return "Hello 世界" """
+
+    response = client.post(
+        "/api/kernel/save",
+        headers=HEADERS,
+        json={
+            "cellIds": ["1"],
+            "filename": str(path),
+            "codes": [unicode_code],
+            "names": ["unicode_cell"],
+            "configs": [{}],
+        },
+    )
+    assert response.status_code == 200
+
+    def _assert_contents():
+        file_contents = path.read_text(encoding="utf-8")
+        assert "你好世界" in file_contents
+        assert "🌍" in file_contents
+
+    try_assert_n_times(5, _assert_contents)
+
+
+@with_session(SESSION_ID)
+def test_save_with_missing_required_fields(client: TestClient) -> None:
+    """Test save endpoint with missing required fields."""
+    # Missing codes field
+    with pytest.raises(msgspec.ValidationError):
+        client.post(
+            "/api/kernel/save",
+            headers=HEADERS,
+            json={
+                "cellIds": ["1"],
+                "filename": "test.py",
+                "names": ["my_cell"],
+                "configs": [{}],
+            },
+        )
+
+
+def test_endpoints_without_authentication(client: TestClient) -> None:
+    """Test endpoints without proper authentication headers."""
+    endpoints_and_methods = [
+        ("/api/kernel/read_code", "post"),
+        ("/api/kernel/rename", "post"),
+        ("/api/kernel/save", "post"),
+        ("/api/kernel/copy", "post"),
+        ("/api/kernel/save_app_config", "post"),
+    ]
+
+    for endpoint, method in endpoints_and_methods:
+        response = getattr(client, method)(
+            endpoint,
+            json={"test": "data"},
+        )
+        # Should require authentication
+        assert response.status_code in [401, 403, 422]
+
+
+@pytest.mark.skipif(
+    is_windows(), reason="Windows doesn't support these edge case filenames"
+)
+@with_session(SESSION_ID)
+def test_rename_with_edge_case_filenames(client: TestClient) -> None:
+    """Test rename endpoint with unicode and spaces in filenames."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for filename in EDGE_CASE_FILENAMES:
+            current_filename = get_session_manager(
+                client
+            ).file_router.get_unique_file_key()
+            assert current_filename
+
+            new_path = Path(tmpdir) / filename
+            response = client.post(
+                "/api/kernel/rename",
+                headers=HEADERS,
+                json={
+                    "filename": str(new_path),
+                },
+            )
+            assert response.json() == {"success": True}
+
+            def _new_path_exists():
+                assert new_path.exists()  # noqa: B023
+                # Ensure content is preserved and readable
+                content = new_path.read_text(encoding="utf-8")  # noqa: B023
+                assert "import marimo" in content
+
+            try_assert_n_times(5, _new_path_exists)

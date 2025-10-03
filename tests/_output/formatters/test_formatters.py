@@ -11,7 +11,9 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.df_formatters import polars_dot_to_mermaid
-from marimo._output.formatters.formatters import register_formatters
+from marimo._output.formatters.formatters import (
+    register_formatters,
+)
 from marimo._output.formatting import (
     Plain,
     as_dom_node,
@@ -625,7 +627,7 @@ def test_as_html_basic_types() -> None:
     result = as_html([1, 2, 3])
     assert (
         result.text
-        == "<marimo-json-output data-json-data='[1, 2, 3]' data-value-types='&quot;python&quot;'></marimo-json-output>"
+        == "<marimo-json-output data-json-data='[1,2,3]' data-value-types='&quot;python&quot;'></marimo-json-output>"
     )
 
     # Dict
@@ -748,7 +750,7 @@ def test_as_html_with_plain_wrapper() -> None:
     result = as_html(plain_list)
     assert (
         result.text
-        == "<marimo-json-output data-json-data='[1, 2, 3]' data-value-types='&quot;python&quot;'></marimo-json-output>"
+        == "<marimo-json-output data-json-data='[1,2,3]' data-value-types='&quot;python&quot;'></marimo-json-output>"
     )
 
     # Test with a dict that would normally get marimo-json formatting
@@ -756,7 +758,7 @@ def test_as_html_with_plain_wrapper() -> None:
     result = as_html(plain_dict)
     assert (
         result.text
-        == "<marimo-json-output data-json-data='{&quot;key&quot;: &quot;value&quot;}' data-value-types='&quot;python&quot;'></marimo-json-output>"
+        == "<marimo-json-output data-json-data='{&quot;key&quot;:&quot;value&quot;}' data-value-types='&quot;python&quot;'></marimo-json-output>"
     )
 
 

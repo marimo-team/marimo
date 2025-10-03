@@ -79,7 +79,7 @@ export const AGGREGATION_TYPE_DESCRIPTIONS: Record<AggregationFn, string> = {
   bin: "Group values into bins",
 };
 
-export const COLOR_SCHEMES: Array<ColorScheme | typeof DEFAULT_COLOR_SCHEME> = [
+export const COLOR_SCHEMES: (ColorScheme | typeof DEFAULT_COLOR_SCHEME)[] = [
   DEFAULT_COLOR_SCHEME,
   // Categorical schemes
   "accent",

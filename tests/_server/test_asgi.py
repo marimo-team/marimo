@@ -267,6 +267,48 @@ class TestASGIAppBuilder(unittest.TestCase):
         assert response.headers["x-middleware-1"] == "applied"
         assert response.headers["x-middleware-2"] == "applied"
 
+    def test_session_ttl_parameter(self):
+        """Test that session_ttl parameter is passed to SessionManager."""
+        builder = create_asgi_app(
+            quiet=True, include_code=True, session_ttl=300
+        )
+        builder = builder.with_app(path="/app1", root=self.app1)
+        builder.build()
+
+        # Access the app state to verify session_ttl was set
+        # We need to get the Starlette app inside the builder
+        starlette_app = builder._app_cache[self.app1]
+        session_manager = starlette_app.state.session_manager
+        assert session_manager.ttl_seconds == 300
+
+    def test_asset_url_parameter(self):
+        """Test that asset_url parameter is passed to app state."""
+        custom_asset_url = "https://my-cdn.com/assets/{version}/"
+        builder = create_asgi_app(
+            quiet=True, include_code=True, asset_url=custom_asset_url
+        )
+        app = builder.with_app(path="/app1", root=self.app1).build()
+
+        # Check that asset_url is set on the base app
+        from marimo._server.api.deps import AppStateBase
+
+        state = AppStateBase.from_app(app)
+        assert state.asset_url == custom_asset_url
+
+        # Also check that it's set on individual mounted apps
+        starlette_app = builder._app_cache[self.app1]
+        assert starlette_app.state.asset_url == custom_asset_url
+
+    def test_asset_url_none_by_default(self):
+        """Test that asset_url is None when not specified."""
+        builder = create_asgi_app(quiet=True, include_code=True)
+        app = builder.with_app(path="/app1", root=self.app1).build()
+
+        from marimo._server.api.deps import AppStateBase
+
+        state = AppStateBase.from_app(app)
+        assert state.asset_url is None
+
 
 class TestDynamicDirectoryMiddleware(unittest.TestCase):
     def setUp(self):

@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useEffect, useRef, useState } from "react";
+import { useNumberFormatter } from "react-aria";
 import useEvent from "react-use-event-hook";
 
 /**
@@ -10,6 +11,12 @@ import useEvent from "react-use-event-hook";
 export function useTimer() {
   const [time, setTime] = useState(0);
   const interval = useRef<number>(undefined);
+
+  // one decimal place, exactly
+  const numberFormatter = useNumberFormatter({
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
 
   const start = useEvent(() => {
     interval.current = window.setInterval(() => {
@@ -36,11 +43,7 @@ export function useTimer() {
   }, []);
 
   return {
-    // one decimal place, exactly
-    time: new Intl.NumberFormat("en-US", {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    }).format(time),
+    time: numberFormatter.format(time),
     start,
     stop,
     clear,

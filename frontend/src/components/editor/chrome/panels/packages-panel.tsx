@@ -300,7 +300,7 @@ const InstallPackageForm: React.FC<{
 
 const PackagesList: React.FC<{
   onSuccess: () => void;
-  packages: Array<{ name: string; version: string }>;
+  packages: { name: string; version: string }[];
 }> = ({ onSuccess, packages }) => {
   if (packages.length === 0) {
     return (
@@ -413,7 +413,7 @@ const RemoveButton: React.FC<{
 };
 
 const DependencyTree: React.FC<{
-  tree?: DependencyTreeNode;
+  tree: DependencyTreeNode | null;
   error?: Error | null;
   onSuccess: () => void;
 }> = ({ tree, error, onSuccess }) => {

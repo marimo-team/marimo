@@ -4,6 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   BoxIcon,
   CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
   DownloadCloudIcon,
   PackageCheckIcon,
   PackageXIcon,
@@ -13,6 +15,7 @@ import {
 import type React from "react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import type { z } from "zod";
 import {
   Form,
   FormControl,
@@ -73,7 +76,7 @@ function buildPackageSpecifier(name: string, extras: string[]): string {
 }
 
 export const PackageAlert: React.FC = () => {
-  const { packageAlert } = useAlerts();
+  const { packageAlert, packageLogs } = useAlerts();
   const { clearPackageAlert } = useAlertActions();
   const [userConfig] = useResolvedMarimoConfig();
   const [desiredPackageVersions, setDesiredPackageVersions] = useState<
@@ -92,10 +95,10 @@ export const PackageAlert: React.FC = () => {
 
   if (isMissingPackageAlert(packageAlert)) {
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95 max-w-[600px]">
         <Banner
           kind="danger"
-          className="flex flex-col rounded py-3 px-5 animate-in slide-in-from-left"
+          className="flex flex-col rounded py-3 px-5 animate-in slide-in-from-left overflow-auto max-h-[80vh] scrollbar-thin"
         >
           <div className="flex justify-between">
             <span className="font-bold text-lg flex items-center mb-2">
@@ -114,45 +117,46 @@ export const PackageAlert: React.FC = () => {
           <div className="flex flex-col gap-4 justify-between items-start text-muted-foreground text-base">
             <div>
               <p>The following packages were not found:</p>
-              <ul className="list-disc ml-4 mt-1">
+              <table className="list-disc ml-2 mt-1">
                 {packageAlert.packages.map((pkg, index) => {
                   const parsed = parsePackageSpecifier(pkg);
                   const currentExtras = selectedExtras[pkg] || parsed.extras;
 
                   return (
-                    <li
-                      className="flex items-center gap-2 font-mono text-sm"
-                      key={index}
-                    >
-                      <BoxIcon size="1rem" />
-
-                      <ExtrasSelector
-                        packageName={parsed.name}
-                        selectedExtras={currentExtras}
-                        onExtrasChange={(extras) =>
-                          setSelectedExtras((prev) => ({
-                            ...prev,
-                            [pkg]: extras,
-                          }))
-                        }
-                      />
-
-                      {doesSupportVersioning && (
-                        <PackageVersionSelect
-                          value={desiredPackageVersions[pkg] ?? "latest"}
-                          onChange={(value) =>
-                            setDesiredPackageVersions((prev) => ({
+                    <tr className="font-mono text-sm" key={index}>
+                      <td className="pr-2 py-1 align-middle">
+                        <BoxIcon size="1rem" />
+                      </td>
+                      <td className="pr-2 py-1 align-middle">
+                        <ExtrasSelector
+                          packageName={parsed.name}
+                          selectedExtras={currentExtras}
+                          onExtrasChange={(extras) =>
+                            setSelectedExtras((prev) => ({
                               ...prev,
-                              [pkg]: value,
+                              [pkg]: extras,
                             }))
                           }
-                          packageName={parsed.name}
                         />
+                      </td>
+                      {doesSupportVersioning && (
+                        <td className="pr-2 py-1 align-middle">
+                          <PackageVersionSelect
+                            value={desiredPackageVersions[pkg] ?? "latest"}
+                            onChange={(value) =>
+                              setDesiredPackageVersions((prev) => ({
+                                ...prev,
+                                [pkg]: value,
+                              }))
+                            }
+                            packageName={parsed.name}
+                          />
+                        </td>
                       )}
-                    </li>
+                    </tr>
                   );
                 })}
-              </ul>
+              </table>
             </div>
             <div className="ml-auto flex flex-row items-baseline">
               {packageAlert.isolated ? (
@@ -200,10 +204,10 @@ export const PackageAlert: React.FC = () => {
     }
 
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95 max-w-[600px] ">
         <Banner
           kind={status === "failed" ? "danger" : "info"}
-          className="flex flex-col rounded pt-3 pb-4 px-5"
+          className="flex flex-col rounded pt-3 pb-4 px-5 overflow-auto max-h-[80vh] scrollbar-thin"
         >
           <div className="flex justify-between">
             <span className="font-bold text-lg flex items-center mb-2">
@@ -225,30 +229,29 @@ export const PackageAlert: React.FC = () => {
               status === "installed" && "text-accent-foreground",
             )}
           >
-            <div>
-              <p>{description}</p>
-              <ul className="list-disc ml-4 mt-1">
-                {Object.entries(packageAlert.packages).map(
-                  ([pkg, st], index) => (
-                    <li
-                      className={cn(
-                        "flex items-center gap-1 font-mono text-sm",
-                        st === "installing" && "font-semibold",
-                        st === "failed" && "text-destructive",
-                        st === "installed" && "text-accent-foreground",
-                        st === "installed" &&
-                          status === "failed" &&
-                          "text-muted-foreground",
-                      )}
-                      key={index}
-                    >
-                      <ProgressIcon status={st} />
-                      {pkg}
-                    </li>
-                  ),
-                )}
-              </ul>
-            </div>
+            <p>{description}</p>
+            <ul className="list-disc ml-2 mt-1">
+              {Object.entries(packageAlert.packages).map(([pkg, st], index) => (
+                <li
+                  className={cn(
+                    "flex items-center gap-1 font-mono text-sm",
+                    st === "installing" && "font-semibold",
+                    st === "failed" && "text-destructive",
+                    st === "installed" && "text-accent-foreground",
+                    st === "installed" &&
+                      status === "failed" &&
+                      "text-muted-foreground",
+                  )}
+                  key={index}
+                >
+                  <ProgressIcon status={st} />
+                  {pkg}
+                </li>
+              ))}
+            </ul>
+            {Object.keys(packageLogs).length > 0 && (
+              <StreamingLogsViewer packageLogs={packageLogs} />
+            )}
           </div>
         </Banner>
       </div>
@@ -288,7 +291,7 @@ function getInstallationStatusElements(packages: PackageInstallationStatus) {
     status: "failed",
     title: "Some packages failed to install",
     titleIcon: <PackageXIcon className="w-5 h-5 inline-block mr-2" />,
-    description: "See terminal for error logs.",
+    description: "See error logs.",
   };
 }
 
@@ -357,8 +360,10 @@ const PackageManagerForm: React.FC = () => {
   const { saveUserConfig } = useRequestClient();
 
   // Create form
-  const form = useForm<UserConfig>({
-    resolver: zodResolver(UserConfigSchema),
+  const form = useForm({
+    resolver: zodResolver(
+      UserConfigSchema as unknown as z.ZodType<unknown, UserConfig>,
+    ),
     defaultValues: config,
   });
 
@@ -441,7 +446,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
 
   return (
     <div className="flex items-center max-w-72">
-      <span className="shrink-0">{packageName}</span>
+      <span className="shrink-0 flex-1">{packageName}</span>
 
       {selectedExtras.length > 0 ? (
         <span className="flex items-center min-w-0 flex-1">
@@ -592,5 +597,53 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
         ))
       )}
     </NativeSelect>
+  );
+};
+
+interface StreamingLogsViewerProps {
+  packageLogs: { [packageName: string]: string };
+}
+
+const StreamingLogsViewer: React.FC<StreamingLogsViewerProps> = ({
+  packageLogs,
+}) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  const packageCount = Object.keys(packageLogs).length;
+  if (packageCount === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 border-t border-border pt-4 w-full">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {isExpanded ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronRightIcon className="w-4 h-4" />
+        )}
+        Installation logs
+      </button>
+
+      {isExpanded && (
+        <div className="mt-3 space-y-3 w-full">
+          {Object.entries(packageLogs).map(([packageName, logs]) => (
+            <div key={packageName} className="w-full">
+              <h4 className="font-mono text-sm font-medium mb-2 text-foreground">
+                {packageName}
+              </h4>
+              <div className="border border-border rounded w-full">
+                <pre className="p-3 text-xs font-mono bg-background max-h-64 overflow-y-auto text-muted-foreground whitespace-pre-wrap scrollbar-thin">
+                  {logs || "No logs available"}
+                </pre>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };

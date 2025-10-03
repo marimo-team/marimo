@@ -3,17 +3,22 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Mapping, Sequence
 from html import escape, unescape
 from typing import (
     TYPE_CHECKING,
+    Any,
     TypeVar,
     Union,
     cast,
 )
 
+from marimo._messaging.msgspec_encoder import encode_json_str
+from marimo._output.md import _md
+from marimo._output.mime import MIME
+
 if TYPE_CHECKING:
     import sys
+    from collections.abc import Mapping, Sequence
 
     if sys.version_info < (3, 10):
         from typing_extensions import TypeAlias
@@ -22,27 +27,26 @@ if TYPE_CHECKING:
 
     from typing import Optional
 
-from marimo._output.md import _md
-from marimo._output.mime import MIME
-from marimo._plugins.core.json_encoder import WebComponentEncoder
+    JSONType: TypeAlias = Union[
+        Mapping[str, "JSONType"],
+        Sequence["JSONType"],
+        str,
+        int,
+        float,
+        bool,
+        object,
+        MIME,  # MIME is a JSONType since we have a custom JSONEncoder for it
+        None,
+    ]
 
-JSONType: TypeAlias = Union[
-    Mapping[str, "JSONType"],
-    Sequence["JSONType"],
-    str,
-    int,
-    float,
-    bool,
-    object,
-    MIME,  # MIME is a JSONType since we have a custom JSONEncoder for it
-    None,
-]
+else:
+    JSONType = Any
 
 S = TypeVar("S", bound=JSONType)
 
 
 def _build_attr(name: str, value: JSONType) -> str:
-    processed = escape(json.dumps(value, cls=WebComponentEncoder))
+    processed = escape(encode_json_str(value))
     # manual escapes for things html.escape doesn't escape
     #
     # - backslashes, when unescaped can lead to problems

@@ -14,6 +14,7 @@ import {
 import { sortBy } from "lodash-es";
 import { SquareEqualIcon, WorkflowIcon } from "lucide-react";
 import React, { memo, useMemo } from "react";
+import { useLocale } from "react-aria";
 import { CellLink } from "@/components/editor/links/cell-link";
 import { getCellEditorView, useCellNames } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
@@ -233,6 +234,7 @@ export const VariableTable: React.FC<Props> = memo(
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = React.useState("");
     const cellNames = useCellNames();
+    const { locale } = useLocale();
 
     const resolvedVariables: ResolvedVariable[] = useMemo(() => {
       const getName = (id: CellId) => {
@@ -279,6 +281,7 @@ export const VariableTable: React.FC<Props> = memo(
       globalFilterFn: "auto",
       // sorting
       manualSorting: true,
+      locale: locale,
       onSortingChange: setSorting,
       getSortedRowModel: getSortedRowModel(),
       state: {

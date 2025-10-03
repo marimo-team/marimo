@@ -6,14 +6,14 @@ app = marimo.App()
 @app.cell
 def _():
     _x = 1
-    print(_x)
+    print(_x)  # print
     return
 
 
 @app.cell
 def _():
     _x = 2
-    print(_x)
+    print(_x)  # print
     return
 
 

@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
     import marimo as mo
     import pandas as pd
@@ -14,7 +15,7 @@ def __():
 
 
 @app.cell
-def __(pd):
+def _(pd):
     df = pd.DataFrame(
         data={
             "annotation": ["w", "x", "y", "a", "b", "c", "d", "e", "f", "g"],
@@ -26,11 +27,11 @@ def __(pd):
         },
         index=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
     )
-    return df,
+    return (df,)
 
 
 @app.cell
-def __(alt, df, pd):
+def _(alt, df, pd):
     scatter = alt.Chart(df).mark_point().encode(x="x", y="y", tooltip="annotation")
     y_line = (
         alt.Chart(pd.DataFrame({"var1": [0, 0], "var2": [0, 40]}))
@@ -41,7 +42,7 @@ def __(alt, df, pd):
 
 
 @app.cell
-def __(alt, mo, scatter, y_line):
+def _(alt, mo, scatter, y_line):
     layer_plot = mo.ui.altair_chart(
         alt.layer(scatter, y_line)
         .configure_axis(grid=False)
@@ -49,23 +50,23 @@ def __(alt, mo, scatter, y_line):
     )
 
     layer_plot
-    return layer_plot,
+    return (layer_plot,)
 
 
 @app.cell
-def __(layer_plot):
+def _(layer_plot):
     layer_plot.selections
     return
 
 
 @app.cell
-def __(layer_plot):
+def _(layer_plot):
     print(layer_plot.value)
     return
 
 
 @app.cell
-def __(df, layer_plot):
+def _(df, layer_plot):
     print(layer_plot.apply_selection(df))
     # should return a table of selected points based on the scatter plot
     return

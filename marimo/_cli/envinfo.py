@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import platform
 import sys
+from pathlib import Path
 from typing import Any, Union, cast
 
 from marimo import _loggers
@@ -45,19 +46,32 @@ def get_experimental_flags() -> dict[str, Union[str, bool, dict[str, Any]]]:
         return {}
 
 
+def get_default_locale() -> str:
+    try:
+        import locale
+
+        default_locale, _ = locale.getdefaultlocale()
+        return default_locale or "--"
+    except Exception:
+        return "--"
+
+
 def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:
     os_version = platform.release()
     if platform.system() == "Windows" and is_win11():
         os_version = "11"
 
+    location = Path(__file__).parent.parent.as_posix()
     info: dict[str, Union[str, bool, dict[str, Any]]] = {
         "marimo": __version__,
         "editable": is_editable("marimo"),
+        "location": location,
         "OS": platform.system(),
         "OS Version": os_version,
         # e.g., x86 or arm
         "Processor": platform.processor(),
         "Python Version": platform.python_version(),
+        "Locale": get_default_locale(),
     }
 
     binaries = {

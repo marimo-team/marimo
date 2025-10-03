@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo._messaging.ops import CellOp
 from marimo._runtime import output
 from tests.conftest import ExecReqProvider, MockedKernel
 
@@ -22,19 +23,17 @@ async def test_spinner_removed(
         ]
     )
     found_progress = False
-    for i, msg in enumerate(mocked_kernel.stream.messages):
+    for i, msg in enumerate(mocked_kernel.stream.operations):
         if (
-            msg[0] == "cell-op"
-            and msg[1]["output"] is not None
-            and "marimo-progress" in msg[1]["output"]["data"]
+            isinstance(msg, CellOp)
+            and msg.output is not None
+            and "marimo-progress" in msg.output.data
         ):
             # the spinner should be cleared immediately after the context
             # manager exits
             found_progress = True
             # kernel uses text/plain + empty string to denote empty output
-            assert (
-                mocked_kernel.stream.messages[i + 1][1]["output"]["data"] == ""
-            )
+            assert mocked_kernel.stream.operations[i + 1].output.data == ""
     assert found_progress
 
 
@@ -59,9 +58,9 @@ async def test_mutating_appended_outputs(
         ]
     )
     outputs: list[str] = []
-    for msg in mocked_kernel.stream.messages:
-        if msg[0] == "cell-op" and msg[1]["output"] is not None:
-            outputs.append(msg[1]["output"]["data"])
+    for msg in mocked_kernel.stream.operations:
+        if isinstance(msg, CellOp) and msg.output is not None:
+            outputs.append(str(msg.output.data))
     assert len(outputs) == 2
     assert "before" in outputs[0]
     assert "before" in outputs[1]
@@ -84,9 +83,9 @@ async def test_nested_output(
         ]
     )
     outputs: list[str] = []
-    for msg in mocked_kernel.stream.messages:
-        if msg[0] == "cell-op" and msg[1]["output"] is not None:
-            outputs.append(msg[1]["output"]["data"])
+    for msg in mocked_kernel.stream.operations:
+        if isinstance(msg, CellOp) and msg.output is not None:
+            outputs.append(str(msg.output.data))
     assert len(outputs) == 1
     assert outputs[0] == "['hi', [...], [...], [...], [...], [...]]"
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, time, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
@@ -19,7 +19,9 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
 )
 from marimo._runtime.requests import PreviewDatasetColumnRequest
 from marimo._utils.platform import is_windows
+from tests._data.mocks import create_dataframes
 from tests.mocks import snapshotter
+from tests.utils import assert_serialize_roundtrip
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -30,6 +32,13 @@ HAS_SQL_DEPS = (
 )
 
 snapshot = snapshotter(__file__)
+
+
+@pytest.fixture
+def mock_light_theme():
+    """Mock the theme to always return 'light' for consistent test results."""
+    with patch("marimo._data.charts.get_current_theme", return_value="light"):
+        yield
 
 
 # Run cleanup after all tests are done
@@ -52,12 +61,14 @@ def cleanup() -> Generator[None, None, None]:
     not HAS_DF_DEPS, reason="optional dependencies not installed"
 )
 @pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
-def test_get_column_preview_for_dataframe() -> None:
-    import pandas as pd
-
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "a", "a"]},
+    ),
+)
+def test_get_column_preview_for_dataframe(df: Any) -> None:
     register_transformers()
-
-    df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
 
     for column_name in ["A", "B"]:
         result = get_column_preview_for_dataframe(
@@ -77,12 +88,14 @@ def test_get_column_preview_for_dataframe() -> None:
         assert result.chart_spec is not None
         assert result.stats is not None
         assert result.error is None
+        assert_serialize_roundtrip(result)
 
 
 @pytest.mark.skipif(
     not HAS_DF_DEPS, reason="optional dependencies not installed"
 )
 @pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
+@pytest.mark.usefixtures("mock_light_theme")
 @pytest.mark.parametrize(
     ("column_name", "snapshot_prefix"),
     [
@@ -140,6 +153,8 @@ def test_get_column_preview(column_name: str, snapshot_prefix: str) -> None:
         # Verify vegafusion was checked
         mock_dm.vegafusion.has.assert_called_once()
 
+        assert_serialize_roundtrip(result)
+
     result_with_vegafusion = get_column_preview_dataset(
         table=get_table_manager(df),
         table_name="table",
@@ -160,6 +175,7 @@ def test_get_column_preview(column_name: str, snapshot_prefix: str) -> None:
         )
     assert result_with_vegafusion.chart_code == result.chart_code
     assert result_with_vegafusion.chart_spec != result.chart_spec
+    assert_serialize_roundtrip(result_with_vegafusion)
 
 
 @pytest.mark.skipif(
@@ -186,6 +202,7 @@ def test_get_column_preview_for_duckdb() -> None:
     assert result is not None
     assert result.stats is not None
     assert result.error is None
+    assert_serialize_roundtrip(result)
 
     # Check if summary contains expected statistics for the alternating pattern
     assert result.stats.total == 100
@@ -203,6 +220,8 @@ def test_get_column_preview_for_duckdb() -> None:
     assert result_id.error is None
     assert result_id.chart_spec is not None
 
+    assert_serialize_roundtrip(result_id)
+
     # Not implemented yet
     assert result.chart_code is None
 
@@ -211,6 +230,7 @@ def test_get_column_preview_for_duckdb() -> None:
     not HAS_SQL_DEPS, reason="optional dependencies not installed"
 )
 @pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
+@pytest.mark.usefixtures("mock_light_theme")
 def test_get_column_preview_for_duckdb_categorical() -> None:
     import duckdb
 
@@ -234,6 +254,7 @@ def test_get_column_preview_for_duckdb_categorical() -> None:
     assert result_categorical is not None
     assert result_categorical.stats is not None
     assert result_categorical.error is None
+    assert_serialize_roundtrip(result_categorical)
 
     # Check if summary contains expected statistics for the categorical pattern
     assert result_categorical.stats.total == 100
@@ -283,6 +304,7 @@ def test_get_column_preview_for_duckdb_date() -> None:
     assert result_date is not None
     assert result_date.stats is not None
     assert result_date.error is None
+    assert_serialize_roundtrip(result_date)
 
     # Check if summary contains expected statistics for the date pattern
     assert result_date.stats.total == 100
@@ -334,6 +356,7 @@ def test_get_column_preview_for_duckdb_datetime() -> None:
     assert result_datetime is not None
     assert result_datetime.stats is not None
     assert result_datetime.error is None
+    assert_serialize_roundtrip(result_datetime)
 
     # Check if summary contains expected statistics for the datetime pattern
     assert result_datetime.stats.total == 100
@@ -384,6 +407,7 @@ def test_get_column_preview_for_duckdb_time() -> None:
     assert result_time is not None
     assert result_time.stats is not None
     assert result_time.error is None
+    assert_serialize_roundtrip(result_time)
 
     # Check if summary contains expected statistics for the time pattern
     assert result_time.stats.total == 100
@@ -420,6 +444,7 @@ def test_get_column_preview_for_duckdb_bool() -> None:
     assert result_bool is not None
     assert result_bool.stats is not None
     assert result_bool.error is None
+    assert_serialize_roundtrip(result_bool)
 
     # Check if summary contains expected statistics for the boolean pattern
     assert result_bool.stats.total == 100
@@ -468,6 +493,7 @@ def test_get_column_preview_for_duckdb_over_limit() -> None:
     )
     assert result.missing_packages == ["vegafusion", "vl_convert_python"]
     assert result.chart_spec is None
+    assert_serialize_roundtrip(result)
 
     # Not implemented yet
     assert result.chart_code is None
@@ -490,15 +516,14 @@ def test_sanitize_dtypes() -> None:
     # Sanitize the dtypes
     result = _sanitize_data(nw_df, "cat_col")
     assert result.collect_schema()["cat_col"] == nw.String
-
     result = _sanitize_data(nw_df, "int128_col")
     assert result.collect_schema()["int128_col"] == nw.Int64
 
 
 @pytest.mark.skipif(
-    not DependencyManager.narwhals.has(), reason="narwhals not installed"
+    not DependencyManager.narwhals.has() or not DependencyManager.polars.has(),
+    reason="narwhals and polars not installed",
 )
-@pytest.mark.xfail(reason="Sanitizing is failing")  # TODO: Fix this
 def test_sanitize_dtypes_enum() -> None:
     import narwhals as nw
     import polars as pl
@@ -512,17 +537,16 @@ def test_sanitize_dtypes_enum() -> None:
     nw_df = nw.from_native(df)
 
     result = _sanitize_data(nw_df, "enum_col")
-    assert result.schema["enum_col"] == nw.String
+    assert result.collect_schema()["enum_col"] == nw.String
+
+    lazy_df = nw_df.lazy()
+    result = _sanitize_data(lazy_df, "enum_col")
+    assert result.collect_schema()["enum_col"] == nw.String
 
 
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="polars not installed"
-)
-def test_preview_column_duration_dtype() -> None:
-    import polars as pl
-
-    # Test days conversion
-    df = pl.DataFrame(
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
         {
             "duration_weeks": [timedelta(weeks=1), timedelta(weeks=2)],
             "duration_days": [timedelta(days=1), timedelta(days=2)],
@@ -537,15 +561,20 @@ def test_preview_column_duration_dtype() -> None:
                 timedelta(microseconds=1),
                 timedelta(microseconds=2),
             ],
-        }
-    )
-
+        },
+        exclude=["pyarrow", "duckdb", "ibis"],
+    ),
+)
+def test_preview_column_duration_dtype(df) -> None:
     for column_name in df.columns:
         result = get_column_preview_dataset(
             table=get_table_manager(df),
             table_name="table",
             column_name=column_name,
         )
-    assert result is not None
-    assert result.chart_code is not None
-    assert result.chart_spec is not None
+
+        assert result is not None
+        assert result.chart_code is not None
+        assert result.chart_spec is not None
+
+        assert_serialize_roundtrip(result)

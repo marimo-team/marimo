@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import msgspec
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
@@ -82,3 +83,10 @@ async def test_non_exception_response():
     response = "Not an exception"
     result = await handle_error(Request({"type": "http"}), response)
     assert result == response
+
+
+async def test_msgspec_validation_error():
+    exc = msgspec.ValidationError("Invalid data")
+    response = await handle_error(Request({"type": "http"}), exc)
+    assert response.status_code == 400
+    assert response.body == b'{"detail":"Invalid data"}'

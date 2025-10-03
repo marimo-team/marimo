@@ -2,6 +2,14 @@
 
 import { z } from "zod";
 import { Logger } from "@/utils/Logger";
+import { isZodArray, isZodPipe, isZodTuple } from "@/utils/zod-utils";
+
+export function maybeUnwrap<T extends z.ZodType>(schema: T): z.ZodType {
+  if ("unwrap" in schema) {
+    return (schema as unknown as z.ZodOptional).unwrap() as z.ZodType;
+  }
+  return schema;
+}
 
 /**
  * Get default values for a zod schema
@@ -9,20 +17,28 @@ import { Logger } from "@/utils/Logger";
 export function getDefaults<TSchema extends z.ZodType<T>, T>(
   schema: TSchema,
 ): T {
-  const getDefaultValue = (schema: z.ZodTypeAny): unknown => {
+  const getDefaultValue = (schema: z.ZodType): unknown => {
     if (schema instanceof z.ZodLiteral) {
-      return schema._def.value;
+      const values = [...schema.values];
+      if (schema.values.size === 1) {
+        return values[0];
+      }
+      return values;
     }
     if (schema instanceof z.ZodDefault) {
-      return schema._def.defaultValue();
+      const defValue = schema.def.defaultValue;
+      return typeof defValue === "function" ? defValue() : defValue;
     }
-    if (schema instanceof z.ZodEffects) {
-      return getDefaults(schema._def.schema);
+    if (isZodPipe(schema)) {
+      return getDefaultValue(schema.in);
     }
-    if (!("innerType" in schema._def)) {
-      return undefined;
+    if (isZodTuple(schema)) {
+      return schema.def.items.map((item) => getDefaultValue(item));
     }
-    return getDefaultValue(schema._def.innerType);
+    if ("unwrap" in schema) {
+      return getDefaultValue(maybeUnwrap(schema));
+    }
+    return undefined;
   };
 
   // If union, take the first one
@@ -30,15 +46,15 @@ export function getDefaults<TSchema extends z.ZodType<T>, T>(
     schema instanceof z.ZodUnion ||
     schema instanceof z.ZodDiscriminatedUnion
   ) {
-    return getDefaultValue(schema._def.options[0]) as T;
+    return getDefaultValue(schema.options[0] as z.ZodType) as T;
   }
 
   // If array, return an array of 1 item
-  if (schema instanceof z.ZodArray) {
-    if (schema._def.minLength && schema._def.minLength.value > 0) {
-      return [getDefaults(schema._def.type)] as unknown as T;
+  if (isZodArray(schema)) {
+    if (doesArrayRequireMinLength(schema)) {
+      return [getDefaults(schema.element)] as T;
     }
-    return [] as unknown as T;
+    return [] as T;
   }
 
   // If string, return the default value
@@ -48,7 +64,8 @@ export function getDefaults<TSchema extends z.ZodType<T>, T>(
 
   // If enum, return the first value
   if (schema instanceof z.ZodEnum) {
-    return schema._def.values[0] as T;
+    const values = schema.options;
+    return values[0] as T;
   }
 
   // If not an object, return the default value
@@ -57,8 +74,8 @@ export function getDefaults<TSchema extends z.ZodType<T>, T>(
   }
 
   return Object.fromEntries(
-    Object.entries(schema.shape).map(([key, value]) => {
-      return [key, getDefaultValue(value as z.AnyZodObject)];
+    Object.entries(schema.shape).map(([key, value]: [string, z.ZodType]) => {
+      return [key, getDefaultValue(value)];
     }),
   ) as T;
 }
@@ -66,25 +83,33 @@ export function getDefaults<TSchema extends z.ZodType<T>, T>(
 /**
  * Get the literal value of a union
  */
-export function getUnionLiteral<T extends z.ZodType<unknown>>(
+export function getUnionLiteral<T extends z.ZodType>(
   schema: T,
 ): z.ZodLiteral<string> {
   if (schema instanceof z.ZodLiteral) {
-    return schema;
+    return schema as z.ZodLiteral<string>;
   }
   if (schema instanceof z.ZodObject) {
-    const type = schema._def.shape().type;
-    if (type instanceof z.ZodLiteral) {
-      return type;
+    const typeField = schema.shape.type;
+    if (typeField instanceof z.ZodLiteral) {
+      return typeField as z.ZodLiteral<string>;
     }
-    throw new Error(`Invalid schema: ${schema._type}`);
+    throw new Error("Invalid schema");
   }
   if (
     schema instanceof z.ZodUnion ||
     schema instanceof z.ZodDiscriminatedUnion
   ) {
-    return getUnionLiteral(schema._def.options[0]);
+    return getUnionLiteral(schema.options[0] as z.ZodType);
   }
   Logger.warn(schema);
-  throw new Error(`Invalid schema: ${schema._type}`);
+  throw new Error("Invalid schema");
+}
+
+function doesArrayRequireMinLength<T extends z.ZodArray>(schema: T): boolean {
+  const result = schema.safeParse([]);
+  if (!result.success) {
+    return true;
+  }
+  return false;
 }

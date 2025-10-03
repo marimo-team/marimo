@@ -9,8 +9,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import click
+import msgspec
+import msgspec.json
 
 from marimo._cli.print import orange
+from marimo._data.models import DataType
+from marimo._messaging.errors import Error as MarimoError
+from marimo._messaging.ops import MessageOperation
 from marimo._server.session.serialize import (
     serialize_notebook,
     serialize_session_view,
@@ -38,12 +43,13 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._server.models.packages as packages
     import marimo._server.models.secrets as secrets
     import marimo._snippets.snippets as snippets
+    from marimo._ai._types import ChatMessage
     from marimo._ast.cell import CellConfig, RuntimeStateType
     from marimo._messaging.cell_output import CellChannel, CellOutput
     from marimo._messaging.mimetypes import KnownMimeType
-    from marimo._output.mime import MIME
     from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.packages.package_manager import PackageDescription
+    from marimo._server.ai.tools.types import ToolDefinition
     from marimo._server.api.router import build_routes
     from marimo._utils.dataclass_to_openapi import (
         PythonTypeToOpenAPI,
@@ -54,7 +60,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
     # these are always snake_case
     MESSAGES = [
         # Base
-        MIME,
         RuntimeStateType,
         KnownMimeType,
         CellChannel,
@@ -130,6 +135,9 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.UpdateCellIdsRequest,
         ops.FocusCell,
         ops.MessageOperation,
+        # ai
+        ChatMessage,
+        ToolDefinition,
     ]
 
     # dataclass components used in requests/responses
@@ -162,6 +170,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         files.FileDetailsResponse,
         files.FileListRequest,
         files.FileListResponse,
+        files.FileSearchRequest,
+        files.FileSearchResponse,
         files.FileMoveRequest,
         files.FileMoveResponse,
         files.FileOpenRequest,
@@ -199,8 +209,11 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.UpdateComponentValuesRequest,
         models.InvokeAiToolRequest,
         models.InvokeAiToolResponse,
+        models.MCPStatusResponse,
+        models.MCPRefreshResponse,
         requests.CodeCompletionRequest,
         requests.DeleteCellRequest,
+        requests.HTTPRequest,
         requests.ExecuteMultipleRequest,
         requests.ExecuteScratchpadRequest,
         requests.ExecuteStaleRequest,
@@ -213,8 +226,10 @@ def _generate_server_api_schema() -> dict[str, Any]:
         requests.PreviewSQLTableListRequest,
         requests.PreviewDataSourceConnectionRequest,
         requests.PreviewSQLTableRequest,
+        requests.ValidateSQLRequest,
         requests.RenameRequest,
         requests.SetCellConfigRequest,
+        requests.ModelMessage,
         requests.SetModelMessageRequest,
         requests.SetUserConfigRequest,
         requests.StopRequest,
@@ -250,17 +265,23 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.MessageOperation: "MessageOperation",
     }
 
-    converter = PythonTypeToOpenAPI(
-        camel_case=False, name_overrides=name_overrides
+    # Hack to get the unions to be included in the schema
+    class KnownUnions(msgspec.Struct):
+        operation: MessageOperation
+        error: MarimoError
+        data_type: DataType
+
+    specs = msgspec.json.schema_components(
+        MESSAGES + [KnownUnions],
+        ref_template="#/components/schemas/{name}",
     )
-    for cls in MESSAGES:
-        # Remove self from the list
-        # since it may not have been processed yet
-        if cls in processed_classes:
-            del processed_classes[cls]
-        name = name_overrides.get(cls, cls.__name__)  # type: ignore[attr-defined]
-        component_schemas[name] = converter.convert(cls, processed_classes)
-        processed_classes[cls] = name
+    component_schemas = {
+        **specs[1],
+    }
+    processed_classes = {
+        **processed_classes,
+        **{name: name for name in specs[1].keys()},
+    }
 
     converter = PythonTypeToOpenAPI(
         camel_case=True, name_overrides=name_overrides
@@ -274,7 +295,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         component_schemas[name] = converter.convert(cls, processed_classes)
         processed_classes[cls] = name
 
-    schemas = SchemaGenerator(
+    schemas_geneartor = SchemaGenerator(
         {
             "openapi": "3.1.0",
             "info": {"title": "marimo API", "version": __version__},
@@ -286,7 +307,16 @@ def _generate_server_api_schema() -> dict[str, Any]:
         }
     )
 
-    return schemas.get_schema(routes=build_routes())
+    schemas = schemas_geneartor.get_schema(routes=build_routes())
+
+    # Find/replace #/$defs with #/components/schemas
+    import json
+
+    schemas_str = json.dumps(schemas)
+    schemas_str = schemas_str.replace("#/$defs", "#/components/schemas")
+    schemas = json.loads(schemas_str)
+
+    return schemas
 
 
 @click.group(

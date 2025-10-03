@@ -443,24 +443,24 @@ def test_session_with_kiosk_consumers() -> None:
     reason="This test is flaky on Python 3.9",
 )
 @save_and_restore_main
-async def test_session_manager_file_watching() -> None:
+async def test_session_manager_file_watching(tmp_path: Path) -> None:
     # Create a temporary file
-    with NamedTemporaryFile(delete=False, suffix=".py") as tmp_file:
-        tmp_path = Path(tmp_file.name)
-        # Write initial notebook content
-        tmp_file.write(
-            b"""import marimo
+    tmp_file = tmp_path / "test.py"
+    # Write initial notebook content
+    tmp_file.write_text(
+        """import marimo
 app = marimo.App()
 
 @app.cell
 def __():
     1
 """
-        )
+    )
+    file_key = str(tmp_file)
 
     try:
         # Create a session manager with file watching enabled
-        file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_path)))
+        file_router = AppFileRouter.from_filename(MarimoPath(tmp_file))
         session_manager = SessionManager(
             file_router=file_router,
             mode=SessionMode.EDIT,
@@ -498,10 +498,10 @@ def __():
             session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
-            file_key=str(tmp_path),
+            file_key=file_key,
         )
 
-        tmp_path.write_text(
+        tmp_file.write_text(
             """import marimo
 app = marimo.App()
 
@@ -537,13 +537,13 @@ def __():
             session_id=SessionId("test2"),
             session_consumer=session_consumer2,
             query_params={},
-            file_key=str(tmp_path),
+            file_key=file_key,
         )
 
         # Modify the file again
         operations.clear()
         operations2.clear()
-        tmp_path.write_text(
+        tmp_file.write_text(
             """import marimo
 app = marimo.App()
 
@@ -576,7 +576,7 @@ def __():
         operations.clear()
         operations2.clear()
 
-        tmp_path.write_text(
+        tmp_file.write_text(
             """import marimo
 app = marimo.App()
 
@@ -601,27 +601,17 @@ def __():
     finally:
         # Cleanup
         session_manager.shutdown()
-        os.remove(tmp_path)
 
 
 @save_and_restore_main
-def test_watch_mode_config_override(tmp_path: Path) -> None:
-    """Test that watch mode properly overrides config settings."""
+def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
+    """Test that watch mode does not override config settings."""
     # Create a temporary file
     tmp_file = tmp_path / "test_watch_mode_config_override.py"
     tmp_file.write_text("import marimo as mo")
 
-    # Create a config with autosave enabled
+    # Create a default config (autosave enabled by default)
     config_reader = get_default_config_manager(current_path=None)
-    config_reader_watch = config_reader.with_overrides(
-        {
-            "save": {
-                "autosave": "off",
-                "format_on_save": False,
-                "autosave_delay": 2000,
-            }
-        }
-    )
 
     # Create a session manager with watch mode enabled
     file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_file)))
@@ -632,7 +622,7 @@ def test_watch_mode_config_override(tmp_path: Path) -> None:
         quiet=True,
         include_code=True,
         lsp_server=MagicMock(),
-        config_manager=config_reader_watch,
+        config_manager=config_reader,
         cli_args={},
         argv=None,
         auth_token=None,
@@ -658,13 +648,8 @@ def test_watch_mode_config_override(tmp_path: Path) -> None:
     )
 
     try:
-        # Verify that the config was overridden
+        # Verify that the config was not overridden for watch mode
         config = session_manager._config_manager.get_config()
-        assert config["save"]["autosave"] == "off"
-        assert config["save"]["format_on_save"] is False
-
-        # Verify that the config was not overridden
-        config = session_manager_no_watch._config_manager.get_config()
         assert config["save"]["autosave"] == "after_delay"
         assert config["save"]["format_on_save"] is True
 
@@ -788,6 +773,7 @@ def __():
             }
         )
         session_manager._config_manager = config_reader_lazy
+        session_manager.file_change_handler.config_manager = config_reader_lazy
 
         # Reset the mock
         session_consumer.put_control_request.reset_mock()

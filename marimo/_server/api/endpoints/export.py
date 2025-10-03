@@ -9,6 +9,8 @@ from starlette.exceptions import HTTPException
 from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
@@ -153,7 +155,7 @@ async def auto_export_as_html(
         session_view.mark_auto_export_html()
 
     return JSONResponse(
-        content=SuccessResponse().as_camel_case(),
+        content=asdict(SuccessResponse()),
         background=BackgroundTask(_background_export),
     )
 
@@ -306,7 +308,7 @@ async def auto_export_as_markdown(
         session_view.mark_auto_export_md()
 
     return JSONResponse(
-        content=SuccessResponse().as_camel_case(),
+        content=asdict(SuccessResponse()),
         background=BackgroundTask(_background_export),
     )
 
@@ -349,6 +351,11 @@ async def auto_export_as_ipynb(
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
     async def _background_export() -> None:
+        # Check has nbformat installed
+        if not DependencyManager.nbformat.has():
+            LOGGER.error("Cannot snapshot to IPYNB: nbformat not installed")
+            return
+
         # Reload the file manager to get the latest state
         session.app_file_manager.reload()
 
@@ -367,6 +374,6 @@ async def auto_export_as_ipynb(
         session_view.mark_auto_export_ipynb()
 
     return JSONResponse(
-        content=SuccessResponse().as_camel_case(),
+        content=asdict(SuccessResponse()),
         background=BackgroundTask(_background_export),
     )

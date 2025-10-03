@@ -14,6 +14,7 @@ else:
     from typing import NotRequired
 
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     Optional,
@@ -174,6 +175,7 @@ class DisplayConfig(TypedDict):
     - `default_table_page_size`: default number of rows to display in tables
     - `default_table_max_columns`: default maximum number of columns to display in tables
     - `reference_highlighting`: if `True`, highlight reactive variable references
+    - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
     """
 
     theme: Theme
@@ -185,6 +187,7 @@ class DisplayConfig(TypedDict):
     default_table_page_size: int
     default_table_max_columns: int
     reference_highlighting: NotRequired[bool]
+    locale: NotRequired[Optional[str]]
 
 
 @mddoc
@@ -262,6 +265,7 @@ class AiConfig(TypedDict, total=False):
     - `rules`: custom rules to include in all AI completion prompts
     - `max_tokens`: the maximum number of tokens to use in AI completions
     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+    - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
     - `models`: the models to use for AI completions
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
@@ -270,12 +274,14 @@ class AiConfig(TypedDict, total=False):
     - `azure`: the Azure config
     - `ollama`: the Ollama config
     - `github`: the GitHub config
+    - `openrouter`: the OpenRouter config
     - `open_ai_compatible`: the OpenAI-compatible config
     """
 
     rules: NotRequired[str]
     max_tokens: NotRequired[int]
     mode: NotRequired[CopilotMode]
+    inline_tooltip: NotRequired[bool]
     models: AiModelConfig
 
     # providers
@@ -286,6 +292,7 @@ class AiConfig(TypedDict, total=False):
     azure: OpenAiConfig
     ollama: OpenAiConfig
     github: GitHubConfig
+    openrouter: OpenAiConfig
     open_ai_compatible: OpenAiConfig
 
 
@@ -492,7 +499,6 @@ class StoreConfig(TypedDict, total=False):
 CacheConfig = Union[list[StoreConfig], StoreConfig]
 
 
-@dataclass
 class ExperimentalConfig(TypedDict, total=False):
     """
     Configuration for experimental features.
@@ -501,12 +507,12 @@ class ExperimentalConfig(TypedDict, total=False):
     """
 
     markdown: bool  # Used in playground (community cloud)
-    inline_ai_tooltip: bool
     wasm_layouts: bool  # Used in playground (community cloud)
     rtc_v2: bool
     performant_table_charts: bool
-    mcp_docs: bool
+    chat_modes: bool
     sql_linter: bool
+    sql_mode: bool
 
     # Internal features
     cache: CacheConfig
@@ -515,7 +521,7 @@ class ExperimentalConfig(TypedDict, total=False):
 
 # Prefer to accept any dict since feature flags can change frequently
 # But maintain type safety for known flags
-ExperimentalConfigType = Union[dict[str, Any], ExperimentalConfig]
+ExperimentalConfigType = dict[str, Any]
 
 
 @mddoc
@@ -538,8 +544,7 @@ class MarimoConfig(TypedDict):
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
-    # We don't support configuring MCP servers yet
-    # mcp: NotRequired[MCPConfig]
+    mcp: NotRequired[MCPConfig]
 
 
 @mddoc
@@ -565,7 +570,12 @@ class MCPServerStreamableHttpConfig(TypedDict):
     disabled: NotRequired[Optional[bool]]
 
 
-MCPServerConfig = Union[MCPServerStdioConfig, MCPServerStreamableHttpConfig]
+if TYPE_CHECKING:
+    MCPServerConfig = Union[
+        MCPServerStdioConfig, MCPServerStreamableHttpConfig
+    ]
+else:
+    MCPServerConfig = dict[str, Any]
 
 
 @mddoc
@@ -579,16 +589,7 @@ class MCPConfig(TypedDict):
     """
 
     mcpServers: dict[str, MCPServerConfig]
-
-
-DEFAULT_MCP_CONFIG: MCPConfig = MCPConfig(
-    mcpServers={
-        "marimo": MCPServerStreamableHttpConfig(
-            url="https://mcp.marimo.app/mcp"
-        ),
-        # TODO(bjoaquinc): add more Marimo MCP servers here after they are implemented
-    }
-)
+    presets: NotRequired[list[Literal["marimo", "context7"]]]
 
 
 @mddoc
@@ -618,7 +619,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     "display": {
         "theme": "light",
         "code_editor_font_size": 14,
-        "cell_output": "above",
+        "cell_output": "below",
         "default_width": "medium",
         "dataframes": "rich",
         "default_table_page_size": 10,
@@ -672,6 +673,10 @@ DEFAULT_CONFIG: MarimoConfig = {
         "custom_paths": [],
         "include_default_snippets": True,
     },
+    "mcp": {
+        "mcpServers": {},
+        "presets": [],
+    },
 }
 
 
@@ -723,37 +728,5 @@ def merge_config(
             merged["runtime"].get("auto_reload") == "detect"  # type:ignore[comparison-overlap]
         ):
             merged["runtime"]["auto_reload"] = "lazy"
-
-    # If missing ai.models.chat_model or ai.models.edit_model, use ai.open_ai.model
-    openai_model = merged.get("ai", {}).get("open_ai", {}).get("model")
-    chat_model = merged.get("ai", {}).get("models", {}).get("chat_model")
-    edit_model = merged.get("ai", {}).get("models", {}).get("edit_model")
-    if not chat_model and not edit_model and openai_model:
-        merged_ai_config = cast(dict[Any, Any], merged.get("ai", {}))
-        models_config = {
-            "models": {
-                "chat_model": chat_model or openai_model,
-                "edit_model": edit_model or openai_model,
-            }
-        }
-        merged["ai"] = cast(
-            AiConfig, deep_merge(merged_ai_config, models_config)
-        )
-
-    # Migrate completion.model to ai.models.autocomplete_model
-    completion_model = merged.get("completion", {}).get("model")
-    autocomplete_model = (
-        merged.get("ai", {}).get("models", {}).get("autocomplete_model")
-    )
-    if completion_model and not autocomplete_model:
-        merged_ai_config = cast(dict[Any, Any], merged.get("ai", {}))
-        models_config = {
-            "models": {
-                "autocomplete_model": completion_model,
-            }
-        }
-        merged["ai"] = cast(
-            AiConfig, deep_merge(merged_ai_config, models_config)
-        )
 
     return merged

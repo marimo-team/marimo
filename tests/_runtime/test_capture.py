@@ -1,18 +1,18 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import re
-from typing import Any
 
+from marimo._messaging.types import KernelMessage
 from tests.conftest import ExecReqProvider, MockedKernel
 
 
-def _has_output(
-    messages: list[tuple[str, dict[Any, Any]]], pattern: str
-) -> bool:
-    for op, data in messages:
+def _has_output(messages: list[KernelMessage], pattern: str) -> bool:
+    for data in messages:
+        data = json.loads(data)
         if (
-            op == "cell-op"
+            data["op"] == "cell-op"
             and data["output"] is not None
             and re.match(pattern, data["output"]["data"])
         ):

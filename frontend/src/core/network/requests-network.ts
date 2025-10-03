@@ -207,6 +207,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    validateSQL: (request) => {
+      return getClient()
+        .POST("/api/sql/validate", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
     openFile: async (request) => {
       await waitForConnectionOpen();
       await getClient()
@@ -231,6 +238,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/list_files", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
+    sendSearchFiles: async (request) => {
+      await waitForConnectionOpen();
+      return getClient()
+        .POST("/api/files/search", {
           body: request,
         })
         .then(handleResponse);

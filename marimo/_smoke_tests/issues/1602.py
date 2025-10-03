@@ -1,26 +1,25 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.17"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
-@app.cell
-def __():
-    class Boom:
-        def __getattr__(self, _):
-            return ...
-    return Boom,
+@app.class_definition
+class Boom:
+    def __getattr__(self, _):
+        return ...
 
 
 @app.cell
-def __(Boom):
+def _():
     b = Boom()
-    return b,
+    return (b,)
 
 
 @app.cell
-def __(b):
+def _(b):
     callable(b.__dataframe__)
     return
 

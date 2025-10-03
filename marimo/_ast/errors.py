@@ -1,4 +1,6 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
+
+
 class SetupRootError(Exception):
     pass
 
@@ -16,4 +18,8 @@ class MultipleDefinitionError(Exception):
 
 
 class UnparsableError(Exception):
+    pass
+
+
+class IncompleteRefsError(Exception):
     pass

@@ -9,12 +9,12 @@
 
 import marimo
 
-__generated_with = "0.8.0"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(data):
+def _(data):
     cars = data.cars()
     stocks = data.stocks.url
     source = data.windvectors()
@@ -22,7 +22,7 @@ def __(data):
 
 
 @app.cell
-def __(alt, source):
+def _(alt, source):
     alt.Chart(source).mark_point(shape="wedge", filled=True).encode(
         latitude="latitude",
         longitude="longitude",
@@ -38,7 +38,7 @@ def __(alt, source):
 
 
 @app.cell
-def __(alt, cars, mo):
+def _(alt, cars, mo):
     cars_scatter_plot = (
         alt.Chart(cars)
         .mark_circle(size=60)
@@ -59,11 +59,11 @@ def __(alt, cars, mo):
         that was an altair plot
         """
     )
-    return cars_scatter_plot,
+    return
 
 
 @app.cell
-def __(alt, stocks):
+def _(alt, stocks):
     base = (
         alt.Chart(stocks)
         .encode(x="date:T", y="price:Q", color="symbol:N")
@@ -71,17 +71,17 @@ def __(alt, stocks):
     )
 
     (base.mark_line() + base.mark_point())
-    return base,
+    return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
     from vega_datasets import data
     return alt, data

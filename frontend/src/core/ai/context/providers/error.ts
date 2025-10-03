@@ -5,20 +5,21 @@ import { cellErrorsAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { MarimoError } from "@/core/kernel/messages";
 import type { JotaiStore } from "@/core/state/jotai";
+import { logNever } from "@/utils/assertNever";
 import { PluralWord } from "@/utils/pluralize";
 import { type AIContextItem, AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
-import { Boosts } from "./common";
+import { Sections } from "./common";
 
 export interface ErrorContextItem extends AIContextItem {
   type: "error";
   data: {
     type: "all-errors";
-    errors: Array<{
+    errors: {
       cellId: CellId;
       cellName: string;
       errorData: MarimoError[];
-    }>;
+    }[];
   };
 }
 
@@ -56,6 +57,13 @@ function describeError(error: MarimoError): string {
   if (error.type === "unknown") {
     return error.msg;
   }
+  if (error.type === "sql-error") {
+    return error.msg;
+  }
+  if (error.type === "internal") {
+    return error.msg || "An internal error occurred";
+  }
+  logNever(error);
   return "Unknown error";
 }
 
@@ -64,9 +72,11 @@ export class ErrorContextProvider extends AIContextProvider<ErrorContextItem> {
   readonly title = "Errors";
   readonly mentionPrefix = "@";
   readonly contextType = "error";
+  private store: JotaiStore;
 
-  constructor(private store: JotaiStore) {
+  constructor(store: JotaiStore) {
     super();
+    this.store = store;
   }
 
   getItems(): ErrorContextItem[] {
@@ -101,10 +111,9 @@ export class ErrorContextProvider extends AIContextProvider<ErrorContextItem> {
         label: "@Errors",
         displayLabel: "Errors",
         detail: `${item.data.errors.length} ${errorsTxt.pluralize(item.data.errors.length)}`,
-        boost: Boosts.ERROR,
         type: "error",
         apply: "@Errors",
-        section: "Errors",
+        section: Sections.ERROR,
         info: () => {
           const infoContainer = document.createElement("div");
           infoContainer.classList.add(
@@ -140,7 +149,7 @@ export class ErrorContextProvider extends AIContextProvider<ErrorContextItem> {
     return {
       label: "Error",
       displayLabel: "Error",
-      boost: Boosts.ERROR,
+      section: Sections.ERROR,
     };
   }
 

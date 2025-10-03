@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.16"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -12,7 +12,7 @@ def _():
     import sys
 
     sys.tracebacklimit = 1
-    return date, datetime, pd_lib, pl_lib, sys, time
+    return date, datetime, pd_lib, pl_lib, time
 
 
 @app.cell(hide_code=True)
@@ -69,7 +69,7 @@ def _(df, print_df):
     )
 
     print_df(_df)
-    return (nw,)
+    return
 
 
 @app.cell

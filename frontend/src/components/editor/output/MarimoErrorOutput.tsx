@@ -72,6 +72,8 @@ export const MarimoErrorOutput = ({
     titleContents = "Ancestor stopped";
     alertVariant = "default";
     titleColor = "text-secondary-foreground";
+  } else if (errors.some((e) => e.type === "sql-error")) {
+    titleContents = "SQL error";
   } else {
     // Check for exception type
     const exceptionError = errors.find((e) => e.type === "exception");
@@ -125,6 +127,10 @@ export const MarimoErrorOutput = ({
   );
   const unknownErrors = errors.filter(
     (e): e is Extract<MarimoError, { type: "unknown" }> => e.type === "unknown",
+  );
+  const sqlErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "sql-error" }> =>
+      e.type === "sql-error",
   );
 
   const openScratchpad = () => {
@@ -480,6 +486,29 @@ export const MarimoErrorOutput = ({
           ))}
           {cellId && (
             <AutoFixButton errors={ancestorStoppedErrors} cellId={cellId} />
+          )}
+        </div>,
+      );
+    }
+
+    if (sqlErrors.length > 0) {
+      messages.push(
+        <div key="sql-errors">
+          {sqlErrors.map((error, idx) => {
+            return (
+              <div key={`sql-error-${idx}`} className="space-y-2 mt-2">
+                <p className="text-muted-foreground whitespace-pre-wrap">
+                  {error.msg}
+                </p>
+              </div>
+            );
+          })}
+          {cellId && (
+            <AutoFixButton
+              errors={sqlErrors}
+              cellId={cellId}
+              className="mt-2.5"
+            />
           )}
         </div>,
       );

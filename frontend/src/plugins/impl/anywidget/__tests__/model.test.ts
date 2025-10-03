@@ -9,7 +9,6 @@ import {
   vi,
 } from "vitest";
 import { TestUtils } from "@/__tests__/test-helpers";
-import type { Base64String } from "@/utils/json/base64";
 import {
   type AnyWidgetMessage,
   handleWidgetMessage,
@@ -246,7 +245,7 @@ describe("Model", () => {
         content,
       });
 
-      expect(callback).toHaveBeenCalledWith(content, undefined);
+      expect(callback).toHaveBeenCalledWith(content, []);
     });
 
     it("should handle custom messages with buffers", () => {
@@ -286,7 +285,7 @@ describe("ModelManager", () => {
   }: {
     modelId: string;
     message: AnyWidgetMessage;
-    buffers: Base64String[];
+    buffers: readonly DataView[];
   }) => {
     return handleWidgetMessage({
       modelId,
@@ -353,7 +352,7 @@ describe("ModelManager", () => {
       message: { method: "custom", content: { count: 1 } },
       buffers: [],
     });
-    expect(callback).toHaveBeenCalledWith({ count: 1 }, undefined);
+    expect(callback).toHaveBeenCalledWith({ count: 1 }, []);
   });
 
   it("should handle close messages", async () => {

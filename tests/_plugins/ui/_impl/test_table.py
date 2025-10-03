@@ -33,7 +33,7 @@ from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
 from marimo._utils.data_uri import from_data_uri
 from marimo._utils.platform import is_windows
-from tests._data.mocks import create_dataframes
+from tests._data.mocks import NON_EAGER_LIBS, create_dataframes
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -318,7 +318,7 @@ def test_value_with_sorting_then_selection() -> None:
     "df",
     create_dataframes(
         {"a": ["x", "z", "y"]},
-        exclude=["ibis", "duckdb", "lazy-polars"],
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
@@ -393,7 +393,7 @@ def test_value_with_search_then_selection() -> None:
     "df",
     create_dataframes(
         {"a": ["foo", "bar", "baz"]},
-        exclude=["ibis", "duckdb", "lazy-polars"],
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_value_with_search_then_selection_dfs(df: Any) -> None:
@@ -441,7 +441,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     "df",
     create_dataframes(
         {"a": ["foo", "bar", "baz"]},
-        exclude=["ibis", "duckdb", "lazy-polars"],
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_value_with_search_then_cell_selection_dfs(df: Any) -> None:
@@ -576,8 +576,7 @@ def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
     "df", create_dataframes({"a": [1, 2, 3]}, include=["ibis"])
 )
 def test_value_with_cell_selection_unsupported_for_ibis(df: Any) -> None:
-    with pytest.raises(NotImplementedError):
-        _table = ui.table(df, selection="multi-cell")
+    _table = ui.table(df, selection="multi-cell")
 
 
 def test_search_sort_nonexistent_columns() -> None:
@@ -692,7 +691,7 @@ def test_get_row_ids_for_lists() -> None:
             "fruits": ["banana", "apple", "cherry"] * 3,
             "quantity": [10, 20, 30] * 3,
         },
-        exclude=["ibis", "duckdb", "lazy-polars"],
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_get_row_ids_with_df(df: any) -> None:
@@ -889,7 +888,7 @@ def test_with_too_many_rows_column_charts_disabled() -> None:
 
 
 @pytest.mark.skipif(is_windows(), reason=r"windows returns \r instead")
-def test__get_column_summaries_after_search() -> None:
+def test_get_column_summaries_after_search() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data)
 
@@ -907,7 +906,7 @@ def test__get_column_summaries_after_search() -> None:
     assert summaries.is_disabled is False
     summaries_data = from_data_uri(summaries.data)[1].decode("utf-8")
     # Result is csv or json
-    assert summaries_data in ["a\n2\n12\n", '[{"a": 2}, {"a": 12}]']
+    assert summaries_data in ["a\n2\n12\n", '[{"a":2},{"a":12}]']
     # We don't have column summaries for non-dataframe data
     assert summaries.stats["a"].min is None
     assert summaries.stats["a"].max is None
@@ -916,7 +915,7 @@ def test__get_column_summaries_after_search() -> None:
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(), reason="Pandas not installed"
 )
-def test__get_column_summaries_after_search_df() -> None:
+def test_get_column_summaries_after_search_df() -> None:
     import pandas as pd
 
     table = ui.table(pd.DataFrame({"a": list(range(20))}))
@@ -1254,10 +1253,11 @@ def test_download_as_pandas() -> None:
         assert len(filtered_df) == 2
         assert all(filtered_df["cities"].isin(["Newark", "New York"]))
 
-    # Test downloads with selection (includes search from before)
-    table._convert_value(["1"])
+    # Test downloads with row selection (includes search from before)
+    table._convert_value(["1"])  # select one row of the filtered view
     for format_type in DOWNLOAD_FORMATS:
         selected_df = download_and_convert(format_type, table)
+        # For row selection, selection is respected (single row)
         assert len(selected_df) == 1
         assert selected_df["cities"].iloc[0] == "New York"
 
@@ -1302,19 +1302,29 @@ def test_download_as_polars() -> None:
         assert len(filtered_df) == 2
         assert all(filtered_df["cities"].is_in(["Newark", "New York"]))
 
-    # Test downloads with selection (includes search from before)
-    table._convert_value(["1"])
+    # Test downloads with row selection (includes search from before)
+    table._convert_value(["1"])  # select one row of the filtered view
     for format_type in DOWNLOAD_FORMATS:
         selected_df = download_and_convert(format_type, table)
+        # For row selection, selection is respected (single row)
         assert len(selected_df) == 1
         assert selected_df["cities"][0] == "New York"
 
 
-def test_download_as_for_unsupported_cell_selection() -> None:
-    for selection in ["single-cell", "multi-cell"]:
-        table = ui.table(data=[], selection=selection)
-        with pytest.raises(NotImplementedError):
-            table._download_as(DownloadAsArgs(format="csv"))
+def test_download_as_ignores_cell_selection() -> None:
+    # Download should ignore selection when in cell selection modes
+    data = {"a": [1, 2, 3]}
+    table = ui.table(data, selection="multi-cell")
+    table._search(SearchTableArgs(query="2", page_size=10, page_number=0))
+    # Make a cell selection; download should still include the filtered view
+    table._convert_value([{"rowId": "0", "columnName": "a"}])
+    # Use JSON format to avoid optional dependencies
+    url = table._download_as(DownloadAsArgs(format="json"))
+    data_bytes = from_data_uri(url)[1]
+    rows = json.loads(data_bytes)
+    assert isinstance(rows, list)
+    assert len(rows) == 1
+    assert int(rows[0]["a"]) == 2
 
 
 @pytest.mark.skipif(
@@ -1905,6 +1915,18 @@ def test_default_table_max_columns():
     assert get_default_table_max_columns() == DEFAULT_MAX_COLUMNS
 
 
+def test_table_max_height():
+    table = ui.table(
+        [{"a": i} for i in range(100)], pagination=False, max_height=300
+    )
+    # Backend should expose optional UI hints when max_height is set
+    assert table._component_args["max-height"] == 300
+
+    table_no_height = ui.table([1, 2, 3])
+    # Keys may be absent when not configured
+    assert table_no_height._component_args["max-height"] is None
+
+
 def test_calculate_top_k_rows():
     table = ui.table({"A": [1, 3, 3, None, None]})
     result = table._calculate_top_k_rows(
@@ -2137,7 +2159,7 @@ def test_show_toggles_app_mode():
 
     with patch("marimo._plugins.ui._impl.table.get_mode", return_value="run"):
         table_default = ui.table(data)
-        assert table_default._component_args["show-column-explorer"] is False
+        assert table_default._component_args["show-column-explorer"] is True
         assert table_default._component_args["show-chart-builder"] is False
 
 
@@ -2194,3 +2216,144 @@ def test_table_with_timestamp_column_name():
 
     # Should use the default max_columns (50)
     assert table._max_columns == DEFAULT_MAX_COLUMNS
+
+
+def test_cell_initial_hover_texts():
+    def hover_text(row: str, col: str, value: Any) -> str:
+        return f"{row}:{col}={value}"
+
+    table = ui.table([1, 2, 3], hover_template=hover_text)
+    assert "cell-hover-texts" in table._args.args
+    cell_hover = table._args.args["cell-hover-texts"]
+    assert len(cell_hover) == 3
+    assert "1" in cell_hover
+    assert "value" in cell_hover["1"]
+    assert cell_hover["1"]["value"] == "1:value=2"
+
+
+def test_hover_template_string_arg():
+    table = ui.table([1, 2], hover_template="Value: {{value}}")
+    # String template should pass through and per-cell map should be None
+    assert table._args.args["hover-template"] == "Value: {{value}}"
+    assert "cell-hover-texts" in table._args.args
+    assert table._args.args["cell-hover-texts"] is None
+
+
+def test_cell_hover_of_next_page():
+    def hover_text(row: str, col: str, value: Any) -> str:
+        return f"{row}:{col}={value}"
+
+    data = [
+        {"a": 1, "b": 2},
+        {"a": 3, "b": 4},
+        {"a": 5, "b": 6},
+        {"a": 7, "b": 8},
+    ]
+
+    table = ui.table(data, page_size=2, hover_template=hover_text)
+    last_page = table._search(SearchTableArgs(page_size=2, page_number=1))
+    cell_hover = last_page.cell_hover_texts
+    assert len(cell_hover) == 2
+    assert "2" in cell_hover
+    assert "a" in cell_hover["2"]
+    assert cell_hover["2"]["a"] == "2:a=5"
+
+
+def test_cell_hover_last_page():
+    def hover_text(row: str, col: str, value: Any) -> str:
+        return f"{row}:{col}={value}"
+
+    data = [{"a": 1}, {"a": 2}, {"a": 3}]
+    table = ui.table(data, page_size=2, hover_template=hover_text)
+    last_page = table._search(SearchTableArgs(page_size=2, page_number=1))
+    cell_hover = last_page.cell_hover_texts
+    assert len(cell_hover) == 1
+    assert "2" in cell_hover
+    assert "a" in cell_hover["2"]
+    assert cell_hover["2"]["a"] == "2:a=3"
+
+
+def test_cell_hover_edge_cases():
+    def hover_text(row: str, col: str, value: Any) -> str:
+        return f"{row}:{col}={value}"
+
+    # Empty data
+    table = ui.table([], hover_template=hover_text)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_hover_texts == {}
+
+    # Single row
+    table = ui.table([{"a": 1}], hover_template=hover_text)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_hover_texts == {"0": {"a": "0:a=1"}}
+
+    # Page size larger than total rows
+    table = ui.table([{"a": 1}, {"a": 2}], hover_template=hover_text)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_hover_texts == {
+        "0": {"a": "0:a=1"},
+        "1": {"a": "1:a=2"},
+    }
+
+    # Skip beyond total rows
+    response = table._search(SearchTableArgs(page_size=10, page_number=1))
+    assert response.cell_hover_texts == {}
+
+    # With too_many total rows
+    table = ui.table(
+        [{"a": 1}, {"a": 2}],
+        hover_template=hover_text,
+        _internal_total_rows="too_many",
+    )
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_hover_texts == {
+        "0": {"a": "0:a=1"},
+        "1": {"a": "1:a=2"},
+    }
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_cell_search_df_hover_texts():
+    def hover_text(_row: str, _col: str, value: Any) -> str:
+        return f"hover:{value}"
+
+    import polars as pl
+
+    data = ["apples", "apples", "bananas", "bananas", "carrots", "carrots"]
+
+    table = ui.table(pl.DataFrame(data), hover_template=hover_text)
+    page = table._search(
+        SearchTableArgs(page_size=2, page_number=0, query="carrot")
+    )
+    assert page.cell_hover_texts == {
+        "4": {"column_0": "hover:carrots"},
+        "5": {"column_0": "hover:carrots"},
+    }
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+@pytest.mark.xfail(reason="Sorted rows are not supported for hover yet")
+def test_cell_search_df_hover_texts_sorted():
+    def hover_text(_row: str, _col: str, value: Any) -> str:
+        return f"hover:{value}"
+
+    import polars as pl
+
+    data = ["apples", "apples", "bananas", "bananas", "carrots", "carrots"]
+    table = ui.table(pl.DataFrame(data), hover_template=hover_text)
+    page = table._search(
+        SearchTableArgs(
+            page_size=2,
+            page_number=0,
+            query="",
+            sort=SortArgs(by="column_0", descending=True),
+        )
+    )
+    assert page.cell_hover_texts == {
+        "4": {"column_0": "hover:carrots"},
+        "5": {"column_0": "hover:carrots"},
+    }

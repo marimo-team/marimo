@@ -268,7 +268,7 @@ button .prose.prose {
 }
 
 .prose span.critic::after {
-  content: "\ab\00a0";
+  content: "ab\00a0";
   border-left: none;
   border-top-right-radius: 3px;
   border-bottom-right-radius: 3px;

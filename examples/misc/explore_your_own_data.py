@@ -10,18 +10,18 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""# Data Explorer""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     sample = "https://github.com/vega/vega/blob/main/docs/data/stocks.csv"
 
     mo.md(
@@ -31,11 +31,11 @@ def __(mo):
         You can download a <a href="{sample}" target="_blank">sample CSV</a> if you'd like.
         """
     )
-    return (sample,)
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo, uploaded_file):
+def _(mo, uploaded_file):
     mo.md(
         f"""
         {mo.hstack([mo.md("**Upload a CSV.**")], justify="center")}
@@ -47,20 +47,20 @@ def __(mo, uploaded_file):
 
 
 @app.cell
-def __(io, mo, pd, uploaded_file):
+def _(io, mo, pd, uploaded_file):
     mo.stop(not uploaded_file.name())
     df = pd.read_csv(io.StringIO(uploaded_file.contents().decode()))
     return (df,)
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.ui.table(df, page_size=5, selection=None)
     return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     plot_type = mo.ui.dropdown(
         ["line", "hist"], value="line", label="Choose a plot type: "
     )
@@ -72,7 +72,7 @@ def __(df, mo):
 
 
 @app.cell
-def __(color_column, mo, plot_type, x_column, y_column):
+def _(color_column, mo, plot_type, x_column, y_column):
     mo.hstack(
         [x_column, y_column, color_column, plot_type], justify="space-around"
     ).callout(kind="warn" if not x_column.value else "neutral")
@@ -80,7 +80,7 @@ def __(color_column, mo, plot_type, x_column, y_column):
 
 
 @app.cell
-def __(alt, color_column, df, mo, plot_type, x_column, y_column):
+def _(alt, color_column, df, mo, plot_type, x_column, y_column):
     mo.stop(not x_column.value)
 
 
@@ -98,17 +98,17 @@ def __(alt, color_column, df, mo, plot_type, x_column, y_column):
 
 
     plot(x_column.value, y_column.value, color_column.value)
-    return (plot,)
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     uploaded_file = mo.ui.file(filetypes=[".csv"], kind="area")
     return (uploaded_file,)
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import altair as alt
 
@@ -116,7 +116,7 @@ def __():
     import io
     import matplotlib.pyplot as plt
     import pandas as pd
-    return alt, io, mo, pd, plt
+    return alt, io, mo, pd
 
 
 if __name__ == "__main__":

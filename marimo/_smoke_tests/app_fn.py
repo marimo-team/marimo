@@ -1,8 +1,6 @@
-
-
 import marimo
 
-__generated_with = "0.11.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 with app.setup:
@@ -68,7 +66,6 @@ def bad_divide_curry(x):
     # Filler line
     # To push the error
     return divide(0, x)
-    # With lines below
 
 
 @app.cell

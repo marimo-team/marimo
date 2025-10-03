@@ -6,7 +6,6 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import topLevelAwait from "vite-plugin-top-level-await";
 import wasm from "vite-plugin-wasm";
-import tsconfigPaths from "vite-tsconfig-paths";
 import packageJson from "../package.json";
 
 const htmlDevPlugin = (): Plugin => {
@@ -31,16 +30,19 @@ const ReactCompilerConfig = {
 // https://vitejs.dev/config/
 export default defineConfig({
   resolve: {
+    tsconfigPaths: true,
     dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
+  },
+  experimental: {
+    enableNativePlugin: true,
   },
   worker: {
     format: "es",
-    plugins: () => [tsconfigPaths()],
   },
   define: {
-    "process.env": {
-      NODE_ENV: JSON.stringify(process.env.NODE_ENV),
-    },
+    "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
+    "process.env.LOG": JSON.stringify(""),
+    "process.env.NODE_DEBUG": JSON.stringify(false),
     // Precedence: VITE_MARIMO_VERSION > package.json version > "latest"
     "import.meta.env.VITE_MARIMO_VERSION": process.env.VITE_MARIMO_VERSION
       ? JSON.stringify(process.env.VITE_MARIMO_VERSION)
@@ -61,12 +63,10 @@ export default defineConfig({
         presets: ["@babel/preset-typescript"],
         plugins: [
           ["@babel/plugin-proposal-decorators", { legacy: true }],
-          ["@babel/plugin-proposal-class-properties", { loose: true }],
           ["babel-plugin-react-compiler", ReactCompilerConfig],
         ],
       },
     }),
-    tsconfigPaths(),
     wasm(),
     topLevelAwait(),
   ],
@@ -76,7 +76,7 @@ export default defineConfig({
       entry: path.resolve(__dirname, "../src/core/islands/main.ts"),
       formats: ["es"],
     },
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         // Remove hash from entry file name, so it's easier to import
         entryFileNames: "[name].js",

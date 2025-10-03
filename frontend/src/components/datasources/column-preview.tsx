@@ -3,6 +3,7 @@
 import { useAtomValue } from "jotai";
 import { PlusSquareIcon } from "lucide-react";
 import React, { Suspense } from "react";
+import { useLocale } from "react-aria";
 import { maybeAddAltairImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
@@ -42,6 +43,7 @@ export const DatasetColumnPreview: React.FC<{
 }> = ({ table, column, preview, onAddColumnChart, sqlTableContext }) => {
   const { theme } = useTheme();
   const { previewDatasetColumn } = useRequestClient();
+  const { locale } = useLocale();
 
   const previewColumn = () => {
     previewDatasetColumn({
@@ -107,7 +109,9 @@ export const DatasetColumnPreview: React.FC<{
       refetchPreview: previewColumn,
     });
 
-  const stats = preview.stats && renderStats(preview.stats, column.type);
+  const stats =
+    preview.stats &&
+    renderStats({ stats: preview.stats, dataType: column.type, locale });
 
   const chart = preview.chart_spec && renderChart(preview.chart_spec, theme);
 
@@ -172,12 +176,13 @@ export function renderPreviewError({
   );
 }
 
-export function renderStats(
-  stats: Partial<
-    Record<ColumnHeaderStatsKey, string | number | boolean | null | undefined>
-  >,
-  dataType: DataType,
-) {
+interface RenderStatsProps {
+  stats: Partial<Record<ColumnHeaderStatsKey, unknown>>;
+  dataType: DataType;
+  locale: string;
+}
+
+export function renderStats({ stats, dataType, locale }: RenderStatsProps) {
   return (
     <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 empty:hidden">
       {Object.entries(stats).map(([key, value]) => {
@@ -191,7 +196,7 @@ export function renderStats(
               {convertStatsName(key as ColumnHeaderStatsKey, dataType)}
             </span>
             <span className="text-xs font-bold text-muted-foreground tracking-wide">
-              {prettyNumber(value)}
+              {prettyNumber(value, locale)}
             </span>
             <CopyClipboardIcon
               className="h-3 w-3 invisible group-hover:visible"

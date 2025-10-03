@@ -34,7 +34,7 @@ export function blobToString(
  *
  * Returns a promised array of tuples [file name, file contents].
  */
-export function filesToBase64(files: File[]): Promise<Array<[string, string]>> {
+export function filesToBase64(files: File[]): Promise<[string, string][]> {
   return Promise.all(
     files.map((file) =>
       blobToString(file, "base64").then(

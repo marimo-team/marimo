@@ -98,7 +98,7 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
     return result
 
 
-class TokenExtractor:
+class _TokenExtractor:
     def __init__(self, sql_statement: str, tokens: list[Any]) -> None:
         self.sql_statement = sql_statement
         self.tokens = tokens
@@ -178,7 +178,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     import duckdb
 
     tokens = duckdb.tokenize(sql_statement)
-    token_extractor = TokenExtractor(
+    token_extractor = _TokenExtractor(
         sql_statement=sql_statement, tokens=tokens
     )
     created_tables: list[SQLRef] = []
@@ -250,6 +250,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                         LOGGER.warning(
                             "Unexpected number of parts in CREATE TABLE: %s",
                             parts,
+                            extra={"parts": parts},
                         )
 
                     if is_table:
@@ -497,7 +498,6 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     DependencyManager.sqlglot.require(why="SQL parsing")
 
     from sqlglot import exp, parse
-    from sqlglot.errors import ParseError
     from sqlglot.optimizer.scope import build_scope
 
     def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
@@ -507,7 +507,6 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
         catalog_name = table.catalog or None
 
         if table_name is None:
-            LOGGER.warning("Table name cannot be found in the SQL statement")
             return None
 
         # Check if the table name looks like a URL or has a file extension.
@@ -520,12 +519,9 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
             table=table_name, schema=schema_name, catalog=catalog_name
         )
 
-    try:
-        with _loggers.suppress_warnings_logs("sqlglot"):
-            expression_list = parse(sql_statement, dialect="duckdb")
-    except ParseError as e:
-        LOGGER.error(f"Unable to parse SQL. Error: {e}")
-        return set()
+    # May raise a ParseError
+    with _loggers.suppress_warnings_logs("sqlglot"):
+        expression_list = parse(sql_statement, dialect="duckdb")
 
     refs: set[SQLRef] = set()
 
@@ -533,7 +529,20 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
         if expression is None:
             continue
 
-        if bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
+        if bool(
+            expression.find(
+                exp.Update,
+                exp.Insert,
+                exp.Delete,
+                exp.Describe,
+                exp.Summarize,
+                exp.Pivot,
+                exp.Analyze,
+                exp.Drop,
+                exp.TruncateTable,
+                exp.Copy,
+            )
+        ):
             for table in expression.find_all(exp.Table):
                 if ref := get_ref_from_table(table):
                     refs.add(ref)

@@ -73,9 +73,10 @@ export interface CellActionButtonProps
 
 interface Props {
   cell: CellActionButtonProps | null;
+  closePopover?: () => void;
 }
 
-export function useCellActionButtons({ cell }: Props) {
+export function useCellActionButtons({ cell, closePopover }: Props) {
   const {
     createNewCell: createCell,
     updateCellConfig,
@@ -177,6 +178,7 @@ export function useCellActionButtons({ cell }: Props) {
             placeholder={"cell name"}
             value={name}
             onChange={(newName) => updateCellName({ cellId, name: newName })}
+            onEnterKey={() => closePopover?.()}
           />
         ),
       },

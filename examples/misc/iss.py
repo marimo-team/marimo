@@ -11,19 +11,12 @@
 
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def _(
-    chart,
-    iss_df,
-    mo,
-    n_points_slider,
-    refresh_interval_slider,
-    refresher,
-):
+def _(chart, iss_df, mo, n_points_slider, refresh_interval_slider, refresher):
     mo.hstack(
         [
             mo.vstack(
@@ -94,7 +87,7 @@ def _(alt, get_iss_positions, sphere, world):
         .project(type="naturalEarth1")
         .properties(width=640, title="")
     )
-    return chart, hover, iss, iss_df
+    return chart, iss_df
 
 
 @app.cell
@@ -111,18 +104,11 @@ def _(alt, data):
     world = alt.Chart(countries).mark_geoshape(
         fill="mintcream", stroke="black", strokeWidth=0.35
     )
-    return countries, sphere, world
+    return sphere, world
 
 
 @app.cell
-def _(
-    n_points_slider,
-    pd,
-    refresh_interval_slider,
-    refresher,
-    requests,
-    time,
-):
+def _(n_points_slider, pd, refresh_interval_slider, refresher, requests, time):
     def get_iss_positions(refresher=refresher):
         refresher
         timepoints = [int(time())]

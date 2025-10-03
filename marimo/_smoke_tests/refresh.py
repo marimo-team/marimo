@@ -2,41 +2,41 @@
 
 import marimo
 
-__generated_with = "0.2.8"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import random
     return mo, random
 
 
 @app.cell
-def __(mo):
+def _(mo):
     reset_button = mo.ui.button(label="Reset")
     reset_button
-    return reset_button,
+    return (reset_button,)
 
 
 @app.cell
-def __(mo, random, reset_button):
+def _(mo, random, reset_button):
     reset_button
     my_pick = random.randint(0, 10)
     mo.accordion({"My pick": my_pick})
-    return my_pick,
+    return (my_pick,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     refresh = mo.ui.refresh(options=["1s", "10s", "1m", "100ms"])
     mo.md(f"Choose an interval to guess {refresh}")
-    return refresh,
+    return (refresh,)
 
 
 @app.cell
-def __(mo, my_pick, random, refresh):
+def _(mo, my_pick, random, refresh):
     refresh
     guess = random.randint(0, 10)
     mo.stop(
@@ -47,7 +47,7 @@ def __(mo, my_pick, random, refresh):
     mo.md(f"Not correct, your guess was {random.randint(0, 10)}").callout(
         kind="warn"
     )
-    return guess,
+    return
 
 
 if __name__ == "__main__":

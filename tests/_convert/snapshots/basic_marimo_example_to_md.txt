@@ -1,0 +1,20 @@
+---
+title: Test Notebook
+marimo-version: 0.0.0
+width: medium
+---
+
+This is a simple marimo notebook
+
+```python {.marimo}
+x = 1
+```
+
+```python {.marimo}
+y = x+1
+y
+```
+
+```python {.marimo}
+import marimo as mo
+```

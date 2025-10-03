@@ -1,18 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.3.8"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import manim_slides
-    return manim_slides,
+    return
 
 
 @app.cell
-def __():
+def _():
     print(1)
     return
 

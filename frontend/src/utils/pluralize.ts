@@ -1,10 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 export class PluralWord {
-  constructor(
-    public singular: string,
-    public _plural?: string,
-  ) {}
+  public singular: string;
+  public _plural?: string;
+
+  constructor(singular: string, _plural?: string) {
+    this.singular = singular;
+    this._plural = _plural;
+  }
 
   public pluralize(count: number) {
     return count === 1 ? this.singular : this.plural;
@@ -16,9 +19,13 @@ export class PluralWord {
 }
 
 export class PluralWords {
-  constructor(private words: PluralWord[]) {}
+  private words: PluralWord[];
 
-  static of(...words: Array<PluralWord | string>) {
+  constructor(words: PluralWord[]) {
+    this.words = words;
+  }
+
+  static of(...words: (PluralWord | string)[]) {
     return new PluralWords(
       words.map((word) => {
         if (typeof word === "string") {

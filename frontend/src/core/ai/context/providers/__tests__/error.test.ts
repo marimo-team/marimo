@@ -117,15 +117,20 @@ describe("ErrorContextProvider", () => {
       const items = provider.getItems();
       const completion = provider.formatCompletion(items[0]);
 
-      expect(completion).toMatchObject({
-        label: "@Errors",
-        displayLabel: "Errors",
-        detail: "2 errors",
-        boost: 2, // Boosts.ERROR
-        type: "error",
-        apply: "@Errors",
-        section: "Errors",
-      });
+      expect(completion).toMatchInlineSnapshot(`
+        {
+          "apply": "@Errors",
+          "detail": "2 errors",
+          "displayLabel": "Errors",
+          "info": [Function],
+          "label": "@Errors",
+          "section": {
+            "name": "Error",
+            "rank": 1,
+          },
+          "type": "error",
+        }
+      `);
 
       // Test the info function
       expect(completion.info).toBeDefined();
@@ -178,11 +183,16 @@ describe("ErrorContextProvider", () => {
       };
 
       const completion = provider.formatCompletion(item);
-      expect(completion).toMatchObject({
-        label: "Error",
-        displayLabel: "Error",
-        boost: 2, // Boosts.ERROR
-      });
+      expect(completion).toMatchInlineSnapshot(`
+        {
+          "displayLabel": "Error",
+          "label": "Error",
+          "section": {
+            "name": "Error",
+            "rank": 1,
+          },
+        }
+      `);
     });
   });
 

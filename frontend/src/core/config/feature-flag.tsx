@@ -7,30 +7,32 @@ import { getResolvedMarimoConfig } from "./config";
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ExperimentalFeatures {
   markdown: boolean; // Used in playground (community cloud)
-  inline_ai_tooltip: boolean;
   wasm_layouts: boolean; // Used in playground (community cloud)
   rtc_v2: boolean;
   performant_table_charts: boolean;
-  mcp_docs: boolean;
+  chat_modes: boolean;
   sql_linter: boolean;
+  external_agents: boolean;
+  sql_mode: boolean;
   // Add new feature flags here
 }
 
 const defaultValues: ExperimentalFeatures = {
   markdown: true,
-  inline_ai_tooltip: import.meta.env.DEV,
   wasm_layouts: false,
   rtc_v2: false,
   performant_table_charts: false,
-  mcp_docs: false,
-  sql_linter: false,
+  chat_modes: false,
+  sql_linter: true,
+  external_agents: import.meta.env.DEV,
+  sql_mode: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
   feature: T,
 ): ExperimentalFeatures[T] {
   return (
-    (getResolvedMarimoConfig().experimental?.[
+    (getResolvedMarimoConfig()?.experimental?.[
       feature
     ] as ExperimentalFeatures[T]) ?? defaultValues[feature]
   );

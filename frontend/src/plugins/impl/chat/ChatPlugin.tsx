@@ -41,6 +41,7 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
           z.object({
             role: z.enum(["system", "user", "assistant"]),
             content: z.string(),
+            parts: z.array(z.any()).nullable(),
           }),
         ),
       }),
@@ -56,15 +57,7 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
             z.object({
               role: z.enum(["system", "user", "assistant"]),
               content: z.string(),
-              attachments: z
-                .array(
-                  z.object({
-                    name: z.string().optional(),
-                    contentType: z.string().optional(),
-                    url: z.string(),
-                  }),
-                )
-                .optional(),
+              parts: z.array(z.any()),
             }),
           ),
           config: z.object({

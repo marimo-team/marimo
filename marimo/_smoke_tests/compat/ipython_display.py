@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.11.4"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -56,7 +56,7 @@ def _():
 def _(HTML):
     html = HTML("<h1>Hello World</h1><p style='color: blue;'>This is HTML</p>")
     html
-    return (html,)
+    return
 
 
 @app.cell
@@ -64,7 +64,7 @@ def _(Image):
     # Using a sample image URL
     image = Image(url="https://marimo.io/logo.png", width=100)
     image
-    return (image,)
+    return
 
 
 @app.cell
@@ -77,7 +77,7 @@ def _(JSON):
         }
     )
     json_data
-    return (json_data,)
+    return
 
 
 @app.cell
@@ -85,14 +85,14 @@ def _(Javascript):
     # Not yet supported
     js = Javascript("alert('Hello from JavaScript!');")
     js
-    return (js,)
+    return
 
 
 @app.cell
 def _(Latex):
     latex = Latex(r"\begin{align}f(x) &= x^2\\g(x) &= \frac{1}{x}\end{align}")
     latex
-    return (latex,)
+    return
 
 
 @app.cell
@@ -101,7 +101,7 @@ def _(Math):
         r"\frac{1}{\pi} = \frac{2\sqrt{2}}{9801} \sum_{k=0}^\infty \frac{(4k)!(1103+26390k)}{(k!)^4 396^{4k}}"
     )
     math
-    return (math,)
+    return
 
 
 @app.cell
@@ -109,7 +109,7 @@ def _(Pretty):
     _data = '{"complex": [1, 2, {"nested": "structure"}]}'
     pretty = Pretty(_data)
     pretty
-    return (pretty,)
+    return
 
 
 @app.cell
@@ -118,7 +118,7 @@ def _(SVG):
         '<svg height="100" width="100"><circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" /></svg>'
     )
     svg
-    return (svg,)
+    return
 
 
 @app.cell
@@ -131,7 +131,7 @@ def _(Audio):
     data = np.sin(2 * np.pi * 440 * t)  # 440 Hz sine wave
     audio = Audio(data=data, rate=sample_rate)
     audio
-    return audio, data, np, sample_rate, t
+    return
 
 
 @app.cell
@@ -139,7 +139,7 @@ def _(Video):
     # Using a sample video URL
     video = Video("https://www.w3schools.com/html/mov_bbb.mp4")
     video
-    return (video,)
+    return
 
 
 @app.cell
@@ -147,7 +147,7 @@ def _(YouTubeVideo):
     # Example YouTube video
     yt = YouTubeVideo("dQw4w9WgXcQ")
     yt
-    return (yt,)
+    return
 
 
 @app.cell
@@ -158,14 +158,14 @@ def _(Code):
         language="python",
     )
     code
-    return (code,)
+    return
 
 
 @app.cell
 def _(IFrame):
     iframe = IFrame("https://marimo.io", width=800, height=450)
     iframe
-    return (iframe,)
+    return
 
 
 @app.cell
@@ -182,7 +182,7 @@ def _(Markdown):
         """
     )
     markdown
-    return (markdown,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -227,13 +227,7 @@ def _():
 
 
 @app.cell
-def _(
-    display_html,
-    display_jpeg,
-    display_png,
-    display_pretty,
-    display_svg,
-):
+def _(display_html, display_jpeg, display_png, display_pretty, display_svg):
     # Working
     display_pretty("hello", raw=True)
     display_html("<h1 style='color: blue'>Hello World</h1>", raw=True)

@@ -1,18 +1,21 @@
 import marimo
 
-
+__generated_with = "0.15.5"
 app = marimo.App()
+
 
 @app.cell
 def _():
     import marimo as mo
     return (mo,)
 
+
 @app.cell
-def _(mo,):
+def _(mo):
     rerun = mo.ui.button(label="Rerun")
     rerun
     return (rerun,)
+
 
 @app.cell
 async def _(mo, rerun):
@@ -31,4 +34,3 @@ async def _(mo, rerun):
 
 if __name__ == "__main__":
     app.run()
-

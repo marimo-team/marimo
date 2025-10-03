@@ -187,6 +187,7 @@ const CellEditorInternal = ({
       hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
       diagnosticsConfig: userConfig.diagnostics,
       displayConfig: userConfig.display,
+      inlineAiTooltip: userConfig.ai?.inline_tooltip ?? false,
     });
 
     extensions.push(
@@ -406,6 +407,7 @@ const CellEditorInternal = ({
     <AiCompletionEditor
       enabled={aiCompletionCell?.cellId === cellId}
       initialPrompt={aiCompletionCell?.initialPrompt}
+      triggerImmediately={aiCompletionCell?.triggerImmediately}
       currentCode={editorViewRef.current?.state.doc.toString() ?? code}
       currentLanguageAdapter={languageAdapter}
       declineChange={useEvent(() => {

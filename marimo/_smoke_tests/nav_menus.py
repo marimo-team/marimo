@@ -2,18 +2,18 @@
 
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Horizontal""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.nav_menu(
         {
             "#overview": "Overview",
@@ -25,13 +25,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""-----""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.nav_menu(
         {
             "#overview": "Overview",
@@ -57,13 +57,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Vertical""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.nav_menu(
         {
             "#overview": "Overview",
@@ -76,13 +76,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""-----""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.nav_menu(
         {
             "#overview": "Overview",
@@ -109,9 +109,9 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

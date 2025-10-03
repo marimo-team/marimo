@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import contextmanager
-from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, Optional
 
 import pytest
 
 from marimo._config.manager import UserConfigManager
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.ops import KernelCapabilities, KernelReady
 from marimo._server.api.endpoints.ws import DOC_MANAGER
 from marimo._utils.parse_dataclass import parse_raw
@@ -101,16 +101,18 @@ def rtc_enabled(config: UserConfigManager):
         config.save_config(prev_config)
 
 
+# Set up unique websocket paths for each client
+ws_1 = "/ws?session_id=123&access_token=fake-token"
+ws_2 = "/ws?session_id=456&access_token=fake-token"
+
+# Set up unique synchronization websocket paths for each client
+ws_1_sync = "/ws_sync?session_id=123&access_token=fake-token"
+ws_2_sync = "/ws_sync?session_id=456&access_token=fake-token"
+
+
 @pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_loro_sync(client: TestClient) -> None:
     """Test that Loro-CRDT sync works between multiple clients"""
-    # Set up unique websocket paths for each client
-    ws_1 = "/ws?session_id=123"
-    ws_2 = "/ws?session_id=456"
-
-    # Set up unique synchronization websocket paths for each client
-    ws_1_sync = "/ws_sync?session_id=123"
-    ws_2_sync = "/ws_sync?session_id=456"
 
     # First connect main websockets to create sessions
     with (
@@ -161,13 +163,13 @@ async def test_loro_cleanup_on_session_close(
 
     with (
         rtc_enabled(get_user_config_manager(client)),
-        client.websocket_connect("/ws?session_id=123") as websocket,
+        client.websocket_connect(ws_1) as websocket,
     ):
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
 
         # Connect to cell websocket
-        with client.websocket_connect("/ws_sync?session_id=123") as cell_ws:
+        with client.websocket_connect(ws_1_sync) as cell_ws:
             sync_msg = cell_ws.receive_bytes()
             assert len(sync_msg) > 0
 
@@ -202,12 +204,12 @@ async def test_loro_persistence(client: TestClient) -> None:
     # First connection sets initial code
     with (
         rtc_enabled(get_user_config_manager(client)),
-        client.websocket_connect("/ws?session_id=123") as websocket,
+        client.websocket_connect(ws_1) as websocket,
     ):
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
 
-        with client.websocket_connect("/ws_sync?session_id=123") as cell_ws1:
+        with client.websocket_connect(ws_1_sync) as cell_ws1:
             sync_msg = cell_ws1.receive_bytes()
             assert len(sync_msg) > 0
 
@@ -224,12 +226,12 @@ async def test_loro_persistence(client: TestClient) -> None:
     # Second connection should receive persisted code
     with (
         rtc_enabled(get_user_config_manager(client)),
-        client.websocket_connect("/ws?session_id=456") as websocket,
+        client.websocket_connect(ws_2) as websocket,
     ):
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({"resumed": True}))
 
-        with client.websocket_connect("/ws_sync?session_id=456") as cell_ws2:
+        with client.websocket_connect(ws_2_sync) as cell_ws2:
             sync_msg = cell_ws2.receive_bytes()
             # Verify initial sync contains data
             assert len(sync_msg) > 0

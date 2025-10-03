@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.4.9"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import altair as alt
     import polars as pl
@@ -46,7 +47,7 @@ def __():
             chart2
         ]
     )
-    return alt, chart1, chart2, counts, mo, pl
+    return
 
 
 if __name__ == "__main__":

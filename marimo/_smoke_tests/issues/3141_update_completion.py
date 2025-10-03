@@ -1,18 +1,18 @@
 import marimo
 
-__generated_with = "0.9.34"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     from time import time
     return mo, time
 
 
 @app.cell
-def __(mo):
+def _(mo):
     d = mo.ui.dictionary(
         {
             "run_button1": mo.ui.run_button(label="run button 1"),
@@ -23,19 +23,19 @@ def __(mo):
 
 
 @app.cell
-def __(d):
+def _(d):
     d
     return
 
 
 @app.cell
-def __(d, time):
+def _(d, time):
     d.value, time()
     return
 
 
 @app.cell
-def __(d, time):
+def _(d, time):
     _t = time()
     for name, button in d.items():
         if button.value:
@@ -43,18 +43,18 @@ def __(d, time):
     for n, b in d.items():
         print(button.value, n)
     d.value
-    return b, button, n, name
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     run_button = mo.ui.run_button(label="single run button")
     run_button
     return (run_button,)
 
 
 @app.cell
-def __(run_button, time):
+def _(run_button, time):
     if run_button.value:
         print("Clicked run button at time ", time())
     return

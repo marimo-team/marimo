@@ -14,7 +14,7 @@ export type CellConfig = schemas["CellConfig"];
  * idle: not running.
  * disabled-transitively: disabled because an ancestor was disabled.
  */
-export type RuntimeState = schemas["RuntimeState"];
+export type RuntimeState = schemas["CellOp"]["status"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
 export type DeleteCellRequest = schemas["DeleteCellRequest"];
 export type ExecuteMultipleRequest = schemas["ExecuteMultipleRequest"];
@@ -32,6 +32,8 @@ export type FileDetailsResponse = schemas["FileDetailsResponse"];
 export type FileInfo = schemas["FileInfo"];
 export type FileListRequest = schemas["FileListRequest"];
 export type FileListResponse = schemas["FileListResponse"];
+export type FileSearchRequest = schemas["FileSearchRequest"];
+export type FileSearchResponse = schemas["FileSearchResponse"];
 export type FileMoveRequest = schemas["FileMoveRequest"];
 export type FileMoveResponse = schemas["FileMoveResponse"];
 export type FileUpdateRequest = schemas["FileUpdateRequest"];
@@ -60,6 +62,7 @@ export type PreviewSQLTableRequest = schemas["PreviewSQLTableRequest"];
 export type PreviewSQLTableListRequest = schemas["PreviewSQLTableListRequest"];
 export type PreviewDataSourceConnectionRequest =
   schemas["PreviewDataSourceConnectionRequest"];
+export type ValidateSQLRequest = schemas["ValidateSQLRequest"];
 export type PdbRequest = schemas["PdbRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
@@ -138,12 +141,14 @@ export interface EditRequests {
   previewDataSourceConnection: (
     request: PreviewDataSourceConnectionRequest,
   ) => Promise<null>;
-  openFile: (request: { path: string }) => Promise<null>;
+  validateSQL: (request: ValidateSQLRequest) => Promise<null>;
+  openFile: (request: { path: string; lineNumber?: number }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
   // Debugger
   sendPdb: (request: PdbRequest) => Promise<null>;
   // File explorer requests
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
+  sendSearchFiles: (request: FileSearchRequest) => Promise<FileSearchResponse>;
   sendCreateFileOrFolder: (
     request: FileCreateRequest,
   ) => Promise<FileCreateResponse>;

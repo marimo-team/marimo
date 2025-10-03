@@ -1,21 +1,39 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import importlib
 import inspect
 import re
-import textwrap
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args
 
-from marimo._plugins.ui._core.ui_element import S, T, UIElement
+from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.state import SetFunctor
+from marimo._save.stubs import (
+    CUSTOM_STUBS,
+    CustomStub,
+    FunctionStub,
+    ModuleStub,
+    UIElementStub,
+    maybe_register_stub,
+)
+
+# Many assertions are for typing and should always pass. This message is a
+# catch all to motive users to report if something does fail.
+UNEXPECTED_FAILURE_BOILERPLATE = (
+    "— this is"
+    " unexpected and is likely a bug in marimo. "
+    "Please file an issue at "
+    "https://github.com/marimo-team/marimo/issues"
+)
+
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
+    from marimo._runtime.state import State
     from marimo._save.hash import HashKey
+    from marimo._save.loaders import Loader
 
 # NB. Increment on cache breaking changes.
 MARIMO_CACHE_VERSION: int = 3
@@ -39,46 +57,11 @@ CACHE_PREFIX: dict[CacheType, str] = {
 }
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
-MetaKey = Literal["return", "version"]
-
-
-class ModuleStub:
-    def __init__(self, module: Any) -> None:
-        self.name = module.__name__
-
-    def load(self) -> Any:
-        return importlib.import_module(self.name)
-
-
-class FunctionStub:
-    def __init__(self, function: Any) -> None:
-        self.code = textwrap.dedent(inspect.getsource(function))
-
-    def load(self, glbls: dict[str, Any]) -> Any:
-        # TODO: Fix line cache and associate with the correct module.
-        code_obj = compile(self.code, "<string>", "exec")
-        lcls: dict[str, Any] = {}
-        exec(code_obj, glbls, lcls)
-        # Update the global scope with the function.
-        for value in lcls.values():
-            return value
-
-
-class UIElementStub:
-    def __init__(self, element: UIElement[S, T]) -> None:
-        self.args = element._args
-        self.cls = element.__class__
-        # Ideally only hashable attributes are stored on the subclass level.
-        defaults = set(self.cls.__new__(self.cls).__dict__.keys())
-        defaults |= {"_ctx"}
-        self.data = {
-            k: v
-            for k, v in element.__dict__.items()
-            if hasattr(v, "__hash__") and k not in defaults
-        }
-
-    def load(self) -> UIElement[S, T]:
-        return self.cls.from_args(self.data, self.args)  # type: ignore
+MetaKey = Literal["return", "version", "runtime"]
+# Matches functools
+CacheInfo = namedtuple(
+    "CacheInfo", ["hits", "misses", "maxsize", "currsize", "time_saved"]
+)
 
 
 # BaseException because "raise _ as e" is utilized.
@@ -188,6 +171,10 @@ class Cache:
             value.clear()
             value.update(result)
             result = value
+        elif isinstance(value, CustomStub):
+            # CustomStub is a placeholder for a custom type, which cannot be
+            # restored directly.
+            result = value.load(scope)
         else:
             result = value
 
@@ -246,9 +233,19 @@ class Cache:
             self.meta[key] = self._convert_to_stub_if_needed(value, memo)
 
     def _convert_to_stub_if_needed(
-        self, value: Any, memo: dict[int, Any] | None = None
+        self,
+        value: Any,
+        memo: dict[int, Any] | None = None,
+        preserve_pointers: bool = True,
     ) -> Any:
-        """Convert objects to stubs if needed, recursively handling collections."""
+        """Convert objects to stubs if needed, recursively handling collections.
+
+        Args:
+            value: The value to convert
+            memo: Memoization dict to handle cycles
+            preserve_pointers: If True, modifies containers in-place to preserve
+                             object identity. If False, creates new containers.
+        """
         if memo is None:
             memo = {}
 
@@ -269,38 +266,76 @@ class Cache:
             # tuples are immutable and cannot be recursive, but we still want to
             # iteratively convert the internal items.
             result = tuple(
-                self._convert_to_stub_if_needed(item, memo) for item in value
+                self._convert_to_stub_if_needed(item, memo, preserve_pointers)
+                for item in value
             )
         elif isinstance(value, set):
-            # sets cannot be recursive (require hasable items), but we still
-            # maintain the original set reference.
-            result = set(
-                self._convert_to_stub_if_needed(item, memo) for item in value
+            # sets cannot be recursive (require hashable items)
+            converted = set(
+                self._convert_to_stub_if_needed(item, memo, preserve_pointers)
+                for item in value
             )
-            value.clear()
-            value.update(result)
-            result = value
+            if preserve_pointers:
+                value.clear()
+                value.update(converted)
+                result = value
+            else:
+                result = converted
         elif isinstance(value, list):
-            # Store placeholder to handle cycles
-            memo[obj_id] = value
-            result = [
-                self._convert_to_stub_if_needed(item, memo) for item in value
-            ]
-            value.clear()
-            value.extend(result)
-            result = value
+            if preserve_pointers:
+                # Preserve original list reference
+                memo[obj_id] = value
+                converted_list = [
+                    self._convert_to_stub_if_needed(
+                        item, memo, preserve_pointers
+                    )
+                    for item in value
+                ]
+                value.clear()
+                value.extend(converted_list)
+                result = value
+            else:
+                # Create new list
+                result = []
+                memo[obj_id] = result
+                result.extend(
+                    [
+                        self._convert_to_stub_if_needed(
+                            item, memo, preserve_pointers
+                        )
+                        for item in value
+                    ]
+                )
         elif isinstance(value, dict):
-            # Recursively convert dictionary values
-            memo[obj_id] = value
-            result = {
-                k: self._convert_to_stub_if_needed(v, memo)
-                for k, v in value.items()
-            }
-            value.clear()
-            value.update(result)
-            result = value
+            if preserve_pointers:
+                # Preserve original dict reference
+                memo[obj_id] = value
+                converted_dict = {
+                    k: self._convert_to_stub_if_needed(
+                        v, memo, preserve_pointers
+                    )
+                    for k, v in value.items()
+                }
+                value.clear()
+                value.update(converted_dict)
+                result = value
+            else:
+                # Create new dict
+                result = {}
+                memo[obj_id] = result
+                result.update(
+                    {
+                        k: self._convert_to_stub_if_needed(
+                            v, memo, preserve_pointers
+                        )
+                        for k, v in value.items()
+                    }
+                )
+        elif type(value) in CUSTOM_STUBS or maybe_register_stub(value):
+            result = CUSTOM_STUBS[type(value)](value)
         else:
             result = value
+
         memo[obj_id] = result
 
         return result
@@ -351,3 +386,66 @@ class Cache:
             hit=True,
             meta=loaded.meta,
         )
+
+
+class CacheContext:
+    """Tracks cache loader state and statistics.
+    Base class for cache interfaces."""
+
+    __slots__ = "_loader"
+    _loader: Optional[State[Loader]]
+
+    # Match functools api
+    def cache_info(self) -> CacheInfo:
+        return CacheInfo(
+            hits=self.hits,
+            misses=self.misses,
+            maxsize=self.maxsize,
+            currsize=self.currsize,
+            time_saved=self.time_saved,
+        )
+
+    @property
+    def loader(self) -> Loader:
+        assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
+        return self._loader()
+
+    def cache_clear(self) -> None:
+        if self._loader is not None:
+            self.loader.clear()
+
+    @property
+    def hits(self) -> int:
+        if self._loader is None:
+            return 0
+        return self.loader.hits
+
+    @property
+    def misses(self) -> int:
+        # Not something explicitly recorded.
+        return 0
+
+    @property
+    def maxsize(self) -> int | None:
+        if self._loader is None:
+            return None
+        maxsize = getattr(self.loader, "_max_size", -1)
+        if maxsize < 0:
+            return None
+        return maxsize
+
+    @property
+    def currsize(self) -> int:
+        if self._loader is None:
+            return 0
+        # Use current_size if available, otherwise fall back to misses
+        if hasattr(self.loader, "current_size"):
+            return int(self.loader.current_size)
+        # Assume all misses leave an entry
+        return self.misses
+
+    @property
+    def time_saved(self) -> float:
+        if self._loader is None:
+            return 0.0
+        return self.loader.time_saved

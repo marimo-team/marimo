@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -14,7 +14,7 @@ def _():
 def _(mo):
     file_browser = mo.ui.file_browser()
     file_browser
-    return (file_browser,)
+    return
 
 
 @app.cell
@@ -32,7 +32,7 @@ def _(BUCKET):
     # dispatches to S3Path based on prefix
     root_dir = CloudPath(BUCKET)
     root_dir
-    return CloudPath, root_dir
+    return (root_dir,)
 
 
 @app.cell

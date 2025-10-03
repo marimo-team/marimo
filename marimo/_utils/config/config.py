@@ -48,4 +48,4 @@ class ConfigReader:
         # None values is not valid toml, so we remove them
         dict_data = {k: v for k, v in dict_data.items() if v is not None}
 
-        self.filepath.write_text(tomlkit.dumps(dict_data))
+        self.filepath.write_text(tomlkit.dumps(dict_data), encoding="utf-8")

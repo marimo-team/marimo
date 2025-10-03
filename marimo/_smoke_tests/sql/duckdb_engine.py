@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -16,7 +16,7 @@ def _():
 
     connection_one = duckdb.connect("one.db")
     connection_two = duckdb.connect("two.db")
-    return connection_one, connection_two, duckdb
+    return connection_one, connection_two
 
 
 @app.cell
@@ -28,7 +28,7 @@ def _(connection_one, mo):
         """,
         engine=connection_one
     )
-    return (numbers,)
+    return
 
 
 @app.cell
@@ -40,7 +40,7 @@ def _(connection_two, mo):
         """,
         engine=connection_two
     )
-    return (other_numbers,)
+    return
 
 
 @app.cell

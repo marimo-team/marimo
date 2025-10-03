@@ -5,9 +5,10 @@
 #     "pandas==2.2.3",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.10.14"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -46,7 +47,7 @@ def _(json, mo, pd):
     )
 
     mo.hstack([text_download, csv_download, json_download])
-    return csv_download, data, df, json_download, text_download
+    return
 
 
 @app.cell(hide_code=True)
@@ -102,16 +103,7 @@ def _(json, mo, pd):
 
 
     mo.hstack([text_download_lazy, csv_download_lazy, json_download_lazy])
-    return (
-        asyncio,
-        csv_download_lazy,
-        get_csv_data,
-        get_json_data,
-        get_text_data,
-        json_download_lazy,
-        text_download_lazy,
-        time,
-    )
+    return
 
 
 @app.cell

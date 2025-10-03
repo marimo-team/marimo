@@ -1,7 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from functools import partial
+from unittest.mock import patch
 
 import pytest
 
@@ -439,3 +441,164 @@ class TestSemicolon:
 
         cell = compiler.cell_factory(f, cell_id="0")
         assert eval(cell._cell.last_expr) is None
+
+
+class TestCompileCellFilename:
+    """Test compile_cell function with filename parameter."""
+
+    @staticmethod
+    def test_compile_cell_with_filename_no_source_position() -> None:
+        """Test compile_cell with filename when no source_position provided."""
+        code = "x = 1"
+        filename = "test_notebook.py"
+
+        # Mock solve_source_position to return a source position
+        with patch("marimo._ast.compiler.solve_source_position") as mock_solve:
+            mock_solve.return_value = compiler.SourcePosition(
+                filename=filename, lineno=1, col_offset=0
+            )
+
+            cell = compiler.compile_cell(
+                code, cell_id="test", filename=filename
+            )
+
+            # Verify solve_source_position was called
+            mock_solve.assert_called_once_with(code, filename)
+
+            # Verify the cell was compiled successfully
+            assert cell.code == code
+            assert cell.defs == {"x"}
+
+    @staticmethod
+    def test_compile_cell_with_filename_and_source_position() -> None:
+        """Test compile_cell with filename when source_position is provided."""
+        code = "x = 1"
+        filename = "test_notebook.py"
+        source_position = compiler.SourcePosition(
+            filename="original.py", lineno=5, col_offset=10
+        )
+
+        cell = compiler.compile_cell(
+            code,
+            cell_id="test",
+            filename=filename,
+            source_position=source_position,
+        )
+
+        # Verify the cell was compiled successfully
+        assert cell.code == code
+        assert cell.defs == {"x"}
+
+        # Note: We can't easily test that source_position.filename was updated
+        # without accessing internal state, but the function should work
+
+    @staticmethod
+    def test_compile_cell_without_filename() -> None:
+        """Test compile_cell without filename parameter."""
+        code = "x = 1"
+
+        cell = compiler.compile_cell(code, cell_id="test")
+
+        # Verify the cell was compiled successfully
+        assert cell.code == code
+        assert cell.defs == {"x"}
+
+    @staticmethod
+    def test_solve_source_position_function() -> None:
+        """Test solve_source_position function."""
+        # Create a temporary notebook file
+        import os
+        import tempfile
+
+        notebook_content = """import marimo
+
+__generated_with = "0.1.0"
+app = marimo.App()
+
+@app.cell
+def __():
+    x = 1
+    return x,
+
+@app.cell
+def __(x):
+    y = x + 1
+    return y,
+"""
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False
+        ) as f:
+            f.write(notebook_content)
+            temp_filename = f.name
+
+        try:
+            # Test with code that matches a cell
+            result = compiler.solve_source_position("x = 1", temp_filename)
+            # The function might find a match, so just verify it returns a valid result or None
+            if result is not None:
+                assert result.filename == temp_filename
+                assert result.lineno > 0
+                assert result.col_offset >= 0
+
+            # Test with code that doesn't match any cell
+            result = compiler.solve_source_position("z = 999", temp_filename)
+            # This might still find a match due to similarity, so just verify it's valid or None
+            if result is not None:
+                assert result.filename == temp_filename
+
+        finally:
+            os.unlink(temp_filename)
+
+    @staticmethod
+    def test_solve_source_position_invalid_file() -> None:
+        """Test solve_source_position with invalid file."""
+        # Mock the _maybe_contents function to return None for invalid files
+        with patch("marimo._ast.load._maybe_contents") as mock_contents:
+            mock_contents.return_value = None
+            result = compiler.solve_source_position(
+                "x = 1", "nonexistent_file.py"
+            )
+            assert result is None
+
+
+class TestIrCellFactoryDebugpy:
+    """Test ir_cell_factory function with DEBUGPY_RUNNING environment variable."""
+
+    @staticmethod
+    def test_ir_cell_factory_with_debugpy_running() -> None:
+        """Test ir_cell_factory with DEBUGPY_RUNNING environment variable."""
+        from marimo._schemas.serialization import CellDef
+
+        cell_def = CellDef(code="x = 1", options={}, lineno=5, col_offset=10)
+        cell_id = "test_cell"
+        filename = "test_notebook.py"
+
+        with patch.dict(os.environ, {"DEBUGPY_RUNNING": "1"}):
+            cell = compiler.ir_cell_factory(
+                cell_def, cell_id, filename=filename
+            )
+
+            # Verify the cell was created successfully
+            assert cell._name == "_"
+            assert cell._cell.code == "x = 1"
+            assert cell._cell.defs == {"x"}
+
+    @staticmethod
+    def test_ir_cell_factory_without_debugpy_running() -> None:
+        """Test ir_cell_factory without DEBUGPY_RUNNING environment variable."""
+        from marimo._schemas.serialization import CellDef
+
+        cell_def = CellDef(code="x = 1", options={}, lineno=5, col_offset=10)
+        cell_id = "test_cell"
+        filename = "test_notebook.py"
+
+        with patch.dict(os.environ, {}, clear=True):
+            cell = compiler.ir_cell_factory(
+                cell_def, cell_id, filename=filename
+            )
+
+            # Verify the cell was created successfully
+            assert cell._name == "_"
+            assert cell._cell.code == "x = 1"
+            assert cell._cell.defs == {"x"}

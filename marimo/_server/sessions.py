@@ -50,6 +50,7 @@ from marimo._runtime import requests, runtime
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
+    DeleteCellRequest,
     ExecuteMultipleRequest,
     ExecutionRequest,
     HTTPRequest,
@@ -70,7 +71,7 @@ from marimo._server.session.serialize import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
-from marimo._server.types import QueueType
+from marimo._server.types import ProcessLike
 from marimo._server.utils import print_, print_tabbed
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._utils.disposable import Disposable
@@ -93,23 +94,28 @@ class QueueManager:
 
         # Control messages for the kernel (run, set UI element, set config, etc
         # ) are sent through the control queue
-        self.control_queue: QueueType[requests.ControlRequest] = (
-            context.Queue() if context is not None else queue.Queue()
-        )
+        self.control_queue: Union[
+            mp.Queue[requests.ControlRequest],
+            queue.Queue[requests.ControlRequest],
+        ] = context.Queue() if context is not None else queue.Queue()
 
         # Set UI element queues are stored in both the control queue and
         # this queue, so that the backend can merge/batch set-ui-element
         # requests.
-        self.set_ui_element_queue: QueueType[
-            requests.SetUIElementValueRequest
+        self.set_ui_element_queue: Union[
+            mp.Queue[requests.SetUIElementValueRequest],
+            queue.Queue[requests.SetUIElementValueRequest],
         ] = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
-        self.completion_queue: QueueType[requests.CodeCompletionRequest] = (
-            context.Queue() if context is not None else queue.Queue()
-        )
+        self.completion_queue: Union[
+            mp.Queue[requests.CodeCompletionRequest],
+            queue.Queue[requests.CodeCompletionRequest],
+        ] = context.Queue() if context is not None else queue.Queue()
 
-        self.win32_interrupt_queue: QueueType[bool] | None
+        self.win32_interrupt_queue: (
+            Union[mp.Queue[bool], queue.Queue[bool]] | None
+        )
         if sys.platform == "win32":
             self.win32_interrupt_queue = (
                 context.Queue() if context is not None else queue.Queue()
@@ -119,7 +125,7 @@ class QueueManager:
 
         # Input messages for the user's Python code are sent through the
         # input queue
-        self.input_queue: QueueType[str] = (
+        self.input_queue: Union[mp.Queue[str], queue.Queue[str]] = (
             context.Queue(maxsize=1)
             if context is not None
             else queue.Queue(maxsize=1)
@@ -171,7 +177,7 @@ class KernelManager:
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
     ) -> None:
-        self.kernel_task: Optional[threading.Thread | mp.Process] = None
+        self.kernel_task: Optional[ProcessLike | threading.Thread] = None
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
@@ -296,10 +302,14 @@ class KernelManager:
         return self.kernel_task is not None and self.kernel_task.is_alive()
 
     def interrupt_kernel(self) -> None:
-        if (
-            isinstance(self.kernel_task, mp.Process)
-            and self.kernel_task.pid is not None
-        ):
+        if self.kernel_task is None:
+            return
+
+        if isinstance(self.kernel_task, threading.Thread):
+            # no interruptions in run mode
+            return
+
+        if self.kernel_task.pid is not None:
             q = self.queue_manager.win32_interrupt_queue
             if sys.platform == "win32" and q is not None:
                 LOGGER.debug("Queueing interrupt request for kernel.")
@@ -311,7 +321,14 @@ class KernelManager:
     def close_kernel(self) -> None:
         assert self.kernel_task is not None, "kernel not started"
 
-        if isinstance(self.kernel_task, mp.Process):
+        if isinstance(self.kernel_task, threading.Thread):
+            # in run mode
+            if self.kernel_task.is_alive():
+                # We don't join the kernel thread because we don't want to server
+                # to block on it finishing
+                self.queue_manager.control_queue.put(requests.StopRequest())
+        else:
+            # otherwise we have something that is `ProcessLike`
             if self.profile_path is not None and self.kernel_task.is_alive():
                 self.queue_manager.control_queue.put(requests.StopRequest())
                 # Hack: Wait for kernel to exit and write out profile;
@@ -330,10 +347,6 @@ class KernelManager:
                 self.kernel_task.terminate()
             if self._read_conn is not None:
                 self._read_conn.close()
-        elif self.kernel_task.is_alive():
-            # We don't join the kernel thread because we don't want to server
-            # to block on it finishing
-            self.queue_manager.control_queue.put(requests.StopRequest())
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
@@ -510,7 +523,7 @@ class Session:
             self.message_distributor = QueueDistributor[KernelMessage](queue=q)
 
         self.message_distributor.add_consumer(
-            lambda msg: self.session_view.add_raw_operation(msg[1])
+            lambda msg: self.session_view.add_raw_operation(msg)
         )
         self.connect_consumer(session_consumer, main=True)
         self.message_distributor.start()
@@ -771,6 +784,9 @@ class SessionManager:
         self.include_code = include_code
         self.ttl_seconds = ttl_seconds
         self.lsp_server = lsp_server
+        self.file_change_handler = SessionFileChangeHandler(
+            self, config_manager
+        )
         self.watcher_manager = FileWatcherManager()
         self.watch = watch
         self.recents = RecentFilesManager()
@@ -874,70 +890,14 @@ class SessionManager:
             return
 
         async def on_file_changed(path: Path) -> None:
-            LOGGER.debug(f"{path} was modified")
             # Skip if the session does not relate to the file
             if session.app_file_manager.path != os.path.abspath(path):
                 return
 
-            # Reload the file manager to get the latest code
-            try:
-                changed_cell_ids = session.app_file_manager.reload()
-            except Exception as e:
-                # If there are syntax errors, we just skip
-                # and don't send the changes
-                LOGGER.error(f"Error loading file: {e}")
-                return
-            # In run, we just call Reload()
-            if self.mode == SessionMode.RUN:
-                session.write_operation(Reload(), from_consumer_id=None)
-                return
-
-            # Get the latest codes
-            codes = list(session.app_file_manager.app.cell_manager.codes())
-            cell_ids = list(
-                session.app_file_manager.app.cell_manager.cell_ids()
+            # Use the centralized file change handler
+            await self.file_change_handler.handle_file_change(
+                str(path), [session]
             )
-            # Send the updated cell ids and codes to the frontend
-            session.write_operation(
-                UpdateCellIdsRequest(cell_ids=cell_ids),
-                from_consumer_id=None,
-            )
-
-            # Check if we should auto-run cells based on config
-            should_autorun = (
-                self._config_manager.get_config()["runtime"]["watcher_on_save"]
-                == "autorun"
-            )
-
-            # Auto-run cells if configured
-            if should_autorun:
-                changed_cell_ids_list = list(changed_cell_ids)
-                cell_ids_to_idx = {
-                    cell_id: idx for idx, cell_id in enumerate(cell_ids)
-                }
-                changed_codes = [
-                    codes[cell_ids_to_idx[cell_id]]
-                    for cell_id in changed_cell_ids_list
-                ]
-
-                # This runs the request and also runs UpdateCellCodes
-                session.put_control_request(
-                    ExecuteMultipleRequest(
-                        cell_ids=changed_cell_ids_list,
-                        codes=changed_codes,
-                        request=None,
-                    ),
-                    from_consumer_id=None,
-                )
-            else:
-                session.write_operation(
-                    UpdateCellCodes(
-                        cell_ids=cell_ids,
-                        codes=codes,
-                        code_is_stale=True,
-                    ),
-                    from_consumer_id=None,
-                )
 
         session._unsubscribe_file_watcher_ = on_file_changed  # type: ignore
 
@@ -987,6 +947,12 @@ class SessionManager:
             if self.watch:
                 self._start_file_watcher_for_session(session)
             return False, str(e)
+
+    async def handle_file_change(self, path: str) -> None:
+        """Handle a file change."""
+        await self.file_change_handler.handle_file_change(
+            path, list(self.sessions.values())
+        )
 
     def get_session(self, session_id: SessionId) -> Optional[Session]:
         session = self.sessions.get(session_id)
@@ -1154,6 +1120,131 @@ class SessionManager:
                 if session.connection_state() == ConnectionState.OPEN
             ]
         )
+
+
+class SessionFileChangeHandler:
+    def __init__(
+        self,
+        session_manager: SessionManager,
+        config_manager: MarimoConfigManager,
+    ) -> None:
+        self.session_manager = session_manager
+        self.config_manager = config_manager
+        # Track ongoing file change operations to prevent duplicates
+        self._file_change_locks: dict[str, asyncio.Lock] = {}
+
+    async def handle_file_change(
+        self, file_path: str, sessions: list[Session]
+    ) -> None:
+        """Handle file changes for marimo notebooks.
+
+        This method reloads the notebook and sends appropriate operations
+        to the frontend when a marimo file is modified.
+        """
+        abs_file_path = os.path.abspath(file_path)
+
+        # Use a lock to prevent concurrent processing of the same file
+        if abs_file_path not in self._file_change_locks:
+            self._file_change_locks[abs_file_path] = asyncio.Lock()
+
+        async with self._file_change_locks[abs_file_path]:
+            # Find all sessions associated with this file
+            sessions_for_file: list[Session] = []
+            for s in sessions:
+                if s.app_file_manager.path == abs_file_path:
+                    sessions_for_file.append(s)
+
+            if not sessions_for_file:
+                # No active session for this file
+                return
+
+            if len(sessions_for_file) > 1:
+                LOGGER.error(
+                    f"Only one session should exist for a file: {abs_file_path}"
+                )
+
+            self._handle_file_change(
+                abs_file_path,
+                sessions_for_file[0],
+            )
+
+    def _handle_file_change(
+        self,
+        file_path: str,
+        session: Session,
+    ) -> None:
+        LOGGER.debug(f"{file_path} was modified, handling {session}")
+
+        # Reload the file manager to get the latest code
+        try:
+            changed_cell_ids = session.app_file_manager.reload()
+        except Exception as e:
+            # If there are syntax errors, we just skip
+            # and don't send the changes
+            LOGGER.error(f"Error loading file: {e}")
+            return
+
+        # In run mode, we just call Reload()
+        if self.session_manager.mode == SessionMode.RUN:
+            session.write_operation(Reload(), from_consumer_id=None)
+            return
+
+        # Get the latest codes
+        codes = list(session.app_file_manager.app.cell_manager.codes())
+        cell_ids = list(session.app_file_manager.app.cell_manager.cell_ids())
+        # Send the updated cell ids and codes to the frontend
+        session.write_operation(
+            UpdateCellIdsRequest(cell_ids=cell_ids),
+            from_consumer_id=None,
+        )
+
+        # Check if we should auto-run cells based on config
+        watcher_on_save = self.config_manager.get_config()["runtime"][
+            "watcher_on_save"
+        ]
+        should_autorun = watcher_on_save == "autorun"
+
+        # Auto-run cells if configured
+        if should_autorun:
+            cell_ids_to_idx = {
+                cell_id: idx for idx, cell_id in enumerate(cell_ids)
+            }
+            deleted = {
+                cell_id
+                for cell_id in changed_cell_ids
+                if cell_id not in cell_ids_to_idx
+            }
+            changed_cell_ids_list = list(changed_cell_ids - deleted)
+            changed_codes = [
+                codes[cell_ids_to_idx[cell_id]]
+                for cell_id in changed_cell_ids_list
+                if cell_id not in deleted
+            ]
+
+            if changed_cell_ids_list:
+                # This runs the request and also runs UpdateCellCodes
+                session.put_control_request(
+                    ExecuteMultipleRequest(
+                        cell_ids=changed_cell_ids_list,
+                        codes=changed_codes,
+                        request=None,
+                    ),
+                    from_consumer_id=None,
+                )
+            for to_delete in deleted:
+                session.put_control_request(
+                    DeleteCellRequest(cell_id=to_delete),
+                    from_consumer_id=None,
+                )
+        else:
+            session.write_operation(
+                UpdateCellCodes(
+                    cell_ids=cell_ids,
+                    codes=codes,
+                    code_is_stale=True,
+                ),
+                from_consumer_id=None,
+            )
 
 
 def send_message_to_consumer(

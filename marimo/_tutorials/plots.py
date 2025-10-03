@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.12.2"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -261,7 +261,7 @@ def _(missing_packages, mo):
     def check_dependencies():
         if missing_packages:
             return module_not_found_explainer
-    return check_dependencies, module_not_found_explainer
+    return (check_dependencies,)
 
 
 @app.cell(hide_code=True)
@@ -288,7 +288,7 @@ def _():
 
     if not missing_packages:
         matplotlib.rcParams['figure.figsize'] = (6, 2.4)
-    return matplotlib, missing_packages, np, plt
+    return missing_packages, np, plt
 
 
 @app.cell

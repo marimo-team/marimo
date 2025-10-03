@@ -4,8 +4,7 @@ from __future__ import annotations
 import pathlib
 import sys
 import textwrap
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
 import pytest
@@ -17,11 +16,17 @@ from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     CycleError,
     Error,
+    MarimoExceptionRaisedError,
+    MarimoInternalError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
     MultipleDefinitionError,
 )
-from marimo._messaging.ops import CellOp
+from marimo._messaging.ops import (
+    CellOp,
+    Variables,
+    deserialize_kernel_message,
+)
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -40,8 +45,8 @@ from marimo._runtime.requests import (
 from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.model import SessionMode
-from marimo._utils import parse_dataclass
 from marimo._utils.parse_dataclass import parse_raw
+from tests._messaging.mocks import MockStderr, MockStream
 from tests.conftest import ExecReqProvider, MockedKernel
 
 if TYPE_CHECKING:
@@ -456,11 +461,9 @@ class TestExecution:
         assert len(k._uninstantiated_execution_requests) == 3
 
         await k.run([er1])
-        cell_ops = [
-            parse_dataclass.parse_raw(msg[1], CellOp)
-            for msg in k.stream.messages
-            if msg[0] == "cell-op"
-        ]
+        stream = MockStream(k.stream)
+        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
         er1_set_not_stale_before_run = False
         for op in cell_ops:
             if op.cell_id == er1.cell_id and op.status == "running":
@@ -668,8 +671,12 @@ class TestExecution:
         assert len(k.errors["1"]) == 1
         if k.execution_type == "strict":
             assert len(k.errors["2"]) == 1
-        _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
-        _check_edges(k.errors["1"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
+        _check_edges(
+            k.errors["0"][0], [("0", ("x",), "1"), ("1", ("y",), "0")]
+        )
+        _check_edges(
+            k.errors["1"][0], [("0", ("x",), "1"), ("1", ("y",), "0")]
+        )
 
         # break cycle by modifying cell
         await k.run([ExecutionRequest(cell_id="1", code="y=1")])
@@ -700,7 +707,9 @@ class TestExecution:
         assert set(k.errors.keys()) == {"0", "1"}
         assert len(k.errors["0"]) == 1
         assert len(k.errors["1"]) == 1
-        _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
+        _check_edges(
+            k.errors["0"][0], [("0", ("x",), "1"), ("1", ("y",), "0")]
+        )
 
         # break cycle by deleting cell
         await k.delete_cell(DeleteCellRequest(cell_id="1"))
@@ -740,8 +749,12 @@ class TestExecution:
             ]
         )
         assert set(k.errors.keys()) == {"0", "1"}
-        _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["x"], "0")])
-        _check_edges(k.errors["1"][0], [("0", ["x"], "1"), ("1", ["x"], "0")])
+        _check_edges(
+            k.errors["0"][0], [("0", ("x",), "1"), ("1", ("x",), "0")]
+        )
+        _check_edges(
+            k.errors["1"][0], [("0", ("x",), "1"), ("1", ("x",), "0")]
+        )
 
     async def test_delete_nonlocal_incremental_ref_raises_name_error(
         self, k: Kernel
@@ -1501,22 +1514,24 @@ except NameError:
         )
         # Runtime error expected- since not a kernel error check stderr
         assert "C" not in k.globals
+        stream = MockStream(k.stream)
+        stderr = MockStderr(k.stderr)
         if k.execution_type == "strict":
             assert (
                 "name `R` is referenced before definition."
-                in k.stream.messages[-4][1]["output"]["data"][0]["msg"]
+                in stream.operations[-4]["output"]["data"][0]["msg"]
             )
             assert (
                 "This cell wasn't run"
-                in k.stream.messages[-1][1]["output"]["data"][0]["msg"]
+                in stream.operations[-1]["output"]["data"][0]["msg"]
             )
         else:
             assert (
                 "Name `C` is not defined. It was expected to be defined in"
-                in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
+                in stream.operations[-2]["output"]["data"][0]["msg"]
             )
-            assert "NameError" in k.stderr.messages[0]
-            assert "NameError" in k.stderr.messages[-1]
+            assert "NameError" in stderr.messages[0]
+            assert "NameError" in stderr.messages[-1]
 
     @staticmethod
     async def test_run_scratch(mocked_kernel: MockedKernel) -> None:
@@ -1524,17 +1539,15 @@ except NameError:
         await k.run_scratchpad("x = 1; x")
         # Has no errors
         assert not k.errors
-        messages = mocked_kernel.stream.messages
-        (m1, m2, m3, m4) = messages
-        assert all(m[0] == "cell-op" for m in messages)
-        assert all(m[1]["cell_id"] == SCRATCH_CELL_ID for m in messages)
-        assert m1[1]["status"] == "queued"
-        assert m2[1]["status"] == "running"
-        assert m3[1]["status"] is None
-        assert (
-            m3[1]["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
-        )
-        assert m4[1]["status"] == "idle"
+        stream = MockStream(mocked_kernel.stream)
+        (m1, m2, m3, m4) = stream.operations
+        assert all(m["op"] == "cell-op" for m in stream.operations)
+        assert all(m["cell_id"] == SCRATCH_CELL_ID for m in stream.operations)
+        assert m1["status"] == "queued"
+        assert m2["status"] == "running"
+        assert m3["status"] is None
+        assert m3["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
+        assert m4["status"] == "idle"
         # Does not pollute globals
         assert "x" not in k.globals
 
@@ -1556,10 +1569,11 @@ except NameError:
         await k.run_scratchpad("y = z * 2; y")
         # Has no errors
         assert not k.errors
-        messages = mocked_kernel.stream.messages
+        stream = MockStream(mocked_kernel.stream)
+        messages = stream.operations
         output_message = messages[-2]
         assert (
-            output_message[1]["output"]["data"]
+            output_message["output"]["data"]
             == "<pre style='font-size: 12px'>20</pre>"
         )
         assert "z" in k.globals
@@ -1584,10 +1598,11 @@ except NameError:
         await k.run_scratchpad("z = 20; z")
         # Has no errors
         assert not k.errors
-        messages = mocked_kernel.stream.messages
+        stream = MockStream(mocked_kernel.stream)
+        messages = stream.operations
         output_message = messages[-2]
         assert (
-            output_message[1]["output"]["data"]
+            output_message["output"]["data"]
             == "<pre style='font-size: 12px'>20</pre>"
         )
         assert "z" in k.globals
@@ -1621,10 +1636,11 @@ except NameError:
         k = mocked_kernel.k
         await k.run([exec_req.get("print(2)")])
 
+        stream = MockStream(mocked_kernel.stream)
         cell_ops = [
             parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
+            for op_data in stream.operations
+            if op_data["op"] == "cell-op"
         ]
 
         assert len(cell_ops) == 4  # queued -> running -> output -> idle
@@ -2787,11 +2803,8 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
 
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
         assert n_queued == 1
@@ -2812,11 +2825,7 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        cell_ops = mocked_kernel.stream.cell_ops
 
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
         assert n_queued == 1
@@ -2839,11 +2848,8 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
 
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
         assert n_queued == 1
@@ -2864,11 +2870,8 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
 
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
         assert n_queued == 1
@@ -2890,11 +2893,8 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
 
         # er_1 and er_2
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
@@ -2929,11 +2929,8 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = [
-            parse_raw(op_data, CellOp)
-            for op_name, op_data in mocked_kernel.stream.messages
-            if op_name == "cell-op"
-        ]
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
 
         # er_1 and er_2
         n_queued = sum([1 for op in cell_ops if op.status == "queued"])
@@ -2961,36 +2958,46 @@ class TestStateTransitions:
         er = exec_req.get("x = 1")
         await k.run([er])
         initial_messages = len(
-            [m for m in stream.messages if m[0] == "variables"]
+            [m for m in stream.operations if isinstance(m, Variables)]
         )
         assert initial_messages == 1
 
         # Re-running same cell should now broadcast Variables
         stream.messages.clear()
         await k.run([er])
-        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+        assert (
+            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+        )
 
         # Adding a new variable should broadcast Variables
         stream.messages.clear()
         er_2 = exec_req.get("y = 1")
         await k.run([er_2])
-        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+        assert (
+            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+        )
 
         # Adding a new edge should broadcast Variables
         stream.messages.clear()
         await k.run([exec_req.get("z = y")])
-        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+        assert (
+            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+        )
 
         # Modifying value without changing edges/defs should now broadcast
         stream.messages.clear()
         er_2.code = "y = 2"
         await k.run([exec_req.get_with_id(er_2.cell_id, er_2.code)])
-        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+        assert (
+            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+        )
 
         # Deleting a cell should broadcast Variables
         stream.messages.clear()
         await k.delete_cell(DeleteCellRequest(cell_id=er_2.cell_id))
-        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+        assert (
+            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+        )
 
     @staticmethod
     async def test_variables_broadcast_on_usage_change(
@@ -3002,7 +3009,7 @@ class TestStateTransitions:
         from an imported module wouldn't update the frontend's dependency info.
         """
         k = mocked_kernel.k
-        stream = mocked_kernel.stream
+        stream = MockStream(mocked_kernel.stream)
 
         # Cell 1: Define multiple variables
         await k.run([exec_req.get("a = 1\nb = 2")])
@@ -3012,13 +3019,15 @@ class TestStateTransitions:
         er_2 = exec_req.get("print(a)\nprint(b)")
         await k.run([er_2])
         variables_msg_count = sum(
-            1 for m in stream.messages if m[0] == "variables"
+            1 for m in stream.operations if m["op"] == "variables"
         )
         assert variables_msg_count == 1
 
         # Check that both a and b show cell 2 in their used_by
-        variables_msg = next(m for m in stream.messages if m[0] == "variables")
-        variables = variables_msg[1]["variables"]
+        variables_msg = next(
+            m for m in stream.operations if m["op"] == "variables"
+        )
+        variables = variables_msg["variables"]
         var_a = next(v for v in variables if v["name"] == "a")
         var_b = next(v for v in variables if v["name"] == "b")
         assert er_2.cell_id in var_a["used_by"]
@@ -3030,13 +3039,15 @@ class TestStateTransitions:
 
         # Should broadcast Variables because usage changed
         variables_msg_count = sum(
-            1 for m in stream.messages if m[0] == "variables"
+            1 for m in stream.operations if m["op"] == "variables"
         )
         assert variables_msg_count == 1
 
         # Check that only a shows cell 2 in used_by now
-        variables_msg = next(m for m in stream.messages if m[0] == "variables")
-        variables = variables_msg[1]["variables"]
+        variables_msg = next(
+            m for m in stream.operations if m["op"] == "variables"
+        )
+        variables = variables_msg["variables"]
         var_a = next(v for v in variables if v["name"] == "a")
         var_b = next(v for v in variables if v["name"] == "b")
         assert er_2.cell_id in var_a["used_by"]
@@ -3055,7 +3066,7 @@ class TestErrorHandling:
         errors = _parse_error_output(error_cell_op[0])
 
         assert len(errors) == 1
-        assert errors[0].type == "exception"
+        assert isinstance(errors[0], MarimoExceptionRaisedError)
         assert errors[0].msg == "some secret error"
         assert errors[0].exception_type == "ValueError"
 
@@ -3070,7 +3081,7 @@ class TestErrorHandling:
         errors = _parse_error_output(error_cell_op[0])
 
         assert len(errors) == 1
-        assert errors[0].type == "internal"
+        assert isinstance(errors[0], MarimoInternalError)
         assert errors[0].msg.startswith("An internal error occurred: ")
 
     async def test_error_handling_in_run_mode_stop(
@@ -3089,7 +3100,7 @@ class TestErrorHandling:
         for op in error_cell_op:
             errors = _parse_error_output(op)
             assert len(errors) == 1
-            assert errors[0].type == "internal"
+            assert isinstance(errors[0], MarimoInternalError)
             assert errors[0].msg.startswith("An internal error occurred: ")
 
 
@@ -3117,18 +3128,263 @@ async def test_future_annotations_not_inherited(
     assert k.globals["A"] == k.globals["anno"]["return"]
 
 
+class TestMarkdownHandling:
+    """Test markdown cell handling during kernel instantiation."""
+
+    async def test_markdown_cells_rendered_on_instantiate(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        """Test that markdown cells are rendered and marked as completed on instantiate."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Create execution requests with markdown and regular cells
+        markdown_cell_code = (
+            'mo.md("# Hello World\\n\\nThis is **markdown**.")'
+        )
+        regular_cell_code = "x = 1"
+
+        execution_requests = [
+            ExecutionRequest(cell_id="md_cell", code=markdown_cell_code),
+            ExecutionRequest(cell_id="regular_cell", code=regular_cell_code),
+        ]
+
+        # Create a creation request with auto_run=False to trigger the markdown handling
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
+
+        # Clear stream before instantiate
+        stream.messages.clear()
+
+        # Add a cell that exports 'mo' to enable markdown processing
+        # This simulates the scenario where marimo has been imported
+        execution_requests.append(
+            ExecutionRequest(cell_id="mo_import", code="import marimo as mo")
+        )
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
+
+        # Instantiate the kernel
+        await k.instantiate(creation_request)
+
+        # Check that markdown cell was removed from uninstantiated requests
+        assert "md_cell" not in k._uninstantiated_execution_requests
+        # Regular cell should still be there
+        assert "regular_cell" in k._uninstantiated_execution_requests
+
+        # Check that the markdown cell output was broadcast
+        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
+
+        # Find operations for the markdown cell
+        md_cell_ops = [op for op in cell_ops if op.cell_id == "md_cell"]
+
+        # Should have at least one output operation and one stale operation
+        assert len(md_cell_ops) >= 2
+
+        # Check that there's an output operation with HTML content
+        output_ops = [op for op in md_cell_ops if op.output is not None]
+        assert len(output_ops) == 1
+
+        output_op = output_ops[0]
+        assert output_op.output.channel == CellChannel.OUTPUT
+        assert output_op.output.mimetype == "text/html"
+        assert "Hello World" in output_op.output.data
+        assert "<h1" in output_op.output.data  # Should be rendered as HTML
+        assert output_op.status == "idle"
+
+        # Check that the cell was marked as not stale
+        stale_ops = [op for op in md_cell_ops if op.stale_inputs is not None]
+        assert len(stale_ops) == 1
+        assert stale_ops[0].stale_inputs is False
+
+        # Check that regular cell was marked as stale
+        regular_cell_ops = [
+            op for op in cell_ops if op.cell_id == "regular_cell"
+        ]
+        regular_stale_ops = [
+            op for op in regular_cell_ops if op.stale_inputs is not None
+        ]
+        assert len(regular_stale_ops) == 1
+        assert regular_stale_ops[0].stale_inputs is True
+
+    async def test_non_markdown_cells_not_affected(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        """Test that non-markdown cells are not affected by markdown handling."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Create execution requests with only regular cells
+        execution_requests = [
+            ExecutionRequest(cell_id="cell1", code="x = 1"),
+            ExecutionRequest(cell_id="cell2", code="y = 2"),
+        ]
+
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
+
+        stream.messages.clear()
+        await k.instantiate(creation_request)
+
+        # All cells should remain in uninstantiated requests
+        assert "cell1" in k._uninstantiated_execution_requests
+        assert "cell2" in k._uninstantiated_execution_requests
+
+        # Check that all cells were marked as stale
+        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
+
+        for cell_id in ["cell1", "cell2"]:
+            cell_ops_for_id = [op for op in cell_ops if op.cell_id == cell_id]
+            stale_ops = [
+                op for op in cell_ops_for_id if op.stale_inputs is not None
+            ]
+            assert len(stale_ops) == 1
+            assert stale_ops[0].stale_inputs is True
+
+    async def test_malformed_markdown_cells_marked_stale(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        """Test that cells with syntax errors are marked as stale, not processed."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Create execution requests with malformed markdown cell
+        execution_requests = [
+            ExecutionRequest(
+                cell_id="bad_cell", code="mo.md("
+            ),  # Syntax error
+            ExecutionRequest(cell_id="good_md", code='mo.md("# Good")'),
+        ]
+
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
+
+        stream.messages.clear()
+
+        # Add a cell that exports 'mo' to enable markdown processing
+        # This simulates the scenario where marimo has been imported
+        execution_requests.append(
+            ExecutionRequest(cell_id="mo_import", code="import marimo as mo")
+        )
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
+
+        await k.instantiate(creation_request)
+
+        # Bad cell should remain in uninstantiated requests
+        assert "bad_cell" in k._uninstantiated_execution_requests
+        # Good markdown cell should be removed
+        assert "good_md" not in k._uninstantiated_execution_requests
+
+        # Check operations
+        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
+
+        # Bad cell should be marked as stale
+        bad_cell_ops = [op for op in cell_ops if op.cell_id == "bad_cell"]
+        bad_stale_ops = [
+            op for op in bad_cell_ops if op.stale_inputs is not None
+        ]
+        assert len(bad_stale_ops) == 1
+        assert bad_stale_ops[0].stale_inputs is True
+
+        # Good cell should have output and be marked as not stale
+        good_cell_ops = [op for op in cell_ops if op.cell_id == "good_md"]
+        good_output_ops = [op for op in good_cell_ops if op.output is not None]
+        assert len(good_output_ops) == 1
+        assert "Good" in good_output_ops[0].output.data
+
+    async def test_no_mo_available_all_cells_stale(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        """Test that when 'mo' is not available, all cells are marked as stale."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Create execution requests with markdown cells
+        execution_requests = [
+            ExecutionRequest(cell_id="md_cell1", code='mo.md("# Hello")'),
+            ExecutionRequest(cell_id="md_cell2", code='mo.md("## World")'),
+            ExecutionRequest(cell_id="regular_cell", code="x = 1"),
+        ]
+
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
+
+        stream.messages.clear()
+
+        # Ensure 'mo' is not in graph definitions by starting with empty graph
+        assert "mo" not in k.graph.definitions
+
+        await k.instantiate(creation_request)
+
+        # All cells should remain in uninstantiated requests since mo is not available
+        assert "md_cell1" in k._uninstantiated_execution_requests
+        assert "md_cell2" in k._uninstantiated_execution_requests
+        assert "regular_cell" in k._uninstantiated_execution_requests
+
+        # Check that all cells were marked as stale
+        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
+
+        for cell_id in ["md_cell1", "md_cell2", "regular_cell"]:
+            cell_ops_for_id = [op for op in cell_ops if op.cell_id == cell_id]
+            stale_ops = [
+                op for op in cell_ops_for_id if op.stale_inputs is not None
+            ]
+            assert len(stale_ops) == 1
+            assert stale_ops[0].stale_inputs is True
+
+        # No cells should have output operations
+        output_ops = [op for op in cell_ops if op.output is not None]
+        assert len(output_ops) == 0
+
+
 def _parse_error_output(cell_op: CellOp) -> list[Error]:
     error_output = cell_op.output
     assert error_output is not None
     assert error_output.channel == CellChannel.MARIMO_ERROR
     assert error_output.mimetype == "application/vnd.marimo+error"
     data = error_output.data
-
-    @dataclass
-    class Container:
-        errors: list[Error]
-
-    return parse_raw({"errors": data}, Container).errors
+    return cast(list[Error], data)
 
 
 def _filter_to_error_ops(cell_ops: list[CellOp]) -> list[CellOp]:

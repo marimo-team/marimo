@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.8"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -35,7 +35,7 @@ def _():
     )
 
     mo.hstack([pd_chart, pl_chart])
-    return alt, df, mo, pd, pd_chart, pl, pl_chart, pl_df
+    return alt, mo, pd_chart, pl_chart
 
 
 @app.cell

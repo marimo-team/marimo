@@ -1,12 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
-from decimal import Decimal
-from typing import Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 from marimo._types.ids import VariableName
+from marimo._utils.msgspec_basestruct import BaseStruct
 
 DataType = Literal[
     "string",
@@ -23,8 +22,7 @@ DataType = Literal[
 ExternalDataType = str
 
 
-@dataclass
-class DataTableColumn:
+class DataTableColumn(BaseStruct):
     """
     Represents a column in a data table.
 
@@ -40,6 +38,12 @@ class DataTableColumn:
     external_type: ExternalDataType
     sample_values: list[Any]
 
+    def __post_init__(self) -> None:
+        # Sometimes like pandas, sqlalchemy or ibis may return column names as objects
+        # instead of strings, although their type hints are str
+        # Instead of trying to track this down each time, just convert to string
+        self.name = str(self.name)
+
 
 # Local -> Python dataframes
 # DuckDB -> DuckDB tables using the global in-memory DuckDB instance
@@ -49,8 +53,7 @@ DataTableSource = Literal["local", "duckdb", "connection", "catalog"]
 DataTableType = Literal["table", "view"]
 
 
-@dataclass
-class DataTable:
+class DataTable(BaseStruct):
     """
     Represents a data table.
 
@@ -81,14 +84,12 @@ class DataTable:
     indexes: Optional[list[str]] = None
 
 
-@dataclass
-class Schema:
+class Schema(BaseStruct):
     name: str
-    tables: list[DataTable] = field(default_factory=list)
+    tables: list[DataTable]
 
 
-@dataclass
-class Database:
+class Database(BaseStruct):
     """
     Represents a collection of schemas.
 
@@ -101,20 +102,25 @@ class Database:
 
     name: str
     dialect: str
-    schemas: list[Schema] = field(default_factory=list)
+    schemas: list[Schema]
     engine: Optional[VariableName] = None
 
 
-NumericLiteral = Union[int, float, Decimal]
-TemporalLiteral = Union[date, time, datetime, timedelta]
-NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
+if TYPE_CHECKING:
+    from decimal import Decimal
+
+    NumericLiteral = Union[int, float, Decimal]
+    TemporalLiteral = Union[date, time, datetime, timedelta]
+    NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
+else:
+    # For runtime/msgspec, use Any since msgspec can't handle unions with
+    # multiple str-like types (str, datetime, date, time, timedelta)
+    NonNestedLiteral = Any
 
 
-@dataclass
-class ColumnStats:
+class ColumnStats(BaseStruct):
     """
     Represents stats for a column in a data table.
-
     """
 
     total: Optional[int] = None
@@ -134,8 +140,7 @@ class ColumnStats:
     p95: Optional[NonNestedLiteral] = None
 
 
-@dataclass
-class BinValue:
+class BinValue(BaseStruct):
     """
     Represents bin values for a column in a data table. This is used for plotting.
 
@@ -150,8 +155,7 @@ class BinValue:
     count: int
 
 
-@dataclass
-class ValueCount:
+class ValueCount(BaseStruct):
     """
     Represents a value and its count in a column in a data table.
     Currently used for string columns.
@@ -165,8 +169,7 @@ class ValueCount:
     count: int
 
 
-@dataclass
-class DataSourceConnection:
+class DataSourceConnection(BaseStruct):
     """
     Represents a data source connection.
 
@@ -184,6 +187,6 @@ class DataSourceConnection:
     dialect: str
     name: str
     display_name: str
-    databases: list[Database] = field(default_factory=list)
+    databases: list[Database]
     default_database: Optional[str] = None
     default_schema: Optional[str] = None

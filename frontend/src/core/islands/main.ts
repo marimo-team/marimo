@@ -16,7 +16,7 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { initializePlugins } from "@/plugins/plugins";
 import { logNever } from "@/utils/assertNever";
 import { Functions } from "@/utils/functions";
-import type { Base64String } from "@/utils/json/base64";
+import { safeExtractSetUIElementMessageBuffers } from "@/utils/json/base64";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Logger } from "@/utils/Logger";
 import {
@@ -103,7 +103,7 @@ export async function initialize() {
   // Consume messages from the kernel
   IslandsPyodideBridge.INSTANCE.consumeMessages((message) => {
     const msg = jsonParseWithSpecialChar(message);
-    switch (msg.op) {
+    switch (msg.data.op) {
       case "banner":
       case "missing-package-alert":
       case "installing-package-alert":
@@ -119,7 +119,9 @@ export async function initialize() {
       case "sql-table-list-preview":
       case "datasets":
       case "data-source-connections":
+      case "validate-sql-result":
       case "secret-keys-result":
+      case "startup-logs":
         // Unsupported
         return;
       case "kernel-ready":
@@ -143,7 +145,7 @@ export async function initialize() {
         UI_ELEMENT_REGISTRY.broadcastMessage(
           msg.data.ui_element as UIElementId,
           msg.data.message,
-          msg.data.buffers as Base64String[],
+          safeExtractSetUIElementMessageBuffers(msg.data),
         );
         return;
 
@@ -184,7 +186,7 @@ export async function initialize() {
       case "reconnected":
         return;
       default:
-        logNever(msg);
+        logNever(msg.data);
     }
   });
 

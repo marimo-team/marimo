@@ -10,16 +10,18 @@ from marimo._server.models.completion import (
     SchemaTable,
     VariableContext,
 )
+from marimo._types.ids import SessionId
 
 FIM_PREFIX_TAG = "<|fim_prefix|>"
 FIM_SUFFIX_TAG = "<|fim_suffix|>"
 FIM_MIDDLE_TAG = "<|fim_middle|>"
 
-language_rules = {
+LANGUAGES: list[Language] = ["python", "sql", "markdown"]
+language_rules: dict[Language, list[str]] = {
     "python": [
         "For matplotlib: use plt.gca() as the last expression instead of plt.show().",
         "For plotly: return the figure object directly.",
-        "For altair: return the chart object directly. Add tooltips where appropriate.",
+        "For altair: return the chart object directly. Add tooltips where appropriate. You can pass polars dataframes directly to altair (e.g., alt.Chart(df)).",
         "Include proper labels, titles, and color schemes.",
         "Make visualizations interactive where appropriate.",
         "If an import already exists, do not import it again.",
@@ -29,6 +31,15 @@ language_rules = {
     "sql": [
         "The SQL must use duckdb syntax.",
     ],
+}
+
+
+language_rules_multiple_cells: dict[Language, list[str]] = {
+    "sql": [
+        'SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.',
+        "This will automatically display the result in the UI. You do not need to return the dataframe in the cell.",
+        "The SQL must use the syntax of the database engine specified in the `engine` variable. If no engine, then use duckdb syntax.",
+    ]
 }
 
 
@@ -86,6 +97,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
     *,
     language: Language,
     is_insert: bool,
+    support_multiple_cells: bool,
     custom_rules: Optional[str],
     cell_code: Optional[str],
     selected_text: Optional[str],
@@ -94,6 +106,21 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
 ) -> str:
     if cell_code:
         system_prompt = f"Here's a {language} document from a Python notebook that I'm going to ask you to make an edit to.\n\n"
+    elif support_multiple_cells:
+        system_prompt = (
+            "You are an AI assistant integrated into the marimo notebook code editor.\n"
+            "Your goal is to create new cells in the notebook.\n"
+            "You can create multiple cells with different languages. Each cell should be wrapped in backticks.\n"
+            "The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.\n"
+            "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
+            "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
+            "```python\n{PYTHON_CODE}\n```\n\n"
+            '```sql\ndf_name = mo.sql(f"""{SQL_QUERY}""")\n```\n\n'
+            '```markdown\nmo.md(f"""{MARKDOWN_CONTENT}""")\n```\n\n'
+            "You can have multiple cells of any type. Each cell is wrapped in backticks with the appropriate language identifier.\n"
+            "Create clear variable names if they will be used in other cells. Do not prefix with underscore.\n"
+            "Separate logic into multiple cells to keep the code organized and readable."
+        )
     else:
         system_prompt = (
             "You are an AI assistant integrated into the marimo notebook code editor.\n"
@@ -147,7 +174,17 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
         system_prompt += "\n\nAnd here's the section to rewrite based on that prompt again for reference:\n\n"
         system_prompt += _tag("rewrite_this", selected_text)
 
-    if language in language_rules and language_rules[language]:
+    if support_multiple_cells:
+        # Add all language rules for multi-cell scenarios
+        for lang in LANGUAGES:
+            language_rule = language_rules_multiple_cells.get(
+                lang, language_rules.get(lang, [])
+            )
+            if language_rule:
+                system_prompt += (
+                    f"\n\n## Rules for {lang}:\n{_rules(language_rule)}"
+                )
+    elif language in language_rules and language_rules[language]:
         system_prompt += (
             f"\n\n## Rules for {language}\n{_rules(language_rules[language])}"
         )
@@ -165,7 +202,10 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             "code_from_other_cells", other_cell_codes
         )
 
-    system_prompt += "\n\nAgain, just output the code itself."
+    if support_multiple_cells:
+        system_prompt += "\n\nAgain, just output code wrapped in cells. Each cell is wrapped in backticks with the appropriate language identifier (python, sql, markdown)."
+    else:
+        system_prompt += f"\n\nAgain, just output the code itself and make sure to return the code as just {language}."
 
     return system_prompt
 
@@ -206,15 +246,24 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
         )
 
 
+def _get_session_info(session_id: SessionId) -> str:
+    return (
+        f"Current notebook session ID: {session_id}. "
+        "Use this session_id with tools that require it."
+    )
+
+
 def get_chat_system_prompt(
     *,
     custom_rules: Optional[str],
     context: Optional[AiCompletionContext],
     include_other_code: str,
     mode: CopilotMode,
+    session_id: SessionId,
 ) -> str:
     system_prompt: str = f"""
 {_get_mode_intro_message(mode)}
+{_get_session_info(session_id)}
 
 Your goal is to do one of the following two things:
 
@@ -249,6 +298,14 @@ Marimo's reactivity means:
 - You cannot access a UI element's value in the same cell where it's defined
 
 ## Best Practices
+
+<data_handling>
+- Use polars for data manipulation
+- Implement proper data validation
+- Handle missing values appropriately
+- Use efficient data structures
+- A variable in the last expression of a cell is automatically displayed as a table
+</data_handling>
 
 <ui_elements>
 - Access UI element values with .value attribute (e.g., slider.value)
@@ -297,7 +354,8 @@ Marimo's reactivity means:
 
 <example title="Basic UI with reactivity">
 import marimo as mo
-import matplotlib.pyplot as plt
+import altair as alt
+import polars as pl
 import numpy as np
 
 # Create a slider and display it
@@ -309,12 +367,18 @@ n_points  # Display the slider
 x = np.random.rand(n_points.value)
 y = np.random.rand(n_points.value)
 
-plt.figure(figsize=(8, 6))
-plt.scatter(x, y, alpha=0.7)
-plt.title(f"Scatter plot with {{n_points.value}} points")
-plt.xlabel("X axis")
-plt.ylabel("Y axis")
-plt.gca()  # Return the current axes to display the plot
+df = pl.DataFrame({{"x": x, "y": y}})
+
+chart = alt.Chart(df).mark_circle(opacity=0.7).encode(
+    x=alt.X('x', title='X axis'),
+    y=alt.Y('y', title='Y axis')
+).properties(
+    title=f"Scatter plot with {{n_points.value}} points",
+    width=400,
+    height=300
+)
+
+chart
 </example>"""
 
     for language in language_rules:

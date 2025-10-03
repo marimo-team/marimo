@@ -18,7 +18,7 @@ import "./dependency-graph.css";
 interface Props {
   cellIds: CellId[];
   variables: Variables;
-  cellAtoms: Array<Atom<CellData>>;
+  cellAtoms: Atom<CellData>[];
   children?: React.ReactNode;
 }
 

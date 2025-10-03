@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.31"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -8,36 +8,36 @@ app = marimo.App(width="medium")
 def _(mo):
     mo.md(
         """
-        ## Markdown / Latex Highlighting
+    ## Markdown / Latex Highlighting
 
-        ```ts
-        console.log("highlight code fences")
-        ```
+    ```ts
+    console.log("highlight code fences")
+    ```
 
-        ```python
-        def lang_python():
-            pass
-        ```
+    ```python
+    def lang_python():
+        pass
+    ```
 
-        ```
-        def no_language():
-            pass
-        ```
+    ```
+    def no_language():
+        pass
+    ```
 
-        **bold**
+    **bold**
 
-        _italic_
+    _italic_
 
-        $\sigma\sqrt{100}$
+    $\sigma\sqrt{100}$
 
-        $$
-        \sigma\sqrt{100}
-        $$
+    $$
+    \sigma\sqrt{100}
+    $$
 
-        \[ \sigma\sqrt{100} \]
+    \[ \sigma\sqrt{100} \]
 
-        \( \sigma\sqrt{100} \)
-        """
+    \( \sigma\sqrt{100} \)
+    """
     )
     return
 

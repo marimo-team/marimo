@@ -9,18 +9,18 @@
 
 import marimo
 
-__generated_with = "0.8.18"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Plotly Express Chart""")
     return
 
 
 @app.cell
-def __():
+def _():
     import plotly.express as px
 
     px.scatter(x=[0, 1, 2, 3, 4], y=[0, 1, 4, 9, 16])
@@ -28,7 +28,7 @@ def __():
 
 
 @app.cell
-def __(mo, px):
+def _(mo, px):
     plot = mo.ui.plotly(
         px.scatter(x=[0, 1, 2, 3, 4], y=[0, 1, 4, 9, 16], width=600)
     )
@@ -42,7 +42,7 @@ def __(mo, px):
 
 
 @app.cell
-def __(mo, plot):
+def _(mo, plot):
     mo.vstack(
         [
             mo.hstack(
@@ -66,13 +66,13 @@ def __(mo, plot):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Plotly Graph Objects Chart""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     import pandas as pd
     import plotly.graph_objects as go
 
@@ -118,39 +118,39 @@ def __(mo):
 
     plot2 = mo.ui.plotly(fig)
     plot2
-    return contestant, df, fig, go, group, pd, plot2
+    return go, pd, plot2
 
 
 @app.cell
-def __(mo, plot2):
+def _(mo, plot2):
     mo.ui.table(plot2.value, selection=None)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Re-rendering Chart""")
     return
 
 
 @app.cell
-def __():
+def _():
     import vega_datasets as datasets
     import marimo as mo
 
     cars = datasets.data.cars()
-    return cars, datasets, mo
+    return cars, mo
 
 
 @app.cell
-def __(cars, mo):
+def _(cars, mo):
     sample_size = mo.ui.slider(label="Sample", start=100, stop=len(cars), step=100)
     sample_size
     return (sample_size,)
 
 
 @app.cell
-def __(cars, mo, px, sample_size):
+def _(cars, mo, px, sample_size):
     _fig = px.scatter(
         cars.sample(sample_size.value),
         x="Horsepower",
@@ -167,19 +167,19 @@ def __(cars, mo, px, sample_size):
 
 
 @app.cell
-def __(mo, plot3):
+def _(mo, plot3):
     mo.ui.table(plot3.value, selection=None)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# 3D Chart""")
     return
 
 
 @app.cell
-def __(go, pd):
+def _(go, pd):
     # load dataset
     _df = pd.read_csv(
         "https://raw.githubusercontent.com/plotly/datasets/master/volcano.csv"

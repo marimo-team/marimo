@@ -19,11 +19,14 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import React, { memo } from "react";
+import { useLocale } from "react-aria";
 
 import { Table } from "@/components/ui/table";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
 import type { PanelType } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
+import { CellHoverTemplateFeature } from "./cell-hover-template/feature";
+import { CellHoverTextFeature } from "./cell-hover-text/feature";
 import { CellSelectionFeature } from "./cell-selection/feature";
 import type { CellSelectionState } from "./cell-selection/types";
 import { CellStylingFeature } from "./cell-styling/feature";
@@ -45,7 +48,8 @@ import { getStableRowId } from "./utils";
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
   className?: string;
-  columns: Array<ColumnDef<TData>>;
+  maxHeight?: number;
+  columns: ColumnDef<TData>[];
   data: TData[];
   // Sorting
   manualSorting?: boolean; // server-side sorting
@@ -63,6 +67,8 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   rowSelection?: RowSelectionState;
   cellSelection?: CellSelectionState;
   cellStyling?: CellStyleState | null;
+  hoverTemplate?: string | null;
+  cellHoverTexts?: Record<string, Record<string, string | null>> | null;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;
@@ -92,6 +98,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
 const DataTableInternal = <TData,>({
   wrapperClassName,
   className,
+  maxHeight,
   columns,
   data,
   selection,
@@ -103,6 +110,8 @@ const DataTableInternal = <TData,>({
   rowSelection,
   cellSelection,
   cellStyling,
+  hoverTemplate,
+  cellHoverTexts,
   paginationState,
   setPaginationState,
   downloadAs,
@@ -131,6 +140,7 @@ const DataTableInternal = <TData,>({
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
   const [showLoadingBar, setShowLoadingBar] = React.useState<boolean>(false);
+  const { locale } = useLocale();
 
   const { columnPinning, setColumnPinning } = useColumnPinning(
     freezeColumnsLeft,
@@ -176,6 +186,8 @@ const DataTableInternal = <TData,>({
       ColumnFormattingFeature,
       CellSelectionFeature,
       CellStylingFeature,
+      CellHoverTextFeature,
+      CellHoverTemplateFeature,
       CopyColumnFeature,
       FocusRowFeature,
     ],
@@ -199,6 +211,7 @@ const DataTableInternal = <TData,>({
           },
         }
       : {}),
+    locale: locale,
     manualPagination: manualPagination,
     getPaginationRowModel: getPaginationRowModel(),
     // sorting
@@ -238,14 +251,46 @@ const DataTableInternal = <TData,>({
           ? {}
           : // No pagination, show all rows
             { pagination: { pageIndex: 0, pageSize: data.length } }),
-      rowSelection,
-      cellSelection,
+      rowSelection: rowSelection ?? {},
+      cellSelection: cellSelection ?? [],
       cellStyling,
       columnPinning: columnPinning,
+      cellHoverTemplate: hoverTemplate,
+      cellHoverTexts: cellHoverTexts ?? {},
     },
   });
 
   const rowViewerPanelOpen = isPanelOpen?.("row-viewer") ?? false;
+
+  const tableRef = React.useRef<HTMLTableElement | null>(null);
+
+  // Why use a ref to set max-height on the wrapper?
+  // - position: sticky only works when the sticky element's nearest scrollable
+  //   ancestor is its immediate container. If max-height/overflow are applied
+  //   on a grandparent, sticky table headers (th) will not stick.
+  // - We keep the scroll wrapper colocated with the base Table component, but
+  //   derive the scroll boundary from maxHeight here to avoid coupling UI base
+  //   components to data-table specifics or expanding their API surface.
+  // - Setting styles on the table's direct wrapper ensures the header sticks
+  //   reliably across browsers without changing upstream components.
+  React.useEffect(() => {
+    if (!tableRef.current) {
+      return;
+    }
+    const wrapper = tableRef.current.parentElement as HTMLDivElement | null;
+    if (!wrapper) {
+      return;
+    }
+    if (maxHeight) {
+      wrapper.style.maxHeight = `${maxHeight}px`;
+      // Ensure wrapper scrolls
+      if (!wrapper.style.overflow) {
+        wrapper.style.overflow = "auto";
+      }
+    } else {
+      wrapper.style.removeProperty("max-height");
+    }
+  }, [maxHeight]);
 
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
@@ -260,11 +305,11 @@ const DataTableInternal = <TData,>({
             reloading={reloading}
           />
         )}
-        <Table className="relative">
+        <Table className="relative" ref={tableRef}>
           {showLoadingBar && (
             <div className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
           )}
-          {renderTableHeader(table)}
+          {renderTableHeader(table, Boolean(maxHeight))}
           <CellSelectionProvider>
             <DataTableBody
               table={table}

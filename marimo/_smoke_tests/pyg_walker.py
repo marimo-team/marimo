@@ -10,12 +10,12 @@
 
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import pandas as pd
     import pygwalker as pyg
 
@@ -24,18 +24,18 @@ def __():
 
 
 @app.cell
-def __(pd):
+def _(pd):
     df = pd.read_csv(
         "https://raw.githubusercontent.com/plotly/datasets/master/gapminderDataFiveYear.csv"
     )
-    return df,
+    return (df,)
 
 
 @app.cell
-def __(df, mo, pyg):
+def _(df, mo, pyg):
     walker = pyg.walk(df, kernel_computation=True)
     mo.Html(walker.to_html())
-    return walker,
+    return
 
 
 if __name__ == "__main__":

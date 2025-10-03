@@ -37,3 +37,38 @@
   id: marimo
   description: marimo's hosted models.
   url: https://docs.marimo.io/guides/editor_features/ai_completion/
+
+- name: DeepSeek
+  id: deepseek
+  description: DeepSeek's API for GPT models.
+  url: https://deepseek.com/
+
+- name: LM Studio
+  id: lmstudio
+  description: LM Studio's API for GPT models.
+  url: https://lmstudio.ai/
+
+- name: OpenRouter
+  id: openrouter
+  description: OpenRouter's API for GPT models.
+  url: https://openrouter.ai/
+
+- name: Mistral
+  id: mistral
+  description: Mistral's API for GPT models.
+  url: https://mistral.ai/
+
+- name: Vercel v0
+  id: vercel
+  description: Vercel's API for GPT models.
+  url: https://vercel.com/
+
+- name: Together AI
+  id: together
+  description: Together AI's API for GPT models.
+  url: https://together.ai/
+
+- name: xAI
+  id: xai
+  description: xAI's API for GPT models.
+  url: https://x.ai/

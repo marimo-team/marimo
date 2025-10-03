@@ -1,22 +1,19 @@
-from __future__ import annotations
-
 import marimo
 
-__generated_with = "0.8.4"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import pandas as pd
 
     import marimo as mo
-
     return mo, pd
 
 
 @app.cell
-def __():
+def _():
     data = [
         {
             "block_number": 8021365,
@@ -28,13 +25,13 @@ def __():
 
 
 @app.cell
-def __(data, mo, pd):
+def _(data, mo, pd):
     mo.ui.table(pd.DataFrame(data))
     return
 
 
 @app.cell
-def __(data, mo, pd):
+def _(data, mo, pd):
     mo.ui.dataframe(pd.DataFrame(data))
     return
 

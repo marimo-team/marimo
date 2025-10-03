@@ -314,7 +314,8 @@ task_list = mo.ui.array(
 ```
 
 ```python
-mo.hstack(
+inputs = mo.hstack(
     [task_entry_box, add_task_button, clear_tasks_button], justify="start"
 )
+mo.vstack([inputs, task_list])
 ```

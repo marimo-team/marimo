@@ -1,20 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { FileUIPart } from "ai";
 import { FileIcon, FileTextIcon, ImageIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-import type { ChatAttachment } from "@/core/ai/types";
 import { cn } from "@/utils/cn";
 
 export const AttachmentRenderer = ({
   attachment,
 }: {
-  attachment: ChatAttachment;
+  attachment: FileUIPart;
 }) => {
-  if (attachment.contentType?.startsWith("image/")) {
+  if (attachment.mediaType?.startsWith("image/")) {
     return (
       <img
         src={attachment.url}
-        alt={attachment.name}
+        alt={attachment.filename}
         className="max-h-[100px] max-w-[100px] object-contain mb-1.5"
       />
     );
@@ -23,7 +23,7 @@ export const AttachmentRenderer = ({
   return (
     <div className="flex flex-row gap-1 items-center text-xs">
       <FileIcon className="h-3 w-3 mt-0.5" />
-      {attachment.name}
+      {attachment.filename}
     </div>
   );
 };

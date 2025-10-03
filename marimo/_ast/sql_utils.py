@@ -4,6 +4,7 @@ from typing import Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._sql.error_utils import log_sql_error
 
 LOGGER = _loggers.marimo_logger()
 
@@ -33,7 +34,14 @@ def classify_sql_statement(
         with _loggers.suppress_warnings_logs("sqlglot"):
             expression_list = parse(sql_statement, dialect=dialect)
     except ParseError as e:
-        LOGGER.debug(f"Unable to parse SQL. Error: {e}")
+        log_sql_error(
+            LOGGER.debug,
+            message="Failed to parse SQL statement for classification.",
+            exception=e,
+            rule_code="MF005",
+            node=None,
+            sql_content=sql_statement,
+        )
         return "unknown"
 
     for expression in expression_list:

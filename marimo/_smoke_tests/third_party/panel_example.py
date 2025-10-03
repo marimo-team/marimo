@@ -1,20 +1,20 @@
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import panel as pn
 
     pn.extension("vega")
-    return mo, pn
+    return (pn,)
 
 
 @app.cell
-def __(pn):
+def _(pn):
     slider = pn.widgets.IntSlider(start=0, end=10, value=5)
 
     slider.rx() * "🚀"
@@ -22,13 +22,13 @@ def __(pn):
 
 
 @app.cell
-def __(pn, slider):
+def _(pn, slider):
     pn.Column(slider, pn.pane.Markdown("🚀"))
     return
 
 
 @app.cell
-def __(pn):
+def _(pn):
     [
         pn.widgets.FloatSlider(value=3.14),
         pn.widgets.Select(

@@ -985,7 +985,54 @@ class TestDataHash:
             return (two,)
 
 
-# Skip for now, as the local branch is cache busting
+class TestCustomHash:
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.has("pydantic"),
+        reason="optional dependencies not installed",
+    )
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
+    )
+    async def test_pydantic_model_hash(app: App) -> None:
+        with app.setup:
+            import pydantic
+
+            import marimo as mo
+
+        @app.class_definition
+        class Model(pydantic.BaseModel):
+            a: int
+            b: str
+
+        @app.function
+        @mo.cache
+        def use_model(model: Model) -> tuple[int, str]:
+            return model.a, model.b
+
+        @app.cell
+        def _check_deterministic() -> None:
+            assert use_model.hits == 0
+            model = Model(a=1, b="test")
+            a, b = use_model(model)
+            initial_hash = use_model._last_hash
+            a, b = use_model(model)  # Cache hit
+            assert use_model.hits == 1
+            model_copy = Model(a=1, b="test")
+            A, B = use_model(model_copy)  # Cache hit, different instance
+            assert use_model.hits == 2
+            assert (a, b) == (A, B) == (1, "test")
+            assert use_model._last_hash == initial_hash
+
+        @app.cell
+        def _check_different(a: int, b: str, initial_hash: str) -> None:
+            diff_model = Model(a=2, b="test")
+            c, d = use_model(diff_model)
+            assert use_model.hits == 2
+            assert (c, d) != (a, b)
+            assert initial_hash != use_model._last_hash
+
+
 class TestDynamicHash:
     @staticmethod
     async def test_transitive_state_hash(

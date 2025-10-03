@@ -7,27 +7,27 @@
 
 import marimo
 
-__generated_with = "0.8.13"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.accordion(
         {
-            """**e)** Diria que o trabalho, a educação e a idade explicam muita da variação no sono? Que outros fatores poderiam afetar o tempo passado a dormir? Estarão esses fatores provavelmente correlacionados com o trabalho?""": """
-        - O $R^2 = 0.113$ é reduzido
-        - Só 11.3% da variabilidade do sono é explicada pelas variáveis explicativas escolhidas para o modelo
-        - Há fatores que ficaram de fora do modelo que podem influenciar o sono. Exemplos:
+            """**e)** Would you say that work, education, and age explain much of the variation in sleep? What other factors could affect the time spent sleeping? Are these factors likely to be correlated with work?""": """
+        - The $R^2 = 0.113$ is low
+        - Only 11.3% of the variability in sleep is explained by the explanatory variables chosen for the model
+        - There are factors left out of the model that may influence sleep. Examples:
             - _Stress_
-            - Idade dos filhos
-            - Profissão
+            - Age of children
+            - Profession
         """
         }
     )
@@ -35,13 +35,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.accordion(
         {
-            r"""**a)** Estime os coeficientes da regressão de $Y$ sobre $X_1$, bem como o error padrão da regressão e o $R^2$. O que pensa da estimativa de $\beta_1$?""": mo.md(
+            r"""**a)** Estimate the coefficients of the regression of $Y$ on $X_1$, as well as the standard error of the regression and $R^2$. What do you think of the estimate of $\beta_1$?""": mo.md(
                 """
-                - Introduzindo o commando `regress Y X1` obtemos a estimação abaixo
-                - A estimativa para $\beta_1$ é inesperada, pois contradiz a teoria económica de que existe uma relação negativa entre o preço e as vendas.
+                - By entering the command `regress Y X1` we obtain the estimation below
+                - The estimate for $\beta_1$ is unexpected, as it contradicts the economic theory that there is a negative relationship between price and sales.
                 """
             )
         }
@@ -50,19 +50,19 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
-    mo.md(r"""**b)** Se o valor esperado de $X$ for a média dos seus dois valores referidos na alínea anterior, qual acha que será o valor esperado de $Y$? Confirme a sua resposta usando a lei das expectativas iteradas.""")
+def _(mo):
+    mo.md(r"""**b)** If the expected value of $X$ is the average of its two values mentioned in the previous part, what do you think the expected value of $Y$ will be? Confirm your answer using the law of iterated expectations.""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.accordion(
         {
-            """**b)** Se o valor esperado de $X$ for a média dos seus dois valores referidos na alínea anterior, qual acha que será o valor esperado de $Y$? Confirme a sua resposta usando a lei das expectativas iteradas.""": mo.md("""        
+            """**b)** If the expected value of $X$ is the average of its two values mentioned in the previous part, what do you think the expected value of $Y$ will be? Confirm your answer using the law of iterated expectations.""": mo.md("""
     		$$\\mathbb{{E}}\\left[Y \\middle| X = \\frac{{800 + 1400}}{{2}}\\right] = \\mathbb{{E}}\\left[Y | X = 1100\\right] = 0.7 + 0.002 \\times 1100$$
 
-            Podemos confirmar a lei das expectativas iteradas:
+            We can confirm the law of iterated expectations:
             """)
         }
     )

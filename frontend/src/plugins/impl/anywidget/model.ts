@@ -10,15 +10,16 @@ import { assertNever } from "@/utils/assertNever";
 import { Deferred } from "@/utils/Deferred";
 import { updateBufferPaths } from "@/utils/data-views";
 import { throwNotImplemented } from "@/utils/functions";
-import type { Base64String } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 
 export type EventHandler = (...args: any[]) => void;
 
 class ModelManager {
   private models = new Map<string, Deferred<Model<any>>>();
-
-  constructor(private timeout = 10_000) {}
+  private timeout: number;
+  constructor(timeout = 10_000) {
+    this.timeout = timeout;
+  }
 
   get(key: string): Promise<Model<any>> {
     let deferred = this.models.get(key);
@@ -64,16 +65,25 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
   private ANY_CHANGE_EVENT = "change";
   private dirtyFields;
   public static _modelManager: ModelManager = MODEL_MANAGER;
+  private data: T;
+  private onChange: (value: Partial<T>) => void;
+  private sendToWidget: (req: {
+    content?: any;
+    buffers?: ArrayBuffer[] | ArrayBufferView[];
+  }) => Promise<null | undefined>;
 
   constructor(
-    private data: T,
-    private onChange: (value: Partial<T>) => void,
-    private sendToWidget: (req: {
+    data: T,
+    onChange: (value: Partial<T>) => void,
+    sendToWidget: (req: {
       content?: any;
       buffers?: ArrayBuffer[] | ArrayBufferView[];
     }) => Promise<null | undefined>,
     initialDirtyFields: Set<keyof T>,
   ) {
+    this.data = data;
+    this.onChange = onChange;
+    this.sendToWidget = sendToWidget;
     this.dirtyFields = new Set(initialDirtyFields);
   }
 
@@ -160,7 +170,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
    * When receiving a message from the backend.
    * We want to notify all listeners with `msg:custom`
    */
-  receiveCustomMessage(message: any, buffers?: DataView[]): void {
+  receiveCustomMessage(message: any, buffers: readonly DataView[] = []): void {
     const response = AnyWidgetMessageSchema.safeParse(message);
     if (response.success) {
       const data = response.data;
@@ -204,7 +214,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
 }
 
 const BufferPathSchema = z.array(z.array(z.union([z.string(), z.number()])));
-const StateSchema = z.record(z.any());
+const StateSchema = z.record(z.string(), z.any());
 
 const AnyWidgetMessageSchema = z.discriminatedUnion("method", [
   z.object({
@@ -249,7 +259,7 @@ export async function handleWidgetMessage({
 }: {
   modelId: string;
   msg: AnyWidgetMessage;
-  buffers: Base64String[];
+  buffers: readonly DataView[];
   modelManager: ModelManager;
 }): Promise<void> {
   if (msg.method === "echo_update") {

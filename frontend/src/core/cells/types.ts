@@ -93,7 +93,7 @@ export interface CellRuntimeState {
   /** TOC outline */
   outline: Outline | null;
   /** messages encoding the cell's console outputs. */
-  consoleOutputs: Array<WithResponse<OutputMessage>>;
+  consoleOutputs: WithResponse<OutputMessage>[];
   /** current status of the cell */
   status: RuntimeState;
   /** whether the cell has stale inputs*/

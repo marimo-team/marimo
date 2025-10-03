@@ -18,6 +18,7 @@ from marimo._server.models.completion import (
     SchemaTable,
     VariableContext,
 )
+from marimo._types.ids import SessionId
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -34,6 +35,7 @@ def test_system_prompts():
         result += get_refactor_or_insert_notebook_cell_system_prompt(
             language=cast(Language, language),
             is_insert=False,
+            support_multiple_cells=False,
             custom_rules=None,
             cell_code=None,
             selected_text=None,
@@ -45,6 +47,7 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules="Always use type hints.",
         cell_code=None,
         selected_text=None,
@@ -55,6 +58,7 @@ def test_system_prompts():
     result += _header("with context")
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
+        support_multiple_cells=False,
         context=AiCompletionContext(
             schema=[
                 SchemaTable(
@@ -84,6 +88,7 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=True,
+        support_multiple_cells=False,
         custom_rules=None,
         cell_code="def fib(n):\n    <insert_here></insert_here>",
         selected_text=None,
@@ -95,6 +100,7 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules=None,
         cell_code="def hello():\n    <rewrite_this>print('Hello, world!')</rewrite_this>",
         selected_text="print('Hello, world!')",
@@ -106,6 +112,7 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules=None,
         cell_code="def hello():\n    <rewrite_this>print('Hello, world!')</rewrite_this>",
         selected_text="print('Hello, world!')",
@@ -117,6 +124,7 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules=None,
         cell_code="<rewrite_this>pl.DataFrame()</rewrite_this>",
         selected_text="pl.DataFrame()",
@@ -128,6 +136,32 @@ def test_system_prompts():
     result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
+        custom_rules=None,
+        cell_code=None,
+        selected_text=None,
+        other_cell_codes=None,
+        context=AiCompletionContext(
+            variables=[
+                VariableContext(
+                    name="df",
+                    value_type="DataFrame",
+                    preview_value="<DataFrame with 100 rows and 5 columns>",
+                ),
+                VariableContext(
+                    name="model",
+                    value_type="Model",
+                    preview_value="<Model object>",
+                ),
+            ]
+        ),
+    )
+
+    result += _header("with support_multiple_cells=True")
+    result += get_refactor_or_insert_notebook_cell_system_prompt(
+        language="python",
+        is_insert=False,
+        support_multiple_cells=True,
         custom_rules=None,
         cell_code=None,
         selected_text=None,
@@ -155,6 +189,7 @@ def test_empty_rules():
     assert get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules=None,
         cell_code=None,
         selected_text=None,
@@ -163,6 +198,7 @@ def test_empty_rules():
     ) == get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         is_insert=False,
+        support_multiple_cells=False,
         custom_rules="  ",
         cell_code=None,
         selected_text=None,
@@ -181,7 +217,11 @@ def test_chat_system_prompts():
     result: str = ""
     result += _header("no custom rules")
     result += get_chat_system_prompt(
-        custom_rules=None, include_other_code="", context=None, mode="manual"
+        custom_rules=None,
+        include_other_code="",
+        context=None,
+        mode="manual",
+        session_id=SessionId("s_test"),  # stable fake session id for snapshot
     )
 
     result += _header("with custom rules")
@@ -190,6 +230,7 @@ def test_chat_system_prompts():
         include_other_code="",
         context=None,
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     result += _header("with variables")
@@ -200,6 +241,7 @@ def test_chat_system_prompts():
             variables=["var1", "var2"],
         ),
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     result += _header("with VariableContext objects")
@@ -221,6 +263,7 @@ def test_chat_system_prompts():
             ]
         ),
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     result += _header("with context")
@@ -256,6 +299,7 @@ def test_chat_system_prompts():
             ],
         ),
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     result += _header("with other code")
@@ -264,6 +308,7 @@ def test_chat_system_prompts():
         include_other_code="import pandas as pd\nimport numpy as np\n",
         context=None,
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     result += _header("kitchen sink")
@@ -289,6 +334,7 @@ def test_chat_system_prompts():
             ],
         ),
         mode="manual",
+        session_id=SessionId("s_test"),
     )
 
     snapshot("chat_system_prompts.txt", result)

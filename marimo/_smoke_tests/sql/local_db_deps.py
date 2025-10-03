@@ -1,27 +1,27 @@
 import marimo
 
-__generated_with = "0.9.16"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     _df = mo.sql(
         f"""
         ATTACH 'my_db.db' as my_db;
         """
     )
-    return (my_db,)
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     _df = mo.sql(
         f"""
         CREATE OR REPLACE TABLE my_db.my_table as (SELECT 42);
@@ -31,7 +31,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo, my_db, my_table):
+def _(mo):
     _df = mo.sql(
         f"""
         SELECT * FROM my_db.main.my_table LIMIT 100

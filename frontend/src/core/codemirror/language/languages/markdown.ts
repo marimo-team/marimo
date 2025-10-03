@@ -103,6 +103,9 @@ export class MarkdownLanguageAdapter
     code: string,
     metadata: MarkdownLanguageAdapterMetadata,
   ): [string, number] {
+    // NB. Must be kept consistent with marimo/_convert/utils.py
+    // ::markdown_to_marimo
+
     // Empty string
     if (code === "") {
       // Need at least a space, otherwise the output will be 6 quotes
@@ -152,7 +155,7 @@ export class MarkdownLanguageAdapter
     const tree = pythonLanguage.parser.parse(pythonCode);
 
     // This is the exact match of mo.md() signature
-    const enterOrder: Array<{ match: string | RegExp; stop?: boolean }> = [
+    const enterOrder: { match: string | RegExp; stop?: boolean }[] = [
       { match: "Script" },
       { match: "ExpressionStatement" },
       { match: "CallExpression" },

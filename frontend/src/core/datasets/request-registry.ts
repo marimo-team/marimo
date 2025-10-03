@@ -1,10 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { SQLTableListPreview, SQLTablePreview } from "../kernel/messages";
+import type {
+  SQLTableListPreview,
+  SQLTablePreview,
+  ValidateSQLResult,
+} from "../kernel/messages";
+import { CachingRequestRegistry } from "../network/CachingRequestRegistry";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { getRequestClient } from "../network/requests";
 import type {
   PreviewSQLTableListRequest,
   PreviewSQLTableRequest,
+  ValidateSQLRequest,
 } from "../network/types";
 
 // We make a request to the backend to preview the table, passing in Engine, DB, Schema, and Table
@@ -32,3 +38,20 @@ export const PreviewSQLTableList = new DeferredRequestRegistry<
     ...req,
   });
 });
+
+export const ValidateSQL = new CachingRequestRegistry(
+  new DeferredRequestRegistry<
+    Omit<ValidateSQLRequest, "requestId">,
+    ValidateSQLResult
+  >("validate-sql", async (requestId, req) => {
+    const client = getRequestClient();
+    await client.validateSQL({
+      requestId: requestId,
+      ...req,
+    });
+  }),
+  {
+    // Only keep the last 3 validation results
+    maxSize: 3,
+  },
+);

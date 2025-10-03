@@ -6,7 +6,7 @@ import io
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 
 from marimo import _loggers
 from marimo._data.models import ExternalDataType
@@ -57,7 +57,7 @@ class PandasTableManagerFactory(TableManagerFactory):
     def create() -> type[TableManager[Any]]:
         import pandas as pd
 
-        class PandasTableManager(NarwhalsTableManager[pd.DataFrame]):
+        class PandasTableManager(NarwhalsTableManager[pd.DataFrame, Any]):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
@@ -145,6 +145,28 @@ class PandasTableManagerFactory(TableManagerFactory):
                     )
 
                     index_levels = result.index.nlevels
+
+                    # Check for name conflicts between index names and column names
+                    # to avoid "cannot insert x, already exists" error
+                    conflicting_names = set(index_names) & set(result.columns)
+                    if conflicting_names:
+                        # Create new names, handling None values
+                        new_names: list[str] = []
+                        for name in result.index.names:
+                            if name in conflicting_names:
+                                new_names.append(f"{name}_index")
+                            else:
+                                new_names.append(str(name))
+
+                        # Rename the index to avoid conflict
+                        if isinstance(result.index, pd.MultiIndex):
+                            result.index = result.index.set_names(new_names)
+                        else:
+                            result.index = result.index.rename(new_names[0])
+
+                        # Update index_names to reflect the rename
+                        index_names = result.index.names
+
                     result = result.reset_index()
 
                     if unnamed_indexes:

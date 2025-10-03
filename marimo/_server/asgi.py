@@ -297,6 +297,8 @@ def create_asgi_app(
     include_code: bool = False,
     token: Optional[str] = None,
     skew_protection: bool = False,
+    session_ttl: Optional[int] = None,
+    asset_url: Optional[str] = None,
 ) -> ASGIAppBuilder:
     """Public API to create an ASGI app that can serve multiple notebooks.
     This only works for application that are in Run mode.
@@ -308,6 +310,9 @@ def create_asgi_app(
             If not provided, an empty token is used.
         skew_protection (bool, optional): Enable skew protection middleware to prevent version mismatch issues.
             e.g. if the server is updated, the client will be prompted to reload.
+        session_ttl (int, optional): Time-to-live in seconds for sessions. If not provided, uses default TTL (2 minutes).
+        asset_url (str, optional): Custom asset URL for loading static resources. Can include {version} placeholder.
+            e.g. https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist
 
     Returns:
         ASGIAppBuilder: A builder object to create multiple ASGI apps
@@ -398,6 +403,7 @@ def create_asgi_app(
 
     config_reader = get_default_config_manager(current_path=None)
     base_app = Starlette()
+    base_app.state.asset_url = asset_url
 
     # Default to an empty token
     # If a user is using the create_asgi_app API,
@@ -466,8 +472,9 @@ def create_asgi_app(
                 argv=None,
                 auth_token=auth_token,
                 redirect_console_to_browser=False,
-                ttl_seconds=None,
+                ttl_seconds=session_ttl,
             )
+            enable_auth = not AuthToken.is_empty(auth_token)
             app = create_starlette_app(
                 base_url="",
                 lifespan=Lifespans(
@@ -478,13 +485,15 @@ def create_asgi_app(
                         *LIFESPAN_REGISTRY.get_all(),
                     ]
                 ),
-                enable_auth=not AuthToken.is_empty(auth_token),
+                enable_auth=enable_auth,
                 allow_origins=("*",),
                 skew_protection=skew_protection,
             )
             app.state.session_manager = session_manager
             app.state.base_url = base_url
+            app.state.asset_url = asset_url
             app.state.config_manager = config_reader
+            app.state.enable_auth = enable_auth
             return app
 
         def build(self) -> ASGIApp:

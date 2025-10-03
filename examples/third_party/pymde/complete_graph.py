@@ -8,18 +8,18 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""# Visualizing Complete Graphs""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     n_items = mo.ui.slider(start=3, stop=64, step=1)
     mo.md(
         f"""
@@ -30,7 +30,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo, pymde):
+def _(mo, pymde):
     penalty_function = mo.ui.dropdown(
         options={
             "Linear": pymde.penalties.Linear,
@@ -48,29 +48,29 @@ def __(mo, pymde):
 
 
 @app.cell
-def __(complete_graph, mo, n_items, penalty_function):
+def _(complete_graph, mo, n_items, penalty_function):
     plot = complete_graph(n_items.value, penalty_function.value)
 
     mo.md(
         f"""
-        Here is a plot of $K_n$ with $n={n_items.value}$, i.e., a complete graph on 
+        Here is a plot of $K_n$ with $n={n_items.value}$, i.e., a complete graph on
         ${n_items.value}$ nodes. This graph has
 
-        \[
+        \\[
         (n)(n-1)/2 = {n_items.value*(n_items.value-1)//2}
-        \]
+        \\]
 
-        edges. The plot was obtained using a 
+        edges. The plot was obtained using a
         {penalty_function.value.__name__.lower()} penalty function.
 
         {mo.as_html(plot)}
         """
     )
-    return (plot,)
+    return
 
 
 @app.cell
-def __(pymde):
+def _(pymde):
     import functools
 
     @functools.cache
@@ -85,17 +85,17 @@ def __(pymde):
         )
         mde.embed(verbose=True)
         return mde.plot(edges=edges)
-    return complete_graph, functools
+    return (complete_graph,)
 
 
 @app.cell
-def __():
+def _():
     import pymde
     return (pymde,)
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

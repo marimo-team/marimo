@@ -7,8 +7,9 @@
 export class MessageBuffer<T> {
   private buffer: T[];
   private started = false;
-
-  constructor(private onMessage: (data: T) => void) {
+  private onMessage: (data: T) => void;
+  constructor(onMessage: (data: T) => void) {
+    this.onMessage = onMessage;
     this.buffer = [];
   }
 

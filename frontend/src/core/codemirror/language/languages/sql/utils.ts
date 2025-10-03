@@ -18,8 +18,11 @@ import {
 } from "@marimo-team/codemirror-sql/dialects";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 
+/**
+ * Guess the CodeMirror SQL dialect from the backend connection dialect.
+ */
 export function guessDialect(
-  connection: DataSourceConnection,
+  connection: Pick<DataSourceConnection, "dialect">,
 ): SQLDialect | undefined {
   switch (connection.dialect) {
     case "postgresql":

@@ -9,12 +9,12 @@
 
 import marimo
 
-__generated_with = "0.9.27"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import anywidget
     import traitlets
@@ -22,7 +22,7 @@ def __():
 
 
 @app.cell
-def __(anywidget, traitlets):
+def _(anywidget, traitlets):
     class CounterWidget(anywidget.AnyWidget):
         # Widget front-end JavaScript code
         _esm = """
@@ -60,13 +60,13 @@ def __(anywidget, traitlets):
 
 
 @app.cell
-def __(CounterWidget, mo):
+def _(CounterWidget, mo):
     widget = mo.ui.anywidget(CounterWidget())
     return (widget,)
 
 
 @app.cell
-def __(widget):
+def _(widget):
     widget
     return
 

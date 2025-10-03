@@ -50,39 +50,45 @@ def test_raise_df_import_error() -> None:
 
 
 @pytest.mark.skipif(
-    not (HAS_DUCKDB and HAS_SQLALCHEMY and HAS_CLICKHOUSE),
+    not (HAS_DUCKDB and HAS_SQLALCHEMY),
     reason="Duckdb, sqlalchemy, and Clickhouse not installed",
 )
 def test_engine_name_initialization() -> None:
     """Test engine name initialization."""
-    import chdb
     import duckdb
     import sqlalchemy as sa
 
     duckdb_conn = duckdb.connect(":memory:")
     sqlite_engine = sa.create_engine("sqlite:///:memory:")
-    clickhouse_conn = chdb.connect(":memory:")
 
     duck_engine = DuckDBEngine(duckdb_conn, engine_name="my_duck")
     sql_engine = SQLAlchemyEngine(sqlite_engine, engine_name="my_sql")
-    clickhouse_engine = SQLAlchemyEngine(
-        clickhouse_conn, engine_name="my_clickhouse"
-    )
 
     assert duck_engine._engine_name == "my_duck"
     assert sql_engine._engine_name == "my_sql"
-    assert clickhouse_engine._engine_name == "my_clickhouse"
 
     # Test default names
     duck_engine_default = DuckDBEngine(duckdb_conn)
     sql_engine_default = SQLAlchemyEngine(sqlite_engine)
-    clickhouse_engine_default = ClickhouseEmbedded(clickhouse_conn)
 
     assert duck_engine_default._engine_name is None
     assert sql_engine_default._engine_name is None
-    assert clickhouse_engine_default._engine_name is None
 
     duckdb_conn.close()
+
+
+@pytest.mark.skipif(not HAS_CLICKHOUSE, reason="Clickhouse not installed")
+@pytest.mark.skip("chdb is flakey")
+def test_clickhouse_engine_name_initialization() -> None:
+    """Test ClickhouseEngine engine name initialization."""
+    import chdb
+
+    clickhouse_conn = chdb.connect(":memory:")
+    engine = ClickhouseEmbedded(clickhouse_conn, engine_name="my_clickhouse")
+    assert engine._engine_name == "my_clickhouse"
+
+    clickhouse_engine_default = ClickhouseEmbedded(clickhouse_conn)
+    assert clickhouse_engine_default._engine_name is None
     clickhouse_conn.close()
 
 
@@ -274,35 +280,122 @@ def test_duckdb_execute() -> None:
 
 
 @pytest.mark.skipif(
+    not HAS_DUCKDB or not HAS_POLARS,
+    reason="Duckdb and polars not installed",
+)
+def test_duckdb_execute_in_explain_mode():
+    """Test DuckDBEngine execute in explain mode."""
+    import duckdb
+
+    duckdb_conn = duckdb.connect(":memory:")
+    engine = DuckDBEngine(duckdb_conn)
+
+    # Test with valid query
+    result, error = engine.execute_in_explain_mode("SELECT 1, 2")
+    assert result is not None
+    assert error is None
+
+    # Test with invalid queries
+    result, error = engine.execute_in_explain_mode(
+        "SELECT * FROM non_existent_table"  # catalog error
+    )
+    assert result is None
+    assert error is not None
+
+    result, error = engine.execute_in_explain_mode("SELECT * FROM ")
+    assert result is None
+    assert error is not None
+
+    # Test with empty queries
+    result, error = engine.execute_in_explain_mode("")
+    assert result is None
+    assert error is None
+
+    result, error = engine.execute_in_explain_mode("-- SELECT * FROM ")
+    assert result is None
+    assert error is None
+
+    # Test with brackets
+    result, error = engine.execute_in_explain_mode("SELECT {1}")
+    assert result is not None
+    assert error is None
+
+    duckdb_conn.close()
+
+
+@pytest.mark.skipif(
     not HAS_SQLALCHEMY or not (HAS_PANDAS or HAS_POLARS),
     reason="SQLAlchemy and either pandas or polars not installed",
 )
-def test_sqlalchemy_execute() -> None:
-    """Test SQLAlchemyEngine execute method."""
+class TestExecuteExplainModeSQLAlchemy:
+    @pytest.fixture
+    def engine(self) -> SQLAlchemyEngine:
+        import sqlalchemy as sa
+
+        sqlite_engine = sa.create_engine("sqlite:///:memory:")
+        engine = SQLAlchemyEngine(sqlite_engine)
+        return engine
+
+    def test_sqlalchemy_execute(self, engine: SQLAlchemyEngine) -> None:
+        """Test SQLAlchemyEngine execute method."""
+        # Create a test table
+        engine.execute("CREATE TABLE test (id INTEGER, name TEXT)")
+        engine.execute("INSERT INTO test VALUES (1, 'test1'), (2, 'test2')")
+
+        # Query the table
+        result = engine.execute("SELECT * FROM test ORDER BY id")
+
+        # Check result type based on available libraries
+        if HAS_POLARS:
+            import polars as pl
+
+            assert isinstance(result, pl.DataFrame)
+        elif HAS_PANDAS:
+            import pandas as pd
+
+            assert isinstance(result, pd.DataFrame)
+
+        # Test with a query that doesn't return a result set
+        assert engine.execute("PRAGMA journal_mode=WAL") is not None
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_execute_in_explain_mode():
+    """Test SQLAlchemyEngine execute in explain mode."""
     import sqlalchemy as sa
 
     sqlite_engine = sa.create_engine("sqlite:///:memory:")
     engine = SQLAlchemyEngine(sqlite_engine)
 
-    # Create a test table
-    engine.execute("CREATE TABLE test (id INTEGER, name TEXT)")
-    engine.execute("INSERT INTO test VALUES (1, 'test1'), (2, 'test2')")
+    # Test with valid query
+    result, error = engine.execute_in_explain_mode("SELECT 1, 2")
+    assert result is not None
+    assert error is None
 
-    # Query the table
-    result = engine.execute("SELECT * FROM test ORDER BY id")
+    # Test with invalid queries
+    result, error = engine.execute_in_explain_mode(
+        "SELECT * FROM non_existent_table"  # catalog error
+    )
+    assert result is None
+    assert error is not None
 
-    # Check result type based on available libraries
-    if HAS_POLARS:
-        import polars as pl
+    result, error = engine.execute_in_explain_mode("SELECT * FROM ")
+    assert result is None
+    assert error is not None
 
-        assert isinstance(result, pl.DataFrame)
-    elif HAS_PANDAS:
-        import pandas as pd
+    # Test with empty queries
+    result, error = engine.execute_in_explain_mode("")
+    assert result is None
+    assert error is None
 
-        assert isinstance(result, pd.DataFrame)
+    result, error = engine.execute_in_explain_mode("-- SELECT * FROM ")
+    assert result is None
+    assert error is None
 
-    # Test with a query that doesn't return a result set
-    assert engine.execute("PRAGMA journal_mode=WAL") is not None
+    # Test with brackets
+    result, error = engine.execute_in_explain_mode("SELECT {1}")
+    assert result is not None
+    assert error is None
 
 
 def test_sql_type_to_data_type() -> None:

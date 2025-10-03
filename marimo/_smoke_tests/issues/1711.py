@@ -2,12 +2,12 @@
 
 import marimo
 
-__generated_with = "0.8.0"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import polars as pl
     import numpy as np
 
@@ -20,11 +20,11 @@ def __():
             is_elementwise=True,
         ),
     )
-    return d, np, pl, res
+    return (res,)
 
 
 @app.cell
-def __(res):
+def _(res):
     res
     return
 

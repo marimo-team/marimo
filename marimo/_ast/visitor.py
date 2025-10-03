@@ -22,10 +22,14 @@ from marimo._ast.sql_visitor import (
 )
 from marimo._ast.variables import is_local
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._sql.error_utils import log_sql_error
+from marimo._utils.strings import standardize_annotation_quotes
 
 LOGGER = _loggers.marimo_logger()
 
+
 Name = str
+
 
 Language = Literal["python", "sql"]
 
@@ -263,7 +267,9 @@ class ScopedVisitor(ast.NodeVisitor):
         else:
             return name
 
-    def _get_alias_name(self, node: ast.alias) -> str:
+    def _get_alias_name(
+        self, node: ast.alias, import_node: ast.ImportFrom | None = None
+    ) -> str:
         """Get the string name of an imported alias.
 
         Mangles the "as" name if it's a local variable.
@@ -281,11 +287,15 @@ class ScopedVisitor(ast.NodeVisitor):
             # Don't mangle - user has no control over package name
             basename = node.name.split(".")[0]
             if basename == "*":
-                line = (
-                    f"line {node.lineno}"
+                # Use the ImportFrom node's line number for consistency
+                line_num = (
+                    import_node.lineno
+                    if import_node and hasattr(import_node, "lineno")
+                    else node.lineno
                     if hasattr(node, "lineno")
-                    else "line ..."
+                    else None
                 )
+                line = f"line {line_num}" if line_num else "line ..."
                 raise ImportStarError(
                     f"{line} SyntaxError: Importing symbols with `import *` "
                     "is not allowed in marimo."
@@ -625,6 +635,18 @@ class ScopedVisitor(ast.NodeVisitor):
                 and sql
             ):
                 import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+
+                # Import ParseError outside try block so we can except it
+                # Use a Union approach to handle both cases
+                ParseErrorType: type[Exception]
+                if DependencyManager.sqlglot.has():
+                    from sqlglot.errors import ParseError as SQLGLOTParseError
+
+                    ParseErrorType = SQLGLOTParseError
+                else:
+                    # Fallback when sqlglot is not available
+                    ParseErrorType = Exception
+
                 # TODO: Handle other SQL languages
                 # TODO: Get the engine so we can differentiate tables in diff engines
 
@@ -648,7 +670,14 @@ class ScopedVisitor(ast.NodeVisitor):
                     # We catch base exceptions because we don't want to
                     # fail due to bugs in duckdb -- users code should
                     # be saveable no matter what
-                    LOGGER.warning("Unexpected duckdb error %s", e)
+                    log_sql_error(
+                        LOGGER.warning,
+                        message=f"Unexpected duckdb error {e}",
+                        exception=e,
+                        node=node,
+                        rule_code="MF005",
+                        sql_content=sql,
+                    )
                     self.generic_visit(node)
                     return node
 
@@ -660,7 +689,15 @@ class ScopedVisitor(ast.NodeVisitor):
                     except duckdb.ProgrammingError:
                         sql_defs = SQLDefs()
                     except BaseException as e:
-                        LOGGER.warning("Unexpected duckdb error %s", e)
+                        log_sql_error(
+                            LOGGER.warning,
+                            message=f"Unexpected duckdb error {e}",
+                            exception=e,
+                            node=node,
+                            rule_code="MF005",
+                            sql_content=sql,
+                            context="sql_defs_extraction",
+                        )
                         sql_defs = SQLDefs()
 
                     defined_names = set()
@@ -692,13 +729,23 @@ class ScopedVisitor(ast.NodeVisitor):
 
                     sql_refs: set[SQLRef] = set()
                     try:
+                        # Take results
                         sql_refs = find_sql_refs_cached(statement.query)
-                    except (duckdb.ProgrammingError, duckdb.IOException):
-                        LOGGER.debug(
-                            "Error parsing SQL statement: %s", statement.query
+                    except (
+                        duckdb.ProgrammingError,
+                        duckdb.IOException,
+                        ParseErrorType,
+                        BaseException,
+                    ) as e:
+                        # Use first_arg (SQL string node) for accurate positioning
+                        log_sql_error(
+                            LOGGER.error,
+                            message=f"Error parsing SQL statement: {e}",
+                            exception=e,
+                            node=first_arg,
+                            rule_code="MF005",
+                            sql_content=statement.query,
                         )
-                    except BaseException as e:
-                        LOGGER.warning("Unexpected duckdb error %s", e)
 
                     for ref in sql_refs:
                         name = ref.qualified_name
@@ -807,11 +854,8 @@ class ScopedVisitor(ast.NodeVisitor):
             annotation = ast.unparse(node.annotation)
             # It's also possible for multiline types/ strings
             annotation = annotation.replace("\n", "").strip()
-            # ast seems to give single quote strings regardless
-            # but ruff asks for double quotes (unless double quotes are
-            # contained).
-            if annotation.startswith("'") and '"' not in annotation[1:-1]:
-                annotation = f'"{annotation[1:-1]}"'
+            # Standardize quotes to use double quotes consistently
+            annotation = standardize_annotation_quotes(annotation)
 
             self.variable_data[name][0].annotation_data = AnnotationData(
                 annotation, annotation_refs
@@ -973,7 +1017,7 @@ class ScopedVisitor(ast.NodeVisitor):
         # we don't recurse into the alias nodes, since we define the
         # aliases here
         for alias_node in node.names:
-            variable_name = self._get_alias_name(alias_node)
+            variable_name = self._get_alias_name(alias_node, import_node=node)
             original_name = alias_node.name
             self._define(
                 None,

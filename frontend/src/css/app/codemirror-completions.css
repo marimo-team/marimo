@@ -181,6 +181,24 @@
     }
   }
 
+  .cm-completionIcon-error {
+    color: var(--red-11);
+    background-color: var(--red-3);
+
+    &::after {
+      content: "𝑒"; /* Italic e for errors */
+    }
+  }
+
+  .cm-completionIcon-datasource {
+    color: var(--purple-11);
+    background-color: var(--purple-3);
+
+    &::after {
+      content: "⚙"; /* Gear icon for datasources */
+    }
+  }
+
   /* Completion info tooltip */
   .cm-completionInfo {
     @apply max-w-md border-l border-border;

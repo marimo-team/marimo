@@ -18,13 +18,19 @@ import { getLSPDocument } from "./utils";
 
 class Snapshotter {
   private documentVersion = 0;
+  private readonly getNotebookCode: () => {
+    cellIds: CellId[];
+    codes: Record<CellId, string>;
+  };
 
   constructor(
-    private readonly getNotebookCode: () => {
+    getNotebookCode: () => {
       cellIds: CellId[];
       codes: Record<CellId, string>;
     },
-  ) {}
+  ) {
+    this.getNotebookCode = getNotebookCode;
+  }
 
   /**
    * Map from the global document version to the cell id and version.
@@ -294,7 +300,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
   textDocumentCodeAction(
     params: LSP.CodeActionParams,
-  ): Promise<Array<LSP.Command | LSP.CodeAction> | null> {
+  ): Promise<(LSP.Command | LSP.CodeAction)[] | null> {
     const disabledCodeAction = true;
     if (disabledCodeAction) {
       return Promise.resolve(null);

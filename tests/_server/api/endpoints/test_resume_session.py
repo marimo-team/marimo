@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import time
 from contextlib import contextmanager
-from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, Optional
 
 import pytest
 
 from marimo._config.manager import UserConfigManager
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.ops import CellOp, KernelCapabilities, KernelReady
 from marimo._server.sessions import Session
 from marimo._types.ids import SessionId
@@ -57,6 +57,7 @@ def assert_kernel_ready_response(
     raw_data: dict[str, Any], response: dict[str, Any]
 ) -> None:
     data = parse_raw(raw_data["data"], KernelReady)
+    print(response)
     expected = parse_raw(response, KernelReady)
     assert data.cell_ids == expected.cell_ids
     assert data.codes == expected.codes
@@ -76,9 +77,14 @@ def get_session(
     return get_session_manager(client).get_session(session_id)
 
 
+def _create_ws_url(session_id: str) -> str:
+    return f"/ws?session_id={session_id}&access_token=fake-token"
+
+
 def test_refresh_session(client: TestClient) -> None:
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(_create_ws_url("123")) as websocket:
         data = websocket.receive_json()
+        print(data)
         assert_kernel_ready_response(data, create_response({}))
 
     # Check the session still exists after closing the websocket
@@ -95,10 +101,10 @@ def test_refresh_session(client: TestClient) -> None:
 
     # New session with new ID (simulates refresh)
     # We should resume the current session
-    with client.websocket_connect("/ws?session_id=456") as websocket:
+    with client.websocket_connect(_create_ws_url("456")) as websocket:
         # First message is the kernel reconnected
         data = websocket.receive_json()
-        assert data == {"op": "reconnected", "data": {}}
+        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         # Resume the session
         data = websocket.receive_json()
         assert_kernel_ready_response(
@@ -115,7 +121,7 @@ def test_refresh_session(client: TestClient) -> None:
             "/api/kernel/set_ui_element_value",
             headers=headers("456"),
             json={
-                "object_ids": ["ui-element-1", "ui-element-2"],
+                "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
             },
         )
@@ -127,10 +133,10 @@ def test_refresh_session(client: TestClient) -> None:
 
     # New session again
     # We should not resume the current session with the new values
-    with client.websocket_connect("/ws?session_id=789") as websocket:
+    with client.websocket_connect(_create_ws_url("789")) as websocket:
         # First message is the kernel reconnected
         data = websocket.receive_json()
-        assert data == {"op": "reconnected", "data": {}}
+        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         # Resume the session
         data = websocket.receive_json()
         assert_kernel_ready_response(
@@ -162,7 +168,7 @@ def test_save_session(client: TestClient) -> None:
         .file_router.get_single_app_file_manager()
         .filename
     )
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(_create_ws_url("123")) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({}))
         # Send save request
@@ -170,7 +176,7 @@ def test_save_session(client: TestClient) -> None:
             "/api/kernel/save",
             headers=headers("123"),
             json={
-                "cell_ids": ["2", "1"],
+                "cellIds": ["2", "1"],
                 "filename": filename,
                 "codes": [
                     "slider = mo.ui.slider(0, 100)",
@@ -195,10 +201,10 @@ def test_save_session(client: TestClient) -> None:
 
     # New session with new ID (simulates refresh)
     # We should resume the current session
-    with client.websocket_connect("/ws?session_id=456") as websocket:
+    with client.websocket_connect(_create_ws_url("456")) as websocket:
         # First message is the kernel reconnected
         data = websocket.receive_json()
-        assert data == {"op": "reconnected", "data": {}}
+        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         # Resume the session
         data = websocket.receive_json()
         assert_kernel_ready_response(
@@ -237,7 +243,7 @@ def test_save_session(client: TestClient) -> None:
 
 
 def test_save_config(client: TestClient) -> None:
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(_create_ws_url("123")) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({}))
         # Send save request
@@ -264,7 +270,7 @@ def test_save_config(client: TestClient) -> None:
 
 
 def test_restart_session(client: TestClient) -> None:
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(_create_ws_url("123")) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({}))
 
@@ -281,7 +287,7 @@ def test_restart_session(client: TestClient) -> None:
 
     # New session with new ID (simulates refresh)
     # We start a new session
-    with client.websocket_connect("/ws?session_id=456") as websocket:
+    with client.websocket_connect(_create_ws_url("456")) as websocket:
         # First message is the kernel reconnected
         data = websocket.receive_json()
         assert_kernel_ready_response(
@@ -298,7 +304,7 @@ def test_resume_session_with_watch(client: TestClient) -> None:
     session_manager = get_session_manager(client)
     session_manager.watch = True
 
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(_create_ws_url("123")) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({}))
 
@@ -318,7 +324,7 @@ def test_resume_session_with_watch(client: TestClient) -> None:
         data = websocket.receive_json()
         assert data == {
             "op": "update-cell-ids",
-            "data": {"cell_ids": ["MJUe", "Hbol"]},
+            "data": {"cell_ids": ["MJUe", "Hbol"], "op": "update-cell-ids"},
         }
         data = websocket.receive_json()
         assert data == {
@@ -327,15 +333,16 @@ def test_resume_session_with_watch(client: TestClient) -> None:
                 "cell_ids": ["MJUe"],
                 "code_is_stale": False,
                 "codes": ["x=10; x"],
+                "op": "update-cell-codes",
             },
         }
 
     # Resume session with new ID (simulates refresh)
     # watcher_on_save is 'autorun', so we should expect the cell to be run
-    with client.websocket_connect("/ws?session_id=456") as websocket:
+    with client.websocket_connect(_create_ws_url("456")) as websocket:
         # First message is the kernel reconnected
         data = websocket.receive_json()
-        assert data == {"op": "reconnected", "data": {}}
+        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
 
         # Check for KernelReady message
         data = websocket.receive_json()
@@ -356,7 +363,7 @@ def test_resume_session_with_watch(client: TestClient) -> None:
         assert messages[0]["op"] == "banner"
         assert messages[1] == {
             "op": "update-cell-ids",
-            "data": {"cell_ids": ["MJUe", "Hbol"]},
+            "data": {"cell_ids": ["MJUe", "Hbol"], "op": "update-cell-ids"},
         }
 
     session = get_session(client, "456")

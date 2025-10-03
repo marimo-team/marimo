@@ -103,7 +103,7 @@ describe("contextToXml", () => {
     );
   });
 
-  it("should handle complex nested data", () => {
+  it("should handle json string data", () => {
     const context = {
       type: "complex",
       data: {
@@ -116,6 +116,37 @@ describe("contextToXml", () => {
     const result = contextToXml(context);
     expect(result).toMatchInlineSnapshot(
       `"<complex name="test" config="{"key":"value","nested":{"prop":"test"}}">Complex configuration data</complex>"`,
+    );
+  });
+
+  it("should handle objects", () => {
+    const context = {
+      type: "object",
+      data: {
+        name: "test",
+        config: { key: "value", nested: { prop: "test" } },
+      },
+      details: "Complex configuration data",
+    };
+
+    const result = contextToXml(context);
+    expect(result).toMatchInlineSnapshot(
+      `"<object name="test" config="{"key":"value","nested":{"prop":"test"}}">Complex configuration data</object>"`,
+    );
+  });
+
+  it("should handle arrays", () => {
+    const context = {
+      type: "array",
+      data: {
+        name: "test",
+        array: [1, 2, 3],
+      },
+    };
+
+    const result = contextToXml(context);
+    expect(result).toMatchInlineSnapshot(
+      `"<array name="test" array="[1,2,3]"></array>"`,
     );
   });
 

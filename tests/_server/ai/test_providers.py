@@ -9,6 +9,7 @@ from marimo._config.config import AiConfig
 from marimo._server.ai.providers import (
     AnthropicProvider,
     AnyProviderConfig,
+    AzureOpenAIProvider,
     BedrockProvider,
     GoogleProvider,
     OpenAIProvider,
@@ -27,6 +28,7 @@ from marimo._server.ai.providers import (
             "bedrock",
             id="bedrock",
         ),
+        pytest.param("openrouter/gpt-4", "openrouter", id="openrouter"),
     ],
 )
 def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
@@ -44,6 +46,9 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
         },
         bedrock={
             "profile_name": "aws-profile",
+        },
+        openrouter={
+            "api_key": "openrouter-key",
         },
     )
     config = AnyProviderConfig.for_model(model_name, ai_config)
@@ -68,6 +73,7 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
             BedrockProvider,
             id="bedrock",
         ),
+        pytest.param("openrouter/gpt-4", OpenAIProvider, id="openrouter"),
     ],
 )
 def test_get_completion_provider(model_name: str, provider_type: type) -> None:
@@ -121,7 +127,7 @@ async def test_openai_provider_max_tokens_parameter(
 
     # Call stream_completion
     messages = [ChatMessage(role="user", content="test message")]
-    await provider.stream_completion(messages, "system prompt", 1000)
+    await provider.stream_completion(messages, "system prompt", 1000, [])
 
     # Verify the correct parameters were passed
     mock_client.chat.completions.create.assert_called_once()
@@ -143,3 +149,26 @@ async def test_openai_provider_max_tokens_parameter(
         assert "max_completion_tokens" not in call_kwargs, (
             "max_completion_tokens should not be present for non-reasoning models"
         )
+
+
+async def test_azure_openai_provider() -> None:
+    """Test that Azure OpenAI provider uses correct parameters."""
+    config = AnyProviderConfig(
+        api_key="test-key",
+        base_url="https://test.openai.azure.com/openai/deployments/gpt-4-1?api-version=2023-05-15",
+    )
+    provider = AzureOpenAIProvider("gpt-4", config)
+
+    api_version, deployment_name, endpoint = provider._handle_azure_openai(
+        "https://test.openai.azure.com/openai/deployments/gpt-4-1?api-version=2023-05-15"
+    )
+    assert api_version == "2023-05-15"
+    assert deployment_name == "gpt-4-1"
+    assert endpoint == "https://test.openai.azure.com"
+
+    api_version, deployment_name, endpoint = provider._handle_azure_openai(
+        "https://unknown_domain.openai/openai/deployments/gpt-4-1?api-version=2023-05-15"
+    )
+    assert api_version == "2023-05-15"
+    assert deployment_name == "gpt-4-1"
+    assert endpoint == "https://unknown_domain.openai"

@@ -6,7 +6,7 @@ import unittest
 from math import isnan
 from typing import Any
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._data.models import ColumnStats
@@ -400,6 +400,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             mean=2.0,
             median=2.0,
             std=1.0,
+            unique=3,
             p5=1.0,
             p25=2.0,
             p75=3.0,

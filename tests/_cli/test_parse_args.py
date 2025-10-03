@@ -75,3 +75,19 @@ def test_lists():
         "verbose": True,
     }
     assert parse_args(args) == expected
+
+
+def test_parse_args_with_server_startup_command():
+    args = ("--server-startup-command=echo 'hello world'",)
+    expected = {"server-startup-command": "echo 'hello world'"}
+    assert parse_args(args) == expected
+
+
+def test_parse_args_with_complex_startup_command():
+    args = (
+        '--server-startup-command=python -c \'import time; print("Starting"); time.sleep(1); print("Done")\'',
+    )
+    expected = {
+        "server-startup-command": 'python -c \'import time; print("Starting"); time.sleep(1); print("Done")\''
+    }
+    assert parse_args(args) == expected

@@ -16,10 +16,7 @@ from marimo._sql.engines.clickhouse import (
     ClickhouseServer,
 )
 from marimo._sql.engines.dbapi import DBAPIEngine
-from marimo._sql.engines.duckdb import (
-    INTERNAL_DUCKDB_ENGINE,
-    DuckDBEngine,
-)
+from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.pyiceberg import PyIcebergEngine
 from marimo._sql.engines.redshift import RedshiftEngine
@@ -80,6 +77,7 @@ def engine_to_data_source_connection(
             dialect=engine.dialect,
             name=variable_name,
             display_name=variable_name,
+            databases=[],
         )
 
     try:

@@ -5,7 +5,7 @@ import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { isEqual, zip } from "lodash-es";
 import { createRef, type ReducerWithoutAction } from "react";
-import type { CellHandle } from "@/components/editor/Cell";
+import type { CellHandle } from "@/components/editor/notebook-cell";
 import {
   type CellColumnId,
   type CellIndex,
@@ -84,14 +84,14 @@ export interface NotebookState {
    *
    * (CodeMirror types the serialized config as any.)
    */
-  history: Array<{
+  history: {
     name: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     serializedEditorState: any;
     column: CellColumnId;
     index: CellIndex;
     isSetupCell: boolean;
-  }>;
+  }[];
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
    * array. Call the SCROLL_TO_TARGET action to scroll to the specified cell
@@ -145,6 +145,31 @@ export function initialNotebookState(): NotebookState {
   });
 }
 
+export interface CreateNewCellAction {
+  /** The target cell ID to create a new cell relative to. Can be:
+   * - A CellId string for an existing cell
+   * - "__end__" to append at the end of the first column
+   * - {type: "__end__", columnId} to append at the end of a specific column
+   */
+  cellId: CellId | "__end__" | { type: "__end__"; columnId: CellColumnId };
+  /** Whether to insert before (true) or after (false) the target cell */
+  before: boolean;
+  /** Initial code content for the new cell */
+  code?: string;
+  /** The last executed code for the new cell */
+  lastCodeRun?: string;
+  /** Timestamp of the last execution */
+  lastExecutionTime?: number;
+  /** Optional custom ID for the new cell. Auto-generated if not provided */
+  newCellId?: CellId;
+  /** Whether to focus the new cell after creation */
+  autoFocus?: boolean;
+  /** If true, skip creation if code already exists */
+  skipIfCodeExists?: boolean;
+  /** Hide the code in the new cell. This will be initially shown until the cell is blurred for the first time. */
+  hideCode?: boolean;
+}
+
 /**
  * Actions and reducer for the notebook state.
  */
@@ -154,33 +179,7 @@ const {
   useActions,
   valueAtom: notebookAtom,
 } = createReducerAndAtoms(initialNotebookState, {
-  createNewCell: (
-    state,
-    action: {
-      /** The target cell ID to create a new cell relative to. Can be:
-       * - A CellId string for an existing cell
-       * - "__end__" to append at the end of the first column
-       * - {type: "__end__", columnId} to append at the end of a specific column
-       */
-      cellId: CellId | "__end__" | { type: "__end__"; columnId: CellColumnId };
-      /** Whether to insert before (true) or after (false) the target cell */
-      before: boolean;
-      /** Initial code content for the new cell */
-      code?: string;
-      /** The last executed code for the new cell */
-      lastCodeRun?: string;
-      /** Timestamp of the last execution */
-      lastExecutionTime?: number;
-      /** Optional custom ID for the new cell. Auto-generated if not provided */
-      newCellId?: CellId;
-      /** Whether to focus the new cell after creation */
-      autoFocus?: boolean;
-      /** If true, skip creation if code already exists */
-      skipIfCodeExists?: boolean;
-      /** Hide the code in the new cell. This will be initially shown until the cell is blurred for the first time. */
-      hideCode?: boolean;
-    },
-  ) => {
+  createNewCell: (state, action: CreateNewCellAction) => {
     const {
       cellId,
       before,
@@ -1129,10 +1128,10 @@ const {
 
         // Find the start/end of the collapsed ranges
         const nodes = [...column.nodes];
-        const rangeIndexes: Array<{
+        const rangeIndexes: {
           start: CellIndex;
           end: CellIndex;
-        }> = [];
+        }[] = [];
         const reversedCollapseRanges = [];
 
         // Iterate in reverse order (bottom-up) to process children first
@@ -1325,21 +1324,19 @@ const {
       cellRuntime: newCellRuntime,
     };
   },
-  upsertSetupCell: (state, action: { code: string }) => {
-    const { code } = action;
+  addSetupCellIfDoesntExist: (state, action: { code?: string }) => {
+    let { code } = action;
+    if (code == null) {
+      code = "# Initialization code that runs before all other cells";
+    }
 
     // First check if setup cell already exists
     if (SETUP_CELL_ID in state.cellData) {
-      // Update existing setup cell
-      return updateCellData({
-        state,
-        cellId: SETUP_CELL_ID,
-        cellReducer: (cell) => ({
-          ...cell,
-          code,
-          edited: code.trim() !== cell.lastCodeRun?.trim(),
-        }),
-      });
+      // Just focus on the existing setup cell
+      return {
+        ...state,
+        scrollKey: SETUP_CELL_ID,
+      };
     }
 
     return {
@@ -1366,13 +1363,14 @@ const {
         ...state.cellHandles,
         [SETUP_CELL_ID]: createRef(),
       },
+      scrollKey: SETUP_CELL_ID,
     };
   },
 });
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
   return (
-    state.cellData[cellId].config.hide_code &&
+    Boolean(state.cellData[cellId].config.hide_code) &&
     !state.untouchedNewCells.has(cellId)
   );
 }
@@ -1617,13 +1615,13 @@ export const columnIdsAtom = atom((get) =>
   get(notebookAtom).cellIds.getColumnIds(),
 );
 
-const cellDataAtom = atomFamily((cellId: CellId) =>
+export const cellDataAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellData[cellId]),
 );
 const cellRuntimeAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellRuntime[cellId]),
 );
-const cellHandleAtom = atomFamily((cellId: CellId) =>
+export const cellHandleAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellHandles[cellId]),
 );
 /**
@@ -1669,7 +1667,7 @@ export const getCellEditorView = (cellId: CellId) => {
 
 export function flattenTopLevelNotebookCells(
   state: NotebookState,
-): Array<CellData & CellRuntimeState> {
+): (CellData & CellRuntimeState)[] {
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.getColumns().flatMap((column) =>
     column.topLevelIds.map((cellId) => ({

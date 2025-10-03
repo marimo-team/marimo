@@ -8,18 +8,18 @@
 
 import marimo
 
-__generated_with = "0.8.8"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __():
+def _():
     import pandas as pd
 
     sample_df = pd.DataFrame(
@@ -29,16 +29,16 @@ def __():
             "City": ["New York", "Los Angeles", "Chicago"],
         }
     )
-    return pd, sample_df
+    return (sample_df,)
 
 
 @app.cell
-def __(mo, sample_df):
+def _(mo, sample_df):
     import time
 
     mo.output.replace(sample_df)
     time.sleep(5)
-    return time,
+    return
 
 
 if __name__ == "__main__":

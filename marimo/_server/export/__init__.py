@@ -5,7 +5,7 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, cast
+from typing import TYPE_CHECKING, Callable, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._cli.print import echo
@@ -13,9 +13,14 @@ from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
-from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error, is_unexpected_error
-from marimo._messaging.ops import MessageOperation
+from marimo._messaging.ops import (
+    CellOp,
+    CompletedRun,
+    MessageOperation,
+    deserialize_kernel_message,
+)
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
@@ -28,7 +33,6 @@ from marimo._server.models.models import InstantiateRequest
 from marimo._server.session.session_view import SessionView
 from marimo._types.ids import ConsumerId
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
 
@@ -246,33 +250,24 @@ async def run_app_until_completion(
             self,
         ) -> Callable[[KernelMessage], None]:
             def listener(message: KernelMessage) -> None:
+                data = deserialize_kernel_message(message)
                 # Print errors to stderr
-                if message[0] == "cell-op":
-                    op_data = message[1]
-                    output = op_data.get("output")
-                    console_output = op_data.get("console")
-                    if (
-                        output
-                        and output["channel"] == CellChannel.MARIMO_ERROR
-                    ):
-                        errors = cast(list[Any], output["data"])
-
-                        @dataclass
-                        class Container:
-                            error: Error
-
+                if isinstance(data, CellOp):
+                    output = data.output
+                    console_output = data.console
+                    if output and output.channel == CellChannel.MARIMO_ERROR:
+                        errors = cast(list[Error], output.data)
                         for err in errors:
-                            parsed = parse_raw({"error": err}, Container)
                             # Not all errors are fatal
-                            if is_unexpected_error(parsed.error):
+                            if is_unexpected_error(err):
                                 echo(
-                                    f"{parsed.error.__class__.__name__}: {parsed.error.describe()}",
+                                    f"{err.__class__.__name__}: {err.describe()}",
                                     file=sys.stderr,
                                 )
                                 self.did_error = True
 
                     if console_output:
-                        console_as_list: list[dict[str, Any]] = (
+                        console_as_list: list[CellOutput] = (
                             console_output
                             if isinstance(console_output, list)
                             else [console_output]
@@ -281,16 +276,14 @@ async def run_app_until_completion(
                             for line in console_as_list:
                                 # We print to stderr to not interfere with the
                                 # piped output
-                                mimetype = line.get("mimetype")
+                                mimetype = line.mimetype
                                 if mimetype == "text/plain":
-                                    echo(
-                                        line["data"], file=sys.stderr, nl=False
-                                    )
+                                    echo(line.data, file=sys.stderr, nl=False)
                         except Exception:
                             LOGGER.warning("Error printing console output")
                             pass
 
-                if message[0] == "completed-run":
+                if isinstance(data, CompletedRun):
                     instantiated_event.set()
 
             return listener

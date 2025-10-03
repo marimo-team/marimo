@@ -13,15 +13,21 @@ import { type FilePath, PathBuilder } from "@/utils/paths";
 
 export class RequestingTree {
   private delegate = new SimpleTree<FileInfo>([]);
+  private callbacks: {
+    listFiles: EditRequests["sendListFiles"];
+    createFileOrFolder: EditRequests["sendCreateFileOrFolder"];
+    deleteFileOrFolder: EditRequests["sendDeleteFileOrFolder"];
+    renameFileOrFolder: EditRequests["sendRenameFileOrFolder"];
+  };
 
-  constructor(
-    private callbacks: {
-      listFiles: EditRequests["sendListFiles"];
-      createFileOrFolder: EditRequests["sendCreateFileOrFolder"];
-      deleteFileOrFolder: EditRequests["sendDeleteFileOrFolder"];
-      renameFileOrFolder: EditRequests["sendRenameFileOrFolder"];
-    },
-  ) {}
+  constructor(callbacks: {
+    listFiles: EditRequests["sendListFiles"];
+    createFileOrFolder: EditRequests["sendCreateFileOrFolder"];
+    deleteFileOrFolder: EditRequests["sendDeleteFileOrFolder"];
+    renameFileOrFolder: EditRequests["sendRenameFileOrFolder"];
+  }) {
+    this.callbacks = callbacks;
+  }
 
   private rootPath: FilePath = "" as FilePath;
   private onChange: (data: FileInfo[]) => void = Functions.NOOP;

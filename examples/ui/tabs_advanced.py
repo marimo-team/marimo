@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -55,7 +55,7 @@ def _(mo):
             "🏢 Organization": organization,
         }
     )
-    return employees, first, last, org, organization, settings
+    return employees, first, last, org
 
 
 @app.cell

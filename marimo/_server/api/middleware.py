@@ -53,6 +53,35 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+def _handle_proxy_connection_error(
+    _error: ConnectionRefusedError,
+    path: str,
+    custom_message: str | None = None,
+) -> Response:
+    """Handle connection errors for proxy requests to backend services."""
+    LOGGER.debug(f"Connection refused for {path}")
+    content = (
+        custom_message
+        or "Service is not available. Please try again or restart the service."
+    )
+    return Response(
+        content=content,
+        status_code=503,
+        media_type="text/plain",
+    )
+
+
+def create_proxy_error_handler(
+    custom_message: str,
+) -> Callable[[ConnectionRefusedError, str], Response]:
+    """Create a custom error handler that wraps the default with a custom message."""
+
+    def handler(error: ConnectionRefusedError, path: str) -> Response:
+        return _handle_proxy_connection_error(error, path, custom_message)
+
+    return handler
+
+
 class AuthBackend(AuthenticationBackend):
     def __init__(self, should_authenticate: bool = True) -> None:
         self.should_authenticate = should_authenticate
@@ -340,11 +369,20 @@ class ProxyMiddleware:
         proxy_path: str,
         target_url: Union[str, Callable[[str], str]],
         path_rewrite: Callable[[str], str] | None = None,
+        connection_error_handler: Callable[
+            [ConnectionRefusedError, str], Response
+        ]
+        | None = None,
     ) -> None:
         self.app = app
         self.path = proxy_path.rstrip("/")
         self.target_url = target_url
         self.path_rewrite = path_rewrite
+        self.connection_error_handler = (
+            connection_error_handler
+            if connection_error_handler
+            else _handle_proxy_connection_error
+        )
 
     def _get_target_url(self, path: str) -> str:
         """Get target URL either from rewrite function or default MPL logic."""
@@ -408,13 +446,21 @@ class ProxyMiddleware:
             content=request.stream(),
         )
 
-        rp_resp = await client.send(rp_req, stream=True)
-        response = StreamingResponse(
-            rp_resp.aiter_raw(),
-            status_code=rp_resp.status_code,
-            headers=rp_resp.headers,
-            background=BackgroundTask(rp_resp.aclose),
-        )
+        response: Union[StreamingResponse, Response]
+        try:
+            rp_resp = await client.send(rp_req, stream=True)
+            response = StreamingResponse(
+                rp_resp.aiter_raw(),
+                status_code=rp_resp.status_code,
+                headers=rp_resp.headers,
+                background=BackgroundTask(rp_resp.aclose),
+            )
+        except ConnectionRefusedError as e:
+            if self.connection_error_handler is not None:
+                response = self.connection_error_handler(e, request.url.path)
+            else:
+                raise
+
         await response(scope, receive, send)
 
     async def _proxy_websocket(

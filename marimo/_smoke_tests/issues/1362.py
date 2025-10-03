@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.5.2"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     """
     hello, this is a cell
     hello, this is a cell
@@ -75,11 +76,11 @@ def __():
 
     """
     qwerty = 10
-    return qwerty,
+    return (qwerty,)
 
 
 @app.cell
-def __(qwerty):
+def _(qwerty):
     """
     hello, this is a cell
     hello, this is a cell
@@ -148,11 +149,11 @@ def __(qwerty):
 
     """
     a = f"{qwerty} 10"
-    return a,
+    return (a,)
 
 
 @app.cell
-def __(a):
+def _(a):
     a
     return
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.12.8"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -10,7 +10,6 @@ def _():
     import sys
     import platform
     import os
-
     return mo, os, platform, sys
 
 
@@ -43,7 +42,7 @@ def _(mo):
         output = mo.md("## ✅️ We are running on CPU")
 
     output
-    return output, result, subprocess
+    return
 
 
 @app.cell(hide_code=True)
@@ -66,7 +65,7 @@ def _(mo, os, platform, sys):
         "ls": os.listdir(os.getcwd()),
     }
     mo.ui.table(runtime_info, selection=None, page_size=len(runtime_info))
-    return (runtime_info,)
+    return
 
 
 if __name__ == "__main__":

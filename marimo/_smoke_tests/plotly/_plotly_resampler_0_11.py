@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.11.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -48,7 +48,7 @@ def _():
     )
 
     fig
-    return anywidget, df, fig, n_points, np, pd, px, register_plotly_resampler
+    return
 
 
 if __name__ == "__main__":

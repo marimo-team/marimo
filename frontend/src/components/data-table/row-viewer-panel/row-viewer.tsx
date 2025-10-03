@@ -15,6 +15,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import { useLocale } from "react-aria";
 import { ColumnName } from "@/components/datasources/components";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
@@ -66,6 +67,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const { locale } = useLocale();
 
   const tooManyRows = totalRows === TOO_MANY_ROWS;
 
@@ -186,7 +188,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {fieldTypes?.map(([columnName, [dataType, externalType]]) => {
+          {fieldTypes?.map(([columnName, [dataType, _externalType]]) => {
             const columnValue = rowValues[columnName];
 
             if (!inSearchQuery({ columnName, columnValue, searchQuery })) {
@@ -204,13 +206,13 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
               applyColumnFormatting: (value) => value,
             } as Column<unknown>;
 
-            const cellContent = renderCellValue(
-              mockColumn,
-              () => columnValue,
-              () => columnValue,
-              undefined,
-              "text-left break-word",
-            );
+            const cellContent = renderCellValue({
+              column: mockColumn,
+              renderValue: () => columnValue,
+              getValue: () => columnValue,
+              selectCell: undefined,
+              cellStyles: "text-left break-word",
+            });
 
             const copyValue =
               typeof columnValue === "object"
@@ -286,7 +288,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
         <span className="text-xs">
           {tooManyRows
             ? `Row ${rowIdx + 1}`
-            : `Row ${rowIdx + 1} of ${prettifyRowCount(totalRows)}`}
+            : `Row ${rowIdx + 1} of ${prettifyRowCount(totalRows, locale)}`}
         </span>
         <Button
           variant="outline"

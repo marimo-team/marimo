@@ -11,8 +11,10 @@ import re
 import sys
 import textwrap
 import token as token_types
+import warnings
 from tokenize import tokenize
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from types import CodeType, FrameType
+from typing import Any, Callable, Optional, cast
 
 from marimo import _loggers
 from marimo._ast import parse
@@ -38,8 +40,12 @@ else:
 LOGGER = _loggers.marimo_logger()
 Cls: TypeAlias = type
 
-if TYPE_CHECKING:
-    from types import FrameType
+
+def ast_compile(*args: Any, **kwargs: Any) -> CodeType:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=SyntaxWarning)
+        # The SyntaxWarning is suppressed only inside this `with` block
+        return cast(CodeType, compile(*args, **kwargs))  # type: ignore[call-overload]
 
 
 def code_key(code: str) -> int:
@@ -146,27 +152,102 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
     return node
 
 
+def const_string(args: list[ast.stmt]) -> str:
+    (inner,) = args
+    if hasattr(inner, "values"):
+        (inner,) = inner.values
+    return f"{inner.value}"  # type: ignore[attr-defined]
+
+
+def const_or_id(args: ast.stmt) -> str:
+    if hasattr(args, "value"):
+        return f"{args.value}"  # type: ignore[attr-defined]
+    return f"{args.id}"  # type: ignore[attr-defined]
+
+
+def _extract_markdown(tree: ast.Module) -> Optional[str]:
+    # Attribute Error handled by the outer try/except block.
+    # Wish there was a more compact to ignore ignore[attr-defined] for all.
+    try:
+        (body,) = tree.body
+        if body.value.func.attr == "md":  # type: ignore[attr-defined, union-attr]
+            value = body.value  # type: ignore[attr-defined, union-attr]
+        else:
+            return None
+        assert value.func.value.id == "mo"
+        if not value.args:  # Handle mo.md() with no arguments
+            return None
+        md_lines = const_string(value.args).split("\n")
+    except (AssertionError, AttributeError, ValueError):
+        # No reason to explicitly catch exceptions if we can't parse out
+        # markdown. Just handle it as a code block.
+        return None
+
+    # Dedent behavior is a little different that in marimo js, so handle
+    # accordingly.
+    md_lines = [line.rstrip() for line in md_lines]
+    md = (
+        textwrap.dedent(md_lines[0])
+        + "\n"
+        + textwrap.dedent("\n".join(md_lines[1:]))
+    )
+    md = md.strip()
+    return md
+
+
+def extract_markdown(code: str) -> Optional[str]:
+    code = code.strip()
+    count = 0
+    # Early quitting for markdown extraction.
+    for line in code.strip().split("\n"):
+        if line.startswith("mo.md("):
+            count += 1
+            if count > 1:
+                return None
+    if count == 0:
+        return None
+
+    try:
+        return _extract_markdown(ast.parse(code))
+    except SyntaxError:
+        return None
+
+
 def compile_cell(
     code: str,
     cell_id: CellId_t,
     source_position: Optional[SourcePosition] = None,
     carried_imports: list[ImportData] | None = None,
     test_rewrite: bool = False,
+    filename: Optional[str] = None,
 ) -> CellImpl:
+    if filename is not None and source_position is None:
+        source_position = solve_source_position(
+            code,
+            filename,
+        )
+    elif filename is not None and source_position is not None:
+        source_position.filename = filename
+
     # Replace non-breaking spaces with regular spaces -- some frontends
     # send nbsp in place of space, which is a syntax error.
     #
     # See https://github.com/pyodide/pyodide/issues/3337,
     #     https://github.com/marimo-team/marimo/issues/1546
     code = code.replace("\u00a0", " ")
-    module = compile(
-        code,
-        "<unknown>",
-        mode="exec",
-        # don't inherit compiler flags, in particular future annotations
-        dont_inherit=True,
-        flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+    # Overloads on compile are strange, cast for proper typing.
+    module = cast(
+        ast.Module,
+        ast_compile(
+            code,
+            "<unknown>",
+            mode="exec",
+            # don't inherit compiler flags, in particular future annotations
+            dont_inherit=True,
+            flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+        ),
     )
+
     if not module.body:
         # either empty code or just comments
         return CellImpl(
@@ -199,7 +280,8 @@ def compile_cell(
     # Use final expression if it exists doesn't end in a
     # semicolon. Evaluates expression to "None" otherwise.
     if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
-        expr = ast.Expression(module.body.pop().value)
+        module.body.pop()
+        expr = ast.Expression(final_expr.value)
         expr.lineno = final_expr.lineno  # type: ignore[attr-defined]
     else:
         const = ast.Constant(value=None)
@@ -213,7 +295,6 @@ def compile_cell(
     expr.col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
     expr.end_col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
 
-    filename: str
     if source_position:
         # Modify the "source" position for meaningful stacktraces
         fix_source_position(module, source_position)
@@ -242,10 +323,10 @@ def compile_cell(
             )
 
     flags = ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
-    body = compile(
+    body = ast_compile(
         module, filename, mode="exec", dont_inherit=True, flags=flags
     )
-    last_expr = compile(
+    last_expr = ast_compile(
         expr, filename, mode="eval", dont_inherit=True, flags=flags
     )
 
@@ -271,6 +352,8 @@ def compile_cell(
                     if previous_import_data == import_data:
                         imported_defs.add(import_data.definition)
 
+    maybe_md = _extract_markdown(original_module)
+
     return CellImpl(
         # keyed by original (user) code, for cache lookups
         key=code_key(code),
@@ -290,7 +373,38 @@ def compile_cell(
         body=body,
         last_expr=last_expr,
         cell_id=cell_id,
+        markdown=maybe_md,
         _test=is_test,
+    )
+
+
+def solve_source_position(
+    code: str, filename: str
+) -> Optional[SourcePosition]:
+    from marimo._ast.load import _maybe_contents
+    from marimo._ast.parse import parse_notebook
+    from marimo._utils.cell_matching import match_cell_ids_by_similarity
+
+    contents = _maybe_contents(filename)
+    if not contents:
+        return None
+
+    notebook = parse_notebook(contents)
+    if notebook is None or not notebook.valid:
+        return None
+    on_disk = {
+        CellId_t(str(i)): cell.code for i, cell in enumerate(notebook.cells)
+    }
+    matches = match_cell_ids_by_similarity(on_disk, {CellId_t("new"): code})
+    if not matches or len(matches) != 1:
+        return None
+    (cell_index,) = matches.keys()
+    index = int(cell_index)
+
+    return SourcePosition(
+        filename=filename,
+        lineno=notebook.cells[index].lineno,
+        col_offset=notebook.cells[index].col_offset,
     )
 
 
@@ -340,7 +454,7 @@ def context_cell_factory(
         entry_line += 1 - lnum
 
     _, with_block = ContainedExtractWithBlock(entry_line).visit(
-        ast.parse(textwrap.dedent(source)).body  # type: ignore[arg-type]
+        parse.ast_parse(textwrap.dedent(source)).body  # type: ignore[arg-type]
     )
 
     start_node = with_block.body[0]
@@ -388,7 +502,7 @@ def toplevel_cell_factory(
     # We need to scrub through the initial decorator. Since we don't care about
     # indentation etc, easiest just to use AST.
 
-    tree = ast.parse(function_code, type_comments=True)
+    tree = parse.ast_parse(function_code, type_comments=True)
     try:
         decorator = tree.body[0].decorator_list.pop(0)  # type: ignore
         # NB. We don't unparse from the AST because it strips comments.
@@ -427,9 +541,21 @@ def toplevel_cell_factory(
     )
 
 
-def ir_cell_factory(cell_def: CellDef, cell_id: CellId_t) -> Cell:
+def ir_cell_factory(
+    cell_def: CellDef, cell_id: CellId_t, filename: Optional[str] = None
+) -> Cell:
     # NB. no need for test rewrite, anonymous file, etc.
     # Because this is never invoked in script mode.
+    source_position = None
+    # EXCEPT in the case of debugpy, where we need to preserve source position.
+    if os.environ.get("DEBUGPY_RUNNING"):
+        if filename and cell_def.lineno:
+            source_position = SourcePosition(
+                filename=filename,
+                lineno=cell_def.lineno,
+                col_offset=cell_def.col_offset,
+            )
+
     prefix = ""
     if isinstance(cell_def, (FunctionCell, ClassCell)):
         prefix = TOPLEVEL_CELL_PREFIX
@@ -438,6 +564,7 @@ def ir_cell_factory(cell_def: CellDef, cell_id: CellId_t) -> Cell:
         _cell=compile_cell(
             cell_def.code,
             cell_id=cell_id,
+            source_position=source_position,
         ),
     )
 
@@ -458,7 +585,7 @@ def cell_factory(
     function_code = textwrap.dedent("".join(code))
 
     extractor = parse.Extractor(contents=function_code)
-    func_ast = ast.parse(function_code).body[0]
+    func_ast = parse.ast_parse(function_code).body[0]
     cell_def = extractor.to_cell(func_ast, attribute="cell")
 
     # anonymous file is required for deterministic testing.

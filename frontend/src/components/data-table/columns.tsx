@@ -4,6 +4,7 @@
 import { PopoverClose } from "@radix-ui/react-popover";
 import type { Column, ColumnDef } from "@tanstack/react-table";
 import { formatDate } from "date-fns";
+import { WithLocale } from "@/core/i18n/with-locale";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
@@ -16,6 +17,7 @@ import { JsonOutput } from "../editor/output/JsonOutput";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Tooltip } from "../ui/tooltip";
 import { DataTableColumnHeader } from "./column-header";
 import type { ColumnChartSpecModel } from "./column-summary/chart-spec-model";
 import { TableColumnSummary } from "./column-summary/column-summary";
@@ -102,6 +104,7 @@ export function generateColumns<T>({
   chartSpecModel,
   textJustifyColumns,
   wrappedColumns,
+  headerTooltip,
   showDataTypes,
   calculateTopKRows,
 }: {
@@ -111,9 +114,10 @@ export function generateColumns<T>({
   chartSpecModel?: ColumnChartSpecModel<unknown>;
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
+  headerTooltip?: Record<string, string>;
   showDataTypes?: boolean;
   calculateTopKRows?: CalculateTopKRows;
-}): Array<ColumnDef<T>> {
+}): ColumnDef<T>[] {
   // Row-headers are typically index columns
   const rowHeadersSet = new Set(rowHeaders.map(([columnName]) => columnName));
 
@@ -164,6 +168,7 @@ export function generateColumns<T>({
       header: ({ column, table }) => {
         const stats = chartSpecModel?.getColumnStats(key);
         const dtype = column.columnDef.meta?.dtype;
+        const headerTitle = headerTooltip?.[key];
         const dtypeHeader =
           showDataTypes && dtype ? (
             <div className="flex flex-row gap-1">
@@ -178,14 +183,29 @@ export function generateColumns<T>({
 
         const headerWithType = (
           <div className="flex flex-col">
-            <span className="font-bold">{key === "" ? " " : key}</span>
+            <span
+              className={cn(
+                "font-bold",
+                headerTitle && "underline decoration-dotted",
+              )}
+            >
+              {key === "" ? " " : key}
+            </span>
             {dtypeHeader}
           </div>
         );
 
+        const headerWithTooltip = headerTitle ? (
+          <Tooltip content={headerTitle} delayDuration={300}>
+            {headerWithType}
+          </Tooltip>
+        ) : (
+          headerWithType
+        );
+
         const dataTableColumnHeader = (
           <DataTableColumnHeader
-            header={headerWithType}
+            header={headerWithTooltip}
             column={column}
             calculateTopKRows={calculateTopKRows}
             table={table}
@@ -228,13 +248,13 @@ export function generateColumns<T>({
           isCellSelected,
         );
 
-        const renderedCell = renderCellValue(
+        const renderedCell = renderCellValue({
           column,
           renderValue,
           getValue,
           selectCell,
           cellStyles,
-        );
+        });
 
         // Row headers are bold
         if (rowHeadersSet.has(key)) {
@@ -404,18 +424,25 @@ function renderAny(value: unknown): string {
   }
 }
 
-function renderDate(
-  value: Date,
-  dataType?: DataType,
-  dtype?: string,
-  format?: DateFormat | null,
-): React.ReactNode {
+function renderDate({
+  value,
+  dataType,
+  dtype,
+  format,
+  locale,
+}: {
+  value: Date;
+  dataType?: DataType;
+  dtype?: string;
+  format?: DateFormat | null;
+  locale: string;
+}): React.ReactNode {
   const type = dataType === "date" ? "date" : "datetime";
   const timezone = extractTimezone(dtype);
 
   const exactValue = format
     ? formatDate(value, format)
-    : exactDateTime(value, timezone);
+    : exactDateTime(value, timezone, locale);
 
   return (
     <DatePopover date={value} type={type}>
@@ -424,13 +451,19 @@ function renderDate(
   );
 }
 
-export function renderCellValue<TData, TValue>(
-  column: Column<TData, TValue>,
-  renderValue: () => TValue | null,
-  getValue: () => TValue,
-  selectCell?: () => void,
-  cellStyles?: string,
-) {
+export function renderCellValue<TData, TValue>({
+  column,
+  renderValue,
+  getValue,
+  selectCell,
+  cellStyles,
+}: {
+  column: Column<TData, TValue>;
+  renderValue: () => TValue | null;
+  getValue: () => TValue;
+  selectCell?: () => void;
+  cellStyles?: string;
+}) {
   const value = getValue();
   const format = column.getColumnFormatting?.();
 
@@ -441,7 +474,13 @@ export function renderCellValue<TData, TValue>(
     try {
       const date = new Date(value);
       const format = getDateFormat(value);
-      return renderDate(date, dataType, dtype, format);
+      return (
+        <WithLocale>
+          {(locale) =>
+            renderDate({ value: date, dataType, dtype, format, locale })
+          }
+        </WithLocale>
+      );
     } catch (error) {
       Logger.error("Error parsing datetime, fallback to string", error);
     }
@@ -449,7 +488,11 @@ export function renderCellValue<TData, TValue>(
 
   if (value instanceof Date) {
     // e.g. 2010-10-07 17:15:00
-    return renderDate(value, dataType, dtype);
+    return (
+      <WithLocale>
+        {(locale) => renderDate({ value, dataType, dtype, locale })}
+      </WithLocale>
+    );
   }
 
   if (typeof value === "string") {

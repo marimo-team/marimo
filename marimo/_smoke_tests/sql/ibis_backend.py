@@ -15,7 +15,7 @@
 
 import marimo
 
-__generated_with = "0.13.4"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -58,7 +58,7 @@ def _(ibis, pa):
 
 
 @app.cell
-def _(con, mo, my_data, my_db):
+def _(con, mo):
     _df = mo.sql(
         f"""
         SELECT * FROM my_db.my_data
@@ -111,7 +111,7 @@ def _(data, pyspark_conn):
 
 
 @app.cell
-def _(mo, my_data, pyspark_conn):
+def _(mo, pyspark_conn):
     _df = mo.sql(
         f"""
         SELECT * FROM my_data

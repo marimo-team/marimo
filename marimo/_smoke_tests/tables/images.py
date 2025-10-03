@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.30"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -33,7 +33,7 @@ def _():
     )
 
     df
-    return Image, df, io, load_image, pd, pl, requests
+    return Image, df, io, requests
 
 
 @app.cell

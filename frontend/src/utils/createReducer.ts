@@ -79,11 +79,7 @@ type Middleware<State> = (
 export function createReducerAndAtoms<
   State,
   RH extends ReducerHandlers<NoInfer<State>>,
->(
-  initialState: () => State,
-  reducers: RH,
-  middleware?: Array<Middleware<State>>,
-) {
+>(initialState: () => State, reducers: RH, middleware?: Middleware<State>[]) {
   const { reducer, createActions } = createReducer(initialState, reducers);
 
   const reducerWithMiddleware = (state: State, action: ReducerAction<any>) => {

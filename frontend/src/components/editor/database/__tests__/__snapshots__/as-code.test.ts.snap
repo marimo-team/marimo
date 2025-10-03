@@ -28,6 +28,42 @@ engine = clickhouse_connect.get_client(
 )"
 `;
 
+exports[`generateDatabaseCode > basic connections > databricks 1`] = `
+"import os
+import sqlalchemy
+
+_access_token = os.environ.get("DATABRICKS_ACCESS_TOKEN", "my_access_token")
+_server_hostname = os.environ.get("DATABRICKS_SERVER_HOSTNAME", "localhost")
+_http_path = os.environ.get("DATABRICKS_HTTP_PATH", "http://localhost:8080")
+DATABASE_URL = f"databricks://token:{_access_token}@{_server_hostname}?http_path={_http_path}"
+engine = sqlalchemy.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > basic connections > databricks with catalog and schema 1`] = `
+"import os
+import sqlalchemy
+
+_access_token = os.environ.get("DATABRICKS_ACCESS_TOKEN", "my_access_token")
+_server_hostname = os.environ.get("DATABRICKS_SERVER_HOSTNAME", "localhost")
+_http_path = os.environ.get("DATABRICKS_HTTP_PATH", "http://localhost:8080")
+DATABASE_URL = f"databricks://token:{_access_token}@{_server_hostname}?http_path={_http_path}&catalog=my_catalog&schema=my_schema"
+engine = sqlalchemy.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > basic connections > databricks with ibis 1`] = `
+"import ibis
+import os
+
+_access_token = os.environ.get("DATABRICKS_ACCESS_TOKEN", "my_access_token")
+_server_hostname = os.environ.get("DATABRICKS_SERVER_HOSTNAME", "localhost")
+_http_path = os.environ.get("DATABRICKS_HTTP_PATH", "http://localhost:8080")
+engine = ibis.databricks.connect(
+  server_hostname=_server_hostname,
+  http_path=_http_path,
+  access_token=_access_token
+)"
+`;
+
 exports[`generateDatabaseCode > basic connections > datafusion 1`] = `
 "from datafusion import SessionContext
 import ibis

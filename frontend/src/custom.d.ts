@@ -20,5 +20,5 @@ interface JSON {
 
 // Improve type inference for Array.filter with BooleanConstructor
 interface Array<T> {
-  filter(predicate: BooleanConstructor): Array<NonNullable<T>>;
+  filter(predicate: BooleanConstructor): NonNullable<T>[];
 }

@@ -6,7 +6,8 @@ define and reference. When things don't work as expected, marimo provides
 interpretation of your notebook and debug issues.
 
 This guide covers common issues and unexpected behaviors you might encounter,
-along with ways to debug and resolve them. If your issue isn't covered here,
+along with ways to debug and resolve them. For interactive debugging techniques, 
+see our [debugging guide](debugging.md). If your issue isn't covered here,
 try checking our [FAQ](../faq.md).
 
 ## Why aren't my cells running?
@@ -125,6 +126,22 @@ If you find yourself needing to force execution order often, it might be a sign 
 2. Consider combining related operations into single cells where appropriate.
 
 ## General debugging tips
+
+### Check for common issues with the linter
+
+Before diving into manual debugging, try running marimo's built-in linter to catch common issues:
+
+```bash
+marimo check my_notebook.py
+```
+
+The linter can identify problems like:
+- Multiple variable definitions across cells
+- Circular dependencies between cells
+- Unparsable code that prevents execution
+- Other code quality issues
+
+See the [Lint Rules](lint_rules/index.md) guide for a complete list of checks.
 
 ### Understanding dependencies
 

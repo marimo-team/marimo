@@ -91,8 +91,10 @@ const HighlightMargin = 250;
 export const searchHighlighter = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
+    readonly view: EditorView;
 
-    constructor(readonly view: EditorView) {
+    constructor(view: EditorView) {
+      this.view = view;
       this.decorations = this.highlight(view.state.field(searchState));
     }
 

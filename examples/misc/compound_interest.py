@@ -8,18 +8,18 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""# Compound Interest""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         This notebook illustrates exponential growth, using compound interest
@@ -30,7 +30,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     initial_investment = mo.ui.slider(0, 1000000, step=1e4, value=10000)
     monthly_investment = mo.ui.slider(0, 50000, value=1000, step=1e3)
     annual_return = mo.ui.slider(0, 0.15, value=0.07, step=0.01)
@@ -73,7 +73,6 @@ def __(mo):
         capital_gains_tax_rate,
         initial_investment,
         monthly_investment,
-        table,
         years,
     )
 
@@ -130,36 +129,29 @@ def simulate(
     _prose = f"""
     ## Net Worth
 
-    With an initial investment of **\${initial_investment.value :,.02f}**, an annual
+    With an initial investment of **${{initial_investment.value :,.02f}}**, an annual
     return of **{annual_return.value * 100:.02f}%** with
-    **\${monthly_investment.value:,.02f}** invested monthly, in {years.value} years
-    you will have approximately **\${values[-1]:,.02f}** accumulated in
+    **${{monthly_investment.value:,.02f}}** invested monthly, in {years.value} years
+    you will have approximately **${{values[-1]:,.02f}}** accumulated in
     equities. Assuming a long-term capitals gain tax of
     **{capital_gains_tax_rate.value*100:.02f}%**, the net portfolio value is
-    **\${values_less_taxes[-1]:,.02f}**. Compare that to the
-    **\${investment_principals[-1]:,.02f}** that you contributed in total.
+    **${{values_less_taxes[-1]:,.02f}}**. Compare that to the
+    **${{investment_principals[-1]:,.02f}}** that you contributed in total.
     """
 
     ax = plt.gca()
     mo.md(_prose)
-    return (
-        Portfolio,
-        ax,
-        investment_principals,
-        portfolio,
-        values,
-        values_less_taxes,
-    )
+    return (ax,)
 
 
 @app.cell
-def __(ax):
+def _(ax):
     ax
     return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import matplotlib.pyplot as plt
     return mo, plt

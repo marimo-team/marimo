@@ -10,12 +10,12 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import pandas as pd
     import os
@@ -26,7 +26,7 @@ def __():
 
 
 @app.cell
-def __(mo):
+def _(mo):
     # Configuration
     credentials = mo.ui.text(placeholder="path/to/creds.json")
     mo.md(
@@ -43,13 +43,7 @@ def __(mo):
 
 
 @app.cell
-def __(
-    GoogleCredentials,
-    ServiceAccountCredentials,
-    credentials,
-    gspread,
-    os,
-):
+def _(GoogleCredentials, ServiceAccountCredentials, credentials, gspread, os):
     # Set up client
     _scopes = [
         "https://spreadsheets.google.com/feeds",
@@ -66,24 +60,24 @@ def __(
         creds = GoogleCredentials.get_application_default().create_scoped(_scopes)
 
     gc = gspread.authorize(creds)
-    return creds, gc
+    return (gc,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     spreadsheet_url = mo.ui.text(label="Spreadsheet URL", full_width=True)
     spreadsheet_url
     return (spreadsheet_url,)
 
 
 @app.cell
-def __(gc, mo, pd, spreadsheet_url):
+def _(gc, mo, pd, spreadsheet_url):
     mo.stop(not spreadsheet_url.value)
 
     # Get sheet records
     wks = gc.open_by_url(spreadsheet_url.value).sheet1
     mo.ui.table(pd.DataFrame(wks.get_all_records()), selection=None)
-    return (wks,)
+    return
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ from typing import (
     Union,
     cast,
 )
+from urllib.parse import parse_qs, urlparse
 
 from starlette.exceptions import HTTPException
 
@@ -34,7 +35,10 @@ from marimo._ai._types import ChatMessage
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
+from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
+
+TIMEOUT = 30
 
 if TYPE_CHECKING:
     from anthropic import (  # type: ignore[import-not-found]
@@ -117,6 +121,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> StreamT:
         """Create a completion stream."""
         pass
@@ -138,7 +143,11 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         content_text, content_type = content
         if content_type in [
             "text",
+            "text_start",
+            "text_end",
             "reasoning",
+            "reasoning_start",
+            "reasoning_end",
             "reasoning_signature",
             "tool_call_start",
             "tool_call_delta",
@@ -231,6 +240,12 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         # Finish reason collected from the last chunk
         finish_reason: Optional[FinishReason] = None
 
+        # Text block tracking for start/delta/end pattern
+        current_text_id: Optional[str] = None
+        current_reasoning_id: Optional[str] = None
+        has_text_started = False
+        has_reasoning_started = False
+
         async for chunk in response:
             # Always check for finish reason first, before checking content
             # Some chunks (like RawMessageDeltaEvent) contain finish reasons but no extractable content
@@ -244,6 +259,46 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
             content_data, content_type = content
 
             if options.text_only and content_type != "text":
+                continue
+
+            # Handle text content with start/delta/end pattern
+            if (
+                content_type == "text"
+                and isinstance(content_data, str)
+                and options.format_stream
+            ):
+                if not has_text_started:
+                    # Emit text-start event
+                    current_text_id = f"text_{uuid.uuid4().hex}"
+                    yield convert_to_ai_sdk_messages(
+                        "", "text_start", current_text_id
+                    )
+                    has_text_started = True
+
+                # Emit text-delta event with the actual content
+                yield convert_to_ai_sdk_messages(
+                    content_data, "text", current_text_id
+                )
+                continue
+
+            # Handle reasoning content with start/delta/end pattern
+            elif (
+                content_type == "reasoning"
+                and isinstance(content_data, str)
+                and options.format_stream
+            ):
+                if not has_reasoning_started:
+                    # Emit reasoning-start event
+                    current_reasoning_id = f"reasoning_{uuid.uuid4().hex}"
+                    yield convert_to_ai_sdk_messages(
+                        "", "reasoning_start", current_reasoning_id
+                    )
+                    has_reasoning_started = True
+
+                # Emit reasoning-delta event with the actual content
+                yield convert_to_ai_sdk_messages(
+                    content_data, "reasoning", current_reasoning_id
+                )
                 continue
 
             # Tool handling
@@ -274,7 +329,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
                 # based on https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#tool-call-delta-part
                 content_data = {
                     "toolCallId": tool_call_id,
-                    "argsTextDelta": content_data,
+                    "inputTextDelta": content_data,
                 }
 
             content_str = self._content_to_string(content_data)
@@ -291,12 +346,26 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
             yield buffer
             buffer = ""
 
+        # Emit text-end event if we started a text block
+        if has_text_started and current_text_id and options.format_stream:
+            yield convert_to_ai_sdk_messages("", "text_end", current_text_id)
+
+        # Emit reasoning-end event if we started a reasoning block
+        if (
+            has_reasoning_started
+            and current_reasoning_id
+            and options.format_stream
+        ):
+            yield convert_to_ai_sdk_messages(
+                "", "reasoning_end", current_reasoning_id
+            )
+
         # Handle tool call end after the stream is complete
         if tool_call_id and tool_call_name and not options.text_only:
             content_data = {
                 "toolCallId": tool_call_id,
                 "toolName": tool_call_name,
-                "args": self.validate_tool_call_args(tool_call_args)
+                "input": self.validate_tool_call_args(tool_call_args)
                 or {},  # empty object if tool doesnt have args
             }
             content_type = "tool_call_end"
@@ -410,6 +479,7 @@ class OpenAIProvider(
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> OpenAiStream[ChatCompletionChunk]:
         client = self.get_client(self.config)
         tools = self.config.tools
@@ -425,10 +495,11 @@ class OpenAIProvider(
                 ),
             ),
             "stream": True,
-            "timeout": 15,
+            "timeout": TIMEOUT,
         }
         if tools:
-            create_params["tools"] = convert_to_openai_tools(tools)
+            all_tools = tools + additional_tools
+            create_params["tools"] = convert_to_openai_tools(all_tools)
         if self._is_reasoning_model(self.model):
             create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
             create_params["max_completion_tokens"] = max_tokens
@@ -513,24 +584,68 @@ class OpenAIProvider(
 
 
 class AzureOpenAIProvider(OpenAIProvider):
-    def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
-        from urllib.parse import parse_qs, urlparse
+    def _is_reasoning_model(self, model: str) -> bool:
+        # https://learn.microsoft.com/en-us/answers/questions/5519548/does-gpt-5-via-azure-support-reasoning-effort-and
+        # Only custom models support reasoning effort, we can expose this as a parameter in the future
+        del model
+        return False
 
+    def _handle_azure_openai(self, base_url: str) -> tuple[str, str, str]:
+        """Handle Azure OpenAI.
+        Sample base URL: https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment_name>?api-version=<api-version>
+
+        Args:
+            base_url (str): The base URL of the Azure OpenAI.
+
+        Returns:
+            tuple[str, str, str]: The API version, deployment name, and endpoint.
+        """
+
+        parsed_url = urlparse(base_url)
+
+        deployment_name = parsed_url.path.split("/")[3]
+        api_version = parse_qs(parsed_url.query)["api-version"][0]
+
+        endpoint = f"{parsed_url.scheme}://{parsed_url.hostname}"
+        return api_version, deployment_name, endpoint
+
+    def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         from openai import AsyncAzureOpenAI
 
         base_url = config.base_url or None
         key = config.api_key
 
-        # Azure OpenAI clients are instantiated slightly differently
-        parsed_url = urlparse(base_url)
-        deployment_model = cast(str, parsed_url.path).split("/")[3]
-        api_version = parse_qs(cast(str, parsed_url.query))["api-version"][0]
+        if base_url is None:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Base URL needed to get the endpoint",
+            )
+
+        api_version = None
+        deployment_name = None
+        endpoint = None
+
+        if base_url:
+            if "services.ai.azure.com" in base_url:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="To use Azure AI Foundry, use the OpenAI-compatible provider instead.",
+                )
+            elif "openai.azure.com" in base_url:
+                api_version, deployment_name, endpoint = (
+                    self._handle_azure_openai(base_url)
+                )
+            else:
+                LOGGER.warning(f"Unknown Azure OpenAI base URL: {base_url}")
+                api_version, deployment_name, endpoint = (
+                    self._handle_azure_openai(base_url)
+                )
 
         return AsyncAzureOpenAI(
             api_key=key,
             api_version=api_version,
-            azure_deployment=deployment_model,
-            azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
+            azure_deployment=deployment_name,
+            azure_endpoint=endpoint or "",
         )
 
 
@@ -582,6 +697,7 @@ class AnthropicProvider(
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> AnthropicStream[RawMessageStreamEvent]:
         client = self.get_client(self.config)
         tools = self.config.tools
@@ -597,7 +713,8 @@ class AnthropicProvider(
             "temperature": self.get_temperature(),
         }
         if tools:
-            create_params["tools"] = convert_to_anthropic_tools(tools)
+            all_tools = tools + additional_tools
+            create_params["tools"] = convert_to_anthropic_tools(all_tools)
         if self.is_extended_thinking_model(self.model):
             create_params["thinking"] = {
                 "type": "enabled",
@@ -680,13 +797,19 @@ class GoogleProvider(
         "gemini-2.5-flash",
     ]
 
+    # Keep a persistent async client to avoid closing during stream iteration
+    _client: Optional[GoogleClient] = None
+
     def is_thinking_model(self, model: str) -> bool:
         return any(
             model.startswith(prefix) for prefix in self.THINKING_MODEL_PREFIXES
         )
 
     def get_config(
-        self, system_prompt: str, max_tokens: int
+        self,
+        system_prompt: str,
+        max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> GenerateContentConfig:
         tools = self.config.tools
         config = {
@@ -695,7 +818,8 @@ class GoogleProvider(
             "max_output_tokens": max_tokens,
         }
         if tools:
-            config["tools"] = convert_to_google_tools(tools)
+            all_tools = tools + additional_tools
+            config["tools"] = convert_to_google_tools(all_tools)
         if self.is_thinking_model(self.model):
             config["thinking_config"] = {
                 "include_thoughts": True,
@@ -711,20 +835,48 @@ class GoogleProvider(
             )
             from google import genai  # type: ignore
 
-        return genai.Client(api_key=config.api_key).aio
+        # Reuse a stored async client if already created
+        if self._client is not None:
+            return self._client
+
+        # If no API key is provided, try to use environment variables and ADC
+        # This supports Google Vertex AI usage without explicit API keys
+        if not config.api_key:
+            # Check if GOOGLE_GENAI_USE_VERTEXAI is set to enable Vertex AI mode
+            use_vertex = (
+                os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
+            )
+            if use_vertex:
+                project = os.getenv("GOOGLE_CLOUD_PROJECT")
+                location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+                self._client = genai.Client(
+                    vertexai=True, project=project, location=location
+                ).aio
+            else:
+                # Try default initialization which may work with environment variables
+                self._client = genai.Client().aio
+
+            # Return vertex or default client
+            return self._client
+
+        self._client = genai.Client(api_key=config.api_key).aio
+        return self._client
 
     async def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> AsyncIterator[GenerateContentResponse]:
         client = self.get_client(self.config)
-        return await client.models.generate_content_stream(
+        return await client.models.generate_content_stream(  # type: ignore[reportReturnType]
             model=self.model,
             contents=convert_to_google_messages(messages),
             config=self.get_config(
-                system_prompt=system_prompt, max_tokens=max_tokens
+                system_prompt=system_prompt,
+                max_tokens=max_tokens,
+                additional_tools=additional_tools,
             ),
         )
 
@@ -824,6 +976,7 @@ class BedrockProvider(
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
+        additional_tools: list[ToolDefinition],
     ) -> LitellmStream:
         DependencyManager.litellm.require(why="for AI assistance with Bedrock")
         DependencyManager.boto3.require(why="for AI assistance with Bedrock")
@@ -843,10 +996,11 @@ class BedrockProvider(
             ),
             "max_completion_tokens": max_tokens,
             "stream": True,
-            "timeout": 15,
+            "timeout": TIMEOUT,
         }
         if tools:
-            config["tools"] = convert_to_openai_tools(tools)
+            all_tools = tools + additional_tools
+            config["tools"] = convert_to_openai_tools(all_tools)
 
         return await litellm_completion(**config)
 
@@ -922,6 +1076,8 @@ def get_completion_provider(
         return BedrockProvider(model_id.model, config)
     elif model_id.provider == "azure":
         return AzureOpenAIProvider(model_id.model, config)
+    elif model_id.provider == "openrouter":
+        return OpenAIProvider(model_id.model, config)
     else:
         return OpenAIProvider(model_id.model, config)
 

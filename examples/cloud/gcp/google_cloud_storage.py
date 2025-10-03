@@ -9,12 +9,12 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __():
+def _():
     # Imports
     import marimo as mo
     import os
@@ -23,7 +23,7 @@ def __():
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     # Configuration
     credentials = mo.ui.text(placeholder="path/to/creds.json")
     mo.md(
@@ -40,14 +40,14 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     project = mo.ui.text(label="gcloud project")
     project
     return (project,)
 
 
 @app.cell
-def __(credentials, mo, os, project, storage):
+def _(credentials, mo, os, project, storage):
     # Set up client
     if credentials.value:
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials.value
@@ -67,7 +67,7 @@ def __(credentials, mo, os, project, storage):
 
 
 @app.cell
-def __(buckets, mo):
+def _(buckets, mo):
     # Bucket selection
     selected_bucket = mo.ui.dropdown(
         label="Select bucket", options=[bucket.name for bucket in buckets]
@@ -77,13 +77,13 @@ def __(buckets, mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     get_prefix, set_prefix = mo.state("")
     return get_prefix, set_prefix
 
 
 @app.cell
-def __(client, mo, selected_bucket):
+def _(client, mo, selected_bucket):
     mo.stop(not selected_bucket.value)
 
     bucket = client.get_bucket(selected_bucket.value)
@@ -91,14 +91,14 @@ def __(client, mo, selected_bucket):
 
 
 @app.cell
-def __(bucket, get_prefix):
+def _(bucket, get_prefix):
     _prefix = get_prefix() or None
     blobs = list(bucket.list_blobs(max_results=30, prefix=_prefix))
     return (blobs,)
 
 
 @app.cell
-def __(get_prefix, mo, set_prefix):
+def _(get_prefix, mo, set_prefix):
     output = None
     _prefix = get_prefix()
     if _prefix:
@@ -109,11 +109,11 @@ def __(get_prefix, mo, set_prefix):
             ]
         )
     output
-    return (output,)
+    return
 
 
 @app.cell
-def __(blobs, bucket, mo, set_prefix):
+def _(blobs, bucket, mo, set_prefix):
     # Display files in a table
     _files = [
         {
@@ -139,7 +139,7 @@ def __(blobs, bucket, mo, set_prefix):
 
 
 @app.cell
-def __(bucket, file_table, mo):
+def _(bucket, file_table, mo):
     # Load selected file
     if len(file_table.value) >= 1:
         _selected_file = file_table.value[0]

@@ -22,6 +22,7 @@ from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
     Error,
     MarimoExceptionRaisedError,
+    MarimoSQLError,
     MarimoStrictExecutionError,
     UnknownError,
 )
@@ -38,6 +39,10 @@ from marimo._runtime.executor import (
     get_executor,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._sql.error_utils import (
+    create_sql_error_from_exception,
+    is_sql_parse_error,
+)
 from marimo._types.ids import CellId_t
 
 LOGGER = marimo_logger()
@@ -403,6 +408,13 @@ class Runner:
                         exception = output
                 except Exception:
                     pass
+        # Handle SQL parsing errors
+        elif unwrapped_exception is not None and is_sql_parse_error(
+            unwrapped_exception
+        ):
+            cell = self.graph.cells[cell_id]
+            output = create_sql_error_from_exception(unwrapped_exception, cell)
+            exception = output
         elif isinstance(unwrapped_exception, MarimoStopError):
             output = unwrapped_exception.output
             exception = unwrapped_exception
@@ -502,10 +514,26 @@ class Runner:
             # this call as well, so this should be lifted out of `run`.
             self.cancel(cell_id)
 
-            # Stop "errors" aren't actually errors but rather a control
-            # flow mechanism used by mo.stop() to stop execution; as such
-            # a traceback should not be shown for them.
-            if not isinstance(run_result.exception, MarimoStopError):
+            def should_show_traceback(
+                exception: Optional[ErrorObjects],
+            ) -> bool:
+                if exception is None:
+                    return True
+
+                # Stop "errors" aren't actually errors but rather a control
+                # flow mechanism used by mo.stop() to stop execution; as such
+                # a traceback should not be shown for them.
+                if isinstance(exception, MarimoStopError):
+                    return False
+
+                # SQL parsing errors happen in SQL cells so showing a
+                # python traceback is not useful.
+                if isinstance(exception, MarimoSQLError):
+                    return False
+
+                return True
+
+            if should_show_traceback(run_result.exception):
                 tmpio = io.StringIO()
                 # The executors explicitly raise cell exceptions from base
                 # exceptions such that the stack trace is cleaner.

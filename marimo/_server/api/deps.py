@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from starlette.applications import Starlette
     from starlette.datastructures import State
     from starlette.requests import Request
+    from starlette.types import ASGIApp
     from starlette.websockets import WebSocket
     from uvicorn import Server
 
@@ -94,6 +95,11 @@ class AppStateBase:
         return headless
 
     @property
+    def skew_protection(self) -> bool:
+        skew_protection: bool = self.state.skew_protection
+        return skew_protection
+
+    @property
     def skew_protection_token(self) -> SkewProtectionToken:
         return self.session_manager.skew_protection_token
 
@@ -102,8 +108,21 @@ class AppStateBase:
         return getattr(self.state, "remote_url", None)
 
     @property
+    def mcp_server_enabled(self) -> bool:
+        mcp_server_enabled: bool = self.state.mcp_server_enabled
+        return mcp_server_enabled
+
+    @property
+    def mcp_handler(self) -> Optional[ASGIApp]:
+        return getattr(self.state, "mcp_handler", None)
+
+    @property
     def asset_url(self) -> Optional[str]:
         return getattr(self.state, "asset_url", None)
+
+    @property
+    def enable_auth(self) -> bool:
+        return getattr(self.state, "enable_auth", True)
 
 
 class AppState(AppStateBase):

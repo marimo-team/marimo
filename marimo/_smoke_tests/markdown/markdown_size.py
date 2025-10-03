@@ -1,20 +1,21 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.12"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     from vega_datasets import data
 
     cars = data.cars()
-    return cars, data
+    return (cars,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     size = mo.ui.slider(
         steps=[0, 1, 2, 3],
         value=1,
@@ -25,13 +26,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo, size, sizes):
-    mo.md(f"{size} **{sizes[size.value]}**")
+def _(mo, size, sizes):
+    mo.md(f"""{size} **{sizes[size.value]}**""")
     return
 
 
 @app.cell
-def __(cars, mo):
+def _(cars, mo):
     mo.md(
         f"""
     # kitchen sink
@@ -94,7 +95,7 @@ def __(cars, mo):
 
 
 @app.cell
-def __():
+def _():
     {
         "string": "hello",
         "int": 10,
@@ -104,9 +105,9 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

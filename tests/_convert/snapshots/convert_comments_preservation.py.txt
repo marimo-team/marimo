@@ -1,0 +1,107 @@
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    # Cell 1: Basic inline and line comments
+    x = 1  # This is an inline comment
+    print(x)  # Another inline comment
+    return (x,)
+
+
+@app.cell
+def _():
+    # Cell 2: Comments with duplicate definitions
+    # This variable will be redefined later
+    y = 10  # First definition
+    print(y)  # Should preserve this comment
+    return
+
+
+@app.cell
+def _():
+    # Cell 3: Redefinition with more comments
+    # This is the second definition of y
+    y_1 = 20  # Second definition with inline comment
+    result = y_1 * 2  # Calculate result
+    print(result)  # Print the result
+    return (y_1,)
+
+
+@app.cell
+def _():
+    # Cell 4: Magic commands with comments
+    # magic command not supported in marimo; please file an issue to add support
+    # %time x = 5 # Time this operation
+    # Comment before magic
+    import os
+    os.listdir()
+    return
+
+
+@app.cell
+def _(mo):
+    _df = mo.sql("""
+    -- SQL comment inside magic
+    SELECT * FROM table  -- Another SQL comment
+    WHERE id > 0  # Python-style comment in SQL
+    """)
+    return
+
+
+@app.cell
+def _():
+    # Cell 6: Comments with import statements
+    import numpy as np  # Import numpy
+    import pandas as pd  # Import pandas
+    # These imports might be duplicated elsewhere
+    return (np,)
+
+
+@app.cell
+def _(np):
+    # Cell 7: Duplicate import with different comment
+    # This should be deduplicated but preserve one of the comments
+    arr = np.array([1, 2, 3])  # Import numpy again with different comment  # Create array
+    return
+
+
+@app.cell
+def _(x, y_1):
+    # Cell 8: Complex expressions with comments
+    # Calculate something complex
+    # Final comment in cell
+    z = x * 2 + y_1  # Multiply x by 2  # Add y to the result
+    return
+
+
+@app.cell
+def _():
+    # Cell 9: Augmented assignment with comments
+    counter = 0  # Initialize counter
+    # This should preserve comments during aug assign transformation
+    counter = counter + 1  # Increment counter (this will be transformed)
+    return
+
+
+@app.cell
+def _():
+    # Cell 10: Function definitions with comments
+    def my_function():  # Define a function
+        """This is a docstring, not a comment."""
+        # This is a comment inside the function
+        return 42  # Return a value
+    # Comment after function
+    return
+
+
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
+
+
+if __name__ == "__main__":
+    app.run()

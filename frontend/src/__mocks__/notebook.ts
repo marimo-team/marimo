@@ -104,12 +104,14 @@ export const MockNotebook = {
       type: "exception",
       msg,
       exception_type,
+      raising_cell: null,
     }),
 
     strictException: (msg: string, ref: string): MarimoError => ({
       type: "strict-exception",
       msg,
       ref,
+      blamed_cell: null,
     }),
 
     interruption: (): MarimoError => ({
@@ -124,6 +126,7 @@ export const MockNotebook = {
     unknown: (msg: string): MarimoError => ({
       type: "unknown",
       msg,
+      error_type: null,
     }),
   },
 
@@ -131,11 +134,11 @@ export const MockNotebook = {
    * Create a notebook state with error outputs for testing ErrorContextProvider
    */
   notebookStateWithErrors: (
-    errors: Array<{
+    errors: {
       cellId: CellId;
       cellName: string;
       errorData: MarimoError[];
-    }>,
+    }[],
   ): NotebookState => {
     const cellData: Record<string, Partial<CellData>> = {};
 

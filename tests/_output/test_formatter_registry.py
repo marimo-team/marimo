@@ -281,3 +281,24 @@ class TestFormatterRegistry:
         assert registry.get_formatter(type(value)) is None
         assert registry.get_formatter(int) is None
         assert registry.get_formatter(type(int)) is None
+
+    def test_get_formatter_handles_broken_mro(self):
+        """Ensure registry gracefully handles types with broken mro()."""
+        registry = FormatterRegistry()
+
+        class Broken:
+            pass
+
+        # Shadow mro with a plain function so calling it raises a TypeError
+        # because no implicit self/cls is passed for functions on classes
+        def bad_mro(_self):
+            del _self
+            raise TypeError("broken mro")
+
+        Broken.mro = bad_mro  # type: ignore[attr-defined]
+
+        obj = Broken()
+
+        # Should not raise, and should return None when MRO cannot be read
+        formatter = registry.get_formatter(obj)
+        assert formatter is None

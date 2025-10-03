@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.3.10"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -14,7 +15,7 @@ def __():
 
     # better to do plt.gca(), but discovered this translating script
     plt.show()
-    return np, plt
+    return
 
 
 if __name__ == "__main__":

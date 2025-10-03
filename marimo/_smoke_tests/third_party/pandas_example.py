@@ -5,32 +5,33 @@
 #     "numpy",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(np):
+def _(np):
     import pandas as pd
 
     df = pd.DataFrame([np.random.randn(20)]*10, columns=np.arange(20))
     df
-    return df, pd
+    return (df,)
 
 
 @app.cell
-def __(df):
+def _(df):
     # Series
     df[0]
     return
 
 
 @app.cell
-def __():
+def _():
     import numpy as np
-    return np,
+    return (np,)
 
 
 if __name__ == "__main__":

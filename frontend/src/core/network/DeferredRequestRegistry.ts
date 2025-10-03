@@ -18,22 +18,36 @@ export const RequestId = {
  */
 export class DeferredRequestRegistry<REQ, RES> {
   public requests = new Map<RequestId, Deferred<RES>>();
+  public operation: string;
+  private makeRequest: (id: RequestId, req: REQ) => Promise<void>;
+  private opts: {
+    /**
+     * Resolve existing requests with an empty response.
+     */
+    resolveExistingRequests?: () => RES;
+  };
 
   constructor(
-    public operation: string,
-    private makeRequest: (id: RequestId, req: REQ) => Promise<void>,
-    private opts: {
+    operation: string,
+    makeRequest: (id: RequestId, req: REQ) => Promise<void>,
+    opts: {
       /**
        * Resolve existing requests with an empty response.
        */
       resolveExistingRequests?: () => RES;
     } = {},
-  ) {}
+  ) {
+    this.operation = operation;
+    this.makeRequest = makeRequest;
+    this.opts = opts;
+  }
 
   async request(opts: REQ): Promise<RES> {
     if (this.opts.resolveExistingRequests) {
       const result = this.opts.resolveExistingRequests();
-      this.requests.forEach((deferred) => deferred.resolve(result));
+      for (const deferred of this.requests.values()) {
+        deferred.resolve(result);
+      }
       this.requests.clear();
     }
 

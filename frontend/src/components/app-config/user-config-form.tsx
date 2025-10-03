@@ -13,7 +13,9 @@ import {
   PackageIcon,
 } from "lucide-react";
 import React, { useId, useRef } from "react";
+import { useLocale } from "react-aria";
 import { useForm } from "react-hook-form";
+import type z from "zod";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -108,6 +110,7 @@ export const activeUserConfigCategoryAtom = atom<SettingCategoryId>(
 );
 
 const FORM_DEBOUNCE = 100; // ms;
+const LOCALE_SYSTEM_VALUE = "__system__";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -118,11 +121,14 @@ export const UserConfigForm: React.FC = () => {
   );
   const capabilities = useAtomValue(capabilitiesAtom);
   const marimoVersion = useAtomValue(marimoVersionAtom);
+  const { locale } = useLocale();
   const { saveUserConfig } = useRequestClient();
 
   // Create form
-  const form = useForm<UserConfig>({
-    resolver: zodResolver(UserConfigSchema),
+  const form = useForm({
+    resolver: zodResolver(
+      UserConfigSchema as unknown as z.ZodType<unknown, UserConfig>,
+    ),
     defaultValues: config,
   });
 
@@ -748,6 +754,47 @@ export const UserConfigForm: React.FC = () => {
               />
               <FormField
                 control={form.control}
+                name="display.locale"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Locale</FormLabel>
+                      <FormControl>
+                        <NativeSelect
+                          data-testid="locale-select"
+                          onChange={(e) => {
+                            if (e.target.value === LOCALE_SYSTEM_VALUE) {
+                              field.onChange(undefined);
+                            } else {
+                              field.onChange(e.target.value);
+                            }
+                          }}
+                          value={field.value || LOCALE_SYSTEM_VALUE}
+                          disabled={field.disabled}
+                          className="inline-flex mr-2"
+                        >
+                          <option value={LOCALE_SYSTEM_VALUE}>System</option>
+                          {navigator.languages.map((option) => (
+                            <option value={option} key={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden userConfig={config} name="display.locale" />
+                    </FormItem>
+
+                    <FormDescription>
+                      The locale to use for the notebook. If your desired locale
+                      is not listed, you can change it manually via{" "}
+                      <Kbd className="inline">marimo config show</Kbd>.
+                    </FormDescription>
+                  </div>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="display.reference_highlighting"
                 render={({ field }) => (
                   <div className="flex flex-col space-y-1">
@@ -1183,30 +1230,6 @@ export const UserConfigForm: React.FC = () => {
 
             <FormField
               control={form.control}
-              name="experimental.inline_ai_tooltip"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      AI Edit Tooltip
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="inline-ai-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Enable experimental "Edit with AI" tooltip when selecting
-                    code.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="experimental.rtc_v2"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
@@ -1283,6 +1306,64 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.external_agents"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      External Agents
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="external-agents-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.external_agents"
+                  />
+                  <FormDescription>
+                    Enable experimental external agents such as Claude Code and
+                    Gemini CLI. Learn more in the{" "}
+                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/agents/">
+                      docs
+                    </ExternalLink>
+                    .
+                  </FormDescription>
+                </div>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="experimental.chat_modes"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">Chat Mode</FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="chat-mode-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.chat_modes"
+                  />
+                  <FormDescription>
+                    Switch between different modes in the Chat sidebar, to
+                    enable tool use.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }
@@ -1333,8 +1414,9 @@ export const UserConfigForm: React.FC = () => {
               </TabsTrigger>
             ))}
 
-            <div className="p-2 text-xs text-muted-foreground self-start">
+            <div className="p-2 text-xs text-muted-foreground self-start flex flex-col gap-1">
               <span>Version: {marimoVersion}</span>
+              <span>Locale: {locale}</span>
             </div>
 
             <div className="flex-1" />

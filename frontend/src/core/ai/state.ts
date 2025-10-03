@@ -1,21 +1,25 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { Message as AIMessage } from "@ai-sdk/react";
+import type { UIMessage } from "@ai-sdk/react";
+import type { FileUIPart } from "ai";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import { uniqueBy } from "@/utils/arrays";
 import { adaptForLocalStorage } from "@/utils/storage";
 import type { TypedString } from "@/utils/typed";
 import type { CellId } from "../cells/ids";
-import type { ChatAttachment } from "./types";
 
-const KEY = "marimo:ai:chatState:v4";
+const KEY = "marimo:ai:chatState:v5";
 
 export type ChatId = TypedString<"ChatId">;
 
-export const aiCompletionCellAtom = atom<{
+export interface AiCompletionCell {
   cellId: CellId;
   initialPrompt?: string;
-} | null>(null);
+  triggerImmediately?: boolean;
+}
+
+export const aiCompletionCellAtom = atom<AiCompletionCell | null>(null);
 
 const INCLUDE_OTHER_CELLS_KEY = "marimo:ai:includeOtherCells";
 export const includeOtherCellsAtom = atomWithStorage<boolean>(
@@ -28,14 +32,14 @@ export interface Message {
   role: "user" | "assistant" | "data" | "system";
   content: string;
   timestamp: number;
-  parts?: AIMessage["parts"];
-  attachments?: ChatAttachment[];
+  parts?: UIMessage["parts"];
+  attachments?: FileUIPart[];
 }
 
 export interface Chat {
   id: ChatId;
   title: string;
-  messages: Message[];
+  messages: UIMessage[];
   createdAt: number;
   updatedAt: number;
 }
@@ -43,6 +47,20 @@ export interface Chat {
 export interface ChatState {
   chats: Map<ChatId, Chat>;
   activeChatId: ChatId | null;
+}
+
+function removeEmptyChats(chatState: Map<ChatId, Chat>): Map<ChatId, Chat> {
+  const result = new Map<ChatId, Chat>();
+
+  // Dedupe messages with the same id
+  for (const [chatId, chat] of chatState.entries()) {
+    if (chat.messages.length === 0) {
+      continue;
+    }
+    const dedupedMessages = uniqueBy(chat.messages, (message) => message.id);
+    result.set(chatId, { ...chat, messages: dedupedMessages });
+  }
+  return result;
 }
 
 export const chatStateAtom = atomWithStorage<ChatState>(
@@ -53,7 +71,7 @@ export const chatStateAtom = atomWithStorage<ChatState>(
   },
   adaptForLocalStorage({
     toSerializable: (value: ChatState) => ({
-      chats: [...value.chats.entries()],
+      chats: [...removeEmptyChats(value.chats).entries()],
       activeChatId: value.activeChatId,
     }),
     fromSerializable: (value) => ({
@@ -71,7 +89,7 @@ export const activeChatAtom = atom(
     }
     return state.chats.get(state.activeChatId);
   },
-  (get, set, chatId: ChatId | null) => {
+  (_get, set, chatId: ChatId | null) => {
     set(chatStateAtom, (prev) => ({
       ...prev,
       activeChatId: chatId,

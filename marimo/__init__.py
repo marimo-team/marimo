@@ -60,6 +60,7 @@ __all__ = [
     "nav_menu",
     "notebook_dir",
     "notebook_location",
+    "outline",
     "output",
     "pdf",
     "persistent_cache",
@@ -98,6 +99,7 @@ from marimo._output.formatting import as_html, iframe, plain
 from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
 from marimo._output.md import latex, md
+from marimo._output.outline import outline
 from marimo._output.show_code import show_code
 from marimo._plugins import ui
 from marimo._plugins.stateless import mpl, status

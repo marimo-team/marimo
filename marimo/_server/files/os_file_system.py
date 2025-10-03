@@ -5,8 +5,10 @@ import base64
 import mimetypes
 import os
 import platform
+import re
 import shutil
 import subprocess
+from collections import deque
 from pathlib import Path
 from typing import Literal, Optional, Union
 
@@ -23,6 +25,9 @@ IGNORE_LIST = [
     ".DS_Store",
     "__pycache__",
     "node_modules",
+    ".git",
+    ".venv",
+    "site-packages",
 ]
 
 DISALLOWED_NAMES = [
@@ -184,7 +189,137 @@ class OSFileSystem(FileSystem):
         file_path.write_text(contents, encoding="utf-8")
         return self.get_details(path, contents=contents).file
 
-    def open_in_editor(self, path: str) -> bool:
+    def search(
+        self,
+        query: str,
+        *,
+        path: Optional[str] = None,
+        include_directories: bool = True,
+        include_files: bool = True,
+        depth: int = 3,
+        limit: int = 100,
+    ) -> list[FileInfo]:
+        """Search for files and directories matching a query with high performance."""
+        if not query.strip():
+            return []
+
+        search_path = path if path is not None else self.get_root()
+        if not os.path.exists(search_path):
+            return []
+
+        # Compile regex pattern for case-insensitive search
+        try:
+            pattern = re.compile(re.escape(query.lower()))
+        except re.error:
+            # If regex compilation fails, fall back to simple string matching
+            pattern = None
+
+        results: list[FileInfo] = []
+        seen_paths: set[str] = set()
+
+        # Use BFS with deque for better performance than recursive DFS
+        queue = deque([(search_path, 0)])  # (path, current_depth)
+
+        while queue and len(results) < limit:
+            current_path, current_depth = queue.popleft()
+
+            # Skip if we've exceeded depth limit
+            if current_depth > depth:
+                continue
+
+            # Skip if we've already processed this path (avoid symlink loops)
+            if current_path in seen_paths:
+                continue
+            seen_paths.add(current_path)
+
+            try:
+                # Use os.scandir for better performance than os.listdir
+                with os.scandir(current_path) as entries:
+                    for entry in entries:
+                        if len(results) >= limit:
+                            break
+
+                        # Skip ignored files/directories
+                        if entry.name in IGNORE_LIST:
+                            continue
+
+                        # Check if name matches query
+                        name_lower = entry.name.lower()
+                        query_lower = query.lower()
+
+                        matches = False
+                        if pattern:
+                            matches = pattern.search(name_lower) is not None
+                        else:
+                            matches = query_lower in name_lower
+
+                        if not matches:
+                            # If this is a directory and we haven't hit depth limit, add to queue
+                            if current_depth < depth:
+                                try:
+                                    if entry.is_dir():
+                                        queue.append(
+                                            (entry.path, current_depth + 1)
+                                        )
+                                except OSError:
+                                    # Skip entries that can't be accessed
+                                    continue
+                            continue
+
+                        try:
+                            is_directory = entry.is_dir()
+                            entry_stat = entry.stat()
+
+                            # Apply directory/file filtering
+                            if not include_directories and is_directory:
+                                # Skip directories if directory=False
+                                continue
+                            if not include_files and not is_directory:
+                                # Skip files if file=False
+                                continue
+
+                            file_info = FileInfo(
+                                id=entry.path,
+                                path=entry.path,
+                                name=entry.name,
+                                is_directory=is_directory,
+                                # This can be expensive, so we don't do it on search
+                                is_marimo_file=False,
+                                last_modified=entry_stat.st_mtime,
+                            )
+                            results.append(file_info)
+
+                            # If this is a matching directory and we haven't hit depth limit, add to queue
+                            if is_directory and current_depth < depth:
+                                queue.append((entry.path, current_depth + 1))
+
+                        except OSError:
+                            # Skip files/directories that can't be accessed
+                            continue
+
+            except OSError:
+                # Skip directories that can't be accessed
+                continue
+
+        # Sort results by relevance (exact matches first, then by name)
+        def sort_key(file_info: FileInfo) -> tuple[int, str]:
+            name_lower = file_info.name.lower()
+            query_lower = query.lower()
+
+            # Exact match gets highest priority
+            if name_lower == query_lower:
+                return (0, file_info.name)
+            # Starts with query gets second priority
+            elif name_lower.startswith(query_lower):
+                return (1, file_info.name)
+            # Contains query gets lowest priority
+            else:
+                return (2, file_info.name)
+
+        results.sort(key=sort_key)
+        return results[:limit]
+
+    def open_in_editor(self, path: str, line_number: int | None) -> bool:
         try:
             # First try to get editor from environment variable
             editor = os.environ.get("EDITOR")
@@ -193,9 +328,17 @@ class OSFileSystem(FileSystem):
             # otherwise it silently opens the terminal in the same window that is
             # running marimo.
             if editor and not _is_terminal_editor(editor):
+                args = (
+                    [path]
+                    if line_number is None
+                    else editor_open_file_in_line_args(
+                        editor, path, line_number
+                    )
+                )
+
                 try:
                     # For GUI editors
-                    subprocess.run([editor, path])
+                    subprocess.run([editor, *args])
                     return True
                 except Exception as e:
                     LOGGER.error(f"Error opening with EDITOR: {e}")
@@ -213,6 +356,17 @@ class OSFileSystem(FileSystem):
         except Exception as e:
             LOGGER.error(f"Error opening file: {e}")
             return False
+
+
+def editor_open_file_in_line_args(
+    editor: str, path: str, line_number: int
+) -> list[str]:
+    if editor == "code":
+        return ["--goto", f"{path}:{line_number}"]
+    elif editor == "subl":
+        return [f"{path}:{line_number}"]
+    else:
+        return [f"+{line_number}", path]
 
 
 def natural_sort_file(file: FileInfo) -> list[Union[int, str]]:

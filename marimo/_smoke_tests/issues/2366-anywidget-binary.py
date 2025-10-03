@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.8.17"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import anywidget
     import traitlets
 
@@ -30,7 +30,7 @@ def __():
             "dtype": str(arr.dtype),
         }
     )
-    return Widget, anywidget, arr, np, traitlets
+    return
 
 
 if __name__ == "__main__":

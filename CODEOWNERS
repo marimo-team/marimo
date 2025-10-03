@@ -9,6 +9,9 @@
 # Caching
 /marimo/_save/ @dmadisetti
 
+# Linting
+/marimo/_lint/ @dmadisetti
+
 # SQL
 /marimo/_sql/ @light2dark
 /marimo/_data/ @light2dark

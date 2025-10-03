@@ -103,6 +103,10 @@
       hsl(0deg 0% 50% / 60%)
     );
     --base-shadow-opacity: 5%;
+
+    /* Codemirror editor */
+    --cm-background: light-dark(var(--background), #282c34);
+    --cm-comment: light-dark(#708090, #6b7280);
   }
 
   .dark,

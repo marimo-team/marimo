@@ -1,8 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-export function prettyNumber(
-  value: number | string | undefined | null | boolean | unknown[],
-): string {
+import { Logger } from "./Logger";
+import { memoizeLastValue } from "./once";
+
+/**
+ * Browsers have a limit on the maximum number of fractional digits they can display.
+ * This function finds the maximum number of fractional digits that can be displayed for a given locale.
+ */
+export const maxFractionalDigits = memoizeLastValue((locale: string) => {
+  const options = [100, 20, 2, 0];
+  for (const option of options) {
+    try {
+      new Intl.NumberFormat(locale, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: option,
+      }).format(1);
+      return option;
+    } catch (e) {
+      Logger.error(e);
+    }
+  }
+  return 0;
+});
+
+export function prettyNumber(value: unknown, locale: string): string {
   if (value === undefined || value === null) {
     return "";
   }
@@ -19,10 +40,14 @@ export function prettyNumber(
     return String(value);
   }
 
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
+  if (typeof value === "number" || typeof value === "bigint") {
+    return value.toLocaleString(locale, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  return String(value);
 }
 
 function scientificSpecialCase(value: number): string | null {
@@ -43,9 +68,9 @@ function scientificSpecialCase(value: number): string | null {
 export function prettyScientificNumber(
   value: number,
   opts: {
-    // Default to false
-    shouldRound?: boolean;
-  } = {},
+    shouldRound?: boolean; // Default to false
+    locale: string;
+  },
 ): string {
   // Handle special cases first
   const specialCase = scientificSpecialCase(value);
@@ -56,7 +81,7 @@ export function prettyScientificNumber(
   // Determine if the number should be in scientific notation
   const absValue = Math.abs(value);
   if (absValue < 1e-2 || absValue >= 1e6) {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(opts.locale, {
       minimumFractionDigits: 1,
       maximumFractionDigits: 1,
       notation: "scientific",
@@ -65,20 +90,20 @@ export function prettyScientificNumber(
       .toLowerCase();
   }
 
-  const { shouldRound } = opts;
+  const { shouldRound, locale } = opts;
 
   if (shouldRound) {
     // Number has an integer part, format with 2 decimal places
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(locale, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(value);
   }
 
   // Don't round
-  return value.toLocaleString(undefined, {
+  return value.toLocaleString(locale, {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 100,
+    maximumFractionDigits: maxFractionalDigits(locale),
   });
 }
 
@@ -102,14 +127,14 @@ const prefixes = {
   "-24": "y",
 };
 
-export function prettyEngineeringNumber(value: number): string {
+export function prettyEngineeringNumber(value: number, locale: string): string {
   // Handle special cases first
   const specialCase = scientificSpecialCase(value);
   if (specialCase !== null) {
     return specialCase;
   }
 
-  const [mant, exp] = new Intl.NumberFormat("en-us", {
+  const [mant, exp] = new Intl.NumberFormat(locale, {
     notation: "engineering",
     maximumSignificantDigits: 3,
   })

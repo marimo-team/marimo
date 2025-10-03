@@ -40,10 +40,14 @@ export const MockRequestClient = {
       previewSQLTable: vi.fn().mockResolvedValue({}),
       previewSQLTableList: vi.fn().mockResolvedValue({ tables: [] }),
       previewDataSourceConnection: vi.fn().mockResolvedValue({}),
+      validateSQL: vi.fn().mockResolvedValue({}),
       openFile: vi.fn().mockResolvedValue({}),
       getUsageStats: vi.fn().mockResolvedValue({}),
       sendPdb: vi.fn().mockResolvedValue({}),
       sendListFiles: vi.fn().mockResolvedValue({ files: [] }),
+      sendSearchFiles: vi
+        .fn()
+        .mockResolvedValue({ files: [], query: "", total_found: 0 }),
       sendCreateFileOrFolder: vi.fn().mockResolvedValue({}),
       sendDeleteFileOrFolder: vi.fn().mockResolvedValue({}),
       sendRenameFileOrFolder: vi.fn().mockResolvedValue({}),

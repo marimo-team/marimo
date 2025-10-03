@@ -1,16 +1,17 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.2.12"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
 
     alt.data_transformers.enable("marimo_csv")
-    return alt,
+    return
 
 
 if __name__ == "__main__":

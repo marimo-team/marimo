@@ -16,12 +16,12 @@
 
 import marimo
 
-__generated_with = "0.9.4"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import ell
     from pydantic import Field
@@ -30,11 +30,11 @@ def __():
     import pyarrow
     import polars as pl
     from vega_datasets import data
-    return Field, alt, data, ell, mo, pl, pyarrow, requests
+    return alt, data, ell, mo, pl
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Using tools with ell
@@ -46,17 +46,17 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     import os
 
     os_key = os.environ.get("OPENAI_API_KEY")
     input_key = mo.ui.text(label="OpenAI API key", kind="password")
     input_key if not os_key else None
-    return input_key, os, os_key
+    return input_key, os_key
 
 
 @app.cell
-def __(input_key, mo, os_key):
+def _(input_key, mo, os_key):
     openai_key = os_key or input_key.value
 
     import openai
@@ -69,18 +69,18 @@ def __(input_key, mo, os_key):
             "Please set the `OPENAI_API_KEY` environment variable or provide it in the input field"
         ),
     )
-    return client, openai, openai_key
+    return (client,)
 
 
 @app.cell
-def __(data, pl):
+def _(data, pl):
     cars = pl.DataFrame(data.cars())
     schema = cars.schema
     return cars, schema
 
 
 @app.cell
-def __(alt, cars, client, ell, schema):
+def _(alt, cars, client, ell, schema):
     @ell.tool()
     def get_chart(
         x_encoding: str,
@@ -114,11 +114,11 @@ def __(alt, cars, client, ell, schema):
     def analyze_dataset(prompt: str) -> str:
         """You are an agent that can analayze the a dataset"""
         return f"I have a dataset with schema: {schema}. \n{prompt}"
-    return analyze_dataset, get_chart, get_filtered_table
+    return (analyze_dataset,)
 
 
 @app.cell
-def __(input_key, mo, schema):
+def _(input_key, mo, schema):
     text = mo.ui.text(
         full_width=True,
         disabled=not input_key.value,
@@ -141,7 +141,7 @@ def __(input_key, mo, schema):
 
 
 @app.cell
-def __(analyze_dataset, mo, text):
+def _(analyze_dataset, mo, text):
     mo.stop(not text.value)
 
     with mo.status.spinner(title=f"Thinking...", subtitle=text.value):
@@ -153,7 +153,7 @@ def __(analyze_dataset, mo, text):
                 mo.output.replace(summary)
             except Exception as e:
                 mo.output.replace(mo.callout(str(e)))
-    return response, summary
+    return
 
 
 if __name__ == "__main__":

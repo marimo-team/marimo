@@ -199,13 +199,16 @@ class CopilotLspServer(BaseLspServer):
         copilot_bin = self._lsp_dir() / "copilot" / "language-server.js"
         log_file = _loggers.get_log_directory() / "github-copilot-lsp.log"
 
+        # Use typed format to avoid quoting issues: copilot:<binary_path>
+        copilot_command = f"copilot:{copilot_bin}"
+
         return [
             "node",
             str(lsp_bin),
             "--port",
             str(self.port),
             "--lsp",
-            f"node {copilot_bin} --stdio",
+            copilot_command,
             "--log-file",
             str(log_file),
         ]
@@ -288,7 +291,7 @@ class BasedpyrightServer(BaseLspServer):
             "--port",
             str(self.port),
             "--lsp",
-            "basedpyright-langserver --stdio",
+            "basedpyright:basedpyright-langserver",
             "--log-file",
             str(log_file),
         ]
@@ -326,13 +329,16 @@ class TyServer(BaseLspServer):
         lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
         log_file = _loggers.get_log_directory() / "ty-lsp.log"
 
+        # Use typed format to avoid quoting issues: ty:<binary_path>
+        ty_command = f"ty:{find_ty_bin()}"
+
         return [
             "node",
             str(lsp_bin),
             "--port",
             str(self.port),
             "--lsp",
-            f"{find_ty_bin()} server",
+            ty_command,
             "--log-file",
             str(log_file),
         ]

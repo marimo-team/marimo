@@ -13,7 +13,7 @@ run with `python textual_app.py`
 
 import marimo
 
-__generated_with = "0.13.10"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 with app.setup:

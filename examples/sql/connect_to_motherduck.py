@@ -11,12 +11,12 @@
 
 import marimo
 
-__generated_with = "0.9.10"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # MotherDuck 🧡 marimo
@@ -30,7 +30,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(__file__, md_token, mo):
+def _(md_token, mo):
     callout = mo.md(f"""
     There is no **MotherDuck** token found in your environment. To set one up, go to the [MotherDuck's settings page](https://app.motherduck.com/settings/general), create a token, and copy it below.
     And re-run this notebook:
@@ -44,27 +44,27 @@ def __(__file__, md_token, mo):
         mo.output.replace(
             mo.accordion({"Tired of logging in to MotherDuck?": callout})
         )
-    return (callout,)
+    return
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import os
 
     md_token = os.environ.get("motherduck_token") or os.environ.get(
         "MOTHERDUCK_TOKEN"
     )
-    return md_token, os
+    return (md_token,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""Let's attach a remote MotherDuck database using `md:`""")
     return
 
 
 @app.cell
-def __():
+def _():
     import duckdb
     import marimo as mo
 
@@ -73,11 +73,11 @@ def __():
     )
     # or add your own md instance
     # duckdb.sql(f"ATTACH IF NOT EXISTS 'md:sample_data'")
-    return duckdb, mo, sample_data
+    return duckdb, mo
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         !!! tip "Explore data sources"
@@ -88,13 +88,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Let's make some queries 🦆""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     most_shared_websites = mo.sql(
         f"""
         -- Most shared websites
@@ -116,7 +116,7 @@ def __(mo):
 
 
 @app.cell
-def __(hacker_news, mo, ranked_stories, sample_data):
+def _(mo):
     most_commented_stories_each_month = mo.sql(
         f"""
         -- Most Commented Stories Each Month
@@ -152,11 +152,11 @@ def __(hacker_news, mo, ranked_stories, sample_data):
         -- Which can be used in Python to create charts
         """
     )
-    return (most_commented_stories_each_month,)
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Let's make some charts 📈
@@ -168,7 +168,7 @@ def __(mo):
 
 
 @app.cell
-def __(most_shared_websites):
+def _(most_shared_websites):
     import altair as alt
 
     chart = (
@@ -185,11 +185,11 @@ def __(most_shared_websites):
     )
 
     chart
-    return alt, chart
+    return (alt,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Adding reactivity ⚡
@@ -201,7 +201,7 @@ def __(mo):
 
 
 @app.cell
-def __(MONTHS, duckdb, hacker_news, mo, sample_data):
+def _(MONTHS, duckdb, mo):
     month_select = mo.ui.multiselect(
         MONTHS,
         label="Month",
@@ -212,17 +212,17 @@ def __(MONTHS, duckdb, hacker_news, mo, sample_data):
         """
         SELECT DISTINCT type as 'HN Type'
         FROM sample_data.hn.hacker_news
-        WHERE score NOT NULL AND descendants NOT NULL
+        WHERE score IS NOT NULL AND descendants IS NOT NULL
         LIMIT 10;
         """
     ).df()
 
     hn_type_select = mo.ui.dropdown.from_series(hn_types["HN Type"], value="story")
-    return hn_type_select, hn_types, month_select
+    return hn_type_select, month_select
 
 
 @app.cell(hide_code=True)
-def __(hn_type_select, mo, month_select):
+def _(hn_type_select, mo, month_select):
     month_list = ",".join([str(month) for month in month_select.value])
     mo.hstack(
         [
@@ -235,14 +235,7 @@ def __(hn_type_select, mo, month_select):
 
 
 @app.cell(hide_code=True)
-def __(
-    hacker_news,
-    hn_type_select,
-    mo,
-    month_list,
-    ranked_stories,
-    sample_data,
-):
+def _(hn_type_select, mo, month_list):
     most_monthly_voted = mo.sql(
         f"""
         -- Most monthly voted
@@ -266,8 +259,7 @@ def __(
                 AND
                 MONTH(timestamp) in ({month_list})
                 AND
-                descendants NOT NULl
-
+                descendants IS NOT NULL
         )
 
         SELECT
@@ -287,7 +279,7 @@ def __(
 
 
 @app.cell(hide_code=True)
-def __(alt, hn_type_select, most_monthly_voted):
+def _(alt, hn_type_select, most_monthly_voted):
     _chart = (
         alt.Chart(most_monthly_voted)
         .mark_circle()
@@ -313,20 +305,20 @@ def __(alt, hn_type_select, most_monthly_voted):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## Additional Reactivity ⚡⚡""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     search_input = mo.ui.text(label="Search for keywords", value="duckdb")
     search_input
     return (search_input,)
 
 
 @app.cell
-def __(hacker_news, mo, sample_data, search_value):
+def _(mo, search_value):
     keyword_results = mo.sql(
         f"""
         SELECT
@@ -344,13 +336,13 @@ def __(hacker_news, mo, sample_data, search_value):
 
 
 @app.cell(hide_code=True)
-def __(search_input):
+def _(search_input):
     search_value = search_input.value
     return (search_value,)
 
 
 @app.cell(hide_code=True)
-def __(alt, keyword_results, mo, search_value):
+def _(alt, keyword_results, mo, search_value):
     if keyword_results.is_empty():
         mo.stop(True, f"No results for {search_value}")
 
@@ -386,7 +378,7 @@ def __(alt, keyword_results, mo, search_value):
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     MONTHS = {
         "January": 1,
         "February": 2,

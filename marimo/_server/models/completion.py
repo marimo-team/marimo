@@ -1,63 +1,62 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any, Literal, Optional, Union
 
+import msgspec
+
 from marimo._ai._types import ChatMessage
+from marimo._server.ai.tools.types import ToolDefinition
 
 
-@dataclass
-class SchemaColumn:
+class SchemaColumn(msgspec.Struct, rename="camel"):
     name: str
     type: str
     sample_values: list[Any]
 
 
-@dataclass
-class SchemaTable:
+class SchemaTable(msgspec.Struct, rename="camel"):
     name: str
     columns: list[SchemaColumn]
 
 
-@dataclass
-class VariableContext:
+class VariableContext(msgspec.Struct, rename="camel"):
     name: str
     value_type: str
     preview_value: Any
 
 
-@dataclass
-class AiCompletionContext:
-    schema: list[SchemaTable] = field(default_factory=list)
-    variables: list[Union[VariableContext, str]] = field(default_factory=list)
+class AiCompletionContext(msgspec.Struct, rename="camel"):
+    schema: list[SchemaTable] = msgspec.field(default_factory=list)
+    variables: list[Union[VariableContext, str]] = msgspec.field(
+        default_factory=list
+    )
     plain_text: str = ""
 
 
 Language = Literal["python", "markdown", "sql"]
 
 
-@dataclass
-class AiCompletionRequest:
+class AiCompletionRequest(msgspec.Struct, rename="camel"):
     prompt: str
     include_other_code: str
     code: str
+    messages: list[ChatMessage] = []
     selected_text: Optional[str] = None
     context: Optional[AiCompletionContext] = None
     language: Language = "python"
 
 
-@dataclass
-class AiInlineCompletionRequest:
+class AiInlineCompletionRequest(msgspec.Struct, rename="camel"):
     prefix: str
     suffix: str
     language: Language = "python"
 
 
-@dataclass
-class ChatRequest:
+class ChatRequest(msgspec.Struct, rename="camel"):
     context: AiCompletionContext
     include_other_code: str
     messages: list[ChatMessage]
+    tools: Optional[list[ToolDefinition]] = None
     model: Optional[str] = None
     variables: Optional[list[Union[VariableContext, str]]] = None

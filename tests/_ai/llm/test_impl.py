@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from marimo._ai._types import ChatMessage, ChatModelConfig
+from marimo._ai._types import ChatMessage, ChatModelConfig, TextPart
 from marimo._ai.llm._impl import (
     DEFAULT_SYSTEM_MESSAGE,
     anthropic,
@@ -274,9 +274,13 @@ class TestOpenAI:
         assert call_args["model"] == "gpt-4"
         assert len(call_args["messages"]) == 2
         assert call_args["messages"][0]["role"] == "system"
-        assert call_args["messages"][0]["content"] == DEFAULT_SYSTEM_MESSAGE
+        assert call_args["messages"][0]["content"] == [
+            {"type": "text", "text": DEFAULT_SYSTEM_MESSAGE}
+        ]
         assert call_args["messages"][1]["role"] == "user"
-        assert call_args["messages"][1]["content"] == "Test prompt"
+        assert call_args["messages"][1]["content"] == [
+            {"type": "text", "text": "Test prompt"}
+        ]
         assert call_args["max_completion_tokens"] == 100
         # Use pytest.approx for floating point comparisons
         assert call_args["temperature"] == pytest.approx(0.7)
@@ -436,10 +440,26 @@ class TestOpenAI:
 
             # Test with multiple messages
             messages = [
-                ChatMessage(role="system", content="Custom system"),
-                ChatMessage(role="user", content="Hello"),
-                ChatMessage(role="assistant", content="Hi there"),
-                ChatMessage(role="user", content="How are you?"),
+                ChatMessage(
+                    role="system",
+                    content="Custom system",
+                    parts=[TextPart(type="text", text="Custom system")],
+                ),
+                ChatMessage(
+                    role="user",
+                    content="Hello",
+                    parts=[TextPart(type="text", text="Hello")],
+                ),
+                ChatMessage(
+                    role="assistant",
+                    content="Hi there",
+                    parts=[TextPart(type="text", text="Hi there")],
+                ),
+                ChatMessage(
+                    role="user",
+                    content="How are you?",
+                    parts=[TextPart(type="text", text="How are you?")],
+                ),
             ]
 
             model(messages, ChatModelConfig())
@@ -447,18 +467,31 @@ class TestOpenAI:
             # Verify the messages were properly converted
             call_args = mock_client.chat.completions.create.call_args[1]
             assert len(call_args["messages"]) == 5  # system + all messages
-            assert call_args["messages"][0]["role"] == "system"
-            assert (
-                call_args["messages"][0]["content"] == DEFAULT_SYSTEM_MESSAGE
-            )
-            assert call_args["messages"][1]["role"] == "system"
-            assert call_args["messages"][1]["content"] == "Custom system"
-            assert call_args["messages"][2]["role"] == "user"
-            assert call_args["messages"][2]["content"] == "Hello"
-            assert call_args["messages"][3]["role"] == "assistant"
-            assert call_args["messages"][3]["content"] == "Hi there"
-            assert call_args["messages"][4]["role"] == "user"
-            assert call_args["messages"][4]["content"] == "How are you?"
+
+            assert call_args["messages"] == [
+                {
+                    "role": "system",
+                    "content": [
+                        {"type": "text", "text": DEFAULT_SYSTEM_MESSAGE}
+                    ],
+                },
+                {
+                    "role": "system",
+                    "content": [{"type": "text", "text": "Custom system"}],
+                },
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": "Hello"}],
+                },
+                {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": "Hi there"}],
+                },
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": "How are you?"}],
+                },
+            ]
 
 
 @pytest.mark.skipif(

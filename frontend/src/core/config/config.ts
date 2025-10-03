@@ -6,15 +6,15 @@ import { type Platform, resolvePlatform } from "../hotkeys/shortcuts";
 import { store } from "../state/jotai";
 import {
   type AppConfig,
+  defaultUserConfig,
   parseAppConfig,
-  parseUserConfig,
   type UserConfig,
 } from "./config-schema";
 
 /**
  * Atom for storing the user config.
  */
-export const userConfigAtom = atom<UserConfig>(parseUserConfig({}));
+export const userConfigAtom = atom<UserConfig>(defaultUserConfig());
 
 export const configOverridesAtom = atom<{}>({});
 
@@ -80,6 +80,10 @@ export const aiEnabledAtom = atom<boolean>((get) => {
 
 export const editorFontSizeAtom = atom<number>((get) => {
   return get(resolvedMarimoConfigAtom).display.code_editor_font_size;
+});
+
+export const localeAtom = atom<string | null | undefined>((get) => {
+  return get(resolvedMarimoConfigAtom).display.locale;
 });
 
 export function isAiEnabled(config: UserConfig) {

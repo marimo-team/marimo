@@ -37,6 +37,10 @@ import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-owner
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
 import {
+  type DownloadAsArgs,
+  DownloadAsSchema,
+} from "@/components/data-table/schemas";
+import {
   type BinValues,
   type ColumnHeaderStats,
   type ColumnName,
@@ -108,7 +112,7 @@ export type CalculateTopKRows = (req: {
   column: string;
   k: number;
 }) => Promise<{
-  data: Array<[unknown, number]>;
+  data: [unknown, number][];
 }>;
 
 export type PreviewColumn = (opts: { column: string }) => Promise<{
@@ -168,6 +172,7 @@ interface Data<T> {
   totalRows: number | TooManyRows;
   pagination: boolean;
   pageSize: number;
+  maxHeight?: number;
   selection: DataTableSelection;
   showDownload: boolean;
   showFilters: boolean;
@@ -182,15 +187,17 @@ interface Data<T> {
   freezeColumnsRight?: string[];
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
+  headerTooltip?: Record<string, string>;
   totalColumns: number;
   maxColumns: number | "all";
   hasStableRowId: boolean;
   lazy: boolean;
+  cellHoverTexts?: Record<string, Record<string, string | null>> | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type DataTableFunctions = {
-  download_as: (req: { format: "csv" | "json" | "parquet" }) => Promise<string>;
+  download_as: DownloadAsArgs;
   get_column_summaries: <T>(
     opts: ColumnSummariesArgs,
   ) => Promise<ColumnSummaries<T>>;
@@ -208,6 +215,7 @@ type DataTableFunctions = {
     data: TableData<T>;
     total_rows: number | TooManyRows;
     cell_styles?: CellStyleState | null;
+    cell_hover_texts?: Record<string, Record<string, string | null>> | null;
   }>;
   get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
@@ -215,7 +223,11 @@ type DataTableFunctions = {
   preview_column?: PreviewColumn;
 };
 
-type S = Array<number | string | { rowId: string; columnName?: string }>;
+type S = (number | string | { rowId: string; columnName?: string })[];
+
+const cellHoverTextSchema = z
+  .record(z.string(), z.record(z.string(), z.string().nullable()))
+  .optional();
 
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(
@@ -246,14 +258,20 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
       textJustifyColumns: z
-        .record(z.enum(["left", "center", "right"]))
+        .record(z.string(), z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
+      headerTooltip: z.record(z.string(), z.string()).optional(),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),
-      cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
+      maxHeight: z.number().optional(),
+      cellStyles: z
+        .record(z.string(), z.record(z.string(), z.object({}).passthrough()))
+        .optional(),
+      hoverTemplate: z.string().optional(),
+      cellHoverTexts: cellHoverTextSchema,
       // Whether to load the data lazily.
       lazy: z.boolean().default(false),
       // If lazy, this will preload the first page of data
@@ -262,9 +280,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     }),
   )
   .withFunctions<DataTableFunctions>({
-    download_as: rpc
-      .input(z.object({ format: z.enum(["csv", "json", "parquet"]) }))
-      .output(z.string()),
+    download_as: DownloadAsSchema,
     get_column_summaries: rpc
       .input(z.object({ precompute: z.boolean() }))
       .output(
@@ -301,8 +317,12 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           data: z.union([z.string(), z.array(z.object({}).passthrough())]),
           total_rows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
           cell_styles: z
-            .record(z.record(z.object({}).passthrough()))
+            .record(
+              z.string(),
+              z.record(z.string(), z.object({}).passthrough()),
+            )
             .nullable(),
+          cell_hover_texts: cellHoverTextSchema.nullable(),
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(
@@ -350,6 +370,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
+            cellHoverTexts={props.data.cellHoverTexts}
           />
         </LazyDataTableComponent>
       </TableProviders>
@@ -390,6 +411,8 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   // Filters
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
+  hoverTemplate?: string | null;
+  cellHoverTexts?: Record<string, Record<string, string | null>> | null;
   toggleDisplayHeader?: () => void;
   host: HTMLElement;
   cellId?: CellId | null;
@@ -458,6 +481,7 @@ export const LoadingDataTableComponent = memo(
       rows: T[];
       totalRows: number | TooManyRows;
       cellStyles: CellStyleState | undefined | null;
+      cellHoverTexts?: Record<string, Record<string, string | null>> | null;
     }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
@@ -468,6 +492,7 @@ export const LoadingDataTableComponent = memo(
       let tableData = props.data;
       let totalRows = props.totalRows;
       let cellStyles = props.cellStyles;
+      let cellHoverTexts = props.cellHoverTexts;
 
       const pageSizeChanged = paginationState.pageSize !== props.pageSize;
 
@@ -514,12 +539,14 @@ export const LoadingDataTableComponent = memo(
         tableData = searchResults.data;
         totalRows = searchResults.total_rows;
         cellStyles = searchResults.cell_styles || {};
+        cellHoverTexts = searchResults.cell_hover_texts || {};
       }
       tableData = await loadTableData(tableData);
       return {
         rows: tableData,
         totalRows: totalRows,
         cellStyles,
+        cellHoverTexts,
       };
     }, [
       sorting,
@@ -530,6 +557,7 @@ export const LoadingDataTableComponent = memo(
       props.data,
       props.totalRows,
       props.lazy,
+      props.cellHoverTexts,
       paginationState.pageSize,
       paginationState.pageIndex,
     ]);
@@ -645,9 +673,16 @@ export const LoadingDataTableComponent = memo(
         paginationState={paginationState}
         setPaginationState={setPaginationState}
         cellStyles={data?.cellStyles ?? props.cellStyles}
+        cellHoverTexts={
+          (data?.cellHoverTexts ?? props.cellHoverTexts) as Record<
+            string,
+            Record<string, string | null>
+          > | null
+        }
         toggleDisplayHeader={toggleDisplayHeader}
         getRow={getRow}
         cellId={cellId}
+        maxHeight={props.maxHeight}
       />
     );
 
@@ -705,14 +740,18 @@ const DataTableComponent = ({
   freezeColumnsRight,
   textJustifyColumns,
   wrappedColumns,
+  headerTooltip,
   totalColumns,
   get_row_ids,
   cellStyles,
+  hoverTemplate,
+  cellHoverTexts,
   toggleDisplayHeader,
   calculate_top_k_rows,
   preview_column,
   getRow,
   cellId,
+  maxHeight,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -777,6 +816,7 @@ const DataTableComponent = ({
         fieldTypes: memoizedClampedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,
+        headerTooltip: headerTooltip,
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
         calculateTopKRows: calculate_top_k_rows,
@@ -789,6 +829,7 @@ const DataTableComponent = ({
       memoizedClampedFieldTypes,
       memoizedTextJustifyColumns,
       memoizedWrappedColumns,
+      headerTooltip,
       calculate_top_k_rows,
     ],
   );
@@ -892,6 +933,7 @@ const DataTableComponent = ({
             data={data}
             columns={columns}
             className={className}
+            maxHeight={maxHeight}
             sorting={sorting}
             totalRows={totalRows}
             totalColumns={totalColumns}
@@ -905,6 +947,8 @@ const DataTableComponent = ({
             rowSelection={rowSelection}
             cellSelection={cellSelection}
             cellStyling={cellStyles}
+            hoverTemplate={hoverTemplate}
+            cellHoverTexts={cellHoverTexts}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
             searchQuery={searchQuery}

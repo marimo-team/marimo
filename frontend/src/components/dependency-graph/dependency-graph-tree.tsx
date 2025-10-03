@@ -36,7 +36,7 @@ import { useFitToViewOnDimensionChange } from "./utils/useFitToViewOnDimensionCh
 interface Props {
   cellIds: CellId[];
   variables: Variables;
-  cellAtoms: Array<Atom<CellData>>;
+  cellAtoms: Atom<CellData>[];
   layoutDirection: LayoutDirection;
   settings: GraphSettings;
 }
@@ -74,7 +74,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   const api = useReactFlow();
 
   const syncChanges = useEvent(
-    (elements: { nodes: Array<Node<NodeData>>; edges: Edge[] }) => {
+    (elements: { nodes: Node<NodeData>[]; edges: Edge[] }) => {
       // Layout the elements
       const result = layoutElements({
         nodes: elements.nodes,

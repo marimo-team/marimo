@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.10.7"
+__generated_with = "0.16.0"
 app = marimo.App(width="medium")
 
 
@@ -33,7 +33,7 @@ def _():
     import polars as pl
 
     pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]}).write_json("data.json")
-    return mo, pl
+    return (mo,)
 
 
 @app.cell(hide_code=True)
@@ -128,11 +128,11 @@ def _(mo):
         CREATE OR REPLACE TABLE myTable AS SELECT * FROM 'data.json'
         """
     )
-    return (myTable,)
+    return (mytable,)
 
 
 @app.cell
-def _(mo, myTable):
+def _(mo, mytable):
     _df = mo.sql(
         f"""
         SELECT * FROM myTable

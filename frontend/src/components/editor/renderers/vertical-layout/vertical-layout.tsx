@@ -198,7 +198,7 @@ const ActionButtons: React.FC<{
     actions.push(
       <DropdownMenuItem
         onSelect={onToggleShowCode}
-        id="notebook-action-show-code"
+        data-testid="notebook-action-show-code"
         key="show-code"
       >
         <Code2Icon className="mr-2" size={14} strokeWidth={1.5} />
@@ -213,7 +213,7 @@ const ActionButtons: React.FC<{
     actions.push(
       <DropdownMenuItem
         onSelect={handleDownloadAsHTML}
-        id="notebook-action-download-html"
+        data-testid="notebook-action-download-html"
         key="download-html"
       >
         <FolderDownIcon className="mr-2" size={14} strokeWidth={1.5} />
@@ -222,7 +222,7 @@ const ActionButtons: React.FC<{
       <DropdownMenuSeparator key="download-html-separator" />,
       <DropdownMenuItem
         onSelect={handleDownloadAsPNG}
-        id="notebook-action-download-png"
+        data-testid="notebook-action-download-png"
         key="download-png"
       >
         <ImageIcon className="mr-2" size={14} strokeWidth={1.5} />
@@ -239,7 +239,7 @@ const ActionButtons: React.FC<{
   // as this may be used in custom css to hide/show the actions dropdown
   return (
     <div
-      id="notebook-actions-dropdown"
+      data-testid="notebook-actions-dropdown"
       className={cn(
         "right-0 top-0 z-50 m-4 no-print flex gap-2 print:hidden",
         // If the notebook is static, we have a banner at the top, so
@@ -327,7 +327,6 @@ const VerticalCell = memo(
       "hover-actions-parent empty:invisible",
       {
         published: published,
-        interactive: mode === "edit",
         "has-error": errored,
         stopped: stopped,
         borderless: isPureMarkdown && !published,
@@ -420,10 +419,10 @@ export const VerticalLayoutPlugin: ICellRendererPlugin<
 };
 
 export function groupCellsByColumn(
-  cells: Array<CellRuntimeState & CellData>,
-): Array<[number, Array<CellRuntimeState & CellData>]> {
+  cells: (CellRuntimeState & CellData)[],
+): [number, (CellRuntimeState & CellData)[]][] {
   // Group cells by column
-  const cellsByColumn = new Map<number, Array<CellRuntimeState & CellData>>();
+  const cellsByColumn = new Map<number, (CellRuntimeState & CellData)[]>();
   let lastSeenColumn = 0;
   cells.forEach((cell) => {
     const column = cell.config.column ?? lastSeenColumn;

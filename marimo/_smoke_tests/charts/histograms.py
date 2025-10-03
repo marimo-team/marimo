@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.18"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
@@ -34,7 +34,7 @@ def _(alt, charts, mo):
         )
         _charts.append(chart)
     mo.hstack(_charts)
-    return chart, data
+    return
 
 
 @app.cell
@@ -46,14 +46,14 @@ def _(df, pl):
             charts[col] = hist_data
 
     charts.keys()
-    return charts, col, hist_data
+    return (charts,)
 
 
 @app.cell
 def _(df):
     res = df["Weight"].hist().to_dicts()
     res[0]
-    return (res,)
+    return
 
 
 @app.cell

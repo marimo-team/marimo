@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
@@ -65,8 +65,8 @@ def _(mo, reset, submitted_values, variables):
         submitted_values["x"].add(variables.value["x"])
         submitted_values["y"].add(variables.value["y"])
 
-    x = variables.value["x"] if variables.value else "\ldots"
-    y = variables.value["y"] if variables.value else "\ldots"
+    x = variables.value["x"] if variables.value else r"\ldots"
+    y = variables.value["y"] if variables.value else r"\ldots"
 
 
     mo.md(
@@ -79,7 +79,7 @@ def _(mo, reset, submitted_values, variables):
         {mo.hstack([mo.tree(submitted_values), reset], align="center", gap=4)}
         """
     ).callout()
-    return x, y
+    return
 
 
 @app.cell

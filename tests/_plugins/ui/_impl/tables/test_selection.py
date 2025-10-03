@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager

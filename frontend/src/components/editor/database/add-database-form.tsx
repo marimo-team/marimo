@@ -39,6 +39,7 @@ import {
   ChdbConnectionSchema,
   ClickhouseConnectionSchema,
   type DatabaseConnection,
+  DatabricksConnectionSchema,
   DataFusionConnectionSchema,
   DuckDBConnectionSchema,
   IcebergConnectionSchema,
@@ -59,7 +60,7 @@ interface Props {
 
 interface ConnectionSchema {
   name: string;
-  schema: z.ZodType;
+  schema: z.ZodType<DatabaseConnection>;
   color: string;
   logo: DBLogoName;
   connectionLibraries: {
@@ -210,6 +211,16 @@ const DATABASES = [
       preferred: "redshift",
     },
   },
+  {
+    name: "Databricks",
+    schema: DatabricksConnectionSchema,
+    color: "#c41e0c",
+    logo: "databricks",
+    connectionLibraries: {
+      libraries: ["sqlalchemy", "sqlmodel", "ibis"],
+      preferred: "sqlalchemy",
+    },
+  },
 ] satisfies ConnectionSchema[];
 
 const DATA_CATALOGS = [
@@ -226,7 +237,7 @@ const DATA_CATALOGS = [
 ] satisfies ConnectionSchema[];
 
 const DatabaseSchemaSelector: React.FC<{
-  onSelect: (schema: z.ZodType) => void;
+  onSelect: (schema: z.ZodType<DatabaseConnection>) => void;
 }> = ({ onSelect }) => {
   const renderItem = ({ name, schema, color, logo }: ConnectionSchema) => {
     return (
@@ -265,13 +276,15 @@ const DatabaseSchemaSelector: React.FC<{
 const RENDERERS: FormRenderer[] = [ENV_RENDERER];
 
 const DatabaseForm: React.FC<{
-  schema: z.ZodType;
+  schema: z.ZodType<DatabaseConnection>;
   onSubmit: () => void;
   onBack: () => void;
 }> = ({ schema, onSubmit, onBack }) => {
   const form = useForm<DatabaseConnection>({
     defaultValues: getDefaults(schema),
-    resolver: zodResolver(schema),
+    resolver: zodResolver(
+      schema as unknown as z.ZodType<unknown, DatabaseConnection>,
+    ),
     reValidateMode: "onChange",
   });
 
@@ -346,7 +359,8 @@ const DatabaseForm: React.FC<{
 };
 
 const AddDatabaseForm: React.FC<Props> = ({ onSubmit }) => {
-  const [selectedSchema, setSelectedSchema] = useState<z.ZodType | null>(null);
+  const [selectedSchema, setSelectedSchema] =
+    useState<z.ZodType<DatabaseConnection> | null>(null);
 
   if (!selectedSchema) {
     return <DatabaseSchemaSelector onSelect={setSelectedSchema} />;

@@ -8,10 +8,10 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Test Markdown
+    # Test Markdown
 
-        print('Hello from Markdown!')
-        """
+    print('Hello from Markdown!')
+    """
     )
     return
 

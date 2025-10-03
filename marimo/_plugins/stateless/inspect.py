@@ -9,18 +9,7 @@ from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
 
 
-def inspect(
-    obj: object,
-    *,
-    help: bool = False,  # noqa: A002
-    methods: bool = False,
-    docs: bool = True,
-    private: bool = False,
-    dunder: bool = False,
-    sort: bool = True,
-    all: bool = False,  # noqa: A002
-    value: bool = True,
-) -> Html:
+class inspect(Html):
     """Inspect a Python object.
 
     Displays objects with their attributes, methods, and documentation
@@ -38,176 +27,203 @@ def inspect(
         value: Show the object's value/repr.
 
     Returns:
-        An `Html` object.
+        (Html): An `Html` object.
 
     Example:
         ```python
         mo.inspect(obj, methods=True)
         ```
     """
-    if all:
-        methods = True
-        private = True
-        dunder = True
 
-    type_label, name = _get_object_title(obj)
+    def __init__(
+        self,
+        obj: object,
+        *,
+        help: bool = False,  # noqa: A002
+        methods: bool = False,
+        docs: bool = True,
+        private: bool = False,
+        dunder: bool = False,
+        sort: bool = True,
+        all: bool = False,  # noqa: A002
+        value: bool = True,
+    ) -> None:
+        self._obj = obj
+        if all:
+            methods = True
+            private = True
+            dunder = True
 
-    type_colors = {
-        "class": ("background-color: var(--blue-3); color: var(--blue-11);"),
-        "function": (
-            "background-color: var(--green-3); color: var(--green-11);"
-        ),
-        "method": (
-            "background-color: var(--purple-3); color: var(--purple-11);"
-        ),
-        "module": (
-            "background-color: var(--orange-3); color: var(--orange-11);"
-        ),
-        "instance": (
-            "background-color: var(--crimson-3); color: var(--crimson-11);"
-        ),
-        "object": (
-            "background-color: var(--slate-3); color: var(--slate-11);"
-        ),
-    }
+        type_label, name = _get_object_title(obj)
 
-    pill_style = type_colors.get(type_label, type_colors["object"])
-
-    docstring = inspect_.getdoc(obj) if docs else None
-    if docstring and not help:
-        docstring = docstring.split("\n\n")[0]
-
-    attributes = _get_filtered_attributes(obj, methods, private, dunder)
-    if sort:
-        attributes.sort(key=lambda x: x[0])
-
-    header = h.div(
-        [
-            h.span(
-                html.escape(type_label),
-                style=(
-                    pill_style + "padding: 2px 8px; "
-                    "border-radius: 4px; "
-                    "font-family: monospace; "
-                    "font-size: 0.75rem; "
-                    "font-weight: 600; "
-                    "margin-right: 8px; "
-                    "display: inline-block;"
-                ),
+        type_colors = {
+            "class": (
+                "background-color: var(--blue-3); color: var(--blue-11);"
             ),
-            h.span(
-                html.escape(name),
-                style=(
-                    "font-family: monospace; "
-                    "font-size: 0.875rem; "
-                    "color: var(--slate-12);"
-                ),
+            "function": (
+                "background-color: var(--green-3); color: var(--green-11);"
             ),
-        ],
-        style=(
-            "padding: 10px 12px 8px 12px; display: flex; align-items: center;"
-        ),
-    )
+            "method": (
+                "background-color: var(--purple-3); color: var(--purple-11);"
+            ),
+            "module": (
+                "background-color: var(--orange-3); color: var(--orange-11);"
+            ),
+            "instance": (
+                "background-color: var(--crimson-3); color: var(--crimson-11);"
+            ),
+            "object": (
+                "background-color: var(--slate-3); color: var(--slate-11);"
+            ),
+        }
 
-    main_content = []
+        pill_style = type_colors.get(type_label, type_colors["object"])
 
-    # Add divider after header
-    main_content.append(
-        h.div(
-            "",  # Empty string for divider line
+        docstring = inspect_.getdoc(obj) if docs else None
+        if docstring and not help:
+            docstring = docstring.split("\n\n")[0]
+
+        attributes = _get_filtered_attributes(obj, methods, private, dunder)
+        if sort:
+            attributes.sort(key=lambda x: x[0])
+
+        header = h.div(
+            [
+                h.span(
+                    html.escape(type_label),
+                    style=(
+                        pill_style + "padding: 2px 8px; "
+                        "border-radius: 4px; "
+                        "font-family: monospace; "
+                        "font-size: 0.75rem; "
+                        "font-weight: 600; "
+                        "margin-right: 8px; "
+                        "display: inline-block;"
+                    ),
+                ),
+                h.span(
+                    html.escape(name),
+                    style=(
+                        "font-family: monospace; "
+                        "font-size: 0.875rem; "
+                        "color: var(--slate-12);"
+                    ),
+                ),
+            ],
             style=(
-                "height: 1px; "
-                "background-color: var(--slate-3); "
-                "margin: 0 12px 8px 12px;"
+                "padding: 10px 12px 8px 12px; display: flex; align-items: center;"
             ),
         )
-    )
 
-    if docstring:
-        doc_style = (
-            "color: var(--slate-11); "
-            "margin: 0 12px 8px 12px; "
-            "font-size: 0.75rem; "
-            "font-family: monospace; "
-            "padding: 0; "
-            "white-space: pre-wrap;"
-        )
-        main_content.append(h.div(html.escape(docstring), style=doc_style))
+        main_content: list[str] = []
 
-    if value and not inspect_.isclass(obj) and not callable(obj):
-        main_content.append(_render_value(obj))
-
-    if callable(obj):
-        sig = _get_signature(obj)
-        if sig:
-            if inspect_.isfunction(obj) or inspect_.ismethod(obj):
-                # For functions/methods, show the full definition
-                func_name = obj.__name__ if hasattr(obj, "__name__") else ""
-                prefix = (
-                    "async def" if inspect_.iscoroutinefunction(obj) else "def"
-                )
-                main_content.append(
-                    h.div(
-                        h.span(
-                            f"{prefix} {html.escape(func_name)}{html.escape(sig)}:"
-                        ),
-                        style=(
-                            "font-family: monospace; "
-                            "font-size: 0.875rem; "
-                            "color: var(--slate-12); "
-                            "margin: 0 12px 8px 12px;"
-                        ),
-                    )
-                )
-            else:
-                # For other callables (classes, etc), just show the signature
-                main_content.append(
-                    h.div(
-                        h.pre(
-                            html.escape(sig),
-                            style="color: var(--slate-12); overflow-x: auto; margin: 0;",
-                        ),
-                        style=(
-                            "background-color: var(--background); "
-                            "border: 1px solid var(--slate-3); "
-                            "border-radius: 4px; "
-                            "padding: 8px 10px; "
-                            "margin: 0 12px 8px 12px; "
-                            "font-family: monospace; "
-                            "font-size: 0.875rem;"
-                        ),
-                    )
-                )
-
-    if attributes:
-        table_rows = []
-        for name, value, attr_type, error in attributes:
-            table_rows.append(
-                _render_attribute_row(name, value, attr_type, error, docs)
-            )
-
+        # Add divider after header
         main_content.append(
             h.div(
-                h.table(h.tbody(table_rows)),
+                "",  # Empty string for divider line
                 style=(
-                    "overflow-x: auto; font-size: 0.875rem; padding: 0 0 8px 0;"
+                    "height: 1px; "
+                    "background-color: var(--slate-3); "
+                    "margin: 0 12px 8px 12px;"
                 ),
             )
         )
 
-    return Html(
-        h.div(
-            [header] + main_content if main_content else [header],
-            style=(
-                "border-radius: 6px; "
-                "overflow: hidden; "
-                "background-color: var(--slate-1); "
-                "display: inline-block; "
-                "min-width: 0; "
-                "max-width: 100%;"
-            ),
+        if docstring:
+            doc_style = (
+                "color: var(--slate-11); "
+                "margin: 0 12px 8px 12px; "
+                "font-size: 0.75rem; "
+                "font-family: monospace; "
+                "padding: 0; "
+                "white-space: pre-wrap;"
+            )
+            main_content.append(h.div(html.escape(docstring), style=doc_style))
+
+        if value and not inspect_.isclass(obj) and not callable(obj):
+            main_content.append(_render_value(obj))
+
+        if callable(obj):
+            sig = _get_signature(obj)
+            if sig:
+                if inspect_.isfunction(obj) or inspect_.ismethod(obj):
+                    # For functions/methods, show the full definition
+                    func_name = (
+                        obj.__name__ if hasattr(obj, "__name__") else ""
+                    )
+                    prefix = (
+                        "async def"
+                        if inspect_.iscoroutinefunction(obj)
+                        else "def"
+                    )
+                    main_content.append(
+                        h.div(
+                            h.span(
+                                f"{prefix} {html.escape(func_name)}{html.escape(sig)}:"
+                            ),
+                            style=(
+                                "font-family: monospace; "
+                                "font-size: 0.875rem; "
+                                "color: var(--slate-12); "
+                                "margin: 0 12px 8px 12px;"
+                            ),
+                        )
+                    )
+                else:
+                    # For other callables (classes, etc), just show the signature
+                    main_content.append(
+                        h.div(
+                            h.pre(
+                                html.escape(sig),
+                                style="color: var(--slate-12); overflow-x: auto; margin: 0;",
+                            ),
+                            style=(
+                                "background-color: var(--background); "
+                                "border: 1px solid var(--slate-3); "
+                                "border-radius: 4px; "
+                                "padding: 8px 10px; "
+                                "margin: 0 12px 8px 12px; "
+                                "font-family: monospace; "
+                                "font-size: 0.875rem;"
+                            ),
+                        )
+                    )
+
+        if attributes:
+            table_rows = []
+            for name, value, attr_type, error in attributes:
+                table_rows.append(
+                    _render_attribute_row(name, value, attr_type, error, docs)
+                )
+
+            main_content.append(
+                h.div(
+                    h.table(h.tbody(table_rows)),
+                    style=(
+                        "overflow-x: auto; font-size: 0.875rem; padding: 0 0 8px 0;"
+                    ),
+                )
+            )
+
+        super().__init__(
+            h.div(
+                [header] + main_content if main_content else [header],
+                style=(
+                    "border-radius: 6px; "
+                    "overflow: hidden; "
+                    "background-color: var(--slate-1); "
+                    "display: inline-block; "
+                    "min-width: 0; "
+                    "max-width: 100%;"
+                ),
+            )
         )
-    )
+
+    def _repr_md_(self) -> str:
+        try:
+            return repr(self._obj)
+        except Exception:
+            return self.text
 
 
 def _get_object_title(obj: object) -> tuple[str, str]:

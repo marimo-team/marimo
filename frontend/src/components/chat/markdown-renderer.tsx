@@ -3,10 +3,8 @@
 import { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
 import { BetweenHorizontalStartIcon } from "lucide-react";
-import { marked } from "marked";
-import { memo, Suspense, useEffect, useMemo, useState } from "react";
-import Markdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { memo, Suspense, useState } from "react";
+import { Streamdown, type StreamdownProps } from "streamdown";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
@@ -116,9 +114,9 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
   const { theme } = useTheme();
   const [value, setValue] = useState(code);
 
-  useEffect(() => {
+  if (value !== code) {
     setValue(code);
-  }, [code]);
+  }
 
   const handleCopyCode = async () => {
     await copyToClipboard(value);
@@ -152,18 +150,13 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
 const CopyButton: React.FC<ButtonProps> = ({ onClick, ...props }) => {
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (copied) {
-      setTimeout(() => setCopied(false), 1000);
-    }
-  }, [copied]);
-
   return (
     <Button
       {...props}
       onClick={(e) => {
         onClick?.(e);
         setCopied(true);
+        setTimeout(() => setCopied(false), 1000);
       }}
     >
       {copied ? "Copied" : "Copy"}
@@ -171,61 +164,29 @@ const CopyButton: React.FC<ButtonProps> = ({ onClick, ...props }) => {
   );
 };
 
+type Components = StreamdownProps["components"];
+
 const COMPONENTS: Components = {
-  code: ({ children, className, key }) => {
+  code: ({ children, className }) => {
     const language = className?.replace("language-", "");
     if (language && typeof children === "string") {
+      const code = children.trim();
       return (
-        <div key={key}>
+        <div>
           <div className="text-xs text-muted-foreground pl-1">{language}</div>
-          <CodeBlock code={children.trim()} language={language} />
+          <CodeBlock code={code} language={language} />
         </div>
       );
     }
-    return (
-      <code key={key} className={className}>
-        {children}
-      </code>
-    );
+    return <code className={className}>{children}</code>;
   },
 };
 
-function parseMarkdownIntoBlocks(markdown: string): string[] {
-  const tokens = marked.lexer(markdown);
-  return tokens.map((token) => token.raw);
-}
-
-const PLUGINS = [remarkGfm];
-
-const MemoizedMarkdownBlock = memo(
-  ({ content }: { content: string }) => {
-    return (
-      <Markdown
-        components={COMPONENTS}
-        remarkPlugins={PLUGINS}
-        className="mo-markdown-renderer prose dark:prose-invert max-w-none prose-pre:pl-0"
-      >
-        {content}
-      </Markdown>
-    );
-  },
-  (prevProps, nextProps) => prevProps.content === nextProps.content,
-);
-
-MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock";
-
 export const MarkdownRenderer = memo(({ content }: { content: string }) => {
-  const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
-
   return (
-    <>
-      {blocks.map((block, index) => (
-        <MemoizedMarkdownBlock
-          content={block}
-          key={`markdown-block-${index}`}
-        />
-      ))}
-    </>
+    <Streamdown components={COMPONENTS} className="mo-markdown-renderer">
+      {content}
+    </Streamdown>
   );
 });
 MarkdownRenderer.displayName = "MarkdownRenderer";

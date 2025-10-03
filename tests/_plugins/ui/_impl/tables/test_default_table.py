@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import datetime
 import json
 import unittest
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.hypertext import Html
+from marimo._plugins.ui._impl.table import _validate_header_tooltip
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
@@ -862,7 +866,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
                 "b": [3, 4],
             }
         )
-        assert manager.to_json() == b'[{"a": 1, "b": 3}, {"a": 2, "b": 4}]'
+        assert manager.to_json() == b'[{"a":1,"b":3},{"a":2,"b":4}]'
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
@@ -1062,7 +1066,7 @@ class TestDictionaryDefaultTable(unittest.TestCase):
     def test_to_json(self) -> None:
         assert (
             self.manager.to_json()
-            == b'[{"key": "a", "value": 1}, {"key": "b", "value": 2}]'
+            == b'[{"key":"a","value":1},{"key":"b","value":2}]'
         )
 
 
@@ -1085,3 +1089,43 @@ class TestListDefaultTable(unittest.TestCase):
     )
     def test_to_parquet(self) -> None:
         assert isinstance(self.manager.to_parquet(), bytes)
+
+
+class TestDefaultTableWithComplexData(unittest.TestCase):
+    def setUp(self) -> None:
+        self.manager = DefaultTableManager(
+            [
+                {
+                    "inf": float("inf"),
+                    "nan": float("nan"),
+                    "timedelta": datetime.timedelta(
+                        days=1, hours=2, minutes=3
+                    ),
+                    "path": Path("test.txt"),
+                    "complex": 1 + 2j,
+                    "bytes": b"hello",
+                    "memoryview": memoryview(b"hello"),
+                    "range": range(10),
+                    "html": Html("<h1>Hello World</h1>"),
+                }
+            ]
+        )
+
+    def test_to_json(self) -> None:
+        assert (
+            self.manager.to_json_str()
+            == '[{"inf":"Infinity","nan":"NaN","timedelta":"1 day, 2:03:00","path":"test.txt","complex":"(1+2j)","bytes":"hello","memoryview":"hello","range":[0,1,2,3,4,5,6,7,8,9],"html":{"mimetype":"text/html","data":"<h1>Hello World</h1>"}}]'
+        )
+
+
+def test_validate_header_tooltip_valid() -> None:
+    columns = {"name", "age", "birth_year"}
+    mapping = {"name": "Name of person", "age": "Age in years"}
+    _validate_header_tooltip(mapping, columns)
+
+
+def test_validate_header_tooltip_invalid() -> None:
+    columns = {"name", "age", "birth_year"}
+    mapping = {"does_not_exist": "oops"}
+    with pytest.raises(ValueError):
+        _validate_header_tooltip(mapping, columns)

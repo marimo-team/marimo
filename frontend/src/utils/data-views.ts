@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { get, set } from "lodash-es";
+import { set } from "lodash-es";
 import { invariant } from "./invariant";
-import { type Base64String, type ByteString, typedAtob } from "./json/base64";
 import { Logger } from "./Logger";
 
 /**
@@ -9,8 +8,8 @@ import { Logger } from "./Logger";
  */
 export function updateBufferPaths<T extends Record<string, unknown>>(
   inputObject: T,
-  bufferPaths: Array<Array<string | number>> | null | undefined,
-  buffers?: Base64String[] | null | undefined,
+  bufferPaths: readonly (readonly (string | number)[])[],
+  buffers: readonly DataView[],
 ): T {
   // If no buffer paths, return the original object
   if (!bufferPaths || bufferPaths.length === 0) {
@@ -30,25 +29,13 @@ export function updateBufferPaths<T extends Record<string, unknown>>(
   for (const [i, bufferPath] of bufferPaths.entries()) {
     // If buffers exists, we use that value
     // Otherwise we grab it from inside the inputObject
-    const bytes: ByteString = buffers
-      ? typedAtob(buffers[i])
-      : get(object, bufferPath);
-    if (!bytes) {
+    const dataView = buffers[i];
+    if (!dataView) {
       Logger.warn("Could not find buffer at path", bufferPath);
       continue;
     }
-    const buffer = byteStringToDataView(bytes);
-    object = set(object, bufferPath, buffer);
+    object = set(object, bufferPath, dataView);
   }
 
   return object;
 }
-
-export const byteStringToDataView = (bytes: ByteString) => {
-  const buffer = new ArrayBuffer(bytes.length);
-  const view = new DataView(buffer);
-  for (let i = 0; i < bytes.length; i++) {
-    view.setUint8(i, bytes.charCodeAt(i));
-  }
-  return view;
-};

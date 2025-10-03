@@ -1,17 +1,17 @@
 import marimo
 
-__generated_with = "0.9.10"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     import ibis
 
     memtable = ibis.memtable(
@@ -26,23 +26,23 @@ def __(mo):
     )
 
     table = mo.ui.table(memtable, page_size=5)
-    return ibis, memtable, table
+    return (table,)
 
 
 @app.cell
-def __(table):
+def _(table):
     table
     return
 
 
 @app.cell
-def __(mo, table):
+def _(mo, table):
     mo.ui.table(table.value)
     return
 
 
 @app.cell
-def __(table):
+def _(table):
     table.value
     return
 

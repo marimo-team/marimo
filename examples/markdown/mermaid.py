@@ -7,18 +7,18 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.mermaid(
         """
     graph TD
@@ -35,7 +35,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     graph = mo.ui.code_editor(
         value="""sequenceDiagram
         Alice->>John: Hello John, how are you?
@@ -49,7 +49,7 @@ def __(mo):
 
 
 @app.cell
-def __(graph, mo):
+def _(graph, mo):
     mo.md(
         f"""
         You can render mermaid directly inside `mo.md`. Using

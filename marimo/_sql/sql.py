@@ -11,8 +11,13 @@ from marimo._sql.engines.dbapi import DBAPIConnection, DBAPIEngine
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import QueryEngine
+from marimo._sql.error_utils import MarimoSQLException, is_sql_parse_error
 from marimo._sql.get_engines import SUPPORTED_ENGINES
-from marimo._sql.utils import raise_df_import_error
+from marimo._sql.utils import (
+    extract_explain_content,
+    is_explain_query,
+    raise_df_import_error,
+)
 from marimo._types.ids import VariableName
 from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 
@@ -71,13 +76,29 @@ def sql(
                 "Unsupported engine. Must be a SQLAlchemy, Ibis, Clickhouse, DuckDB, Redshift or DBAPI 2.0 compatible engine."
             )
 
-    df = sql_engine.execute(query)
+    try:
+        df = sql_engine.execute(query)
+    except Exception as e:
+        if is_sql_parse_error(e):
+            # NB. raising _from_ creates a noisier stack trace, but preserves
+            # the original exception context for debugging.
+            raise MarimoSQLException(
+                message=str(e),
+                sql_statement=query,
+                sql_line=None,
+                sql_col=None,
+                hint=None,
+            ) from e
+        raise
+
     if df is None:
         return None
 
-    has_limit = _query_includes_limit(query)
+    has_limit = False
     try:
         default_result_limit = get_default_result_limit()
+        if default_result_limit is not None:
+            has_limit = _query_includes_limit(query)
     except OSError:
         default_result_limit = None
 
@@ -103,9 +124,14 @@ def sql(
             raise_df_import_error("polars[pyarrow]")
 
     if output:
+        from marimo._plugins.stateless.plain_text import plain_text
         from marimo._plugins.ui._impl import table
 
-        if can_narwhalify_lazyframe(df):
+        if isinstance(sql_engine, DuckDBEngine) and is_explain_query(query):
+            # For EXPLAIN queries in DuckDB, display plain output to preserve box drawings
+            text_output = extract_explain_content(df)
+            t = plain_text(text_output)
+        elif can_narwhalify_lazyframe(df):
             # For pl.LazyFrame and DuckDBRelation, we only show the first few rows
             # to avoid loading all the data into memory.
             # Also preload the first page of data without user confirmation.

@@ -13,6 +13,7 @@ module.exports = {
     "plugin:@typescript-eslint/recommended-type-checked",
     "plugin:@typescript-eslint/stylistic-type-checked",
     "plugin:@typescript-eslint/strict-type-checked",
+    "plugin:react-you-might-not-need-an-effect/legacy-recommended",
     // React
     "plugin:react-hooks/recommended-legacy",
     "plugin:react/recommended",
@@ -46,14 +47,25 @@ module.exports = {
       " Copyright 2024 Marimo. All rights reserved. ",
     ],
 
+    // Rules disabled because they have Biome equivalents
+    curly: "off", // → useBlockStatements in Biome
+    "default-param-last": "off", // → useDefaultParameterLast in Biome
+    eqeqeq: "off", // → noDoubleEquals in Biome
+    "no-console": "off", // → noConsole in Biome
+    "no-debugger": "off", // → noDebugger in Biome
+    "no-empty": "off", // → noEmptyBlockStatements in Biome
+    "no-inner-declarations": "off", // → noInnerDeclarations in Biome
+    "no-useless-constructor": "off", // → noUselessConstructor in Biome
+    "no-var": "off", // → noVar in Biome
+    "prefer-const": "off", // → useConst in Biome
+    "prefer-template": "off", // → useTemplate in Biome
+
     // These rules don't require type information and have autofixes
-    "@typescript-eslint/array-type": ["error", { default: "array-simple" }],
     "@typescript-eslint/consistent-generic-constructors": "error",
     "@typescript-eslint/consistent-type-definitions": "error",
     "@typescript-eslint/no-confusing-non-null-assertion": "error",
     "@typescript-eslint/no-dynamic-delete": "error",
     "@typescript-eslint/prefer-ts-expect-error": "error",
-    curly: "error",
 
     // Turn off recommended we don't want
     "ssr-friendly/no-dom-globals-in-react-fc": "off",
@@ -106,8 +118,6 @@ module.exports = {
     "unicorn/prefer-top-level-await": "off",
     "unicorn/prevent-abbreviations": "off",
 
-    "no-console": "error",
-
     // Would like to turn on, but too many existing errors
     "@typescript-eslint/no-floating-promises": "off",
     "@typescript-eslint/no-misused-promises": "off",
@@ -131,7 +141,6 @@ module.exports = {
 
     // These rules aim to reduce bikeshedding during code reviews
     // Often there are multiple ways to do something and this forces consistency
-    "prefer-template": "error", // Use template literals instead of string concatenation
     "unicorn/switch-case-braces": ["error", "avoid"], // Only braces when necessary
     "unicorn/consistent-destructuring": "error",
     "unicorn/prefer-logical-operator-over-ternary": "error",
@@ -139,12 +148,9 @@ module.exports = {
     "unicorn/no-object-as-default-parameter": "error",
     "unicorn/prefer-number-properties": "error",
     "unicorn/prefer-ternary": "error",
-    "unicorn/prefer-array-some": "error",
     "react/jsx-boolean-value": ["error", "always"], // Force `={true}` or `={false}` as it's more explicit
     "react/hook-use-state": "error",
-    "react/jsx-no-useless-fragment": "error",
     "react/jsx-pascal-case": "error",
-    "react/self-closing-comp": "error",
     "react/function-component-definition": [
       "error",
       {

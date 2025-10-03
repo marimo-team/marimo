@@ -300,6 +300,13 @@ x = as_marimo_element.count
         assert wrapped._initial_value == {"array": data}
         assert wrapped._component_args["buffer-paths"] == [["array"]]
 
+        # test buffers are inlined as base64 inplace
+        assert (
+            "data-initial-value='{&quot;array&quot;:&quot;AQIDBA==&quot;}'"
+            in wrapped.text
+        )
+        assert "data-buffer-paths='[[&quot;array&quot;]]'" in wrapped.text
+
         # Test updating the buffer
         new_data = bytes([5, 6, 7, 8])
         wrapped.array = new_data

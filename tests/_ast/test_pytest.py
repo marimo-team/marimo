@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-import pytest
-
 import marimo
 
 app = marimo.App()
 
 
+with app.setup:
+    import pytest
+
+
 @app.cell
-async def _(pytest, x, y, Z):
+async def _(x, y, Z):
     @pytest.mark.xfail(
         reason=("To ensure this doesn't just eval."),
         raises=AssertionError,
@@ -45,6 +47,7 @@ async def _(pytest, x, y, Z):
         def test_static() -> None:
             assert x + y == Z
 
+    @pytest.mark.asyncio
     async def test_async_cell():
         assert True
 
@@ -56,9 +59,7 @@ def imports():
     # Suffixed with _fixture should have corresponding definitions in conftest.py
     mo_fixture = None
 
-    import pytest
-
-    return mo, mo_fixture, pytest
+    return mo, mo_fixture
 
 
 @app.cell
@@ -66,8 +67,15 @@ def test_cell_is_invoked():
     assert True
 
 
+@pytest.mark.asyncio
 @app.cell
 async def test_async_cell():
+    assert True
+
+
+@app.function
+@pytest.mark.asyncio
+async def test_async_function():
     assert True
 
 
@@ -143,7 +151,7 @@ def test_cell_args_resolved_by_name(mo):  # noqa: ARG001
 
 
 @app.cell
-def test_cell_assert_rewritten(pytest):
+def test_cell_assert_rewritten():
     a = 1
     b = 2
 

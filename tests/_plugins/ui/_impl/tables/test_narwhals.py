@@ -7,7 +7,7 @@ import unittest
 from math import isnan
 from typing import TYPE_CHECKING, Any
 
-import narwhals.stable.v1 as nw
+import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._data.models import BinValue, ColumnStats
@@ -41,8 +41,7 @@ snapshot = snapshotter(__file__)
 SUPPORTED_LIBS: list[DFType] = [
     "pandas",
     "polars",
-    # TODO: Either we can import narwhals `main` or wait for v0.1.0
-    # "ibis",
+    "ibis",
     "lazy-polars",
     "pyarrow",
 ]
@@ -362,6 +361,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             mean=2.0,
             median=2.0,
             std=1.0,
+            unique=3,
             p5=1.0,
             p25=2.0,
             p75=3.0,
@@ -413,6 +413,72 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         complex_data = self.get_complex_data()
         for column in complex_data.get_column_names():
             assert complex_data.get_stats(column) is not None
+
+    def test_get_stats_unwraps_scalars_properly(self) -> None:
+        """Test that get_stats properly unwraps narwhals scalars to Python primitives.
+
+        This test ensures that the values returned in ColumnStats are proper Python
+        primitives, not wrapped narwhals scalar objects. The unwrapping happens via
+        unwrap_py_scalar in narwhals_table.py get_stats method.
+        """
+        import polars as pl
+
+        data = pl.DataFrame(
+            {
+                "int_col": [1, 2, 3, 4, 5],
+                "float_col": [1.5, 2.5, 3.5, 4.5, 5.5],
+                "bool_col": [True, False, True, True, False],
+            }
+        )
+        manager = NarwhalsTableManager.from_dataframe(data)
+
+        int_stats = manager.get_stats("int_col")
+        assert int_stats == ColumnStats(
+            total=5,
+            nulls=0,
+            unique=5,
+            min=1,
+            max=5,
+            mean=3.0,
+            median=3.0,
+            std=1.5811388300841898,
+            p5=1.0,
+            p25=2.0,
+            p75=4.0,
+            p95=5.0,
+        )
+        assert isinstance(int_stats.min, int)
+        assert isinstance(int_stats.max, int)
+        assert isinstance(int_stats.mean, float)
+
+        float_stats = manager.get_stats("float_col")
+        assert float_stats == ColumnStats(
+            total=5,
+            nulls=0,
+            min=1.5,
+            max=5.5,
+            mean=3.5,
+            median=3.5,
+            unique=5,
+            std=1.5811388300841898,
+            p5=1.5,
+            p25=2.5,
+            p75=4.5,
+            p95=5.5,
+        )
+        assert isinstance(float_stats.min, float)
+        assert isinstance(float_stats.max, float)
+        assert isinstance(float_stats.mean, float)
+
+        bool_stats = manager.get_stats("bool_col")
+        assert bool_stats == ColumnStats(
+            total=5,
+            nulls=0,
+            true=3,
+            false=2,
+        )
+        assert isinstance(bool_stats.true, int)
+        assert isinstance(bool_stats.false, int)
 
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values(by=[("A", True)]).data
@@ -802,7 +868,6 @@ def test_to_csv(df: Any) -> None:
             "B": ["a", "b", "c"],
             "C": [1.0, 2.0, 3.0],
         },
-        exclude=["ibis", "duckdb"],
     ),
 )
 def test_to_parquet(df: Any) -> None:
@@ -857,7 +922,7 @@ def test_empty_dataframe(df: Any) -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": [None, None, None]}, exclude=["ibis", "duckdb"]
+        {"A": [1, 2, 3], "B": [None, None, None]}, exclude=["duckdb"]
     ),
 )
 def test_dataframe_with_all_null_column(df: Any) -> None:
@@ -937,7 +1002,6 @@ def test_get_summary_all_types() -> None:
             "string": ["a", "b", "b", "c", "d", "d", "e"],
             "boolean": [True, False, False, True, False, False, True],
         },
-        exclude=["ibis", "duckdb"],
         strict=False,
     ),
 )
@@ -1028,7 +1092,7 @@ def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
                 datetime.date(2021, 1, 1),
             ],
         },
-        exclude=["ibis", "duckdb"],
+        exclude=["ibis"],
     ),
 )
 class TestGetBinValuesTemporal:
@@ -1151,9 +1215,7 @@ class TestGetBinValuesTemporal:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes(
-        {"A": ["apple", "banana", "cherry"]}, exclude=["ibis", "duckdb"]
-    ),
+    create_dataframes({"A": ["apple", "banana", "cherry"]}),
 )
 def test_search_with_regex(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
@@ -1164,7 +1226,7 @@ def test_search_with_regex(df: Any) -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"A": [3, 1, None, 2]}, exclude=["ibis", "duckdb"]),
+    create_dataframes({"A": [3, 1, None, 2]}),
 )
 def test_sort_values_with_nulls(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
@@ -1304,19 +1366,6 @@ def test_calculate_top_k_rows(df: Any) -> None:
     result = manager.calculate_top_k_rows("A", 2)
     normalized_result = _normalize_result(result)
     assert normalized_result == [(3, 3), (None, 2)]
-
-
-@pytest.mark.skipif(
-    not DependencyManager.ibis.has(),
-    reason="Ibis not installed",
-)
-def test_calculate_top_k_rows_metadata_only_frame() -> None:
-    import ibis
-
-    df = ibis.memtable({"A": [1, 2, 3, 3, None, None]})
-    manager = NarwhalsTableManager.from_dataframe(df)
-    result = manager.calculate_top_k_rows("A", 10)
-    assert result == [(None, 2), (3, 2), (1, 1), (2, 1)]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -1521,10 +1570,7 @@ def test_calculate_top_k_rows_caching(df: Any) -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes(
-        {"name": ["Alice", "Eve", None], "age": [25, 35, None]},
-        exclude=["ibis", "duckdb"],
-    ),
+    create_dataframes({"name": ["Alice", "Eve", None], "age": [25, 35, None]}),
 )
 def test_calculate_top_k_rows_cache_invalidation(df: Any) -> None:
     """Test that cache is properly invalidated when data changes."""

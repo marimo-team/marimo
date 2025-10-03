@@ -788,7 +788,10 @@ class TestFindSQLRefs:
 
     def test_invalid_sql(self) -> None:
         sql = "SELECT * FROM"
-        assert find_sql_refs(sql) == set()
+        from sqlglot import ParseError
+
+        with pytest.raises(ParseError):
+            find_sql_refs(sql)
 
     def test_dml_with_subquery(self) -> None:
         # first
@@ -838,3 +841,59 @@ class TestFindSQLRefs:
 
         sql = "SELECT * FROM read_csv('/dev/stdin')"
         assert find_sql_refs(sql) == set()
+
+    def test_describe_table(self) -> None:
+        sql = "DESCRIBE test_duck;"
+        assert find_sql_refs(sql) == {SQLRef(table="test_duck")}
+
+    def test_summarize_table(self) -> None:
+        sql = "SUMMARIZE test_duck;"
+        assert find_sql_refs(sql) == {SQLRef(table="test_duck")}
+
+    def test_pivot_table(self) -> None:
+        sql = "PIVOT test_duck ON column_name USING sum(value);"
+        assert find_sql_refs(sql) == {SQLRef(table="test_duck")}
+
+    def test_unpivot_table(self) -> None:
+        sql = "UNPIVOT test_duck ON (col1, col2) INTO NAME column_name VALUE column_value;"
+        assert find_sql_refs(sql) == {SQLRef(table="test_duck")}
+
+    def test_describe_with_schema(self) -> None:
+        sql = "DESCRIBE my_schema.test_table;"
+        assert find_sql_refs(sql) == {
+            SQLRef(table="test_table", schema="my_schema")
+        }
+
+    def test_summarize_with_catalog_schema(self) -> None:
+        sql = "SUMMARIZE my_catalog.my_schema.test_table;"
+        assert find_sql_refs(sql) == {
+            SQLRef(
+                table="test_table", schema="my_schema", catalog="my_catalog"
+            )
+        }
+
+    def test_analyze_table(self) -> None:
+        sql = "ANALYZE test_table;"
+        assert find_sql_refs(sql) == {SQLRef(table="test_table")}
+
+    def test_drop_table(self) -> None:
+        sql = "DROP TABLE test_table;"
+        assert find_sql_refs(sql) == {SQLRef(table="test_table")}
+
+    def test_truncate_table(self) -> None:
+        sql = "TRUNCATE test_table;"
+        assert find_sql_refs(sql) == {SQLRef(table="test_table")}
+
+    def test_copy_table_to_file(self) -> None:
+        sql = "COPY test_table TO 'output.csv';"
+        assert find_sql_refs(sql) == {SQLRef(table="test_table")}
+
+    def test_copy_table_from_file(self) -> None:
+        sql = "COPY test_table FROM 'input.csv';"
+        assert find_sql_refs(sql) == {SQLRef(table="test_table")}
+
+    def test_analyze_with_schema(self) -> None:
+        sql = "ANALYZE my_schema.test_table;"
+        assert find_sql_refs(sql) == {
+            SQLRef(table="test_table", schema="my_schema")
+        }

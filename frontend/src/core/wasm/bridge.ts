@@ -21,6 +21,7 @@ import type {
   FileDetailsResponse,
   FileListResponse,
   FileMoveResponse,
+  FileSearchResponse,
   FileUpdateResponse,
   FormatResponse,
   RunRequests,
@@ -373,6 +374,14 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FileListResponse;
   };
 
+  sendSearchFiles: EditRequests["sendSearchFiles"] = async (request) => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "search_files",
+      payload: request,
+    });
+    return response as FileSearchResponse;
+  };
+
   sendComponentValues: RunRequests["sendComponentValues"] = async (request) => {
     await this.putControlRequest({
       ...request,
@@ -487,6 +496,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
       return null;
     };
 
+  validateSQL: EditRequests["validateSQL"] = async (request) => {
+    await this.putControlRequest(request);
+    return null;
+  };
+
   sendModelValue: RunRequests["sendModelValue"] = async (request) => {
     await this.putControlRequest(request);
     return null;
@@ -514,9 +528,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response;
   };
 
-  getDependencyTree = async () => {
+  getDependencyTree: EditRequests["getDependencyTree"] = async () => {
     // WASM doesn't support dependency trees yet
-    return { tree: undefined };
+    return {
+      tree: {
+        dependencies: [],
+        name: "",
+        tags: [],
+        version: null,
+      },
+    };
   };
 
   listSecretKeys: EditRequests["listSecretKeys"] = async (request) => {
@@ -560,7 +581,11 @@ export class PyodideWebsocket implements IReconnectingWebSocket {
   messageSubscriptions = new Set<(event: MessageEvent) => void>();
   errorSubscriptions = new Set<(event: Event) => void>();
 
-  constructor(private bridge: Pick<PyodideBridge, "consumeMessages">) {}
+  private bridge: Pick<PyodideBridge, "consumeMessages">;
+
+  constructor(bridge: Pick<PyodideBridge, "consumeMessages">) {
+    this.bridge = bridge;
+  }
 
   private consumeMessages() {
     this.bridge.consumeMessages((message) => {

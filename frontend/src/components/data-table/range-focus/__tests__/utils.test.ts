@@ -20,17 +20,17 @@ function createMockCell(id: string, value: unknown): Cell<unknown, unknown> {
 function createMockColumn(id: string): Column<unknown> {
   return {
     id: id,
-    getIndex: () => Number.parseInt(id),
+    getIndex: () => Number.parseInt(id, 10),
   } as unknown as Column<unknown>;
 }
 
 function createMockRow(
   id: string,
-  cells: Array<Cell<unknown, unknown>>,
+  cells: Cell<unknown, unknown>[],
 ): Row<unknown> {
   return {
     id,
-    index: Number.parseInt(id),
+    index: Number.parseInt(id, 10),
     getAllCells: () => cells,
     original: {},
     depth: 0,
@@ -43,8 +43,8 @@ function createMockRow(
 }
 
 function createMockTable(
-  rows: Array<Row<unknown>>,
-  columns: Array<Column<unknown>>,
+  rows: Row<unknown>[],
+  columns: Column<unknown>[],
 ): Table<unknown> {
   return {
     getRow: (id: string) => rows.find((row) => row.id === id),

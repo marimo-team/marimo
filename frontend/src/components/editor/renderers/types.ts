@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { ZodType, ZodTypeDef } from "zod";
+import type { ZodType } from "zod";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import type { AppConfig } from "@/core/config/config-schema";
 import type { AppMode } from "@/core/mode";
@@ -17,7 +17,7 @@ export interface ICellRendererProps<L> {
   /**
    * The cells to render.
    */
-  cells: Array<CellRuntimeState & CellData>;
+  cells: (CellRuntimeState & CellData)[];
 
   /**
    * The layout configuration.
@@ -64,7 +64,7 @@ export interface ICellRendererPlugin<S, L> {
   /**
    * Validate the layout data. Use [zod](https://zod.dev/) to validate the data.
    */
-  validator: ZodType<S, ZodTypeDef, unknown>;
+  validator: ZodType<S>;
 
   deserializeLayout: (layout: S, cells: CellData[]) => L;
   serializeLayout: (layout: L, cells: CellData[]) => S;

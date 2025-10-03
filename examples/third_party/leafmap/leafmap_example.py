@@ -8,12 +8,12 @@
 
 import marimo
 
-__generated_with = "0.9.20"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Using Leafmap
@@ -25,13 +25,13 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import leafmap
     return (leafmap,)
 
 
 @app.cell
-def __(leafmap):
+def _(leafmap):
     m = leafmap.Map(center=(40, -100), zoom=4, height="400px")
     m.add_basemap("HYBRID")
     m.add_basemap("Esri.NatGeoWorldMap")
@@ -41,11 +41,11 @@ def __(leafmap):
         attribution="Google",
     )
     m
-    return (m,)
+    return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

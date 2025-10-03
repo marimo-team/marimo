@@ -8,61 +8,62 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.39"
+__generated_with = "0.15.5"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __(pd):
+def _(pd):
     # Load some large data
     all_flights = pd.read_parquet(
         "https://vegafusion-datasets.s3.amazonaws.com/vega/flights_1m.parquet"
     )
-    return all_flights,
+    return (all_flights,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     size = mo.ui.dropdown(
         label="Size",
         options=["100", "1000", "10000", "100000", "1000000"],
         value="100000",
     )
     size
-    return size,
+    return (size,)
 
 
 @app.cell
-def __(alt, flights, mo):
+def _(alt, flights, mo):
     scatter = mo.ui.altair_chart(
         alt.Chart(flights).mark_point().encode(x="delay:Q", y="distance:Q")
     )
     scatter
-    return scatter,
+    return (scatter,)
 
 
 @app.cell
-def __(scatter):
+def _(scatter):
     scatter.value.head()
     return
 
 
 @app.cell
-def __(all_flights, size):
+def _(all_flights, size):
     flights = all_flights.sample(int(size.value))
-    return flights,
+    return (flights,)
 
 
 @app.cell
-def __(flights):
+def _(flights):
     f"{len(flights):,} flights"
     return
 
 
 @app.cell
-def __(alt, mo, pd):
+def _(alt, mo, pd):
     # List available data transformers
     mo.ui.altair_chart(alt.Chart(pd.DataFrame({"a": [1]})).mark_point())
     mo.accordion(
@@ -80,16 +81,16 @@ def __(alt, mo, pd):
 
 
 @app.cell
-def __(alt, flights, mo):
+def _(alt, flights, mo):
     flight_histogram = mo.ui.altair_chart(
         alt.Chart(flights).mark_bar().encode(alt.X("delay"), alt.Y("count()"))
     )
     flight_histogram
-    return flight_histogram,
+    return (flight_histogram,)
 
 
 @app.cell
-def __(flight_histogram, mo):
+def _(flight_histogram, mo):
     mo.stop(len(flight_histogram.value) == 0, None)
 
     mo.md(f"Selected **{len(flight_histogram.value):,}** flights")
@@ -97,7 +98,7 @@ def __(flight_histogram, mo):
 
 
 @app.cell
-def __(alt, flight_histogram, mo):
+def _(alt, flight_histogram, mo):
     mo.stop(len(flight_histogram.value) == 0, None)
 
     origin_chart = mo.ui.altair_chart(
@@ -111,11 +112,11 @@ def __(alt, flight_histogram, mo):
         .encode(alt.X("destination:O"), alt.Y("count()"))
     )
     mo.hstack([origin_chart, destination_chart])
-    return destination_chart, origin_chart
+    return
 
 
 @app.cell
-def __(airports, alt, data, flight_histogram, mo):
+def _(airports, alt, data, flight_histogram, mo):
     flights_airport = flight_histogram.value
     # flights_airport = data.flights_airport.url
 
@@ -177,19 +178,11 @@ def __(airports, alt, data, flight_histogram, mo):
     mo.ui.altair_chart(
         (background + connections + points).configure_view(stroke=None)
     )
-    return (
-        background,
-        connections,
-        flights_airport,
-        lookup_data,
-        points,
-        select_city,
-        states,
-    )
+    return
 
 
 @app.cell
-def __(flight_histogram, mo):
+def _(flight_histogram, mo):
     mo.stop(len(flight_histogram.value) == 0, None)
 
     mo.hstack(
@@ -205,7 +198,7 @@ def __(flight_histogram, mo):
 
 
 @app.cell(disabled=True)
-def __(alt, brush, flights, mo):
+def _(alt, brush, flights, mo):
     # Run the same chart with vegafusion
     with alt.data_transformers.enable("vegafusion"):
         million_histogram = (
@@ -215,11 +208,11 @@ def __(alt, brush, flights, mo):
             .add_params(brush)
         )
         mo.output.append(mo.ui.altair_chart(million_histogram))
-    return million_histogram,
+    return
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
     import pandas as pd
     from vega_datasets import data

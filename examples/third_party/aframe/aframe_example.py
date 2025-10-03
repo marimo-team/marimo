@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __(Aframe, xyz):
+def _(Aframe, xyz):
     a = Aframe()
     a.set_scene(
         background="color: #ECECEC; fog: type: exponential; color: #AAA; density: 0.05"
@@ -48,13 +48,13 @@ def __(Aframe, xyz):
 
 
 @app.cell
-def __(a, mo):
+def _(a, mo):
     mo.iframe(a.generate())
     return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     from aframe import Aframe, xyz
     return Aframe, mo, xyz

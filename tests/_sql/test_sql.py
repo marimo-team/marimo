@@ -13,6 +13,13 @@ from marimo._plugins import ui
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.sql import _query_includes_limit, sql
+from marimo._sql.utils import (
+    extract_explain_content,
+    is_explain_query,
+    is_query_empty,
+    strip_explain_from_error_message,
+    wrap_query_with_explain,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -135,11 +142,15 @@ def test_invalid_sql(
     import duckdb
     import sqlalchemy
 
-    with pytest.raises(duckdb.Error):
-        sql("SELECT *", engine=duckdb_connection)
+    from marimo._sql.error_utils import MarimoSQLException
 
-    with pytest.raises(sqlalchemy.exc.StatementError):
+    with pytest.raises(MarimoSQLException) as exc_info:
+        sql("SELECT *", engine=duckdb_connection)
+    assert isinstance(exc_info.value.__cause__, duckdb.Error)
+
+    with pytest.raises(MarimoSQLException) as exc_info:
         sql("SELECT *", engine=sqlite_engine)
+    assert isinstance(exc_info.value.__cause__, sqlalchemy.exc.StatementError)
 
 
 # TODO
@@ -360,3 +371,261 @@ def test_sql_with_ibis_expression_result():
     with patch.object(IbisEngine, "sql_output_format", return_value="native"):
         result = sql("SELECT * FROM test", engine=duckdb_backend)
         assert isinstance(result, Expr)
+
+
+class TestExplainQueries:
+    def test_is_explain_query(self):
+        """Test is_explain_query function."""
+        # Test valid EXPLAIN queries
+        assert is_explain_query("EXPLAIN SELECT 1")
+        assert is_explain_query("explain SELECT 1")
+        assert is_explain_query("  EXPLAIN SELECT 1")
+        assert is_explain_query("\tEXPLAIN SELECT 1")
+        assert is_explain_query("\nEXPLAIN SELECT 1")
+        assert is_explain_query("EXPLAIN (FORMAT JSON) SELECT 1")
+        assert is_explain_query("EXPLAIN ANALYZE SELECT 1")
+        assert is_explain_query("EXPLAIN QUERY PLAN SELECT 1")
+
+        # Test non-EXPLAIN queries
+        assert not is_explain_query("SELECT 1")
+        assert not is_explain_query("INSERT INTO t VALUES (1)")
+        assert not is_explain_query("UPDATE t SET col = 1")
+        assert not is_explain_query("DELETE FROM t")
+        assert not is_explain_query("CREATE TABLE t (id INT)")
+        assert not is_explain_query("")
+        assert not is_explain_query("   ")
+
+        # Test edge cases
+        assert not is_explain_query("EXPLAINED")  # Not exactly "explain"
+        assert not is_explain_query("EXPLAINING")  # Not exactly "explain"
+        assert not is_explain_query(
+            "-- EXPLAIN SELECT 1"
+        )  # Comment, not actual query
+
+    @pytest.fixture
+    def explain_df_data(self) -> dict[str, list[str]]:
+        return {
+            "explain_key": ["physical_plan", "logical_plan"],
+            "explain_value": [
+                "┌─────────────────────────────────────┐\n│              PROJECTION               │\n└─────────────────────────────────────┘",
+                "┌─────────────────────────────────────┐\n│              SELECTION                │\n└─────────────────────────────────────┘",
+            ],
+        }
+
+    @pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
+    def test_extract_explain_content_polars(
+        self, explain_df_data: dict[str, list[str]]
+    ):
+        """Test extract_explain_content with polars DataFrames."""
+        import polars as pl
+
+        # Test with regular DataFrame
+        df = pl.DataFrame(explain_df_data)
+
+        expected_rendering = """shape: (2, 2)
+┌───────────────┬───────────────────────────────────────────┐
+│ explain_key   ┆ explain_value                             │
+│ ---           ┆ ---                                       │
+│ str           ┆ str                                       │
+╞═══════════════╪═══════════════════════════════════════════╡
+│ physical_plan ┆ ┌─────────────────────────────────────┐   │
+│               ┆ │              PROJECTION               │ │
+│               ┆ └─────────────────────────────────────┘   │
+│ logical_plan  ┆ ┌─────────────────────────────────────┐   │
+│               ┆ │              SELECTION                │ │
+│               ┆ └─────────────────────────────────────┘   │
+└───────────────┴───────────────────────────────────────────┘"""
+
+        result = extract_explain_content(df)
+        assert result == expected_rendering
+
+        # Test with LazyFrame
+        lazy_df = df.lazy()
+        result = extract_explain_content(lazy_df)
+        assert result == expected_rendering
+
+    @pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+    def test_extract_explain_content_pandas(
+        self, explain_df_data: dict[str, list[str]]
+    ):
+        """Test extract_explain_content with pandas DataFrames."""
+        import pandas as pd
+
+        df = pd.DataFrame(explain_df_data)
+
+        result = extract_explain_content(df)
+        assert (
+            result
+            == """physical_plan
+┌─────────────────────────────────────┐
+│              PROJECTION               │
+└─────────────────────────────────────┘
+logical_plan
+┌─────────────────────────────────────┐
+│              SELECTION                │
+└─────────────────────────────────────┘"""
+        )
+
+    def test_extract_explain_content_fallback(self):
+        """Test extract_explain_content fallback for non-DataFrame objects."""
+        # Test with non-DataFrame object
+        result = extract_explain_content("not a dataframe")
+        assert isinstance(result, str)
+        assert "not a dataframe" in result
+
+        # Test with None
+        result = extract_explain_content(None)
+        assert isinstance(result, str)
+        assert "None" in result
+
+    @pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
+    def test_extract_explain_content_error_handling(self):
+        """Test extract_explain_content error handling."""
+
+        # Create a mock DataFrame that will raise an error
+        class MockDataFrame:
+            def __init__(self):
+                pass
+
+            def __str__(self):
+                raise RuntimeError("Test error")
+
+        mock_df = MockDataFrame()
+        result = extract_explain_content(mock_df)
+        assert isinstance(result, str)
+        assert "MockDataFrame" in result  # Should fallback to repr
+
+    @patch("marimo._sql.sql.replace")
+    @pytest.mark.skipif(
+        not HAS_POLARS or not HAS_DUCKDB, reason="polars and duckdb required"
+    )
+    def test_sql_explain_query_display(self, mock_replace):
+        """Test that EXPLAIN queries are displayed as plain text."""
+        import duckdb
+        import polars as pl
+
+        # Create a test table
+        duckdb.sql(
+            "CREATE OR REPLACE TABLE test_explain AS SELECT * FROM range(5)"
+        )
+
+        # Test EXPLAIN query
+        result = sql("EXPLAIN SELECT * FROM test_explain")
+        assert isinstance(result, pl.DataFrame)
+
+        # Should call replace with plain_text
+        mock_replace.assert_called_once()
+        call_args = mock_replace.call_args[0][0]
+
+        # The call should be a plain_text object
+        assert hasattr(call_args, "text")
+        assert isinstance(call_args.text, str)
+
+        # Clean up
+        duckdb.sql("DROP TABLE test_explain")
+
+    def test_wrap_query_with_explain(self):
+        """Test wrap_query_with_explain function."""
+        assert (
+            wrap_query_with_explain("SELECT * FROM t")
+            == "EXPLAIN SELECT * FROM t"
+        )
+        assert (
+            wrap_query_with_explain("EXPLAIN SELECT * FROM t")
+            == "EXPLAIN SELECT * FROM t"
+        )
+        assert (
+            wrap_query_with_explain("EXPLAIN (FORMAT JSON) SELECT * FROM t")
+            == "EXPLAIN (FORMAT JSON) SELECT * FROM t"
+        )
+        assert (
+            wrap_query_with_explain("EXPLAIN ANALYZE SELECT * FROM t")
+            == "EXPLAIN ANALYZE SELECT * FROM t"
+        )
+        assert (
+            wrap_query_with_explain("EXPLAIN QUERY PLAN SELECT * FROM t")
+            == "EXPLAIN QUERY PLAN SELECT * FROM t"
+        )
+
+    def test_is_query_empty(self):
+        """Test is_query_empty function."""
+
+        assert is_query_empty("SELECT * FROM t") is False
+        assert is_query_empty("INSERT INTO t VALUES (1)") is False
+        assert is_query_empty("UPDATE t SET col = 1") is False
+        assert is_query_empty("DELETE FROM t") is False
+        assert is_query_empty("CREATE TABLE t (id INT)") is False
+        assert is_query_empty("") is True
+        assert is_query_empty("   ") is True
+
+        # Comments
+        assert is_query_empty("-- SELECT * FROM t") is True
+        assert is_query_empty("/* SELECT * FROM t */") is True
+        assert (
+            is_query_empty("""
+        -- SELECT * FROM t
+        /* SELECT * FROM t */
+        """)
+            is True
+        )
+        assert is_query_empty(" -- some query with space") is True
+
+        # Invalid SQL
+        assert is_query_empty("NOT A VALID SQL QUERY") is False
+        assert is_query_empty("SELECT * FROM t WHERE x = '") is False
+
+    def test_strip_explain_from_error_message(self):
+        """Test strip_explain_from_error_message function."""
+        # Basic case - simple EXPLAIN removal
+        assert (
+            strip_explain_from_error_message("EXPLAIN SELECT * FROM t")
+            == "SELECT * FROM t"
+        )
+
+        # Case insensitive - should not match lowercase
+        assert (
+            strip_explain_from_error_message("explain SELECT * FROM t")
+            == "explain SELECT * FROM t"
+        )
+
+        # Error message with caret position adjustment
+        error_message = """
+LINE 1: EXPLAIN SELECT * FROM pokemons
+                              ^
+"""
+        assert (
+            strip_explain_from_error_message(error_message)
+            == """
+LINE 1: SELECT * FROM pokemons
+                      ^
+"""
+        )
+
+        # No EXPLAIN - should return unchanged
+        assert (
+            strip_explain_from_error_message("SELECT * FROM t")
+            == "SELECT * FROM t"
+        )
+
+        # Empty string
+        assert strip_explain_from_error_message("") == ""
+
+        # Multiple EXPLAIN occurrences - should only remove first
+        assert (
+            strip_explain_from_error_message("EXPLAIN EXPLAIN SELECT * FROM t")
+            == "EXPLAIN SELECT * FROM t"
+        )
+
+        # EXPLAIN at end of line with no next line
+        assert strip_explain_from_error_message("Error: EXPLAIN ") == "Error: "
+
+        # EXPLAIN with multiline error and caret
+        multiline_error = """Syntax error at line 1:
+EXPLAIN SELECT * FROM users WHERE
+                              ^
+Expected 'FROM' keyword"""
+        expected = """Syntax error at line 1:
+SELECT * FROM users WHERE
+                      ^
+Expected 'FROM' keyword"""
+        assert strip_explain_from_error_message(multiline_error) == expected

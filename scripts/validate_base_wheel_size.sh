@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Check if marimo/_static/index.html exists
+if [ ! -f "marimo/_static/index.html" ]; then
+  echo "Error: marimo/_static/index.html does not exist"
+  exit 1
+fi
+
 wheel_file=$(ls dist/*.whl)
 if [[ "$OSTYPE" == "darwin"* ]]; then
   # macOS

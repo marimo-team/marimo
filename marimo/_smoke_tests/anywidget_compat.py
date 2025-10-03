@@ -9,20 +9,21 @@
 #     "drawdata",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.2.13"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __():
+def _():
     import anywidget
     import traitlets
 
@@ -60,78 +61,78 @@ def __():
 
         # Stateful property that can be accessed by JavaScript & Python
         count = traitlets.Int(0).tag(sync=True)
-    return CounterWidget, anywidget, traitlets
+    return (CounterWidget,)
 
 
 @app.cell
-def __(CounterWidget):
+def _(CounterWidget):
     # Non-reactive
     w = CounterWidget()
     w
-    return w,
+    return (w,)
 
 
 @app.cell
-def __(w):
+def _(w):
     # Non-reactive, but class is cached
     w
     return
 
 
 @app.cell
-def __(w):
+def _(w):
     w.trait_values()["count"]
     return
 
 
 @app.cell
-def __(CounterWidget, mo):
+def _(CounterWidget, mo):
     w_reactive = mo.ui.anywidget(CounterWidget())
     w_reactive
-    return w_reactive,
+    return (w_reactive,)
 
 
 @app.cell
-def __(w_reactive):
+def _(w_reactive):
     w_reactive
     return
 
 
 @app.cell
-def __(w_reactive):
+def _(w_reactive):
     w_reactive.value
     return
 
 
 @app.cell
-def __(w_reactive):
+def _(w_reactive):
     w_reactive.widget.trait_values()["count"]
     return
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
     import pandas as pd
     return alt, pd
 
 
 @app.cell
-def __(mo):
+def _(mo):
     from drawdata import ScatterWidget
 
     dd_widget = mo.ui.anywidget(ScatterWidget())
     dd_widget
-    return ScatterWidget, dd_widget
+    return (dd_widget,)
 
 
 @app.cell(hide_code=True)
-def __(alt, dd_widget, mo, pd):
+def _(alt, dd_widget, mo, pd):
     mo.stop(not dd_widget.value["data"])
     df = pd.DataFrame(dd_widget.value["data"])
     chart = alt.Chart(df).mark_point().encode(x="x", y="y", color="color")
     mo.ui.altair_chart(chart)
-    return chart, df
+    return
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ export const lightTheme = [
     },
     styles: [
       // Default codemirror light theme
-      { tag: t.comment, color: "#708090" },
+      { tag: t.comment, color: "var(--cm-comment)" },
       { tag: t.variableName, color: "#000000" },
       { tag: [t.string, t.special(t.brace)], color: "#a11" },
       { tag: t.number, color: "#164" },

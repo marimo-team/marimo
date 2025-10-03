@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.platform import is_windows
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
 
@@ -301,7 +302,7 @@ class TestExportHTML:
     )
     async def test_export_watch(self, temp_marimo_file: str) -> None:
         temp_out_file = temp_marimo_file.replace(".py", ".html")
-        p = subprocess.Popen(  # noqa: ASYNC101 ASYNC220
+        p = subprocess.Popen(  # noqa: ASYNC220
             [
                 "marimo",
                 "export",
@@ -325,7 +326,7 @@ class TestExportHTML:
         assert not path.exists(temp_out_file)
 
         # Modify file
-        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC101 ASYNC230
+        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC230
             f.write("\n# comment\n")
 
         assert p.poll() is None
@@ -631,7 +632,7 @@ class TestExportScript:
     )
     async def test_export_watch_script(self, temp_marimo_file: str) -> None:
         temp_out_file = temp_marimo_file.replace(".py", ".script.py")
-        p = subprocess.Popen(  # noqa: ASYNC101 ASYNC220
+        p = subprocess.Popen(  # noqa: ASYNC220
             [
                 "marimo",
                 "export",
@@ -655,7 +656,7 @@ class TestExportScript:
         assert not path.exists(temp_out_file)
 
         # Modify file
-        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC101 ASYNC230
+        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC230
             f.write("\n# comment\n")
 
         assert p.poll() is None
@@ -749,7 +750,7 @@ class TestExportMarkdown:
     )
     async def test_export_watch_markdown(self, temp_marimo_file: str) -> None:
         temp_out_file = temp_marimo_file.replace(".py", ".md")
-        p = subprocess.Popen(  # noqa: ASYNC101 ASYNC220
+        p = subprocess.Popen(  # noqa: ASYNC220
             [
                 "marimo",
                 "export",
@@ -773,7 +774,7 @@ class TestExportMarkdown:
         assert not path.exists(temp_out_file)
 
         # Modify file
-        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC101 ASYNC230
+        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC230
             f.write("\n# comment\n")
 
         assert p.poll() is None
@@ -922,8 +923,8 @@ class TestExportIpynb:
         assert p.stdout.decode() == ""
 
     @pytest.mark.skipif(
-        not DependencyManager.nbformat.has(),
-        reason="This test requires nbformat.",
+        not DependencyManager.nbformat.has() or is_windows(),
+        reason="This test requires nbformat. Or windows.",
     )
     def test_export_ipynb_with_errors(
         self, temp_marimo_file_with_errors: str

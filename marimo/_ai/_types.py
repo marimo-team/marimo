@@ -2,9 +2,25 @@
 from __future__ import annotations
 
 import abc
+import dataclasses
 import mimetypes
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, TypedDict, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Optional,
+    TypedDict,
+    Union,
+    cast,
+)
+
+import msgspec
+
+from marimo import _loggers
+from marimo._utils.parse_dataclass import parse_raw
+
+LOGGER = _loggers.marimo_logger()
 
 
 class ChatAttachmentDict(TypedDict):
@@ -16,6 +32,13 @@ class ChatAttachmentDict(TypedDict):
 class TextPartDict(TypedDict):
     type: Literal["text"]
     text: str
+
+
+class FilePartDict(TypedDict):
+    type: Literal["file"]
+    media_type: str
+    filename: Optional[str]
+    url: str
 
 
 class ReasoningPartDict(TypedDict):
@@ -30,27 +53,24 @@ class ReasoningDetailsDict(TypedDict):
     signature: Optional[str]
 
 
-class ToolInvocationResultDict(TypedDict):
-    state: Literal["result"]
-    result: Any
-    tool_call_id: str
-    tool_name: str
-    step: int
-    args: dict[str, Any]
-
-
 class ToolInvocationPartDict(TypedDict):
-    type: Literal["tool-invocation"]
-    tool_invocation: ToolInvocationResultDict
+    type: str
+    tool_call_id: str
+    state: str
+    input: dict[str, Any]
+    output: Optional[Any]
+
+
+ChatPartDict = Union[
+    TextPartDict, ReasoningPartDict, ToolInvocationPartDict, FilePartDict
+]
 
 
 class ChatMessageDict(TypedDict):
     role: Literal["user", "assistant", "system"]
     content: str
     attachments: Optional[list[ChatAttachmentDict]]
-    parts: Optional[
-        list[Union[TextPartDict, ReasoningPartDict, ToolInvocationPartDict]]
-    ]
+    parts: Optional[list[ChatPartDict]]
 
 
 class ChatModelConfigDict(TypedDict, total=False):
@@ -98,8 +118,8 @@ class ReasoningPart:
     """Represents a reasoning content part."""
 
     type: Literal["reasoning"]
-    reasoning: str
-    details: list[ReasoningDetails]
+    text: str
+    details: Optional[list[ReasoningDetails]] = None
 
 
 @dataclass
@@ -110,27 +130,62 @@ class ReasoningDetails:
 
 
 @dataclass
-class ToolInvocationResult:
-    """Represents a tool invocation result part from the AI SDK."""
-
-    state: Literal["result"]
-    result: Any
-    tool_call_id: str
-    tool_name: str
-    step: int
-    args: dict[str, Any]
-
-
-@dataclass
 class ToolInvocationPart:
     """Represents a tool invocation part from the AI SDK."""
 
-    type: Literal["tool-invocation"]
-    tool_invocation: ToolInvocationResult
+    type: str  # Starts with "tool-"
+    tool_call_id: str
+    state: Union[str, Literal["output-available"]]
+    input: dict[str, Any]
+    output: Optional[Any] = None
+
+    @property
+    def tool_name(self) -> str:
+        return self.type.split("-", 1)[1]
 
 
 @dataclass
-class ChatMessage:
+class FilePart:
+    """Represents a FileUIPart from the AI SDK."""
+
+    type: Literal["file"]
+    media_type: str
+    url: str
+    filename: Optional[str] = None
+
+
+@dataclass
+class ReasoningData:
+    signature: str
+
+
+@dataclass
+class DataReasoningPart:
+    type: Literal["data-reasoning-signature"]
+    data: ReasoningData
+
+
+if TYPE_CHECKING:
+    ChatPart = Union[
+        TextPart,
+        ReasoningPart,
+        ToolInvocationPart,
+        FilePart,
+        DataReasoningPart,
+    ]
+else:
+    ChatPart = dict[str, Any]
+
+PART_TYPES = [
+    TextPart,
+    ReasoningPart,
+    ToolInvocationPart,
+    FilePart,
+    DataReasoningPart,
+]
+
+
+class ChatMessage(msgspec.Struct):
     """
     A message in a chat.
     """
@@ -139,15 +194,38 @@ class ChatMessage:
     role: Literal["user", "assistant", "system"]
 
     # The content of the message.
-    content: object
+    content: Any
 
     # Optional attachments to the message.
+    # TODO: Deprecate in favour of parts
     attachments: Optional[list[ChatAttachment]] = None
 
-    # Optional parts from AI SDK. (see types above)
-    parts: Optional[
-        list[Union[TextPart, ReasoningPart, ToolInvocationPart]]
-    ] = None
+    # Parts from AI SDK. (see types above)
+    # TODO: Make this required
+    parts: Optional[list[ChatPart]] = None
+
+    def __post_init__(self) -> None:
+        # Hack: msgspec only supports discriminated unions. This is a hack to just
+        # iterate through possible part variants and decode until one works.
+        if self.parts:
+            parts = []
+            for part in self.parts:
+                if converted := self._convert_part(part):
+                    parts.append(converted)
+            self.parts = parts
+
+    def _convert_part(self, part: Any) -> Optional[ChatPart]:
+        PartType = None
+        for PartType in PART_TYPES:
+            try:
+                if dataclasses.is_dataclass(part):
+                    return cast(ChatPart, part)
+                return parse_raw(part, cls=PartType, allow_unknown_keys=True)
+            except Exception:
+                continue
+
+        LOGGER.error(f"Could not decode part as {PartType}, for part {part}")
+        return None
 
 
 @dataclass

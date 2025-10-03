@@ -4,6 +4,10 @@ import { isEqual } from "lodash-es";
 import { Code2Icon, DatabaseIcon, FunctionSquareIcon } from "lucide-react";
 import { type JSX, memo, useEffect, useRef, useState } from "react";
 import { z } from "zod";
+import {
+  type DownloadAsArgs,
+  DownloadAsSchema,
+} from "@/components/data-table/schemas";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 import { Spinner } from "@/components/icons/spinner";
@@ -38,6 +42,7 @@ interface Data {
   label?: string | null;
   columns: ColumnDataTypes;
   pageSize: number;
+  showDownload: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -67,6 +72,7 @@ type PluginFunctions = {
     data: TableData<T>;
     total_rows: number;
   }>;
+  download_as: DownloadAsArgs;
 };
 
 // Value is selection, but it is not currently exposed to the user
@@ -77,13 +83,14 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
     z.object({
       label: z.string().nullish(),
       pageSize: z.number().default(5),
+      showDownload: z.boolean().default(true),
       columns: z
         .array(z.tuple([z.string().or(z.number()), z.string(), z.string()]))
         .transform((value) => {
           const map = new Map<ColumnId, string>();
-          value.forEach(([key, dataType]) =>
-            map.set(key as ColumnId, dataType as DataType),
-          );
+          value.forEach(([key, dataType]) => {
+            map.set(key as ColumnId, dataType as DataType);
+          });
           return map;
         }),
     }),
@@ -129,6 +136,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
           total_rows: z.number(),
         }),
       ),
+    download_as: DownloadAsSchema,
   })
   .renderer((props) => (
     <TableProviders>
@@ -146,6 +154,8 @@ interface DataTableProps extends Data, PluginFunctions {
   value: S;
   setValue: (value: S) => void;
   host: HTMLElement;
+  showDownload: boolean;
+  download_as: DownloadAsArgs;
 }
 
 const EMPTY: Transformations = {
@@ -156,11 +166,13 @@ export const DataFrameComponent = memo(
   ({
     columns,
     pageSize,
+    showDownload,
     value,
     setValue,
     get_dataframe,
     get_column_values,
     search,
+    download_as,
     host,
   }: DataTableProps): JSX.Element => {
     const { data, error, isPending } = useAsyncData(
@@ -275,8 +287,8 @@ export const DataFrameComponent = memo(
           pagination={true}
           fieldTypes={field_types}
           rowHeaders={row_headers || Arrays.EMPTY}
-          showDownload={false}
-          download_as={Functions.THROW}
+          showDownload={showDownload}
+          download_as={download_as}
           enableSearch={false}
           showFilters={false}
           search={search}

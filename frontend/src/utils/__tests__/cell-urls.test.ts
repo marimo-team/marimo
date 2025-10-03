@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { EDGE_CASE_CELL_NAMES } from "../../__tests__/mocks";
 import {
   canLinkToCell,
   createCellLink,
@@ -88,5 +89,33 @@ describe("cell-urls utilities", () => {
     it("should return false for default cell name", () => {
       expect(canLinkToCell("_")).toBe(false);
     });
+  });
+
+  describe("edge case cell names with unicode and special characters", () => {
+    it.each(EDGE_CASE_CELL_NAMES)(
+      "should handle unicode cell names in createCellLink: %s",
+      (cellName) => {
+        const url = createCellLink(cellName);
+        expect(url).toContain("scrollTo=");
+        expect(url).toContain(encodeURIComponent(cellName));
+      },
+    );
+
+    it.each(EDGE_CASE_CELL_NAMES)(
+      "should round-trip unicode cell names correctly: %s",
+      (cellName) => {
+        const url = createCellLink(cellName);
+        const hash = url.split("#")[1];
+        const extracted = extractCellNameFromHash(`#${hash}`);
+        expect(extracted).toBe(cellName);
+      },
+    );
+
+    it.each(EDGE_CASE_CELL_NAMES)(
+      "should allow linking to unicode cell names: %s",
+      (cellName) => {
+        expect(canLinkToCell(cellName)).toBe(true);
+      },
+    );
   });
 });

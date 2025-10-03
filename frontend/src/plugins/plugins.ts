@@ -45,6 +45,7 @@ import { JsonOutputPlugin } from "./layout/JsonOutputPlugin";
 import { LazyPlugin } from "./layout/LazyPlugin";
 import { MimeRendererPlugin } from "./layout/MimeRenderPlugin";
 import { MermaidPlugin } from "./layout/mermaid/MermaidPlugin";
+import { OutlinePlugin } from "./layout/OutlinePlugin";
 import { ProgressPlugin } from "./layout/ProgressPlugin";
 import { RoutesPlugin } from "./layout/RoutesPlugin";
 import { StatPlugin } from "./layout/StatPlugin";
@@ -53,7 +54,7 @@ import type { IStatelessPlugin } from "./stateless-plugin";
 import type { IPlugin } from "./types";
 
 // List of UI plugins
-export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
+export const UI_PLUGINS: IPlugin<any, unknown>[] = [
   new ButtonPlugin(),
   new CheckboxPlugin(),
   DataTablePlugin,
@@ -90,7 +91,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
 ];
 
 // List of output / layout plugins
-const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
+const LAYOUT_PLUGINS: IStatelessPlugin<unknown>[] = [
   new AccordionPlugin(),
   new CalloutPlugin(),
   new CarouselPlugin(),
@@ -99,6 +100,7 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new MimeRendererPlugin(),
   new MermaidPlugin(),
   new NavigationMenuPlugin(),
+  new OutlinePlugin(),
   new ProgressPlugin(),
   new RoutesPlugin(),
   new StatPlugin(),

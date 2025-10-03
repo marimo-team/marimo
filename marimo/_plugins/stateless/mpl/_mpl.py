@@ -12,7 +12,6 @@ import html
 import io
 import mimetypes
 import os
-import signal
 import threading
 import time
 from pathlib import Path
@@ -32,7 +31,6 @@ from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.runtime import app_meta
 from marimo._server.utils import find_free_port
 from marimo._utils.platform import is_pyodide
-from marimo._utils.signals import get_signals
 
 LOGGER = _loggers.marimo_logger()
 
@@ -42,6 +40,7 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure, SubFigure
     from starlette.applications import Starlette
     from starlette.requests import Request
+    from starlette.responses import HTMLResponse, Response
     from starlette.websockets import WebSocket
 
 
@@ -58,10 +57,98 @@ class FigureManagers:
         return self.figure_managers[str(figure_id)]
 
     def remove(self, manager: FigureManagerWebAgg) -> None:
-        del self.figure_managers[str(manager.num)]
+        try:
+            del self.figure_managers[str(manager.num)]
+        except KeyError:
+            # Figure already removed, this can happen during server restart
+            LOGGER.debug(f"Figure {manager.num} already removed from manager")
 
 
 figure_managers = FigureManagers()
+
+
+class MplServerManager:
+    """Manages the matplotlib server lifecycle with lazy recovery."""
+
+    def __init__(self) -> None:
+        self.process: Optional[threading.Thread] = None
+        self._restart_lock = threading.Lock()
+
+    def is_running(self) -> bool:
+        """Check if the server thread is still running."""
+        if self.process is None:
+            return False
+        # Check if the thread is still alive
+        return self.process.is_alive()
+
+    def start(
+        self,
+        app_host: Optional[str] = None,
+        free_port: Optional[int] = None,
+        secure_host: Optional[bool] = None,
+    ) -> Starlette:
+        """Start the matplotlib server and return the Starlette app."""
+        import uvicorn
+
+        host = app_host if app_host is not None else _get_host()
+        secure = secure_host if secure_host is not None else _get_secure()
+
+        # Find a free port, with some randomization to avoid conflicts
+        import random
+
+        base_port = 10_000 + random.randint(0, 1000)  # Add some randomization
+        port = (
+            free_port if free_port is not None else find_free_port(base_port)
+        )
+        app = create_application()
+        app.state.host = host
+        app.state.port = port
+        app.state.secure = secure
+
+        def start_server() -> None:
+            # Don't try to set signal handlers in background thread
+            # The original signal handlers will remain in place
+            server = uvicorn.Server(
+                uvicorn.Config(
+                    app=app,
+                    port=port,
+                    host=host,
+                    log_level="critical",
+                )
+            )
+            try:
+                server.run()
+            except Exception as e:
+                LOGGER.error(f"Matplotlib server failed: {e}")
+                # Thread will exit, making is_running() return False
+                # This allows for automatic restart on next use
+
+        # Start server in background thread
+        thread = threading.Thread(target=start_server, daemon=True)
+        thread.start()
+
+        # Store thread reference to track server
+        self.process = thread
+
+        # TODO: Consider if we need this sleep from original code
+        # Original comment: "arbitrary wait 200ms for the server to start"
+        # With lazy recovery, this may no longer be necessary
+        time.sleep(0.02)
+
+        LOGGER.info(f"Started matplotlib server at {host}:{port}")
+        return app
+
+    def stop(self) -> None:
+        """Stop the server process."""
+        if self.process is not None:
+            # Note: We can't easily terminate uvicorn server from here,
+            # but marking process as None will cause is_running() to return False
+            # and trigger a restart on next use
+            self.process = None
+            LOGGER.debug("Marked matplotlib server for restart")
+
+
+_server_manager = MplServerManager()
 
 
 def _get_host() -> str:
@@ -122,9 +209,10 @@ def _convert_scheme_to_ws(url: str) -> str:
 
 
 def _template(fig_id: str, port: int) -> str:
-    base_url = _get_remote_url()
-    base_url_and_path = f"{base_url}/mpl/{port}"
-    ws_base_url = _convert_scheme_to_ws(base_url_and_path)
+    base_url = _get_remote_url() or f"http://localhost:{port}/"
+    base_url_and_path = f"{base_url}/mpl/{fig_id}"
+    base_url_and_path_ws = f"{base_url}/mpl/{port}"
+    ws_base_url = _convert_scheme_to_ws(base_url_and_path_ws)
 
     return html_content % {
         "ws_uri": f"{ws_base_url}/ws?figure={fig_id}",
@@ -133,6 +221,31 @@ def _template(fig_id: str, port: int) -> str:
     }
 
 
+# Toplevel for reuse in endpoints.
+async def mpl_js(request: Request) -> Response:
+    from matplotlib.backends.backend_webagg_core import (
+        FigureManagerWebAgg,
+    )
+    from starlette.responses import Response
+
+    del request
+    return Response(
+        content=patch_javascript(FigureManagerWebAgg.get_javascript()),  # type: ignore[no-untyped-call]
+        media_type="application/javascript",
+    )
+
+
+async def mpl_custom_css(request: Request) -> Response:
+    from starlette.responses import Response
+
+    del request
+    return Response(
+        content=css_content,
+        media_type="text/css",
+    )
+
+
+# Over all application for handling figures on a per kernel basis
 def create_application() -> Starlette:
     import matplotlib as mpl
     from matplotlib.backends.backend_webagg_core import (
@@ -153,20 +266,6 @@ def create_application() -> Starlette:
         port = request.app.state.port
         content = _template(figure_id, port)
         return HTMLResponse(content=content)
-
-    async def mpl_js(request: Request) -> Response:
-        del request
-        return Response(
-            content=patch_javascript(FigureManagerWebAgg.get_javascript()),  # type: ignore[no-untyped-call]
-            media_type="application/javascript",
-        )
-
-    async def mpl_custom_css(request: Request) -> Response:
-        del request
-        return Response(
-            content=css_content,
-            media_type="text/css",
-        )
 
     async def download(request: Request) -> Response:
         figure_id = request.query_params.get("figure")
@@ -205,7 +304,7 @@ def create_application() -> Starlette:
             await websocket.send_json(
                 {
                     "type": "error",
-                    "message": f"Figure with id '{figure_id}' not found",
+                    "message": f"Figure with id '{figure_id}' not found. The matplotlib server may have restarted. Please re-run the cell containing this plot.",
                 }
             )
             await websocket.close()
@@ -229,7 +328,10 @@ def create_application() -> Starlette:
             except Exception as e:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
                     await websocket.send_json(
-                        {"type": "error", "message": str(e)}
+                        {
+                            "type": "error",
+                            "message": f"WebSocket receive error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot.",
+                        }
                     )
             finally:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
@@ -249,7 +351,10 @@ def create_application() -> Starlette:
             except Exception as e:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
                     await websocket.send_json(
-                        {"type": "error", "message": str(e)}
+                        {
+                            "type": "error",
+                            "message": f"WebSocket send error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot.",
+                        }
                     )
             finally:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
@@ -259,7 +364,12 @@ def create_application() -> Starlette:
             await asyncio.gather(receive(), send())
         except Exception as e:
             if websocket.application_state != WebSocketState.DISCONNECTED:
-                await websocket.send_json({"type": "error", "message": str(e)})
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "message": f"WebSocket connection error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot.",
+                    }
+                )
                 await websocket.close()
 
     return Starlette(
@@ -295,36 +405,20 @@ def get_or_create_application(
 ) -> Starlette:
     global _app
 
-    import uvicorn
-
-    if _app is None:
-        host = app_host if app_host is not None else _get_host()
-        port = free_port if free_port is not None else find_free_port(10_000)
-        secure = secure_host if secure_host is not None else _get_secure()
-        app = create_application()
-        app.state.host = host
-        app.state.port = port
-        app.state.secure = secure
-        _app = app
-
-        def start_server() -> None:
-            signal_handlers = get_signals()
-            uvicorn.Server(
-                uvicorn.Config(
-                    app=app,
-                    port=port,
-                    host=host,
-                    log_level="critical",
+    # Thread-safe lazy restart logic
+    with _server_manager._restart_lock:
+        if _app is None or not _server_manager.is_running():
+            if _app is not None:
+                LOGGER.info(
+                    "Matplotlib server appears to have died, restarting..."
                 )
-            ).run()
-            for signo, handler in signal_handlers.items():
-                signal.signal(signo, handler)
+                _server_manager.stop()
+                # Clear existing figure managers to prevent stale state
+                figure_managers.figure_managers.clear()
+                _app = None
 
-        threading.Thread(target=start_server).start()
-
-        # arbitrary wait 200ms for the server to start
-        # this only happens once per session
-        time.sleep(0.02)
+            # Start new server
+            _app = _server_manager.start(app_host, free_port, secure_host)
 
     return _app
 

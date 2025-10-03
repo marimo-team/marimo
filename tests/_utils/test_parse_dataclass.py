@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
     Any,
@@ -17,9 +17,11 @@ from typing import (
     Union,
 )
 
+import msgspec
 import pytest
 
 from marimo._config.config import ExperimentalConfigType
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._runtime.requests import SetCellConfigRequest
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
@@ -781,8 +783,8 @@ def test_not_required_types() -> None:
     data: dict[str, Any] = {
         "required": "value",
         "optional": "optional_value",
-        "optionalDict": {"key": "value"},
-        "optionalList": ["item"],
+        "optional_dict": {"key": "value"},
+        "optional_list": ["item"],
     }
     parsed = parse_raw(data, WithNotRequired)
     assert parsed["required"] == "value"
@@ -805,13 +807,12 @@ def test_not_required_types() -> None:
     # Test with empty values for container types
     data = {
         "required": "value",
-        "optional": None,
-        "optionalDict": {},
-        "optionalList": [],
+        "optional_dict": {},
+        "optional_list": [],
     }
     parsed = parse_raw(data, WithNotRequired)
     assert parsed["required"] == "value"
-    assert parsed["optional"] is None
+    assert "optional" not in parsed
     assert parsed["optional_dict"] == {}
     assert parsed["optional_list"] == []
 
@@ -899,3 +900,29 @@ def test_date_and_datetime_types() -> None:
     assert nested_parsed.datetimes["evening"] == dt.datetime(
         2023, 1, 15, 18, 0, 0
     )
+
+
+class StructClass(msgspec.Struct):
+    limit: int
+
+
+@dataclass
+class Nested:
+    config: StructClass
+
+
+def test_dataclass_with_nested_msgspec_struct() -> None:
+    data = {"config": {"limit": 10}}
+
+    # Test as bytes
+    serialized: bytes = serialize(data)
+    parsed = parse_raw(serialized, Nested)
+    assert parsed == Nested(config=StructClass(limit=10))
+
+    # Test as str
+    parsed = parse_raw(json.dumps(data), Nested)
+    assert parsed == Nested(config=StructClass(limit=10))
+
+    # Test as dict
+    parsed = parse_raw(data, Nested, allow_unknown_keys=True)
+    assert parsed == Nested(config=StructClass(limit=10))

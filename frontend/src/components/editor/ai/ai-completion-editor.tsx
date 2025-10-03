@@ -2,7 +2,7 @@
 
 import { useCompletion } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
-import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
+import { AtSignIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 import React, { useEffect, useId, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import "./merge-editor.css";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useAtom } from "jotai";
+import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -21,6 +22,7 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { selectAllText } from "@/core/codemirror/utils";
 import { useRuntimeManager } from "@/core/runtime/config";
+import { useEvent } from "@/hooks/useEvent";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
@@ -30,7 +32,7 @@ import {
   CompletionActions,
   createAiCompletionOnKeydown,
 } from "./completion-handlers";
-import { getAICompletionBody } from "./completion-utils";
+import { addContextCompletion, getAICompletionBody } from "./completion-utils";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -44,6 +46,7 @@ interface Props {
   declineChange: () => void;
   acceptChange: (rightHandCode: string) => void;
   enabled: boolean;
+  triggerImmediately?: boolean;
   /**
    * Children shown when there is no completion
    */
@@ -66,6 +69,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   declineChange,
   acceptChange,
   enabled,
+  triggerImmediately,
   children,
 }) => {
   const [completionBody, setCompletionBody] = useState<object>({});
@@ -93,7 +97,11 @@ export const AiCompletionEditor: React.FC<Props> = ({
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
     body: {
-      ...completionBody,
+      ...(Object.keys(completionBody).length > 0
+        ? completionBody
+        : initialPrompt
+          ? getAICompletionBody({ input: initialPrompt })
+          : {}),
       includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
       code: currentCode,
       language: currentLanguageAdapter,
@@ -113,6 +121,12 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
   const completion = untrimmedCompletion.trimEnd();
 
+  const initialSubmit = useEvent(() => {
+    if (triggerImmediately && !isLoading && initialPrompt) {
+      handleSubmit();
+    }
+  });
+
   // Focus the input
   useEffect(() => {
     if (enabled) {
@@ -121,6 +135,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
           const input = inputRef.current;
           if (input?.view) {
             input.view.focus();
+            initialSubmit();
             return true;
           }
           return false;
@@ -130,7 +145,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
       selectAllText(inputRef.current?.view);
     }
-  }, [enabled]);
+  }, [enabled, initialSubmit]);
 
   // Reset the input when the prompt changes
   useEffect(() => {
@@ -164,7 +179,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
             <SparklesIcon className="text-(--blue-10) shrink-0" size={16} />
             <PromptInput
               inputRef={inputRef}
-              className="h-full my-0 py-1.5"
+              className="h-full my-0 py-2 flex items-center"
               onClose={() => {
                 declineChange();
                 setCompletion("");
@@ -186,7 +201,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 handleAcceptCompletion,
                 handleDeclineCompletion,
                 isLoading,
-                completion,
+                hasCompletion: completion.trim().length > 0,
               })}
             />
             {isLoading && (
@@ -201,14 +216,35 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 Stop
               </Button>
             )}
-            {completion && (
-              <CompletionActions
-                isLoading={isLoading}
-                onAccept={handleAcceptCompletion}
-                onDecline={handleDeclineCompletion}
-                size="xs"
-              />
-            )}
+            <div className="-mr-1.5 py-1.5">
+              <div className="flex flex-row items-center justify-end gap-0.5">
+                <Tooltip content="Add context">
+                  <Button
+                    variant="text"
+                    size="icon"
+                    onClick={() => addContextCompletion(inputRef)}
+                  >
+                    <AtSignIcon className="h-3 w-3" />
+                  </Button>
+                </Tooltip>
+                <AIModelDropdown
+                  triggerClassName="h-7 text-xs w-24"
+                  iconSize="small"
+                  forRole="edit"
+                />
+              </div>
+              {completion && (
+                <div className="-mb-1.5">
+                  <CompletionActions
+                    isLoading={isLoading}
+                    onAccept={handleAcceptCompletion}
+                    onDecline={handleDeclineCompletion}
+                    size="xs"
+                  />
+                </div>
+              )}
+            </div>
+
             <div className="h-full w-px bg-border mx-2" />
             <Tooltip content="Include code from other cells">
               <div className="flex flex-row items-start gap-1 overflow-hidden">

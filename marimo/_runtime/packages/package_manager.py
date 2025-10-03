@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import abc
 import subprocess
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+import sys
+from typing import TYPE_CHECKING, Callable, Optional
+
+import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -16,9 +18,11 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+# Type alias for log callback function
+LogCallback = Callable[[str], None]
 
-@dataclass
-class PackageDescription:
+
+class PackageDescription(msgspec.Struct, rename="camel"):
     name: str
     version: str
 
@@ -53,20 +57,38 @@ class PackageManager(abc.ABC):
         return False
 
     @abc.abstractmethod
-    async def _install(self, package: str, *, upgrade: bool) -> bool:
+    async def _install(
+        self,
+        package: str,
+        *,
+        upgrade: bool,
+        log_callback: Optional[LogCallback] = None,
+    ) -> bool:
         """Installation logic."""
         ...
 
     async def install(
-        self, package: str, version: Optional[str], upgrade: bool = False
+        self,
+        package: str,
+        version: Optional[str],
+        upgrade: bool = False,
+        log_callback: Optional[LogCallback] = None,
     ) -> bool:
         """Attempt to install a package that makes this module available.
+
+        Args:
+            package: The package to install
+            version: Optional version specification
+            upgrade: Whether to upgrade the package if already installed
+            log_callback: Optional callback to receive log output during installation
 
         Returns True if installation succeeded, else False.
         """
         self._attempted_packages.add(package)
         return await self._install(
-            append_version(package, version), upgrade=upgrade
+            append_version(package, version),
+            upgrade=upgrade,
+            log_callback=log_callback,
         )
 
     @abc.abstractmethod
@@ -85,11 +107,37 @@ class PackageManager(abc.ABC):
         """Should this package manager auto-install packages"""
         return False
 
-    def run(self, command: list[str]) -> bool:
+    def run(
+        self, command: list[str], log_callback: Optional[LogCallback]
+    ) -> bool:
         if not self.is_manager_installed():
             return False
-        proc = subprocess.run(command)  # noqa: ASYNC101
-        return proc.returncode == 0
+
+        if log_callback is None:
+            # Original behavior - just run the command without capturing output
+            completed_process = subprocess.run(command)  # noqa: ASYNC101
+            return completed_process.returncode == 0
+
+        # Stream output to both the callback and the terminal
+        proc = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=False,  # Keep as bytes to preserve ANSI codes
+            bufsize=0,  # Unbuffered for real-time output
+        )
+
+        if proc.stdout:
+            for line in iter(proc.stdout.readline, b""):
+                # Send to terminal (original behavior)
+                sys.stdout.buffer.write(line)
+                sys.stdout.buffer.flush()
+                # Send to callback for streaming
+                log_callback(line.decode("utf-8", errors="replace"))
+            proc.stdout.close()
+
+        return_code = proc.wait()
+        return return_code == 0
 
     def update_notebook_script_metadata(
         self,
@@ -100,7 +148,7 @@ class PackageManager(abc.ABC):
         import_namespaces_to_add: Optional[list[str]] = None,
         import_namespaces_to_remove: Optional[list[str]] = None,
         upgrade: bool,
-    ) -> None:
+    ) -> bool:
         del (
             filepath,
             packages_to_add,
@@ -119,7 +167,7 @@ class PackageManager(abc.ABC):
 
         This follows PEP 723 https://peps.python.org/pep-0723/
         """
-        return
+        return True
 
     @abc.abstractmethod
     def list_packages(self) -> list[PackageDescription]:

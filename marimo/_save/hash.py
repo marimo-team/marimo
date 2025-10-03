@@ -35,6 +35,7 @@ from marimo._runtime.side_effect import CellHash, SideEffect
 from marimo._runtime.state import SetFunctor, State
 from marimo._runtime.watch._path import PathState
 from marimo._save.cache import Cache, CacheType
+from marimo._save.stubs import maybe_get_custom_stub
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -779,6 +780,9 @@ class BlockHasher:
          - primitive (bytes, str, numbers.Number, type(None))
          - data primitive (e.g. numpy array, torch tensor)
          - external module definitions (imported anything)
+         - pure functions (no state, no external dependencies)
+         - pure containers of the above (list, dict, set, tuple)
+         - custom types defined in CUSTOM_STUBS
 
         Args:
             refs: A set of reference names unaccounted for.
@@ -839,6 +843,8 @@ class BlockHasher:
             # pinning being the mechanism for invalidation.
             elif getattr(value, "__module__", "__main__") == "__main__":
                 continue
+            elif stub := maybe_get_custom_stub(value):
+                serial_value = stub.to_bytes()
             # External module that is not a class or function, may be some
             # container we don't know how to hash.
             # Note, function cases care caught by is_pure_function

@@ -2,24 +2,24 @@
 
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.15.5"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __():
+def _():
     import time
-    return time,
+    return (time,)
 
 
 @app.cell
-def __(mo, time):
+def _(mo, time):
     def loop_replace():
         for i in range(5):
             mo.output.replace(mo.md(f"Loading {i}/5"))
@@ -33,53 +33,53 @@ def __(mo, time):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""### Replace""")
     return
 
 
 @app.cell
-def __(loop_replace, mo):
+def _(loop_replace, mo):
     loop_replace()
     mo.md("Done!")
     return
 
 
 @app.cell
-def __(loop_replace, mo):
+def _(loop_replace, mo):
     loop_replace()
     mo.output.replace(mo.md(f"Done"))
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""### Append""")
     return
 
 
 @app.cell
-def __(loop_append, mo):
+def _(loop_append, mo):
     loop_append()
     mo.md("Done!")
     return
 
 
 @app.cell
-def __(loop_append, mo):
+def _(loop_append, mo):
     loop_append()
     mo.output.append(mo.md("Done!"))
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""### Clear""")
     return
 
 
 @app.cell
-def __(loop_append, mo):
+def _(loop_append, mo):
     loop_append()
     mo.output.append(mo.md("Done!"))
     mo.output.clear()
@@ -87,7 +87,7 @@ def __(loop_append, mo):
 
 
 @app.cell
-def __(loop_append, mo):
+def _(loop_append, mo):
     loop_append()
     mo.output.append(mo.md("Done!"))
     mo.output.replace(None)
@@ -95,20 +95,20 @@ def __(loop_append, mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""### Sleep (stale)""")
     return
 
 
 @app.cell
-def __(time):
+def _(time):
     time.sleep(2)
     "hello"
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.output.append(mo.md("To be replaced."))
     mo.output.replace_at_index(mo.md("Replaced at index"), 0)
     return

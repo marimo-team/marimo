@@ -26,12 +26,13 @@ import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
+  isSticky?: boolean,
 ): JSX.Element | null {
   if (!table.getRowModel().rows?.length) {
     return null;
   }
 
-  const renderHeaderGroup = (headerGroups: Array<HeaderGroup<TData>>) => {
+  const renderHeaderGroup = (headerGroups: HeaderGroup<TData>[]) => {
     return headerGroups.map((headerGroup) =>
       headerGroup.headers.map((header) => {
         const { className, style } = getPinningStyles(header.column);
@@ -57,7 +58,7 @@ export function renderTableHeader<TData>(
   };
 
   return (
-    <TableHeader>
+    <TableHeader className={cn(isSticky && "sticky top-0 z-10")}>
       <TableRow>
         {renderHeaderGroup(table.getLeftHeaderGroups())}
         {renderHeaderGroup(table.getCenterHeaderGroups())}
@@ -69,7 +70,7 @@ export function renderTableHeader<TData>(
 
 interface DataTableBodyProps<TData> {
   table: Table<TData>;
-  columns: Array<ColumnDef<TData>>;
+  columns: ColumnDef<TData>[];
   rowViewerPanelOpen: boolean;
   getRowIndex?: (row: TData, idx: number) => number;
   viewedRowIdx?: number;
@@ -93,7 +94,26 @@ export const DataTableBody = <TData,>({
     handleCellsKeyDown,
   } = useCellRangeSelection({ table });
 
-  const renderCells = (cells: Array<Cell<TData, unknown>>) => {
+  function applyHoverTemplate(
+    template: string,
+    cells: Cell<TData, unknown>[],
+  ): string {
+    const variableRegex = /{{(\w+)}}/g;
+    // Map column id -> stringified value
+    const idToValue = new Map<string, string>();
+    for (const c of cells) {
+      const v = c.getValue();
+      // Prefer empty string for nulls to keep tooltip clean
+      const s = renderUnknownValue({ value: v, nullAsEmptyString: true });
+      idToValue.set(c.column.id, s);
+    }
+    return template.replaceAll(variableRegex, (_substr, varName: string) => {
+      const val = idToValue.get(varName);
+      return val === undefined ? `{{${varName}}}` : val;
+    });
+  }
+
+  const renderCells = (cells: Cell<TData, unknown>[]) => {
     return cells.map((cell) => {
       const { className, style: pinningstyle } = getPinningStyles(cell.column);
       const style = Object.assign(
@@ -101,6 +121,8 @@ export const DataTableBody = <TData,>({
         cell.getUserStyling?.() || {},
         pinningstyle,
       );
+
+      const title = cell.getHoverTitle?.() ?? undefined;
       return (
         <TableCell
           tabIndex={0}
@@ -114,6 +136,7 @@ export const DataTableBody = <TData,>({
             className,
           )}
           style={style}
+          title={title}
           onMouseDown={(e) => handleCellMouseDown(e, cell)}
           onMouseUp={handleCellMouseUp}
           onMouseOver={(e) => handleCellMouseOver(e, cell)}
@@ -134,6 +157,8 @@ export const DataTableBody = <TData,>({
     }
   };
 
+  const hoverTemplate = table.getState().cellHoverTemplate || null;
+
   return (
     <TableBody onKeyDown={handleCellsKeyDown} ref={tableRef}>
       {table.getRowModel().rows?.length ? (
@@ -145,10 +170,24 @@ export const DataTableBody = <TData,>({
           const isRowViewedInPanel =
             rowViewerPanelOpen && viewedRowIdx === rowIndex;
 
+          // Compute hover title once per row using all visible cells
+          let rowTitle: string | undefined;
+          if (hoverTemplate) {
+            const visibleCells = row.getVisibleCells?.() ?? [
+              ...row.getLeftVisibleCells(),
+              ...row.getCenterVisibleCells(),
+              ...row.getRightVisibleCells(),
+            ];
+            rowTitle = hoverTemplate
+              ? applyHoverTemplate(hoverTemplate, visibleCells)
+              : undefined;
+          }
+
           return (
             <TableRow
               key={row.id}
               data-state={row.getIsSelected() && "selected"}
+              title={rowTitle}
               // These classes ensure that empty rows (nulls) still render
               className={cn(
                 "border-t h-6",

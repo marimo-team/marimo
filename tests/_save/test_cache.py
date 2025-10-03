@@ -280,8 +280,8 @@ class TestScriptCache:
                 X = 7
             assert X == 7
             assert cache._cache.defs == {"X": 7, "Y": 8}
-            assert cache._loader._saved
-            assert not cache._loader._loaded
+            assert cache.loader._saved
+            assert not cache.loader._loaded
             return X, Y, persistent_cache
 
         # Coverage's trace override conflicts with cache introspection. Letting
@@ -310,8 +310,8 @@ class TestScriptCache:
                 X = 10
             assert X == 7
             assert cache._cache.defs == {"X": 7, "Y": 8}
-            assert not cache._loader._saved
-            assert cache._loader._loaded
+            assert not cache.loader._saved
+            assert cache.loader._loaded
             return X, Y, persistent_cache
 
     @staticmethod
@@ -325,8 +325,8 @@ class TestScriptCache:
                 X = 10
             assert X == 7
             assert cache._cache.defs == {"X": 7, "Y": 8}
-            assert not cache._loader._saved
-            assert cache._loader._loaded
+            assert not cache.loader._saved
+            assert cache.loader._loaded
             return X, Y
 
     @staticmethod
@@ -346,8 +346,8 @@ class TestScriptCache:
             # fmt: on
             assert X == 7
             assert cache._cache.defs == {"X": 7, "Y": 8}
-            assert not cache._loader._saved
-            assert cache._loader._loaded
+            assert not cache.loader._saved
+            assert cache.loader._loaded
             return X, Y, persistent_cache
 
     @staticmethod
@@ -2572,3 +2572,167 @@ class TestPersistentCache:
         )
         assert not k.stdout.messages, k.stdout
         assert not k.stderr.messages, k.stderr
+
+
+class TestCacheStatistics:
+    """Tests for cache statistics API (cache_info(), cache_clear())"""
+
+    async def test_cache_info_and_clear(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify cache_info() and cache_clear() work correctly."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache, lru_cache
+
+                    @cache
+                    def func(x):
+                        return x * 2
+
+                    @lru_cache(maxsize=2)
+                    def lru_func(x):
+                        return x * 3
+
+                    # Test basic cache_info
+                    info0 = func.cache_info()
+                    func(1)
+                    func(1)  # hit
+                    func(2)  # miss
+                    info1 = func.cache_info()
+
+                    # Test lru_cache maxsize
+                    lru_info = lru_func.cache_info()
+
+                    # Test cache_clear
+                    func.cache_clear()
+                    info2 = func.cache_info()
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+
+        # Initial state
+        info0 = k.globals["info0"]
+        assert info0.hits == 0
+        assert info0.misses == 0
+        assert info0.maxsize is None
+        assert info0.currsize == 0
+        assert info0.time_saved == 0.0
+
+        # After calls
+        info1 = k.globals["info1"]
+        assert info1.hits == 1
+        assert info1.misses == 2
+        assert info1.currsize == 2
+
+        # LRU maxsize
+        lru_info = k.globals["lru_info"]
+        assert lru_info.maxsize == 2
+
+        # After clear
+        info2 = k.globals["info2"]
+        assert info2.currsize == 0
+
+    async def test_persistent_cache_clear(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify cache_clear() works with persistent cache decorator."""
+        await k.run(
+            [
+                exec_req.get("""
+                    from marimo._save.loaders.memory import MemoryLoader
+                    from marimo._save.save import persistent_cache
+
+                    @persistent_cache(_loader=MemoryLoader)
+                    def calc(x):
+                        return x * 2
+
+                    # First call - miss
+                    r1 = calc(5)
+                    info1 = calc.cache_info()
+
+                    # Second call - hit
+                    r2 = calc(5)
+                    info2 = calc.cache_info()
+
+                    # Clear
+                    calc.cache_clear()
+                    info3 = calc.cache_info()
+
+                    # Call again - should be miss
+                    r3 = calc(5)
+                    info4 = calc.cache_info()
+                    """),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+
+        # Should have 1 hit before clear
+        info2 = k.globals["info2"]
+        assert info2.hits == 1
+
+        # After clear: should be empty
+        info3 = k.globals["info3"]
+        assert info3.currsize == 0
+
+        # After calling again: should be a miss
+        info4 = k.globals["info4"]
+        assert info4.misses >= 1
+
+    async def test_cache_time_tracking(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify time_saved is tracked and included in cache_info()."""
+        await k.run(
+            [
+                exec_req.get("""
+                    import time
+                    from marimo._save.save import cache
+
+                    @cache
+                    def slow_func(x):
+                        time.sleep(0.01)  # Simulate slow operation
+                        return x * 2
+
+                    # Initial state
+                    info0 = slow_func.cache_info()
+
+                    # First call - miss (should record runtime)
+                    r1 = slow_func(5)
+                    info1 = slow_func.cache_info()
+
+                    # Second call - hit (should add to time_saved)
+                    r2 = slow_func(5)
+                    info2 = slow_func.cache_info()
+
+                    # Third call - another hit (should accumulate time_saved)
+                    r3 = slow_func(5)
+                    info3 = slow_func.cache_info()
+                    """),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+
+        # Initial state: no time saved yet
+        info0 = k.globals["info0"]
+        assert info0.time_saved == 0.0
+
+        # After first call (miss): still no time saved
+        info1 = k.globals["info1"]
+        assert info1.time_saved == 0.0
+
+        # After first hit: should have some time saved
+        info2 = k.globals["info2"]
+        assert info2.time_saved > 0.0
+        first_saving = info2.time_saved
+
+        # After second hit: time_saved should accumulate
+        info3 = k.globals["info3"]
+        assert info3.time_saved > first_saving
+        assert info3.hits == 2

@@ -36,18 +36,26 @@
       "complexity": {
         "noBannedTypes": "off",
         "noForEach": "off",
-        "useArrowFunction": "error"
+        "noUselessFragments": "error",
+        "noUselessConstructor": "error",
+        "useArrowFunction": "error",
+        "noImportantStyles": {
+          "level": "warn",
+          "fix": "none"
+        }
       },
       "correctness": {
         "noInnerDeclarations": "error",
+        "noNestedComponentDefinitions": "off",
+        "noUnusedFunctionParameters": {
+          "level": "warn",
+          "fix": "none"
+        },
         "noUnusedImports": "error",
-        "noUnusedFunctionParameters": "warn",
+        "noUnusedVariables": "off",
         "useExhaustiveDependencies": "off",
-        "useHookAtTopLevel": "info"
-      },
-      "nursery": {
-        "useUniqueElementIds": "warn",
-        "noNestedComponentDefinitions": "off"
+        "useHookAtTopLevel": "info",
+        "useUniqueElementIds": "warn"
       },
       "security": {
         "noDangerouslySetInnerHtml": "off"
@@ -56,6 +64,12 @@
         "noNonNullAssertion": "off",
         "noParameterAssign": "off",
         "noUnusedTemplateLiteral": "error",
+        "useConst": "error",
+        "useBlockStatements": "error",
+        // This changes a lot of code and should be done in a separate PR
+        // "useConsistentArrayType": "error",
+        "useDefaultParameterLast": "error",
+        "useImportType": "error",
         "useNamingConvention": {
           "level": "warn",
           "options": {
@@ -87,22 +101,26 @@
             ]
           }
         },
-        "useConsistentArrayType": "off",
-        "useImportType": "error",
         "useNodejsImportProtocol": "error",
+        "useSelfClosingElements": "error",
         "useSingleVarDeclarator": "error",
         "useTemplate": "error"
       },
       "suspicious": {
         "noArrayIndexKey": "off",
         "noAssignInExpressions": "info",
-        "noConsole": "off",
+        "noVar": "error",
+        "noConsole": "error",
+        "noDebugger": "error",
         "noDoubleEquals": "error",
         "noEmptyBlockStatements": "info",
         "noExplicitAny": "off",
         "noImplicitAnyLet": "error",
         "noRedeclare": "info",
-        "noShadowRestrictedNames": "error"
+        "useIsArray": "error",
+        "noShadowRestrictedNames": "error",
+        "noUnknownAtRules": "off",
+        "useIterableCallbackReturn": "warn"
       }
     }
   },
@@ -124,5 +142,22 @@
     "enabled": true,
     "clientKind": "git",
     "useIgnoreFile": true
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "**/e2e-tests/**",
+        "**/__mocks__/**",
+        "**/vite.config.*",
+        "**/stories/**"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    }
+  ]
 }

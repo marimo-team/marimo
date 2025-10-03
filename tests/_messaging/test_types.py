@@ -17,7 +17,7 @@ class TestStream:
         stream = NoopStream()
 
         # Should not raise any exceptions
-        stream.write("test_op", {"key": "value"})
+        stream.write({"key": "value"})
         stream.stop()
 
         # cell_id should be None by default

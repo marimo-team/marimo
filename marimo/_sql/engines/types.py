@@ -13,6 +13,12 @@ from marimo._runtime.context.types import (
     get_context,
     runtime_context_installed,
 )
+from marimo._sql.parse import replace_brackets_with_quotes
+from marimo._sql.utils import (
+    is_query_empty,
+    strip_explain_from_error_message,
+    wrap_query_with_explain,
+)
 from marimo._types.ids import VariableName
 
 NO_SCHEMA_NAME = ""
@@ -133,8 +139,23 @@ class QueryEngine(BaseEngine[CONN], ABC):
                 return "auto"
         return "auto"
 
+    def execute_in_explain_mode(self, query: str) -> tuple[Any, Optional[str]]:
+        """Execute a query in explain mode. Returns a tuple of the result and an error if there is one."""
+
+        explain_query = wrap_query_with_explain(query)
+        quoted_query, _ = replace_brackets_with_quotes(explain_query)
+        try:
+            return self.execute(quoted_query), None
+        except Exception as e:
+            if is_query_empty(query):
+                return None, None
+            return None, strip_explain_from_error_message(str(e))
+
 
 class SQLConnection(EngineCatalog[CONN], QueryEngine[CONN]):
     """Combines the catalog and query interfaces for an SQL engine."""
 
     pass
+
+
+SQLConnectionType = Union[EngineCatalog[Any], QueryEngine[Any]]

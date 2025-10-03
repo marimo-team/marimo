@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -18,7 +18,7 @@ def _(mo):
         start=dt.date(2023, 1, 1), stop=dt.date(2023, 12, 31)
     )
     date_range
-    return date_range, dt
+    return (date_range,)
 
 
 @app.cell

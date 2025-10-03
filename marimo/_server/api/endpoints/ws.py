@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
@@ -11,6 +10,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._cli.upgrade import check_for_updates
+from marimo._config.cli_state import MarimoCLIState
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import (
@@ -22,12 +22,13 @@ from marimo._messaging.ops import (
     KernelReady,
     MessageOperation,
     Reconnected,
-    serialize,
+    deserialize_kernel_operation_name,
+    serialize_kernel_message,
 )
 from marimo._messaging.types import KernelMessage, NoopStream
-from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.params import QueryParams
+from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
 from marimo._server.codes import WebSocketCodes
 from marimo._server.file_router import MarimoFileKey
@@ -70,6 +71,14 @@ async def websocket_endpoint(
             description: Websocket endpoint
     """
     app_state = AppState(websocket)
+
+    # Validate authentication before proceeding
+    if app_state.enable_auth and not validate_auth(websocket):
+        await websocket.close(
+            WebSocketCodes.UNAUTHORIZED, "MARIMO_UNAUTHORIZED"
+        )
+        return
+
     raw_session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
     if raw_session_id is None:
         await websocket.close(
@@ -117,6 +126,15 @@ async def ws_sync(
     """
     Websocket endpoint for LoroDoc synchronization
     """
+    app_state = AppState(websocket)
+
+    # Validate authentication before proceeding
+    if app_state.enable_auth and not validate_auth(websocket):
+        await websocket.close(
+            WebSocketCodes.UNAUTHORIZED, "MARIMO_UNAUTHORIZED"
+        )
+        return
+
     if not (LORO_ALLOWED and DependencyManager.loro.has()):
         if not LORO_ALLOWED:
             LOGGER.warning("RTC: Python version is not supported")
@@ -322,8 +340,7 @@ class WebsocketHandler(SessionConsumer):
 
         self.message_queue.put_nowait(
             (
-                KernelReady.name,
-                serialize(
+                serialize_kernel_message(
                     KernelReady(
                         codes=codes,
                         names=names,
@@ -338,8 +355,8 @@ class WebsocketHandler(SessionConsumer):
                         kiosk=kiosk,
                         capabilities=KernelCapabilities(),
                     )
-                ),
-            )
+                )
+            ),
         )
 
     def _reconnect_session(self, session: Session, replay: bool) -> None:
@@ -602,7 +619,8 @@ class WebsocketHandler(SessionConsumer):
 
         async def listen_for_messages() -> None:
             while True:
-                (op, data) = await self.message_queue.get()
+                data = await self.message_queue.get()
+                op: str = deserialize_kernel_operation_name(data)
 
                 if op in KIOSK_ONLY_OPERATIONS and not self.kiosk:
                     LOGGER.debug(
@@ -618,14 +636,8 @@ class WebsocketHandler(SessionConsumer):
                     continue
 
                 try:
-                    text = json.dumps(
-                        {
-                            "op": op,
-                            "data": data,
-                        },
-                        cls=WebComponentEncoder,
-                    )
-                except TypeError as e:
+                    text = f'{{"op": "{op}", "data": {data.decode("utf-8")}}}'
+                except Exception as e:
                     # This is a deserialization error
                     LOGGER.error(
                         "Failed to send message to frontend: %s", str(e)
@@ -687,7 +699,7 @@ class WebsocketHandler(SessionConsumer):
         return listener
 
     def write_operation(self, op: MessageOperation) -> None:
-        self.message_queue.put_nowait((op.name, serialize(op)))
+        self.message_queue.put_nowait(serialize_kernel_message(op))
 
     def on_stop(self) -> None:
         # Cancel the heartbeat task, reader
@@ -719,7 +731,7 @@ class WebsocketHandler(SessionConsumer):
         ):
             return
 
-        def on_update(current_version: str, latest_version: str) -> None:
+        def on_update(current_version: str, state: MarimoCLIState) -> None:
             # Let's only toast once per marimo server
             # so we can just store this in memory.
             # We still want to check for updates (which are debounced 24 hours)
@@ -730,9 +742,21 @@ class WebsocketHandler(SessionConsumer):
 
             has_toasted = True
 
-            title = f"Update available {current_version} → {latest_version}"
+            title = (
+                f"Update available {current_version} → {state.latest_version}"
+            )
             release_url = "https://github.com/marimo-team/marimo/releases"
+
+            # Build description with notices if present
             description = f"Check out the <a class='underline' target='_blank' href='{release_url}'>latest release on GitHub.</a>"  # noqa: E501
+
+            if state.notices:
+                notices_text = (
+                    "<br><br><strong>Recent updates:</strong><br>"
+                    + "<br>".join(f"• {notice}" for notice in state.notices)
+                )
+                description += notices_text
+
             self.write_operation(Alert(title=title, description=description))
 
         check_for_updates(on_update)

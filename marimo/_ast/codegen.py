@@ -13,6 +13,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
+from marimo._ast.parse import ast_parse
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
@@ -124,25 +125,17 @@ def to_decorator(
     config: Optional[CellConfig],
     fn: Decorators = "cell",
 ) -> str:
-    if config is None:
+    if config is None or not config.is_different_from_default():
         return f"@app.{fn}"
 
-    # Removed defaults. If the cell's config is the default config,
-    # don't include it in the decorator.
-    if not config.disabled:
-        del config.disabled
-    if not config.hide_code:
-        del config.hide_code
-    if not isinstance(config.column, int):
-        del config.column
-
-    if config == CellConfig():
-        return f"@app.{fn}"
-    else:
-        return format_tuple_elements(
-            f"@app.{fn}(...)",
-            tuple(f"{key}={value}" for key, value in config.__dict__.items()),
-        )
+    # Only include non-defaults in the decorator call
+    return format_tuple_elements(
+        f"@app.{fn}(...)",
+        tuple(
+            f"{key}={value}"
+            for key, value in config.asdict_without_defaults().items()
+        ),
+    )
 
 
 def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
@@ -458,7 +451,7 @@ def get_header_comments(filename: str | Path) -> Optional[str]:
     # Ensure the header only contains non-executable code
     # ast parses out single line comments, so we only
     # need to check that every node is not a multiline comment
-    module = ast.parse(header)
+    module = ast_parse(header)
     if any(not is_multiline_comment(node) for node in module.body):
         return None
 

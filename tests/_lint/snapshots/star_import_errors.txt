@@ -1,0 +1,23 @@
+critical[invalid-syntax]: Importing symbols with `import *` is not allowed in marimo.
+ --> tests/_lint/test_files/star_import.py:9:1
+   9 |     # This should trigger MB005 - syntax error with star import hint
+  10 |     from math import *
+     |     ^
+  11 |     result = sin(pi / 2)
+hint: Star imports are incompatible with marimo's reactive execution. Use 'import module' and access members with dot notation instead. See: https://docs.marimo.io/guides/understanding_errors/import_star/
+
+critical[invalid-syntax]: Importing symbols with `import *` is not allowed in marimo.
+ --> tests/_lint/test_files/star_import.py:16:1
+  16 | def _():
+  17 |     from pandas import *
+     |     ^
+  18 |     df = DataFrame({"a": [1, 2, 3]})
+hint: Star imports are incompatible with marimo's reactive execution. Use 'import module' and access members with dot notation instead. See: https://docs.marimo.io/guides/understanding_errors/import_star/
+
+critical[invalid-syntax]: Importing symbols with `import *` is not allowed in marimo.
+ --> tests/_lint/test_files/star_import.py:44:1
+  44 |     # comments
+  45 |     from os import *
+     |     ^
+  46 |     current_dir = getcwd()
+hint: Star imports are incompatible with marimo's reactive execution. Use 'import module' and access members with dot notation instead. See: https://docs.marimo.io/guides/understanding_errors/import_star/
