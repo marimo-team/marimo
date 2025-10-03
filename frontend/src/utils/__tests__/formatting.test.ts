@@ -43,9 +43,9 @@ describe("formatBytes", () => {
   it("should respect locale parameter", () => {
     // German locale uses different separators
     const bytes = 1536; // 1.5 KB
-    expect(formatBytes(bytes, "de-DE", locale)).toContain("1,5");
+    expect(formatBytes(bytes, "de-DE")).toContain("1,5");
     // US locale uses dot
-    expect(formatBytes(bytes, "en-US", locale)).toContain("1.5");
+    expect(formatBytes(bytes, "en-US")).toContain("1.5");
   });
 });
 
