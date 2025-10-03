@@ -361,9 +361,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def get_sample_values(self, column: str) -> list[Any]:
         return self._as_table_manager().get_sample_values(column)
 
-    def sort_values(
-        self, by: list[tuple[ColumnName, bool]]
-    ) -> DefaultTableManager:
+    def sort_values(self, by: list[SortArgs]) -> DefaultTableManager:
         if not by:
             return self
 
@@ -374,7 +372,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
             # Sort by each column in reverse order for stable multi-column sorting
             sorted_indices = indices
-            for col, desc in reversed(by):
+            for sort_arg in reversed(by):
+                col = sort_arg.by
+                desc = sort_arg.descending
                 values = data_dict[col]
                 try:
                     # Try sorting with original values
@@ -405,7 +405,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
         # For row-major data, sort by each column in reverse order for stable sorting
         data = self._normalize_data(self.data)
 
-        for col, desc in reversed(by):
+        for sort_arg in reversed(by):
+            col = sort_arg.by
+            desc = sort_arg.descending
             try:
                 # Try sorting with original values
                 data = sorted(

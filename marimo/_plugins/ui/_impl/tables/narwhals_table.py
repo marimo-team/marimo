@@ -680,15 +680,13 @@ class NarwhalsTableManager(
             # May be metadata-only frame
             return []
 
-    def sort_values(
-        self, by: list[tuple[ColumnName, bool]]
-    ) -> TableManager[Any]:
+    def sort_values(self, by: list[SortArgs]) -> TableManager[Any]:
         if not by:
             return self
 
         # Extract columns and descending flags for Narwhals/Polars
-        columns = [col for col, _ in by]
-        descending = [desc for _, desc in by]
+        columns = [sort_arg.by for sort_arg in by]
+        descending = [sort_arg.descending for sort_arg in by]
 
         return self.with_new_data(
             self.data.sort(columns, descending=descending, nulls_last=True)
