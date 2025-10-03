@@ -141,7 +141,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
 
     @abstractmethod
     def extract_content(
-        self, response: ResponseT, tool_call_ids: list[str] = []
+        self, response: ResponseT, tool_call_ids: Optional[list[str]] = None
     ) -> Optional[ExtractedContentList]:
         """Extract content from a response chunk."""
         pass
@@ -555,8 +555,9 @@ class OpenAIProvider(
     def extract_content(
         self,
         response: ChatCompletionChunk,
-        tool_call_ids: list[str] = [],
+        tool_call_ids: Optional[list[str]] = None,
     ) -> Optional[ExtractedContentList]:
+        tool_call_ids = tool_call_ids or []
         if (
             hasattr(response, "choices")
             and response.choices
@@ -791,7 +792,7 @@ class AnthropicProvider(
     def extract_content(
         self,
         response: RawMessageStreamEvent,
-        tool_call_ids: list[str] = [],
+        tool_call_ids: Optional[list[str]] = None,
     ) -> Optional[ExtractedContentList]:
         del tool_call_ids
         from anthropic.types import (
@@ -975,8 +976,9 @@ class GoogleProvider(
     def extract_content(
         self,
         response: GenerateContentResponse,
-        tool_call_ids: list[str] = [],
+        tool_call_ids: Optional[list[str]] = None,
     ) -> Optional[ExtractedContentList]:
+        tool_call_ids = tool_call_ids or []
         if not response.candidates:
             return None
 
@@ -1114,8 +1116,9 @@ class BedrockProvider(
     def extract_content(
         self,
         response: LitellmStreamResponse,
-        tool_call_ids: list[str] = [],
+        tool_call_ids: Optional[list[str]] = None,
     ) -> Optional[ExtractedContentList]:
+        tool_call_ids = tool_call_ids or []
         if (
             hasattr(response, "choices")
             and response.choices
