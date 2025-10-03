@@ -113,7 +113,7 @@ export class NotebookRpc extends RpcTarget implements NotebookRpcServer {
 
   // We allow late registration of handlers so we can use different handlers
   // in the notebook application
-  createCell(code: string): void {
+  async createCell(code: string): Promise<void> {
     if(!this.handlers.createCell) {
       console.warn("No handler registered for createCell");
       throw new Error("No handler registered for createCell");
@@ -121,7 +121,7 @@ export class NotebookRpc extends RpcTarget implements NotebookRpcServer {
     this.handlers.createCell(code);
   }
 
-  triggerAlert(message: string): void {
+  async triggerAlert(message: string): Promise<void> {
     if(!this.handlers.triggerAlert) {
       console.warn("No handler registered for triggerAlert");
       throw new Error("No handler registered for triggerAlert");
@@ -142,10 +142,10 @@ export class NotebookRpc extends RpcTarget implements NotebookRpcServer {
 }
 
 export class DummyNotebookRpc implements NotebookRpcServer {
-  createCell(code: string): void {
+  async createCell(code: string): Promise<void> {
     console.warn("DummyNotebookRpc: createCell called with code:", code);
   }
-  triggerAlert(message: string): void {
+  async triggerAlert(message: string): Promise<void> {
     alert(`DummyNotebookRpc: ${message}`);
   }
   listen(): void {

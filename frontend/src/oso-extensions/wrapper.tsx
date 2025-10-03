@@ -30,7 +30,7 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
   const dataSourceActions = useDataSourceActions();
   const notebookRpcServer = useNotebookRpcServer();
 
-  const createCellAtEnd = useCallback((code: string) => {
+  const createCellAtEnd = useCallback(async (code: string) => {
     actions.createNewCell({
       cellId: "__end__",
       code: code,

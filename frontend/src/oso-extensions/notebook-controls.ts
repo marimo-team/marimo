@@ -8,9 +8,9 @@ export interface NotebookHostControls {
 }
 
 export interface NotebookControls {
-  createCell: (code: string) => void;
+  createCell: (code: string) => Promise<void>;
 
-  triggerAlert: (message: string) => void;
+  triggerAlert: (message: string) => Promise<void>;
 }
 
 export type NotebookControlsStub = RpcStub<NotebookControls>;
