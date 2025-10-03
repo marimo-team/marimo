@@ -64,6 +64,8 @@ export function createErrorToastingRequests(
     listSecretKeys: "Failed to fetch secrets",
     writeSecret: "Failed to write secret",
     invokeAiTool: "Failed to invoke AI tool",
+    clearCache: "Failed to clear cache",
+    getCacheInfo: "", // No toast
   };
 
   const handlers = {} as EditRequests & RunRequests;

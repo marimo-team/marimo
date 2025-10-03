@@ -99,6 +99,8 @@ export type OpenTutorialRequest = schemas["OpenTutorialRequest"];
 export type TutorialId = OpenTutorialRequest["tutorialId"];
 export type InvokeAiToolRequest = schemas["InvokeAiToolRequest"];
 export type InvokeAiToolResponse = schemas["InvokeAiToolResponse"];
+export type ClearCacheRequest = schemas["ClearCacheRequest"];
+export type GetCacheInfoRequest = schemas["GetCacheInfoRequest"];
 
 /**
  * Requests sent to the BE during run/edit mode.
@@ -188,6 +190,9 @@ export interface EditRequests {
   writeSecret: (request: CreateSecretRequest) => Promise<null>;
   // AI Tool requests
   invokeAiTool: (request: InvokeAiToolRequest) => Promise<InvokeAiToolResponse>;
+  // Cache requests
+  clearCache: () => Promise<null>;
+  getCacheInfo: () => Promise<null>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

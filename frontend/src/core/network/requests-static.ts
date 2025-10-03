@@ -86,5 +86,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     listSecretKeys: throwNotInEditMode,
     writeSecret: throwNotInEditMode,
     invokeAiTool: throwNotInEditMode,
+    clearCache: throwNotInEditMode,
+    getCacheInfo: throwNotInEditMode,
   };
 }

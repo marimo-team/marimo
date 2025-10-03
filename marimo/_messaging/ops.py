@@ -685,6 +685,24 @@ class SecretKeysResult(Op, tag="secret-keys-result"):
     secrets: list[SecretKeysWithProvider]
 
 
+class CacheCleared(Op, tag="cache-cleared"):
+    """Result of clearing cache."""
+
+    name: ClassVar[str] = "cache-cleared"
+    bytes_freed: int
+
+
+class CacheInfoFetched(Op, tag="cache-info-fetched"):
+    """Cache statistics information."""
+
+    name: ClassVar[str] = "cache-info-fetched"
+    hits: int
+    misses: int
+    time: float
+    disk_to_free: int
+    disk_total: int
+
+
 class UpdateCellIdsRequest(Op, tag="update-cell-ids"):
     """
     Update the cell ID ordering of the cells in the notebook.
@@ -734,6 +752,9 @@ MessageOperation = Union[
     ValidateSQLResult,
     # Secrets
     SecretKeysResult,
+    # Cache
+    CacheCleared,
+    CacheInfoFetched,
     # Kiosk specific
     FocusCell,
     UpdateCellCodes,

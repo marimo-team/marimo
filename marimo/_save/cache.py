@@ -185,6 +185,7 @@ class Cache:
         self,
         scope: dict[str, Any],
         meta: Optional[dict[MetaKey, Any]] = None,
+        preserve_pointers: bool = True,
     ) -> None:
         """Loads values from scope, updating the cache."""
         for var, lookup in self.contextual_defs():
@@ -227,10 +228,14 @@ class Cache:
         # Convert objects to stubs in both defs and meta
         memo: dict[int, Any] = {}  # Track processed objects to handle cycles
         for key, value in self.defs.items():
-            self.defs[key] = self._convert_to_stub_if_needed(value, memo)
+            self.defs[key] = self._convert_to_stub_if_needed(
+                value, memo, preserve_pointers
+            )
 
         for key, value in self.meta.items():
-            self.meta[key] = self._convert_to_stub_if_needed(value, memo)
+            self.meta[key] = self._convert_to_stub_if_needed(
+                value, memo, preserve_pointers
+            )
 
     def _convert_to_stub_if_needed(
         self,

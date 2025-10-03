@@ -70,6 +70,8 @@ export const MockRequestClient = {
       listSecretKeys: vi.fn().mockResolvedValue({ keys: [] }),
       writeSecret: vi.fn().mockResolvedValue({}),
       invokeAiTool: vi.fn().mockResolvedValue({}),
+      clearCache: vi.fn().mockResolvedValue(null),
+      getCacheInfo: vi.fn().mockResolvedValue(null),
       ...overrides,
     };
   },
