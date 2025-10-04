@@ -3,7 +3,15 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    NamedTuple,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 from marimo._data.models import (
     BinValue,
@@ -12,6 +20,9 @@ from marimo._data.models import (
     ExternalDataType,
 )
 from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+if TYPE_CHECKING:
+    from marimo._plugins.ui._impl.table import SortArgs
 
 T = TypeVar("T")
 
@@ -79,9 +90,7 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def sort_values(
-        self, by: ColumnName, descending: bool
-    ) -> TableManager[Any]:
+    def sort_values(self, by: list[SortArgs]) -> TableManager[Any]:
         pass
 
     @abc.abstractmethod

@@ -215,8 +215,13 @@ const DataTableInternal = <TData,>({
     manualPagination: manualPagination,
     getPaginationRowModel: getPaginationRowModel(),
     // sorting
-    ...(setSorting ? { onSortingChange: setSorting } : {}),
+    ...(setSorting
+      ? {
+          onSortingChange: setSorting,
+        }
+      : {}),
     manualSorting: manualSorting,
+    enableMultiSort: true,
     getSortedRowModel: getSortedRowModel(),
     // filtering
     manualFiltering: true,

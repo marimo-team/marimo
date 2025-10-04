@@ -4,7 +4,7 @@ from __future__ import annotations
 import functools
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
@@ -17,6 +17,9 @@ from marimo._plugins.ui._impl.tables.format import (
     format_column,
     format_row,
 )
+
+if TYPE_CHECKING:
+    from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
@@ -361,74 +364,53 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def get_sample_values(self, column: str) -> list[Any]:
         return self._as_table_manager().get_sample_values(column)
 
-    def sort_values(
-        self, by: ColumnName, descending: bool
-    ) -> DefaultTableManager:
-        if isinstance(self.data, dict) and self.is_column_oriented:
-            # For column-oriented data, extract the sort column and get sorted indices
-            sort_column = cast(list[Any], self.data[by])
+    def sort_values(self, by: list[SortArgs]) -> DefaultTableManager:
+        if not by:
+            return self
+
+        def _make_sort_key(value: Any) -> tuple[bool, Any]:
+            """Create a sort key that puts None values last."""
             try:
-                sorted_indices = sorted(
-                    range(len(sort_column)),
-                    key=lambda i: sort_column[i],
-                    reverse=descending,
-                )
+                return (value is None, value)
             except TypeError:
-                # Handle when values are not comparable
-                def sort_func_str(i: int) -> tuple[bool, str] | str:
-                    # For ascending, generate a tuple of (is_none, value)
-                    # (True, None) will be for None values
-                    # (False, x) will be for other values.
-                    # As False < True, None values will be sorted to the end.
+                # Fallback to string comparison for non-comparable types
+                return (value is None, str(value))
 
-                    # For descending, (is_not_none, value) tuple
-                    # (False, None) will be for None values.
-                    # (True, x) will be for other values.
-                    # As True > False, other values come before None values
-                    if descending:
-                        return (
-                            sort_column[i] is not None,
-                            str(sort_column[i]),
-                        )
-                    else:
-                        return str(sort_column[i])
+        if isinstance(self.data, dict) and self.is_column_oriented:
+            # Column-oriented: sort indices, then reorder all columns
+            data_dict = cast(dict[str, list[Any]], self.data)
+            first_column = next(iter(data_dict.values()))
+            num_rows = len(first_column)
+            indices = list(range(num_rows))
 
-                sorted_indices = sorted(
-                    range(len(sort_column)),
-                    key=sort_func_str,
-                    reverse=descending,
+            # Apply sorts in reverse order for stable multi-column sorting
+            for sort_arg in reversed(by):
+                values = data_dict[sort_arg.by]
+                indices = sorted(
+                    indices,
+                    key=lambda i: _make_sort_key(values[i]),
+                    reverse=sort_arg.descending,
                 )
-            # Apply sorted indices to each column while maintaining column orientation
+
             return DefaultTableManager(
                 cast(
                     JsonTableData,
                     {
-                        col: [
-                            cast(list[Any], values)[i] for i in sorted_indices
-                        ]
-                        for col, values in self.data.items()
+                        col: [col_values[i] for i in indices]
+                        for col, col_values in data_dict.items()
                     },
                 )
             )
 
-        # For row-major data, continue with existing logic
-        normalized = self._normalize_data(self.data)
-        try:
-
-            def sort_func_col(x: dict[str, Any]) -> tuple[bool, Any]:
-                is_none = x[by] is not None if descending else x[by] is None
-                return (is_none, x[by])
-
-            data = sorted(normalized, key=sort_func_col, reverse=descending)
-        except TypeError:
-            # Handle when all values are not comparable
-            def sort_func_col_str(x: dict[str, Any]) -> tuple[bool, str]:
-                is_none = x[by] is not None if descending else x[by] is None
-                return (is_none, str(x[by]))
-
+        # Row-oriented: sort rows directly
+        data = self._normalize_data(self.data)
+        for sort_arg in reversed(by):
             data = sorted(
-                normalized, key=sort_func_col_str, reverse=descending
+                data,
+                key=lambda row: _make_sort_key(row[sort_arg.by]),
+                reverse=sort_arg.descending,
             )
+
         return DefaultTableManager(data)
 
     @staticmethod

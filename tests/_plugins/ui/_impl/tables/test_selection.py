@@ -6,6 +6,7 @@ import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.selection import (
     INDEX_COLUMN_NAME,
@@ -68,7 +69,7 @@ def test_selection_with_index_column_and_sort(backend: Any):
     manager = NarwhalsTableManager(data)
 
     # Sort and select
-    sorted_data = manager.sort_values(by="age", descending=True)
+    sorted_data = manager.sort_values([SortArgs(by="age", descending=True)])
     selected = sorted_data.select_rows([0, 2])
     result = selected.data.to_dict(as_series=False)
     assert result[INDEX_COLUMN_NAME] == [2, 0]  # Original indices preserved
