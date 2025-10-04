@@ -171,96 +171,72 @@ export function renderSorts<TData, TValue>(
     return null;
   }
 
-  // If table is available, use full multi-column sort functionality
-  if (table) {
-    const sortingState: SortingState = table.getState().sorting;
-    const currentSort = sortingState.find((s) => s.id === column.id);
-    const sortIndex = currentSort
-      ? sortingState.indexOf(currentSort) + 1
-      : null;
+  const sortDirection = column.getIsSorted();
+  const sortingIndex = column.getSortIndex();
 
-    // Handler to implement stack-based sorting: clicking a sort moves it to the end (highest priority)
-    // Clicking the same sort direction again removes it
-    const handleSort = (desc: boolean) => {
-      if (currentSort && currentSort.desc === desc) {
-        // Clicking the same sort again - remove it
-        column.clearSorting();
-      } else {
-        // New sort or different direction - move to end of stack
-        const otherSorts = sortingState.filter((s) => s.id !== column.id);
-        const newSort = { id: column.id, desc };
-        table.setSorting([...otherSorts, newSort]);
-      }
-    };
+  const sortingState = table?.getState().sorting;
+  const hasMultiSort = sortingState?.length && sortingState.length > 1;
 
-    const isActiveSort = (desc: boolean) =>
-      sortIndex && currentSort && currentSort.desc === desc;
-
+  const renderSortIndex = () => {
     return (
-      <>
-        <DropdownMenuItem
-          onClick={() => handleSort(false)}
-          className={isActiveSort(false) ? "bg-accent" : ""}
-        >
-          <AscIcon className="mo-dropdown-icon" />
-          Asc
-          {isActiveSort(false) && (
-            <span className="ml-auto text-xs font-medium">{sortIndex}</span>
-          )}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => handleSort(true)}
-          className={isActiveSort(true) ? "bg-accent" : ""}
-        >
-          <DescIcon className="mo-dropdown-icon" />
-          Desc
-          {isActiveSort(true) && (
-            <span className="ml-auto text-xs font-medium">{sortIndex}</span>
-          )}
-        </DropdownMenuItem>
-        {sortingState.length > 1 ? (
-          <DropdownMenuItem onClick={() => table.resetSorting()}>
-            <ChevronsUpDown className="mo-dropdown-icon" />
-            Clear all sorts
-          </DropdownMenuItem>
-        ) : (
-          currentSort && (
-            <DropdownMenuItem onClick={() => column.clearSorting()}>
-              <ChevronsUpDown className="mo-dropdown-icon" />
-              Clear sort
-            </DropdownMenuItem>
-          )
-        )}
-        <DropdownMenuSeparator />
-      </>
+      <span className="ml-auto text-xs font-medium">{sortingIndex + 1}</span>
     );
-  }
+  };
 
-  // Fallback to simple sorting if table not provided
-  const isSorted = column.getIsSorted();
+  const renderClearSort = () => {
+    if (!sortDirection) {
+      return null;
+    }
 
-  return (
-    <>
-      <DropdownMenuItem
-        onClick={() => column.toggleSorting(false, true)}
-        className={isSorted === "asc" ? "bg-accent" : ""}
-      >
-        <AscIcon className="mo-dropdown-icon" />
-        Asc
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        onClick={() => column.toggleSorting(true, true)}
-        className={isSorted === "desc" ? "bg-accent" : ""}
-      >
-        <DescIcon className="mo-dropdown-icon" />
-        Desc
-      </DropdownMenuItem>
-      {isSorted && (
+    if (!hasMultiSort) {
+      // render clear sort for this column
+      return (
         <DropdownMenuItem onClick={() => column.clearSorting()}>
           <ChevronsUpDown className="mo-dropdown-icon" />
           Clear sort
         </DropdownMenuItem>
-      )}
+      );
+    }
+
+    // render clear sort for all columns
+    return (
+      <DropdownMenuItem onClick={() => table?.resetSorting()}>
+        <ChevronsUpDown className="mo-dropdown-icon" />
+        Clear all sorts
+      </DropdownMenuItem>
+    );
+  };
+
+  const toggleSort = (direction: SortDirection) => {
+    // Clear sort if clicking the same direction
+    if (sortDirection === direction) {
+      column.clearSorting();
+    } else {
+      // Toggle sort direction
+      const descending = direction === "desc";
+      column.toggleSorting(descending, true);
+    }
+  };
+
+  return (
+    <>
+      <DropdownMenuItem
+        onClick={() => toggleSort("asc")}
+        className={sortDirection === "asc" ? "bg-accent" : ""}
+      >
+        <AscIcon className="mo-dropdown-icon" />
+        Asc
+        {sortDirection === "asc" && renderSortIndex()}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() => toggleSort("desc")}
+        className={sortDirection === "desc" ? "bg-accent" : ""}
+      >
+        <DescIcon className="mo-dropdown-icon" />
+        Desc
+        {sortDirection === "desc" && renderSortIndex()}
+      </DropdownMenuItem>
+      {renderClearSort()}
       <DropdownMenuSeparator />
     </>
   );
