@@ -435,6 +435,9 @@ class KernelReady(Op, tag="kernel-ready"):
     kiosk: bool
     # Kernel capabilities
     capabilities: KernelCapabilities
+    # Absolute line numbers for cells in the Python script
+    linenos: tuple[int, ...] = ()
+    end_linenos: tuple[int, ...] = ()
 
 
 class CompletionResult(Op, tag="completion-result"):

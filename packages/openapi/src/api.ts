@@ -3426,9 +3426,11 @@ export interface components {
      *         - `default_table_page_size`: default number of rows to display in tables
      *         - `default_table_max_columns`: default maximum number of columns to display in tables
      *         - `reference_highlighting`: if `True`, highlight reactive variable references
+     *         - `absolute_line_numbers`: if `True`, display absolute line numbers from Python script
      *         - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
      */
     DisplayConfig: {
+      absolute_line_numbers?: boolean;
       /** @enum {unknown} */
       cell_output: "above" | "below";
       code_editor_font_size: number;
@@ -3790,6 +3792,8 @@ export interface components {
       cell_ids: string[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
+      /** @default [] */
+      end_linenos?: number[];
       kiosk: boolean;
       last_executed_code: {
         [key: string]: string;
@@ -3798,6 +3802,8 @@ export interface components {
         [key: string]: number;
       } | null;
       layout: components["schemas"]["LayoutConfig"] | null;
+      /** @default [] */
+      linenos?: number[];
       names: string[];
       /** @enum {unknown} */
       op: "kernel-ready";

@@ -48,6 +48,7 @@ import type {
 } from "../config/config-schema";
 import type { HotkeyProvider } from "../hotkeys/hotkeys";
 import { store } from "../state/jotai";
+import { absoluteLineNumbers } from "./absolute-line-numbers/extension";
 import { requestEditCompletion } from "./ai/request";
 import { cellBundle } from "./cells/extensions";
 import type { CodemirrorCellActions } from "./cells/state";
@@ -81,8 +82,12 @@ export interface CodeMirrorSetupOpts {
   hotkeys: HotkeyProvider;
   lspConfig: LSPConfig;
   diagnosticsConfig: DiagnosticsConfig;
-  displayConfig: Pick<DisplayConfig, "reference_highlighting">;
+  displayConfig: Pick<
+    DisplayConfig,
+    "reference_highlighting" | "absolute_line_numbers"
+  >;
   inlineAiTooltip: boolean;
+  cellLineno?: number;
 }
 
 function getPlaceholderType(opts: CodeMirrorSetupOpts) {
@@ -180,8 +185,16 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     cellId,
     lspConfig,
     diagnosticsConfig,
+    displayConfig,
+    cellLineno,
   } = opts;
   const placeholderType = getPlaceholderType(opts);
+
+  // Use absolute line numbers if enabled and we have a valid line number
+  const useAbsoluteLineNumbers =
+    displayConfig.absolute_line_numbers &&
+    cellLineno !== undefined &&
+    cellLineno > 0;
 
   return [
     ///// View
@@ -191,7 +204,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     highlightActiveLine(),
     highlightActiveLineGutter(),
     highlightSpecialChars(),
-    lineNumbers(),
+    useAbsoluteLineNumbers ? absoluteLineNumbers(cellLineno) : lineNumbers(),
     rectangularSelection(),
     tooltips({
       // Having fixed position prevents tooltips from being repositioned

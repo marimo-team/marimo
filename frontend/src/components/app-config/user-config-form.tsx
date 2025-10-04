@@ -821,6 +821,34 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="display.absolute_line_numbers"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Absolute line numbers</FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="absolute-line-numbers-checkbox"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="display.absolute_line_numbers"
+                      />
+                    </FormItem>
+
+                    <FormDescription>
+                      Display line numbers relative to the Python script file
+                      instead of relative to each cell.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
             <SettingGroup title="Outputs">
               <FormField

@@ -54,6 +54,8 @@ export function handleKernelReady(
     last_execution_time = {},
     app_config,
     capabilities,
+    linenos = [],
+    end_linenos = [],
   } = data;
   const lastExecutedCode = last_executed_code || {};
   const lastExecutionTime = last_execution_time || {};
@@ -78,6 +80,8 @@ export function handleKernelReady(
       lastCodeRun: lastExecutedCode[cellId] ?? null,
       lastExecutionTime: lastExecutionTime[cellId] ?? null,
       config: configs[i],
+      lineno: linenos[i],
+      endLineno: end_linenos[i],
     });
   });
 

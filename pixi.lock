@@ -119,6 +119,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/8b/0c/9d30a4ebeb6db2b25a841afbb80f6ef9a854fc3b41be131d249a977b4959/starlette-0.46.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b1/4b/4cef6ce21a2aaca9d852a6e84ef4f135d99fcd74fa75105e2fc0c8308acd/uvicorn-0.34.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/14/8f/aa61f528fba38578ec553c145857a181384c72b98156f858ca5c8e82d9d3/websockets-15.0.1-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: ./
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/anyio-4.9.0-pyh29332c3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/backports-1.0-pyhd8ed1ab_5.conda
@@ -215,6 +216,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a0/4b/528ccf7a982216885a1ff4908e886b8fb5f19862d1962f56a3fce2435a70/starlette-0.46.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/61/14/33a3a1352cfa71812a3a21e8c9bfb83f60b0011f5e36f2b1399d51928209/uvicorn-0.34.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3d/69/1a681dd6f02180916f116894181eab8b2e25b31e484c5d0eae637ec01f7c/websockets-15.0.1-cp312-cp312-macosx_11_0_arm64.whl
+      - pypi: ./
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
   sha256: fe51de6107f9edc7aa4f786a70f4a883943bc9d39b3bb7307c04c41410990726
@@ -1096,6 +1098,53 @@ packages:
   purls: []
   size: 274048
   timestamp: 1727801725384
+- pypi: ./
+  name: marimo
+  version: 0.16.5
+  sha256: 601f8f469c003fd91a8245a3275ce76eb9ff582133042e4189856cd153c80fa3
+  requires_dist:
+  - click>=8.0,<9
+  - jedi>=0.18.0
+  - markdown>=3.6,<4
+  - pymdown-extensions>=10.15,<11
+  - pygments>=2.13,<3
+  - tomlkit>=0.12.0
+  - pyyaml>=6.0
+  - uvicorn>=0.22.0,<0.36.0
+  - starlette>=0.35.0,!=0.36.0
+  - websockets>=14.2.0
+  - loro>=1.5.0 ; python_full_version >= '3.11'
+  - typing-extensions>=4.4.0 ; python_full_version < '3.11'
+  - docutils>=0.16.0
+  - psutil>=5.0
+  - itsdangerous>=2.0.0
+  - narwhals>=2.0.0
+  - packaging
+  - msgspec>=0.19.0
+  - duckdb>=1.0.0 ; extra == 'sql'
+  - polars[pyarrow]>=1.9.0 ; extra == 'sql'
+  - sqlglot[rs]>=26.2.0 ; extra == 'sql'
+  - duckdb>=1.0.0 ; extra == 'recommended'
+  - altair>=5.4.0 ; extra == 'recommended'
+  - polars[pyarrow]>=1.9.0 ; extra == 'recommended'
+  - sqlglot[rs]>=26.2.0 ; extra == 'recommended'
+  - openai>=1.55.3 ; extra == 'recommended'
+  - ruff ; extra == 'recommended'
+  - nbformat>=5.7.0 ; extra == 'recommended'
+  - click>=8.0,<9 ; extra == 'dev'
+  - black~=23.12.1 ; extra == 'dev'
+  - opentelemetry-api~=1.26.0 ; extra == 'dev'
+  - opentelemetry-sdk~=1.26.0 ; extra == 'dev'
+  - duckdb>=1.0.0 ; extra == 'dev'
+  - sqlglot[rs]>=26.2.0 ; extra == 'dev'
+  - ruff>=0.13.2 ; extra == 'dev'
+  - openai>=1.55.3 ; extra == 'dev'
+  - python-lsp-server>=1.13.0 ; extra == 'lsp'
+  - python-lsp-ruff>=2.0.0 ; extra == 'lsp'
+  - mcp>=1.0.0 ; python_full_version >= '3.10' and extra == 'mcp'
+  - pydantic>2 ; python_full_version >= '3.10' and extra == 'mcp'
+  requires_python: '>=3.9'
+  editable: true
 - pypi: https://files.pythonhosted.org/packages/3f/08/83871f3c50fc983b88547c196d11cf8c3340e37c32d2e9d6152abe2c61f7/Markdown-3.7-py3-none-any.whl
   name: markdown
   version: '3.7'

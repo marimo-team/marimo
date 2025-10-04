@@ -21,6 +21,8 @@ class CellData:
         name: User-provided name for the cell, or a default if none provided
         config: Configuration options for the cell like column placement, disabled state, etc.
         cell: The compiled Cell object if code is valid, None if code couldn't be parsed
+        lineno: Starting line number in the Python script file (0 if not from file)
+        end_lineno: Ending line number in the Python script file (0 if not from file)
     """
 
     cell_id: CellId_t
@@ -28,3 +30,5 @@ class CellData:
     name: str
     config: CellConfig
     cell: Optional[Cell]
+    lineno: int = 0
+    end_lineno: int = 0

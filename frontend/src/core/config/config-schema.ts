@@ -141,6 +141,7 @@ export const UserConfigSchema = z
           }),
         locale: z.string().nullable().optional(),
         reference_highlighting: z.boolean().prefault(false),
+        absolute_line_numbers: z.boolean().prefault(false),
       })
       .prefault({}),
     package_management: z

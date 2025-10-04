@@ -622,6 +622,7 @@ const EditableCellComponent = ({
                 showHiddenCode={showHiddenCode}
                 languageAdapter={languageAdapter}
                 setLanguageAdapter={setLanguageAdapter}
+                lineno={cellData.lineno}
               />
               <CellRightSideActions
                 className={cn(
@@ -1099,6 +1100,7 @@ const SetupCellComponent = ({
               languageAdapter={"python"}
               setLanguageAdapter={Functions.NOOP}
               showLanguageToggles={false}
+              lineno={cellData.lineno}
             />
             <CellRightSideActions
               edited={cellData.edited}

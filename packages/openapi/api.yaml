@@ -1125,10 +1125,13 @@ components:
         \ of paths to custom CSS files\n    - `default_table_page_size`: default number\
         \ of rows to display in tables\n    - `default_table_max_columns`: default\
         \ maximum number of columns to display in tables\n    - `reference_highlighting`:\
-        \ if `True`, highlight reactive variable references\n    - `locale`: locale\
-        \ for date formatting and internationalization (e.g., \"en-US\", \"en-GB\"\
-        , \"de-DE\")"
+        \ if `True`, highlight reactive variable references\n    - `absolute_line_numbers`:\
+        \ if `True`, display absolute line numbers from Python script\n    - `locale`:\
+        \ locale for date formatting and internationalization (e.g., \"en-US\", \"\
+        en-GB\", \"de-DE\")"
       properties:
+        absolute_line_numbers:
+          type: boolean
         cell_output:
           enum:
           - above
@@ -1848,6 +1851,11 @@ components:
           items:
             $ref: '#/components/schemas/CellConfig'
           type: array
+        end_linenos:
+          default: []
+          items:
+            type: integer
+          type: array
         kiosk:
           type: boolean
         last_executed_code:
@@ -1866,6 +1874,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/LayoutConfig'
           - type: 'null'
+        linenos:
+          default: []
+          items:
+            type: integer
+          type: array
         names:
           items:
             type: string
