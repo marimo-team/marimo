@@ -58,6 +58,7 @@ test("default UserConfig - empty", () => {
         "copilot": false,
       },
       "display": {
+        "absolute_line_numbers": false,
         "cell_output": "above",
         "code_editor_font_size": 14,
         "dataframes": "rich",
@@ -124,6 +125,7 @@ test("default UserConfig - one level", () => {
         "copilot": false,
       },
       "display": {
+        "absolute_line_numbers": false,
         "cell_output": "above",
         "code_editor_font_size": 14,
         "dataframes": "rich",
