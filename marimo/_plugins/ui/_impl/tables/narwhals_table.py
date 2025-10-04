@@ -5,7 +5,7 @@ import datetime
 import functools
 import io
 from functools import cached_property
-from typing import Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 import msgspec
 import narwhals.stable.v2 as nw
@@ -16,7 +16,6 @@ from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.core.media import io_to_data_url
-from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -41,6 +40,9 @@ from marimo._utils.narwhals_utils import (
     is_narwhals_time_type,
     unwrap_py_scalar,
 )
+
+if TYPE_CHECKING:
+    from marimo._plugins.ui._impl.table import SortArgs
 
 LOGGER = _loggers.marimo_logger()
 UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API although considered an unstable feature."
