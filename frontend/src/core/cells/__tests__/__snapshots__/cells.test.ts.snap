@@ -60,7 +60,7 @@ exports[`cell reducer > can initialize stdin 2`] = `
 
 exports[`cell reducer > can initialize stdin 3`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "",
   "config": {
     "column": null,
@@ -91,7 +91,7 @@ exports[`cell reducer > can initialize stdin 3`] = `
 
 exports[`cell reducer > can initialize stdin 4`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "",
   "config": {
     "column": null,
@@ -122,7 +122,7 @@ exports[`cell reducer > can initialize stdin 4`] = `
 
 exports[`cell reducer > can initialize stdin 5`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "",
   "config": {
     "column": null,
@@ -160,7 +160,7 @@ exports[`cell reducer > can initialize stdin 5`] = `
 
 exports[`cell reducer > can initialize stdin 6`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "",
   "config": {
     "column": null,
@@ -198,7 +198,7 @@ exports[`cell reducer > can initialize stdin 6`] = `
 
 exports[`cell reducer > can initialize stdin 7`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "",
   "config": {
     "column": null,
@@ -242,7 +242,7 @@ exports[`cell reducer > can initialize stdin 7`] = `
 
 exports[`cell reducer > can initialize stdin 8`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "",
   "config": {
     "column": null,
@@ -287,7 +287,7 @@ exports[`cell reducer > can initialize stdin 8`] = `
 
 exports[`cell reducer > can initialize stdin 9`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "",
   "config": {
     "column": null,
@@ -405,7 +405,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
 
 exports[`cell reducer > can receive console when the cell is idle and will clear when starts again 3`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "",
   "config": {
     "column": null,
@@ -443,7 +443,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
 
 exports[`cell reducer > can receive console when the cell is idle and will clear when starts again 4`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "",
   "config": {
     "column": null,
@@ -474,7 +474,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
 
 exports[`cell reducer > can receive console when the cell is idle and will clear when starts again 5`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "",
   "config": {
     "column": null,
@@ -512,7 +512,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
 
 exports[`cell reducer > can run a stale cell 1`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "mo.slider()",
   "config": {
     "column": null,
@@ -543,7 +543,7 @@ exports[`cell reducer > can run a stale cell 1`] = `
 
 exports[`cell reducer > can run a stale cell 2`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "mo.slider()",
   "config": {
     "column": null,
@@ -574,7 +574,7 @@ exports[`cell reducer > can run a stale cell 2`] = `
 
 exports[`cell reducer > can run a stopped cell 1`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "mo.md('This has an ancestor that was stopped')",
   "config": {
     "column": null,
@@ -605,7 +605,7 @@ exports[`cell reducer > can run a stopped cell 1`] = `
 
 exports[`cell reducer > can run a stopped cell 2`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "mo.md('This has an ancestor that was stopped')",
   "config": {
     "column": null,
@@ -636,7 +636,7 @@ exports[`cell reducer > can run a stopped cell 2`] = `
 
 exports[`cell reducer > can run a stopped cell 3`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "mo.md('This has an ancestor that was stopped')",
   "config": {
     "column": null,
@@ -678,7 +678,7 @@ exports[`cell reducer > can run a stopped cell 3`] = `
 
 exports[`cell reducer > can run a stopped cell 4`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "mo.md('This has an ancestor that was stopped')",
   "config": {
     "column": null,
@@ -720,7 +720,7 @@ exports[`cell reducer > can run a stopped cell 4`] = `
 
 exports[`cell reducer > can run a stopped cell 5`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "mo.md('This has an ancestor that was stopped')",
   "config": {
     "column": null,
@@ -838,7 +838,7 @@ exports[`cell reducer > can run cell and receive cell messages 3`] = `
 
 exports[`cell reducer > can run cell and receive cell messages 4`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "import marimo as mo",
   "config": {
     "column": null,
@@ -869,7 +869,7 @@ exports[`cell reducer > can run cell and receive cell messages 4`] = `
 
 exports[`cell reducer > can run cell and receive cell messages 5`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "import marimo as mo",
   "config": {
     "column": null,
@@ -900,7 +900,7 @@ exports[`cell reducer > can run cell and receive cell messages 5`] = `
 
 exports[`cell reducer > can run cell and receive cell messages 6`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "import marimo as mo",
   "config": {
     "column": null,
@@ -938,7 +938,7 @@ exports[`cell reducer > can run cell and receive cell messages 6`] = `
 
 exports[`cell reducer > can run cell and receive cell messages 7`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "import marimo as mo",
   "config": {
     "column": null,
@@ -981,7 +981,7 @@ exports[`cell reducer > can run cell and receive cell messages 7`] = `
 
 exports[`cell reducer > can run cell and receive cell messages 8`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "import marimo as mo
 import numpy",
   "config": {
@@ -1025,7 +1025,7 @@ import numpy",
 
 exports[`cell reducer > can run cell and receive cell messages 9`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "import marimo as mo",
   "config": {
     "column": null,
@@ -1068,7 +1068,7 @@ exports[`cell reducer > can run cell and receive cell messages 9`] = `
 
 exports[`cell reducer > can run cell and receive cell messages 10`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "import marimo as mo
 import numpy",
   "config": {
@@ -1112,7 +1112,7 @@ import numpy",
 
 exports[`cell reducer > can run cell and receive cell messages 11`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "import marimo as mo
 import numpy",
   "config": {
@@ -1163,7 +1163,7 @@ import numpy",
 
 exports[`cell reducer > can run cell and receive cell messages 12`] = `
 {
-  "cache": undefined,
+  "cache": null,
   "code": "import marimo as mo
 import numpy",
   "config": {

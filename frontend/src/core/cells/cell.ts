@@ -24,6 +24,7 @@ export function transitionCell(
       nextCell.errored = false;
       nextCell.runElapsedTimeMs = null;
       nextCell.debuggerActive = false;
+      nextCell.cache = null;
       // We intentionally don't update lastCodeRun, since the kernel queues
       // whatever code was last registered with it, which might not match
       // the cell's current code if the user modified it.
