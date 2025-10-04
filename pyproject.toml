@@ -544,8 +544,6 @@ format_on_save = true
 [tool.marimo.experimental]
 multi_column = true
 performant_table_charts = true
-sql_linter = true
-sql_mode = true
 chat_modes = true
 cache_panel = true
 

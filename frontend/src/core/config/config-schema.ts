@@ -183,6 +183,12 @@ export const UserConfigSchema = z
       // Pass through so that we don't remove any extra keys that the user has added.
       .prefault(() => ({})),
     server: z.looseObject({}).prefault(() => ({})),
+    diagnostics: z
+      .looseObject({
+        enabled: z.boolean().optional(),
+        sql_linter: z.boolean().optional(),
+      })
+      .prefault(() => ({})),
     sharing: z
       .looseObject({
         html: z.boolean().optional(),
@@ -204,6 +210,7 @@ export const UserConfigSchema = z
     keymap: {},
     runtime: {},
     display: {},
+    diagnostics: {},
     experimental: {},
     server: {},
     ai: {},
@@ -307,6 +314,7 @@ export function defaultUserConfig(): UserConfig {
     keymap: {},
     runtime: {},
     display: {},
+    diagnostics: {},
     experimental: {},
     server: {},
     ai: {},

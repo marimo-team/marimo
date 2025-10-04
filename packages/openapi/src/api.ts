@@ -3408,9 +3408,11 @@ export interface components {
      *         **Keys.**
      *
      *         - `enabled`: if `True`, diagnostics will be shown in the editor
+     *         - `sql_linter`: if `True`, SQL cells will have linting enabled
      */
     DiagnosticsConfig: {
       enabled?: boolean;
+      sql_linter?: boolean;
     };
     /**
      * DisplayConfig

@@ -11,7 +11,7 @@ step through the code, and evaluate expressions.
 
 Here's an example of how to use `breakpoint()` in a marimo notebook cell.
 
-![PDB in marimo](/_static/docs-pdb-demo.png)
+![PDB in marimo](../_static/docs-pdb-demo.png)
 
 Type `help` in the debugger for a list of commands:
 
@@ -92,7 +92,7 @@ When interacting with the AI chat, you can reference the notebook "Errors" with
 the `@-symbol` to bring in comprehensive error information from your notebook,
 making it easier to get targeted debugging help.
 
-![Notebook Errors context in marimo](/_static/docs-notebook-errors-context.png)
+![Notebook Errors context in marimo](../_static/docs-notebook-errors-context.png)
 
 ### Best practices for AI-assisted debugging
 
