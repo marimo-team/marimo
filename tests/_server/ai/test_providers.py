@@ -1,6 +1,6 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -56,7 +56,6 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
     if provider_name != "bedrock":
         assert config.api_key == f"{provider_name}-key"
     else:
-        # bedrock overloads the api_key for profile name
         assert config.api_key == "profile:aws-profile"
 
 
@@ -172,3 +171,152 @@ async def test_azure_openai_provider() -> None:
     assert api_version == "2023-05-15"
     assert deployment_name == "gpt-4-1"
     assert endpoint == "https://unknown_domain.openai"
+
+
+@pytest.mark.parametrize(
+    "provider_type",
+    [
+        pytest.param(OpenAIProvider, id="openai"),
+        pytest.param(BedrockProvider, id="bedrock"),
+    ],
+)
+def test_extract_content_with_none_tool_call_ids(
+    provider_type: type,
+) -> None:
+    """Test extract_content handles None tool_call_ids without errors."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
+    provider = provider_type("test-model", config)
+
+    mock_response = MagicMock()
+    mock_delta = MagicMock()
+    mock_delta.content = "Hello"
+    mock_delta.tool_calls = None
+    mock_choice = MagicMock()
+    mock_choice.delta = mock_delta
+    mock_response.choices = [mock_choice]
+
+    result = provider.extract_content(mock_response, None)
+    assert result == [("Hello", "text")]
+
+
+def test_google_extract_content_with_none_tool_call_ids() -> None:
+    """Test Google extract_content handles None tool_call_ids without errors."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
+    provider = GoogleProvider("gemini-1.5-flash", config)
+
+    mock_response = MagicMock()
+    mock_candidate = MagicMock()
+    mock_content = MagicMock()
+    mock_part = MagicMock()
+    mock_part.text = "Hello"
+    mock_part.thought = False
+    mock_part.function_call = None
+    mock_content.parts = [mock_part]
+    mock_candidate.content = mock_content
+    mock_response.candidates = [mock_candidate]
+
+    result = provider.extract_content(mock_response, None)
+    assert result == [("Hello", "text")]
+
+
+def test_openai_extract_content_multiple_tool_calls() -> None:
+    """Test OpenAI extracts multiple tool calls correctly."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
+    provider = OpenAIProvider("gpt-4", config)
+
+    mock_response = MagicMock()
+    mock_delta = MagicMock()
+    mock_delta.content = None
+
+    mock_tool_1 = MagicMock()
+    mock_tool_1.index = 0
+    mock_tool_1.id = "call_1"
+    mock_tool_1.function = MagicMock()
+    mock_tool_1.function.name = "get_weather"
+    mock_tool_1.function.arguments = None
+
+    mock_tool_2 = MagicMock()
+    mock_tool_2.index = 1
+    mock_tool_2.id = "call_2"
+    mock_tool_2.function = MagicMock()
+    mock_tool_2.function.name = "get_time"
+    mock_tool_2.function.arguments = None
+
+    mock_delta.tool_calls = [mock_tool_1, mock_tool_2]
+    mock_choice = MagicMock()
+    mock_choice.delta = mock_delta
+    mock_response.choices = [mock_choice]
+
+    result = provider.extract_content(mock_response, None)
+    assert result is not None
+    assert len(result) == 2
+    tool_data_0, _ = result[0]
+    tool_data_1, _ = result[1]
+    assert isinstance(tool_data_0, dict)
+    assert isinstance(tool_data_1, dict)
+    assert tool_data_0["toolName"] == "get_weather"
+    assert tool_data_1["toolName"] == "get_time"
+
+
+def test_google_extract_content_id_rectification() -> None:
+    """Test Google uses provided tool_call_ids for ID rectification."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
+    provider = GoogleProvider("gemini-1.5-flash", config)
+
+    mock_response = MagicMock()
+    mock_candidate = MagicMock()
+    mock_content = MagicMock()
+    mock_func_call = MagicMock()
+    mock_func_call.name = "get_weather"
+    mock_func_call.args = {"location": "SF"}
+    mock_func_call.id = None
+    mock_part = MagicMock()
+    mock_part.text = None
+    mock_part.function_call = mock_func_call
+    mock_content.parts = [mock_part]
+    mock_candidate.content = mock_content
+    mock_response.candidates = [mock_candidate]
+
+    result = provider.extract_content(mock_response, ["stable_id"])
+    assert result is not None
+    tool_data, _ = result[0]
+    assert isinstance(tool_data, dict)
+    assert tool_data["toolCallId"] == "stable_id"
+
+
+def test_anthropic_extract_content_tool_call_id_mapping() -> None:
+    """Test Anthropic maps tool call IDs via block index."""
+    try:
+        from anthropic.types import (
+            InputJSONDelta,
+            RawContentBlockDeltaEvent,
+            RawContentBlockStartEvent,
+            ToolUseBlock,
+        )
+    except ImportError:
+        pytest.skip("Anthropic not installed")
+
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
+    provider = AnthropicProvider("claude-3-opus-20240229", config)
+
+    start_event = RawContentBlockStartEvent(
+        type="content_block_start",
+        index=0,
+        content_block=ToolUseBlock(
+            type="tool_use", id="toolu_123", name="get_weather", input={}
+        ),
+    )
+    provider.extract_content(start_event, None)
+
+    delta_event = RawContentBlockDeltaEvent(
+        type="content_block_delta",
+        index=0,
+        delta=InputJSONDelta(
+            type="input_json_delta", partial_json='{"location": "SF"}'
+        ),
+    )
+    result = provider.extract_content(delta_event, None)
+    assert result is not None
+    tool_data, _ = result[0]
+    assert isinstance(tool_data, dict)
+    assert tool_data["toolCallId"] == "toolu_123"
