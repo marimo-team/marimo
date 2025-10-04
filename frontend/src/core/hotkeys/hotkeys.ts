@@ -344,6 +344,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-Shift-\\",
   },
+  "global.toggleAbsoluteLineNumbers": {
+    name: "Toggle absolute line numbers",
+    group: "Other",
+    key: "Mod-Shift-A",
+  },
   "global.expandAllSections": {
     name: "Expand all sections",
     group: "Editing",

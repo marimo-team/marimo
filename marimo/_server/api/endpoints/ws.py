@@ -298,7 +298,7 @@ class WebsocketHandler(SessionConsumer):
         configs: tuple[CellConfig, ...]
 
         if mgr.should_send_code_to_frontend():
-            codes, names, configs, cell_ids = tuple(
+            codes, names, configs, cell_ids, linenos, end_linenos = tuple(
                 zip(
                     *tuple(
                         (
@@ -306,6 +306,8 @@ class WebsocketHandler(SessionConsumer):
                             cell_data.name,
                             cell_data.config,
                             cell_data.cell_id,
+                            cell_data.lineno,
+                            cell_data.end_lineno,
                         )
                         for cell_data in app.cell_manager.cell_data()
                     )
@@ -325,11 +327,18 @@ class WebsocketHandler(SessionConsumer):
                     )
 
         else:
-            codes, names, configs, cell_ids = tuple(
+            codes, names, configs, cell_ids, linenos, end_linenos = tuple(
                 zip(
                     *tuple(
                         # Don't send code to frontend in run mode
-                        ("", "", cell_data.config, cell_data.cell_id)
+                        (
+                            "",
+                            "",
+                            cell_data.config,
+                            cell_data.cell_id,
+                            cell_data.lineno,
+                            cell_data.end_lineno,
+                        )
                         for cell_data in app.cell_manager.cell_data()
                     )
                 )
@@ -354,6 +363,8 @@ class WebsocketHandler(SessionConsumer):
                         app_config=app.config,
                         kiosk=kiosk,
                         capabilities=KernelCapabilities(),
+                        linenos=linenos,
+                        end_linenos=end_linenos,
                     )
                 )
             ),

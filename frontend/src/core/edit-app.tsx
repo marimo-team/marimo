@@ -26,6 +26,7 @@ import {
   useCellActions,
 } from "./cells/cells";
 import { CellEffects } from "./cells/effects";
+import { useResolvedMarimoConfig } from "./config/config";
 import type { AppConfig, UserConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
@@ -66,7 +67,9 @@ export const EditApp: React.FC<AppProps> = ({
   const hasCells = useAtomValue(hasCellsAtom);
   const filename = useFilename();
   const setLastSavedNotebook = useSetAtom(lastSavedNotebookAtom);
-  const { sendComponentValues, sendInterrupt } = useRequestClient();
+  const { sendComponentValues, sendInterrupt, saveUserConfig } =
+    useRequestClient();
+  const [config, setConfig] = useResolvedMarimoConfig();
 
   const isEditing = viewState.mode === "edit";
   const isPresenting = viewState.mode === "present";
@@ -131,6 +134,18 @@ export const EditApp: React.FC<AppProps> = ({
   });
   useHotkey("global.expandAllSections", () => {
     expandAllCells();
+  });
+  useHotkey("global.toggleAbsoluteLineNumbers", () => {
+    const newConfig = {
+      ...config,
+      display: {
+        ...config.display,
+        absolute_line_numbers: !config.display.absolute_line_numbers,
+      },
+    };
+    saveUserConfig({ config: newConfig }).then(() => {
+      setConfig(newConfig);
+    });
   });
 
   const editableCellsArray = (

@@ -20,6 +20,8 @@ export function createCell({
   edited = false,
   config,
   serializedEditorState = null,
+  lineno,
+  endLineno,
 }: Partial<CellData> & { id: CellId }): CellData {
   return {
     id: id,
@@ -34,6 +36,8 @@ export function createCell({
     lastCodeRun: lastCodeRun,
     lastExecutionTime: lastExecutionTime,
     serializedEditorState: serializedEditorState,
+    lineno: lineno,
+    endLineno: endLineno,
   };
 }
 
@@ -85,6 +89,10 @@ export interface CellData {
   config: CellConfig;
   /** serialized state of the underlying editor */
   serializedEditorState: SerializedEditorState | null;
+  /** starting line number in the Python script file */
+  lineno?: number;
+  /** ending line number in the Python script file */
+  endLineno?: number;
 }
 
 export interface CellRuntimeState {
