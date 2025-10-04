@@ -637,6 +637,7 @@ const EditableCellComponent = ({
                 lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
                 staleInputs={cellRuntime.staleInputs}
                 interrupted={cellRuntime.interrupted}
+                cache={cellRuntime.cache ?? null}
               />
               <div className="shoulder-bottom hover-action">
                 {canDelete && isCellCodeShown && (
@@ -765,6 +766,7 @@ const CellRightSideActions = memo(
     runElapsedTimeMs: Milliseconds | null;
     runStartTimestamp: Seconds | null;
     staleInputs: boolean;
+    cache: "hit" | "cached" | null;
     status: RuntimeState;
     uninstantiated: boolean;
   }) => {
@@ -778,6 +780,7 @@ const CellRightSideActions = memo(
       runElapsedTimeMs,
       runStartTimestamp,
       staleInputs,
+      cache,
       status,
       uninstantiated,
     } = props;
@@ -794,6 +797,7 @@ const CellRightSideActions = memo(
         runStartTimestamp={runStartTimestamp}
         uninstantiated={uninstantiated}
         lastRunStartTimestamp={lastRunStartTimestamp}
+        cache={cache}
       />
     );
 
@@ -1111,6 +1115,7 @@ const SetupCellComponent = ({
               lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
               staleInputs={cellRuntime.staleInputs}
               interrupted={cellRuntime.interrupted}
+              cache={cellRuntime.cache ?? null}
             />
             <div className="shoulder-bottom hover-action">
               {canDelete && (
