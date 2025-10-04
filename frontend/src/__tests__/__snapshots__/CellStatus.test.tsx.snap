@@ -3,14 +3,18 @@
 exports[`CellStatusComponent > renders completed run with elapsed time 1`] = `
 <div>
   <div
-    class="cell-status-icon elapsed-time hover-action"
+    class="flex flex-row gap-1 hover-action"
     data-state="closed"
-    data-status="idle"
-    data-testid="cell-status"
   >
-    <span>
-      1.50s
-    </span>
+    <div
+      class="cell-status-icon elapsed-time hover-action"
+      data-status="idle"
+      data-testid="cell-status"
+    >
+      <span>
+        1.50s
+      </span>
+    </div>
   </div>
 </div>
 `;

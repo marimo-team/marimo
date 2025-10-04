@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
 import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
 import { type Seconds, Time } from "@/utils/time";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { parseOutline } from "../dom/outline";
@@ -75,6 +76,10 @@ export function transitionCell(
   nextCell.status = message.status ?? nextCell.status;
   nextCell.serialization = message.serialization;
   nextCell.cache = message.cache ?? nextCell.cache;
+
+  if (message.cache != null) {
+    Logger.log(`[cache] Cell ${message.cell_id} cache: ${message.cache}`);
+  }
 
   let didInterruptFromThisMessage = false;
 

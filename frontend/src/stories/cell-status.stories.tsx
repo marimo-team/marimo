@@ -191,7 +191,7 @@ IdleWithElapsedTimeAndLastRun.args = {
   staleInputs: false,
   uninstantiated: false,
   elapsedTime: 1500,
-  lastRunStartTimestamp: Date.now() / 1000 - 300, // 5 minutes ago
+  lastRunStartTimestamp: (Date.now() / 1000 - 300) as Seconds, // 5 minutes ago
 };
 
 export const CachedHit = Template.bind({});
