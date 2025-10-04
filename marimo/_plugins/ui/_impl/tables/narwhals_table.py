@@ -16,6 +16,7 @@ from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.core.media import io_to_data_url
+from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,

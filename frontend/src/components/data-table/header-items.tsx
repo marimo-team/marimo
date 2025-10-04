@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
-import type { Column, SortingState, Table } from "@tanstack/react-table";
+import type { Column, Table } from "@tanstack/react-table";
 import {
   AlignJustifyIcon,
   ArrowDownWideNarrowIcon,

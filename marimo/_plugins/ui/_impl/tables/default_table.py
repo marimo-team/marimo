@@ -12,6 +12,7 @@ from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._output.mime import MIME
 from marimo._output.superjson import SuperJson
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_column,
