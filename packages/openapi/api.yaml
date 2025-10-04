@@ -345,9 +345,17 @@ components:
         \    status        - execution status\n    stale_inputs  - whether the cell\
         \ has stale inputs (variables, modules, ...)\n    run_id        - the run\
         \ associated with this cell.\n    serialization - the serialization status\
-        \ of the cell\n\n    Omitting a field means that its value should be unchanged!\n\
-        \n    And one required field:\n\n    cell_id - the cell id"
+        \ of the cell\n    cache         - the cache status of the cell (\"hit\",\
+        \ \"cached\", or None)\n\n    Omitting a field means that its value should\
+        \ be unchanged!\n\n    And one required field:\n\n    cell_id - the cell id"
       properties:
+        cache:
+          anyOf:
+          - enum:
+            - cached
+            - hit
+          - type: 'null'
+          default: null
         cell_id:
           type: string
         console:
