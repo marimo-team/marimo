@@ -153,7 +153,7 @@ export async function handleToolCall({
 
 /**
  * Checks if we should send a message automatically based on the messages.
- * We only want to send a message if we have completed tool calls and there is no reply yet.
+ * We only want to send a message if all tool calls are completed and there is no reply yet.
  */
 export function hasPendingToolCalls(messages: UIMessage[]): boolean {
   if (messages.length === 0) {
@@ -177,7 +177,12 @@ export function hasPendingToolCalls(messages: UIMessage[]): boolean {
     part.type.startsWith("tool-"),
   ) as ToolUIPart[];
 
-  const hasCompletedToolCalls = toolParts.some(
+  // Guard against no tool parts
+  if (toolParts.length === 0) {
+    return false;
+  }
+
+  const allToolCallsCompleted = toolParts.every(
     (part) => part.state === "output-available",
   );
 
@@ -186,6 +191,8 @@ export function hasPendingToolCalls(messages: UIMessage[]): boolean {
   const hasTextContent =
     lastPart.type === "text" && lastPart.text?.trim().length > 0;
 
+  Logger.warn("All tool calls completed: %s", allToolCallsCompleted);
+
   // Only auto-send if we have completed tool calls and there is no reply yet
-  return hasCompletedToolCalls && !hasTextContent;
+  return allToolCallsCompleted && !hasTextContent;
 }
