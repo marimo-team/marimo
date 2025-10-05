@@ -199,6 +199,8 @@ class CellManager:
         config: Optional[CellConfig],
         name: str = DEFAULT_CELL_NAME,
         cell: Optional[Cell] = None,
+        lineno: int = 0,
+        end_lineno: int = 0,
     ) -> None:
         """Register a new cell with the manager.
 
@@ -208,6 +210,8 @@ class CellManager:
             config: Cell configuration (column, disabled state, etc.)
             name: Name of the cell, defaults to DEFAULT_CELL_NAME
             cell: Optional Cell object for valid cells
+            lineno: Starting line number in the Python script file
+            end_lineno: Ending line number in the Python script file
         """
         if cell_id is None:
             cell_id = self.create_cell_id()
@@ -218,6 +222,8 @@ class CellManager:
             name=name,
             config=config or CellConfig(),
             cell=cell,
+            lineno=lineno,
+            end_lineno=end_lineno,
         )
 
     def register_ir_cell(
@@ -244,10 +250,19 @@ class CellManager:
                 config=cell_config,
                 name=cell_def.name,
                 cell=None,
+                lineno=cell_def.lineno,
+                end_lineno=cell_def.end_lineno,
             )
             return
         cell._cell.configure(cell_config)
+        # Store line numbers in cell data after registering
         self._register_cell(cell, app=app)
+        # Update with line numbers
+        if cell._cell.cell_id in self._cell_data:
+            self._cell_data[cell._cell.cell_id].lineno = cell_def.lineno
+            self._cell_data[
+                cell._cell.cell_id
+            ].end_lineno = cell_def.end_lineno
 
     def register_unparsable_cell(
         self,

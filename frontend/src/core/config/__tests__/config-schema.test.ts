@@ -59,6 +59,7 @@ test("default UserConfig - empty", () => {
       },
       "diagnostics": {},
       "display": {
+        "absolute_line_numbers": false,
         "cell_output": "above",
         "code_editor_font_size": 14,
         "dataframes": "rich",
@@ -126,6 +127,7 @@ test("default UserConfig - one level", () => {
       },
       "diagnostics": {},
       "display": {
+        "absolute_line_numbers": false,
         "cell_output": "above",
         "code_editor_font_size": 14,
         "dataframes": "rich",

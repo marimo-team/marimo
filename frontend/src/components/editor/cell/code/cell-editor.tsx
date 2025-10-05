@@ -45,7 +45,10 @@ import { LanguageToggles } from "./language-toggle";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
-    Pick<CellData, "id" | "code" | "serializedEditorState" | "config"> {
+    Pick<
+      CellData,
+      "id" | "code" | "serializedEditorState" | "config" | "lineno"
+    > {
   runCell: () => void;
   theme: Theme;
   showPlaceholder: boolean;
@@ -88,6 +91,7 @@ const CellEditorInternal = ({
   languageAdapter,
   setLanguageAdapter,
   showLanguageToggles = true,
+  lineno,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const deleteCell = useDeleteCellCallback();
@@ -188,6 +192,7 @@ const CellEditorInternal = ({
       diagnosticsConfig: userConfig.diagnostics,
       displayConfig: userConfig.display,
       inlineAiTooltip: userConfig.ai?.inline_tooltip ?? false,
+      cellLineno: lineno,
     });
 
     extensions.push(
