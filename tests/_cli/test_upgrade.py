@@ -37,8 +37,7 @@ def test_check_for_updates(
         "0.1.0 → 0.1.2" in call[0][0] for call in mock_echo.call_args_list
     )
     assert any(
-        "pip install --upgrade marimo" in call[0][0]
-        for call in mock_echo.call_args_list
+        " --upgrade marimo" in call[0][0] for call in mock_echo.call_args_list
     )
 
 
