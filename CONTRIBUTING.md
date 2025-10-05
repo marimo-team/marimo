@@ -33,7 +33,8 @@ Install [pixi](https://github.com/prefix-dev/pixi) to manage your development en
 pixi shell
 ```
 
-After doing this, you can instantiate your marimo development environment by running the following command.
+If you have the right non-python dependencies installed via other methods (e.g. homebrew) you can simply activate your `marimo` development 
+environment with `hatch shell`. After doing this, you can instantiate your marimo development environment by running the following command. 
 
 ```bash
 make dev
@@ -42,6 +43,12 @@ make dev
 This will launch two processes, the backend one in port 2718 and the front end one in port 3000.
 
 You can optionally install [pre-commit](https://pre-commit.com/) hooks to automatically run the validation checks when making a commit:
+
+```bash
+uvx pre-commit install
+```
+
+or
 
 ```bash
 pixi run pre-commit install
