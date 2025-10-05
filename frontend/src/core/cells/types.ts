@@ -117,6 +117,15 @@ export interface CellRuntimeState {
   debuggerActive: boolean;
   /** serialization message */
   serialization?: string | null;
+
+  /**
+   * Whether the cell was cached or not
+   *
+   * hit: the cell was cached and hit
+   * cached: the cell was cached but not hit
+   * null: the cell was not cached
+   */
+  cache?: "hit" | "cached" | null;
 }
 
 export type WithResponse<T> = T & {
