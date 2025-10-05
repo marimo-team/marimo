@@ -1,7 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-import dataclasses
 import inspect
 import re
 from abc import ABC, abstractmethod
@@ -237,7 +236,7 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
     # helpers
     def _coerce_args(self, args: Any) -> ArgsT:  # type: ignore[override]
         """If Args is a dataclass and args is a dict, construct it; else pass through."""
-        if dataclasses.is_dataclass(args):
+        if is_dataclass(args):
             # Already parsed
             return args  # type: ignore[return-value]
         return parse_raw(args, self.Args)

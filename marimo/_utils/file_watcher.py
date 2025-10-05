@@ -24,7 +24,7 @@ class FileWatcher(ABC):
             LOGGER.debug("Using watchdog file watcher")
             return _create_watchdog(path, callback, asyncio.get_event_loop())
         else:
-            LOGGER.warning(
+            LOGGER.info(
                 "watchdog is not installed, using polling file watcher"
             )
             return PollingFileWatcher(path, callback, asyncio.get_event_loop())
