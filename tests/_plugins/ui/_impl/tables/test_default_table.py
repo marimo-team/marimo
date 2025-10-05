@@ -220,7 +220,10 @@ class TestDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
 
         sorted_data = manager.sort_values(
-            by=[SortArgs(by="category", descending=False), SortArgs(by="name", descending=False)]
+            by=[
+                SortArgs(by="category", descending=False),
+                SortArgs(by="name", descending=False),
+            ]
         ).data
         expected_data = [
             {"category": 1, "name": "Alice"},
@@ -239,7 +242,10 @@ class TestDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
 
         sorted_data = manager.sort_values(
-            by=[SortArgs(by="priority", descending=False), SortArgs(by="score", descending=True)]
+            by=[
+                SortArgs(by="priority", descending=False),
+                SortArgs(by="score", descending=True),
+            ]
         ).data
         expected_data = [
             {"priority": 1, "score": 90},
@@ -258,7 +264,10 @@ class TestDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
 
         sorted_data = manager.sort_values(
-            by=[SortArgs(by="group", descending=False), SortArgs(by="value", descending=False)]
+            by=[
+                SortArgs(by="group", descending=False),
+                SortArgs(by="value", descending=False),
+            ]
         ).data
         expected_data = [
             {"group": 1, "value": 10},
@@ -278,7 +287,10 @@ class TestDefaultTable(unittest.TestCase):
 
         # Should fall back to string comparison for mixed types
         sorted_data = manager.sort_values(
-            by=[SortArgs(by="id", descending=False), SortArgs(by="value", descending=False)]
+            by=[
+                SortArgs(by="id", descending=False),
+                SortArgs(by="value", descending=False),
+            ]
         ).data
         expected_data = [
             {"id": 1, "value": 42},
@@ -632,7 +644,10 @@ class TestColumnarDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
 
         sorted_data = manager.sort_values(
-            by=[SortArgs(by="category", descending=False), SortArgs(by="name", descending=False)]
+            by=[
+                SortArgs(by="category", descending=False),
+                SortArgs(by="name", descending=False),
+            ]
         ).data
         expected_data = {
             "category": [1, 1, 2],
@@ -649,7 +664,10 @@ class TestColumnarDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
 
         sorted_data = manager.sort_values(
-            by=[SortArgs(by="group", descending=False), SortArgs(by="value", descending=False)]
+            by=[
+                SortArgs(by="group", descending=False),
+                SortArgs(by="value", descending=False),
+            ]
         ).data
         expected_data = {
             "group": [1, 1, 2],

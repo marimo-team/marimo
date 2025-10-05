@@ -368,14 +368,6 @@ class DefaultTableManager(TableManager[JsonTableData]):
         if not by:
             return self
 
-        def _make_sort_key(value: Any) -> tuple[bool, Any]:
-            """Create a sort key that puts None values last."""
-            try:
-                return (value is None, value)
-            except TypeError:
-                # Fallback to string comparison for non-comparable types
-                return (value is None, str(value))
-
         if isinstance(self.data, dict) and self.is_column_oriented:
             # Column-oriented: sort indices, then reorder all columns
             data_dict = cast(dict[str, list[Any]], self.data)
@@ -386,11 +378,30 @@ class DefaultTableManager(TableManager[JsonTableData]):
             # Apply sorts in reverse order for stable multi-column sorting
             for sort_arg in reversed(by):
                 values = data_dict[sort_arg.by]
-                indices = sorted(
-                    indices,
-                    key=lambda i: _make_sort_key(values[i]),
-                    reverse=sort_arg.descending,
-                )
+
+                # Separate None and non-None indices
+                none_indices = [i for i in indices if values[i] is None]
+                non_none_indices = [
+                    i for i in indices if values[i] is not None
+                ]
+
+                # Try natural comparison first, fall back to string on mixed types
+                try:
+                    non_none_indices = sorted(
+                        non_none_indices,
+                        key=lambda i: values[i],
+                        reverse=sort_arg.descending,
+                    )
+                except TypeError:
+                    # Mixed types - use string comparison
+                    non_none_indices = sorted(
+                        non_none_indices,
+                        key=lambda i: str(values[i]),
+                        reverse=sort_arg.descending,
+                    )
+
+                # None values always go last
+                indices = non_none_indices + none_indices
 
             return DefaultTableManager(
                 cast(
@@ -405,11 +416,29 @@ class DefaultTableManager(TableManager[JsonTableData]):
         # Row-oriented: sort rows directly
         data = self._normalize_data(self.data)
         for sort_arg in reversed(by):
-            data = sorted(
-                data,
-                key=lambda row: _make_sort_key(row[sort_arg.by]),
-                reverse=sort_arg.descending,
-            )
+            # Separate None and non-None rows
+            none_rows = [row for row in data if row[sort_arg.by] is None]
+            non_none_rows = [
+                row for row in data if row[sort_arg.by] is not None
+            ]
+
+            # Try natural comparison first, fall back to string on mixed types
+            try:
+                non_none_rows = sorted(
+                    non_none_rows,
+                    key=lambda row: row[sort_arg.by],
+                    reverse=sort_arg.descending,
+                )
+            except TypeError:
+                # Mixed types - use string comparison
+                non_none_rows = sorted(
+                    non_none_rows,
+                    key=lambda row: str(row[sort_arg.by]),
+                    reverse=sort_arg.descending,
+                )
+
+            # None values always go last
+            data = non_none_rows + none_rows
 
         return DefaultTableManager(data)
 

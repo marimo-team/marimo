@@ -129,7 +129,9 @@ def test_normalize_data(executing_kernel: Kernel) -> None:
 def test_sort_1d_list_of_strings(dtm: DefaultTableManager) -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     dtm.data = _normalize_data(data)
-    sorted_data = dtm.sort_values([SortArgs(by="value", descending=False)]).data
+    sorted_data = dtm.sort_values(
+        [SortArgs(by="value", descending=False)]
+    ).data
     expected_data = [
         {"value": "apple"},
         {"value": "banana"},
@@ -143,7 +145,9 @@ def test_sort_1d_list_of_strings(dtm: DefaultTableManager) -> None:
 def test_sort_1d_list_of_integers(dtm: DefaultTableManager) -> None:
     data = [42, 17, 23, 99, 8]
     dtm.data = _normalize_data(data)
-    sorted_data = dtm.sort_values([SortArgs(by="value", descending=False)]).data
+    sorted_data = dtm.sort_values(
+        [SortArgs(by="value", descending=False)]
+    ).data
     expected_data = [
         {"value": 8},
         {"value": 17},
@@ -166,7 +170,9 @@ def test_sort_list_of_dicts(dtm: DefaultTableManager) -> None:
     sorted_data = dtm.sort_values([SortArgs(by="age", descending=True)]).data
 
     with pytest.raises(KeyError):
-        _res = dtm.sort_values([SortArgs(by="missing_column", descending=True)]).data
+        _res = dtm.sort_values(
+            [SortArgs(by="missing_column", descending=True)]
+        ).data
 
     expected_data = [
         {"name": "Charlie", "age": 35, "birth_year": date(1989, 12, 1)},
@@ -191,10 +197,14 @@ def test_sort_dict_of_lists(dtm: DefaultTableManager) -> None:
         "net_worth": [1000, 2000, 1500, 1800, 1700],
     }
     dtm.data = _normalize_data(data)
-    sorted_data = dtm.sort_values([SortArgs(by="net_worth", descending=False)]).data
+    sorted_data = dtm.sort_values(
+        [SortArgs(by="net_worth", descending=False)]
+    ).data
 
     with pytest.raises(KeyError):
-        _res = dtm.sort_values([SortArgs(by="missing_column", descending=True)]).data
+        _res = dtm.sort_values(
+            [SortArgs(by="missing_column", descending=True)]
+        ).data
 
     expected_data = {
         "company": [
@@ -222,7 +232,9 @@ def test_sort_dict_of_tuples(dtm: DefaultTableManager) -> None:
     sorted_data = dtm.sort_values([SortArgs(by="key1", descending=True)]).data
 
     with pytest.raises(KeyError):
-        _res = dtm.sort_values([SortArgs(by="missing_column", descending=True)]).data
+        _res = dtm.sort_values(
+            [SortArgs(by="missing_column", descending=True)]
+        ).data
 
     expected_data = [
         {"key1": 42, "key2": 99, "key3": 34, "key4": 1, "key5": 7},
