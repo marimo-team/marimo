@@ -220,7 +220,7 @@ class TestDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
 
         sorted_data = manager.sort_values(
-            by=[("category", False), ("name", False)]
+            by=[SortArgs(by="category", descending=False), SortArgs(by="name", descending=False)]
         ).data
         expected_data = [
             {"category": 1, "name": "Alice"},
@@ -239,7 +239,7 @@ class TestDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
 
         sorted_data = manager.sort_values(
-            by=[("priority", False), ("score", True)]
+            by=[SortArgs(by="priority", descending=False), SortArgs(by="score", descending=True)]
         ).data
         expected_data = [
             {"priority": 1, "score": 90},
@@ -258,7 +258,7 @@ class TestDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
 
         sorted_data = manager.sort_values(
-            by=[("group", False), ("value", False)]
+            by=[SortArgs(by="group", descending=False), SortArgs(by="value", descending=False)]
         ).data
         expected_data = [
             {"group": 1, "value": 10},
@@ -278,7 +278,7 @@ class TestDefaultTable(unittest.TestCase):
 
         # Should fall back to string comparison for mixed types
         sorted_data = manager.sort_values(
-            by=[("id", False), ("value", False)]
+            by=[SortArgs(by="id", descending=False), SortArgs(by="value", descending=False)]
         ).data
         expected_data = [
             {"id": 1, "value": 42},
@@ -613,13 +613,13 @@ class TestColumnarDefaultTable(unittest.TestCase):
         data_with_strings["name"][1] = None
         manager_with_strings = DefaultTableManager(data_with_strings)
         sorted_data = manager_with_strings.sort_values(
-            by=[("name", False)]
+            by=[SortArgs(by="name", descending=False)]
         ).data
         assert sorted_data["name"][-1] is None
 
         # strings descending
         sorted_data = manager_with_strings.sort_values(
-            by=[("name", False)]
+            by=[SortArgs(by="name", descending=False)]
         ).data
         assert sorted_data["name"][-1] is None
 
@@ -632,7 +632,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
 
         sorted_data = manager.sort_values(
-            by=[("category", False), ("name", False)]
+            by=[SortArgs(by="category", descending=False), SortArgs(by="name", descending=False)]
         ).data
         expected_data = {
             "category": [1, 1, 2],
@@ -649,7 +649,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
 
         sorted_data = manager.sort_values(
-            by=[("group", False), ("value", False)]
+            by=[SortArgs(by="group", descending=False), SortArgs(by="value", descending=False)]
         ).data
         expected_data = {
             "group": [1, 1, 2],
@@ -1000,7 +1000,7 @@ class TestDictionaryDefaultTable(unittest.TestCase):
 
         # strings descending
         sorted_data = data_with_strings.sort_values(
-            [SortArgs(by="value", descending=False)]
+            [SortArgs(by="value", descending=True)]
         ).data
         assert sorted_data == [
             {"key": "a", "value": "foo"},
