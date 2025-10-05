@@ -311,10 +311,10 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             result = result.search(query)
 
         if sort:
-            # Check that all columns exist
             existing_columns = set(result.get_column_names())
-            if all(s.by in existing_columns for s in sort):
-                result = result.sort_values(sort)
+            valid_sort = [s for s in sort if s.by in existing_columns]
+            if valid_sort:
+                result = result.sort_values(valid_sort)
 
         return result
 
