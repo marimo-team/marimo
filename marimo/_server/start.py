@@ -13,6 +13,7 @@ import marimo._server.api.lifespans as lifespans
 from marimo._cli.print import echo
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._mcp.server.main import setup_mcp_server
 from marimo._messaging.ops import StartupLogs
 from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
@@ -174,6 +175,16 @@ def start(
     Start the server.
     """
 
+    # Defaults when mcp is enabled
+    if mcp:
+        # Turn on watch mode
+        watch = True
+        # Turn off skew protection for MCP server
+        # since it is more convenient to connect to.
+        # Skew protection is not a security thing, but rather
+        # prevents connecting to old servers.
+        skew_protection = False
+
     # Find a free port if none is specified
     # if the user specifies a port, we don't try to find a free one
     port = port or find_free_port(DEFAULT_PORT, addr=host)
@@ -240,7 +251,9 @@ def start(
         *LIFESPAN_REGISTRY.get_all(),
     ]
 
-    if mcp and mode == SessionMode.EDIT:
+    mcp_enabled = mcp and mode == SessionMode.EDIT
+
+    if mcp_enabled:
         from marimo._mcp.server.lifespan import mcp_server_lifespan
 
         lifespans_list.append(mcp_server_lifespan)
@@ -259,6 +272,9 @@ def start(
         skew_protection=skew_protection,
         timeout=timeout,
     )
+
+    if mcp_enabled:
+        setup_mcp_server(app)
 
     app.state.port = external_port
     app.state.host = external_host
