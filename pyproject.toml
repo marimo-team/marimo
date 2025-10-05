@@ -116,7 +116,7 @@ dev = [
 ]
 
 lsp = [
-    "python-lsp-server>=1.13.0",
+    "python-lsp-server>=1.13.1",
     "python-lsp-ruff>=2.0.0",
 ]
 
