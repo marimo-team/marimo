@@ -30,8 +30,11 @@ Install [pixi](https://github.com/prefix-dev/pixi) to manage your development en
 > Note that developing in Gitpod is not officially supported by the marimo team.
 
 ```bash
-pixi run hatch shell
+pixi shell
 ```
+
+If you have the right non-python dependencies installed via other methods (e.g. homebrew) you can simply activate your `marimo` development 
+environment with `hatch shell`. 
 
 Now you can install the environment frontend and Python dependencies.
 
@@ -45,10 +48,36 @@ After doing this, you can instantiate your marimo development environment by run
 make dev
 ```
 
+This will launch two processes, the backend one in port 2718 and the front end one in port 3000.
+
+In summary you will need to run:
+
+```bash
+pixi shell
+make fe && make py
+make dev
+```
+
+or if not using `pixi`:
+
+```bash
+hatch shell
+make fe && make py
+make dev
+```
+
+### `pre-commit` hooks
+
 You can optionally install [pre-commit](https://pre-commit.com/) hooks to automatically run the validation checks when making a commit:
 
 ```bash
 uvx pre-commit install
+```
+
+or
+
+```bash
+pixi run pre-commit install
 ```
 
 To build the frontend unminified, run:
@@ -56,6 +85,8 @@ To build the frontend unminified, run:
 ```bash
 NODE_ENV=development make fe -B
 ```
+
+
 
 ## `make` commands
 
