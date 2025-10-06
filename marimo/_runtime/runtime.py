@@ -2200,7 +2200,8 @@ class Kernel:
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadRequest,
         ) -> None:
-            await self.run_scratchpad(request.code)
+            with http_request_context(request.request):
+                await self.run_scratchpad(request.code)
             CompletedRun().broadcast()
 
         async def handle_execute_stale(request: ExecuteStaleRequest) -> None:
