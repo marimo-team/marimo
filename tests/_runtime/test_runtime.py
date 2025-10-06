@@ -1657,11 +1657,13 @@ except NameError:
         """
         k = execution_kernel
         # Setup: Create initial graph state with dependencies
-        await k.run([
-            ExecutionRequest(cell_id="0", code="x = 1"),
-            ExecutionRequest(cell_id="1", code="y = x + 1"),
-            ExecutionRequest(cell_id="2", code="z = y + 1"),
-        ])
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 1"),
+                ExecutionRequest(cell_id="1", code="y = x + 1"),
+                ExecutionRequest(cell_id="2", code="z = y + 1"),
+            ]
+        )
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
         assert k.globals["z"] == 3
@@ -1679,17 +1681,17 @@ except NameError:
         assert k.globals["y"] == 11  # updated
         assert k.globals["z"] == 12  # cascaded from y
 
-    async def test_sync_graph_orphaned_cells(
-        self, any_kernel: Kernel
-    ) -> None:
+    async def test_sync_graph_orphaned_cells(self, any_kernel: Kernel) -> None:
         """Test orphaned cell detection: cell in kernel but not file manager."""
         k = any_kernel
         # Setup: Create 3 cells
-        await k.run([
-            ExecutionRequest(cell_id="0", code="x = 1"),
-            ExecutionRequest(cell_id="1", code="y = x + 1"),
-            ExecutionRequest(cell_id="2", code="z = y + 1"),
-        ])
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 1"),
+                ExecutionRequest(cell_id="1", code="y = x + 1"),
+                ExecutionRequest(cell_id="2", code="z = y + 1"),
+            ]
+        )
         assert "z" in k.globals
         assert len(k.graph.cells) == 3
 
@@ -1714,12 +1716,14 @@ except NameError:
         """Test both orphaned and explicitly deleted cells."""
         k = any_kernel
         # Setup: Kernel has A, B, C, D
-        await k.run([
-            ExecutionRequest(cell_id="0", code="a = 1"),
-            ExecutionRequest(cell_id="1", code="b = 2"),
-            ExecutionRequest(cell_id="2", code="c = 3"),
-            ExecutionRequest(cell_id="3", code="d = 4"),
-        ])
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="a = 1"),
+                ExecutionRequest(cell_id="1", code="b = 2"),
+                ExecutionRequest(cell_id="2", code="c = 3"),
+                ExecutionRequest(cell_id="3", code="d = 4"),
+            ]
+        )
         assert len(k.graph.cells) == 4
 
         # Action: File manager knows A and C, explicitly deletes B
@@ -1754,17 +1758,21 @@ except NameError:
                     ExecutionRequest(cell_id="1", code="y = 1"),
                     ExecutionRequest(cell_id="2", code="z = 2"),
                 ),
-                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values([]),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
                 auto_run=False,
             )
         )
         assert len(k._uninstantiated_execution_requests) == 3
 
         # Run cells 0 and 1 to add them to graph, keeping cell 2 uninstantiated
-        await k.run([
-            ExecutionRequest(cell_id="0", code="x = 0"),
-            ExecutionRequest(cell_id="1", code="y = 1"),
-        ])
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 0"),
+                ExecutionRequest(cell_id="1", code="y = 1"),
+            ]
+        )
         # Cell 2 is still uninstantiated, cells 0 and 1 are in graph
         assert len(k.graph.cells) == 2
         assert "2" in k._uninstantiated_execution_requests
@@ -1791,11 +1799,13 @@ except NameError:
         """Test simultaneous run and delete in single sync operation."""
         k = any_kernel
         # Setup: Create A→B→C dependency chain
-        await k.run([
-            ExecutionRequest(cell_id="0", code="x = 1"),
-            ExecutionRequest(cell_id="1", code="y = x + 1"),
-            ExecutionRequest(cell_id="2", code="z = y + 1"),
-        ])
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 1"),
+                ExecutionRequest(cell_id="1", code="y = x + 1"),
+                ExecutionRequest(cell_id="2", code="z = y + 1"),
+            ]
+        )
         assert k.globals["z"] == 3
         assert len(k.graph.cells) == 3
 
@@ -1821,9 +1831,11 @@ except NameError:
         """Test error propagation when sync introduces errors."""
         k = any_kernel
         # Setup: Cell 0 defines x
-        await k.run([
-            ExecutionRequest(cell_id="0", code="x = 1"),
-        ])
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 1"),
+            ]
+        )
         assert "x" in k.globals
         assert not k.errors
 
@@ -1845,10 +1857,12 @@ except NameError:
         """Test no-op sync when already in sync."""
         k = any_kernel
         # Setup: Create cells
-        await k.run([
-            ExecutionRequest(cell_id="0", code="x = 1"),
-            ExecutionRequest(cell_id="1", code="y = 2"),
-        ])
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 1"),
+                ExecutionRequest(cell_id="1", code="y = 2"),
+            ]
+        )
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
 

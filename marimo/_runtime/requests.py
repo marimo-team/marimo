@@ -429,6 +429,7 @@ ControlRequest = Union[
     DeleteCellRequest,
     PdbRequest,
     ExecuteScratchpadRequest,
+    SyncGraphRequest,
     RenameRequest,
     SetCellConfigRequest,
     SetUserConfigRequest,

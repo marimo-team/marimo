@@ -1101,8 +1101,14 @@ def test_file_change_handler_uses_sync_graph_with_autorun() -> None:
 
     # Create a mock session
     session = MagicMock()
-    session.app_file_manager.app.cell_manager.codes.return_value = ["x = 1", "y = 2"]
-    session.app_file_manager.app.cell_manager.cell_ids.return_value = ["0", "1"]
+    session.app_file_manager.app.cell_manager.codes.return_value = [
+        "x = 1",
+        "y = 2",
+    ]
+    session.app_file_manager.app.cell_manager.cell_ids.return_value = [
+        "0",
+        "1",
+    ]
     session.app_file_manager.reload.return_value = {"1"}  # cell 1 changed
 
     # Create a session manager with autorun enabled
@@ -1112,11 +1118,13 @@ def test_file_change_handler_uses_sync_graph_with_autorun() -> None:
     # Create config manager with autorun enabled
     config_manager = get_default_config_manager(
         current_path=None
-    ).with_overrides({
-        "runtime": {
-            "watcher_on_save": "autorun",
+    ).with_overrides(
+        {
+            "runtime": {
+                "watcher_on_save": "autorun",
+            }
         }
-    })
+    )
 
     # Create the file change handler
     handler = SessionFileChangeHandler(
@@ -1126,7 +1134,9 @@ def test_file_change_handler_uses_sync_graph_with_autorun() -> None:
 
     # Capture put_control_request calls
     control_requests = []
-    session.put_control_request = lambda req, **_kwargs: control_requests.append(req)
+    session.put_control_request = (
+        lambda req, **_kwargs: control_requests.append(req)
+    )
 
     # Handle file change
     handler._handle_file_change("/path/to/file.py", session)
