@@ -151,6 +151,7 @@ def create_kernel_context(
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.state import StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
+    from marimo._save.cache import CellCacheContext
     from marimo._save.stores import get_store
 
     return KernelRuntimeContext(
@@ -161,6 +162,7 @@ def create_kernel_context(
         state_registry=StateRegistry(),
         function_registry=FunctionRegistry(),
         cache_store=get_store(kernel.app_metadata.filename),
+        cell_cache_context=CellCacheContext(),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=AppKernelRunnerRegistry(),
         virtual_file_registry=VirtualFileRegistry(),

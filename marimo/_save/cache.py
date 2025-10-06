@@ -454,3 +454,37 @@ class CacheContext:
         if self._loader is None:
             return 0.0
         return self.loader.time_saved
+
+
+class CellCacheContext:
+    """Tracks aggregated cell-level cache statistics."""
+
+    def __init__(self) -> None:
+        self._hits = 0
+        self._misses = 0
+        self._time_saved = 0.0
+
+    def record_hit(self, time_saved: float) -> None:
+        """Record a cache hit with time saved."""
+        self._hits += 1
+        self._time_saved += time_saved
+
+    def record_miss(self) -> None:
+        """Record a cache miss."""
+        self._misses += 1
+
+    def cache_info(self) -> CacheInfo:
+        """Return cache statistics in functools.lru_cache format."""
+        return CacheInfo(
+            hits=self._hits,
+            misses=self._misses,
+            maxsize=None,
+            currsize=0,
+            time_saved=self._time_saved,
+        )
+
+    def reset(self) -> None:
+        """Reset all statistics."""
+        self._hits = 0
+        self._misses = 0
+        self._time_saved = 0.0

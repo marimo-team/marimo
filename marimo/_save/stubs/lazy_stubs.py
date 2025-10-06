@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 """msgspec schemas for lazystore, replacing protobuf definitions."""
 
 from __future__ import annotations
@@ -48,7 +49,7 @@ class Item(msgspec.Struct):
     module: Optional[str] = None
     function: Optional[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Ensure only one field is set (mimicking protobuf oneof behavior)
         fields_set = sum(
             1
@@ -90,7 +91,7 @@ class ReferenceStub:
         self.name = name
         self.loader = loader
 
-    def load(self, glbls) -> Any:
+    def load(self, glbls: dict[str, Any]) -> Any:
         """Load the reference from the store."""
         del glbls  # Unused for now
         blob = self.to_bytes()

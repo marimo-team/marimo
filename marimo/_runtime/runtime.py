@@ -2884,6 +2884,9 @@ class CacheCallbacks:
                 if isinstance(obj.loader, BasePersistenceLoader):
                     obj.loader.clear()
 
+        # Reset cell-level cache statistics
+        ctx.cell_cache_context.reset()
+
         CacheCleared(bytes_freed=saved).broadcast()
 
     async def get_cache_info(self, request: GetCacheInfoRequest) -> None:
@@ -2897,6 +2900,7 @@ class CacheCallbacks:
         disk_to_free = -1  # TODO: sum up disk usage
         disk_total = -1
 
+        # Aggregate stats from mo.cache() decorators
         for obj in ctx.globals.values():
             if isinstance(obj, CacheContext):
                 hits, misses, _, _, time = obj.cache_info()
@@ -2904,6 +2908,15 @@ class CacheCallbacks:
                 total_misses += misses
                 total_time += time
                 # d2f, dt = obj.loader.disk_usage()
+
+        # Aggregate stats from cell-level caching
+        cell_hits, cell_misses, _, _, cell_time = (
+            ctx.cell_cache_context.cache_info()
+        )
+        total_hits += cell_hits
+        total_misses += cell_misses
+        total_time += cell_time
+
         CacheInfoFetched(
             hits=total_hits,
             misses=total_misses,

@@ -1,7 +1,8 @@
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
 import pickle
-import traceback
+import time
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
     Name = str
 
 
-def deserializer_by_suffix(suffix: str) -> Any:
+def deserializer_by_suffix(_suffix: str) -> Any:
     """Get the appropriate loader based on the file suffix."""
     return pickle.loads
 
@@ -31,8 +32,8 @@ def deserializer_by_suffix(suffix: str) -> Any:
 def hydrate(
     refs: set[Name],
     glbls: dict[str, Any],
-    graph: DirectedGraph,
-    loader: Loader,
+    _graph: DirectedGraph,
+    _loader: Loader,
 ) -> None:
     """Hydrate references in the global scope."""
     for ref in refs:
@@ -44,7 +45,7 @@ def hydrate(
 
 
 def process(
-    cell: CellImpl, glbls: dict[str, Any], graph: DirectedGraph, loader
+    cell: CellImpl, glbls: dict[str, Any], graph: DirectedGraph, loader: Loader
 ) -> Cache:
     attempt = None
     try:
@@ -71,9 +72,18 @@ def process(
 
 
 def backfill(
-    cell: CellImpl, glbls: dict[str, Any], result: Any, attempt: Cache, loader
+    cell: CellImpl,
+    glbls: dict[str, Any],
+    result: Any,
+    attempt: Cache,
+    loader: Loader,
+    runtime: float,
 ) -> Any:
-    attempt.update({**glbls}, {"return": result}, preserve_pointers=False)
+    attempt.update(
+        {**glbls},
+        {"return": result, "runtime": runtime},
+        preserve_pointers=False,
+    )
     try:
         loader.save_cache(attempt)
     except Exception as e:
@@ -103,13 +113,42 @@ class CachedExecutor(Executor):
     ) -> Any:
         LOGGER.info(f"{glbls.keys()=}")
         loader = LazyLoader(name=cell.cell_id)
+
+        load_start = time.time()
         attempt = process(cell, glbls, graph, loader)
+        load_time = time.time() - load_start
+
         if attempt.hit:
+            # Record cache hit with time saved
+            try:
+                ctx = get_context()
+                original_runtime = attempt.meta.get("runtime", 0)
+                time_saved = max(0, original_runtime - load_time)
+                ctx.cell_cache_context.record_hit(time_saved)
+            except ContextNotInitializedError:
+                pass
+
             CellOp.broadcast_cache(cell_id=cell.cell_id, cache="hit")
             return attempt.meta.get("return")
+
+        # Record cache miss
+        try:
+            ctx = get_context()
+            ctx.cell_cache_context.record_miss()
+        except ContextNotInitializedError:
+            pass
+
         hydrate(cell.refs, glbls, graph, loader)
+
+        # Measure execution time
+        exec_start = time.time()
+        assert self.base is not None, "CachedExecutor requires a base executor"
         result = self.base.execute_cell(cell, glbls, graph)
-        backfilled_result = backfill(cell, glbls, result, attempt, loader)
+        runtime = time.time() - exec_start
+
+        backfilled_result = backfill(
+            cell, glbls, result, attempt, loader, runtime
+        )
         CellOp.broadcast_cache(cell_id=cell.cell_id, cache="cached")
         return backfilled_result
 
@@ -121,12 +160,41 @@ class CachedExecutor(Executor):
     ) -> Any:
         LOGGER.info(f"??{glbls.keys()=}")
         loader = LazyLoader(name=cell.cell_id)
+
+        load_start = time.time()
         attempt = process(cell, glbls, graph, loader)
+        load_time = time.time() - load_start
+
         if attempt.hit:
+            # Record cache hit with time saved
+            try:
+                ctx = get_context()
+                original_runtime = attempt.meta.get("runtime", 0)
+                time_saved = max(0, original_runtime - load_time)
+                ctx.cell_cache_context.record_hit(time_saved)
+            except ContextNotInitializedError:
+                pass
+
             CellOp.broadcast_cache(cell_id=cell.cell_id, cache="hit")
             return attempt.meta.get("return")
+
+        # Record cache miss
+        try:
+            ctx = get_context()
+            ctx.cell_cache_context.record_miss()
+        except ContextNotInitializedError:
+            pass
+
         hydrate(cell.refs, glbls, graph, loader)
+
+        # Measure execution time
+        exec_start = time.time()
+        assert self.base is not None, "CachedExecutor requires a base executor"
         result = await self.base.execute_cell_async(cell, glbls, graph)
-        backfilled_result = backfill(cell, glbls, result, attempt, loader)
+        runtime = time.time() - exec_start
+
+        backfilled_result = backfill(
+            cell, glbls, result, attempt, loader, runtime
+        )
         CellOp.broadcast_cache(cell_id=cell.cell_id, cache="cached")
         return backfilled_result

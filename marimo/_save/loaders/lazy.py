@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 import pickle
 from pathlib import Path
 from typing import Any, Optional
@@ -26,7 +27,9 @@ from marimo._save.stubs.lazy_stubs import (
 )
 
 
-def to_item(path, value: Optional[Any], loader: str | None = None) -> Item:
+def to_item(
+    path: Path, value: Optional[Any], loader: str | None = None
+) -> Item:
     if value is None:
         # If the value is None, we store it as an empty item
         return Item()
@@ -60,13 +63,13 @@ def from_item(item: Item) -> Any:
         # If the item is a reference, we don't need to load it
         return ReferenceStub(item.reference)
     elif item.module is not None:
-        stub = ModuleStub.__new__(ModuleStub)
-        stub.name = item.module
-        return stub
+        module_stub = ModuleStub.__new__(ModuleStub)
+        module_stub.name = item.module
+        return module_stub
     elif item.function is not None:
-        stub = FunctionStub.__new__(FunctionStub)
-        stub.code = item.function
-        return stub
+        function_stub = FunctionStub.__new__(FunctionStub)
+        function_stub.code = item.function  # type: ignore[attr-defined]
+        return function_stub
     elif item.primitive is not None:
         # Direct primitive value
         return item.primitive
@@ -88,28 +91,28 @@ class LazyLoader(BasePersistenceLoader):
         super().__init__(name, "txtpb", store)
         self._loaders: dict[str, type[BasePersistenceLoader]] = {}
 
-    def restore_cache(self, key: HashKey, blob: bytes) -> Cache:
+    def restore_cache(self, _key: HashKey, blob: bytes) -> Cache:
         defs = {}
         # Decode msgspec JSON
         cache_data = msgspec.json.decode(blob, type=CacheSchema)
 
         ui_blob = self.store.get(
-            Path(self.name) / cache_data.hash / "ui.pickle"
+            (Path(self.name) / cache_data.hash / "ui.pickle").as_posix()
         )
-        if cache_data.ui_defs:
+        if cache_data.ui_defs and ui_blob is not None:
             ui_data = pickle.loads(ui_blob)
         # if the item is a reference, just put in a stub
-        for key, item in cache_data.defs.items():
-            if key in cache_data.ui_defs:
+        for var_name, item in cache_data.defs.items():
+            if var_name in cache_data.ui_defs:
                 # If the item is a UI element, we need to handle it differently
-                defs[key] = ui_data[key]
+                defs[var_name] = ui_data[var_name]
             else:
-                defs[key] = from_item(item)
+                defs[var_name] = from_item(item)
 
             # We do need to check that the item at leasts exists
-            if isinstance(defs[key], ReferenceStub):
-                assert self.store.hit(defs[key].name), (
-                    f"Invalid cache reference: {defs[key].name}"
+            if isinstance(defs[var_name], ReferenceStub):
+                assert self.store.hit(defs[var_name].name), (
+                    f"Invalid cache reference: {defs[var_name].name}"
                 )
 
         return_item = (
@@ -124,7 +127,7 @@ class LazyLoader(BasePersistenceLoader):
         return Cache(
             hash=cache_data.hash,
             cache_type=cache_data.cache_type.value,  # Convert enum to string
-            stateful_refs=cache_data.stateful_refs,
+            stateful_refs=set(cache_data.stateful_refs),
             defs=defs,
             meta={
                 "version": cache_data.meta.version or MARIMO_CACHE_VERSION,
@@ -145,7 +148,7 @@ class LazyLoader(BasePersistenceLoader):
         # return cache
 
     def to_blob(self, cache: Cache) -> bytes:
-        collections = {}
+        collections: dict[str, dict[str, Any]] = {}
         path = Path(self.name) / cache.hash  # / "lazy"
         return_item = to_item(path, cache.meta.get("return", None))
         if return_item.reference:
@@ -175,7 +178,7 @@ class LazyLoader(BasePersistenceLoader):
         store = CacheSchema(
             hash=cache.hash,
             cache_type=cache_type_enum,
-            stateful_refs=cache.stateful_refs,
+            stateful_refs=list(cache.stateful_refs),
             defs=defs_dict,
             meta=Meta(
                 version=cache.meta.get("version", MARIMO_CACHE_VERSION),
@@ -194,13 +197,13 @@ class LazyLoader(BasePersistenceLoader):
         if ui:
             blob = pickle.dumps(ui)
             ui_path = path / "ui.pickle"
-            self.store.put(ui_path, blob)
+            self.store.put(ui_path.as_posix(), blob)
             # Dump to shared pickle object
         pickles = collections.get("pickle", {})
         if pickles:
             blob = pickle.dumps(pickles)
             pickles_path = path / "pickles.pickle"
-            self.store.put(pickles_path, blob)
+            self.store.put(pickles_path.as_posix(), blob)
             # Dump to shared pickle object
 
         return msgspec.json.encode(store)
