@@ -99,29 +99,62 @@ export const CompletionActionsCellFooter: React.FC<{
 }> = ({ isLoading, onAccept, onDecline }) => {
   return (
     <>
-      <Button
-        variant="text"
+      <AcceptCompletionButton
+        isLoading={isLoading}
+        onAccept={onAccept}
         size="xs"
-        disabled={isLoading}
-        onClick={onAccept}
-        className="h-6 text-(--grass-11) border-(--grass-7) bg-(--grass-3)/60
-        hover:bg-(--grass-3) dark:bg-(--grass-4)/80 dark:hover:bg-(--grass-3) rounded px-3 font-semibold
-        active:bg-(--grass-5) dark:active:bg-(--grass-4)
-        border-(--green-6) border hover:shadow-xs"
-      >
-        Accept
-      </Button>
-      <Button
-        variant="text"
-        size="xs"
-        onClick={onDecline}
-        className="h-6 text-(--red-10) border-(--red-7) bg-(--red-3)/60 hover:bg-(--red-3)
-        dark:bg-(--red-4)/80 dark:hover:bg-(--red-3) rounded px-3 font-semibold
-        active:bg-(--red-5) dark:active:bg-(--red-4)
-        border-(--red-6) border hover:shadow-xs"
-      >
-        Reject
-      </Button>
+      />
+      <RejectCompletionButton onDecline={onDecline} size="xs" />
     </>
+  );
+};
+
+export const AcceptCompletionButton: React.FC<{
+  isLoading: boolean;
+  onAccept: () => void;
+  size?: "xs" | "sm";
+  className?: string;
+  acceptShortcut?: string;
+}> = ({ isLoading, onAccept, size = "sm", className, acceptShortcut }) => {
+  return (
+    <Button
+      variant="text"
+      size={size}
+      disabled={isLoading}
+      onClick={onAccept}
+      className={`h-6 text-(--grass-11) bg-(--grass-3)/60
+    hover:bg-(--grass-3) dark:bg-(--grass-4)/80 dark:hover:bg-(--grass-3) rounded px-3 font-semibold
+    active:bg-(--grass-5) dark:active:bg-(--grass-4)
+    border-(--green-6) border hover:shadow-xs ${className}`}
+    >
+      Accept
+      {acceptShortcut && (
+        <MinimalHotkeys className="ml-1 inline" shortcut={acceptShortcut} />
+      )}
+    </Button>
+  );
+};
+
+export const RejectCompletionButton: React.FC<{
+  onDecline: () => void;
+  size?: "xs" | "sm";
+  className?: string;
+  declineShortcut?: string;
+}> = ({ onDecline, size = "sm", className, declineShortcut }) => {
+  return (
+    <Button
+      variant="text"
+      size={size}
+      onClick={onDecline}
+      className={`h-6 text-(--red-10) bg-(--red-3)/60 hover:bg-(--red-3)
+    dark:bg-(--red-4)/80 dark:hover:bg-(--red-3) rounded px-3 font-semibold
+    active:bg-(--red-5) dark:active:bg-(--red-4)
+    border-(--red-6) border hover:shadow-xs ${className}`}
+    >
+      Reject
+      {declineShortcut && (
+        <MinimalHotkeys className="ml-1 inline" shortcut={declineShortcut} />
+      )}
+    </Button>
   );
 };
