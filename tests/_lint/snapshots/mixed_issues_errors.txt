@@ -1,0 +1,157 @@
+critical[unparsable-cells]: Notebook contains unparsable code
+ --> tests/_lint/test_files/mixed_issues.py:7:0
+   7 | app._unparsable_cell(
+   8 |     r"""
+     |     ^
+   9 |     This is a syntax error
+
+critical[unparsable-cells]: Notebook contains unparsable code
+ --> tests/_lint/test_files/mixed_issues.py:27:0
+  27 | app._unparsable_cell(
+  28 |     r"""
+     |     ^
+  29 |     This is another syntax error
+
+critical[unparsable-cells]: Notebook contains unparsable code
+ --> tests/_lint/test_files/mixed_issues.py:41:0
+  41 | app._unparsable_cell(
+  42 |     r"""
+     |     ^
+  43 |     from math import *
+
+critical[unparsable-cells]: Notebook contains unparsable code
+ --> tests/_lint/test_files/mixed_issues.py:63:0
+  63 | app._unparsable_cell(
+  64 |     r"""
+     |     ^
+  65 |     x = 1 +
+
+critical[unparsable-cells]: Notebook contains unparsable code
+ --> tests/_lint/test_files/mixed_issues.py:86:0
+  86 | app._unparsable_cell(
+  87 |     r"""
+     |     ^
+  88 |     def broken(
+
+critical[unparsable-cells]: Notebook contains unparsable code
+ --> tests/_lint/test_files/mixed_issues.py:110:0
+ 110 | app._unparsable_cell(
+ 111 |     r"""
+     |     ^
+ 112 |     class Broken
+
+critical[unparsable-cells]: Notebook contains unparsable code
+ --> tests/_lint/test_files/mixed_issues.py:133:0
+ 133 | app._unparsable_cell(
+ 134 |     r"""
+     |     ^
+ 135 |     import sys as
+
+critical[unparsable-cells]: Notebook contains unparsable code
+ --> tests/_lint/test_files/mixed_issues.py:154:0
+ 154 | app._unparsable_cell(
+ 155 |     r"""
+     |     ^
+ 156 |     for i in
+
+critical[multiple-definitions]: Variable 'Bar' is defined in multiple cells
+ --> tests/_lint/test_files/mixed_issues.py:104:1
+ 104 | def _():
+ 105 |     class Bar:
+     |     ^
+ 106 |         pass
+   ...
+ 120 | def _():
+ 121 |     class Bar:
+     |     ^
+ 122 |         pass
+hint: Variables must be unique across cells. Alternatively, they can be private with an underscore prefix (i.e. `_Bar`.)
+
+critical[multiple-definitions]: Variable 'a' is defined in multiple cells
+ --> tests/_lint/test_files/mixed_issues.py:22:1
+  22 | def _():
+  23 |     a = 1
+     |     ^
+  24 |     return
+   ...
+  36 | def _():
+  37 |     a = 2
+     |     ^
+  38 |     return
+   ...
+  50 | def _():
+  51 |     a = 3
+     |     ^
+  52 |     return
+hint: Variables must be unique across cells. Alternatively, they can be private with an underscore prefix (i.e. `_a`.)
+
+critical[multiple-definitions]: Variable 'b' is defined in multiple cells
+ --> tests/_lint/test_files/mixed_issues.py:57:1
+  57 | def _():
+  58 |     b = 1
+     |     ^
+  59 |     c = 1
+   ...
+  72 | def _():
+  73 |     b = 2
+     |     ^
+  74 |     c = 2
+hint: Variables must be unique across cells. Alternatively, they can be private with an underscore prefix (i.e. `_b`.)
+
+critical[multiple-definitions]: Variable 'c' is defined in multiple cells
+ --> tests/_lint/test_files/mixed_issues.py:58:1
+  58 |     b = 1
+  59 |     c = 1
+     |     ^
+  60 |     return b, c
+   ...
+  73 |     b = 2
+  74 |     c = 2
+     |     ^
+  75 |     return b, c
+hint: Variables must be unique across cells. Alternatively, they can be private with an underscore prefix (i.e. `_c`.)
+
+critical[multiple-definitions]: Variable 'foo' is defined in multiple cells
+ --> tests/_lint/test_files/mixed_issues.py:80:1
+  80 | def _():
+  81 |     def foo():
+     |     ^
+  82 |         return 1
+   ...
+  96 | def _():
+  97 |     def foo():
+     |     ^
+  98 |         return 2
+hint: Variables must be unique across cells. Alternatively, they can be private with an underscore prefix (i.e. `_foo`.)
+
+critical[multiple-definitions]: Variable 'os' is defined in multiple cells
+ --> tests/_lint/test_files/mixed_issues.py:128:1
+ 128 | def _():
+ 129 |     import os
+     |     ^
+ 130 |     return os,
+   ...
+ 142 | def _():
+ 143 |     import os
+     |     ^
+ 144 |     return os,
+hint: Variables must be unique across cells. Alternatively, they can be private with an underscore prefix (i.e. `_os`.)
+
+critical[cycle-dependencies]: Cell is part of a circular dependency
+ --> tests/_lint/test_files/mixed_issues.py:149:1
+ 149 | def _():
+ 150 |     d = e + 1
+     |     ^
+ 151 |     return d,
+   ...
+ 163 | def _():
+ 164 |     e = d + 1
+     |     ^
+ 165 |     return e,
+
+warning[empty-cells]: Empty cell can be removed (contains only whitespace, comments, or pass)
+ --> tests/_lint/test_files/mixed_issues.py:15:0
+  15 | @app.cell
+  16 | def _():
+     |     ^
+  17 |     # This is a blank cell
