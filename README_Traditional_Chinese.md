@@ -4,32 +4,35 @@
 
 <p align="center">
   <em>一個響應式的 Python 筆記本，可重現、支援 Git 版本控制，並可部署為腳本或應用程式。</em>
-
-<p align="center">
-    <a href="https://docs.marimo.io" target="_blank"><strong>文件</strong></a> · 
-    <a href="https://marimo.io/discord?ref=readme" target="_blank"><strong>Discord</strong></a> · 
-    <a href="https://docs.marimo.io/examples/" target="_blank"><strong>範例</strong></a> · 
-    <a href="https://marimo.io/gallery/" target="_blank"><strong>展示廊</strong></a> · 
-    <a href="https://www.youtube.com/@marimo-team/" target="_blank"><strong>YouTube</strong></a> 
 </p>
 
 <p align="center">
-    <a href="https://github.com/marimo-team/marimo/blob/main/README.md" target="_blank"><b>English</b></a>
-    <b> | 繁體中文 | </b>
-    <a href="https://github.com/marimo-team/marimo/blob/main/README_Chinese.md" target="_blank"><b>简体中文</b></a>
-    <b> | </b>
-    <a href="https://github.com/marimo-team/marimo/blob/main/README_Japanese.md" target="_blank"><b>日本語</b></a>
-    <b> | </b>
-    <a href="https://github.com/marimo-team/marimo/blob/main/README_Spanish.md" target="_blank"><b>Español</b></a>
+  <a href="https://docs.marimo.io" target="_blank"><strong>文件</strong></a> · 
+  <a href="https://marimo.io/discord?ref=readme" target="_blank"><strong>Discord</strong></a> · 
+  <a href="https://docs.marimo.io/examples/" target="_blank"><strong>範例</strong></a> · 
+  <a href="https://marimo.io/gallery/" target="_blank"><strong>展示廊</strong></a> · 
+  <a href="https://www.youtube.com/@marimo-team/" target="_blank"><strong>YouTube</strong></a> 
 </p>
 
 <p align="center">
-    <a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi"/></a>
-    <a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
-    <a href="https://marimo.io/discord?ref=readme"><img src="https://shields.io/discord/1059888774789730424" alt="discord" /></a>
-    <img alt="Pepy Total Downloads" src="https://img.shields.io/pepy/dt/marimo?label=pypi%20%7C%20downloads"/>
-    <img alt="Conda Downloads" src="https://img.shields.io/conda/d/conda-forge/marimo" />
-    <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README.md" target="_blank"><b>English</b></a>
+  <b> | </b>
+  <b>繁體中文</b>
+  <b> | </b>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Chinese.md" target="_blank"><b>简体中文</b></a>
+  <b> | </b>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Japanese.md" target="_blank"><b>日本語</b></a>
+  <b> | </b>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Spanish.md" target="_blank"><b>Español</b></a>
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi"/></a>
+  <a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
+  <a href="https://marimo.io/discord?ref=readme"><img src="https://shields.io/discord/1059888774789730424" alt="discord"/></a>
+  <img alt="Pepy Total Downloads" src="https://img.shields.io/pepy/dt/marimo?label=pypi%20%7C%20downloads"/>
+  <img alt="Conda Downloads" src="https://img.shields.io/conda/d/conda-forge/marimo"/>
+  <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo"/></a>
 </p>
 
 **marimo** 是一個響應式的 Python 筆記本：執行單元格或與 UI 元素互動時，marimo 會自動執行相依的單元格（或<a href="#expensive-notebooks">將其標記為過時</a>），保持程式碼和輸出的一致性。marimo 筆記本以純 Python 格式儲存（具有一流的 SQL 支援），可作為腳本執行，並可部署為應用程式。
