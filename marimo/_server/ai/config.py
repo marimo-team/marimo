@@ -175,10 +175,20 @@ class AnyProviderConfig:
     def for_bedrock(cls, config: AiConfig) -> AnyProviderConfig:
         ai_config = _get_ai_config(config, "bedrock")
         key = _get_key(ai_config, "Bedrock")
+        # Get per-model inference profiles from models config
+        model_inference_profiles = config.get("models", {}).get(
+            "bedrock_inference_profiles", {}
+        )
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
             tools=_get_tools(config.get("mode", "manual")),
+            # Store model_inference_profiles in extra_headers for provider access
+            extra_headers={
+                "X-Bedrock-Model-Inference-Profiles": str(
+                    model_inference_profiles
+                )
+            },
         )
 
     @classmethod

@@ -154,10 +154,20 @@ components:
         \ the model to use for edit completions\n    - `autocomplete_model`: the model\
         \ to use for code completion/autocomplete\n    - `displayed_models`: a list\
         \ of models to display in the UI\n    - `custom_models`: a list of custom\
-        \ models to use that are not from the default list"
+        \ models to use that are not from the default list\n    - `bedrock_inference_profiles`:\
+        \ a dict mapping bedrock model IDs to their inference profiles (us, eu, global,\
+        \ or none)"
       properties:
         autocomplete_model:
           type: string
+        bedrock_inference_profiles:
+          additionalProperties:
+            enum:
+            - eu
+            - global
+            - none
+            - us
+          type: object
         chat_model:
           type: string
         custom_models:

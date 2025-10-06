@@ -74,7 +74,7 @@ import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
 import { SettingSubtitle } from "./common";
-import { AWS_REGIONS } from "./constants";
+import { AWS_BEDROCK_INFERENCE_PROFILES, AWS_REGIONS } from "./constants";
 import { IncorrectModelId } from "./incorrect-model-id";
 import { IsOverridden } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
@@ -449,6 +449,8 @@ interface ModelListItemProps {
   isEnabled: boolean;
   onToggle: (modelId: QualifiedModelId) => void;
   onDelete: (modelId: QualifiedModelId) => void;
+  form?: UseFormReturn<UserConfig>;
+  onSubmit?: (values: UserConfig) => void;
 }
 
 const ModelListItem: React.FC<ModelListItemProps> = ({
@@ -457,6 +459,8 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
   isEnabled,
   onToggle,
   onDelete,
+  form,
+  onSubmit,
 }) => {
   const handleToggle = () => {
     onToggle(qualifiedId);
@@ -477,7 +481,12 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
     >
       <TreeItemContent>
         <div className="flex items-center justify-between px-4 py-3 border-b last:border-b-0 cursor-pointer outline-none">
-          <ModelInfoCard model={model} qualifiedId={qualifiedId} />
+          <ModelInfoCard
+            model={model}
+            qualifiedId={qualifiedId}
+            form={form}
+            onSubmit={onSubmit}
+          />
           {model.custom && (
             <Button
               variant="ghost"
@@ -498,10 +507,62 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
 const ModelInfoCard = ({
   model,
   qualifiedId,
+  form,
+  onSubmit,
 }: {
   model: AiModel;
   qualifiedId: QualifiedModelId;
+  form?: UseFormReturn<UserConfig>;
+  onSubmit?: (values: UserConfig) => void;
 }) => {
+  const modelId = AiModelId.parse(qualifiedId);
+  const isBedrockModel = modelId.providerId === "bedrock";
+
+  // Get the current inference profile for this model
+  const aiModels = form
+    ? useWatch({
+        control: form.control,
+        name: "ai.models",
+      })
+    : undefined;
+
+  const bedrockInferenceProfiles = aiModels?.bedrock_inference_profiles || {};
+
+  const currentProfile =
+    (bedrockInferenceProfiles[model.model] as string | undefined) || "none";
+
+  // Compute the display model ID with inference profile prefix
+  const displayModelId =
+    isBedrockModel && currentProfile !== "none"
+      ? `bedrock/${currentProfile}.${model.model}`
+      : qualifiedId;
+
+  const handleProfileChange = (newProfile: string) => {
+    if (!form || !onSubmit) {
+      return;
+    }
+
+    const updatedProfiles = { ...bedrockInferenceProfiles };
+    if (newProfile === "none") {
+      delete updatedProfiles[model.model];
+    } else {
+      updatedProfiles[model.model] = newProfile as
+        | "us"
+        | "eu"
+        | "global"
+        | "none";
+    }
+
+    const currentModels = form.getValues("ai.models");
+    if (currentModels) {
+      form.setValue("ai.models", {
+        ...currentModels,
+        bedrock_inference_profiles: updatedProfiles,
+      });
+      onSubmit(form.getValues());
+    }
+  };
+
   return (
     <div className="flex items-center gap-3 flex-1">
       <div className="flex flex-col flex-1">
@@ -512,12 +573,32 @@ const ModelInfoCard = ({
           </Tooltip>
         </div>
         <span className="text-xs text-muted-foreground font-mono">
-          {qualifiedId}
+          {displayModelId}
         </span>
         {model.description && !model.custom && (
           <p className="text-sm text-muted-secondary mt-1 line-clamp-2">
             {model.description}
           </p>
+        )}
+
+        {isBedrockModel && form && onSubmit && (
+          <div className="flex items-center gap-2 mt-2">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Inference Profile:
+            </Label>
+            <NativeSelect
+              value={currentProfile}
+              onChange={(e) => handleProfileChange(e.target.value)}
+              className="text-xs h-7"
+              onClick={Events.stopPropagation()}
+            >
+              {AWS_BEDROCK_INFERENCE_PROFILES.map((option) => (
+                <option value={option.value} key={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
         )}
 
         {model.thinking && (
@@ -1034,6 +1115,8 @@ interface ProviderTreeItemProps {
   onToggleModel: (modelId: QualifiedModelId) => void;
   onToggleProvider: (providerId: ProviderId, enable: boolean) => void;
   onDeleteModel: (modelId: QualifiedModelId) => void;
+  form?: UseFormReturn<UserConfig>;
+  onSubmit?: (values: UserConfig) => void;
 }
 
 const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
@@ -1043,6 +1126,8 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
   onToggleModel,
   onToggleProvider,
   onDeleteModel,
+  form,
+  onSubmit,
 }) => {
   const enabledCount = models.filter((model) =>
     enabledModels.has(new AiModelId(providerId, model.model).id),
@@ -1100,6 +1185,8 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
             isEnabled={enabledModels.has(qualifiedId)}
             onToggle={onToggleModel}
             onDelete={onDeleteModel}
+            form={form}
+            onSubmit={onSubmit}
           />
         );
       })}
@@ -1188,6 +1275,8 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
               onToggleModel={toggleModelDisplay}
               onToggleProvider={toggleProviderModels}
               onDeleteModel={deleteModel}
+              form={form}
+              onSubmit={onSubmit}
             />
           ))}
         </Tree>

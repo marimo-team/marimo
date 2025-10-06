@@ -221,6 +221,20 @@
 
 # Bedrock
 
+- name: Claude 4.5 Sonnet (Bedrock)
+  model: anthropic.claude-sonnet-4-5-20250929-v1:0
+  description: Newest balanced model with strong performance across reasoning, math, and coding
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Claude 4.1 Opus (Bedrock)
+  model: anthropic.claude-opus-4-1-20250805-v1:0
+  description: Large reasoning model w/ large context for challenging, complex tasks
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: true
+
 - name: Claude 3.7 Sonnet (Bedrock)
   model: anthropic.claude-3-7-sonnet-20250219-v1:0
   description: Enhanced Sonnet model with improved capabilities

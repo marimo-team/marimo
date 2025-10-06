@@ -1061,6 +1061,39 @@ class BedrockProvider(
         "LitellmStream",
     ]
 ):
+    def __init__(self, model: str, config: AnyProviderConfig):
+        # Extract model inference profiles from extra_headers
+        model_inference_profiles = {}
+        if (
+            config.extra_headers
+            and "X-Bedrock-Model-Inference-Profiles" in config.extra_headers
+        ):
+            import ast
+
+            profiles_str = config.extra_headers[
+                "X-Bedrock-Model-Inference-Profiles"
+            ]
+            try:
+                model_inference_profiles = ast.literal_eval(profiles_str)
+            except (ValueError, SyntaxError):
+                LOGGER.warning(
+                    f"Failed to parse model inference profiles: {profiles_str}"
+                )
+
+        # Look up the inference profile for this specific model, default to "none"
+        inference_profile = model_inference_profiles.get(model, "none")
+
+        # If inference_profile is not "none" and model doesn't have a prefix, add it
+        if inference_profile != "none":
+            if (
+                not model.startswith("us.")
+                and not model.startswith("eu.")
+                and not model.startswith("global.")
+            ):
+                model = f"{inference_profile}.{model}"
+
+        super().__init__(model, config)
+
     def setup_credentials(self, config: AnyProviderConfig) -> None:
         # Use profile name if provided, otherwise use API key
         try:
