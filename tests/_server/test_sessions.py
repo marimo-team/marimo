@@ -29,6 +29,7 @@ from marimo._runtime.requests import (
     ExecuteMultipleRequest,
     ExecutionRequest,
     SetUIElementValueRequest,
+    SyncGraphRequest,
 )
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
@@ -1092,3 +1093,48 @@ def test_session_with_script_config_overrides(
 
     # Cleanup
     session.close()
+
+
+def test_file_change_handler_uses_sync_graph_with_autorun() -> None:
+    """Test that SessionFileChangeHandler uses SyncGraphRequest when autorun is enabled."""
+    from marimo._server.sessions import SessionFileChangeHandler
+
+    # Create a mock session
+    session = MagicMock()
+    session.app_file_manager.app.cell_manager.codes.return_value = ["x = 1", "y = 2"]
+    session.app_file_manager.app.cell_manager.cell_ids.return_value = ["0", "1"]
+    session.app_file_manager.reload.return_value = {"1"}  # cell 1 changed
+
+    # Create a session manager with autorun enabled
+    session_manager = MagicMock()
+    session_manager.mode = SessionMode.EDIT
+
+    # Create config manager with autorun enabled
+    config_manager = get_default_config_manager(
+        current_path=None
+    ).with_overrides({
+        "runtime": {
+            "watcher_on_save": "autorun",
+        }
+    })
+
+    # Create the file change handler
+    handler = SessionFileChangeHandler(
+        session_manager=session_manager,
+        config_manager=config_manager,
+    )
+
+    # Capture put_control_request calls
+    control_requests = []
+    session.put_control_request = lambda req, **_kwargs: control_requests.append(req)
+
+    # Handle file change
+    handler._handle_file_change("/path/to/file.py", session)
+
+    # Verify SyncGraphRequest was created with correct parameters
+    assert len(control_requests) == 1
+    request = control_requests[0]
+    assert isinstance(request, SyncGraphRequest)
+    assert request.cells == {"0": "x = 1", "1": "y = 2"}
+    assert request.run_ids == ["1"]
+    assert request.delete_ids == []
