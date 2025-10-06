@@ -23,6 +23,12 @@ While editing a notebook with `marimo edit`, you can preview the notebook
 as an app by clicking the preview button in the bottom-right of the editor.
 (You can also use the command palette.)
 
+!!! note "`layouts` folder"
+   marimo saves metadata about your constructed layout in a `layouts` folder;
+   make sure to include this folder when sharing or deploying your notebook
+   so that others can reconstruct your layout. Include this folder in version
+   control.
+
 ### Vertical layout
 
 The default layout is the vertical layout: cell outputs are concatenated
@@ -52,10 +58,6 @@ Enable the grid editor in the app preview, via a dropdown:
   </figure>
   <figcaption>Grid layout lets you drag and drop outputs to construct your app</figcaption>
 </div>
-
-marimo saves metadata about your constructed layout in a `layouts` folder;
-make sure to include this folder when sharing your notebook so that others
-can reconstruct your layout.
 
 ### Slides layout
 
