@@ -595,6 +595,18 @@ class Session:
                     FocusCell(cell_id=request.cell_ids[0]),
                     except_consumer=from_consumer_id,
                 )
+        elif isinstance(request, requests.SyncGraphRequest):
+            # Broadcast cell codes for cells that are being run
+            if request.run_ids:
+                self.room.broadcast(
+                    UpdateCellCodes(
+                        cell_ids=request.run_ids,
+                        codes=[request.cells[cid] for cid in request.run_ids],
+                        # Not stale because we're running the code
+                        code_is_stale=False,
+                    ),
+                    except_consumer=from_consumer_id,
+                )
         self.session_view.add_control_request(request)
 
     def put_completion_request(
