@@ -181,6 +181,15 @@ class ExecuteMultipleRequest(msgspec.Struct, rename="camel"):
         )
 
 
+class SyncGraphRequest(msgspec.Struct, rename="camel"):
+    # ids of cells known to filemanager
+    cells: dict[CellId_t, str]
+    # From the list of ALL cells that filemanager knows about,
+    # denote what should be run/ updated or deleted.
+    run_ids: list[CellId_t]
+    delete_ids: list[CellId_t]
+
+
 class ExecuteScratchpadRequest(msgspec.Struct, rename="camel"):
     code: str
     # incoming request, e.g. from Starlette or FastAPI

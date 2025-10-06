@@ -67,6 +67,7 @@ class AppFileManager:
         # Return the changes cell IDs
         prev_cell_ids = set(prev_cell_manager.cell_ids())
         current_cell_ids = set(self.app.cell_manager.cell_ids())
+
         # Capture deleted cells
         changed_cell_ids: set[CellId_t] = prev_cell_ids - current_cell_ids
         for cell_id in current_cell_ids:

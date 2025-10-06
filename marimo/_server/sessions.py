@@ -57,6 +57,7 @@ from marimo._runtime.requests import (
     SerializedCLIArgs,
     SerializedQueryParams,
     SetUIElementValueRequest,
+    SyncGraphRequest,
 )
 from marimo._server.exceptions import InvalidSessionException
 from marimo._server.file_manager import AppFileManager
@@ -1203,40 +1204,29 @@ class SessionFileChangeHandler:
             "watcher_on_save"
         ]
         should_autorun = watcher_on_save == "autorun"
+        deleted = {
+            cell_id for cell_id in changed_cell_ids if cell_id not in cell_ids
+        }
 
         # Auto-run cells if configured
         if should_autorun:
-            cell_ids_to_idx = {
-                cell_id: idx for idx, cell_id in enumerate(cell_ids)
-            }
-            deleted = {
-                cell_id
-                for cell_id in changed_cell_ids
-                if cell_id not in cell_ids_to_idx
-            }
             changed_cell_ids_list = list(changed_cell_ids - deleted)
-            changed_codes = [
-                codes[cell_ids_to_idx[cell_id]]
-                for cell_id in changed_cell_ids_list
-                if cell_id not in deleted
-            ]
+            cells = dict(zip(cell_ids, codes))
 
-            if changed_cell_ids_list:
-                # This runs the request and also runs UpdateCellCodes
-                session.put_control_request(
-                    ExecuteMultipleRequest(
-                        cell_ids=changed_cell_ids_list,
-                        codes=changed_codes,
-                        request=None,
-                    ),
-                    from_consumer_id=None,
-                )
+            session.put_control_request(
+                SyncGraphRequest(
+                    cells=cells,
+                    run_ids=changed_cell_ids_list,
+                    delete_ids=list(deleted),
+                ),
+                from_consumer_id=None,
+            )
+        else:
             for to_delete in deleted:
                 session.put_control_request(
                     DeleteCellRequest(cell_id=to_delete),
                     from_consumer_id=None,
                 )
-        else:
             session.write_operation(
                 UpdateCellCodes(
                     cell_ids=cell_ids,
