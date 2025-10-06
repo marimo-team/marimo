@@ -1,10 +1,16 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
+
 import fnmatch
 import os
 import re
-from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
-from typing import Union
+from typing import TYPE_CHECKING, Union
+
+from marimo._utils import aio_path
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Generator
 
 
 def natural_sort(filename: str) -> list[Union[int, str]]:
@@ -103,12 +109,12 @@ async def async_expand_file_patterns(
     seen = set()
 
     for pattern in file_patterns:
-        if os.path.isfile(pattern):
+        if await aio_path.isfile(pattern):
             path = Path(pattern)
             if path not in seen:
                 seen.add(path)
                 yield path
-        elif os.path.isdir(pattern):
+        elif await aio_path.isdir(pattern):
             async for file_path in async_get_files(pattern):
                 if file_path not in seen:
                     seen.add(file_path)
@@ -120,7 +126,7 @@ async def async_expand_file_patterns(
                 root = _get_root(pattern)
 
                 # Get all files from root and filter by pattern
-                if os.path.isdir(root):
+                if await aio_path.isdir(root):
                     async for file_path in async_get_files(root):
                         if (
                             fnmatch.fnmatch(str(file_path), pattern)
