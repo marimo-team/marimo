@@ -205,7 +205,7 @@ type DataTableFunctions = {
     sort?: {
       by: string;
       descending: boolean;
-    };
+    }[];
     query?: string;
     filters?: ConditionType[];
     page_number: number;
@@ -298,7 +298,12 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       .input(
         z.object({
           sort: z
-            .object({ by: z.string(), descending: z.boolean() })
+            .array(
+              z.object({
+                by: z.string(),
+                descending: z.boolean(),
+              }),
+            )
             .optional(),
           query: z.string().optional(),
           filters: z.array(ConditionSchema).optional(),
@@ -501,19 +506,15 @@ export const LoadingDataTableComponent = memo(
         !props.lazy &&
         !pageSizeChanged;
 
-      if (sorting.length > 1) {
-        Logger.warn("Multiple sort columns are not supported");
-      }
+      // Convert sorting state to API format
+      const sortArgs =
+        sorting.length > 0
+          ? sorting.map((s) => ({ by: s.id, descending: s.desc }))
+          : undefined;
 
       // If we have sort/search/filter, use the search function
       const searchResultsPromise = search<T>({
-        sort:
-          sorting.length > 0
-            ? {
-                by: sorting[0].id,
-                descending: sorting[0].desc,
-              }
-            : undefined,
+        sort: sortArgs,
         query: searchQuery,
         page_number: paginationState.pageIndex,
         page_size: paginationState.pageSize,
@@ -563,16 +564,15 @@ export const LoadingDataTableComponent = memo(
 
     const getRow = useCallback(
       async (rowId: number) => {
+        const sortArgs =
+          sorting.length > 0
+            ? sorting.map((s) => ({ by: s.id, descending: s.desc }))
+            : undefined;
+
         const result = await search<T>({
           page_number: rowId,
           page_size: 1,
-          sort:
-            sorting.length > 0
-              ? {
-                  by: sorting[0].id,
-                  descending: sorting[0].desc,
-                }
-              : undefined,
+          sort: sortArgs,
           query: searchQuery,
           filters: filters.flatMap((filter) => {
             return filterToFilterCondition(

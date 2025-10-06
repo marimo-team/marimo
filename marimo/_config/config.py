@@ -439,9 +439,11 @@ class DiagnosticsConfig(TypedDict, total=False):
     **Keys.**
 
     - `enabled`: if `True`, diagnostics will be shown in the editor
+    - `sql_linter`: if `True`, SQL cells will have linting enabled
     """
 
     enabled: bool
+    sql_linter: bool
 
 
 @dataclass
@@ -511,8 +513,6 @@ class ExperimentalConfig(TypedDict, total=False):
     rtc_v2: bool
     performant_table_charts: bool
     chat_modes: bool
-    sql_linter: bool
-    sql_mode: bool
 
     # Internal features
     cache: CacheConfig
@@ -676,6 +676,9 @@ DEFAULT_CONFIG: MarimoConfig = {
     "mcp": {
         "mcpServers": {},
         "presets": [],
+    },
+    "diagnostics": {
+        "sql_linter": True,
     },
 }
 

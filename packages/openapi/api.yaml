@@ -1118,9 +1118,12 @@ components:
       type: object
     DiagnosticsConfig:
       description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
-        \  - `enabled`: if `True`, diagnostics will be shown in the editor"
+        \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
+        \ `sql_linter`: if `True`, SQL cells will have linting enabled"
       properties:
         enabled:
+          type: boolean
+        sql_linter:
           type: boolean
       required: []
       title: DiagnosticsConfig

@@ -303,15 +303,18 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
     def _apply_filters_query_sort(
         self,
         query: Optional[str],
-        sort: Optional[SortArgs],
+        sort: Optional[list[SortArgs]],
     ) -> TableManager[Any]:
         result = self._get_cached_table_manager(self._value, self._limit)
 
         if query:
             result = result.search(query)
 
-        if sort and sort.by in result.get_column_names():
-            result = result.sort_values(sort.by, sort.descending)
+        if sort:
+            existing_columns = set(result.get_column_names())
+            valid_sort = [s for s in sort if s.by in existing_columns]
+            if valid_sort:
+                result = result.sort_values(valid_sort)
 
         return result
 

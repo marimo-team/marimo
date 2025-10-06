@@ -189,7 +189,7 @@ def test_parameter_descriptions(obj: Any, runtime_inference: bool):
     if path.startswith("marimo._save.save."):
         pytest.skip(
             "Cache functions use overloads to distinguish calls and context managers"
-            " this can be fixed by splitting docstring on per-oveload basis, but that"
+            " this can be fixed by splitting docstring on per-overload basis, but that"
             " is not yet supported by mkdocstrings for documentation rendering, see"
             " https://github.com/mkdocstrings/python/issues/135"
         )

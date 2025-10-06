@@ -14,7 +14,7 @@ optionally, automatically run them.
 
 Based on static analysis, the reloader only runs cells affected by your edits.
 The reloader is recursive, meaning that marimo tracks modifications for modules
-imported by your notebook's imported modules too. These two featuers make
+imported by your notebook's imported modules too. These two features make
 marimo's module autoreloader far more advanced than IPython's.
 
 Autoreloading comes in two types:

@@ -299,7 +299,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         component_schemas[name] = converter.convert(cls, processed_classes)
         processed_classes[cls] = name
 
-    schemas_geneartor = SchemaGenerator(
+    schemas_generator = SchemaGenerator(
         {
             "openapi": "3.1.0",
             "info": {"title": "marimo API", "version": __version__},
@@ -311,7 +311,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         }
     )
 
-    schemas = schemas_geneartor.get_schema(routes=build_routes())
+    schemas = schemas_generator.get_schema(routes=build_routes())
 
     # Find/replace #/$defs with #/components/schemas
     import json

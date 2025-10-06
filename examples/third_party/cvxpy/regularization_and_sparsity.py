@@ -156,7 +156,7 @@ def _(mo):
         The $\ell_1$ norm, when used as a regularizer, encourages solutions
         to be _sparse_: to have many zeros and only a few nonzeros.
 
-        A sparse regressor (if it is a good model) encodes which featuers
+        A sparse regressor (if it is a good model) encodes which features
         are important for making predictions, and which are not: If a component
         of $x$ is $0$, then the corresponding feature or measurement
         must not be important in making predictions.

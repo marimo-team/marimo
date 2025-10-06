@@ -189,7 +189,8 @@ describe("getDefaults", () => {
     const schema = z.object({
       map: z.map(z.string(), z.number()).default(new Map([["a", 1]])),
     });
-    const result = getDefaults(schema) as { map: Map<string, number> };
+    const defaults = getDefaults(schema);
+    const result = defaults as { map: Map<string, number> };
     expect(result.map instanceof Map).toBe(true);
     expect([...result.map.entries()]).toEqual([["a", 1]]);
   });
@@ -198,7 +199,8 @@ describe("getDefaults", () => {
     const schema = z.object({
       set: z.set(z.string()).default(new Set(["a", "b"])),
     });
-    const result = getDefaults(schema) as { set: Set<string> };
+    const defaults = getDefaults(schema);
+    const result = defaults as { set: Set<string> };
     expect(result.set instanceof Set).toBe(true);
     expect([...result.set]).toEqual(["a", "b"]);
   });

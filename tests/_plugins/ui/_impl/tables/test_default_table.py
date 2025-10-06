@@ -11,7 +11,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.hypertext import Html
-from marimo._plugins.ui._impl.table import _validate_header_tooltip
+from marimo._plugins.ui._impl.table import SortArgs, _validate_header_tooltip
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
@@ -108,7 +108,9 @@ class TestDefaultTable(unittest.TestCase):
         assert limited_manager.data == []
 
     def test_sort(self) -> None:
-        sorted_data = self.manager.sort_values(by="name", descending=True).data
+        sorted_data = self.manager.sort_values(
+            [SortArgs(by="name", descending=True)]
+        ).data
         expected_data = [
             {"name": "Eve", "age": 22, "birth_year": date(2002, 1, 30)},
             {"name": "Dave", "age": 28, "birth_year": date(1996, 3, 5)},
@@ -119,7 +121,7 @@ class TestDefaultTable(unittest.TestCase):
         assert sorted_data == expected_data
         # reverse sort
         sorted_data = self.manager.sort_values(
-            by="name", descending=False
+            [SortArgs(by="name", descending=False)]
         ).data
         expected_data = [
             {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
@@ -135,7 +137,7 @@ class TestDefaultTable(unittest.TestCase):
         data_with_nan[1]["age"] = None
         manager_with_nan = DefaultTableManager(data_with_nan)
         sorted_data = manager_with_nan.sort_values(
-            by="age", descending=False
+            [SortArgs(by="age", descending=False)]
         ).data
         last_row = sorted_data[-1]
 
@@ -150,7 +152,7 @@ class TestDefaultTable(unittest.TestCase):
 
         # descending
         sorted_data = manager_with_nan.sort_values(
-            by="age", descending=True
+            [SortArgs(by="age", descending=False)]
         ).data
         last_row = sorted_data[-1]
         assert last_row == expected_last_row
@@ -160,29 +162,35 @@ class TestDefaultTable(unittest.TestCase):
         data_with_strings[1]["name"] = None
         manager_with_strings = DefaultTableManager(data_with_strings)
         sorted_data = manager_with_strings.sort_values(
-            by="name", descending=False
+            [SortArgs(by="name", descending=False)]
         ).data
         assert sorted_data[-1]["name"] is None
 
         # strings descending
         sorted_data = manager_with_strings.sort_values(
-            by="name", descending=True
+            [SortArgs(by="name", descending=False)]
         ).data
         assert sorted_data[-1]["name"] is None
 
     def test_sort_single_values(self) -> None:
         manager = DefaultTableManager([1, 3, 2])
-        sorted_data = manager.sort_values(by="value", descending=True).data
+        sorted_data = manager.sort_values(
+            [SortArgs(by="value", descending=True)]
+        ).data
         expected_data = [{"value": 3}, {"value": 2}, {"value": 1}]
         assert sorted_data == expected_data
         # reverse sort
-        sorted_data = manager.sort_values(by="value", descending=False).data
+        sorted_data = manager.sort_values(
+            [SortArgs(by="value", descending=False)]
+        ).data
         expected_data = [{"value": 1}, {"value": 2}, {"value": 3}]
         assert sorted_data == expected_data
 
     def test_mixed_values(self) -> None:
         manager = DefaultTableManager([1, "foo", 2, False])
-        sorted_data = manager.sort_values(by="value", descending=True).data
+        sorted_data = manager.sort_values(
+            [SortArgs(by="value", descending=True)]
+        ).data
         expected_data = [
             {"value": "foo"},
             {"value": False},
@@ -191,7 +199,9 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert sorted_data == expected_data
         # reverse sort
-        sorted_data = manager.sort_values(by="value", descending=False).data
+        sorted_data = manager.sort_values(
+            [SortArgs(by="value", descending=False)]
+        ).data
         expected_data = [
             {"value": 1},
             {"value": 2},
@@ -199,6 +209,101 @@ class TestDefaultTable(unittest.TestCase):
             {"value": "foo"},
         ]
         assert sorted_data == expected_data
+
+    def test_multi_column_sort_integers_then_strings(self) -> None:
+        """Test multi-column sorting with integers then strings."""
+        data = [
+            {"category": 1, "name": "Charlie"},
+            {"category": 1, "name": "Alice"},
+            {"category": 2, "name": "Bob"},
+        ]
+        manager = DefaultTableManager(data)
+
+        sorted_data = manager.sort_values(
+            by=[
+                SortArgs(by="category", descending=False),
+                SortArgs(by="name", descending=False),
+            ]
+        ).data
+        expected_data = [
+            {"category": 1, "name": "Alice"},
+            {"category": 1, "name": "Charlie"},
+            {"category": 2, "name": "Bob"},
+        ]
+        assert sorted_data == expected_data
+
+    def test_multi_column_sort_mixed_directions(self) -> None:
+        """Test multi-column sorting with mixed ascending/descending directions."""
+        data = [
+            {"priority": 1, "score": 85},
+            {"priority": 1, "score": 90},
+            {"priority": 2, "score": 70},
+        ]
+        manager = DefaultTableManager(data)
+
+        sorted_data = manager.sort_values(
+            by=[
+                SortArgs(by="priority", descending=False),
+                SortArgs(by="score", descending=True),
+            ]
+        ).data
+        expected_data = [
+            {"priority": 1, "score": 90},
+            {"priority": 1, "score": 85},
+            {"priority": 2, "score": 70},
+        ]
+        assert sorted_data == expected_data
+
+    def test_multi_column_sort_with_none_values(self) -> None:
+        """Test multi-column sorting with None values in secondary column."""
+        data = [
+            {"group": 1, "value": None},
+            {"group": 1, "value": 10},
+            {"group": 2, "value": 5},
+        ]
+        manager = DefaultTableManager(data)
+
+        sorted_data = manager.sort_values(
+            by=[
+                SortArgs(by="group", descending=False),
+                SortArgs(by="value", descending=False),
+            ]
+        ).data
+        expected_data = [
+            {"group": 1, "value": 10},
+            {"group": 1, "value": None},
+            {"group": 2, "value": 5},
+        ]
+        assert sorted_data == expected_data
+
+    def test_multi_column_sort_mixed_types_in_column(self) -> None:
+        """Test multi-column sorting with mixed types in a single column."""
+        data = [
+            {"id": 1, "value": "string"},
+            {"id": 1, "value": 42},
+            {"id": 2, "value": True},
+        ]
+        manager = DefaultTableManager(data)
+
+        # Should fall back to string comparison for mixed types
+        sorted_data = manager.sort_values(
+            by=[
+                SortArgs(by="id", descending=False),
+                SortArgs(by="value", descending=False),
+            ]
+        ).data
+        expected_data = [
+            {"id": 1, "value": 42},
+            {"id": 1, "value": "string"},
+            {"id": 2, "value": True},
+        ]
+        assert sorted_data == expected_data
+
+    def test_multi_column_sort_empty_list(self) -> None:
+        """Test that empty sort parameters return original data."""
+        manager = DefaultTableManager(self.data)
+        sorted_data = manager.sort_values(by=[]).data
+        assert sorted_data == self.data
 
     def test_search(self) -> None:
         searched_manager = self.manager.search("alice")
@@ -481,7 +586,9 @@ class TestColumnarDefaultTable(unittest.TestCase):
         assert limited_manager.data["name"] == []
 
     def test_sort(self) -> None:
-        sorted_data = self.manager.sort_values(by="name", descending=True).data
+        sorted_data = self.manager.sort_values(
+            [SortArgs(by="name", descending=True)]
+        ).data
         expected_data = {
             "name": ["Eve", "Dave", "Charlie", "Bob", "Alice"],
             "age": [22, 28, 35, 25, 30],
@@ -500,7 +607,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
         data_with_nan["age"][1] = None
         manager_with_nan = DefaultTableManager(data_with_nan)
         sorted_data = manager_with_nan.sort_values(
-            by="age", descending=False
+            [SortArgs(by="age", descending=False)]
         ).data
 
         assert sorted_data["age"][-1] is None
@@ -508,7 +615,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
 
         # ascending
         sorted_data = manager_with_nan.sort_values(
-            by="age", descending=True
+            [SortArgs(by="age", descending=False)]
         ).data
         assert sorted_data["age"][-1] is None
         assert sorted_data["name"][-1] == "Bob"
@@ -518,15 +625,61 @@ class TestColumnarDefaultTable(unittest.TestCase):
         data_with_strings["name"][1] = None
         manager_with_strings = DefaultTableManager(data_with_strings)
         sorted_data = manager_with_strings.sort_values(
-            by="name", descending=False
+            by=[SortArgs(by="name", descending=False)]
         ).data
         assert sorted_data["name"][-1] is None
 
         # strings descending
         sorted_data = manager_with_strings.sort_values(
-            by="name", descending=True
+            by=[SortArgs(by="name", descending=False)]
         ).data
         assert sorted_data["name"][-1] is None
+
+    def test_multi_column_sort_columnar_integers_then_strings(self) -> None:
+        """Test multi-column sorting with columnar data - integers then strings."""
+        data = {
+            "category": [2, 1, 1],
+            "name": ["Alice", "Charlie", "Bob"],
+        }
+        manager = DefaultTableManager(data)
+
+        sorted_data = manager.sort_values(
+            by=[
+                SortArgs(by="category", descending=False),
+                SortArgs(by="name", descending=False),
+            ]
+        ).data
+        expected_data = {
+            "category": [1, 1, 2],
+            "name": ["Bob", "Charlie", "Alice"],
+        }
+        assert sorted_data == expected_data
+
+    def test_multi_column_sort_columnar_with_none_values(self) -> None:
+        """Test multi-column sorting with columnar data containing None values."""
+        data = {
+            "group": [1, 1, 2],
+            "value": [None, 10, 5],
+        }
+        manager = DefaultTableManager(data)
+
+        sorted_data = manager.sort_values(
+            by=[
+                SortArgs(by="group", descending=False),
+                SortArgs(by="value", descending=False),
+            ]
+        ).data
+        expected_data = {
+            "group": [1, 1, 2],
+            "value": [10, None, 5],
+        }
+        assert sorted_data == expected_data
+
+    def test_multi_column_sort_empty_list_columnar(self) -> None:
+        """Test that empty sort parameters return original data for columnar."""
+        manager = DefaultTableManager(self.data)
+        sorted_data = manager.sort_values(by=[]).data
+        assert sorted_data == self.data
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
@@ -823,7 +976,9 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         assert limited_manager.data == []
 
     def test_sort(self) -> None:
-        sorted_manager = self.manager.sort_values(by="value", descending=True)
+        sorted_manager = self.manager.sort_values(
+            [SortArgs(by="value", descending=True)]
+        )
         expected_data = [{"key": "b", "value": 2}, {"key": "a", "value": 1}]
         assert sorted_manager.data == expected_data
 
@@ -832,7 +987,7 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         data["b"] = None
         manager_with_nan = DefaultTableManager(data)
         sorted_data = manager_with_nan.sort_values(
-            by="value", descending=False
+            [SortArgs(by="value", descending=False)]
         ).data
         assert sorted_data == [
             {"key": "a", "value": 1},
@@ -841,7 +996,7 @@ class TestDictionaryDefaultTable(unittest.TestCase):
 
         # descending
         sorted_data = manager_with_nan.sort_values(
-            by="value", descending=True
+            [SortArgs(by="value", descending=False)]
         ).data
         assert sorted_data == [
             {"key": "a", "value": 1},
@@ -853,7 +1008,7 @@ class TestDictionaryDefaultTable(unittest.TestCase):
             {"a": "foo", "b": None, "c": "bar"}
         )
         sorted_data = data_with_strings.sort_values(
-            by="value", descending=False
+            [SortArgs(by="value", descending=False)]
         ).data
         assert sorted_data == [
             {"key": "c", "value": "bar"},
@@ -863,7 +1018,7 @@ class TestDictionaryDefaultTable(unittest.TestCase):
 
         # strings descending
         sorted_data = data_with_strings.sort_values(
-            by="value", descending=True
+            [SortArgs(by="value", descending=True)]
         ).data
         assert sorted_data == [
             {"key": "a", "value": "foo"},

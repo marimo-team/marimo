@@ -18,8 +18,14 @@ import {
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import dedent from "string-dedent";
+import type { CellId } from "@/core/cells/ids";
 import { cellIdState } from "@/core/codemirror/cells/state";
-import { getFeatureFlag } from "@/core/config/feature-flag";
+import type { PlaceholderType } from "@/core/codemirror/config/types";
+import type {
+  CompletionConfig,
+  DiagnosticsConfig,
+  LSPConfig,
+} from "@/core/config/config-schema";
 import {
   dataSourceConnectionsAtom,
   setLatestEngineSelected,
@@ -30,6 +36,7 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import { ValidateSQL } from "@/core/datasets/request-registry";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { ValidateSQLResult } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { resolvedThemeAtom } from "@/theme/useTheme";
@@ -77,17 +84,10 @@ export class SQLLanguageAdapter
   implements LanguageAdapter<SQLLanguageAdapterMetadata>
 {
   readonly type = "sql";
-  sqlLinterEnabled: boolean;
   sqlModeEnabled: boolean;
 
   constructor() {
-    try {
-      this.sqlLinterEnabled = getFeatureFlag("sql_linter");
-      this.sqlModeEnabled = getFeatureFlag("sql_mode");
-    } catch {
-      this.sqlLinterEnabled = false;
-      this.sqlModeEnabled = false;
-    }
+    this.sqlModeEnabled = true;
   }
 
   get defaultMetadata(): SQLLanguageAdapterMetadata {
@@ -215,7 +215,13 @@ export class SQLLanguageAdapter
     return commentLines;
   }
 
-  getExtension(): Extension[] {
+  getExtension(
+    _cellId: CellId,
+    _completionConfig: CompletionConfig,
+    _hotkeys: HotkeyProvider,
+    _placeholderType: PlaceholderType,
+    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
+  ): Extension[] {
     const extensions = [
       // This can be updated with a dispatch effect
       sqlConfigCompartment.of(sql({ dialect: DEFAULT_DIALECT })),
@@ -245,7 +251,9 @@ export class SQLLanguageAdapter
       }),
     ];
 
-    if (this.sqlLinterEnabled) {
+    const sqlLinterEnabled = lspConfig?.diagnostics?.sql_linter ?? false;
+
+    if (sqlLinterEnabled) {
       const theme = store.get(resolvedThemeAtom);
       const parser = new CustomSqlParser({
         getParserOptions: (state: EditorState) => {

@@ -891,9 +891,11 @@ class TestGetContent(unittest.TestCase):
         # Call get_content with the mock response
         config = AnyProviderConfig(base_url=None, api_key="test-key")
         provider = OpenAIProvider(model="gpt-4o", config=config)
-        result_text, result_type = provider.extract_content(mock_response)
+        result = provider.extract_content(mock_response)
 
-        # Assert that the result is the expected content
+        # Assert that the result is not None and has expected content
+        assert result is not None
+        result_text, result_type = result[0]
         assert result_text == "Test content"
         assert result_type == "text"
 

@@ -7,6 +7,8 @@ import urllib.error
 from datetime import datetime
 from typing import Any, Callable, cast
 
+import psutil
+
 import marimo._utils.requests as requests
 from marimo import _loggers
 from marimo._cli.print import echo, green, orange
@@ -26,7 +28,8 @@ LOGGER = _loggers.marimo_logger()
 def print_latest_version(current_version: str, state: MarimoCLIState) -> None:
     message = f"Update available {current_version} → {state.latest_version}"
     echo(orange(message))
-    echo(f"Run {green('pip install --upgrade marimo')} to upgrade.")
+    install_cmd = "uv add" if _is_in_uv() else "pip install"
+    echo(f"Run {green(f'{install_cmd} --upgrade marimo')} to upgrade.")
 
     if state.notices:
         echo()
@@ -35,6 +38,10 @@ def print_latest_version(current_version: str, state: MarimoCLIState) -> None:
             echo(f"• {notice}")
 
     echo()
+
+
+def _is_in_uv() -> bool:
+    return psutil.Process(os.getppid()).name() == "uv"
 
 
 @server_tracer.start_as_current_span("check_for_updates")

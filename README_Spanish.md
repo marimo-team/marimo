@@ -4,30 +4,35 @@
 
 <p align="center">
   <em>Un cuaderno (notebook) de Python reactivo que es reproducible, compatible con Git y desplegable como scripts o aplicaciones.</em>
+</p>
 
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>Documentos</strong></a> ·
   <a href="https://marimo.io/discord?ref=readme" target="_blank"><strong>Discord</strong></a> ·
-  <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>Ejemplos</strong></a> ·
+  <a href="https://docs.marimo.io/examples/" target="_blank"><strong>Ejemplos</strong></a> ·
+  <a href="https://marimo.io/gallery/" target="_blank"><strong>Galería</strong></a> ·
   <a href="https://www.youtube.com/@marimo-team/" target="_blank"><strong>YouTube</strong></a>
 </p>
 
 <p align="center">
-  <b>Español | </b>
-  <a href="https://github.com/marimo-team/marimo/blob/main/README.md" target="_blank"><b>Inglés</b></a>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README.md" target="_blank"><b>English</b></a>
   <b> | </b>
-  <a href="https://github.com/marimo-team/marimo/blob/main/README_Chinese.md" target="_blank"><b>Chino</b></a>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Traditional_Chinese.md" target="_blank"><b>繁體中文</b></a>
   <b> | </b>
-  <a href="https://github.com/marimo-team/marimo/blob/main/README_Japanese.md" target="_blank"><b>Japonés</b></a>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Chinese.md" target="_blank"><b>简体中文</b></a>
+  <b> | </b>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Japanese.md" target="_blank"><b>日本語</b></a>
+  <b> | </b>
+  <b>Español</b>
 </p>
 
 <p align="center">
-<a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi" /></a>
-<a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
-<a href="https://marimo.io/discord?ref=readme"><img src="https://shields.io/discord/1059888774789730424" alt="discord" /></a>
-<img alt="Pepy Total Downloads" src="https://img.shields.io/pepy/dt/marimo?label=pypi%20%7C%20downloads"/>
-<img alt="Conda Downloads" src="https://img.shields.io/conda/d/conda-forge/marimo" />
-<a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
+  <a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi"/></a>
+  <a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
+  <a href="https://marimo.io/discord?ref=readme"><img src="https://shields.io/discord/1059888774789730424" alt="discord"/></a>
+  <img alt="Pepy Total Downloads" src="https://img.shields.io/pepy/dt/marimo?label=pypi%20%7C%20downloads"/>
+  <img alt="Conda Downloads" src="https://img.shields.io/conda/d/conda-forge/marimo"/>
+  <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo"/></a>
 </p>
 
 **marimo** es un cuaderno (notebook) de Python: ejecuta una celda o interactúa con un elemento de la interfaz de usuario y marimo ejecuta automáticamente las celdas dependientes (o <a href="#expensive-notebooks">las marca como desactualizadas</a>), manteniendo el código y los resultados consistentes. Los cuadernos (notebooks) de marimo se almacenan como código Python puro, ejecutables como scripts y desplegables como aplicaciones.

@@ -117,11 +117,17 @@ MaxColumnsType = Union[int, None, MaxColumnsNotProvided]
 
 
 @dataclass(frozen=True)
+class SortArgs:
+    by: ColumnName
+    descending: bool
+
+
+@dataclass(frozen=True)
 class SearchTableArgs:
     page_size: int
     page_number: int
     query: Optional[str] = None
-    sort: Optional[SortArgs] = None
+    sort: Optional[list[SortArgs]] = None
     filters: Optional[list[Condition]] = None
     limit: Optional[int] = None
     max_columns: Optional[Union[int, MaxColumnsNotProvided]] = (
@@ -141,12 +147,6 @@ class SearchTableResponse:
     cell_hover_texts: Optional[
         dict[RowId, dict[ColumnName, Optional[str]]]
     ] = None
-
-
-@dataclass(frozen=True)
-class SortArgs:
-    by: ColumnName
-    descending: bool
 
 
 @dataclass
@@ -1135,18 +1135,22 @@ class table(
     @functools.lru_cache(maxsize=1)  # noqa: B019
     def _apply_filters_query_sort_cached(
         self,
-        filters: Optional[list[Condition]],
+        filters: Optional[tuple[Condition, ...]],
         query: Optional[str],
-        sort: Optional[SortArgs],
+        sort: Optional[tuple[SortArgs, ...]],
     ) -> TableManager[Any]:
         """Cached version that expects hashable arguments."""
-        return self._apply_filters_query_sort(filters, query, sort)
+        return self._apply_filters_query_sort(
+            list(filters) if filters else None,
+            query,
+            list(sort) if sort else None,
+        )
 
     def _apply_filters_query_sort(
         self,
         filters: Optional[list[Condition]],
         query: Optional[str],
-        sort: Optional[SortArgs],
+        sort: Optional[list[SortArgs]],
     ) -> TableManager[Any]:
         result = self._manager
 
@@ -1175,8 +1179,11 @@ class table(
         if query:
             result = result.search(query)
 
-        if sort and sort.by in result.get_column_names():
-            result = result.sort_values(sort.by, sort.descending)
+        if sort:
+            existing_columns = set(result.get_column_names())
+            valid_sort = [s for s in sort if s.by in existing_columns]
+            if valid_sort:
+                result = result.sort_values(valid_sort)
 
         return result
 
@@ -1355,7 +1362,7 @@ class table(
         result = filter_function(
             tuple(args.filters) if args.filters else None,  # type: ignore
             args.query,
-            args.sort,
+            tuple(args.sort) if args.sort else None,  # type: ignore
         )
 
         # Save the manager to be used for selection

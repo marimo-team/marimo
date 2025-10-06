@@ -544,8 +544,6 @@ format_on_save = true
 [tool.marimo.experimental]
 multi_column = true
 performant_table_charts = true
-sql_linter = true
-sql_mode = true
 chat_modes = true
 cache_panel = true
 
@@ -581,3 +579,6 @@ pre_commit = ">=4.2.0,<5"
 uv = ">=0.6.12,<0.7"
 python = "3.12.*"
 pip = ">=25.0.1,<26"
+
+[tool.pixi.pypi-dependencies]
+marimo = {path = ".", editable = true}
