@@ -29,7 +29,6 @@ from marimo._runtime.requests import (
     ExecuteMultipleRequest,
     ExecutionRequest,
     SetUIElementValueRequest,
-    SyncGraphRequest,
 )
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
