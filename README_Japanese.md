@@ -4,6 +4,7 @@
 
 <p align="center">
   <em>再現性が高く、Git対応で、スクリプトやアプリとして展開できるリアクティブなPythonノートブック。</em>
+</p>
 
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>ドキュメント</strong></a> ·
@@ -16,6 +17,8 @@
 <p align="center">
   <a href="https://github.com/marimo-team/marimo/blob/main/README.md" target="_blank"><b>English</b></a>
   <b> | </b>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Traditional_Chinese.md" target="_blank"><b>繁體中文</b></a>
+  <b> | </b>
   <a href="https://github.com/marimo-team/marimo/blob/main/README_Chinese.md" target="_blank"><b>简体中文</b></a>
   <b> | </b>
   <b>日本語</b>
@@ -24,12 +27,12 @@
 </p>
 
 <p align="center">
-<a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi"/></a>
-<a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
-<a href="https://marimo.io/discord?ref=readme"><img src="https://shields.io/discord/1059888774789730424" alt="discord" /></a>
-<img alt="Pepy Total Downloads" src="https://img.shields.io/pepy/dt/marimo?label=pypi%20%7C%20downloads"/>
-<img alt="Conda Downloads" src="https://img.shields.io/conda/d/conda-forge/marimo" />
-<a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
+  <a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi"/></a>
+  <a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
+  <a href="https://marimo.io/discord?ref=readme"><img src="https://shields.io/discord/1059888774789730424" alt="discord"/></a>
+  <img alt="Pepy Total Downloads" src="https://img.shields.io/pepy/dt/marimo?label=pypi%20%7C%20downloads"/>
+  <img alt="Conda Downloads" src="https://img.shields.io/conda/d/conda-forge/marimo"/>
+  <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo"/></a>
 </p>
 
 **marimo**はリアクティブなPythonノートブックです：セルを実行したりUI要素を操作すると、marimoは自動的に依存するセルを実行（または<a href="#expensive-notebooks">それらを古いものとしてマーク</a>）し、コードと出力の一貫性を保ちます。marimoノートブックは純粋なPythonとして保存され、スクリプトとして実行でき、アプリとして展開できます。
