@@ -16,8 +16,8 @@ export const maxFractionalDigits = memoizeLastValue((locale: string) => {
         maximumFractionDigits: option,
       }).format(1);
       return option;
-    } catch (e) {
-      Logger.error(e);
+    } catch (error) {
+      Logger.error(error);
     }
   }
   return 0;

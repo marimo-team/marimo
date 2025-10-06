@@ -532,10 +532,11 @@ const ModelInfoCard = ({
     (bedrockInferenceProfiles[model.model] as string | undefined) || "none";
 
   // Compute the display model ID with inference profile prefix
-  const displayModelId =
-    isBedrockModel && currentProfile !== "none"
-      ? `bedrock/${currentProfile}.${model.model}`
-      : qualifiedId;
+  const displayModelId = isBedrockModel
+    ? currentProfile === "none"
+      ? `bedrock/${model.model}`
+      : `bedrock/${currentProfile}.${model.model}`
+    : qualifiedId;
 
   const handleProfileChange = (newProfile: string) => {
     if (!form || !onSubmit) {

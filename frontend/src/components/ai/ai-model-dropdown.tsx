@@ -100,8 +100,44 @@ export const AIModelDropdown = ({
 
   const iconSizeClass = iconSize === "medium" ? "h-4 w-4" : "h-3 w-3";
 
+  // Get the current inference profile for Bedrock models
+  const bedrockInferenceProfiles = ai?.models?.bedrock_inference_profiles || {};
+  const currentProfile =
+    currentValue?.providerId === "bedrock"
+      ? (bedrockInferenceProfiles[currentValue.shortModelId] as
+          | string
+          | undefined) || "none"
+      : undefined;
+
+  // Compute display text with inference profile for Bedrock models
+  const displayText = currentValue
+    ? currentValue.providerId === "bedrock" &&
+      currentProfile &&
+      currentProfile !== "none"
+      ? `${currentProfile}.${currentValue.shortModelId}`
+      : isKnownAIProvider(currentValue.providerId)
+        ? currentValue.shortModelId
+        : currentValue.id
+    : undefined;
+
   const renderModelWithRole = (modelId: AiModelId, role: Role) => {
     const maybeModelMatch = aiModelRegistry.getModel(modelId.id);
+
+    // Get inference profile for Bedrock models
+    const modelProfile =
+      modelId.providerId === "bedrock"
+        ? (bedrockInferenceProfiles[modelId.shortModelId] as
+            | string
+            | undefined) || "none"
+        : undefined;
+
+    // Compute display ID with inference profile
+    const displayId =
+      modelId.providerId === "bedrock" &&
+      modelProfile &&
+      modelProfile !== "none"
+        ? `bedrock/${modelProfile}.${modelId.shortModelId}`
+        : modelId.id;
 
     return (
       <div className="flex items-center gap-2 w-full px-2 py-1">
@@ -111,7 +147,7 @@ export const AIModelDropdown = ({
         />
         <div className="flex flex-col">
           <span>{maybeModelMatch?.name || modelId.shortModelId}</span>
-          <span className="text-xs text-muted-foreground">{modelId.id}</span>
+          <span className="text-xs text-muted-foreground">{displayId}</span>
         </div>
 
         <div className="ml-auto flex gap-1">
@@ -151,11 +187,7 @@ export const AIModelDropdown = ({
                 className={iconSizeClass}
               />
               {displayIconOnly ? null : (
-                <span className="truncate">
-                  {isKnownAIProvider(currentValue.providerId)
-                    ? currentValue.shortModelId
-                    : currentValue.id}
-                </span>
+                <span className="truncate">{displayText}</span>
               )}
             </>
           ) : (
@@ -332,18 +364,43 @@ export const AiModelInfoDisplay = ({
   model: AiModel;
   provider: ProviderId;
 }) => {
+  const ai = useAtomValue(aiAtom);
+  const isBedrockModel = provider === "bedrock";
+
+  // Get the current inference profile for this model
+  const bedrockInferenceProfiles = ai?.models?.bedrock_inference_profiles || {};
+  const currentProfile =
+    (bedrockInferenceProfiles[model.model] as string | undefined) || "none";
+
+  // Compute the display model ID with inference profile prefix
+  const displayModelId =
+    isBedrockModel && currentProfile !== "none"
+      ? `${currentProfile}.${model.model}`
+      : model.model;
+
   return (
     <div className="space-y-3">
       <div>
         <h4 className="font-semibold text-base text-foreground">
           {model.name}
         </h4>
-        <p className="text-xs text-muted-foreground font-mono">{model.model}</p>
+        <p className="text-xs text-muted-foreground font-mono">
+          {displayModelId}
+        </p>
       </div>
 
       <p className="text-sm text-muted-foreground leading-relaxed">
         {model.description}
       </p>
+
+      {isBedrockModel && currentProfile !== "none" && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">
+            Inference Profile:
+          </p>
+          <p className="text-xs text-foreground font-mono">{currentProfile}</p>
+        </div>
+      )}
 
       {model.roles.length > 0 && (
         <div>

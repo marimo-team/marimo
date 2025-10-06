@@ -1062,36 +1062,9 @@ class BedrockProvider(
     ]
 ):
     def __init__(self, model: str, config: AnyProviderConfig):
-        # Extract model inference profiles from extra_headers
-        model_inference_profiles = {}
-        if (
-            config.extra_headers
-            and "X-Bedrock-Model-Inference-Profiles" in config.extra_headers
-        ):
-            import ast
-
-            profiles_str = config.extra_headers[
-                "X-Bedrock-Model-Inference-Profiles"
-            ]
-            try:
-                model_inference_profiles = ast.literal_eval(profiles_str)
-            except (ValueError, SyntaxError):
-                LOGGER.warning(
-                    f"Failed to parse model inference profiles: {profiles_str}"
-                )
-
-        # Look up the inference profile for this specific model, default to "none"
-        inference_profile = model_inference_profiles.get(model, "none")
-
-        # If inference_profile is not "none" and model doesn't have a prefix, add it
-        if inference_profile != "none":
-            if (
-                not model.startswith("us.")
-                and not model.startswith("eu.")
-                and not model.startswith("global.")
-            ):
-                model = f"{inference_profile}.{model}"
-
+        # Store the model ID for reference, but note that BedrockProvider
+        # will use the dynamically computed model from get_completion_provider()
+        # on each request to ensure the latest inference profile is applied
         super().__init__(model, config)
 
     def setup_credentials(self, config: AnyProviderConfig) -> None:
@@ -1227,7 +1200,8 @@ def get_completion_provider(
     elif model_id.provider == "google":
         return GoogleProvider(model_id.model, config)
     elif model_id.provider == "bedrock":
-        return BedrockProvider(model_id.model, config)
+        # LiteLLM requires the full qualified model ID with provider prefix
+        return BedrockProvider(f"bedrock/{model_id.model}", config)
     elif model_id.provider == "azure":
         return AzureOpenAIProvider(model_id.model, config)
     elif model_id.provider == "openrouter":

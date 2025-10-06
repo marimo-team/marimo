@@ -175,20 +175,12 @@ class AnyProviderConfig:
     def for_bedrock(cls, config: AiConfig) -> AnyProviderConfig:
         ai_config = _get_ai_config(config, "bedrock")
         key = _get_key(ai_config, "Bedrock")
-        # Get per-model inference profiles from models config
-        model_inference_profiles = config.get("models", {}).get(
-            "bedrock_inference_profiles", {}
-        )
+        # Inference profiles are now applied by get_*_model() functions
+        # so we don't need to pass them here
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
             tools=_get_tools(config.get("mode", "manual")),
-            # Store model_inference_profiles in extra_headers for provider access
-            extra_headers={
-                "X-Bedrock-Model-Inference-Profiles": str(
-                    model_inference_profiles
-                )
-            },
         )
 
     @classmethod
@@ -243,33 +235,97 @@ def _get_ai_config(config: AiConfig, key: str) -> dict[str, Any]:
     return cast(dict[str, Any], config.get(key, {}))
 
 
+def _apply_bedrock_inference_profile(model: str, config: AiConfig) -> str:
+    """Apply Bedrock inference profile to model ID if applicable.
+
+    This function handles the dynamic application of inference profiles to Bedrock models.
+    It strips any existing profile prefix from the model ID first, then applies the
+    profile from the bedrock_inference_profiles mapping if one is configured.
+
+    This ensures that:
+    1. Model IDs stored in config are always base IDs without profile prefixes
+    2. Profiles are applied dynamically based on the bedrock_inference_profiles mapping
+    3. Changing a profile in settings immediately affects subsequent API calls
+
+    Args:
+        model: The model ID (e.g., "bedrock/claude-3-5-sonnet-latest")
+               May include an old profile prefix like "bedrock/us.claude-3-5-sonnet-latest"
+        config: The AI configuration containing bedrock_inference_profiles mapping
+
+    Returns:
+        Model ID with current inference profile applied if configured
+        (e.g., "bedrock/us.claude-3-5-sonnet-latest")
+        or base model ID if profile is "none" (e.g., "bedrock/claude-3-5-sonnet-latest")
+    """
+    # Only process Bedrock models
+    if not model.startswith("bedrock/"):
+        return model
+
+    # Extract the short model ID (everything after "bedrock/")
+    short_model = model.split("/", 1)[1]
+
+    # Strip any existing inference profile prefix
+    # This is important because the model ID in config might have an old profile
+    # that needs to be replaced with the current one from bedrock_inference_profiles
+    valid_prefixes = {"us.", "eu.", "global."}
+    for prefix in valid_prefixes:
+        if short_model.startswith(prefix):
+            short_model = short_model[len(prefix) :]
+            break
+
+    # Get the inference profile mapping
+    bedrock_inference_profiles = config.get("models", {}).get(
+        "bedrock_inference_profiles", {}
+    )
+
+    # Look up the profile for this model
+    profile = bedrock_inference_profiles.get(short_model, "none")
+
+    # Apply the profile if it's not "none"
+    if profile and profile != "none":
+        return f"bedrock/{profile}.{short_model}"
+    else:
+        return f"bedrock/{short_model}"
+
+
 def get_chat_model(config: AiConfig) -> str:
     """Get the chat model from the config."""
-    return (
+    model = (
         # Current config
         config.get("models", {}).get("chat_model")
         # Legacy config
         or config.get("open_ai", {}).get("model")
         or DEFAULT_MODEL
     )
+    return _apply_bedrock_inference_profile(model, config)
 
 
 def get_edit_model(config: AiConfig) -> str:
     """Get the edit model from the config."""
-    return config.get("models", {}).get("edit_model") or get_chat_model(config)
+    model = config.get("models", {}).get("edit_model") or get_chat_model(
+        config
+    )
+    return _apply_bedrock_inference_profile(model, config)
 
 
 def get_autocomplete_model(
     config: Union[MarimoConfig, PartialMarimoConfig],
 ) -> str:
     """Get the autocomplete model from the config."""
-    return (
+    model = (
         # Current config
         config.get("ai", {}).get("models", {}).get("autocomplete_model")
         # Legacy config
         or config.get("completion", {}).get("model")
         or DEFAULT_MODEL
     )
+    # Apply Bedrock inference profile if applicable
+    ai_config = config.get("ai", {})
+    if isinstance(ai_config, dict):
+        model = _apply_bedrock_inference_profile(
+            model, cast(AiConfig, ai_config)
+        )
+    return model
 
 
 def get_max_tokens(config: MarimoConfig) -> int:
