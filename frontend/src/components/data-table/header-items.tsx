@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
-import type { Column } from "@tanstack/react-table";
+import type { Column, SortDirection, Table } from "@tanstack/react-table";
 import {
   AlignJustifyIcon,
   ArrowDownWideNarrowIcon,
@@ -163,27 +163,80 @@ export function renderCopyColumn<TData, TValue>(column: Column<TData, TValue>) {
 const AscIcon = ArrowUpNarrowWideIcon;
 const DescIcon = ArrowDownWideNarrowIcon;
 
-export function renderSorts<TData, TValue>(column: Column<TData, TValue>) {
+export function renderSorts<TData, TValue>(
+  column: Column<TData, TValue>,
+  table?: Table<TData>,
+) {
   if (!column.getCanSort()) {
     return null;
   }
 
-  return (
-    <>
-      <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-        <AscIcon className="mo-dropdown-icon" />
-        Asc
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-        <DescIcon className="mo-dropdown-icon" />
-        Desc
-      </DropdownMenuItem>
-      {column.getIsSorted() && (
+  const sortDirection = column.getIsSorted();
+  const sortingIndex = column.getSortIndex();
+
+  const sortingState = table?.getState().sorting;
+  const hasMultiSort = sortingState?.length && sortingState.length > 1;
+
+  const renderSortIndex = () => {
+    return (
+      <span className="ml-auto text-xs font-medium">{sortingIndex + 1}</span>
+    );
+  };
+
+  const renderClearSort = () => {
+    if (!sortDirection) {
+      return null;
+    }
+
+    if (!hasMultiSort) {
+      // render clear sort for this column
+      return (
         <DropdownMenuItem onClick={() => column.clearSorting()}>
           <ChevronsUpDown className="mo-dropdown-icon" />
           Clear sort
         </DropdownMenuItem>
-      )}
+      );
+    }
+
+    // render clear sort for all columns
+    return (
+      <DropdownMenuItem onClick={() => table?.resetSorting()}>
+        <ChevronsUpDown className="mo-dropdown-icon" />
+        Clear all sorts
+      </DropdownMenuItem>
+    );
+  };
+
+  const toggleSort = (direction: SortDirection) => {
+    // Clear sort if clicking the same direction
+    if (sortDirection === direction) {
+      column.clearSorting();
+    } else {
+      // Toggle sort direction
+      const descending = direction === "desc";
+      column.toggleSorting(descending, true);
+    }
+  };
+
+  return (
+    <>
+      <DropdownMenuItem
+        onClick={() => toggleSort("asc")}
+        className={sortDirection === "asc" ? "bg-accent" : ""}
+      >
+        <AscIcon className="mo-dropdown-icon" />
+        Asc
+        {sortDirection === "asc" && renderSortIndex()}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() => toggleSort("desc")}
+        className={sortDirection === "desc" ? "bg-accent" : ""}
+      >
+        <DescIcon className="mo-dropdown-icon" />
+        Desc
+        {sortDirection === "desc" && renderSortIndex()}
+      </DropdownMenuItem>
+      {renderClearSort()}
       <DropdownMenuSeparator />
     </>
   );

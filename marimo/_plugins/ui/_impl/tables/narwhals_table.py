@@ -5,7 +5,7 @@ import datetime
 import functools
 import io
 from functools import cached_property
-from typing import Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 import msgspec
 import narwhals.stable.v2 as nw
@@ -40,6 +40,9 @@ from marimo._utils.narwhals_utils import (
     is_narwhals_time_type,
     unwrap_py_scalar,
 )
+
+if TYPE_CHECKING:
+    from marimo._plugins.ui._impl.table import SortArgs
 
 LOGGER = _loggers.marimo_logger()
 UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API although considered an unstable feature."
@@ -680,17 +683,17 @@ class NarwhalsTableManager(
             # May be metadata-only frame
             return []
 
-    def sort_values(
-        self, by: ColumnName, descending: bool
-    ) -> TableManager[Any]:
-        if is_narwhals_lazyframe(self.data):
-            return self.with_new_data(
-                self.data.sort(by, descending=descending, nulls_last=True)
-            )
-        else:
-            return self.with_new_data(
-                self.data.sort(by, descending=descending, nulls_last=True)
-            )
+    def sort_values(self, by: list[SortArgs]) -> TableManager[Any]:
+        if not by:
+            return self
+
+        # Extract columns and descending flags for Narwhals/Polars
+        columns = [sort_arg.by for sort_arg in by]
+        descending = [sort_arg.descending for sort_arg in by]
+
+        return self.with_new_data(
+            self.data.sort(columns, descending=descending, nulls_last=True)
+        )
 
     def __repr__(self) -> str:
         rows = self.get_num_rows(force=False)
