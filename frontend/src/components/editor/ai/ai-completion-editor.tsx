@@ -385,13 +385,13 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
           onAccept={onAccept}
           size="xs"
           className="border-none rounded-md"
-          acceptShortcut="Mod-↵"
+          // acceptShortcut="Mod-↵"
         />
         <RejectCompletionButton
           onDecline={onReject}
           size="xs"
           className="border-none rounded-md"
-          declineShortcut="Shift-Mod-Delete"
+          // declineShortcut="Shift-Mod-Delete"
         />
       </div>
     </div>
