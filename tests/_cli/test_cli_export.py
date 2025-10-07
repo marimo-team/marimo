@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._utils import aio_path
+from marimo._utils import async_path
 from marimo._utils.platform import is_windows
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
@@ -324,7 +324,7 @@ class TestExportHTML:
                 assert f"Watching {temp_marimo_file}" in line
                 break
 
-        assert not await aio_path.exists(temp_out_file)
+        assert not await async_path.exists(temp_out_file)
 
         # Modify file
         with open(temp_marimo_file, "a") as f:  # noqa: ASYNC230
@@ -654,7 +654,7 @@ class TestExportScript:
                 assert f"Watching {temp_marimo_file}" in line
                 break
 
-        assert not await aio_path.exists(temp_out_file)
+        assert not await async_path.exists(temp_out_file)
 
         # Modify file
         with open(temp_marimo_file, "a") as f:  # noqa: ASYNC230
@@ -669,7 +669,7 @@ class TestExportScript:
                 break
 
         await asyncio.sleep(0.1)
-        assert await aio_path.exists(temp_out_file)
+        assert await async_path.exists(temp_out_file)
 
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has(),
@@ -772,7 +772,7 @@ class TestExportMarkdown:
                 assert f"Watching {temp_marimo_file}" in line
                 break
 
-        assert not await aio_path.exists(temp_out_file)
+        assert not await async_path.exists(temp_out_file)
 
         # Modify file
         with open(temp_marimo_file, "a") as f:  # noqa: ASYNC230
@@ -787,7 +787,7 @@ class TestExportMarkdown:
                 break
 
         await asyncio.sleep(0.1)
-        assert await aio_path.exists(temp_out_file)
+        assert await async_path.exists(temp_out_file)
 
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has(),

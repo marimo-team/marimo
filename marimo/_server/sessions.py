@@ -74,7 +74,7 @@ from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import ProcessLike
 from marimo._server.utils import print_, print_tabbed
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
-from marimo._utils import aio_path
+from marimo._utils import async_path
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
     ConnectionDistributor,
@@ -892,7 +892,7 @@ class SessionManager:
 
         async def on_file_changed(path: Path) -> None:
             # Skip if the session does not relate to the file
-            if session.app_file_manager.path != await aio_path.abspath(path):
+            if session.app_file_manager.path != await async_path.abspath(path):
                 return
 
             # Use the centralized file change handler
@@ -1142,7 +1142,7 @@ class SessionFileChangeHandler:
         This method reloads the notebook and sends appropriate operations
         to the frontend when a marimo file is modified.
         """
-        abs_file_path = await aio_path.abspath(file_path)
+        abs_file_path = await async_path.abspath(file_path)
 
         # Use a lock to prevent concurrent processing of the same file
         if abs_file_path not in self._file_change_locks:

@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Union
 
-from marimo._utils import aio_path
+from marimo._utils import async_path
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -109,12 +109,12 @@ async def async_expand_file_patterns(
     seen = set()
 
     for pattern in file_patterns:
-        if await aio_path.isfile(pattern):
+        if await async_path.isfile(pattern):
             path = Path(pattern)
             if path not in seen:
                 seen.add(path)
                 yield path
-        elif await aio_path.isdir(pattern):
+        elif await async_path.isdir(pattern):
             async for file_path in async_get_files(pattern):
                 if file_path not in seen:
                     seen.add(file_path)
@@ -126,7 +126,7 @@ async def async_expand_file_patterns(
                 root = _get_root(pattern)
 
                 # Get all files from root and filter by pattern
-                if await aio_path.isdir(root):
+                if await async_path.isdir(root):
                     async for file_path in async_get_files(root):
                         if (
                             fnmatch.fnmatch(str(file_path), pattern)
