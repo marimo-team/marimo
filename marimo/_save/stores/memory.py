@@ -30,7 +30,7 @@ class MemoryStore(Store):
         Keys are already hashes, so just truncate to 30 chars.
         """
         # Sanitize the key
-        sanitized = key.replace('/', '_').replace('.', '_')
+        sanitized = key.replace("/", "_").replace(".", "_")
         name = f"m_{sanitized}"
 
         # POSIX limit is typically 31 chars including leading slash
@@ -44,7 +44,7 @@ class MemoryStore(Store):
             # Open existing shared memory block
             shm = shared_memory.SharedMemory(name=shm_name)
             # First 8 bytes store the actual data size
-            size = int.from_bytes(shm.buf[:8], 'little')
+            size = int.from_bytes(shm.buf[:8], "little")
             # Read the actual data
             data = bytes(shm.buf[8:8 + size])
             shm.close()
@@ -64,12 +64,10 @@ class MemoryStore(Store):
             # SharedMemory requires size > 0, so minimum is 8 bytes for header
             total_size = max(8, 8 + data_size)
             shm = shared_memory.SharedMemory(
-                name=shm_name,
-                create=True,
-                size=total_size
+                name=shm_name, create=True, size=total_size
             )
             # Write size header (first 8 bytes)
-            shm.buf[:8] = data_size.to_bytes(8, 'little')
+            shm.buf[:8] = data_size.to_bytes(8, "little")
             # Write the actual data (if any)
             if data_size > 0:
                 shm.buf[8:8 + data_size] = value

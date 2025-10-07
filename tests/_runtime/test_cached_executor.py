@@ -84,9 +84,9 @@ class TestUnhashableStubCaching:
         # Verify lambda became UnhashableStub
         assert "fn" in restored.defs
         fn_stub = restored.defs["fn"]
-        assert isinstance(
-            fn_stub, UnhashableStub
-        ), f"Expected UnhashableStub, got {type(fn_stub)}"
+        assert isinstance(fn_stub, UnhashableStub), (
+            f"Expected UnhashableStub, got {type(fn_stub)}"
+        )
 
         # Verify metadata
         assert fn_stub.var_name == "fn"
@@ -182,9 +182,9 @@ class TestUnhashableStubCaching:
 
         # Return value should be UnhashableStub
         return_val = restored.meta["return"]
-        assert isinstance(
-            return_val, UnhashableStub
-        ), f"Expected UnhashableStub, got {type(return_val)}"
+        assert isinstance(return_val, UnhashableStub), (
+            f"Expected UnhashableStub, got {type(return_val)}"
+        )
 
         assert return_val.var_name == "<return>"
         assert "function" in return_val.type_name.lower()
@@ -304,9 +304,7 @@ async def test_lambda_becomes_unhashable_stub_in_cache(
 
         # Get the cache key from the store
         # Cache keys are stored with hash prefixes
-        cache_keys = [
-            k for k in memory_store._keys if k.endswith("/lazy")
-        ]
+        cache_keys = [k for k in memory_store._keys if k.endswith("/lazy")]
         assert len(cache_keys) > 0, "No cache was saved"
 
         # Load the cache
@@ -317,9 +315,9 @@ async def test_lambda_becomes_unhashable_stub_in_cache(
         # Verify fn is an UnhashableStub in the cache
         assert "fn" in restored_cache.defs
         fn_cached = restored_cache.defs["fn"]
-        assert isinstance(
-            fn_cached, UnhashableStub
-        ), f"Expected UnhashableStub, got {type(fn_cached)}"
+        assert isinstance(fn_cached, UnhashableStub), (
+            f"Expected UnhashableStub, got {type(fn_cached)}"
+        )
 
         # Verify stub metadata
         assert "function" in fn_cached.type_name
@@ -359,9 +357,9 @@ async def test_return_lambda_cache_hit_fails(
         # CRITICAL: Should NOT return an UnhashableStub
         # This test should FAIL with current implementation
         assert result2 is not None
-        assert not isinstance(
-            result2[-1], UnhashableStub
-        ), "Cache hit returned UnhashableStub instead of rerunning or erroring"
+        assert not isinstance(result2[-1], UnhashableStub), (
+            "Cache hit returned UnhashableStub instead of rerunning or erroring"
+        )
 
         # Should either:
         # - Return a callable (if cell was re-executed)
@@ -414,7 +412,9 @@ async def test_reference_stub_hydration_expands(
                 if isinstance(data_cached, ReferenceStub):
                     # Verify ReferenceStub can be loaded
                     loaded = data_cached.load({})
-                    assert isinstance(loaded, dict), "ReferenceStub.load should return dict of {var: value}"
+                    assert isinstance(loaded, dict), (
+                        "ReferenceStub.load should return dict of {var: value}"
+                    )
                     assert "data" in loaded or isinstance(loaded, list)
 
         # Cell B: Depends on data from Cell A
@@ -544,7 +544,9 @@ async def test_ui_element_cache_stale_after_change(
 
     with patch("marimo._save.stores.get_store", return_value=memory_store):
         # First execution: slider with range 0-10
-        cell_id = exec_req.get("import marimo as mo; slider = mo.ui.slider(0, 10)")
+        cell_id = exec_req.get(
+            "import marimo as mo; slider = mo.ui.slider(0, 10)"
+        )
         await k.run([cell_id])
 
         assert "slider" in k.globals
@@ -595,7 +597,9 @@ async def test_immediate_ref_stub_pickle_failure(
         # CRITICAL: Should successfully restore the list
         # Not return an ImmediateReferenceStub object
         assert result2 is not None
-        assert isinstance(result2[-1], list), f"Expected list, got {type(result2[-1])}"
+        assert isinstance(result2[-1], list), (
+            f"Expected list, got {type(result2[-1])}"
+        )
         assert len(result2[-1]) == 10000
 
 

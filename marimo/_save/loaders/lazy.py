@@ -85,7 +85,9 @@ def from_item(item: Item) -> Any:
         stub.type_name = item.unhashable.get("type", "Unknown")
         stub.error_msg = item.unhashable.get("error", "Unknown error")
         stub.var_name = item.unhashable.get("var_name", "")
-        stub.obj_type = type(None)  # Placeholder since we don't have the object
+        stub.obj_type = type(
+            None
+        )  # Placeholder since we don't have the object
         return stub
     elif item.module is not None:
         module_stub = ModuleStub.__new__(ModuleStub)
