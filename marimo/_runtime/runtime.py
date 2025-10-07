@@ -1518,7 +1518,9 @@ class Kernel:
         ]
 
         # Create deletion requests for all cells to delete
-        [DeleteCellRequest(cell_id=cell_id) for cell_id in all_delete_ids]
+        deletion_requests = [
+            DeleteCellRequest(cell_id=cell_id) for cell_id in all_delete_ids
+        ]
 
         # Clean up uninstantiated requests for deleted cells
         for cell_id in all_delete_ids:
@@ -1526,6 +1528,7 @@ class Kernel:
                 del self._uninstantiated_execution_requests[cell_id]
 
         # Use existing mutate_graph infrastructure to update the graph
+        self.mutate_graph(execution_requests, deletion_requests)
         await self.run(execution_requests)
 
     @kernel_tracer.start_as_current_span("run")
