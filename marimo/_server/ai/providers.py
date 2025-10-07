@@ -1201,7 +1201,7 @@ def get_completion_provider(
         return GoogleProvider(model_id.model, config)
     elif model_id.provider == "bedrock":
         # LiteLLM requires the full qualified model ID with provider prefix
-        return BedrockProvider(f"bedrock/{model_id.model}", config)
+        return BedrockProvider(model_id.model, config)
     elif model_id.provider == "azure":
         return AzureOpenAIProvider(model_id.model, config)
     elif model_id.provider == "openrouter":
