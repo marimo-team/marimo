@@ -8,6 +8,7 @@ import pytest
 from marimo._data.get_datasets import (
     get_databases_from_duckdb,
     get_datasets_from_variables,
+    get_table_columns,
     has_updates_to_datasource,
 )
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
@@ -514,3 +515,13 @@ def test_get_datasets_from_variables(df: Any) -> None:
             ],
         )
     ]
+
+
+def test_get_table_columns() -> None:
+    import duckdb
+
+    connection = duckdb.connect(":memory:")
+    connection.execute(sql_query)
+
+    columns = get_table_columns(connection, "all_types")
+    assert columns == all_types_tables[0].columns
