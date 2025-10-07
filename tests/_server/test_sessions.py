@@ -26,9 +26,9 @@ from marimo._messaging.ops import UpdateCellCodes
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
-    ExecuteMultipleRequest,
     ExecutionRequest,
     SetUIElementValueRequest,
+    SyncGraphRequest,
 )
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
@@ -762,7 +762,7 @@ def __():
         # Verify that cells were queued for execution
         assert session.session_view.add_control_request.called
         last_call = session.session_view.add_control_request.call_args[0][0]
-        assert isinstance(last_call, ExecuteMultipleRequest)
+        assert isinstance(last_call, SyncGraphRequest)
 
         # Now change config to lazy mode
         config_reader_lazy = config_reader.with_overrides(
