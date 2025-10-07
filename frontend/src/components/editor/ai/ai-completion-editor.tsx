@@ -50,6 +50,7 @@ interface Props {
   acceptChange: (rightHandCode: string) => void;
   enabled: boolean;
   triggerImmediately?: boolean;
+  runCell: () => void;
   /**
    * Children shown when there is no completion
    */
@@ -73,6 +74,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   acceptChange,
   enabled,
   triggerImmediately,
+  runCell,
   children,
 }) => {
   const [showInputPrompt, setShowInputPrompt] = useState(false);
@@ -320,6 +322,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
           onReject={handleDeclineCompletion}
           showInputPrompt={showInputPrompt}
           setShowInputPrompt={setShowInputPrompt}
+          runCell={runCell}
           className="mt-4 mb-3 w-128"
         />
       </div>
@@ -333,6 +336,7 @@ interface CompletionBannerProps {
   onReject: () => void;
   showInputPrompt: boolean;
   setShowInputPrompt: (show: boolean) => void;
+  runCell: () => void;
   className?: string;
 }
 
@@ -343,6 +347,7 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
   className,
   showInputPrompt,
   setShowInputPrompt,
+  runCell,
 }) => {
   const isLoading = status === "loading";
 
@@ -385,7 +390,9 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
           isLoading={isLoading}
           onAccept={onAccept}
           size="xs"
-          className="border-none rounded-md"
+          buttonStyles="border-none rounded-r-none rounded-md"
+          playButtonStyles="border-0 border-l-1 rounded-l-none rounded-md"
+          runCell={runCell}
           // acceptShortcut="Mod-↵"
         />
         <RejectCompletionButton
