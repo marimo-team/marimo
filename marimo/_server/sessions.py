@@ -583,7 +583,7 @@ class Session:
         if isinstance(request, (ExecuteMultipleRequest, SyncGraphRequest)):
             if isinstance(request, ExecuteMultipleRequest):
                 cell_ids = request.cell_ids
-                codes = (request.codes,)
+                codes = request.codes
             else:
                 cell_ids = request.run_ids
                 codes = [request.cells[cell_id] for cell_id in cell_ids]
