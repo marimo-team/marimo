@@ -8,6 +8,7 @@ import pytest
 from marimo._data.get_datasets import (
     get_databases_from_duckdb,
     get_datasets_from_variables,
+    get_duckdb_databases_agg_query,
     get_table_columns,
     has_updates_to_datasource,
 )
@@ -525,3 +526,27 @@ def test_get_table_columns() -> None:
 
     columns = get_table_columns(connection, "all_types")
     assert columns == all_types_tables[0].columns
+
+
+def test_get_databases_agg_query() -> None:
+    import duckdb
+
+    connection = duckdb.connect(":memory:")
+    connection.execute(sql_query)
+
+    assert get_duckdb_databases_agg_query(
+        connection=connection, engine_name=None
+    ) == [
+        Database(
+            name="memory",
+            dialect="duckdb",
+            schemas=[
+                Schema(name="main", tables=all_types_tables),
+                Schema(name="s1", tables=s1_tables),
+                Schema(name="s2", tables=s2_tables),
+            ],
+            engine=None,
+        )
+    ]
+
+    connection.execute(cleanup_query)
