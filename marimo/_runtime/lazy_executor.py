@@ -36,12 +36,22 @@ def hydrate(
     _loader: Loader,
 ) -> None:
     """Hydrate references in the global scope."""
+    from marimo._save.stubs.lazy_stubs import UnhashableStub
+
     for ref in refs:
         obj = glbls.get(ref, None)
         if isinstance(obj, ReferenceStub):
             for var, value in obj.load(glbls).items():
                 # TODO: Set privates too
                 glbls[var] = value
+        elif isinstance(obj, UnhashableStub):
+            # Cannot hydrate UnhashableStub - log warning
+            LOGGER.warning(
+                f"Cannot hydrate unhashable variable '{obj.var_name}' "
+                f"of type {obj.type_name}. Cell may need to be re-executed. "
+                f"Original error: {obj.error_msg}"
+            )
+            # TODO: Queue rerun of upstream cells that produce this stub
 
 
 def process(
@@ -112,6 +122,8 @@ class CachedExecutor(Executor):
         graph: DirectedGraph,
     ) -> Any:
         LOGGER.info(f"{glbls.keys()=}")
+        # TODO: Loader should persist on the context level.
+        # Also TODO: Dry between async and sync.
         loader = LazyLoader(name=cell.cell_id)
 
         load_start = time.time()
@@ -133,6 +145,7 @@ class CachedExecutor(Executor):
 
         # Record cache miss
         try:
+            # TODO: Consolidate with above
             ctx = get_context()
             ctx.cell_cache_context.record_miss()
         except ContextNotInitializedError:

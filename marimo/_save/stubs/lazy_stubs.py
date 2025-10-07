@@ -28,6 +28,8 @@ TYPE_LOOKUP: dict[type, str] = {
     FunctionStub: "txtpb",
     ModuleStub: "txtpb",
     UIElementStub: "ui",
+    # UnhashableStub will be added to TYPE_LOOKUP dynamically since it's
+    # defined after this dict
 }
 
 
@@ -48,6 +50,7 @@ class Item(msgspec.Struct):
     reference: Optional[str] = None
     module: Optional[str] = None
     function: Optional[str] = None
+    unhashable: Optional[dict[str, str]] = None
 
     def __post_init__(self) -> None:
         # Ensure only one field is set (mimicking protobuf oneof behavior)
@@ -58,6 +61,7 @@ class Item(msgspec.Struct):
                 self.reference,
                 self.module,
                 self.function,
+                self.unhashable,
             ]
             if field is not None
         )
@@ -104,6 +108,38 @@ class ReferenceStub:
             self.loader = TYPE_LOOKUP.get(type(self), "pickle")
         maybe_bytes = get_store().get(self.name)
         return maybe_bytes if maybe_bytes else b""
+
+
+class UnhashableStub:
+    """Stub for variables that cannot be hashed or pickled.
+
+    Used for graceful degradation when caching fails for certain objects
+    like lambdas, threads, sockets, etc. The cache can still be saved
+    with these stubs, and when a cell needs them, it can trigger a rerun.
+    """
+
+    def __init__(self, obj: Any, error: Exception, var_name: str = "") -> None:
+        self.obj_type = type(obj)
+        self.type_name = f"{self.obj_type.__module__}.{self.obj_type.__name__}"
+        self.error_msg = str(error)
+        self.var_name = var_name
+
+    def load(self, glbls: dict[str, Any]) -> Any:
+        """Cannot load unhashable stubs - need to rerun the cell."""
+        del glbls  # Unused
+        raise ValueError(
+            f"Cannot load unhashable variable '{self.var_name}' "
+            f"of type {self.type_name}. Original error: {self.error_msg}. "
+            "Cell needs to be re-executed."
+        )
+
+    def to_bytes(self) -> bytes:
+        """Unhashable stubs cannot be serialized."""
+        return b""
+
+
+# Register UnhashableStub in TYPE_LOOKUP
+TYPE_LOOKUP[UnhashableStub] = "unhashable"
 
 
 class ImmediateReferenceStub(CustomStub):

@@ -43,6 +43,18 @@ def to_item(
         return Item(reference=(path / "pickles.pickle").as_posix())
     if loader == "ui":
         return Item(reference=(path / "ui.pickle").as_posix())
+    if loader == "unhashable":
+        # For UnhashableStub, store the type and error info
+        from marimo._save.stubs.lazy_stubs import UnhashableStub
+
+        if isinstance(value, UnhashableStub):
+            return Item(
+                unhashable={
+                    "type": value.type_name,
+                    "error": value.error_msg,
+                    "var_name": value.var_name,
+                }
+            )
 
     if isinstance(value, FunctionStub):
         # If the value is a FunctionStub, store the code
@@ -64,6 +76,17 @@ def from_item(item: Item) -> Any:
     if item.reference is not None:
         # If the item is a reference, we don't need to load it
         return ReferenceStub(item.reference)
+    elif item.unhashable is not None:
+        # Reconstruct UnhashableStub from stored metadata
+        from marimo._save.stubs.lazy_stubs import UnhashableStub
+
+        # Create a dummy object with the right type name for display
+        stub = UnhashableStub.__new__(UnhashableStub)
+        stub.type_name = item.unhashable.get("type", "Unknown")
+        stub.error_msg = item.unhashable.get("error", "Unknown error")
+        stub.var_name = item.unhashable.get("var_name", "")
+        stub.obj_type = type(None)  # Placeholder since we don't have the object
+        return stub
     elif item.module is not None:
         module_stub = ModuleStub.__new__(ModuleStub)
         module_stub.name = item.module
@@ -167,6 +190,18 @@ class LazyLoader(BasePersistenceLoader):
 
         for var, obj in cache.defs.items():
             loader = TYPE_LOOKUP.get(type(obj), "pickle")
+
+            # For pickle loader, verify the object can actually be pickled
+            if loader == "pickle":
+                try:
+                    pickle.dumps(obj)
+                except (pickle.PicklingError, TypeError) as e:
+                    # Cannot pickle - create UnhashableStub for graceful degradation
+                    from marimo._save.stubs.lazy_stubs import UnhashableStub
+
+                    obj = UnhashableStub(obj, e, var_name=var)
+                    loader = "unhashable"
+
             # txtpb is handled directly in the serialized blob, so no point
             # registering it in the collection.
             if loader != "txtpb":
@@ -191,8 +226,29 @@ class LazyLoader(BasePersistenceLoader):
 
         # Handle return value separately
         if return_item.reference:
-            blob = pickle.dumps(cache.meta.get("return", None))
-            self.store.put(return_item.reference, blob)
+            try:
+                blob = pickle.dumps(cache.meta.get("return", None))
+                self.store.put(return_item.reference, blob)
+            except (pickle.PicklingError, TypeError) as e:
+                # Return value can't be pickled - replace with UnhashableStub
+                from marimo._save.stubs.lazy_stubs import UnhashableStub
+
+                return_stub = UnhashableStub(
+                    cache.meta.get("return", None), e, var_name="<return>"
+                )
+                # Update the return_item to be unhashable
+                return_item = Item(
+                    unhashable={
+                        "type": return_stub.type_name,
+                        "error": return_stub.error_msg,
+                        "var_name": return_stub.var_name,
+                    }
+                )
+                # Update store with new return_item
+                store.meta = Meta(
+                    version=cache.meta.get("version", MARIMO_CACHE_VERSION),
+                    return_value=return_item,
+                )
 
         # Handle ui elements separately
         ui = collections.get("ui", {})
