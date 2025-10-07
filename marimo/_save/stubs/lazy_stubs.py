@@ -17,21 +17,6 @@ from marimo._save.stubs import (
     UIElementStub,
 )
 
-TYPE_LOOKUP: dict[type, str] = {
-    # np.ndarray: "npy",
-    int: "txtpb",
-    str: "txtpb",
-    float: "txtpb",
-    bool: "txtpb",
-    bytes: "txtpb",
-    type(None): "txtpb",
-    FunctionStub: "txtpb",
-    ModuleStub: "txtpb",
-    UIElementStub: "ui",
-    # UnhashableStub will be added to TYPE_LOOKUP dynamically since it's
-    # defined after this dict
-}
-
 
 class CacheType(Enum):
     CONTEXT_EXECUTION_PATH = "ContextExecutionPath"
@@ -138,8 +123,18 @@ class UnhashableStub:
         return b""
 
 
-# Register UnhashableStub in TYPE_LOOKUP
-TYPE_LOOKUP[UnhashableStub] = "unhashable"
+TYPE_LOOKUP: dict[type, str] = {
+    int: "txtpb",
+    str: "txtpb",
+    float: "txtpb",
+    bool: "txtpb",
+    bytes: "txtpb",
+    type(None): "txtpb",
+    FunctionStub: "txtpb",
+    ModuleStub: "txtpb",
+    UIElementStub: "ui",
+    UnhashableStub: "unhashable",
+}
 
 
 class ImmediateReferenceStub(CustomStub):

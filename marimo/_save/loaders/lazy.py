@@ -195,7 +195,7 @@ class LazyLoader(BasePersistenceLoader):
             if loader == "pickle":
                 try:
                     pickle.dumps(obj)
-                except (pickle.PicklingError, TypeError) as e:
+                except (pickle.PicklingError, TypeError, AttributeError) as e:
                     # Cannot pickle - create UnhashableStub for graceful degradation
                     from marimo._save.stubs.lazy_stubs import UnhashableStub
 
@@ -229,7 +229,7 @@ class LazyLoader(BasePersistenceLoader):
             try:
                 blob = pickle.dumps(cache.meta.get("return", None))
                 self.store.put(return_item.reference, blob)
-            except (pickle.PicklingError, TypeError) as e:
+            except (pickle.PicklingError, TypeError, AttributeError) as e:
                 # Return value can't be pickled - replace with UnhashableStub
                 from marimo._save.stubs.lazy_stubs import UnhashableStub
 

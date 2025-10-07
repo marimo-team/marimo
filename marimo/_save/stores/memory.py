@@ -24,9 +24,18 @@ class MemoryStore(Store):
         self._lock = threading.Lock()
 
     def _shm_name(self, key: str) -> str:
-        """Convert cache key to SharedMemory name."""
-        # SharedMemory names have restrictions, so prefix and sanitize
-        return f"marimo_{key.replace('/', '_').replace('.', '_')}"
+        """Convert cache key to SharedMemory name.
+
+        POSIX SharedMemory names are limited to ~31 characters on macOS/BSD.
+        Keys are already hashes, so just truncate to 30 chars.
+        """
+        # Sanitize the key
+        sanitized = key.replace('/', '_').replace('.', '_')
+        name = f"m_{sanitized}"
+
+        # POSIX limit is typically 31 chars including leading slash
+        # Keep it safe at 30 chars
+        return name[:30]
 
     def get(self, key: str) -> Optional[bytes]:
         """Retrieve bytes from shared memory by key."""
