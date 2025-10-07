@@ -1,4 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
+
 import pickle
 from pathlib import Path
 from typing import Any, Optional
@@ -28,7 +30,7 @@ from marimo._save.stubs.lazy_stubs import (
 
 
 def to_item(
-    path: Path, value: Optional[Any], loader: str | None = None
+    path: Path, value: Optional[Any], loader: Optional[str] = None
 ) -> Item:
     if value is None:
         # If the value is None, we store it as an empty item
