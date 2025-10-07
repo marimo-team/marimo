@@ -166,6 +166,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   };
 
   const handleDeclineCompletion = () => {
+    declineChange();
     setCompletion("");
   };
 
