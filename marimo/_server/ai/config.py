@@ -175,8 +175,6 @@ class AnyProviderConfig:
     def for_bedrock(cls, config: AiConfig) -> AnyProviderConfig:
         ai_config = _get_ai_config(config, "bedrock")
         key = _get_key(ai_config, "Bedrock")
-        # Inference profiles are now applied by get_*_model() functions
-        # so we don't need to pass them here
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
@@ -237,36 +235,31 @@ def _get_ai_config(config: AiConfig, key: str) -> dict[str, Any]:
 
 def get_chat_model(config: AiConfig) -> str:
     """Get the chat model from the config."""
-    model = (
+    return (
         # Current config
         config.get("models", {}).get("chat_model")
         # Legacy config
         or config.get("open_ai", {}).get("model")
         or DEFAULT_MODEL
     )
-    return model
 
 
 def get_edit_model(config: AiConfig) -> str:
     """Get the edit model from the config."""
-    model = config.get("models", {}).get("edit_model") or get_chat_model(
-        config
-    )
-    return model
+    return config.get("models", {}).get("edit_model") or get_chat_model(config)
 
 
 def get_autocomplete_model(
     config: Union[MarimoConfig, PartialMarimoConfig],
 ) -> str:
     """Get the autocomplete model from the config."""
-    model = (
+    return (
         # Current config
         config.get("ai", {}).get("models", {}).get("autocomplete_model")
         # Legacy config
         or config.get("completion", {}).get("model")
         or DEFAULT_MODEL
     )
-    return model
 
 
 def get_max_tokens(config: MarimoConfig) -> int:

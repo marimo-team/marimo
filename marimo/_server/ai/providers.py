@@ -1061,12 +1061,6 @@ class BedrockProvider(
         "LitellmStream",
     ]
 ):
-    def __init__(self, model: str, config: AnyProviderConfig):
-        # Store the model ID for reference, but note that BedrockProvider
-        # will use the dynamically computed model from get_completion_provider()
-        # on each request to ensure the latest inference profile is applied
-        super().__init__(model, config)
-
     def setup_credentials(self, config: AnyProviderConfig) -> None:
         # Use profile name if provided, otherwise use API key
         try:
@@ -1200,7 +1194,6 @@ def get_completion_provider(
     elif model_id.provider == "google":
         return GoogleProvider(model_id.model, config)
     elif model_id.provider == "bedrock":
-        # LiteLLM requires the full qualified model ID with provider prefix
         return BedrockProvider(model_id.model, config)
     elif model_id.provider == "azure":
         return AzureOpenAIProvider(model_id.model, config)
