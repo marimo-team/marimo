@@ -188,6 +188,20 @@ class SyncGraphRequest(msgspec.Struct, rename="camel"):
     # denote what should be run/ updated or deleted.
     run_ids: list[CellId_t]
     delete_ids: list[CellId_t]
+    # time at which the request was received
+    timestamp: float = msgspec.field(default_factory=time.time)
+
+    @property
+    def execution_requests(self) -> list[ExecutionRequest]:
+        return [
+            ExecutionRequest(
+                cell_id=cell_id,
+                code=self.cells[cell_id],
+                request=None,
+                timestamp=self.timestamp,
+            )
+            for cell_id in self.run_ids
+        ]
 
 
 class ExecuteScratchpadRequest(msgspec.Struct, rename="camel"):

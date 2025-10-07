@@ -30,6 +30,7 @@ from marimo._runtime.requests import (
     ExecuteMultipleRequest,
     ExecutionRequest,
     SetUIElementValueRequest,
+    SyncGraphRequest,
 )
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, WidgetModelId
@@ -126,7 +127,7 @@ class SessionView:
         if isinstance(request, SetUIElementValueRequest):
             for object_id, value in request.ids_and_values:
                 self._add_ui_value(object_id, value)
-        elif isinstance(request, ExecuteMultipleRequest):
+        elif isinstance(request, (ExecuteMultipleRequest, SyncGraphRequest)):
             for execution_request in request.execution_requests:
                 self._add_last_run_code(execution_request)
         elif isinstance(request, CreationRequest):

@@ -580,31 +580,25 @@ class Session:
         if isinstance(request, SetUIElementValueRequest):
             self._queue_manager.set_ui_element_queue.put(request)
         # Propagate the control request to the room
-        if isinstance(request, ExecuteMultipleRequest):
+        if isinstance(request, (ExecuteMultipleRequest, SyncGraphRequest)):
+            if isinstance(request, ExecuteMultipleRequest):
+                cell_ids = request.cell_ids
+                codes = (request.codes,)
+            else:
+                cell_ids = request.run_ids
+                codes = [request.cells[cell_id] for cell_id in cell_ids]
             self.room.broadcast(
                 UpdateCellCodes(
-                    cell_ids=request.cell_ids,
-                    codes=request.codes,
+                    cell_ids=cell_ids,
+                    codes=codes,
                     # Not stale because we just ran the code
                     code_is_stale=False,
                 ),
                 except_consumer=from_consumer_id,
             )
-            if len(request.cell_ids) == 1:
+            if len(cell_ids) == 1:
                 self.room.broadcast(
-                    FocusCell(cell_id=request.cell_ids[0]),
-                    except_consumer=from_consumer_id,
-                )
-        elif isinstance(request, requests.SyncGraphRequest):
-            # Broadcast cell codes for cells that are being run
-            if request.run_ids:
-                self.room.broadcast(
-                    UpdateCellCodes(
-                        cell_ids=request.run_ids,
-                        codes=[request.cells[cid] for cid in request.run_ids],
-                        # Not stale because we're running the code
-                        code_is_stale=False,
-                    ),
+                    FocusCell(cell_id=cell_ids[0]),
                     except_consumer=from_consumer_id,
                 )
         self.session_view.add_control_request(request)

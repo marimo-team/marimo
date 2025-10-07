@@ -1518,9 +1518,7 @@ class Kernel:
         ]
 
         # Create deletion requests for all cells to delete
-        deletion_requests = [
-            DeleteCellRequest(cell_id=cell_id) for cell_id in all_delete_ids
-        ]
+        [DeleteCellRequest(cell_id=cell_id) for cell_id in all_delete_ids]
 
         # Clean up uninstantiated requests for deleted cells
         for cell_id in all_delete_ids:
@@ -1528,8 +1526,7 @@ class Kernel:
                 del self._uninstantiated_execution_requests[cell_id]
 
         # Use existing mutate_graph infrastructure to update the graph
-        cells_to_run = self.mutate_graph(execution_requests, deletion_requests)
-        await self._run_cells(cells_to_run)
+        await self.run(execution_requests)
 
     @kernel_tracer.start_as_current_span("run")
     async def run(
@@ -2192,9 +2189,10 @@ class Kernel:
         async def handle_sync_graph(
             request: SyncGraphRequest,
         ) -> None:
-            await self.sync_graph(
-                request.cells, request.run_ids, request.delete_ids
-            )
+            with http_request_context(None):
+                await self.sync_graph(
+                    request.cells, request.run_ids, request.delete_ids
+                )
             CompletedRun().broadcast()
 
         async def handle_execute_scratchpad(
