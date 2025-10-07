@@ -11,6 +11,9 @@ have the changes automatically reflected in your browser.
     For better performance, install [watchdog](https://pypi.org/project/watchdog/).
     Without watchdog, marimo resorts to polling.
 
+!!! warn "Watch works best with autosave"
+    Verify your settings in `User Settings` > `Editor` > `Autosave` > `Autosave enabled`
+
 ## marimo's file format
 
 !!! tip "File format tutorial"
