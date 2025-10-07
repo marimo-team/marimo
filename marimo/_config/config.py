@@ -101,7 +101,7 @@ WidthType = Literal["normal", "compact", "medium", "full", "columns"]
 Theme = Literal["light", "dark", "system"]
 ExportType = Literal["html", "markdown", "ipynb"]
 SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
-StoreKey = Literal["file", "redis", "rest", "tiered"]
+StoreKey = Literal["file", "memory", "redis", "rest", "tiered"]
 
 
 @mddoc
