@@ -223,10 +223,11 @@
 
 - name: Claude 4.5 Sonnet (Bedrock)
   model: anthropic.claude-sonnet-4-5-20250929-v1:0
-  description: Newest balanced model with strong performance across reasoning, math, and coding
+  description: Balanced model with strong performance across reasoning, math, and coding
   providers: [bedrock]
   roles: [chat, edit]
   thinking: true
+  inference_profiles: [global, us, eu, jp]
 
 - name: Claude 4.1 Opus (Bedrock)
   model: anthropic.claude-opus-4-1-20250805-v1:0
@@ -234,13 +235,15 @@
   providers: [bedrock]
   roles: [chat, edit]
   thinking: true
+  inference_profiles: [us]
 
 - name: Claude 3.7 Sonnet (Bedrock)
   model: anthropic.claude-3-7-sonnet-20250219-v1:0
-  description: Enhanced Sonnet model with improved capabilities
+  description: Balanced model with strong performance across reasoning, math, and coding
   providers: [bedrock]
   roles: [chat, edit]
-  thinking: false
+  thinking: true
+  inference_profiles: [us, us-gov, apac, eu]
 
 - name: Claude 3.5 Sonnet v2 (Bedrock)
   model: anthropic.claude-3-5-sonnet-20241022-v2:0
@@ -248,6 +251,7 @@
   providers: [bedrock]
   roles: [chat, edit]
   thinking: false
+  inference_profiles: [us, apac, eu]
 
 - name: Claude 3.5 Haiku (Bedrock)
   model: anthropic.claude-3-5-haiku-20241022-v1:0
@@ -255,17 +259,27 @@
   providers: [bedrock]
   roles: [chat, edit]
   thinking: false
+  inference_profiles: [us]
 
-- name: Llama 3.3 70B Instruct
+- name: Llama 3.3 70B Instruct (Bedrock)
   model: meta.llama3-3-70b-instruct-v1:0
   description: Large language model optimized for instruction following and chat
   providers: [bedrock]
   roles: [chat, edit]
   thinking: false
+  inference_profiles: [us]
+
+- name: Cohere Embed v4
+  model: cohere.embed-v4
+  description: Multimodal text embedding model for semantic search and similarity
+  providers: [bedrock]
+  roles: [embed]
+  thinking: false
+  inference_profiles: [us, eu]
 
 - name: Cohere Embed Multilingual v3
   model: cohere.embed-multilingual-v3
-  description: Multilingual text embedding model for semantic search and similarity
+  description: Multimodal & multilingual text embedding model for semantic search and similarity
   providers: [bedrock]
   roles: [embed]
   thinking: false

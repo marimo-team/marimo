@@ -16,6 +16,7 @@ export const LLMInfoSchema = z.object({
   providers: z.array(z.string()),
   roles: z.array(z.enum(ROLES)),
   thinking: z.boolean().default(false),
+  inference_profiles: z.array(z.string()),
 });
 
 export const ProviderSchema = z.object({
