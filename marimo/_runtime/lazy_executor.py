@@ -73,8 +73,8 @@ def process(
             attempt.restore(glbls)
     except Exception as e:
         LOGGER.info(f"Cache attempt failed for cell {cell.cell_id}: {e}")
-        if attempt is None:
-            raise e
+        # if attempt is None:
+        raise e
     # Also register the cell hash for memoized speedup.
     # Still need to register, since it would have been cleaned up otherwise.
     attempt_register(attempt)
@@ -115,6 +115,25 @@ def attempt_register(attempt: Cache) -> None:
 
 
 class CachedExecutor(Executor):
+    def _record_cache_hit(self, cell_id: str, load_time: float, attempt: Cache) -> None:
+        """Record cache hit with time saved."""
+        try:
+            ctx = get_context()
+            original_runtime = attempt.meta.get("runtime", 0)
+            time_saved = max(0, original_runtime - load_time)
+            ctx.cell_cache_context.record_hit(time_saved)
+        except ContextNotInitializedError:
+            pass
+        CellOp.broadcast_cache(cell_id=cell_id, cache="hit")
+
+    def _record_cache_miss(self) -> None:
+        """Record cache miss."""
+        try:
+            ctx = get_context()
+            ctx.cell_cache_context.record_miss()
+        except ContextNotInitializedError:
+            pass
+
     def execute_cell(
         self,
         cell: CellImpl,
@@ -123,7 +142,6 @@ class CachedExecutor(Executor):
     ) -> Any:
         LOGGER.info(f"{glbls.keys()=}")
         # TODO: Loader should persist on the context level.
-        # Also TODO: Dry between async and sync.
         loader = LazyLoader(name=cell.cell_id)
 
         load_start = time.time()
@@ -131,26 +149,10 @@ class CachedExecutor(Executor):
         load_time = time.time() - load_start
 
         if attempt.hit:
-            # Record cache hit with time saved
-            try:
-                ctx = get_context()
-                original_runtime = attempt.meta.get("runtime", 0)
-                time_saved = max(0, original_runtime - load_time)
-                ctx.cell_cache_context.record_hit(time_saved)
-            except ContextNotInitializedError:
-                pass
-
-            CellOp.broadcast_cache(cell_id=cell.cell_id, cache="hit")
+            self._record_cache_hit(cell.cell_id, load_time, attempt)
             return attempt.meta.get("return")
 
-        # Record cache miss
-        try:
-            # TODO: Consolidate with above
-            ctx = get_context()
-            ctx.cell_cache_context.record_miss()
-        except ContextNotInitializedError:
-            pass
-
+        self._record_cache_miss()
         hydrate(cell.refs, glbls, graph, loader)
 
         # Measure execution time
@@ -171,7 +173,8 @@ class CachedExecutor(Executor):
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
-        LOGGER.info(f"??{glbls.keys()=}")
+        LOGGER.info(f"{glbls.keys()=}")
+        # TODO: Loader should persist on the context level.
         loader = LazyLoader(name=cell.cell_id)
 
         load_start = time.time()
@@ -179,25 +182,10 @@ class CachedExecutor(Executor):
         load_time = time.time() - load_start
 
         if attempt.hit:
-            # Record cache hit with time saved
-            try:
-                ctx = get_context()
-                original_runtime = attempt.meta.get("runtime", 0)
-                time_saved = max(0, original_runtime - load_time)
-                ctx.cell_cache_context.record_hit(time_saved)
-            except ContextNotInitializedError:
-                pass
-
-            CellOp.broadcast_cache(cell_id=cell.cell_id, cache="hit")
+            self._record_cache_hit(cell.cell_id, load_time, attempt)
             return attempt.meta.get("return")
 
-        # Record cache miss
-        try:
-            ctx = get_context()
-            ctx.cell_cache_context.record_miss()
-        except ContextNotInitializedError:
-            pass
-
+        self._record_cache_miss()
         hydrate(cell.refs, glbls, graph, loader)
 
         # Measure execution time

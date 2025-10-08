@@ -88,12 +88,12 @@ class Cache:
         memo: dict[int, Any] = {}  # Track processed objects to handle cycles
         for var, lookup in self.contextual_defs():
             value = self.defs.get(var, None)
-            scope[lookup] = self._restore_from_stub_if_needed(
+            scope[lookup] = _restore_from_stub_if_needed(
                 value, scope, memo
             )
 
         for key, value in self.meta.items():
-            self.meta[key] = self._restore_from_stub_if_needed(
+            self.meta[key] = _restore_from_stub_if_needed(
                 value, scope, memo
             )
 
@@ -116,70 +116,6 @@ class Cache:
                     "Unexpected stateful reference type "
                     f"({type(ref)}:{ref})."
                 )
-
-    def _restore_from_stub_if_needed(
-        self,
-        value: Any,
-        scope: dict[str, Any],
-        memo: dict[int, Any] | None = None,
-    ) -> Any:
-        """Restore objects from stubs if needed, recursively handling collections."""
-        if memo is None:
-            memo = {}
-
-        # Check for cycles
-        obj_id = id(value)
-        if obj_id in memo:
-            return memo[obj_id]
-
-        if isinstance(value, ModuleStub):
-            result = value.load()
-        elif isinstance(value, FunctionStub):
-            result = value.load(scope)
-        elif isinstance(value, UIElementStub):
-            result = value.load()
-        elif isinstance(value, tuple):
-            result = tuple(
-                self._restore_from_stub_if_needed(item, scope, memo)
-                for item in value
-            )
-        elif isinstance(value, set):
-            # Sets cannot be recursive (require hashable items), but keep the
-            # reference.
-            result = set(
-                self._restore_from_stub_if_needed(item, scope, memo)
-                for item in value
-            )
-            value.clear()
-            value.update(result)
-            result = value
-        elif isinstance(value, list):
-            memo[obj_id] = value
-            result = [
-                self._restore_from_stub_if_needed(item, scope, memo)
-                for item in value
-            ]
-            # Keep the original list reference
-            value.clear()
-            value.extend(result)
-            result = value
-        elif isinstance(value, dict):
-            memo[obj_id] = value
-            result = {}
-            for k, v in value.items():
-                result[k] = self._restore_from_stub_if_needed(v, scope, memo)
-            value.clear()
-            value.update(result)
-            result = value
-        elif isinstance(value, CustomStub):
-            # CustomStub is a placeholder for a custom type, which cannot be
-            # restored directly.
-            result = value.load(scope)
-        else:
-            result = value
-
-        memo[obj_id] = result
-        return result
 
     def update(
         self,
@@ -228,122 +164,14 @@ class Cache:
         # Convert objects to stubs in both defs and meta
         memo: dict[int, Any] = {}  # Track processed objects to handle cycles
         for key, value in self.defs.items():
-            self.defs[key] = self._convert_to_stub_if_needed(
+            self.defs[key] = _convert_to_stub_if_needed(
                 value, memo, preserve_pointers
             )
 
         for key, value in self.meta.items():
-            self.meta[key] = self._convert_to_stub_if_needed(
+            self.meta[key] = _convert_to_stub_if_needed(
                 value, memo, preserve_pointers
             )
-
-    def _convert_to_stub_if_needed(
-        self,
-        value: Any,
-        memo: dict[int, Any] | None = None,
-        preserve_pointers: bool = True,
-    ) -> Any:
-        """Convert objects to stubs if needed, recursively handling collections.
-
-        Args:
-            value: The value to convert
-            memo: Memoization dict to handle cycles
-            preserve_pointers: If True, modifies containers in-place to preserve
-                             object identity. If False, creates new containers.
-        """
-        if memo is None:
-            memo = {}
-
-        # Check for cycles
-        obj_id = id(value)
-        if obj_id in memo:
-            return memo[obj_id]
-
-        result: Any = None
-
-        if inspect.ismodule(value):
-            result = ModuleStub(value)
-        elif inspect.isfunction(value):
-            result = FunctionStub(value)
-        elif isinstance(value, UIElement):
-            result = UIElementStub(value)
-        elif isinstance(value, tuple):
-            # tuples are immutable and cannot be recursive, but we still want to
-            # iteratively convert the internal items.
-            result = tuple(
-                self._convert_to_stub_if_needed(item, memo, preserve_pointers)
-                for item in value
-            )
-        elif isinstance(value, set):
-            # sets cannot be recursive (require hashable items)
-            converted = set(
-                self._convert_to_stub_if_needed(item, memo, preserve_pointers)
-                for item in value
-            )
-            if preserve_pointers:
-                value.clear()
-                value.update(converted)
-                result = value
-            else:
-                result = converted
-        elif isinstance(value, list):
-            if preserve_pointers:
-                # Preserve original list reference
-                memo[obj_id] = value
-                converted_list = [
-                    self._convert_to_stub_if_needed(
-                        item, memo, preserve_pointers
-                    )
-                    for item in value
-                ]
-                value.clear()
-                value.extend(converted_list)
-                result = value
-            else:
-                # Create new list
-                result = []
-                memo[obj_id] = result
-                result.extend(
-                    [
-                        self._convert_to_stub_if_needed(
-                            item, memo, preserve_pointers
-                        )
-                        for item in value
-                    ]
-                )
-        elif isinstance(value, dict):
-            if preserve_pointers:
-                # Preserve original dict reference
-                memo[obj_id] = value
-                converted_dict = {
-                    k: self._convert_to_stub_if_needed(
-                        v, memo, preserve_pointers
-                    )
-                    for k, v in value.items()
-                }
-                value.clear()
-                value.update(converted_dict)
-                result = value
-            else:
-                # Create new dict
-                result = {}
-                memo[obj_id] = result
-                result.update(
-                    {
-                        k: self._convert_to_stub_if_needed(
-                            v, memo, preserve_pointers
-                        )
-                        for k, v in value.items()
-                    }
-                )
-        elif type(value) in CUSTOM_STUBS or maybe_register_stub(value):
-            result = CUSTOM_STUBS[type(value)](value)
-        else:
-            result = value
-
-        memo[obj_id] = result
-
-        return result
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""
@@ -488,3 +316,175 @@ class CellCacheContext:
         self._hits = 0
         self._misses = 0
         self._time_saved = 0.0
+
+
+def _convert_to_stub_if_needed(
+    value: Any,
+    memo: dict[int, Any] | None = None,
+    preserve_pointers: bool = True,
+) -> Any:
+    """Convert objects to stubs if needed, recursively handling collections.
+
+    Args:
+        value: The value to convert
+        memo: Memoization dict to handle cycles
+        preserve_pointers: If True, modifies containers in-place to preserve
+                         object identity. If False, creates new containers.
+    """
+    if memo is None:
+        memo = {}
+
+    # Check for cycles
+    obj_id = id(value)
+    if obj_id in memo:
+        return memo[obj_id]
+
+    result: Any = None
+
+    if inspect.ismodule(value):
+        result = ModuleStub(value)
+    elif inspect.isfunction(value):
+        result = FunctionStub(value)
+    elif isinstance(value, UIElement):
+        result = UIElementStub(value)
+    elif isinstance(value, tuple):
+        # tuples are immutable and cannot be recursive, but we still want to
+        # iteratively convert the internal items.
+        result = tuple(
+            _convert_to_stub_if_needed(item, memo, preserve_pointers)
+            for item in value
+        )
+    elif isinstance(value, set):
+        # sets cannot be recursive (require hashable items)
+        converted = set(
+            _convert_to_stub_if_needed(item, memo, preserve_pointers)
+            for item in value
+        )
+        if preserve_pointers:
+            value.clear()
+            value.update(converted)
+            result = value
+        else:
+            result = converted
+    elif isinstance(value, list):
+        if preserve_pointers:
+            # Preserve original list reference
+            memo[obj_id] = value
+            converted_list = [
+                _convert_to_stub_if_needed(
+                    item, memo, preserve_pointers
+                )
+                for item in value
+            ]
+            value.clear()
+            value.extend(converted_list)
+            result = value
+        else:
+            # Create new list
+            result = []
+            memo[obj_id] = result
+            result.extend(
+                [
+                    _convert_to_stub_if_needed(
+                        item, memo, preserve_pointers
+                    )
+                    for item in value
+                ]
+            )
+    elif isinstance(value, dict):
+        if preserve_pointers:
+            # Preserve original dict reference
+            memo[obj_id] = value
+            converted_dict = {
+                k: _convert_to_stub_if_needed(
+                    v, memo, preserve_pointers
+                )
+                for k, v in value.items()
+            }
+            value.clear()
+            value.update(converted_dict)
+            result = value
+        else:
+            # Create new dict
+            result = {}
+            memo[obj_id] = result
+            result.update(
+                {
+                    k: _convert_to_stub_if_needed(
+                        v, memo, preserve_pointers
+                    )
+                    for k, v in value.items()
+                }
+            )
+    elif type(value) in CUSTOM_STUBS or maybe_register_stub(value):
+        result = CUSTOM_STUBS[type(value)](value)
+    else:
+        result = value
+
+    memo[obj_id] = result
+
+    return result
+
+
+def _restore_from_stub_if_needed(
+    value: Any,
+    scope: dict[str, Any],
+    memo: dict[int, Any] | None = None,
+) -> Any:
+    """Restore objects from stubs if needed, recursively handling collections."""
+    if memo is None:
+        memo = {}
+
+    # Check for cycles
+    obj_id = id(value)
+    if obj_id in memo:
+        return memo[obj_id]
+
+    if isinstance(value, ModuleStub):
+        result = value.load()
+    elif isinstance(value, FunctionStub):
+        result = value.load(scope)
+    elif isinstance(value, UIElementStub):
+        result = value.load()
+    elif isinstance(value, tuple):
+        result = tuple(
+            _restore_from_stub_if_needed(item, scope, memo)
+            for item in value
+        )
+    elif isinstance(value, set):
+        # Sets cannot be recursive (require hashable items), but keep the
+        # reference.
+        result = set(
+            _restore_from_stub_if_needed(item, scope, memo)
+            for item in value
+        )
+        value.clear()
+        value.update(result)
+        result = value
+    elif isinstance(value, list):
+        memo[obj_id] = value
+        result = [
+            _restore_from_stub_if_needed(item, scope, memo)
+            for item in value
+        ]
+        # Keep the original list reference
+        value.clear()
+        value.extend(result)
+        result = value
+    elif isinstance(value, dict):
+        memo[obj_id] = value
+        result = {}
+        for k, v in value.items():
+            result[k] = _restore_from_stub_if_needed(v, scope, memo)
+        value.clear()
+        value.update(result)
+        result = value
+    elif isinstance(value, CustomStub):
+        # CustomStub is a placeholder for a custom type, which cannot be
+        # restored directly.
+        result = value.load(scope)
+    else:
+        result = value
+
+    memo[obj_id] = result
+    return result

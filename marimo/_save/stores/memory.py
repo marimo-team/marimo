@@ -46,7 +46,7 @@ class MemoryStore(Store):
             # First 8 bytes store the actual data size
             size = int.from_bytes(shm.buf[:8], 'little')
             # Read the actual data
-            data = bytes(shm.buf[8:8+size])
+            data = bytes(shm.buf[8:8 + size])
             shm.close()
             return data
         except FileNotFoundError:
@@ -72,7 +72,7 @@ class MemoryStore(Store):
             shm.buf[:8] = data_size.to_bytes(8, 'little')
             # Write the actual data (if any)
             if data_size > 0:
-                shm.buf[8:8+data_size] = value
+                shm.buf[8:8 + data_size] = value
             shm.close()
 
             # Track key for cleanup

@@ -149,8 +149,7 @@ class TestMemoryStore:
         # Try to access the shared memory - should fail
         from multiprocessing import shared_memory
         with pytest.raises(FileNotFoundError):
-            shm = shared_memory.SharedMemory(name=shm_name)
-            shm.close()
+            shared_memory.SharedMemory(name=shm_name)
 
     def test_thread_safety(self) -> None:
         """Test that operations are thread-safe."""

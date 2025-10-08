@@ -28,7 +28,7 @@ from marimo._save.cache import Cache
 from marimo._save.loaders.lazy import LazyLoader
 from marimo._save.stores.memory import MemoryStore
 from marimo._save.stubs.lazy_stubs import (
-    ImmediateReferenceStub,
+    # ImmediateReferenceStub,
     ReferenceStub,
     UnhashableStub,
 )
@@ -541,11 +541,6 @@ async def test_ui_element_cache_stale_after_change(
     Currently BROKEN: May restore stale UIElement from cache.
     """
     k.execution_type = "cached"
-
-    try:
-        import marimo as mo
-    except ImportError:
-        pytest.skip("marimo not available for import")
 
     with patch("marimo._save.stores.get_store", return_value=memory_store):
         # First execution: slider with range 0-10

@@ -82,11 +82,13 @@ class ReferenceStub:
 
     def load(self, glbls: dict[str, Any]) -> Any:
         """Load the reference from the store."""
-        del glbls  # Unused for now
+        from marimo._save.cache import _restore_from_stub_if_needed
         blob = self.to_bytes()
         if blob is None:
             raise ValueError(f"Reference {self.name} not found in scope.")
-        return pickle.loads(blob)
+        response = pickle.loads(blob)
+        value = _restore_from_stub_if_needed(response, glbls)
+        return value
 
     def to_bytes(self) -> bytes:
         if self.loader is None:
