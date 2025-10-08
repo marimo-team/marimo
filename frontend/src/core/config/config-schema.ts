@@ -57,7 +57,7 @@ const AiModelsSchema = z.object({
   autocomplete_model: z.string().nullish(),
   displayed_models: z.array(z.string()).default([]),
   custom_models: z.array(z.string()).default([]),
-  bedrock_inference_profiles: z
+  inference_profiles: z
     .record(z.string(), z.enum(["us", "eu", "global", "none"]))
     .default({}),
 });

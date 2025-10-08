@@ -79,7 +79,7 @@ export const AIModelDropdown = ({
       ai?.models?.edit_model,
     ].filter(Boolean),
     displayedModels: ai?.models?.displayed_models,
-    inferenceProfiles: ai?.models?.bedrock_inference_profiles || {},
+    inferenceProfiles: ai?.models?.inference_profiles || {},
   });
   const modelsByProvider = aiModelRegistry.getListModelsByProvider();
 
@@ -102,7 +102,7 @@ export const AIModelDropdown = ({
   const iconSizeClass = iconSize === "medium" ? "h-4 w-4" : "h-3 w-3";
 
   // Get the current inference profile for models that support them
-  const inferenceProfiles = ai?.models?.bedrock_inference_profiles || {};
+  const inferenceProfiles = ai?.models?.inference_profiles || {};
   const currentModel = currentValue
     ? aiModelRegistry.getModel(currentValue.id)
     : undefined;
@@ -372,7 +372,7 @@ export const AiModelInfoDisplay = ({
     model.inference_profiles && model.inference_profiles.length > 0;
 
   // Get the current inference profile for this model
-  const inferenceProfiles = ai?.models?.bedrock_inference_profiles || {};
+  const inferenceProfiles = ai?.models?.inference_profiles || {};
   const currentProfile =
     (inferenceProfiles[model.model] as string | undefined) || "none";
 

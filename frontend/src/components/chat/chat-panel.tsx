@@ -523,12 +523,12 @@ const ChatPanelBody = () => {
     return AiModelRegistry.create({
       customModels: ai?.models?.custom_models,
       displayedModels: ai?.models?.displayed_models,
-      inferenceProfiles: ai?.models?.bedrock_inference_profiles || {},
+      inferenceProfiles: ai?.models?.inference_profiles || {},
     });
   }, [
     ai?.models?.custom_models,
     ai?.models?.displayed_models,
-    ai?.models?.bedrock_inference_profiles,
+    ai?.models?.inference_profiles,
   ]);
 
   const activeChatId = activeChat?.id;

@@ -35,6 +35,7 @@ class AnyProviderConfig:
     client_pem: Optional[str] = None
     extra_headers: Optional[dict[str, str]] = None
     tools: Optional[list[ToolDefinition]] = None
+    inference_profiles: Optional[dict[str, str]] = None
 
     def __post_init__(self) -> None:
         # Only include tools if they are available
@@ -175,10 +176,12 @@ class AnyProviderConfig:
     def for_bedrock(cls, config: AiConfig) -> AnyProviderConfig:
         ai_config = _get_ai_config(config, "bedrock")
         key = _get_key(ai_config, "Bedrock")
+        inference_profiles = _get_ai_config(config, "inference_profiles")
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
             tools=_get_tools(config.get("mode", "manual")),
+            inference_profiles=inference_profiles,
         )
 
     @classmethod

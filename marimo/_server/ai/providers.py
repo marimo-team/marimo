@@ -1061,6 +1061,17 @@ class BedrockProvider(
         "LitellmStream",
     ]
 ):
+    def __init__(self, model: str, config: AnyProviderConfig):
+        self.model = model
+        self.config = config
+        if self.config.inference_profiles:
+            inference_profile_for_model = self.config.inference_profiles.get(
+                model, None
+            )
+            if inference_profile_for_model:
+                ai_model = AiModelId.from_model(model)
+                self.model = f"{ai_model.provider}/{inference_profile_for_model}.{ai_model.model}"
+
     def setup_credentials(self, config: AnyProviderConfig) -> None:
         # Use profile name if provided, otherwise use API key
         try:

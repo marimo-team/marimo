@@ -2876,11 +2876,11 @@ export interface components {
      *         - `autocomplete_model`: the model to use for code completion/autocomplete
      *         - `displayed_models`: a list of models to display in the UI
      *         - `custom_models`: a list of custom models to use that are not from the default list
-     *         - `bedrock_inference_profiles`: a dict mapping bedrock model IDs to their inference profiles (us, eu, global, or none)
+     *         - `inference_profiles`: a dict mapping bedrock model IDs to their inference profiles (us, eu, global, or none)
      */
     AiModelConfig: {
       autocomplete_model?: string;
-      bedrock_inference_profiles?: {
+      inference_profiles?: {
         [key: string]: "eu" | "global" | "none" | "us";
       };
       chat_model?: string;
@@ -4773,6 +4773,5 @@ export interface components {
   headers: never;
   pathItems: never;
 }
-// biome-ignore lint/style/useNamingConvention: $defs follows JSON Schema naming convention
 export type $defs = Record<string, any>;
 export type operations = Record<string, any>;

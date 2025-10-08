@@ -39,7 +39,7 @@ ${opts.codeAfter}
   const aiModelRegistry = AiModelRegistry.create({
     customModels: ai?.models?.custom_models,
     displayedModels: ai?.models?.displayed_models,
-    inferenceProfiles: ai?.models?.bedrock_inference_profiles || {},
+    inferenceProfiles: ai?.models?.inference_profiles || {},
   });
 
   // Get full model ID with inference profile

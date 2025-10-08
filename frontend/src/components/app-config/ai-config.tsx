@@ -543,7 +543,7 @@ const ModelInfoCard = ({
       })
     : undefined;
 
-  const inferenceProfiles = aiModels?.bedrock_inference_profiles || {};
+  const inferenceProfiles = aiModels?.inference_profiles || {};
 
   const currentProfile =
     (inferenceProfiles[model.model] as string | undefined) || "none";
@@ -574,7 +574,7 @@ const ModelInfoCard = ({
     if (currentModels) {
       form.setValue("ai.models", {
         ...currentModels,
-        bedrock_inference_profiles: updatedProfiles,
+        inference_profiles: updatedProfiles,
       });
       onSubmit(form.getValues());
     }
@@ -1225,7 +1225,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 
   const inferenceProfiles = useWatch({
     control: form.control,
-    name: "ai.models.bedrock_inference_profiles",
+    name: "ai.models.inference_profiles",
   }) as Record<string, string> | undefined;
 
   const aiModelRegistry = useMemo(
