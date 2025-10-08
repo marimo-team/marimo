@@ -16,7 +16,7 @@ describe("FrontendToolRegistry", () => {
     const result = await registry.invoke("test_frontend_tool", {
       name: "Alice",
     });
-    
+
     expect(result).toMatchObject({
       status: "success",
       data: {
@@ -24,7 +24,7 @@ describe("FrontendToolRegistry", () => {
       },
       next_steps: expect.arrayContaining([expect.any(String)]),
     });
-    
+
     // Verify timestamp is present and valid
     const output = result as { data: { timestamp: string } };
     expect(output.data.timestamp).toBeDefined();

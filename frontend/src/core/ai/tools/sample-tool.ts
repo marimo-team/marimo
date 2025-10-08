@@ -1,11 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { z } from "zod";
-import {
-  type AiTool,
-  type ToolOutputBase,
-  toolOutputBaseSchema,
-} from "./base";
+import { type AiTool, type ToolOutputBase, toolOutputBaseSchema } from "./base";
 import type { CopilotMode } from "./registry";
 
 const description = `
