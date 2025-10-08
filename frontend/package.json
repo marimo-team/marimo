@@ -133,6 +133,7 @@
     "partysocket": "1.1.4",
     "path-to-regexp": "^8.2.0",
     "plotly.js": "^2.35.3",
+    "posthog-js": "^1.273.1",
     "pyodide": "0.27.7",
     "react-arborist": "^3.4.3",
     "react-aria": "^3.42.0",
