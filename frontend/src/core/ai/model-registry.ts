@@ -32,6 +32,7 @@ export interface AiModel extends AiModelType {
   providers: ProviderId[];
   /** Whether this is a custom model. */
   custom: boolean;
+  inference_profiles?: string[];
 }
 
 const getKnownModelMap = once((): ReadonlyMap<QualifiedModelId, AiModel> => {
@@ -75,14 +76,18 @@ export class AiModelRegistry {
   private modelsMap: ReadonlyMap<QualifiedModelId, AiModel>;
   private customModels: ReadonlySet<QualifiedModelId>;
   private displayedModels: ReadonlySet<QualifiedModelId>;
+  private selectedInferenceProfiles: ReadonlyMap<ShortModelId, string>;
 
   private constructor(
     customModels: QualifiedModelId[],
     displayedModels: QualifiedModelId[],
+    inferenceProfiles: Record<string, string>,
   ) {
     this.customModels = new Set(customModels);
     this.displayedModels = new Set(displayedModels);
     this.modelsMap = new Map<QualifiedModelId, AiModel>();
+    this.selectedInferenceProfiles =
+      this.initializeInferenceProfiles(inferenceProfiles);
     this.buildMaps();
   }
 
@@ -94,15 +99,59 @@ export class AiModelRegistry {
   /**
    * @param customModels - A list of custom models to use that are not from the default list.
    * @param displayedModels - A list of models to display in the UI. If empty, all models will be displayed.
+   * @param inferenceProfiles - A map of model IDs to their selected inference profiles.
    *
    * Models should be in the format of `provider_id/short_model_id`.
    */
-  static create(opts: { customModels?: string[]; displayedModels?: string[] }) {
-    const { customModels = [], displayedModels = [] } = opts;
+  static create(opts: {
+    customModels?: string[];
+    displayedModels?: string[];
+    inferenceProfiles?: Record<string, string>;
+  }) {
+    const {
+      customModels = [],
+      displayedModels = [],
+      inferenceProfiles = {},
+    } = opts;
     return new AiModelRegistry(
       customModels.map((model) => AiModelId.parse(model).id),
       displayedModels.map((model) => AiModelId.parse(model).id),
+      inferenceProfiles,
     );
+  }
+
+  /**
+   * Initializes the inference profile map.
+   * For each model with inference_profiles:
+   * - Use the user's selected profile from config if it exists and is not "none"
+   * - Otherwise, default to the first profile in the model's inference_profiles array
+   */
+  private initializeInferenceProfiles(
+    configProfiles: Record<string, string>,
+  ): ReadonlyMap<ShortModelId, string> {
+    const profileMap = new Map<ShortModelId, string>();
+    const knownModelMap = getKnownModelMap();
+
+    for (const [_qualifiedId, model] of knownModelMap.entries()) {
+      // Skip models without inference profiles
+      if (!model.inference_profiles || model.inference_profiles.length === 0) {
+        continue;
+      }
+
+      const shortModelId = model.model;
+      const configValue = configProfiles[shortModelId];
+
+      // If user has selected a profile and it's not "none", use it
+      if (configValue && configValue !== "none") {
+        profileMap.set(shortModelId, configValue);
+      }
+      // Otherwise, default to the first available profile
+      else if (model.inference_profiles.length > 0) {
+        profileMap.set(shortModelId, model.inference_profiles[0]);
+      }
+    }
+
+    return profileMap;
   }
 
   /**
@@ -223,5 +272,49 @@ export class AiModelRegistry {
 
   getModel(qualifiedModelId: QualifiedModelId) {
     return this.modelsMap.get(qualifiedModelId);
+  }
+
+  getInferenceProfiles(
+    qualifiedModelId: QualifiedModelId,
+  ): string[] | undefined {
+    const model = this.modelsMap.get(qualifiedModelId);
+    return model?.inference_profiles;
+  }
+
+  /**
+   * Returns the full model ID with inference profile prefix if applicable.
+   *
+   * @param qualifiedModelId - The qualified model ID (e.g., "bedrock/claude-sonnet-4-0")
+   * @returns The full model ID with profile prefix (e.g., "bedrock/us.claude-sonnet-4-0")
+   *          or the original ID if no profile is selected
+   *
+   * @example
+   * // User has selected "us" profile for claude-sonnet-4-0
+   * registry.getFullModelId("bedrock/claude-sonnet-4-0")
+   * // Returns: "bedrock/us.claude-sonnet-4-0"
+   *
+   * @example
+   * // Model has no inference profiles
+   * registry.getFullModelId("openai/gpt-4")
+   * // Returns: "openai/gpt-4"
+   */
+  getFullModelId(qualifiedModelId: QualifiedModelId): QualifiedModelId {
+    const model = this.modelsMap.get(qualifiedModelId);
+    if (!model) {
+      // Model not found, return original ID
+      return qualifiedModelId;
+    }
+
+    const selectedProfile = this.selectedInferenceProfiles.get(model.model);
+    if (!selectedProfile) {
+      // No profile selected, return original ID
+      return qualifiedModelId;
+    }
+
+    // Parse the qualified ID to get provider
+    const parsed = AiModelId.parse(qualifiedModelId);
+
+    // Return profile-prefixed ID
+    return `${parsed.providerId}/${selectedProfile}.${model.model}` as QualifiedModelId;
   }
 }

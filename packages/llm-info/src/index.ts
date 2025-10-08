@@ -14,6 +14,7 @@ export interface AiModel {
   providers: string[];
   roles: Role[];
   thinking: boolean;
+  inference_profiles?: string[];
 }
 
 export interface AiProvider {

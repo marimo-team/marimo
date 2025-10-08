@@ -1,8 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { QualifiedModelId } from "@/core/ai/ids/ids";
+import { AiModelRegistry } from "@/core/ai/model-registry";
+import { aiAtom } from "@/core/config/config";
 import { waitForConnectionOpen } from "@/core/network/connection";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { getRuntimeManager } from "@/core/runtime/config";
+import { store } from "@/core/state/jotai";
 import type { LanguageAdapterType } from "../language/types";
 
 /**
@@ -30,6 +34,20 @@ ${opts.codeAfter}
 
   await waitForConnectionOpen();
 
+  // Get AI config and create model registry
+  const ai = store.get(aiAtom);
+  const aiModelRegistry = AiModelRegistry.create({
+    customModels: ai?.models?.custom_models,
+    displayedModels: ai?.models?.displayed_models,
+    inferenceProfiles: ai?.models?.bedrock_inference_profiles || {},
+  });
+
+  // Get full model ID with inference profile
+  const editModel = ai?.models?.edit_model;
+  const fullModelId = editModel
+    ? aiModelRegistry.getFullModelId(editModel as QualifiedModelId)
+    : undefined;
+
   const response = await fetch(
     runtimeManager.getAiURL("completion").toString(),
     {
@@ -41,6 +59,7 @@ ${opts.codeAfter}
         selectedText: opts.selection,
         includeOtherCode: "",
         language: opts.language,
+        model: fullModelId,
       } satisfies AiCompletionRequest),
     },
   );

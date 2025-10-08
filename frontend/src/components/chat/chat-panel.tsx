@@ -16,7 +16,7 @@ import {
   SettingsIcon,
   SquareIcon,
 } from "lucide-react";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +29,12 @@ import {
 } from "@/components/ui/select";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { useModelChange } from "@/core/ai/config";
-import { AiModelId, type ProviderId } from "@/core/ai/ids/ids";
+import {
+  AiModelId,
+  type ProviderId,
+  type QualifiedModelId,
+} from "@/core/ai/ids/ids";
+import { AiModelRegistry } from "@/core/ai/model-registry";
 import {
   activeChatAtom,
   type Chat,
@@ -512,6 +517,19 @@ const ChatPanelBody = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();
+  const ai = useAtomValue(aiAtom);
+
+  const aiModelRegistry = useMemo(() => {
+    return AiModelRegistry.create({
+      customModels: ai?.models?.custom_models,
+      displayedModels: ai?.models?.displayed_models,
+      inferenceProfiles: ai?.models?.bedrock_inference_profiles || {},
+    });
+  }, [
+    ai?.models?.custom_models,
+    ai?.models?.displayed_models,
+    ai?.models?.bedrock_inference_profiles,
+  ]);
 
   const activeChatId = activeChat?.id;
 
@@ -536,9 +554,16 @@ const ChatPanelBody = () => {
           options.messages,
         );
 
+        // Get full model ID with inference profile
+        const chatModel = ai?.models?.chat_model;
+        const fullModelId = chatModel
+          ? aiModelRegistry.getFullModelId(chatModel as QualifiedModelId)
+          : undefined;
+
         return {
           body: {
             tools: FRONTEND_TOOL_REGISTRY.getToolSchemas(),
+            model: fullModelId,
             ...options,
             ...completionBody,
           },

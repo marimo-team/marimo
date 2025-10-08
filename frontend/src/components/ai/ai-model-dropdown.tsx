@@ -79,6 +79,7 @@ export const AIModelDropdown = ({
       ai?.models?.edit_model,
     ].filter(Boolean),
     displayedModels: ai?.models?.displayed_models,
+    inferenceProfiles: ai?.models?.bedrock_inference_profiles || {},
   });
   const modelsByProvider = aiModelRegistry.getListModelsByProvider();
 
@@ -100,20 +101,22 @@ export const AIModelDropdown = ({
 
   const iconSizeClass = iconSize === "medium" ? "h-4 w-4" : "h-3 w-3";
 
-  // Get the current inference profile for Bedrock models
-  const bedrockInferenceProfiles = ai?.models?.bedrock_inference_profiles || {};
-  const currentProfile =
-    currentValue?.providerId === "bedrock"
-      ? (bedrockInferenceProfiles[currentValue.shortModelId] as
-          | string
-          | undefined) || "none"
-      : undefined;
+  // Get the current inference profile for models that support them
+  const inferenceProfiles = ai?.models?.bedrock_inference_profiles || {};
+  const currentModel = currentValue
+    ? aiModelRegistry.getModel(currentValue.id)
+    : undefined;
+  const hasInferenceProfiles =
+    currentModel?.inference_profiles &&
+    currentModel.inference_profiles.length > 0;
+  const currentProfile = hasInferenceProfiles
+    ? (inferenceProfiles[currentValue!.shortModelId] as string | undefined) ||
+      "none"
+    : undefined;
 
-  // Compute display text with inference profile for Bedrock models
+  // Compute display text with inference profile for models that support them
   const displayText = currentValue
-    ? currentValue.providerId === "bedrock" &&
-      currentProfile &&
-      currentProfile !== "none"
+    ? hasInferenceProfiles && currentProfile && currentProfile !== "none"
       ? `${currentProfile}.${currentValue.shortModelId}`
       : isKnownAIProvider(currentValue.providerId)
         ? currentValue.shortModelId
@@ -123,20 +126,20 @@ export const AIModelDropdown = ({
   const renderModelWithRole = (modelId: AiModelId, role: Role) => {
     const maybeModelMatch = aiModelRegistry.getModel(modelId.id);
 
-    // Get inference profile for Bedrock models
-    const modelProfile =
-      modelId.providerId === "bedrock"
-        ? (bedrockInferenceProfiles[modelId.shortModelId] as
-            | string
-            | undefined) || "none"
-        : undefined;
+    // Get inference profile for models that support them
+    // TODO this smells
+    const modelHasInferenceProfiles =
+      maybeModelMatch?.inference_profiles &&
+      maybeModelMatch.inference_profiles.length > 0;
+    const modelProfile = modelHasInferenceProfiles
+      ? (inferenceProfiles[modelId.shortModelId] as string | undefined) ||
+        "none"
+      : undefined;
 
     // Compute display ID with inference profile
     const displayId =
-      modelId.providerId === "bedrock" &&
-      modelProfile &&
-      modelProfile !== "none"
-        ? `bedrock/${modelProfile}.${modelId.shortModelId}`
+      modelHasInferenceProfiles && modelProfile && modelProfile !== "none"
+        ? `${modelId.providerId}/${modelProfile}.${modelId.shortModelId}`
         : modelId.id;
 
     return (
@@ -365,16 +368,17 @@ export const AiModelInfoDisplay = ({
   provider: ProviderId;
 }) => {
   const ai = useAtomValue(aiAtom);
-  const isBedrockModel = provider === "bedrock";
+  const hasInferenceProfiles =
+    model.inference_profiles && model.inference_profiles.length > 0;
 
   // Get the current inference profile for this model
-  const bedrockInferenceProfiles = ai?.models?.bedrock_inference_profiles || {};
+  const inferenceProfiles = ai?.models?.bedrock_inference_profiles || {};
   const currentProfile =
-    (bedrockInferenceProfiles[model.model] as string | undefined) || "none";
+    (inferenceProfiles[model.model] as string | undefined) || "none";
 
   // Compute the display model ID with inference profile prefix
   const displayModelId =
-    isBedrockModel && currentProfile !== "none"
+    hasInferenceProfiles && currentProfile !== "none"
       ? `${currentProfile}.${model.model}`
       : model.model;
 
@@ -393,7 +397,7 @@ export const AiModelInfoDisplay = ({
         {model.description}
       </p>
 
-      {isBedrockModel && currentProfile !== "none" && (
+      {hasInferenceProfiles && currentProfile !== "none" && (
         <div>
           <p className="text-xs font-medium text-muted-foreground mb-1">
             Inference Profile:

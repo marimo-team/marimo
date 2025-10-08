@@ -74,12 +74,28 @@ import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
 import { SettingSubtitle } from "./common";
-import { AWS_BEDROCK_INFERENCE_PROFILES, AWS_REGIONS } from "./constants";
+import { AWS_REGIONS } from "./constants";
 import { IncorrectModelId } from "./incorrect-model-id";
 import { IsOverridden } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
+
+/**
+ * Get display label for Bedrock inference profile
+ */
+function getProfileLabel(profile: string): string {
+  const labels: Record<string, string> = {
+    us: "US (United States)",
+    eu: "EU (Europe)",
+    global: "Global",
+    "us-gov": "US Gov",
+    apac: "APAC (Asia Pacific)",
+    jp: "JP (Japan)",
+    none: "No Prefix (Legacy)",
+  };
+  return labels[profile] || profile;
+}
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
@@ -516,7 +532,8 @@ const ModelInfoCard = ({
   onSubmit?: (values: UserConfig) => void;
 }) => {
   const modelId = AiModelId.parse(qualifiedId);
-  const isBedrockModel = modelId.providerId === "bedrock";
+  const hasInferenceProfiles =
+    model.inference_profiles && model.inference_profiles.length > 0;
 
   // Get the current inference profile for this model
   const aiModels = form
@@ -526,24 +543,23 @@ const ModelInfoCard = ({
       })
     : undefined;
 
-  const bedrockInferenceProfiles = aiModels?.bedrock_inference_profiles || {};
+  const inferenceProfiles = aiModels?.bedrock_inference_profiles || {};
 
   const currentProfile =
-    (bedrockInferenceProfiles[model.model] as string | undefined) || "none";
+    (inferenceProfiles[model.model] as string | undefined) || "none";
 
   // Compute the display model ID with inference profile prefix
-  const displayModelId = isBedrockModel
-    ? currentProfile === "none"
-      ? `bedrock/${model.model}`
-      : `bedrock/${currentProfile}.${model.model}`
-    : qualifiedId;
+  const displayModelId =
+    hasInferenceProfiles && currentProfile !== "none"
+      ? `${modelId.providerId}/${currentProfile}.${model.model}`
+      : qualifiedId;
 
   const handleProfileChange = (newProfile: string) => {
     if (!form || !onSubmit) {
       return;
     }
 
-    const updatedProfiles = { ...bedrockInferenceProfiles };
+    const updatedProfiles = { ...inferenceProfiles };
     if (newProfile === "none") {
       delete updatedProfiles[model.model];
     } else {
@@ -582,7 +598,7 @@ const ModelInfoCard = ({
           </p>
         )}
 
-        {isBedrockModel && form && onSubmit && (
+        {hasInferenceProfiles && form && onSubmit && (
           <div className="flex items-center gap-2 mt-2">
             <Label className="text-xs font-medium text-muted-foreground">
               Inference Profile:
@@ -593,9 +609,12 @@ const ModelInfoCard = ({
               className="text-xs h-7"
               onClick={Events.stopPropagation()}
             >
-              {AWS_BEDROCK_INFERENCE_PROFILES.map((option) => (
-                <option value={option.value} key={option.value}>
-                  {option.label}
+              <option value="none" key="none">
+                {getProfileLabel("none")}
+              </option>
+              {model.inference_profiles!.map((profile) => (
+                <option value={profile} key={profile}>
+                  {getProfileLabel(profile)}
                 </option>
               ))}
             </NativeSelect>
@@ -1204,13 +1223,19 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
     name: "ai.models.custom_models",
   }) as QualifiedModelId[];
 
+  const inferenceProfiles = useWatch({
+    control: form.control,
+    name: "ai.models.bedrock_inference_profiles",
+  }) as Record<string, string> | undefined;
+
   const aiModelRegistry = useMemo(
     () =>
       AiModelRegistry.create({
         displayedModels: [],
         customModels: customModels,
+        inferenceProfiles: inferenceProfiles || {},
       }),
-    [customModels],
+    [customModels, inferenceProfiles],
   );
   const currentDisplayedModels = useWatch({
     control: form.control,

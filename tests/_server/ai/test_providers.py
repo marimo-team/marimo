@@ -320,3 +320,91 @@ def test_anthropic_extract_content_tool_call_id_mapping() -> None:
     tool_data, _ = result[0]
     assert isinstance(tool_data, dict)
     assert tool_data["toolCallId"] == "toolu_123"
+
+
+@pytest.mark.parametrize(
+    ("model_name", "expected_short_model_id"),
+    [
+        pytest.param(
+            "bedrock/us.claude-sonnet-4-0",
+            "us.claude-sonnet-4-0",
+            id="bedrock_with_us_profile",
+        ),
+        pytest.param(
+            "bedrock/eu.claude-sonnet-4-0",
+            "eu.claude-sonnet-4-0",
+            id="bedrock_with_eu_profile",
+        ),
+        pytest.param(
+            "bedrock/global.claude-opus-4-1",
+            "global.claude-opus-4-1",
+            id="bedrock_with_global_profile",
+        ),
+        pytest.param(
+            "bedrock/claude-sonnet-4-0",
+            "claude-sonnet-4-0",
+            id="bedrock_without_profile",
+        ),
+    ],
+)
+def test_bedrock_inference_profile_model_id_parsing(
+    model_name: str, expected_short_model_id: str
+) -> None:
+    """Test that Bedrock models with inference profiles are parsed correctly."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
+    provider = get_completion_provider(config, model_name)
+
+    assert isinstance(provider, BedrockProvider)
+    assert provider.model == expected_short_model_id
+
+
+@patch("litellm.acompletion")
+async def test_bedrock_provider_passes_full_model_id_with_profile(
+    mock_litellm_completion,
+) -> None:
+    """Test that BedrockProvider passes the full model ID with inference profile to litellm."""
+    # Setup mock
+    mock_stream = AsyncMock()
+    mock_litellm_completion.return_value = mock_stream
+
+    # Create provider with profile-prefixed model
+    config = AnyProviderConfig(
+        api_key="profile:test-profile", base_url="us-east-1"
+    )
+    provider = BedrockProvider("us.claude-sonnet-4-0", config)
+
+    # Call stream_completion
+    messages = [ChatMessage(role="user", content="test message")]
+    await provider.stream_completion(messages, "system prompt", 1000, [])
+
+    # Verify litellm was called with the profile-prefixed model ID
+    mock_litellm_completion.assert_called_once()
+    call_kwargs = mock_litellm_completion.call_args[1]
+
+    assert call_kwargs["model"] == "us.claude-sonnet-4-0"
+
+
+@patch("litellm.acompletion")
+async def test_bedrock_provider_passes_model_id_without_profile(
+    mock_litellm_completion,
+) -> None:
+    """Test that BedrockProvider works with models without inference profiles."""
+    # Setup mock
+    mock_stream = AsyncMock()
+    mock_litellm_completion.return_value = mock_stream
+
+    # Create provider without profile prefix
+    config = AnyProviderConfig(
+        api_key="profile:test-profile", base_url="us-east-1"
+    )
+    provider = BedrockProvider("claude-sonnet-4-0", config)
+
+    # Call stream_completion
+    messages = [ChatMessage(role="user", content="test message")]
+    await provider.stream_completion(messages, "system prompt", 1000, [])
+
+    # Verify litellm was called with the model ID without profile
+    mock_litellm_completion.assert_called_once()
+    call_kwargs = mock_litellm_completion.call_args[1]
+
+    assert call_kwargs["model"] == "claude-sonnet-4-0"
