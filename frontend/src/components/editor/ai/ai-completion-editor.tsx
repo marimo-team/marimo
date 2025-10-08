@@ -15,6 +15,7 @@ import { useAtom } from "jotai";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { includeOtherCellsAtom } from "@/core/ai/state";
@@ -29,8 +30,10 @@ import { prettyError } from "@/utils/errors";
 import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
 import {
+  AcceptCompletionButton,
   CompletionActions,
   createAiCompletionOnKeydown,
+  RejectCompletionButton,
 } from "./completion-handlers";
 import { addContextCompletion, getAICompletionBody } from "./completion-utils";
 
@@ -47,6 +50,7 @@ interface Props {
   acceptChange: (rightHandCode: string) => void;
   enabled: boolean;
   triggerImmediately?: boolean;
+  runCell: () => void;
   /**
    * Children shown when there is no completion
    */
@@ -70,8 +74,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
   acceptChange,
   enabled,
   triggerImmediately,
+  runCell,
   children,
 }) => {
+  const [showInputPrompt, setShowInputPrompt] = useState(false);
   const [completionBody, setCompletionBody] = useState<object>({});
 
   const [includeOtherCells, setIncludeOtherCells] = useAtom(
@@ -162,16 +168,22 @@ export const AiCompletionEditor: React.FC<Props> = ({
   };
 
   const handleDeclineCompletion = () => {
+    declineChange();
     setCompletion("");
   };
+
+  const showCompletionBanner =
+    enabled && triggerImmediately && (completion || isLoading);
+
+  const showInput = enabled && (!triggerImmediately || showInputPrompt);
 
   return (
     <div className={cn("flex flex-col w-full rounded-[inherit]", className)}>
       <div
         className={cn(
           "flex items-center gap-2 border-b px-3 transition-all rounded-[inherit] rounded-b-none duration-300",
-          enabled && "max-h-[400px] min-h-11 visible",
-          !enabled && "max-h-0 min-h-0 invisible",
+          showInput && "max-h-[400px] min-h-11 visible",
+          !showInput && "max-h-0 min-h-0 invisible",
         )}
       >
         {enabled && (
@@ -296,6 +308,100 @@ export const AiCompletionEditor: React.FC<Props> = ({
         </CodeMirrorMerge>
       )}
       {(!completion || !enabled) && children}
+      <div
+        className={cn(
+          "w-full bg-(--cm-background) flex justify-center transition-all duration-300 ease-in-out overflow-hidden",
+          showCompletionBanner
+            ? "max-h-20 opacity-100 translate-y-0"
+            : "max-h-0 opacity-0 -translate-y-2",
+        )}
+      >
+        <CompletionBanner
+          status={isLoading ? "loading" : "generated"}
+          onAccept={handleAcceptCompletion}
+          onReject={handleDeclineCompletion}
+          showInputPrompt={showInputPrompt}
+          setShowInputPrompt={setShowInputPrompt}
+          runCell={runCell}
+          className="mt-4 mb-3 w-128"
+        />
+      </div>
+    </div>
+  );
+};
+
+interface CompletionBannerProps {
+  status: "loading" | "generated";
+  onAccept: () => void;
+  onReject: () => void;
+  showInputPrompt: boolean;
+  setShowInputPrompt: (show: boolean) => void;
+  runCell: () => void;
+  className?: string;
+}
+
+const CompletionBanner: React.FC<CompletionBannerProps> = ({
+  status,
+  onAccept,
+  onReject,
+  className,
+  showInputPrompt,
+  setShowInputPrompt,
+  runCell,
+}) => {
+  const isLoading = status === "loading";
+
+  return (
+    <div
+      className={cn(
+        "flex flex-row items-center gap-6 rounded-md py-2 px-2.5 text-sm border border-border",
+        "shadow-[0_0_6px_1px_rgba(34,197,94,0.15)]",
+        className,
+      )}
+    >
+      <div className="flex flex-row items-center gap-2">
+        <div
+          className={cn(
+            "w-2 h-2 rounded-full",
+            status === "loading" ? "bg-blue-500 animate-pulse" : "bg-green-500",
+          )}
+        />
+        <p className="transition-opacity duration-200 text-muted-foreground">
+          {isLoading ? "Generating fix..." : "Showing fix"}
+        </p>
+      </div>
+
+      <div className="flex flex-row items-center gap-1">
+        <Label
+          htmlFor="show-input-prompt"
+          className="text-muted-foreground text-xs whitespace-nowrap ellipsis"
+        >
+          Show prompt
+        </Label>
+        <Switch
+          checked={showInputPrompt}
+          onCheckedChange={setShowInputPrompt}
+          size="xs"
+        />
+      </div>
+
+      <div className="flex flex-row items-center gap-2 ml-auto">
+        <AcceptCompletionButton
+          isLoading={isLoading}
+          onAccept={onAccept}
+          size="xs"
+          buttonStyles="border-none rounded-md rounded-r-none"
+          playButtonStyles="border-0 border-l-1 rounded-md rounded-l-none"
+          runCell={runCell}
+          // acceptShortcut="Mod-↵"
+        />
+        <RejectCompletionButton
+          onDecline={onReject}
+          size="xs"
+          className="border-none rounded-md"
+          // declineShortcut="Shift-Mod-Delete"
+        />
+      </div>
     </div>
   );
 };
