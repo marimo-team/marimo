@@ -390,8 +390,8 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
           isLoading={isLoading}
           onAccept={onAccept}
           size="xs"
-          buttonStyles="border-none rounded-r-none rounded-md"
-          playButtonStyles="border-0 border-l-1 rounded-l-none rounded-md"
+          buttonStyles="border-none rounded-md rounded-r-none"
+          playButtonStyles="border-0 border-l-1 rounded-md rounded-l-none"
           runCell={runCell}
           // acceptShortcut="Mod-↵"
         />

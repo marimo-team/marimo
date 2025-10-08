@@ -163,7 +163,7 @@ export const AcceptCompletionButton: React.FC<{
             onClick={handleAcceptAndRun}
             className={`${baseClasses} rounded-l-none px-1.5 ${playButtonStyles}`}
           >
-            <PlayIcon className="h-2.5 w-2.5" />
+            <PlayIcon className="h-2.5 w-2.5 mt-0.5" />
           </Button>
         </Tooltip>
       </div>
