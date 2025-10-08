@@ -13,8 +13,22 @@ describe("FrontendToolRegistry", () => {
 
   it("invokes a tool with valid args and validates input/output", async () => {
     const registry = new FrontendToolRegistry([new TestFrontendTool()]);
-    const ok = await registry.invoke("test_frontend_tool", { name: "Alice" });
-    expect(ok).toEqual({ message: "Hello: Alice" });
+    const result = await registry.invoke("test_frontend_tool", {
+      name: "Alice",
+    });
+    
+    expect(result).toMatchObject({
+      status: "success",
+      data: {
+        greeting: "Hello: Alice",
+      },
+      next_steps: expect.arrayContaining([expect.any(String)]),
+    });
+    
+    // Verify timestamp is present and valid
+    const output = result as { data: { timestamp: string } };
+    expect(output.data.timestamp).toBeDefined();
+    expect(typeof output.data.timestamp).toBe("string");
   });
 
   it("returns a structured error on invalid args", async () => {

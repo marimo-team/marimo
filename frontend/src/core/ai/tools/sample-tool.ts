@@ -1,7 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { z } from "zod";
-import type { AiTool } from "./base";
+import {
+  type AiTool,
+  type ToolOutputBase,
+  toolOutputBaseSchema,
+} from "./base";
 import type { CopilotMode } from "./registry";
 
 const description = `
@@ -11,26 +15,46 @@ Args:
 - name (string): The name to include in the greeting.
 
 Returns:
-- { message: string } — The greeting message, e.g., "Hello: Alice".
+- Output with data containing the greeting message.
 `;
 
 interface Input {
   name: string;
 }
 
-interface Output {
-  message: string;
+interface GreetingData {
+  greeting: string;
+  timestamp: string;
 }
 
-/** A sample frontend tool that returns "hello world" */
+interface Output extends ToolOutputBase {
+  data: GreetingData;
+}
+
+/** A sample frontend tool that demonstrates real tool output structure */
 export class TestFrontendTool implements AiTool<Input, Output> {
   readonly name = "test_frontend_tool";
   readonly description = description;
   readonly schema = z.object({ name: z.string() });
-  readonly outputSchema = z.object({ message: z.string() });
+  readonly outputSchema = toolOutputBaseSchema.extend({
+    data: z.object({
+      greeting: z.string(),
+      timestamp: z.string(),
+    }),
+  });
   readonly mode: CopilotMode[] = ["ask"];
 
-  async handler({ name }: Input) {
-    return { message: `Hello: ${name}` };
+  async handler({ name }: Input): Promise<Output> {
+    return {
+      status: "success",
+      data: {
+        greeting: `Hello: ${name}`,
+        timestamp: new Date().toISOString(),
+      },
+      next_steps: [
+        "You can now proceed with your next task",
+        "Try calling another tool if needed",
+      ],
+    };
   }
 }
