@@ -3,7 +3,7 @@
 import { useCompletion } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
 import { AtSignIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
-import React, { useEffect, useId, useState } from "react";
+import React, { useEffect, useId, useMemo, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { Button } from "@/components/ui/button";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
@@ -11,16 +11,19 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/language
 import "./merge-editor.css";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import type { QualifiedModelId } from "@/core/ai/ids/ids";
+import { AiModelRegistry } from "@/core/ai/model-registry";
 import { includeOtherCellsAtom } from "@/core/ai/state";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { selectAllText } from "@/core/codemirror/utils";
+import { aiAtom } from "@/core/config/config";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { useEvent } from "@/hooks/useEvent";
 import { useTheme } from "@/theme/useTheme";
@@ -80,6 +83,26 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const includeOtherCellsCheckboxId = useId();
 
   const runtimeManager = useRuntimeManager();
+  const ai = useAtomValue(aiAtom);
+
+  // Create AI model registry to resolve inference profiles
+  const aiModelRegistry = useMemo(() => {
+    return AiModelRegistry.create({
+      customModels: ai?.models?.custom_models,
+      displayedModels: ai?.models?.displayed_models,
+      inferenceProfiles: ai?.models?.inference_profiles || {},
+    });
+  }, [
+    ai?.models?.custom_models,
+    ai?.models?.displayed_models,
+    ai?.models?.inference_profiles,
+  ]);
+
+  // Get full model ID with inference profile for edit model
+  const editModel = ai?.models?.edit_model;
+  const fullModelId = editModel
+    ? aiModelRegistry.getFullModelId(editModel as QualifiedModelId)
+    : undefined;
 
   const {
     completion: untrimmedCompletion,
@@ -105,6 +128,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
       includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
       code: currentCode,
       language: currentLanguageAdapter,
+      model: fullModelId, // Include full model ID with inference profile
     },
     onError: (error) => {
       toast({

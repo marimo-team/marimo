@@ -45,12 +45,14 @@ class AiCompletionRequest(msgspec.Struct, rename="camel"):
     selected_text: Optional[str] = None
     context: Optional[AiCompletionContext] = None
     language: Language = "python"
+    model: Optional[str] = None
 
 
 class AiInlineCompletionRequest(msgspec.Struct, rename="camel"):
     prefix: str
     suffix: str
     language: Language = "python"
+    model: Optional[str] = None
 
 
 class ChatRequest(msgspec.Struct, rename="camel"):

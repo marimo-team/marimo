@@ -151,7 +151,7 @@ async def ai_completion(
     )
     prompt = body.prompt
 
-    model = get_edit_model(ai_config)
+    model = body.model or get_edit_model(ai_config)
     provider = get_completion_provider(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,
@@ -297,7 +297,7 @@ async def ai_inline_completion(
 
     ai_config = get_ai_config(config)
 
-    model = get_autocomplete_model(config)
+    model = body.model or get_autocomplete_model(config)
     provider_config = AnyProviderConfig.for_model(model, ai_config)
     # Inline completion never uses tools
     if provider_config.tools:

@@ -23,9 +23,13 @@ import {
   type InlineCompletionParams,
   InlineCompletionTriggerKind,
 } from "vscode-languageserver-protocol";
+import type { QualifiedModelId } from "@/core/ai/ids/ids";
+import { AiModelRegistry } from "@/core/ai/model-registry";
+import { aiAtom } from "@/core/config/config";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import type { AiInlineCompletionRequest } from "@/core/kernel/messages";
 import { API } from "@/core/network/api";
+import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 import { languageAdapterState } from "../language/extension";
 import { isInVimMode } from "../utils";
@@ -142,10 +146,26 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
             return "";
           }
 
+          // Get AI config and create model registry
+          const ai = store.get(aiAtom);
+          const aiModelRegistry = AiModelRegistry.create({
+            customModels: ai?.models?.custom_models,
+            displayedModels: ai?.models?.displayed_models,
+            inferenceProfiles: ai?.models?.inference_profiles || {},
+          });
+
+          // Get full model ID with inference profile
+          const autocompleteModel = ai?.models?.autocomplete_model;
+          const fullModelId = autocompleteModel
+            ? aiModelRegistry.getFullModelId(
+                autocompleteModel as QualifiedModelId,
+              )
+            : undefined;
+
           const language = state.field(languageAdapterState).type;
           let res = await API.post<AiInlineCompletionRequest, string>(
             "/ai/inline_completion",
-            { prefix, suffix, language },
+            { prefix, suffix, language, model: fullModelId },
           );
 
           // If we are at a new position, ignore the response
