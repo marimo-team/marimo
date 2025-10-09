@@ -529,6 +529,7 @@ def edit(
 
         run_in_docker(
             name,
+            "edit",
             port=port,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         )
@@ -1016,6 +1017,7 @@ def run(
 
         run_in_docker(
             name,
+            "run",
             port=port,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         )
