@@ -29,6 +29,15 @@ vi.mock("@marimo-team/llm-info/models.json", () => {
       thinking: false,
     },
     {
+      name: "Claude Sonnet 4",
+      model: "claude-sonnet-4-0",
+      description: "AWS Bedrock Claude Sonnet 4",
+      providers: ["bedrock"],
+      roles: ["chat", "edit"],
+      thinking: false,
+      inference_profiles: ["us", "eu", "global"],
+    },
+    {
       name: "Multi Provider Model",
       model: "multi-model",
       description: "Model available on multiple providers",
@@ -114,6 +123,7 @@ describe("AiModelRegistry", () => {
         "openai/gpt-4",
         "anthropic/claude-3-sonnet",
         "google/gemini-pro",
+        "bedrock/claude-sonnet-4-0",
         "openai/multi-model",
         "anthropic/multi-model",
       ]);
@@ -188,14 +198,17 @@ describe("AiModelRegistry", () => {
       expect(groupedModels.has("openai")).toBe(true);
       expect(groupedModels.has("anthropic")).toBe(true);
       expect(groupedModels.has("google")).toBe(true);
+      expect(groupedModels.has("bedrock")).toBe(true);
 
       const openaiModels = groupedModels.get("openai") || [];
       const anthropicModels = groupedModels.get("anthropic") || [];
       const googleModels = groupedModels.get("google") || [];
+      const bedrockModels = groupedModels.get("bedrock") || [];
 
       expect(openaiModels.length).toEqual(2);
       expect(anthropicModels.length).toEqual(2);
       expect(googleModels.length).toEqual(1);
+      expect(bedrockModels.length).toEqual(1);
     });
 
     it("should include custom models in the grouped results", () => {
@@ -237,15 +250,17 @@ describe("AiModelRegistry", () => {
 
   describe("getListModelsByProvider", () => {
     /**
-     * Provider sort order depends on `provider.json`. We can hardcode for tests
-     * OpenAI, Bedrock, Azure, Anthropic, Google, Ollama, GitHub, Marimo
+     * Provider sort order depends on providers.json array index.
+     * The actual order from providers.json is:
+     * 0: openai, 1: bedrock, 2: azure, 3: anthropic, 4: google, etc.
+     * We only have models for: openai, bedrock, anthropic, google
      */
-    const PROVIDER_SORT_ORDER = ["openai", "anthropic", "google"];
+    const PROVIDER_SORT_ORDER = ["openai", "bedrock", "anthropic", "google"];
 
     it("should return list of models by provider", () => {
       const registry = AiModelRegistry.create({});
       const listModelsByProvider = registry.getListModelsByProvider();
-      expect(listModelsByProvider).toHaveLength(3);
+      expect(listModelsByProvider).toHaveLength(4);
 
       // Should be sorted by provider
       const providers = listModelsByProvider.map(([provider]) => provider);
@@ -399,35 +414,6 @@ describe("AiModelRegistry", () => {
   });
 
   describe("getFullModelId", () => {
-    // Mock Bedrock model with inference profiles
-    beforeEach(() => {
-      vi.mock("@marimo-team/llm-info/models.json", () => {
-        const models: AiModel[] = [
-          {
-            name: "GPT-4",
-            model: "gpt-4",
-            description: "OpenAI GPT-4 model",
-            providers: ["openai"],
-            roles: ["chat", "edit"],
-            thinking: false,
-          },
-          {
-            name: "Claude Sonnet 4",
-            model: "claude-sonnet-4-0",
-            description: "AWS Bedrock Claude Sonnet 4",
-            providers: ["bedrock"],
-            roles: ["chat", "edit"],
-            thinking: false,
-            inference_profiles: ["us", "eu", "global"],
-          },
-        ];
-
-        return {
-          models: models,
-        };
-      });
-    });
-
     describe("models without inference profiles", () => {
       it("should return original ID for models without inference profile support", () => {
         // Arrange: Create registry with no inference profiles configured
