@@ -518,6 +518,7 @@ Nd = "Nd"         # Confused with And
 pn = "pn"         # Panel
 caf = "caf"       # cafe
 ser = "ser"       # Used in pydantic-core package as part of a function name
+oint = "oint"     # LaTeX command for contour integral
 
 [tool.typos.files]
 extend-exclude = [
