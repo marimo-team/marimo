@@ -93,6 +93,18 @@ function writeJsonFile(filePath: string, data: any): void {
   writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
+function extractInferenceProfiles(models: any[]): string[] {
+  const profiles = new Set<string>();
+  for (const model of models) {
+    if (model.inference_profiles) {
+      model.inference_profiles.forEach((profile: string) =>
+        profiles.add(profile),
+      );
+    }
+  }
+  return Array.from(profiles).sort();
+}
+
 async function main(): Promise<void> {
   try {
     // Define paths
@@ -102,6 +114,10 @@ async function main(): Promise<void> {
     const providersYamlPath = join(dataDir, "providers.yml");
     const modelsJsonPath = join(generatedDir, "models.json");
     const providersJsonPath = join(generatedDir, "providers.json");
+    const inferenceProfilesJsonPath = join(
+      generatedDir,
+      "inference-profiles.json",
+    );
 
     // For compatibility with Vite and other bundlers, `import` returns a JS module and not a JSON object.
     // So we need to nest the models and providers data under a json key to access them,
@@ -115,8 +131,12 @@ async function main(): Promise<void> {
     const providers = loadAndValidateProviders(providersYamlPath);
     writeJsonFile(providersJsonPath, { providers: providers });
 
+    // Extract and write inference profiles
+    const inferenceProfiles = extractInferenceProfiles(models);
+    writeJsonFile(inferenceProfilesJsonPath, { profiles: inferenceProfiles });
+
     Logger.info(
-      `Generated ${models.length} models and ${providers.length} providers`,
+      `Generated ${models.length} models, ${providers.length} providers, and ${inferenceProfiles.length} inference profiles`,
     );
   } catch (error) {
     Logger.error("Generation failed:", error);

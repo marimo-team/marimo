@@ -11,7 +11,8 @@
     ".": "./src/index.ts",
     "./icons/*": "./icons/*",
     "./models.json": "./data/generated/models.json",
-    "./providers.json": "./data/generated/providers.json"
+    "./providers.json": "./data/generated/providers.json",
+    "./inference-profiles.json": "./data/generated/inference-profiles.json"
   },
   "scripts": {
     "codegen": "node --experimental-transform-types src/generate.ts",

@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type inferenceProfilesData from "@marimo-team/llm-info/inference-profiles.json";
 import {
   BotIcon,
   BrainIcon,
@@ -97,6 +98,11 @@ function getProfileLabel(profile: string): string {
   };
   return labels[profile] || profile;
 }
+
+// Type for valid inference profile values
+type InferenceProfile =
+  | (typeof inferenceProfilesData.profiles)[number]
+  | typeof INFERENCE_PROFILE_NONE;
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
@@ -562,11 +568,7 @@ const ModelInfoCard = ({
     }
 
     const updatedProfiles = { ...inferenceProfiles };
-    updatedProfiles[model.model] = newProfile as
-      | "us"
-      | "eu"
-      | "global"
-      | typeof INFERENCE_PROFILE_NONE;
+    updatedProfiles[model.model] = newProfile as InferenceProfile;
 
     const currentModels = form.getValues("ai.models");
     if (currentModels) {

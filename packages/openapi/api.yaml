@@ -155,19 +155,10 @@ components:
         \ to use for code completion/autocomplete\n    - `displayed_models`: a list\
         \ of models to display in the UI\n    - `custom_models`: a list of custom\
         \ models to use that are not from the default list\n    - `inference_profiles`:\
-        \ a dict mapping bedrock model IDs to their inference profiles (us, eu, global,\
-        \ or none)"
+        \ a dict mapping model IDs to their inference profile regions"
       properties:
         autocomplete_model:
           type: string
-        inference_profiles:
-          additionalProperties:
-            enum:
-            - eu
-            - global
-            - none
-            - us
-          type: object
         chat_model:
           type: string
         custom_models:
@@ -180,6 +171,10 @@ components:
           type: array
         edit_model:
           type: string
+        inference_profiles:
+          additionalProperties:
+            type: string
+          type: object
       required:
       - custom_models
       - displayed_models

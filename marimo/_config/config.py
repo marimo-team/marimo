@@ -246,7 +246,7 @@ class AiModelConfig(TypedDict):
     - `autocomplete_model`: the model to use for code completion/autocomplete
     - `displayed_models`: a list of models to display in the UI
     - `custom_models`: a list of custom models to use that are not from the default list
-    - `inference_profiles`: a dict mapping bedrock model IDs to their inference profiles (us, eu, global, or none)
+    - `inference_profiles`: a dict mapping model IDs to their inference profile regions
     """
 
     chat_model: NotRequired[str]
@@ -255,9 +255,7 @@ class AiModelConfig(TypedDict):
 
     displayed_models: list[str]
     custom_models: list[str]
-    inference_profiles: NotRequired[
-        dict[str, Literal["us", "eu", "global", "none"]]
-    ]
+    inference_profiles: NotRequired[dict[str, str]]
 
 
 @dataclass

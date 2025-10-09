@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import inferenceProfilesData from "@marimo-team/llm-info/inference-profiles.json";
 import { z } from "zod";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
@@ -12,6 +14,9 @@ export const PackageManagerNames = [
   "poetry",
   "pixi",
 ] as const;
+
+// Inference profiles from generated data plus "none"
+const INFERENCE_PROFILES = [...inferenceProfilesData.profiles, "none"] as const;
 export type PackageManagerName = (typeof PackageManagerNames)[number];
 
 /**
@@ -58,7 +63,7 @@ const AiModelsSchema = z.object({
   displayed_models: z.array(z.string()).default([]),
   custom_models: z.array(z.string()).default([]),
   inference_profiles: z
-    .record(z.string(), z.enum(["us", "eu", "global", "none"]))
+    .record(z.string(), z.enum(INFERENCE_PROFILES as [string, ...string[]]))
     .default({}),
 });
 
