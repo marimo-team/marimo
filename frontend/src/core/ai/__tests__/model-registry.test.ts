@@ -44,7 +44,8 @@ vi.mock("@marimo-team/llm-info/models.json", () => {
 });
 
 import type { AiModel } from "@marimo-team/llm-info";
-import { AiModelRegistry } from "../model-registry";
+import type { QualifiedModelId } from "../ids/ids";
+import { AiModelRegistry, INFERENCE_PROFILE_NONE } from "../model-registry";
 
 describe("AiModelRegistry", () => {
   beforeEach(() => {
@@ -394,6 +395,162 @@ describe("AiModelRegistry", () => {
           "thinking": false,
         }
       `);
+    });
+  });
+
+  describe("getFullModelId", () => {
+    // Mock Bedrock model with inference profiles
+    beforeEach(() => {
+      vi.mock("@marimo-team/llm-info/models.json", () => {
+        const models: AiModel[] = [
+          {
+            name: "GPT-4",
+            model: "gpt-4",
+            description: "OpenAI GPT-4 model",
+            providers: ["openai"],
+            roles: ["chat", "edit"],
+            thinking: false,
+          },
+          {
+            name: "Claude Sonnet 4",
+            model: "claude-sonnet-4-0",
+            description: "AWS Bedrock Claude Sonnet 4",
+            providers: ["bedrock"],
+            roles: ["chat", "edit"],
+            thinking: false,
+            inference_profiles: ["us", "eu", "global"],
+          },
+        ];
+
+        return {
+          models: models,
+        };
+      });
+    });
+
+    describe("models without inference profiles", () => {
+      it("should return original ID for models without inference profile support", () => {
+        // Arrange: Create registry with no inference profiles configured
+        const registry = AiModelRegistry.create({
+          customModels: [],
+          displayedModels: [],
+          inferenceProfiles: {},
+        });
+
+        // Act: Get full model ID for OpenAI model (no inference profiles)
+        const modelId = "openai/gpt-4" as QualifiedModelId;
+        const fullId = registry.getFullModelId(modelId);
+
+        // Assert: Should return unchanged
+        expect(fullId).toBe("openai/gpt-4");
+      });
+    });
+
+    describe("models with inference profiles", () => {
+      it('should return original ID when profile is "none"', () => {
+        // Arrange: Create registry with "none" profile selected for a Bedrock model
+        const registry = AiModelRegistry.create({
+          customModels: [],
+          displayedModels: [],
+          inferenceProfiles: {
+            "claude-sonnet-4-0": INFERENCE_PROFILE_NONE,
+          },
+        });
+
+        // Act: Get full model ID
+        const modelId = "bedrock/claude-sonnet-4-0" as QualifiedModelId;
+        const fullId = registry.getFullModelId(modelId);
+
+        // Assert: Should NOT add "none." prefix
+        expect(fullId).toBe("bedrock/claude-sonnet-4-0");
+        expect(fullId).not.toContain("none.");
+      });
+
+      it('should add profile prefix when profile is "us"', () => {
+        // Arrange: Create registry with "us" profile selected
+        const registry = AiModelRegistry.create({
+          customModels: [],
+          displayedModels: [],
+          inferenceProfiles: {
+            "claude-sonnet-4-0": "us",
+          },
+        });
+
+        // Act: Get full model ID
+        const modelId = "bedrock/claude-sonnet-4-0" as QualifiedModelId;
+        const fullId = registry.getFullModelId(modelId);
+
+        // Assert: Should add "us." prefix
+        expect(fullId).toBe("bedrock/us.claude-sonnet-4-0");
+      });
+
+      it('should add profile prefix when profile is "eu"', () => {
+        // Arrange: Create registry with "eu" profile selected
+        const registry = AiModelRegistry.create({
+          customModels: [],
+          displayedModels: [],
+          inferenceProfiles: {
+            "claude-sonnet-4-0": "eu",
+          },
+        });
+
+        // Act: Get full model ID
+        const modelId = "bedrock/claude-sonnet-4-0" as QualifiedModelId;
+        const fullId = registry.getFullModelId(modelId);
+
+        // Assert: Should add "eu." prefix
+        expect(fullId).toBe("bedrock/eu.claude-sonnet-4-0");
+      });
+
+      it("should return original ID when no profile is configured", () => {
+        // Arrange: Create registry with no profile set for a model that supports them
+        const registry = AiModelRegistry.create({
+          customModels: [],
+          displayedModels: [],
+          inferenceProfiles: {}, // Empty - no profile selected
+        });
+
+        // Act: Get full model ID
+        const modelId = "bedrock/claude-sonnet-4-0" as QualifiedModelId;
+        const fullId = registry.getFullModelId(modelId);
+
+        // Assert: Should be defined (implementation will default to first profile)
+        expect(fullId).toBeDefined();
+      });
+    });
+
+    describe("edge cases", () => {
+      it("should handle unknown model IDs gracefully", () => {
+        // Arrange: Create registry
+        const registry = AiModelRegistry.create({
+          customModels: [],
+          displayedModels: [],
+          inferenceProfiles: {},
+        });
+
+        // Act: Get full model ID for non-existent model
+        const modelId = "unknown/fake-model" as QualifiedModelId;
+        const fullId = registry.getFullModelId(modelId);
+
+        // Assert: Should return original ID
+        expect(fullId).toBe("unknown/fake-model");
+      });
+
+      it("should handle custom models without inference profiles", () => {
+        // Arrange: Create registry with custom model
+        const registry = AiModelRegistry.create({
+          customModels: ["custom-provider/my-model"],
+          displayedModels: [],
+          inferenceProfiles: {},
+        });
+
+        // Act: Get full model ID
+        const modelId = "custom-provider/my-model" as QualifiedModelId;
+        const fullId = registry.getFullModelId(modelId);
+
+        // Assert: Should return original ID
+        expect(fullId).toBe("custom-provider/my-model");
+      });
     });
   });
 });

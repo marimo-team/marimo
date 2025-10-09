@@ -17,7 +17,11 @@ import {
   type ProviderId,
   type QualifiedModelId,
 } from "@/core/ai/ids/ids";
-import { type AiModel, AiModelRegistry } from "@/core/ai/model-registry";
+import {
+  type AiModel,
+  AiModelRegistry,
+  INFERENCE_PROFILE_NONE,
+} from "@/core/ai/model-registry";
 import { aiAtom, completionAtom } from "@/core/config/config";
 import {
   DropdownMenu,
@@ -111,12 +115,14 @@ export const AIModelDropdown = ({
     currentModel.inference_profiles.length > 0;
   const currentProfile = hasInferenceProfiles
     ? (inferenceProfiles[currentValue!.shortModelId] as string | undefined) ||
-      "none"
+      INFERENCE_PROFILE_NONE
     : undefined;
 
   // Compute display text with inference profile for models that support them
   const displayText = currentValue
-    ? hasInferenceProfiles && currentProfile && currentProfile !== "none"
+    ? hasInferenceProfiles &&
+      currentProfile &&
+      currentProfile !== INFERENCE_PROFILE_NONE
       ? `${currentProfile}.${currentValue.shortModelId}`
       : isKnownAIProvider(currentValue.providerId)
         ? currentValue.shortModelId
@@ -133,12 +139,14 @@ export const AIModelDropdown = ({
       maybeModelMatch.inference_profiles.length > 0;
     const modelProfile = modelHasInferenceProfiles
       ? (inferenceProfiles[modelId.shortModelId] as string | undefined) ||
-        "none"
+        INFERENCE_PROFILE_NONE
       : undefined;
 
     // Compute display ID with inference profile
     const displayId =
-      modelHasInferenceProfiles && modelProfile && modelProfile !== "none"
+      modelHasInferenceProfiles &&
+      modelProfile &&
+      modelProfile !== INFERENCE_PROFILE_NONE
         ? `${modelId.providerId}/${modelProfile}.${modelId.shortModelId}`
         : modelId.id;
 
@@ -374,11 +382,12 @@ export const AiModelInfoDisplay = ({
   // Get the current inference profile for this model
   const inferenceProfiles = ai?.models?.inference_profiles || {};
   const currentProfile =
-    (inferenceProfiles[model.model] as string | undefined) || "none";
+    (inferenceProfiles[model.model] as string | undefined) ||
+    INFERENCE_PROFILE_NONE;
 
   // Compute the display model ID with inference profile prefix
   const displayModelId =
-    hasInferenceProfiles && currentProfile !== "none"
+    hasInferenceProfiles && currentProfile !== INFERENCE_PROFILE_NONE
       ? `${currentProfile}.${model.model}`
       : model.model;
 
@@ -397,7 +406,7 @@ export const AiModelInfoDisplay = ({
         {model.description}
       </p>
 
-      {hasInferenceProfiles && currentProfile !== "none" && (
+      {hasInferenceProfiles && currentProfile !== INFERENCE_PROFILE_NONE && (
         <div>
           <p className="text-xs font-medium text-muted-foreground mb-1">
             Inference Profile:

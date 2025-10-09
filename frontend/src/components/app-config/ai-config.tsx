@@ -39,7 +39,11 @@ import {
   type QualifiedModelId,
   type ShortModelId,
 } from "@/core/ai/ids/ids";
-import { type AiModel, AiModelRegistry } from "@/core/ai/model-registry";
+import {
+  type AiModel,
+  AiModelRegistry,
+  INFERENCE_PROFILE_NONE,
+} from "@/core/ai/model-registry";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { DEFAULT_AI_MODEL, type UserConfig } from "@/core/config/config-schema";
 import { isWasm } from "@/core/wasm/utils";
@@ -92,7 +96,7 @@ function getProfileLabel(profile: string): string {
     "us-gov": "US Gov",
     apac: "APAC (Asia Pacific)",
     jp: "JP (Japan)",
-    none: "No Prefix (Legacy)",
+    [INFERENCE_PROFILE_NONE]: "No Prefix (Legacy)",
   };
   return labels[profile] || profile;
 }
@@ -546,11 +550,12 @@ const ModelInfoCard = ({
   const inferenceProfiles = aiModels?.inference_profiles || {};
 
   const currentProfile =
-    (inferenceProfiles[model.model] as string | undefined) || "none";
+    (inferenceProfiles[model.model] as string | undefined) ||
+    INFERENCE_PROFILE_NONE;
 
   // Compute the display model ID with inference profile prefix
   const displayModelId =
-    hasInferenceProfiles && currentProfile !== "none"
+    hasInferenceProfiles && currentProfile !== INFERENCE_PROFILE_NONE
       ? `${modelId.providerId}/${currentProfile}.${model.model}`
       : qualifiedId;
 
@@ -560,15 +565,11 @@ const ModelInfoCard = ({
     }
 
     const updatedProfiles = { ...inferenceProfiles };
-    if (newProfile === "none") {
-      delete updatedProfiles[model.model];
-    } else {
-      updatedProfiles[model.model] = newProfile as
-        | "us"
-        | "eu"
-        | "global"
-        | "none";
-    }
+    updatedProfiles[model.model] = newProfile as
+      | "us"
+      | "eu"
+      | "global"
+      | typeof INFERENCE_PROFILE_NONE;
 
     const currentModels = form.getValues("ai.models");
     if (currentModels) {
@@ -609,8 +610,11 @@ const ModelInfoCard = ({
               className="text-xs h-7"
               onClick={Events.stopPropagation()}
             >
-              <option value="none" key="none">
-                {getProfileLabel("none")}
+              <option
+                value={INFERENCE_PROFILE_NONE}
+                key={INFERENCE_PROFILE_NONE}
+              >
+                {getProfileLabel(INFERENCE_PROFILE_NONE)}
               </option>
               {model.inference_profiles!.map((profile) => (
                 <option value={profile} key={profile}>

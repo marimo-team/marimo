@@ -13,6 +13,20 @@ import { once } from "@/utils/once";
 import type { ProviderId } from "./ids/ids";
 import { AiModelId, type QualifiedModelId, type ShortModelId } from "./ids/ids";
 
+/**
+ * Special inference profile value indicating no profile prefix should be added.
+ *
+ * When a user selects this profile, the model ID should be sent to the backend
+ * without any regional prefix (e.g., "bedrock/claude-sonnet-4-0" instead of
+ * "bedrock/us.claude-sonnet-4-0").
+ *
+ * This is useful for:
+ * - Legacy compatibility with backends expecting unprefixed IDs
+ * - Testing or development scenarios
+ * - Regions that don't yet have inference profile support
+ */
+export const INFERENCE_PROFILE_NONE = "none";
+
 export const PROVIDER_SORT_ORDER: ProviderId[] = [
   // Sort by popular ones
   "anthropic",
@@ -123,7 +137,7 @@ export class AiModelRegistry {
   /**
    * Initializes the inference profile map.
    * For each model with inference_profiles:
-   * - Use the user's selected profile from config if it exists and is not "none"
+   * - Use the user's selected profile from config if it exists
    * - Otherwise, default to the first profile in the model's inference_profiles array
    */
   private initializeInferenceProfiles(
@@ -141,8 +155,8 @@ export class AiModelRegistry {
       const shortModelId = model.model;
       const configValue = configProfiles[shortModelId];
 
-      // If user has selected a profile and it's not "none", use it
-      if (configValue && configValue !== "none") {
+      // If user has selected a profile
+      if (configValue) {
         profileMap.set(shortModelId, configValue);
       }
       // Otherwise, default to the first available profile
@@ -284,14 +298,23 @@ export class AiModelRegistry {
   /**
    * Returns the full model ID with inference profile prefix if applicable.
    *
+   * This method handles the special "none" inference profile by returning the
+   * original model ID without any prefix. For other profiles (e.g., "us", "eu"),
+   * it adds the profile as a prefix.
+   *
    * @param qualifiedModelId - The qualified model ID (e.g., "bedrock/claude-sonnet-4-0")
-   * @returns The full model ID with profile prefix (e.g., "bedrock/us.claude-sonnet-4-0")
-   *          or the original ID if no profile is selected
+   * @returns The full model ID with profile prefix if a real profile is selected,
+   *          or the original ID if no profile/"none" is selected
    *
    * @example
    * // User has selected "us" profile for claude-sonnet-4-0
    * registry.getFullModelId("bedrock/claude-sonnet-4-0")
    * // Returns: "bedrock/us.claude-sonnet-4-0"
+   *
+   * @example
+   * // User has selected "none" profile (no prefix)
+   * registry.getFullModelId("bedrock/claude-sonnet-4-0")
+   * // Returns: "bedrock/claude-sonnet-4-0"
    *
    * @example
    * // Model has no inference profiles
@@ -306,8 +329,10 @@ export class AiModelRegistry {
     }
 
     const selectedProfile = this.selectedInferenceProfiles.get(model.model);
-    if (!selectedProfile) {
-      // No profile selected, return original ID
+
+    // Check if profile is "none" or not set
+    if (!selectedProfile || selectedProfile === INFERENCE_PROFILE_NONE) {
+      // No profile selected or "none" selected, return original ID without prefix
       return qualifiedModelId;
     }
 

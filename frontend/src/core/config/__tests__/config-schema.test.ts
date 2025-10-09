@@ -50,6 +50,7 @@ test("default UserConfig - empty", () => {
         "models": {
           "custom_models": [],
           "displayed_models": [],
+          "inference_profiles": {},
         },
         "rules": "",
       },
@@ -117,6 +118,7 @@ test("default UserConfig - one level", () => {
         "models": {
           "custom_models": [],
           "displayed_models": [],
+          "inference_profiles": {},
         },
         "rules": "",
       },
