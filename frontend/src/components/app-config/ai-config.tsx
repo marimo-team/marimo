@@ -85,9 +85,6 @@ import { MCPConfig } from "./mcp-config";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 
-/**
- * Get display label for Bedrock inference profile
- */
 function getProfileLabel(profile: string): string {
   const labels: Record<string, string> = {
     us: "US (United States)",
