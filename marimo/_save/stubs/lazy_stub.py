@@ -10,12 +10,10 @@ from typing import Any, Optional
 import msgspec
 
 from marimo._save.stores import get_store
-from marimo._save.stubs import (
-    CustomStub,
-    FunctionStub,
-    ModuleStub,
-    UIElementStub,
-)
+from marimo._save.stubs.function_stub import FunctionStub
+from marimo._save.stubs.module_stub import ModuleStub
+from marimo._save.stubs.stubs import CustomStub
+from marimo._save.stubs.ui_element_stub import UIElementStub
 
 
 class CacheType(Enum):
@@ -105,10 +103,10 @@ class UnhashableStub:
     with these stubs, and when a cell needs them, it can trigger a rerun.
     """
 
-    def __init__(self, obj: Any, error: Exception, var_name: str = "") -> None:
+    def __init__(self, obj: Any, error: Optional[Exception] = None, var_name: str = "") -> None:
         self.obj_type = type(obj)
         self.type_name = f"{self.obj_type.__module__}.{self.obj_type.__name__}"
-        self.error_msg = str(error)
+        self.error_msg = "<unknown>" if not error else str(error)
         self.var_name = var_name
 
     def load(self, glbls: dict[str, Any]) -> Any:

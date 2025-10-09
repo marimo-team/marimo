@@ -18,7 +18,7 @@ from marimo._save.stubs import (
     FunctionStub,
     ModuleStub,
 )
-from marimo._save.stubs.lazy_stubs import (
+from marimo._save.stubs.lazy_stub import (
     TYPE_LOOKUP,
     Cache as CacheSchema,
     CacheType,
@@ -45,7 +45,7 @@ def to_item(
         return Item(reference=(path / "ui.pickle").as_posix())
     if loader == "unhashable":
         # For UnhashableStub, store the type and error info
-        from marimo._save.stubs.lazy_stubs import UnhashableStub
+        from marimo._save.stubs.lazy_stub import UnhashableStub
 
         if isinstance(value, UnhashableStub):
             return Item(
@@ -78,7 +78,7 @@ def from_item(item: Item) -> Any:
         return ReferenceStub(item.reference)
     elif item.unhashable is not None:
         # Reconstruct UnhashableStub from stored metadata
-        from marimo._save.stubs.lazy_stubs import UnhashableStub
+        from marimo._save.stubs.lazy_stub import UnhashableStub
 
         # Create a dummy object with the right type name for display
         stub = UnhashableStub.__new__(UnhashableStub)
@@ -197,7 +197,7 @@ class LazyLoader(BasePersistenceLoader):
                     pickle.dumps(obj)
                 except (pickle.PicklingError, TypeError, AttributeError) as e:
                     # Cannot pickle - create UnhashableStub for graceful degradation
-                    from marimo._save.stubs.lazy_stubs import UnhashableStub
+                    from marimo._save.stubs.lazy_stub import UnhashableStub
 
                     obj = UnhashableStub(obj, e, var_name=var)
                     loader = "unhashable"
@@ -231,7 +231,7 @@ class LazyLoader(BasePersistenceLoader):
                 self.store.put(return_item.reference, blob)
             except (pickle.PicklingError, TypeError, AttributeError) as e:
                 # Return value can't be pickled - replace with UnhashableStub
-                from marimo._save.stubs.lazy_stubs import UnhashableStub
+                from marimo._save.stubs.lazy_stub import UnhashableStub
 
                 return_stub = UnhashableStub(
                     cache.meta.get("return", None), e, var_name="<return>"

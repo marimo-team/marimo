@@ -16,6 +16,7 @@ from marimo._save.stubs import (
     FunctionStub,
     ModuleStub,
     UIElementStub,
+    UnhashableStub,
     maybe_register_stub,
 )
 
@@ -62,6 +63,15 @@ MetaKey = Literal["return", "version", "runtime"]
 CacheInfo = namedtuple(
     "CacheInfo", ["hits", "misses", "maxsize", "currsize", "time_saved"]
 )
+
+
+def _is_unhashable_function(fn: Any) -> bool:
+    """Checks if an object is a function, excluding nested functions."""
+
+    return (
+        fn.__code__.co_flags & inspect.CO_NESTED != 0
+        or "<lambda>" in fn.__name__
+    )
 
 
 # BaseException because "raise _ as e" is utilized.
@@ -153,7 +163,7 @@ class Cache:
             if isinstance(value, SetFunctor):
                 self.defs[ref] = value._state()
             elif isinstance(value, UIElement):
-                self.defs[ref] = value.value
+                self.defs[ref] = value
             else:
                 raise CacheException(
                     "Failure while saving cached values. "
@@ -344,7 +354,8 @@ def _convert_to_stub_if_needed(
     if inspect.ismodule(value):
         result = ModuleStub(value)
     elif inspect.isfunction(value):
-        result = FunctionStub(value)
+        result = (UnhashableStub(value) if _is_unhashable_function(value)
+                  else FunctionStub(value))
     elif isinstance(value, UIElement):
         result = UIElementStub(value)
     elif isinstance(value, tuple):

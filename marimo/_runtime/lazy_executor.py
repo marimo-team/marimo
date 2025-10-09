@@ -13,7 +13,7 @@ from marimo._runtime.executor import Executor
 from marimo._runtime.side_effect import CellHash
 from marimo._save.hash import cache_attempt_from_hash
 from marimo._save.loaders import LazyLoader, Loader
-from marimo._save.stubs.lazy_stubs import ReferenceStub
+from marimo._save.stubs.lazy_stub import ReferenceStub
 
 LOGGER = _loggers.marimo_logger()
 
@@ -36,7 +36,7 @@ def hydrate(
     _loader: Loader,
 ) -> None:
     """Hydrate references in the global scope."""
-    from marimo._save.stubs.lazy_stubs import UnhashableStub
+    from marimo._save.stubs.lazy_stub import UnhashableStub
 
     for ref in refs:
         obj = glbls.get(ref, None)

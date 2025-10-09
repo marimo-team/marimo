@@ -27,7 +27,7 @@ from marimo._runtime.runtime import Kernel
 from marimo._save.cache import Cache
 from marimo._save.loaders.lazy import LazyLoader
 from marimo._save.stores.memory import MemoryStore
-from marimo._save.stubs.lazy_stubs import (
+from marimo._save.stubs.lazy_stub import (
     # ImmediateReferenceStub,
     ReferenceStub,
     UnhashableStub,
@@ -229,7 +229,7 @@ class TestUnhashableStubCaching:
         assert restored.meta["return"] == 42
 
         # Verify complex picklable objects became ReferenceStub for lazy loading
-        from marimo._save.stubs.lazy_stubs import ReferenceStub
+        from marimo._save.stubs.lazy_stub import ReferenceStub
 
         assert isinstance(restored.defs["c"], ReferenceStub)
         assert isinstance(restored.defs["d"], ReferenceStub)
