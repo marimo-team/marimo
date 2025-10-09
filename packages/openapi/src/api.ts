@@ -2813,6 +2813,8 @@ export interface components {
       language?: "markdown" | "python" | "sql";
       /** @default [] */
       messages?: components["schemas"]["ChatMessage"][];
+      /** @default null */
+      model?: string | null;
       prompt: string;
       /** @default null */
       selectedText?: string | null;
@@ -2862,6 +2864,8 @@ export interface components {
        * @enum {unknown}
        */
       language?: "markdown" | "python" | "sql";
+      /** @default null */
+      model?: string | null;
       prefix: string;
       suffix: string;
     };

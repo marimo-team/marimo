@@ -1042,6 +1042,303 @@ async def test_without_wrapping_backticks(
     assert "".join(result) == expected
 
 
+# Inference Profile Tests
+class TestInferenceProfiles:
+    """Tests for inference profile handling in edit and completion endpoints."""
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("litellm.acompletion")
+    def test_completion_with_inference_profile(
+        client: TestClient, mock_litellm_completion: Any
+    ) -> None:
+        """Test that completion endpoint accepts and uses model with inference profile."""
+        user_config_manager = get_session_config_manager(client)
+
+        # Mock async stream
+        async def mock_stream():
+            yield MagicMock(
+                choices=[
+                    MagicMock(
+                        delta=MagicMock(content="import pandas as pd"),
+                        finish_reason=None,
+                    )
+                ]
+            )
+
+        mock_litellm_completion.return_value = mock_stream()
+
+        # Config with Bedrock using inference profile
+        config = {
+            "ai": {
+                "bedrock": {
+                    "profile_name": "default",
+                    "region_name": "us-east-1",
+                },
+                "models": {
+                    "edit_model": "bedrock/claude-sonnet-4-0",
+                    "inference_profiles": {
+                        "claude-sonnet-4-0": "us",
+                    },
+                },
+            },
+        }
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=config
+        ):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "code": "",
+                    "includeOtherCode": "",
+                    # Frontend now passes the full model ID with inference profile
+                    "model": "bedrock/us.claude-sonnet-4-0",
+                },
+            )
+            assert response.status_code == 200, response.text
+
+            # Verify litellm was called with the profile-prefixed model ID
+            mock_litellm_completion.assert_called_once()
+            call_kwargs = mock_litellm_completion.call_args[1]
+            assert call_kwargs["model"] == "us.claude-sonnet-4-0"
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("litellm.acompletion")
+    def test_completion_without_inference_profile(
+        client: TestClient, mock_litellm_completion: Any
+    ) -> None:
+        """Test that completion endpoint works without inference profile."""
+        user_config_manager = get_session_config_manager(client)
+
+        # Mock async stream
+        async def mock_stream():
+            yield MagicMock(
+                choices=[
+                    MagicMock(
+                        delta=MagicMock(content="import pandas as pd"),
+                        finish_reason=None,
+                    )
+                ]
+            )
+
+        mock_litellm_completion.return_value = mock_stream()
+
+        # Config with Bedrock without inference profile
+        config = {
+            "ai": {
+                "bedrock": {
+                    "profile_name": "default",
+                    "region_name": "us-east-1",
+                },
+                "models": {
+                    "edit_model": "bedrock/claude-sonnet-4-0",
+                },
+            },
+        }
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=config
+        ):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "code": "",
+                    "includeOtherCode": "",
+                    # Frontend passes model without inference profile
+                    "model": "bedrock/claude-sonnet-4-0",
+                },
+            )
+            assert response.status_code == 200, response.text
+
+            # Verify litellm was called with the model ID without profile
+            mock_litellm_completion.assert_called_once()
+            call_kwargs = mock_litellm_completion.call_args[1]
+            assert call_kwargs["model"] == "claude-sonnet-4-0"
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("litellm.acompletion")
+    def test_completion_model_override_with_inference_profile(
+        client: TestClient, mock_litellm_completion: Any
+    ) -> None:
+        """Test that model field in request overrides config model."""
+        user_config_manager = get_session_config_manager(client)
+
+        # Mock async stream
+        async def mock_stream():
+            yield MagicMock(
+                choices=[
+                    MagicMock(
+                        delta=MagicMock(content="import pandas as pd"),
+                        finish_reason=None,
+                    )
+                ]
+            )
+
+        mock_litellm_completion.return_value = mock_stream()
+
+        # Config with default edit model
+        config = {
+            "ai": {
+                "bedrock": {
+                    "profile_name": "default",
+                    "region_name": "us-east-1",
+                },
+                "models": {
+                    "edit_model": "bedrock/claude-opus-4-0",
+                    "inference_profiles": {
+                        "claude-sonnet-4-0": "eu",
+                    },
+                },
+            },
+        }
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=config
+        ):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "code": "",
+                    "includeOtherCode": "",
+                    # Override with different model + inference profile
+                    "model": "bedrock/eu.claude-sonnet-4-0",
+                },
+            )
+            assert response.status_code == 200, response.text
+
+            # Verify litellm was called with the overridden model
+            mock_litellm_completion.assert_called_once()
+            call_kwargs = mock_litellm_completion.call_args[1]
+            assert call_kwargs["model"] == "eu.claude-sonnet-4-0"
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("litellm.acompletion")
+    def test_inline_completion_with_inference_profile(
+        client: TestClient, mock_litellm_completion: Any
+    ) -> None:
+        """Test that inline completion endpoint accepts model with inference profile."""
+        user_config_manager = get_session_config_manager(client)
+
+        # Mock async stream
+        async def mock_stream():
+            yield MagicMock(
+                choices=[
+                    MagicMock(
+                        delta=MagicMock(content="df = pd.DataFrame()"),
+                        finish_reason=None,
+                    )
+                ]
+            )
+
+        mock_litellm_completion.return_value = mock_stream()
+
+        # Config with Bedrock using inference profile for autocomplete
+        config = {
+            "ai": {
+                "bedrock": {
+                    "profile_name": "default",
+                    "region_name": "us-west-2",
+                },
+                "models": {
+                    "autocomplete_model": "bedrock/claude-sonnet-4-0",
+                    "inference_profiles": {
+                        "claude-sonnet-4-0": "us",
+                    },
+                },
+            },
+        }
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=config
+        ):
+            response = client.post(
+                "/api/ai/inline_completion",
+                headers=HEADERS,
+                json={
+                    "prefix": "import pandas as pd\n",
+                    "suffix": "\ndf.head()",
+                    "language": "python",
+                    # Frontend passes the full model ID with inference profile
+                    "model": "bedrock/us.claude-sonnet-4-0",
+                },
+            )
+            assert response.status_code == 200, response.text
+
+            # Verify litellm was called with the profile-prefixed model ID
+            mock_litellm_completion.assert_called_once()
+            call_kwargs = mock_litellm_completion.call_args[1]
+            assert call_kwargs["model"] == "us.claude-sonnet-4-0"
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("litellm.acompletion")
+    def test_chat_with_inference_profile(
+        client: TestClient, mock_litellm_completion: Any
+    ) -> None:
+        """Test that chat endpoint accepts and uses model with inference profile."""
+        user_config_manager = get_session_config_manager(client)
+
+        # Mock async stream
+        async def mock_stream():
+            yield MagicMock(
+                choices=[
+                    MagicMock(
+                        delta=MagicMock(content="Here's a dataframe"),
+                        finish_reason=None,
+                    )
+                ]
+            )
+
+        mock_litellm_completion.return_value = mock_stream()
+
+        # Config with Bedrock using inference profile
+        config = {
+            "ai": {
+                "bedrock": {
+                    "profile_name": "default",
+                    "region_name": "eu-west-1",
+                },
+                "models": {
+                    "chat_model": "bedrock/claude-sonnet-4-0",
+                    "inference_profiles": {
+                        "claude-sonnet-4-0": "eu",
+                    },
+                },
+            },
+        }
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=config
+        ):
+            response = client.post(
+                "/api/ai/chat",
+                headers=HEADERS,
+                json={
+                    "messages": _create_messages("Help me create a dataframe"),
+                    "context": {},
+                    "includeOtherCode": "",
+                    # Frontend passes the full model ID with inference profile
+                    "model": "bedrock/eu.claude-sonnet-4-0",
+                },
+            )
+            assert response.status_code == 200, response.text
+
+            # Verify litellm was called with the profile-prefixed model ID
+            mock_litellm_completion.assert_called_once()
+            call_kwargs = mock_litellm_completion.call_args[1]
+            assert call_kwargs["model"] == "eu.claude-sonnet-4-0"
+
+
 # Tool invocation tests (provider-agnostic)
 class TestInvokeToolEndpoint:
     """Tests for the /invoke_tool endpoint."""

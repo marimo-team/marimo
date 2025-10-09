@@ -72,6 +72,11 @@ components:
           items:
             $ref: '#/components/schemas/ChatMessage'
           type: array
+        model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         prompt:
           type: string
         selectedText:
@@ -139,6 +144,11 @@ components:
           - markdown
           - python
           - sql
+        model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         prefix:
           type: string
         suffix:
