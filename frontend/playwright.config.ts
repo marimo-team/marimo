@@ -104,7 +104,7 @@ export function startServer(app: ApplicationNames): void {
   }
   const port = options.port ?? EDIT_PORT;
   const pathToApp = path.join(pydir, app);
-  const marimoCmd = `marimo -q ${options.command} ${pathToApp} -p ${port} --headless`;
+  const marimoCmd = `uv run marimo -q ${options.command} ${pathToApp} -p ${port} --headless`;
   exec(marimoCmd);
 }
 

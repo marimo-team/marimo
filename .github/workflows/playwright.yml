@@ -70,8 +70,7 @@ jobs:
 
       - name: 🐍 Install marimo
         run: |
-          uv pip install . --system
-          echo "MARIMO_VERSION=$(marimo --version)" >> $GITHUB_ENV
+          echo "MARIMO_VERSION=$(uv run marimo --version)" >> $GITHUB_ENV
 
       - name: 🎭 Get installed Playwright version
         id: playwright-version
