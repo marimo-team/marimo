@@ -150,7 +150,7 @@ def test_copilot_server_uses_typed_format(tmp_path: Path) -> None:
 
     copilot_dir = lsp_dir_with_spaces / "copilot"
     copilot_dir.mkdir()
-    copilot_bin = copilot_dir / "language-server.js"
+    copilot_bin = copilot_dir / "language-server.cjs"
     copilot_bin.touch()
 
     # Mock the _lsp_dir method to return our test directory
