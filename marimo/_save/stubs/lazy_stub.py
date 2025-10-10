@@ -109,7 +109,10 @@ class UnhashableStub:
     ) -> None:
         self.obj_type = type(obj)
         self.type_name = f"{self.obj_type.__module__}.{self.obj_type.__name__}"
-        self.error_msg = "<unknown>" if not error else str(error)
+        # Unhashables come in 2 forms, either the serialization failed (and we
+        # has an explicit error), or it's something like a scope function or
+        # lambda (in which case, no error but unhashable)
+        self.error_msg = "<scoped function>" if not error else str(error)
         self.var_name = var_name
 
     def load(self, glbls: dict[str, Any]) -> Any:
