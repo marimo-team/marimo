@@ -21,7 +21,9 @@ def read_pyproject_marimo_config(
 ) -> Optional[PartialMarimoConfig]:
     """Read the marimo tool config from a pyproject.toml file."""
     pyproject_config = read_toml(pyproject_path)
-    marimo_tool_config = get_marimo_config_from_pyproject_dict(pyproject_config)
+    marimo_tool_config = get_marimo_config_from_pyproject_dict(
+        pyproject_config
+    )
     if marimo_tool_config is None:
         return None
     LOGGER.info("Found marimo config in pyproject.toml at %s", pyproject_path)
