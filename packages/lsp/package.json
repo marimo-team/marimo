@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "build:ts": "tsup index.ts --format cjs --minify",
-    "build:deps": "cp -LR node_modules/@github/copilot-language-server/dist/ dist/ && mv dist/language-server.js dist/language-server.cjs",
+    "build:deps": "node move.js",
     "typecheck": "tsgo",
     "build": "pnpm run build:ts && pnpm run build:deps",
     "test": "vitest"
