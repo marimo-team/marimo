@@ -108,7 +108,8 @@ class Loader(ABC):
     """
 
     def __init__(self, name: str) -> None:
-        self.name = name
+        # Remove * since used to prevent shadowing in scoped cases.
+        self.name = name.strip("*")
         self._hits = 0
         self._time_saved = 0.0
 
@@ -212,7 +213,7 @@ class BasePersistenceLoader(Loader):
                 self.store = DEFAULT_STORE()
 
         # Limited character set for path for windows compatibility
-        self.name = re.sub(r"[^a-zA-Z0-9 _-]", "_", name)
+        self.name = re.sub(r"[^a-zA-Z0-9 _-]", "_", self.name)
         self.suffix = suffix
 
     def build_path(self, key: HashKey) -> Path:

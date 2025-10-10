@@ -104,7 +104,7 @@ export function startServer(app: ApplicationNames): void {
   }
   const port = options.port ?? EDIT_PORT;
   const pathToApp = path.join(pydir, app);
-  const marimoCmd = `marimo -q ${options.command} ${pathToApp} -p ${port} --headless`;
+  const marimoCmd = `uv run marimo -q ${options.command} ${pathToApp} -p ${port} --headless`;
   exec(marimoCmd);
 }
 
@@ -196,7 +196,7 @@ const config: PlaywrightTestConfig = {
       const baseUrl = command === "run" ? options.baseUrl : undefined;
 
       const pathToApp = path.join(pydir, app);
-      let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless --no-token`;
+      let marimoCmd = `uv run marimo -q ${command} ${pathToApp} -p ${port} --headless --no-token`;
       if (baseUrl) {
         marimoCmd += ` --base-url=${baseUrl}`;
       }
@@ -213,7 +213,7 @@ const config: PlaywrightTestConfig = {
       };
     }),
     {
-      command: `marimo -q edit -p ${EDIT_PORT} --headless --no-token`,
+      command: `uv run marimo -q edit -p ${EDIT_PORT} --headless --no-token`,
       url: getUrl(EDIT_PORT),
       reuseExistingServer: true,
       timeout: 30 * 1000,

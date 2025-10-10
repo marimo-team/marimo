@@ -1650,6 +1650,235 @@ except NameError:
             else:
                 assert cell_op.run_id is not None
 
+    async def test_sync_graph_basic(self, execution_kernel: Kernel) -> None:
+        """Test basic synchronization: file changes cell B in A→B→C chain.
+
+        Uses execution_kernel (reactive mode) to test cascade behavior.
+        """
+        k = execution_kernel
+        # Setup: Create initial graph state with dependencies
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 1"),
+                ExecutionRequest(cell_id="1", code="y = x + 1"),
+                ExecutionRequest(cell_id="2", code="z = y + 1"),
+            ]
+        )
+        assert k.globals["x"] == 1
+        assert k.globals["y"] == 2
+        assert k.globals["z"] == 3
+        assert len(k.graph.cells) == 3
+
+        # Action: Sync with cell 1 changed
+        await k.sync_graph(
+            cells={"0": "x = 1", "1": "y = x + 10", "2": "z = y + 1"},
+            run_ids=["1"],
+            delete_ids=[],
+        )
+
+        # Verify: Cell 1 and its descendant (2) are re-executed
+        assert k.globals["x"] == 1  # unchanged
+        assert k.globals["y"] == 11  # updated
+        assert k.globals["z"] == 12  # cascaded from y
+
+    async def test_sync_graph_orphaned_cells(self, any_kernel: Kernel) -> None:
+        """Test orphaned cell detection: cell in kernel but not file manager."""
+        k = any_kernel
+        # Setup: Create 3 cells
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 1"),
+                ExecutionRequest(cell_id="1", code="y = x + 1"),
+                ExecutionRequest(cell_id="2", code="z = y + 1"),
+            ]
+        )
+        assert "z" in k.globals
+        assert len(k.graph.cells) == 3
+
+        # Action: Sync with file manager only knowing about cells 0 and 1
+        # Cell 2 is orphaned (deleted from file)
+        await k.sync_graph(
+            cells={"0": "x = 1", "1": "y = x + 1"},
+            run_ids=[],
+            delete_ids=[],
+        )
+
+        # Verify: Cell 2 is automatically deleted
+        assert len(k.graph.cells) == 2
+        assert "z" not in k.globals
+        assert "0" in k.graph.cells
+        assert "1" in k.graph.cells
+        assert "2" not in k.graph.cells
+
+    async def test_sync_graph_combined_orphan_and_explicit_delete(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Test both orphaned and explicitly deleted cells."""
+        k = any_kernel
+        # Setup: Kernel has A, B, C, D
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="a = 1"),
+                ExecutionRequest(cell_id="1", code="b = 2"),
+                ExecutionRequest(cell_id="2", code="c = 3"),
+                ExecutionRequest(cell_id="3", code="d = 4"),
+            ]
+        )
+        assert len(k.graph.cells) == 4
+
+        # Action: File manager knows A and C, explicitly deletes B
+        # D is orphaned (not in file), B is explicitly deleted
+        await k.sync_graph(
+            cells={"0": "a = 1", "2": "c = 3"},
+            run_ids=[],
+            delete_ids=["1"],
+        )
+
+        # Verify: Both B and D are deleted, only A and C remain
+        assert len(k.graph.cells) == 2
+        assert "0" in k.graph.cells
+        assert "2" in k.graph.cells
+        assert "1" not in k.graph.cells
+        assert "3" not in k.graph.cells
+        assert "a" in k.globals
+        assert "b" not in k.globals
+        assert "c" in k.globals
+        assert "d" not in k.globals
+
+    async def test_sync_graph_uninstantiated_request_cleanup(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Test cleanup of uninstantiated requests when cells are deleted."""
+        k = any_kernel
+        # Setup: Instantiate with autorun=False, then run some cells
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    ExecutionRequest(cell_id="0", code="x = 0"),
+                    ExecutionRequest(cell_id="1", code="y = 1"),
+                    ExecutionRequest(cell_id="2", code="z = 2"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert len(k._uninstantiated_execution_requests) == 3
+
+        # Run cells 0 and 1 to add them to graph, keeping cell 2 uninstantiated
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 0"),
+                ExecutionRequest(cell_id="1", code="y = 1"),
+            ]
+        )
+        # Cell 2 is still uninstantiated, cells 0 and 1 are in graph
+        assert len(k.graph.cells) == 2
+        assert "2" in k._uninstantiated_execution_requests
+
+        # Action: Sync with only cell 0, cell 1 is orphaned (deleted from file)
+        await k.sync_graph(
+            cells={"0": "x = 0"},
+            run_ids=[],
+            delete_ids=[],
+        )
+
+        # Verify: Uninstantiated request and graph entry for cell 1 are cleaned up
+        assert len(k.graph.cells) == 1
+        assert "0" in k.graph.cells
+        assert "1" not in k.graph.cells
+        # Cell 1's uninstantiated request should be cleaned up if it existed
+        assert "1" not in k._uninstantiated_execution_requests
+        # Cell 2 still has uninstantiated request (it was never in the graph)
+        assert "2" in k._uninstantiated_execution_requests
+
+    async def test_sync_graph_run_and_delete_combined(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Test simultaneous run and delete in single sync operation."""
+        k = any_kernel
+        # Setup: Create A→B→C dependency chain
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 1"),
+                ExecutionRequest(cell_id="1", code="y = x + 1"),
+                ExecutionRequest(cell_id="2", code="z = y + 1"),
+            ]
+        )
+        assert k.globals["z"] == 3
+        assert len(k.graph.cells) == 3
+
+        # Action: Delete B, update A and C (C no longer depends on B)
+        await k.sync_graph(
+            cells={"0": "x = 10", "2": "z = x + 5"},
+            run_ids=["0", "2"],
+            delete_ids=["1"],
+        )
+
+        # Verify: B deleted, A and C updated
+        assert len(k.graph.cells) == 2
+        assert "0" in k.graph.cells
+        assert "2" in k.graph.cells
+        assert "1" not in k.graph.cells
+        assert k.globals["x"] == 10
+        assert "y" not in k.globals
+        assert k.globals["z"] == 15
+
+    async def test_sync_graph_error_propagation(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Test error propagation when sync introduces errors."""
+        k = any_kernel
+        # Setup: Cell 0 defines x
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 1"),
+            ]
+        )
+        assert "x" in k.globals
+        assert not k.errors
+
+        # Action: Sync with new cell 1 that also defines x (multiple definition)
+        # Running both cells to trigger the error in both
+        await k.sync_graph(
+            cells={"0": "x = 1", "1": "x = 2"},
+            run_ids=["0", "1"],
+            delete_ids=[],
+        )
+
+        # Verify: Multiple definition error in both cells
+        assert "x" not in k.globals
+        assert set(k.errors.keys()) == {"0", "1"}
+        assert isinstance(k.errors["0"][0], MultipleDefinitionError)
+        assert isinstance(k.errors["1"][0], MultipleDefinitionError)
+
+    async def test_sync_graph_empty_sync(self, any_kernel: Kernel) -> None:
+        """Test no-op sync when already in sync."""
+        k = any_kernel
+        # Setup: Create cells
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 1"),
+                ExecutionRequest(cell_id="1", code="y = 2"),
+            ]
+        )
+        assert k.globals["x"] == 1
+        assert k.globals["y"] == 2
+
+        # Action: Sync with same state (no changes)
+        await k.sync_graph(
+            cells={"0": "x = 1", "1": "y = 2"},
+            run_ids=[],
+            delete_ids=[],
+        )
+
+        # Verify: Nothing changed
+        assert len(k.graph.cells) == 2
+        assert k.globals["x"] == 1
+        assert k.globals["y"] == 2
+        assert not k.errors
+
 
 class TestStrictExecution:
     @staticmethod

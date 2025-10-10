@@ -8,10 +8,13 @@ import pytest
 from marimo._data.get_datasets import (
     get_databases_from_duckdb,
     get_datasets_from_variables,
+    get_duckdb_databases_agg_query,
+    get_table_columns,
     has_updates_to_datasource,
 )
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._types.ids import VariableName
 from tests._data.mocks import create_dataframes
 
 HAS_DEPS = DependencyManager.duckdb.has()
@@ -424,12 +427,18 @@ def test_get_databases_with_no_tables() -> None:
     assert get_databases_from_duckdb(connection=connection) == [
         in_memory_database
     ]
+    assert get_duckdb_databases_agg_query(
+        connection=connection, engine_name=None
+    ) == [in_memory_database]
 
     # Custom connection with no tables
     connection = duckdb.connect(":memory:")
     assert get_databases_from_duckdb(connection=connection) == [
         in_memory_database
     ]
+    assert get_duckdb_databases_agg_query(
+        connection=connection, engine_name=None
+    ) == [in_memory_database]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -442,21 +451,19 @@ def test_get_databases_with_connection() -> None:
     all_tables = deepcopy(all_types_tables)
     for table in all_tables:
         table.source_type = "connection"
-        table.engine = "engine"
+        table.engine = VariableName("engine")
 
     s1 = deepcopy(s1_tables)
     for table in s1:
         table.source_type = "connection"
-        table.engine = "engine"
+        table.engine = VariableName("engine")
 
     s2 = deepcopy(s2_tables)
     for table in s2:
         table.source_type = "connection"
-        table.engine = "engine"
+        table.engine = VariableName("engine")
 
-    assert get_databases_from_duckdb(
-        connection=connection, engine_name="engine"
-    ) == [
+    expected_databases = [
         Database(
             name="memory",
             dialect="duckdb",
@@ -465,9 +472,23 @@ def test_get_databases_with_connection() -> None:
                 Schema(name="s1", tables=s1),
                 Schema(name="s2", tables=s2),
             ],
-            engine="engine",
+            engine=VariableName("engine"),
         )
     ]
+
+    assert (
+        get_databases_from_duckdb(
+            connection=connection, engine_name=VariableName("engine")
+        )
+        == expected_databases
+    )
+
+    assert (
+        get_duckdb_databases_agg_query(
+            connection=connection, engine_name=VariableName("engine")
+        )
+        == expected_databases
+    )
 
     connection.execute(cleanup_query)
 
@@ -477,7 +498,9 @@ def test_get_databases_with_connection() -> None:
     create_dataframes({"A": [1, 2, 3], "B": ["a", "a", "a"]}),
 )
 def test_get_datasets_from_variables(df: Any) -> None:
-    datatests = get_datasets_from_variables([("my_df", df), ("non_df", 123)])
+    datatests = get_datasets_from_variables(
+        [(VariableName("my_df"), df), (VariableName("non_df"), 123)]
+    )
     # We don't compare these values
     external_type1 = datatests[0].columns[0].external_type
     external_type2 = datatests[0].columns[1].external_type
@@ -497,7 +520,7 @@ def test_get_datasets_from_variables(df: Any) -> None:
             source="memory",
             num_rows=rows,
             num_columns=2,
-            variable_name="my_df",
+            variable_name=VariableName("my_df"),
             columns=[
                 DataTableColumn(
                     name="A",
@@ -514,3 +537,37 @@ def test_get_datasets_from_variables(df: Any) -> None:
             ],
         )
     ]
+
+
+def test_get_table_columns() -> None:
+    import duckdb
+
+    connection = duckdb.connect(":memory:")
+    connection.execute(sql_query)
+
+    columns = get_table_columns(connection, "all_types")
+    assert columns == all_types_tables[0].columns
+
+
+def test_get_databases_agg_query() -> None:
+    import duckdb
+
+    connection = duckdb.connect(":memory:")
+    connection.execute(sql_query)
+
+    assert get_duckdb_databases_agg_query(
+        connection=connection, engine_name=None
+    ) == [
+        Database(
+            name="memory",
+            dialect="duckdb",
+            schemas=[
+                Schema(name="main", tables=all_types_tables),
+                Schema(name="s1", tables=s1_tables),
+                Schema(name="s2", tables=s2_tables),
+            ],
+            engine=None,
+        )
+    ]
+
+    connection.execute(cleanup_query)

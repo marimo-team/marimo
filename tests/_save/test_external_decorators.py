@@ -11,6 +11,45 @@ from tests.conftest import ExecReqProvider
 
 class TestDecoratorImports:
     @staticmethod
+    def test_import_alias_hash_path(app) -> None:
+        """Test that imported cached functions with module aliases have correct hash paths."""
+        for module in list(sys.modules.keys()):
+            if module.startswith("tests._save.external_decorators"):
+                del sys.modules[module]
+
+        with app.setup:
+            import marimo as mo
+            import tests._save.external_decorators.module_1 as my_module
+            from tests._save.external_decorators.transitive_imports import (
+                doesnt_have_namespace as external_func,
+            )
+
+        @app.function
+        @mo.cache
+        def doesnt_have_namespace() -> None:
+            # Just replicating the function in external_func
+            return my_module.__version__
+
+        @app.cell
+        def check_hash_paths() -> None:
+            local_func = doesnt_have_namespace
+            # Both functions access the same module with the same alias
+            external_result = external_func()
+            local_result = local_func()
+
+            # Results should be the same (both return "1.0.0")
+            assert external_result == local_result == "1.0.0"
+
+            # Hashes should be equal (same code, same module accessed)
+            external_name = external_func._loader().name
+            local_name = local_func._loader().name
+
+            assert external_name == local_name, (
+                f"Hashes should be equal for same code and module, "
+                f"got {external_name} != {local_name}"
+            )
+
+    @staticmethod
     def test_has_shared_import(app) -> None:
         with app.setup:
             import marimo as mo

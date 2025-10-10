@@ -9,6 +9,12 @@ import { Logger } from "./Logger";
  * when running localhost http.
  */
 export async function copyToClipboard(text: string) {
+  if (navigator.clipboard === undefined) {
+    Logger.warn("navigator.clipboard is not supported");
+    window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
+    return;
+  }
+
   await navigator.clipboard.writeText(text).catch(async () => {
     // Fallback to prompt
     Logger.warn("Failed to copy to clipboard using navigator.clipboard");

@@ -34,7 +34,7 @@ jobs:
         shell: bash
     env:
       NODE_ENV: test
-      DEBUG: 'pw:webserver'
+      DEBUG: "pw:webserver"
 
     steps:
       - name: 🛑 Cancel Previous Runs
@@ -54,8 +54,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
 
       - name: 📦 Build frontend
         run: make fe
@@ -63,15 +63,14 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🐍 Setup uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           python-version: 3.12
 
       - name: 🐍 Install marimo
         run: |
-          uv pip install .
-          echo "MARIMO_VERSION=$(marimo --version)" >> $GITHUB_ENV
+          echo "MARIMO_VERSION=$(uv run marimo --version)" >> $GITHUB_ENV
 
       - name: 🎭 Get installed Playwright version
         id: playwright-version

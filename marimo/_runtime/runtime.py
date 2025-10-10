@@ -154,6 +154,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
     SetUserConfigRequest,
     StopRequest,
+    SyncGraphRequest,
     ValidateSQLRequest,
 )
 from marimo._runtime.runner import cell_runner
@@ -1486,6 +1487,50 @@ class Kernel:
                 )
             )
 
+    @kernel_tracer.start_as_current_span("sync_graph")
+    async def sync_graph(
+        self,
+        cells: dict[CellId_t, str],
+        run_ids: list[CellId_t],
+        delete_ids: list[CellId_t],
+    ) -> None:
+        """Synchronize kernel graph with file manager state.
+
+        File manager is the source of truth after a reload. This method
+        ensures the kernel graph matches file manager's state by:
+        1. Deleting cells that file manager doesn't know about (orphaned)
+        2. Deleting cells explicitly marked for deletion
+        3. Running/updating cells that changed
+
+        Args:
+            cells: All cells known to file manager (cell_id -> code)
+            run_ids: Cell IDs that should be executed/updated
+            delete_ids: Cell IDs that should be deleted
+        """
+        # Find orphaned cells: in graph but not known to file manager
+        orphaned_cells = set(self.graph.cells.keys()) - set(cells.keys())
+        all_delete_ids = set(delete_ids) | orphaned_cells
+
+        # Create execution requests for cells to run
+        execution_requests = [
+            ExecutionRequest(cell_id=cell_id, code=cells[cell_id])
+            for cell_id in run_ids
+        ]
+
+        # Create deletion requests for all cells to delete
+        deletion_requests = [
+            DeleteCellRequest(cell_id=cell_id) for cell_id in all_delete_ids
+        ]
+
+        # Clean up uninstantiated requests for deleted cells
+        for cell_id in all_delete_ids:
+            if cell_id in self._uninstantiated_execution_requests:
+                del self._uninstantiated_execution_requests[cell_id]
+
+        # Use existing mutate_graph infrastructure to update the graph
+        self.mutate_graph(execution_requests, deletion_requests)
+        await self.run(execution_requests)
+
     @kernel_tracer.start_as_current_span("run")
     async def run(
         self, execution_requests: Sequence[ExecutionRequest]
@@ -2144,6 +2189,15 @@ class Kernel:
                 await self.run(request.execution_requests)
             CompletedRun().broadcast()
 
+        async def handle_sync_graph(
+            request: SyncGraphRequest,
+        ) -> None:
+            with http_request_context(None):
+                await self.sync_graph(
+                    request.cells, request.run_ids, request.delete_ids
+                )
+            CompletedRun().broadcast()
+
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadRequest,
         ) -> None:
@@ -2205,6 +2259,7 @@ class Kernel:
         handler.register(CreationRequest, handle_instantiate)
         handler.register(DeleteCellRequest, self.delete_cell)
         handler.register(ExecuteMultipleRequest, handle_execute_multiple)
+        handler.register(SyncGraphRequest, handle_sync_graph)
         handler.register(ExecuteScratchpadRequest, handle_execute_scratchpad)
         handler.register(ExecuteStaleRequest, handle_execute_stale)
         handler.register(FunctionCallRequest, handle_function_call)
