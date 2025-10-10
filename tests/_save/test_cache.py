@@ -2736,3 +2736,624 @@ class TestCacheStatistics:
         info3 = k.globals["info3"]
         assert info3.time_saved > first_saving
         assert info3.hits == 2
+
+
+class TestAsyncCacheDecorator:
+    """Tests for async function caching support."""
+
+    async def test_basic_async_cache(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test basic async function caching with @cache decorator."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    async def async_fib(n):
+                        if n <= 1:
+                            return n
+                        a = await async_fib(n - 1)
+                        b = await async_fib(n - 2)
+                        return a + b
+
+                    a = await async_fib(5)
+                    b = await async_fib(10)
+                """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+        # Should have cache hits like the sync version
+        assert k.globals["async_fib"].hits == 9
+
+    async def test_async_lru_cache(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test async function caching with @lru_cache decorator."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import lru_cache
+
+                    @lru_cache(maxsize=2)
+                    async def async_fib(n):
+                        if n <= 1:
+                            return n
+                        a = await async_fib(n - 1)
+                        b = await async_fib(n - 2)
+                        return a + b
+
+                    a = await async_fib(5)
+                    b = await async_fib(10)
+                """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+        # Should have more hits with smaller cache
+        assert k.globals["async_fib"].hits == 14
+
+    async def test_async_persistent_cache(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test async function with @persistent_cache decorator."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import asyncio
+                    from marimo._save.save import persistent_cache
+                    from marimo._save.loaders import MemoryLoader
+
+                    @persistent_cache(_loader=MemoryLoader)
+                    async def async_compute(x):
+                        await asyncio.sleep(0.001)  # Simulate async work
+                        return x * 2
+
+                    result1 = await async_compute(5)
+                    result2 = await async_compute(5)  # Should hit cache
+                    result3 = await async_compute(10)  # Should miss
+                """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result1"] == 10
+        assert k.globals["result2"] == 10
+        assert k.globals["result3"] == 20
+        assert k.globals["async_compute"].hits == 1
+
+    async def test_async_cache_with_external_deps(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test async cached function with external dependencies."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import asyncio
+                    from marimo._save.save import cache
+
+                    external_value = 10
+
+                    @cache
+                    async def async_add(x):
+                        await asyncio.sleep(0.001)
+                        return x + external_value
+
+                    result1 = await async_add(5)
+                    result2 = await async_add(5)  # Should hit cache
+                """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result1"] == 15
+        assert k.globals["result2"] == 15
+        assert k.globals["async_add"].hits == 1
+
+    async def test_async_cache_method(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test async method caching."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import asyncio
+                    from marimo._save.save import cache
+
+                    class AsyncCalculator:
+                        def __init__(self, base):
+                            self.base = base
+
+                        @cache
+                        async def calculate(self, x):
+                            await asyncio.sleep(0.001)
+                            return self.base + x
+
+                    calc = AsyncCalculator(10)
+                    result1 = await calc.calculate(5)
+                    result2 = await calc.calculate(5)  # Should hit cache
+                    result3 = await calc.calculate(7)  # Should miss
+                """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result1"] == 15
+        assert k.globals["result2"] == 15
+        assert k.globals["result3"] == 17
+
+    async def test_async_cache_static_method(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test async static method caching."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import asyncio
+                    from marimo._save.save import cache
+
+                    class AsyncMath:
+                        @staticmethod
+                        @cache
+                        async def multiply(x, y):
+                            await asyncio.sleep(0.001)
+                            return x * y
+
+                    result1 = await AsyncMath.multiply(3, 4)
+                    result2 = await AsyncMath.multiply(3, 4)  # Should hit cache
+                    result3 = await AsyncMath.multiply(5, 6)  # Should miss
+                """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result1"] == 12
+        assert k.globals["result2"] == 12
+        assert k.globals["result3"] == 30
+
+    async def test_async_cache_with_await_in_notebook(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test async function that can be awaited directly in notebook context."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import asyncio
+                    from marimo._save.save import cache
+
+                    @cache
+                    async def fetch_data(n):
+                        await asyncio.sleep(0.001)
+                        return n * 100
+
+                    # Use direct await since marimo supports top-level await
+                    result = await fetch_data(5)
+                """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result"] == 500
+
+    async def test_async_cache_info_and_clear(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify cache_info() and cache_clear() work correctly with async functions."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache, lru_cache
+
+                    @cache
+                    async def async_func(x):
+                        return x * 2
+
+                    @lru_cache(maxsize=2)
+                    async def async_lru_func(x):
+                        return x * 3
+
+                    # Test basic cache_info
+                    info0 = async_func.cache_info()
+                    await async_func(1)
+                    await async_func(1)  # hit
+                    await async_func(2)  # miss
+                    info1 = async_func.cache_info()
+
+                    # Test lru_cache maxsize
+                    lru_info = async_lru_func.cache_info()
+
+                    # Test cache_clear
+                    async_func.cache_clear()
+                    info2 = async_func.cache_info()
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+
+        # Initial state
+        info0 = k.globals["info0"]
+        assert info0.hits == 0
+        assert info0.misses == 0
+        assert info0.maxsize is None
+        assert info0.currsize == 0
+        assert info0.time_saved == 0.0
+
+        # After calls
+        info1 = k.globals["info1"]
+        assert info1.hits == 1
+        assert info1.misses == 2
+        assert info1.currsize == 2
+
+        # LRU maxsize
+        lru_info = k.globals["lru_info"]
+        assert lru_info.maxsize == 2
+
+        # After clear
+        info2 = k.globals["info2"]
+        assert info2.currsize == 0
+
+    async def test_async_cache_time_tracking(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify time_saved is tracked correctly for async functions."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import asyncio
+                    from marimo._save.save import cache
+
+                    @cache
+                    async def async_slow_func(x):
+                        await asyncio.sleep(0.01)  # Simulate slow async operation
+                        return x * 2
+
+                    # Initial state
+                    info0 = async_slow_func.cache_info()
+
+                    # First call - miss (should record runtime)
+                    r1 = await async_slow_func(5)
+                    info1 = async_slow_func.cache_info()
+
+                    # Second call - hit (should add to time_saved)
+                    r2 = await async_slow_func(5)
+                    info2 = async_slow_func.cache_info()
+
+                    # Third call - another hit (should accumulate time_saved)
+                    r3 = await async_slow_func(5)
+                    info3 = async_slow_func.cache_info()
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+
+        # Initial state: no time saved yet
+        info0 = k.globals["info0"]
+        assert info0.time_saved == 0.0
+
+        # After first call (miss): still no time saved
+        info1 = k.globals["info1"]
+        assert info1.time_saved == 0.0
+
+        # After first hit: should have some time saved
+        info2 = k.globals["info2"]
+        assert info2.time_saved > 0.0
+        first_saving = info2.time_saved
+
+        # After second hit: time_saved should accumulate
+        info3 = k.globals["info3"]
+        assert info3.time_saved > first_saving
+        assert info3.hits == 2
+
+    async def test_async_cache_class_method(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test async class method caching."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import asyncio
+                    from marimo._save.save import cache
+
+                    class AsyncMath:
+                        @classmethod
+                        @cache
+                        async def compute(cls, x, y):
+                            await asyncio.sleep(0.001)
+                            return x + y
+
+                    case_a = AsyncMath().compute
+                    case_b = AsyncMath().compute
+                    case_c = AsyncMath.compute
+                    result1 = await case_a(1, 2)
+                    hash1 = case_a._last_hash
+                    result2 = await case_b(2, 1)
+                    hash2 = case_b._last_hash
+                    result3 = await case_c(1, 2)
+                    hash3 = case_c._last_hash
+                    base_hash = AsyncMath.compute._last_hash
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stdout.messages, k.stdout.messages
+        assert not k.stderr.messages, k.stderr.messages
+
+        # Verify results
+        assert k.globals["result1"] == 3
+        assert k.globals["result2"] == 3
+        assert k.globals["result3"] == 3
+        assert k.globals["hash1"] != k.globals["hash2"]
+        assert k.globals["hash1"] == k.globals["hash3"]
+        assert k.globals["case_c"]._last_hash is not None
+
+        # NB. base_hash has different behavior than the others on python 3.13+
+        # 3.13 has base_hash == hash1, while <3.13 has base_hash != None
+        import sys
+
+        if sys.version_info >= (3, 13):
+            assert k.globals["base_hash"] == k.globals["hash1"]
+        else:
+            assert k.globals["base_hash"] is None
+
+    async def test_async_lru_cache_default(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test async lru_cache with default maxsize (256)."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import lru_cache
+
+                    @lru_cache
+                    async def async_fib(n):
+                        if n <= 1:
+                            return n
+                        a = await async_fib(n - 1)
+                        b = await async_fib(n - 2)
+                        return a + b
+
+                    a = await async_fib(260)
+                    b = await async_fib(10)
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages
+        # More hits with a smaller cache, because it needs to check the cache
+        # more. Has 256 entries by default, normal cache hits just 259 times.
+        assert k.globals["async_fib"].hits == 266
+
+        # A little ridiculous, but still low compute.
+        assert (
+            k.globals["a"]
+            == 971183874599339129547649988289594072811608739584170445
+        )
+        assert k.globals["b"] == 55
+
+    async def test_async_cross_cell_cache(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test async function caching across multiple notebook cells."""
+        await k.run(
+            [
+                exec_req.get("""from marimo._save.save import cache"""),
+                exec_req.get(
+                    """
+                    @cache
+                    async def async_fib(n):
+                        if n <= 1:
+                            return n
+                        a = await async_fib(n - 1)
+                        b = await async_fib(n - 2)
+                        return a + b
+                """
+                ),
+                exec_req.get("""a = await async_fib(5)"""),
+                exec_req.get("""b = await async_fib(10); a"""),
+            ]
+        )
+
+        assert not k.stderr.messages
+        assert k.globals["async_fib"].hits == 9
+
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+
+    async def test_async_cache_with_external_state(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test async cached function with mo.state() dependency."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+                    from marimo._runtime.state import state
+                    """
+                ),
+                exec_req.get("""external, setter = state(0)"""),
+                exec_req.get(
+                    """
+                    @cache
+                    async def async_fib(n):
+                        if n <= 1:
+                            return n + external()
+                        a = await async_fib(n - 1)
+                        b = await async_fib(n - 2)
+                        return a + b
+                    """
+                ),
+                exec_req.get("""impure = []"""),
+                exec_req.get("""a = await async_fib(5)"""),
+                exec_req.get("""b = await async_fib(10); a"""),
+                exec_req.get(
+                    """
+                    c = a + b
+                    if len(impure) == 0:
+                       setter(1)
+                    elif len(impure) == 1:
+                       setter(0)
+                    impure.append(c)
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages
+
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+        assert k.globals["impure"] == [60, 157, 60]
+        # Cache hit value may be flaky depending on when state is evicted from
+        # the registry. The actual cache hit is less important than caching
+        # occurring in the first place.
+        # NB. 20 = 2 * 9 + 2
+        if k.globals["async_fib"].hits in (9, 18):
+            import warnings
+
+            warnings.warn(
+                "Known flaky edge case for async cache with state dep.",
+                stacklevel=1,
+            )
+        else:
+            assert k.globals["async_fib"].hits == 20
+
+    async def test_async_cache_decorator_with_kwargs(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that kwargs hashing works identically for async functions."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    async def async_cached_func(*args, **kwargs):
+                        return sum(args) + sum(kwargs.values())
+
+                    # First call with specific kwargs
+                    result1 = await async_cached_func(1, 2, some_kw_arg=3)
+                    hash1 = async_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Second call with different kwargs - should be cache miss
+                    result2 = await async_cached_func(1, 2, some_kw_arg=4)
+                    hash2 = async_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Third call with same kwargs as first - should be cache hit
+                    result3 = await async_cached_func(1, 2, some_kw_arg=3)
+                    hash3 = async_cached_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 6  # 1 + 2 + 3
+        assert k.globals["result2"] == 7  # 1 + 2 + 4
+        assert k.globals["result3"] == 6  # 1 + 2 + 3
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        assert hash1 != hash2, "Cache key should change when kwargs change"
+        assert hash1 == hash3, (
+            "Cache key should be same for identical args/kwargs"
+        )
+
+        # Verify cache hits
+        assert k.globals["async_cached_func"].hits == 1
+
+    async def test_async_cache_concurrent_deduplication(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that concurrent calls to the same async cached function are deduplicated.
+
+        When multiple async calls are made concurrently with the same arguments,
+        only one execution should occur - the rest should await the same task.
+        This prevents race conditions and duplicate work.
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import asyncio
+                    from marimo._save.save import cache
+
+                    call_count = 0
+
+                    @cache
+                    async def expensive_async_compute(x):
+                        global call_count
+                        call_count += 1
+                        await asyncio.sleep(0.1)  # Simulate expensive async work
+                        return x * 2
+
+                    # Launch 5 concurrent calls with the same argument
+                    # Only one should actually execute, the rest should await that task
+                    results = await asyncio.gather(
+                        expensive_async_compute(42),
+                        expensive_async_compute(42),
+                        expensive_async_compute(42),
+                        expensive_async_compute(42),
+                        expensive_async_compute(42),
+                    )
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+
+        # All results should be the same
+        results = k.globals["results"]
+        assert all(r == 84 for r in results), "All results should be 84"
+
+        # The function should only have been called once (deduplication worked)
+        assert k.globals["call_count"] == 1, (
+            f"Expected 1 execution due to deduplication, got {k.globals['call_count']}"
+        )
+
+        # Cache hit should be 0 (first execution is a miss)
+        # Note: The first call misses, subsequent concurrent calls await the same task
+        assert k.globals["expensive_async_compute"].hits == 0, (
+            "First execution should be a miss, deduplication doesn't count as hits"
+        )

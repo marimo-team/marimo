@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import ast
+import asyncio
 import functools
 import inspect
 import io
 import sys
+import threading
 import time
 import traceback
+import weakref
 from collections import abc
 
 # NB: maxsize follows functools.cache, but renamed max_size outside of drop-in
@@ -360,7 +363,7 @@ class _cache_call(CacheContext):
                     "(have you wrapped a function?)"
                 )
             # Bind to the instance
-            copy = _cache_call(
+            copy = type(self)(
                 None,
                 self._loader_partial,
                 pin_modules=self.pin_modules,
@@ -389,6 +392,18 @@ class _cache_call(CacheContext):
                 raise TypeError(
                     "cache() takes at most 1 argument (expecting function)"
                 )
+            # Check if the function is async - if so, create async variant
+            if inspect.iscoroutinefunction(args[0]):
+                async_copy = _cache_call_async(
+                    None,
+                    self._loader_partial,
+                    pin_modules=self.pin_modules,
+                    hash_type=self.hash_type,
+                )
+                async_copy._frame_offset = self._frame_offset
+                async_copy._frame_offset -= 4
+                async_copy._set_context(args[0])
+                return async_copy
             # Remove the additional frames from singledispatch, because invoking
             # the function directly.
             self._frame_offset -= 4
@@ -407,6 +422,116 @@ class _cache_call(CacheContext):
 
             start_time = time.time()
             response = self.__wrapped__(*args, **kwargs)
+            runtime = time.time() - start_time
+
+            self._finalize_cache_update(attempt, response, runtime, scope)
+        except Exception as e:
+            failed = True
+            raise e
+        finally:
+            # NB. Exceptions raise their own side effects.
+            if ctx and not failed:
+                ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
+        self._misses += 1
+        return response
+
+
+class _cache_call_async(_cache_call):
+    """Async variant of _cache_call for async/await functions.
+
+    Inherits all caching logic from _cache_call but provides an async
+    __call__ method that properly awaits coroutines. Used automatically
+    when @cache decorates an async function.
+
+    Implements task deduplication: concurrent calls with the same arguments
+    will share the same execution, preventing duplicate work.
+    """
+
+    # Track pending executions per cache instance to prevent race conditions
+    # WeakKeyDictionary ensures instances are cleaned up when garbage collected
+    # Key: cache instance, Value: dict of {cache_key: Task}
+    _pending_executions: weakref.WeakKeyDictionary[
+        _cache_call_async, dict[str, asyncio.Task[Any]]
+    ] = weakref.WeakKeyDictionary()
+    _pending_lock = threading.Lock()
+
+    async def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        # Capture the deferred call case
+        if self.__wrapped__ is None:
+            if len(args) != 1:
+                raise TypeError(
+                    "cache() takes at most 1 argument (expecting function)"
+                )
+            # Remove the additional frames from singledispatch, because invoking
+            # the function directly.
+            self._frame_offset -= 4
+            self._set_context(args[0])
+            return self
+
+        # Prepare execution context to get cache key
+        scope, ctx, attempt = self._prepare_call_execution(args, kwargs)
+        cache_key = attempt.hash
+
+        # Check for pending execution (task deduplication)
+        existing_task = None
+        with self._pending_lock:
+            if self not in self._pending_executions:
+                self._pending_executions[self] = {}
+            pending = self._pending_executions[self]
+
+            if cache_key in pending:
+                # Another coroutine is already executing this - save the task
+                existing_task = pending[cache_key]
+
+        # Await the existing task AFTER releasing the lock to avoid deadlock
+        if existing_task is not None:
+            return await existing_task
+
+        # No pending execution - create a new task
+        task = asyncio.create_task(
+            self._execute_cached(scope, ctx, attempt, args, kwargs)
+        )
+
+        with self._pending_lock:
+            pending[cache_key] = task
+
+        try:
+            result = await task
+        finally:
+            # Clean up completed task
+            with self._pending_lock:
+                if cache_key in pending:
+                    del pending[cache_key]
+                # Clean up empty instance dict (WeakKeyDictionary handles instance cleanup)
+                if not pending and self in self._pending_executions:
+                    del self._pending_executions[self]
+
+        return result
+
+    async def _execute_cached(
+        self,
+        scope: dict[str, Any],
+        ctx: Any,
+        attempt: Any,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+    ) -> Any:
+        """Execute the cached function and update cache.
+
+        This is called by a single task even when multiple concurrent
+        callers request the same computation.
+        """
+        assert self.__wrapped__ is not None, UNEXPECTED_FAILURE_BOILERPLATE
+        failed = False
+        self._last_hash = attempt.hash
+        try:
+            if attempt.hit:
+                attempt.restore(scope)
+                return attempt.meta["return"]
+
+            start_time = time.time()
+            # Await the coroutine to get the actual result
+            response = await self.__wrapped__(*args, **kwargs)
             runtime = time.time() - start_time
 
             self._finalize_cache_update(attempt, response, runtime, scope)
@@ -617,7 +742,7 @@ def _invoke_call(
     *args: Any,
     frame_offset: int = 1,
     **kwargs: Any,
-) -> _cache_call:
+) -> Union[_cache_call, _cache_call_async]:
     if isinstance(loader, Loader):
         raise TypeError(
             "A loader instance cannot be passed to cache directly. "
@@ -637,6 +762,13 @@ def _invoke_call(
             "Invalid loader type. "
             f"Expected a loader partial, got {type(loader)}."
         )
+
+    # Check if the function is async
+    if _fn is not None and inspect.iscoroutinefunction(_fn):
+        return _cache_call_async(
+            _fn, loader, *args, frame_offset=frame_offset + 1, **kwargs
+        )
+
     return _cache_call(
         _fn, loader, *args, frame_offset=frame_offset + 1, **kwargs
     )
@@ -663,7 +795,7 @@ def _invoke_call_fn(
     *args: Any,
     frame_offset: int = 1,
     **kwargs: Any,
-) -> _cache_call:
+) -> Union[_cache_call, _cache_call_async]:
     return _invoke_call(
         _fn, loader, *args, frame_offset=frame_offset + 1, **kwargs
     )
