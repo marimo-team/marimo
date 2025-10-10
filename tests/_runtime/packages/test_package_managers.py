@@ -521,6 +521,121 @@ async def test_package_manager_install_method_with_callback() -> None:
     assert captured_logs == ["Installing test-package==1.0.0...\n"]
 
 
+def test_update_script_metadata_with_git_dependencies() -> None:
+    """Test that git dependencies are passed through to uv add --script."""
+    runs_calls: list[list[str]] = []
+
+    class MockUvPackageManager(UvPackageManager):
+        def run(
+            self,
+            command: list[str],
+            log_callback: Optional[LogCallback] = None,
+        ) -> bool:
+            del log_callback
+            runs_calls.append(command)
+            return True
+
+        def _get_version_map(self) -> dict[str, str]:
+            # Git dependencies won't be in the version map with their git+ prefix
+            return {"python-gcode": "0.1.0"}
+
+    pm = MockUvPackageManager()
+
+    # Test 1: Git dependency with https
+    pm.update_notebook_script_metadata(
+        "nb.py",
+        packages_to_add=["git+https://github.com/fetlab/python_gcode"],
+        upgrade=False,
+    )
+    # Should pass through git URL even though not in version map
+    assert runs_calls == [
+        [
+            "uv",
+            "--quiet",
+            "add",
+            "--script",
+            "nb.py",
+            "git+https://github.com/fetlab/python_gcode",
+        ],
+    ]
+    runs_calls.clear()
+
+    # Test 2: Git dependency with ssh
+    pm.update_notebook_script_metadata(
+        "nb.py",
+        packages_to_add=["git+ssh://git@github.com/user/repo.git"],
+        upgrade=False,
+    )
+    assert runs_calls == [
+        [
+            "uv",
+            "--quiet",
+            "add",
+            "--script",
+            "nb.py",
+            "git+ssh://git@github.com/user/repo.git",
+        ],
+    ]
+    runs_calls.clear()
+
+    # Test 3: Direct URL reference with @
+    pm.update_notebook_script_metadata(
+        "nb.py",
+        packages_to_add=["package @ https://example.com/package.whl"],
+        upgrade=False,
+    )
+    assert runs_calls == [
+        [
+            "uv",
+            "--quiet",
+            "add",
+            "--script",
+            "nb.py",
+            "package @ https://example.com/package.whl",
+        ],
+    ]
+    runs_calls.clear()
+
+    # Test 4: Local path reference with @
+    pm.update_notebook_script_metadata(
+        "nb.py",
+        packages_to_add=["mypackage @ file:///path/to/package"],
+        upgrade=False,
+    )
+    assert runs_calls == [
+        [
+            "uv",
+            "--quiet",
+            "add",
+            "--script",
+            "nb.py",
+            "mypackage @ file:///path/to/package",
+        ],
+    ]
+    runs_calls.clear()
+
+    # Test 5: Mix of regular and git dependencies
+    pm.update_notebook_script_metadata(
+        "nb.py",
+        packages_to_add=[
+            "python-gcode",  # Regular package, should get version
+            "git+https://github.com/user/repo.git",  # Git dep, no version
+        ],
+        upgrade=False,
+    )
+    assert runs_calls == [
+        [
+            "uv",
+            "--quiet",
+            "add",
+            "--script",
+            "nb.py",
+            "python-gcode==0.1.0",
+            "git+https://github.com/user/repo.git",
+        ],
+    ]
+
+
 def test_package_manager_run_manager_not_installed() -> None:
     """Test PackageManager.run when manager is not installed."""
     pm = PipPackageManager()
