@@ -220,6 +220,7 @@ class DependencyManager:
     google_ai = Dependency("google.genai")
     groq = Dependency("groq")
     panel = Dependency("panel")
+    holoviews = Dependency("holoviews")
     sqlalchemy = Dependency("sqlalchemy")
     pylsp = Dependency("pylsp")
     basedpyright = Dependency("basedpyright")
