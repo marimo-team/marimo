@@ -1,8 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { PlayIcon } from "lucide-react";
 import React from "react";
 import { MinimalHotkeys } from "@/components/shortcuts/renderShortcut";
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 
 /**
@@ -99,29 +101,111 @@ export const CompletionActionsCellFooter: React.FC<{
 }> = ({ isLoading, onAccept, onDecline }) => {
   return (
     <>
-      <Button
-        variant="text"
+      <AcceptCompletionButton
+        isLoading={isLoading}
+        onAccept={onAccept}
         size="xs"
-        disabled={isLoading}
-        onClick={onAccept}
-        className="h-6 text-(--grass-11) border-(--grass-7) bg-(--grass-3)/60
-        hover:bg-(--grass-3) dark:bg-(--grass-4)/80 dark:hover:bg-(--grass-3) rounded px-3 font-semibold
-        active:bg-(--grass-5) dark:active:bg-(--grass-4)
-        border-(--green-6) border hover:shadow-xs"
-      >
-        Accept
-      </Button>
-      <Button
-        variant="text"
-        size="xs"
-        onClick={onDecline}
-        className="h-6 text-(--red-10) border-(--red-7) bg-(--red-3)/60 hover:bg-(--red-3)
-        dark:bg-(--red-4)/80 dark:hover:bg-(--red-3) rounded px-3 font-semibold
-        active:bg-(--red-5) dark:active:bg-(--red-4)
-        border-(--red-6) border hover:shadow-xs"
-      >
-        Reject
-      </Button>
+      />
+      <RejectCompletionButton onDecline={onDecline} size="xs" />
     </>
+  );
+};
+
+export const AcceptCompletionButton: React.FC<{
+  isLoading: boolean;
+  onAccept: () => void;
+  size?: "xs" | "sm";
+  buttonStyles?: string;
+  playButtonStyles?: string;
+  acceptShortcut?: string;
+  runCell?: () => void;
+}> = ({
+  isLoading,
+  onAccept,
+  size = "sm",
+  buttonStyles,
+  acceptShortcut,
+  runCell,
+  playButtonStyles,
+}) => {
+  const handleAcceptAndRun = () => {
+    onAccept();
+    if (runCell) {
+      runCell();
+    }
+  };
+
+  const baseClasses = `h-6 text-(--grass-11) bg-(--grass-3)/60
+    hover:bg-(--grass-3) dark:bg-(--grass-4)/80 dark:hover:bg-(--grass-3) font-semibold
+    active:bg-(--grass-5) dark:active:bg-(--grass-4)
+    border-(--green-6) border hover:shadow-xs`;
+
+  if (runCell) {
+    return (
+      <div className="flex">
+        <Button
+          variant="text"
+          size={size}
+          disabled={isLoading}
+          onClick={onAccept}
+          className={`${baseClasses} rounded-r-none ${buttonStyles}`}
+        >
+          Accept
+          {acceptShortcut && (
+            <MinimalHotkeys className="ml-1 inline" shortcut={acceptShortcut} />
+          )}
+        </Button>
+        <Tooltip content="Accept and run cell">
+          <Button
+            variant="text"
+            size={size}
+            disabled={isLoading}
+            onClick={handleAcceptAndRun}
+            className={`${baseClasses} rounded-l-none px-1.5 ${playButtonStyles}`}
+          >
+            <PlayIcon className="h-2.5 w-2.5 mt-0.5" />
+          </Button>
+        </Tooltip>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      variant="text"
+      size={size}
+      disabled={isLoading}
+      onClick={onAccept}
+      className={`${baseClasses} rounded px-3 ${buttonStyles}`}
+    >
+      Accept
+      {acceptShortcut && (
+        <MinimalHotkeys className="ml-1 inline" shortcut={acceptShortcut} />
+      )}
+    </Button>
+  );
+};
+
+export const RejectCompletionButton: React.FC<{
+  onDecline: () => void;
+  size?: "xs" | "sm";
+  className?: string;
+  declineShortcut?: string;
+}> = ({ onDecline, size = "sm", className, declineShortcut }) => {
+  return (
+    <Button
+      variant="text"
+      size={size}
+      onClick={onDecline}
+      className={`h-6 text-(--red-10) bg-(--red-3)/60 hover:bg-(--red-3)
+    dark:bg-(--red-4)/80 dark:hover:bg-(--red-3) rounded px-3 font-semibold
+    active:bg-(--red-5) dark:active:bg-(--red-4)
+    border-(--red-6) border hover:shadow-xs ${className}`}
+    >
+      Reject
+      {declineShortcut && (
+        <MinimalHotkeys className="ml-1 inline" shortcut={declineShortcut} />
+      )}
+    </Button>
   );
 };

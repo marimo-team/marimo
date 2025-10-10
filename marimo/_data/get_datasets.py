@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from marimo import _loggers
 from marimo._data.models import (
@@ -11,6 +11,7 @@ from marimo._data.models import (
     DataType,
     Schema,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._types.ids import VariableName
 
@@ -86,6 +87,22 @@ def has_updates_to_datasource(query: str) -> bool:
     )
 
 
+def execute_duckdb_query(
+    connection: Optional[duckdb.DuckDBPyConnection], query: str
+) -> list[Any]:
+    """Execute a DuckDB query and return the result. Uses connection if provided, otherwise uses duckdb."""
+    try:
+        if connection is None:
+            import duckdb
+
+            return duckdb.execute(query).fetchall()
+
+        return connection.execute(query).fetchall()
+    except Exception:
+        LOGGER.exception("Failed to execute DuckDB query %s", query)
+        return []
+
+
 def get_databases_from_duckdb(
     connection: Optional[duckdb.DuckDBPyConnection],
     engine_name: Optional[VariableName] = None,
@@ -95,6 +112,23 @@ def get_databases_from_duckdb(
     except Exception:
         LOGGER.exception("Failed to get databases from DuckDB")
         return []
+
+
+def _get_empty_databases(
+    connection: Optional[duckdb.DuckDBPyConnection],
+    engine_name: Optional[VariableName],
+) -> list[Database]:
+    # Fallback to get database names from DuckDB
+    all_dbs = _get_duckdb_database_names(connection)
+    return [
+        Database(
+            name=database,
+            dialect="duckdb",
+            schemas=[],
+            engine=engine_name,
+        )
+        for database in all_dbs
+    ]
 
 
 def _get_databases_from_duckdb_internal(
@@ -109,31 +143,38 @@ def _get_databases_from_duckdb_internal(
     # 3:"column_names"
     # 4:"column_types"
     # 5:"temporary"
-    if connection is None:
-        import duckdb
+    tables_result = []
+    query = "SHOW ALL TABLES"
+    try:
+        if connection is None:
+            import duckdb
 
-        tables_result = duckdb.execute("SHOW ALL TABLES").fetchall()
-    else:
-        tables_result = connection.execute("SHOW ALL TABLES").fetchall()
+            tables_result = duckdb.execute(query).fetchall()
+        else:
+            tables_result = connection.execute(query).fetchall()
+    except Exception as e:
+        if DependencyManager.duckdb.has():
+            import duckdb
+
+            # Certain ducklakes don't support SHOW ALL TABLES
+            if isinstance(e, duckdb.NotImplementedException):
+                return get_duckdb_databases_agg_query(connection, engine_name)
+
+        LOGGER.exception("Failed to get tables from DuckDB")
+        return []
 
     if len(tables_result) == 0:
-        # Return empty databases if there are no tables
-        all_dbs = _get_duckdb_database_names(connection)
-        return [
-            Database(
-                name=database,
-                dialect="duckdb",
-                schemas=[],
-                engine=engine_name,
-            )
-            for database in all_dbs
-        ]
+        return _get_empty_databases(connection, engine_name)
 
     # Group tables by database and schema
     # databases_dict[database][schema] = [table1, table2, ...]
     databases_dict: dict[str, dict[str, list[DataTable]]] = {}
 
     SKIP_TABLES = ["duckdb_functions()", "duckdb_types()", "duckdb_settings()"]
+
+    # Bug with Iceberg catalog tables where there is a single column named "__"
+    # https://github.com/marimo-team/marimo/issues/6688
+    CATALOG_TABLE_COLUMN_NAME = "__"
 
     for (
         database,
@@ -150,18 +191,26 @@ def _get_databases_from_duckdb_internal(
         assert isinstance(column_names, list)
         assert isinstance(column_types, list)
 
-        columns = [
-            DataTableColumn(
-                name=column_name,
-                type=_db_type_to_data_type(column_type),
-                external_type=column_type,
-                sample_values=[],
-            )
-            for column_name, column_type in zip(
-                cast(list[str], column_names),
-                cast(list[str], column_types),
-            )
-        ]
+        catalog_table = (
+            len(column_names) == 1
+            and column_names[0] == CATALOG_TABLE_COLUMN_NAME
+        )
+        if catalog_table:
+            qualified_name = f"{database}.{schema}.{name}"
+            columns = get_table_columns(connection, qualified_name)
+        else:
+            columns = [
+                DataTableColumn(
+                    name=column_name,
+                    type=_db_type_to_data_type(column_type),
+                    external_type=column_type,
+                    sample_values=[],
+                )
+                for column_name, column_type in zip(
+                    cast(list[str], column_names),
+                    cast(list[str], column_types),
+                )
+            ]
 
         table = DataTable(
             source_type="duckdb" if engine_name is None else "connection",
@@ -181,6 +230,49 @@ def _get_databases_from_duckdb_internal(
 
         databases_dict[database][schema].append(table)
 
+    return form_databases_from_dict(databases_dict, connection, engine_name)
+
+
+def get_table_columns(
+    connection: Optional[duckdb.DuckDBPyConnection], table_name: str
+) -> list[DataTableColumn]:
+    """Dedicated query to get columns from a table."""
+    query = f"DESCRIBE TABLE {table_name}"
+
+    try:
+        columns_result = execute_duckdb_query(connection, query)
+        if len(columns_result) == 0:
+            return []
+
+        columns: list[DataTableColumn] = []
+
+        for (
+            column_name,
+            column_type,
+            _null,
+            _key,
+            _default,
+            _extra,
+        ) in columns_result:
+            column = DataTableColumn(
+                name=column_name,
+                type=_db_type_to_data_type(column_type),
+                external_type=column_type,
+                sample_values=[],
+            )
+            columns.append(column)
+        return columns
+
+    except Exception:
+        LOGGER.debug("Failed to get columns from DuckDB")
+        return []
+
+
+def form_databases_from_dict(
+    databases_dict: dict[str, dict[str, list[DataTable]]],
+    connection: Optional[duckdb.DuckDBPyConnection],
+    engine_name: Optional[VariableName],
+) -> list[Database]:
     # Convert grouped data into Database objects
     databases: list[Database] = []
     for database, schemas_dict in databases_dict.items():
@@ -211,6 +303,92 @@ def _get_databases_from_duckdb_internal(
     return databases
 
 
+def get_duckdb_databases_agg_query(
+    connection: Optional[duckdb.DuckDBPyConnection],
+    engine_name: Optional[VariableName],
+) -> list[Database]:
+    """Uses a different query to get database information, which has wider support but has some aggregation overhead"""
+
+    # Cols will be in the form of [{"col": "column_name", "dtype": "data_type"}]
+    NAME_KEY = "col"
+    DTYPE_KEY = "dtype"
+
+    QUERY = f"""
+    SELECT
+        database_name,
+        schema_name,
+        table_name,
+        ARRAY_AGG(
+            struct_pack({NAME_KEY} := column_name, {DTYPE_KEY} := data_type)
+            ORDER BY
+                column_index
+        ) AS cols
+    FROM
+        duckdb_columns()
+    WHERE
+        internal = false
+        AND table_name NOT IN ('duckdb_functions()', 'duckdb_types()', 'duckdb_settings()')
+    GROUP BY
+        database_name,
+        schema_name,
+        table_name
+    ORDER BY database_name, schema_name, table_name
+    """
+
+    tables_result = execute_duckdb_query(connection, QUERY)
+    if len(tables_result) == 0:
+        return _get_empty_databases(connection, engine_name)
+
+    # Group tables by database and schema
+    # databases_dict[database][schema] = [table1, table2, ...]
+    databases_dict: dict[str, dict[str, list[DataTable]]] = {}
+
+    for (
+        database_name,
+        schema_name,
+        table_name,
+        cols,
+    ) in tables_result:
+        columns: list[DataTableColumn] = []
+        assert isinstance(cols, list)
+        for col in cols:
+            assert isinstance(col, dict)
+            assert NAME_KEY in col
+            assert DTYPE_KEY in col
+            dtype = col[DTYPE_KEY]
+            columns.append(
+                DataTableColumn(
+                    name=col[NAME_KEY],
+                    type=_db_type_to_data_type(dtype),
+                    external_type=dtype,
+                    sample_values=[],
+                )
+            )
+
+        table = DataTable(
+            name=table_name,
+            columns=columns,
+            source_type="duckdb" if engine_name is None else "connection",
+            source=database_name,
+            num_rows=None,
+            num_columns=len(columns),
+            variable_name=None,
+            engine=engine_name,
+            type="table",
+            primary_keys=None,
+            indexes=None,
+        )
+
+        if database_name not in databases_dict:
+            databases_dict[database_name] = {}
+        if schema_name not in databases_dict[database_name]:
+            databases_dict[database_name][schema_name] = []
+
+        databases_dict[database_name][schema_name].append(table)
+
+    return form_databases_from_dict(databases_dict, connection, engine_name)
+
+
 def _get_duckdb_database_names(
     connection: Optional[duckdb.DuckDBPyConnection],
 ) -> list[str]:
@@ -227,12 +405,7 @@ def _get_duckdb_database_names(
     database_query = "SELECT * FROM duckdb_databases()"
 
     try:
-        if connection is None:
-            import duckdb
-
-            databases_result = duckdb.execute(database_query).fetchall()
-        else:
-            databases_result = connection.execute(database_query).fetchall()
+        databases_result = execute_duckdb_query(connection, database_query)
         if not len(databases_result):
             return []
 
@@ -326,6 +499,9 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         return "string"  # Representing bit as string
     if db_type == "enum" or db_type.startswith("enum"):
         return "string"  # Representing enum as string
+    # Geometry types
+    if db_type == "geometry":
+        return "unknown"
 
     LOGGER.warning("Unknown DuckDB type: %s", db_type)
     # Unknown type

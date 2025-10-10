@@ -674,8 +674,10 @@ function sqlValidationExtension(): Extension {
   let lastValidationRequest: string | null = null;
 
   return EditorView.updateListener.of((update) => {
-    // Only run validation if the document has changed and editor is focused
-    if (!update.docChanged || !update.view.hasFocus) {
+    // Only run validation if the document has changed
+    // The extension only runs on keypress, so we don't need to check for focus
+    // This lets AI completions / external calls trigger validation
+    if (!update.docChanged) {
       return;
     }
 

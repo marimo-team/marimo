@@ -165,7 +165,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
             self.mode,
         )
 
-        assert head in result
+        assert head in result.split("</head>", 1)[0]
         _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_with_custom_css_config(self) -> None:

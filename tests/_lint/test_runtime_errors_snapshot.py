@@ -207,3 +207,20 @@ def test_self_import_requests_snapshot(tmp_path):
         error_output.append(normalized)
 
     snapshot("self_import_requests_errors.txt", "\n".join(error_output))
+
+
+def test_mixed_issues_snapshot():
+    """Test snapshot for mixed issues (syntax errors + multiple definitions)."""
+    file = "tests/_lint/test_files/mixed_issues.py"
+    with open(file) as f:
+        code = f.read()
+
+    notebook = parse_notebook(code, filepath=file)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format())
+
+    snapshot("mixed_issues_errors.txt", "\n".join(error_output))

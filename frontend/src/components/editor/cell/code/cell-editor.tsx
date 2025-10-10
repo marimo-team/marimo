@@ -434,6 +434,7 @@ const CellEditorInternal = ({
         editorViewRef.current?.focus();
         setAiCompletionCell(null);
       })}
+      runCell={handleRunCell}
     >
       <div className="relative w-full" {...navigationProps}>
         {showHideButton && (
