@@ -95,18 +95,23 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   public readonly documentUri: LSP.DocumentUri;
   private readonly client: ILanguageServerClient;
   private readonly snapshotter: Snapshotter;
+  private readonly getNotebookEditors: () => Record<
+    CellId,
+    EditorView | null | undefined
+  >;
 
   private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<CellDocumentUri>();
 
   constructor(
     client: ILanguageServerClient,
     initialSettings: Record<string, unknown>,
-    private readonly getNotebookEditors: () => Record<
+    getNotebookEditors: () => Record<
       CellId,
       EditorView | null | undefined
     > = defaultGetNotebookEditors,
   ) {
     this.documentUri = getLSPDocument();
+    this.getNotebookEditors = getNotebookEditors;
 
     this.client = client;
     this.patchProcessNotification();
