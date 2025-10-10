@@ -98,14 +98,10 @@ class Cache:
         memo: dict[int, Any] = {}  # Track processed objects to handle cycles
         for var, lookup in self.contextual_defs():
             value = self.defs.get(var, None)
-            scope[lookup] = _restore_from_stub_if_needed(
-                value, scope, memo
-            )
+            scope[lookup] = _restore_from_stub_if_needed(value, scope, memo)
 
         for key, value in self.meta.items():
-            self.meta[key] = _restore_from_stub_if_needed(
-                value, scope, memo
-            )
+            self.meta[key] = _restore_from_stub_if_needed(value, scope, memo)
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:
@@ -354,8 +350,11 @@ def _convert_to_stub_if_needed(
     if inspect.ismodule(value):
         result = ModuleStub(value)
     elif inspect.isfunction(value):
-        result = (UnhashableStub(value) if _is_unhashable_function(value)
-                  else FunctionStub(value))
+        result = (
+            UnhashableStub(value)
+            if _is_unhashable_function(value)
+            else FunctionStub(value)
+        )
     elif isinstance(value, UIElement):
         result = UIElementStub(value)
     elif isinstance(value, tuple):
@@ -382,9 +381,7 @@ def _convert_to_stub_if_needed(
             # Preserve original list reference
             memo[obj_id] = value
             converted_list = [
-                _convert_to_stub_if_needed(
-                    item, memo, preserve_pointers
-                )
+                _convert_to_stub_if_needed(item, memo, preserve_pointers)
                 for item in value
             ]
             value.clear()
@@ -396,9 +393,7 @@ def _convert_to_stub_if_needed(
             memo[obj_id] = result
             result.extend(
                 [
-                    _convert_to_stub_if_needed(
-                        item, memo, preserve_pointers
-                    )
+                    _convert_to_stub_if_needed(item, memo, preserve_pointers)
                     for item in value
                 ]
             )
@@ -407,9 +402,7 @@ def _convert_to_stub_if_needed(
             # Preserve original dict reference
             memo[obj_id] = value
             converted_dict = {
-                k: _convert_to_stub_if_needed(
-                    v, memo, preserve_pointers
-                )
+                k: _convert_to_stub_if_needed(v, memo, preserve_pointers)
                 for k, v in value.items()
             }
             value.clear()
@@ -421,9 +414,7 @@ def _convert_to_stub_if_needed(
             memo[obj_id] = result
             result.update(
                 {
-                    k: _convert_to_stub_if_needed(
-                        v, memo, preserve_pointers
-                    )
+                    k: _convert_to_stub_if_needed(v, memo, preserve_pointers)
                     for k, v in value.items()
                 }
             )
@@ -459,15 +450,13 @@ def _restore_from_stub_if_needed(
         result = value.load()
     elif isinstance(value, tuple):
         result = tuple(
-            _restore_from_stub_if_needed(item, scope, memo)
-            for item in value
+            _restore_from_stub_if_needed(item, scope, memo) for item in value
         )
     elif isinstance(value, set):
         # Sets cannot be recursive (require hashable items), but keep the
         # reference.
         result = set(
-            _restore_from_stub_if_needed(item, scope, memo)
-            for item in value
+            _restore_from_stub_if_needed(item, scope, memo) for item in value
         )
         value.clear()
         value.update(result)
@@ -475,8 +464,7 @@ def _restore_from_stub_if_needed(
     elif isinstance(value, list):
         memo[obj_id] = value
         result = [
-            _restore_from_stub_if_needed(item, scope, memo)
-            for item in value
+            _restore_from_stub_if_needed(item, scope, memo) for item in value
         ]
         # Keep the original list reference
         value.clear()

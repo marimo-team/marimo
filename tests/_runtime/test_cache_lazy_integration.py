@@ -65,9 +65,9 @@ async def test_immediate_reference_return_is_hydrated_on_hit(
         # Second run should hydrate from cache (not return a stub)
         result2 = await k.run([cell])
         assert result2 is not None
-        assert isinstance(
-            result2[-1], list
-        ), f"Expected hydrated list, got {type(result2[-1])}"
+        assert isinstance(result2[-1], list), (
+            f"Expected hydrated list, got {type(result2[-1])}"
+        )
         assert len(result2[-1]) == 10000
 
 
@@ -90,6 +90,6 @@ async def test_unhashable_return_cache_hit_should_rerun(
 
         result2 = await k.run([cell])
         # TDD expectation: hit should re-execute (not return a stub)
-        assert callable(
-            result2[-1]
-        ), "Cache hit should return a callable (rerun), not a stub"
+        assert callable(result2[-1]), (
+            "Cache hit should return a callable (rerun), not a stub"
+        )

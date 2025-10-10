@@ -7,6 +7,7 @@ from typing import Optional
 
 from marimo._save.stores.store import Store
 
+HEAD_BYTES = 8  # Number of bytes to store the size of the data
 
 class MemoryStore(Store):
     """In-memory cache store using shared memory for cross-process testing.
@@ -43,10 +44,10 @@ class MemoryStore(Store):
         try:
             # Open existing shared memory block
             shm = shared_memory.SharedMemory(name=shm_name)
-            # First 8 bytes store the actual data size
-            size = int.from_bytes(shm.buf[:8], "little")
+            # First n bytes store the actual data size
+            size = int.from_bytes(shm.buf[:HEAD_BYTES], "little")
             # Read the actual data
-            data = bytes(shm.buf[8:8 + size])
+            data = bytes(shm.buf[HEAD_BYTES:HEAD_BYTES + size])
             shm.close()
             return data
         except FileNotFoundError:
@@ -59,18 +60,18 @@ class MemoryStore(Store):
 
         shm_name = self._shm_name(key)
         try:
-            # Create new shared memory block (8 bytes for size header + data)
+            # Create new shared memory block (n bytes for size header + data)
             data_size = len(value)
-            # SharedMemory requires size > 0, so minimum is 8 bytes for header
-            total_size = max(8, 8 + data_size)
+            # SharedMemory requires size > 0, so minimum is n bytes for header
+            total_size = max(HEAD_BYTES, HEAD_BYTES + data_size)
             shm = shared_memory.SharedMemory(
                 name=shm_name, create=True, size=total_size
             )
-            # Write size header (first 8 bytes)
-            shm.buf[:8] = data_size.to_bytes(8, "little")
+            # Write size header (first n bytes)
+            shm.buf[:HEAD_BYTES] = data_size.to_bytes(HEAD_BYTES, "little")
             # Write the actual data (if any)
             if data_size > 0:
-                shm.buf[8:8 + data_size] = value
+                shm.buf[HEAD_BYTES:HEAD_BYTES + data_size] = value
             shm.close()
 
             # Track key for cleanup

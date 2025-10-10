@@ -115,7 +115,9 @@ def attempt_register(attempt: Cache) -> None:
 
 
 class CachedExecutor(Executor):
-    def _record_cache_hit(self, cell_id: str, load_time: float, attempt: Cache) -> None:
+    def _record_cache_hit(
+        self, cell_id: str, load_time: float, attempt: Cache
+    ) -> None:
         """Record cache hit with time saved."""
         try:
             ctx = get_context()

@@ -81,6 +81,7 @@ class ReferenceStub:
     def load(self, glbls: dict[str, Any]) -> Any:
         """Load the reference from the store."""
         from marimo._save.cache import _restore_from_stub_if_needed
+
         blob = self.to_bytes()
         if blob is None:
             raise ValueError(f"Reference {self.name} not found in scope.")
@@ -103,7 +104,9 @@ class UnhashableStub:
     with these stubs, and when a cell needs them, it can trigger a rerun.
     """
 
-    def __init__(self, obj: Any, error: Optional[Exception] = None, var_name: str = "") -> None:
+    def __init__(
+        self, obj: Any, error: Optional[Exception] = None, var_name: str = ""
+    ) -> None:
         self.obj_type = type(obj)
         self.type_name = f"{self.obj_type.__module__}.{self.obj_type.__name__}"
         self.error_msg = "<unknown>" if not error else str(error)
