@@ -172,6 +172,78 @@ def render_component(
     return ref, docs_json, render_json  # type: ignore[return-value]
 
 
+def _extract_holoviews_settings(obj: Any) -> dict[str, Any]:
+    """
+    Extract renderer settings from holoviews objects to pass to Panel.
+
+    This ensures that settings like widget_location configured via hv.output()
+    are respected when rendering holoviews objects through Panel.
+    """
+    try:
+        import holoviews as hv  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+
+        # Check if the object is a holoviews object
+        if not isinstance(
+            obj,
+            (
+                hv.core.ViewableElement,
+                hv.core.Layout,
+                hv.HoloMap,
+                hv.DynamicMap,
+                hv.core.spaces.HoloMap,
+                hv.core.ndmapping.UniformNdMapping,
+                hv.core.ndmapping.NdMapping,
+            ),
+        ):
+            return {}
+
+        # Get the current backend
+        # Try to determine which backend is active
+        backend = None
+        if hasattr(hv.Store, "current_backend"):
+            backend = hv.Store.current_backend
+        elif hasattr(hv, "extension") and hasattr(
+            hv.extension, "_loaded_backends"
+        ):
+            # Get the first loaded backend
+            loaded_backends = list(hv.extension._loaded_backends.keys())
+            if loaded_backends:
+                backend = loaded_backends[0]
+
+        if not backend:
+            return {}
+
+        # Get the renderer for the active backend
+        try:
+            renderer = hv.renderer(backend)
+        except Exception:
+            return {}
+
+        # Extract relevant settings that Panel's HoloViews pane accepts
+        panel_kwargs: dict[str, Any] = {}
+
+        # widget_location is a common setting that affects widget placement
+        if (
+            hasattr(renderer, "widget_location")
+            and renderer.widget_location is not None
+        ):
+            panel_kwargs["widget_location"] = renderer.widget_location
+
+        # center is another setting that can be configured
+        if hasattr(renderer, "center") and renderer.center is not None:
+            panel_kwargs["center"] = renderer.center
+
+        return panel_kwargs
+
+    except ImportError:
+        # holoviews is not installed
+        return {}
+    except Exception as e:
+        # Log the error but don't fail - just don't apply settings
+        LOGGER.debug(f"Failed to extract holoviews settings: {e}")
+        return {}
+
+
 @mddoc
 class panel(UIElement[T, T]):
     """Create a UIElement from a Panel component.
@@ -203,7 +275,10 @@ class panel(UIElement[T, T]):
         from panel.models.comm_manager import CommManager as PanelCommManager
         from panel.pane import panel as panel_func
 
-        self.obj: Viewable = panel_func(obj)  # type: ignore[assignment]
+        # Extract holoviews renderer settings if the object is a holoviews object
+        panel_kwargs = _extract_holoviews_settings(obj)
+
+        self.obj: Viewable = panel_func(obj, **panel_kwargs)  # type: ignore[assignment]
         # This gets set to True in super().__init__()
         self._initialized = False
 

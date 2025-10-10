@@ -6,11 +6,15 @@ from unittest.mock import Mock
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.from_panel import panel
+from marimo._plugins.ui._impl.from_panel import (
+    _extract_holoviews_settings,
+    panel,
+)
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 HAS_DEPS = DependencyManager.panel.has()
+HAS_HOLOVIEWS = DependencyManager.holoviews.has()
 
 if HAS_DEPS:
     import panel as pn
@@ -75,3 +79,100 @@ slider = mo.ui.panel(slider)
         assert panel(True) is not None
         assert panel(False) is not None
         assert panel(None) is not None
+
+
+@pytest.mark.skipif(not HAS_HOLOVIEWS, reason="holoviews not installed")
+class TestHoloViewsSettings:
+    @staticmethod
+    def test_extract_holoviews_settings_with_widget_location() -> None:
+        """Test that widget_location is extracted from holoviews renderer."""
+        import holoviews as hv
+
+        # Set up holoviews with bokeh backend
+        hv.extension("bokeh")
+        hv.output(widget_location="top")
+
+        # Create a simple holoviews object
+        curve = hv.Curve([1, 2, 3])
+
+        # Extract settings
+        settings = _extract_holoviews_settings(curve)
+
+        # Verify widget_location is extracted
+        assert "widget_location" in settings
+        assert settings["widget_location"] == "top"
+
+    @staticmethod
+    def test_extract_holoviews_settings_with_center() -> None:
+        """Test that center is extracted from holoviews renderer."""
+        import holoviews as hv
+
+        # Set up holoviews with bokeh backend
+        hv.extension("bokeh")
+        hv.output(center=True)
+
+        # Create a simple holoviews object
+        curve = hv.Curve([1, 2, 3])
+
+        # Extract settings
+        settings = _extract_holoviews_settings(curve)
+
+        # Verify center is extracted
+        assert "center" in settings
+        assert settings["center"] is True
+
+    @staticmethod
+    def test_extract_holoviews_settings_non_holoviews_object() -> None:
+        """Test that non-holoviews objects return empty dict."""
+        # Test with regular objects
+        assert _extract_holoviews_settings({}) == {}
+        assert _extract_holoviews_settings([1, 2, 3]) == {}
+        assert _extract_holoviews_settings("test") == {}
+
+    @staticmethod
+    def test_extract_holoviews_settings_no_widget_location() -> None:
+        """Test extraction when widget_location is not set (None)."""
+        import holoviews as hv
+
+        # Set up holoviews with bokeh backend but no widget_location
+        hv.extension("bokeh")
+
+        # Get the renderer and ensure widget_location is None
+        renderer = hv.renderer("bokeh")
+        renderer.widget_location = None
+
+        # Create a simple holoviews object
+        curve = hv.Curve([1, 2, 3])
+
+        # Extract settings
+        settings = _extract_holoviews_settings(curve)
+
+        # Verify that None values are not included
+        assert "widget_location" not in settings
+
+
+@pytest.mark.skipif(
+    not (HAS_DEPS and HAS_HOLOVIEWS),
+    reason="panel and holoviews not installed",
+)
+class TestPanelWithHoloViews:
+    @staticmethod
+    def test_panel_respects_holoviews_output_settings() -> None:
+        """Test that panel() passes holoviews settings to Panel pane."""
+        import holoviews as hv
+
+        # Set up holoviews with specific settings
+        hv.extension("bokeh")
+        hv.output(widget_location="bottom")
+
+        # Create a holoviews object
+        curve = hv.Curve([1, 2, 3])
+
+        # Wrap in panel
+        wrapped = panel(curve)
+
+        # The wrapped object should be a Panel pane
+        # We can't directly check if widget_location was passed,
+        # but we can verify the object was created successfully
+        assert wrapped is not None
+        assert isinstance(wrapped, panel)
