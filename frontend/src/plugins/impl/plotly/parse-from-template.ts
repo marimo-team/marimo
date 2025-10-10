@@ -24,7 +24,8 @@ export interface PlotlyTemplateParser {
  */
 export function createParser(hovertemplate: string): PlotlyTemplateParser {
   // Regular expression to match the pattern key=%{selector}
-  const regex = /(\w+)=%{([^}]+)}/g;
+  // Match any characters except = for the key (non-greedy to avoid capturing previous content)
+  const regex = /([^=<>]+)=%{([^}]+)}/g;
 
   // Create an object to hold the key-selector pairs
   const keySelectorPairs: Record<string, string> = {};
