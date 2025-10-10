@@ -70,4 +70,21 @@ describe("createParser", () => {
       Year: "1964",
     });
   });
+
+  it("should handle labels with special characters (brackets, parentheses, spaces)", () => {
+    const hovertemplate =
+      "Horsepower [ps]=%{x}<br>Miles per Gallon=%{y}<br>Weight (lbs)=%{marker.size}<extra></extra>";
+    const parser = createParser(hovertemplate);
+    const data = {
+      x: "110",
+      y: "20.6",
+      "marker.size": "3000",
+    } as unknown as Plotly.PlotDatum;
+    const result = parser.parse(data);
+    expect(result).toEqual({
+      "Horsepower [ps]": "110",
+      "Miles per Gallon": "20.6",
+      "Weight (lbs)": "3000",
+    });
+  });
 });
