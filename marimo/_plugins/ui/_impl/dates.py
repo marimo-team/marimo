@@ -263,8 +263,8 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
             initial_value=value.isoformat(timespec="seconds"),
             label=label,
             args={
-                "start": self._start.strftime(self.DATETIME_FORMAT),
-                "stop": self._stop.strftime(self.DATETIME_FORMAT),
+                "start": self._start.isoformat(timespec="seconds"),
+                "stop": self._stop.isoformat(timespec="seconds"),
                 "full-width": full_width,
                 "disabled": disabled,
             },
