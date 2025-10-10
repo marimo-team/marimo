@@ -70,8 +70,6 @@ class Cache(msgspec.Struct):
     ui_defs: list[str] = msgspec.field(default_factory=list)
 
 
-# No longer needed with msgspec - direct serialization
-
 
 class ReferenceStub:
     def __init__(self, name: str, loader: str | None = None) -> None:
@@ -90,8 +88,9 @@ class ReferenceStub:
         return value
 
     def to_bytes(self) -> bytes:
+        from marimo._save.stubs import LAZY_STUB_LOOKUP
         if self.loader is None:
-            self.loader = TYPE_LOOKUP.get(type(self), "pickle")
+            self.loader = LAZY_STUB_LOOKUP.get(type(self), "pickle")
         maybe_bytes = get_store().get(self.name)
         return maybe_bytes if maybe_bytes else b""
 
@@ -127,20 +126,6 @@ class UnhashableStub:
     def to_bytes(self) -> bytes:
         """Unhashable stubs cannot be serialized."""
         return b""
-
-
-TYPE_LOOKUP: dict[type, str] = {
-    int: "txtpb",
-    str: "txtpb",
-    float: "txtpb",
-    bool: "txtpb",
-    bytes: "txtpb",
-    type(None): "txtpb",
-    FunctionStub: "txtpb",
-    ModuleStub: "txtpb",
-    UIElementStub: "ui",
-    UnhashableStub: "unhashable",
-}
 
 
 class ImmediateReferenceStub(CustomStub):

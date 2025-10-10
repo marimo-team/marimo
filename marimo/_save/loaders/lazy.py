@@ -15,11 +15,11 @@ from marimo._save.hash import HashKey
 from marimo._save.loaders.loader import BasePersistenceLoader
 from marimo._save.stores import FileStore, Store
 from marimo._save.stubs import (
+    LAZY_STUB_LOOKUP,
     FunctionStub,
     ModuleStub,
 )
 from marimo._save.stubs.lazy_stub import (
-    TYPE_LOOKUP,
     Cache as CacheSchema,
     CacheType,
     ImmediateReferenceStub,
@@ -37,7 +37,7 @@ def to_item(
         return Item()
 
     if loader is None:
-        loader = TYPE_LOOKUP.get(type(value), "pickle")
+        loader = LAZY_STUB_LOOKUP.get(type(value), "pickle")
 
     if loader == "pickle":
         return Item(reference=(path / "pickles.pickle").as_posix())
@@ -191,7 +191,7 @@ class LazyLoader(BasePersistenceLoader):
         ui_defs_list = []
 
         for var, obj in cache.defs.items():
-            loader = TYPE_LOOKUP.get(type(obj), "pickle")
+            loader = LAZY_STUB_LOOKUP.get(type(obj), "pickle")
 
             # For pickle loader, verify the object can actually be pickled
             if loader == "pickle":

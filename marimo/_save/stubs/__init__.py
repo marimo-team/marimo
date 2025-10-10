@@ -24,6 +24,19 @@ STUB_REGISTRATIONS: dict[str, Callable[[Any], None]] = {
     "pydantic.main.BaseModel": PydanticStub.register,
 }
 
+LAZY_STUB_LOOKUP: dict[type, str] = {
+    int: "txtpb",
+    str: "txtpb",
+    float: "txtpb",
+    bool: "txtpb",
+    bytes: "txtpb",
+    type(None): "txtpb",
+    FunctionStub: "txtpb",
+    ModuleStub: "txtpb",
+    UIElementStub: "ui",
+    UnhashableStub: "unhashable",
+}
+
 
 def maybe_register_stub(value: Any) -> bool:
     """Lazily register a stub for a value's type if not already registered.
@@ -86,10 +99,11 @@ __all__ = [
     "CUSTOM_STUBS",
     "CustomStub",
     "FunctionStub",
+    "LAZY_STUB_LOOKUP",
     "ModuleStub",
     "UIElementStub",
     "UnhashableStub",
-    "maybe_register_stub",
     "maybe_get_custom_stub",
+    "maybe_register_stub",
     "register_stub",
 ]
