@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from typing import cast
 
 import pytest
 
@@ -58,6 +59,44 @@ def test_datetime() -> None:
     assert dt.value == datetime.datetime(2024, 1, 15, 10, 0)
     assert dt.start == datetime.datetime(2024, 1, 1, 0, 0)
     assert dt.stop == datetime.datetime(2024, 12, 31, 23, 59)
+
+
+def test_datetime_min_max_iso_format() -> None:
+    """Test that datetime.min and datetime.max are formatted correctly with ISO 8601.
+
+    This test addresses issue #6700 where datetime.min was formatted as
+    "1-01-01T00:00:00" instead of "0001-01-01T00:00:00" in some Docker
+    environments, causing frontend parsing errors.
+    """
+    # Test with datetime.min
+    dt = ui.datetime()
+    start_arg: str = cast(str, dt._args.args.get("start"))
+    stop_arg: str = cast(str, dt._args.args.get("stop"))
+
+    # Verify that start and stop are properly formatted ISO 8601 strings
+    # with 4-digit years (not single digit years like "1-01-01")
+    assert start_arg is not None
+    assert stop_arg is not None
+    assert start_arg.startswith("0001-"), (
+        f"Expected start to begin with '0001-', got: {start_arg}"
+    )
+    assert stop_arg.startswith("9999-"), (
+        f"Expected stop to begin with '9999-', got: {stop_arg}"
+    )
+
+    # Verify exact format for datetime.min
+    assert start_arg == "0001-01-01T00:00:00"
+
+    # Test with explicit datetime.min and datetime.max
+    dt_explicit = ui.datetime(
+        start=datetime.datetime.min,
+        stop=datetime.datetime.max,
+    )
+    start_explicit = dt_explicit._args.args.get("start")
+    stop_explicit = dt_explicit._args.args.get("stop")
+
+    assert start_explicit == "0001-01-01T00:00:00"
+    assert stop_explicit == "9999-12-31T23:59:59"
 
 
 def test_date_range() -> None:
