@@ -9,6 +9,7 @@ from marimo._save.stores.store import Store
 
 HEAD_BYTES = 8  # Number of bytes to store the size of the data
 
+
 class MemoryStore(Store):
     """In-memory cache store using shared memory for cross-process testing.
 
@@ -47,7 +48,7 @@ class MemoryStore(Store):
             # First n bytes store the actual data size
             size = int.from_bytes(shm.buf[:HEAD_BYTES], "little")
             # Read the actual data
-            data = bytes(shm.buf[HEAD_BYTES:HEAD_BYTES + size])
+            data = bytes(shm.buf[HEAD_BYTES : HEAD_BYTES + size])
             shm.close()
             return data
         except FileNotFoundError:
@@ -71,7 +72,7 @@ class MemoryStore(Store):
             shm.buf[:HEAD_BYTES] = data_size.to_bytes(HEAD_BYTES, "little")
             # Write the actual data (if any)
             if data_size > 0:
-                shm.buf[HEAD_BYTES:HEAD_BYTES + data_size] = value
+                shm.buf[HEAD_BYTES : HEAD_BYTES + data_size] = value
             shm.close()
 
             # Track key for cleanup
