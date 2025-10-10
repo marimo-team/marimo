@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.packages.package_manager import LogCallback
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.pypi_package_manager import (
@@ -536,6 +537,9 @@ def test_package_manager_run_manager_not_installed() -> None:
 # Encoding tests for Windows compatibility
 
 
+@pytest.mark.skipif(
+    not DependencyManager.which("poetry"), reason="poetry not installed"
+)
 @patch("subprocess.run")
 def test_poetry_list_packages_uses_utf8_encoding(mock_run: MagicMock):
     """Test that poetry list uses UTF-8 encoding to handle non-ASCII characters"""
@@ -556,6 +560,9 @@ def test_poetry_list_packages_uses_utf8_encoding(mock_run: MagicMock):
     assert call_kwargs.get("text") is True
 
 
+@pytest.mark.skipif(
+    not DependencyManager.which("pixi"), reason="pixi not installed"
+)
 @patch("subprocess.run")
 def test_pixi_list_packages_uses_utf8_encoding(mock_run: MagicMock):
     """Test that pixi list uses UTF-8 encoding to handle non-ASCII characters"""
