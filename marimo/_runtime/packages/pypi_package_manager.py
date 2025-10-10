@@ -39,7 +39,9 @@ class PypiPackageManager(CanonicalizingPackageManager):
     ) -> list[PackageDescription]:
         if not self.is_manager_installed():
             return []
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8"
+        )
         if proc.returncode != 0:
             return []
         try:
@@ -459,6 +461,7 @@ class UvPackageManager(PypiPackageManager):
                 tree_cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 check=True,
             )
             tree = parse_uv_tree(result.stdout)
@@ -519,7 +522,9 @@ class PoetryPackageManager(PypiPackageManager):
     ) -> list[PackageDescription]:
         if not self.is_manager_installed():
             return []
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8"
+        )
         if proc.returncode != 0:
             return []
 
