@@ -249,6 +249,81 @@ class _cache_call(CacheContext):
             external=self._external,
         )
 
+    def _prepare_call_execution(
+        self, args: tuple[Any, ...], kwargs: dict[str, Any]
+    ) -> tuple[dict[str, Any], Any, Any]:
+        """Prepare execution context and create cache attempt.
+
+        Returns tuple of (scope, ctx, attempt) needed for cache execution.
+        """
+        # Build base block if needed (for external/late binding)
+        if self.base_block is None:
+            assert self._external, UNEXPECTED_FAILURE_BOILERPLATE
+            assert self.__wrapped__ is not None, UNEXPECTED_FAILURE_BOILERPLATE
+            graph = graph_from_scope(self.scope)
+            cell_id = get_cell_id_from_scope(self.__wrapped__, self.scope)
+            self.base_block = self._build_base_block(
+                self.__wrapped__, graph, cell_id
+            )
+
+        # Rewrite scoped args to prevent shadowed variables
+        arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
+        kwargs_copy = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
+        # If the function has varargs, we need to capture them as well.
+        if self._var_arg is not None:
+            arg_dict[f"{ARG_PREFIX}{self._var_arg}"] = args[len(self._args) :]
+        if self._var_kwarg is not None:
+            # NB: kwargs are always a dict, so we can just copy them.
+            arg_dict[f"{ARG_PREFIX}{self._var_kwarg}"] = kwargs.copy()
+
+        # Capture the call case
+        ctx = safe_get_context()
+        glbls: dict[str, Any] = {}
+        if ctx is not None:
+            glbls = ctx.globals
+        # Typically, scope is overridden by globals (scope is just a snapshot of
+        # the current frame, which may have changed)- however in an external
+        # context, scope is the only source of glbls (the definition should be
+        # unaware of working memory).
+        scope = {
+            **self.scope,
+        }
+        if not self._external:
+            scope = {
+                **scope,
+                **glbls,
+            }
+        scope = {
+            **scope,
+            **arg_dict,
+            **kwargs_copy,
+            **(self._bound or {}),
+        }
+        assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
+        attempt = content_cache_attempt_from_base(
+            self.base_block,
+            scope,
+            self.loader,
+            scoped_refs=self.scoped_refs,
+            required_refs=set([f"{ARG_PREFIX}{k}" for k in self._args]),
+            as_fn=True,
+        )
+
+        return scope, ctx, attempt
+
+    def _finalize_cache_update(
+        self,
+        attempt: Any,
+        response: Any,
+        runtime: float,
+        scope: dict[str, Any],
+    ) -> None:
+        """Update and save cache with execution results."""
+        # stateful variables may be global
+        scope = {k: v for k, v in scope.items() if k in attempt.stateful_refs}
+        attempt.update(scope, meta={"return": response, "runtime": runtime})
+        self.loader.save_cache(attempt)
+
     @property
     def misses(self) -> int:
         if self._loader is None:
@@ -320,58 +395,8 @@ class _cache_call(CacheContext):
             self._set_context(args[0])
             return self
 
-        if self.base_block is None:
-            assert self._external, UNEXPECTED_FAILURE_BOILERPLATE
-            # We only build the graph on invocation because toplevel functions
-            # can be defined out of order.
-            graph = graph_from_scope(self.scope)
-            cell_id = get_cell_id_from_scope(self.__wrapped__, self.scope)
-            self.base_block = self._build_base_block(
-                self.__wrapped__, graph, cell_id
-            )
-
-        # Rewrite scoped args to prevent shadowed variables
-        arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
-        kwargs_copy = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
-        # If the function has varargs, we need to capture them as well.
-        if self._var_arg is not None:
-            arg_dict[f"{ARG_PREFIX}{self._var_arg}"] = args[len(self._args) :]
-        if self._var_kwarg is not None:
-            # NB: kwargs are always a dict, so we can just copy them.
-            arg_dict[f"{ARG_PREFIX}{self._var_kwarg}"] = kwargs.copy()
-
-        # Capture the call case
-        ctx = safe_get_context()
-        glbls: dict[str, Any] = {}
-        if ctx is not None:
-            glbls = ctx.globals
-        # Typically, scope is overridden by globals (scope is just a snapshot of
-        # the current frame, which may have changed)- however in an external
-        # context, scope is the only source of glbls (the definition should be
-        # unaware of working memory).
-        scope = {
-            **self.scope,
-        }
-        if not self._external:
-            scope = {
-                **scope,
-                **glbls,
-            }
-        scope = {
-            **scope,
-            **arg_dict,
-            **kwargs_copy,
-            **(self._bound or {}),
-        }
-        assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
-        attempt = content_cache_attempt_from_base(
-            self.base_block,
-            scope,
-            self.loader,
-            scoped_refs=self.scoped_refs,
-            required_refs=set([f"{ARG_PREFIX}{k}" for k in self._args]),
-            as_fn=True,
-        )
+        # Prepare execution context
+        scope, ctx, attempt = self._prepare_call_execution(args, kwargs)
 
         failed = False
         self._last_hash = attempt.hash
@@ -384,14 +409,7 @@ class _cache_call(CacheContext):
             response = self.__wrapped__(*args, **kwargs)
             runtime = time.time() - start_time
 
-            # stateful variables may be global
-            scope = {
-                k: v for k, v in scope.items() if k in attempt.stateful_refs
-            }
-            attempt.update(
-                scope, meta={"return": response, "runtime": runtime}
-            )
-            self.loader.save_cache(attempt)
+            self._finalize_cache_update(attempt, response, runtime, scope)
         except Exception as e:
             failed = True
             raise e
