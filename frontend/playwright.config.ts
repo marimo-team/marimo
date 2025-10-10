@@ -196,7 +196,7 @@ const config: PlaywrightTestConfig = {
       const baseUrl = command === "run" ? options.baseUrl : undefined;
 
       const pathToApp = path.join(pydir, app);
-      let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless --no-token`;
+      let marimoCmd = `uv run marimo -q ${command} ${pathToApp} -p ${port} --headless --no-token`;
       if (baseUrl) {
         marimoCmd += ` --base-url=${baseUrl}`;
       }
