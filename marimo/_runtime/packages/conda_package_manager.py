@@ -1,14 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
-
 from marimo._runtime.packages.module_name_to_conda_name import (
     module_name_to_conda_name,
 )
 from marimo._runtime.packages.package_manager import (
     CanonicalizingPackageManager,
-    LogCallback,
     PackageDescription,
 )
 from marimo._runtime.packages.utils import split_packages
@@ -25,23 +22,12 @@ class CondaPackageManager(CanonicalizingPackageManager):
 class PixiPackageManager(CondaPackageManager):
     name = "pixi"
 
-    async def _install(
-        self,
-        package: str,
-        *,
-        upgrade: bool,
-        log_callback: Optional[LogCallback] = None,
-    ) -> bool:
-        if upgrade:
-            return self.run(
-                ["pixi", "upgrade", *split_packages(package)],
-                log_callback=log_callback,
-            )
-        else:
-            return self.run(
-                ["pixi", "add", *split_packages(package)],
-                log_callback=log_callback,
-            )
+    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
+        return [
+            "pixi",
+            "upgrade" if upgrade else "add",
+            *split_packages(package),
+        ]
 
     async def uninstall(self, package: str) -> bool:
         return self.run(
