@@ -21,9 +21,7 @@ def read_pyproject_marimo_config(
 ) -> Optional[PartialMarimoConfig]:
     """Read the marimo tool config from a pyproject.toml file."""
     pyproject_config = read_toml(pyproject_path)
-    marimo_tool_config = get_marimo_config_from_pyproject_dict(
-        pyproject_config
-    )
+    marimo_tool_config = get_marimo_config_from_pyproject_dict(pyproject_config)
     if marimo_tool_config is None:
         return None
     LOGGER.info("Found marimo config in pyproject.toml at %s", pyproject_path)
@@ -52,10 +50,13 @@ def find_nearest_pyproject_toml(
     """Find the nearest pyproject.toml file."""
     path = Path(start_path)
     root = path.anchor
-    while not path.joinpath("pyproject.toml").exists():
-        if str(path) == root:
-            return None
-        if path.parent == path:
-            return None
-        path = path.parent
+    try:
+        while not path.joinpath("pyproject.toml").exists():
+            if str(path) == root:
+                return None
+            if path.parent == path:
+                return None
+            path = path.parent
+    except OSError:
+        return None
     return path.joinpath("pyproject.toml")
