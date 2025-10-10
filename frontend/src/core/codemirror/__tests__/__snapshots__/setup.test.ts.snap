@@ -45,6 +45,7 @@ exports[`snapshot all duplicate keymaps > default keymaps 2`] = `
     },
     {
       "key": "Backspace",
+      "preventDefault": true,
       "run": "deleteCharBackward",
       "shift": "deleteCharBackward",
     },
@@ -153,6 +154,7 @@ exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
     },
     {
       "key": "Backspace",
+      "preventDefault": true,
       "run": "deleteCharBackward",
       "shift": "deleteCharBackward",
     },
