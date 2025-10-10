@@ -213,7 +213,7 @@ const config: PlaywrightTestConfig = {
       };
     }),
     {
-      command: `marimo -q edit -p ${EDIT_PORT} --headless --no-token`,
+      command: `uv run marimo -q edit -p ${EDIT_PORT} --headless --no-token`,
       url: getUrl(EDIT_PORT),
       reuseExistingServer: true,
       timeout: 30 * 1000,
