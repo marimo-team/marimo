@@ -111,7 +111,7 @@ export const PANELS: PanelDescriptor[] = [
   },
   // Scratchpad is the only way users can
   // code without DAG restrictions, so it is
-  // priveleged.
+  // privileged.
   {
     type: "scratchpad",
     Icon: NotebookPenIcon,
