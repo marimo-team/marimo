@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
-# Recursive types don't support | or dict[] in py3.8/3.9
+# Recursive types don't support | or dict[] in py3.8/3.9 (25-11-01)
 LensValue: TypeAlias = Union[T, dict[str, "LensValue[T]"]]
 
 

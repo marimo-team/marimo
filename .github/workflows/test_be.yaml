@@ -59,38 +59,42 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         dependencies: ["core", "core,optional"]
-        python-version: ["3.9"]
+        python-version: ["3.10"]
         include:
-          - os: ubuntu-latest
-            python-version: "3.10"
-            dependencies: "core"
-          - os: ubuntu-latest
-            python-version: "3.11"
-            dependencies: "core"
-          - os: ubuntu-latest
-            python-version: "3.12"
-            dependencies: "core"
-          - os: ubuntu-latest
-            python-version: "3.13"
-            dependencies: "core"
+          # TODO: deprecate 3.9 after 2025-11-01
           - os: ubuntu-latest
             python-version: "3.9"
-            dependencies: "core,optional"
+            dependencies: "core"
           - os: ubuntu-latest
             python-version: "3.10"
-            dependencies: "core,optional"
-          - os: ubuntu-latest
-            python-version: "3.11"
-            dependencies: "core,optional"
-          - os: ubuntu-latest
-            python-version: "3.12"
-            dependencies: "core,optional"
-          - os: ubuntu-latest
-            python-version: "3.13"
-            dependencies: "core,optional"
-          - os: ubuntu-latest
-            python-version: "3.9"
             dependencies: "minimal"
+          - os: ubuntu-latest
+            python-version: "3.11"
+            dependencies: "core"
+          - os: ubuntu-latest
+            python-version: "3.12"
+            dependencies: "core"
+          - os: ubuntu-latest
+            python-version: "3.13"
+            dependencies: "core"
+          - os: ubuntu-latest
+            python-version: "3.14"
+            dependencies: "core,optional"
+          - os: ubuntu-latest
+            python-version: "3.10"
+            dependencies: "core,optional"
+          - os: ubuntu-latest
+            python-version: "3.11"
+            dependencies: "core,optional"
+          - os: ubuntu-latest
+            python-version: "3.12"
+            dependencies: "core,optional"
+          - os: ubuntu-latest
+            python-version: "3.13"
+            dependencies: "core,optional"
+          - os: ubuntu-latest
+            python-version: "3.14"
+            dependencies: "core,optional"
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
