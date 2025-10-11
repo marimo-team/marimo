@@ -3,23 +3,23 @@
 !!! warning "Experimental Feature"
     MCP features are currently experimental and under active development. Features and APIs may change.
 
-marimo supports the Model Context Protocol (MCP) in two ways: as an [MCP server](mcp.md#mcp-server) that exposes marimo's AI tools to external applications, and as an [MCP client](mcp.md#mcp-client) that connects [supported servers](mcp.md#supported-servers) to marimo's [chat panel](ai_completion.md#chat-panel).
+marimo supports the Model Context Protocol (MCP) in two ways: as an [MCP server](mcp.md#mcp-server) that exposes marimo's [AI tools](tools.md) to external applications, and as an [MCP client](mcp.md#mcp-client) that connects [supported servers](mcp.md#supported-servers) to marimo's [chat panel](ai_completion.md#chat-panel).
 
 ## Prerequisites
 
-Both MCP server and client features require the MCP dependencies. Install marimo with MCP support:
+Both MCP server and client features require the MCP dependencies. Run marimo with MCP support using one of the following methods:
 
 /// tab | uv
 ```bash
 # run with uv in a project
-uv run --with="marimo[mcp]" marimo edit notebook.py
+uv run --with="marimo[mcp]" marimo edit notebook.py --mcp --no-token
 ```
 ///
 
 /// tab | uvx
 ```bash
 # run with uvx anywhere
-uvx "marimo[mcp]" edit notebook.py
+uvx "marimo[mcp]" edit notebook.py --mcp --no-token
 ```
 ///
 
@@ -27,24 +27,16 @@ uvx "marimo[mcp]" edit notebook.py
 ```bash
 # install with pip and a venv
 pip install "marimo[mcp]"
-marimo edit notebook.py
+marimo edit notebook.py --mcp --no-token
 ```
 ///
+
+!!! note "Flags"
+    The `--mcp` flag exposes an endpoint that provides access to your notebook data via the MCP server endpoint. Remove `--mcp` if you only want MCP Client features. The `--no-token` flag removes authentication, which should only be used for local development. Remove `--no-token` in production environments.
 
 ## MCP Server
 
 marimo can expose its [AI tools](tools.md) through an MCP server endpoint, allowing external AI applications to interact with your notebooks.
-
-### Enabling the server
-
-Add the `--mcp` flag when starting marimo:
-
-```bash
-marimo edit notebook.py --mcp
-```
-
-!!! tip "Development mode"
-    Add `--no-token` to disable authentication for local development.
 
 ### Available tools
 
@@ -100,12 +92,12 @@ marimo can connect to external MCP servers to add additional tools and context t
 
 ### Supported servers
 
-marimo currently supports the following preset MCP servers:
+marimo currently supports the following MCP servers:
 
 | Server | Description |
 |--------|-------------|
-| `marimo` | Access to marimo documentation and examples |
-| `context7` | Code search and navigation across your codebase |
+| `marimo` | Provides marimo's official documentation, API reference, and code examples |
+| `context7` | Fetches up-to-date, version-specific documentation and code examples from official sources |
 
 ### Configuration
 
