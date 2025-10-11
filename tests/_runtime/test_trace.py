@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import os
 import re
 import subprocess
@@ -9,6 +11,7 @@ from marimo._runtime.requests import (
     ExecutionRequest,
 )
 from marimo._runtime.runtime import Kernel
+from marimo._utils import async_path
 from tests._messaging.mocks import MockStderr, MockStream
 
 
@@ -312,7 +315,7 @@ class TestEmbedTrace:
         result = tag_re.sub("", result)
 
         # windows support
-        file_path = os.path.normpath(
+        file_path = await async_path.normpath(
             "tests/_runtime/script_data/script_exception_with_output.py"
         )
 

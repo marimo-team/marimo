@@ -10,3 +10,5 @@ echo "[check: format]"
 hatch run ruff format
 echo "[check: typecheck]"
 hatch run typecheck:check
+echo "[check: update-lock]"
+hatch run pixi lock

@@ -17,10 +17,10 @@ config_file = os.path.join(os.path.dirname(__file__), "config.yml")
 
 
 async def test_all_smoke_tests() -> None:
-    root = os.path.realpath(
+    root = os.path.realpath(  # noqa: ASYNC240
         str(import_files("marimo").joinpath("_smoke_tests"))
     )
-    all_py_paths = list(pathlib.Path(root).rglob("*.py"))
+    all_py_paths = list(pathlib.Path(root).rglob("*.py"))  # noqa: ASYNC240
     assert all_py_paths, "No smoke tests found"
 
     with open(config_file) as f:  # noqa: ASYNC230
@@ -35,10 +35,10 @@ async def test_all_smoke_tests() -> None:
 
 
 async def test_all_examples() -> None:
-    root = os.path.realpath(
+    root = os.path.realpath(  # noqa: ASYNC240
         str(import_files("marimo").joinpath("../examples"))
     )
-    all_py_paths = list(pathlib.Path(root).rglob("*.py"))
+    all_py_paths = list(pathlib.Path(root).rglob("*.py"))  # noqa: ASYNC240
     assert all_py_paths, "No examples found"
 
     with open(config_file) as f:  # noqa: ASYNC230
