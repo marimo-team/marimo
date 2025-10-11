@@ -147,6 +147,7 @@ def initialize_script_context(
     Must be called exactly once for each client thread.
     """
     from marimo._runtime.virtual_file import VirtualFileRegistry
+    from marimo._save.cache import CellCacheContext
     from marimo._save.stores import get_store
 
     runtime_context = ScriptRuntimeContext(
@@ -155,6 +156,7 @@ def initialize_script_context(
         state_registry=StateRegistry(),
         function_registry=FunctionRegistry(),
         cache_store=get_store(filename),
+        cell_cache_context=CellCacheContext(),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=AppKernelRunnerRegistry(),
         virtual_file_registry=VirtualFileRegistry(),

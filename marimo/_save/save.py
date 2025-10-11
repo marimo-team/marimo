@@ -263,6 +263,8 @@ class _cache_call(CacheContext):
         if self.base_block is None:
             assert self._external, UNEXPECTED_FAILURE_BOILERPLATE
             assert self.__wrapped__ is not None, UNEXPECTED_FAILURE_BOILERPLATE
+            # When external we need to construct the graph from scope (we
+            # haven't even loaded the notebook yet).
             graph = graph_from_scope(self.scope)
             cell_id = get_cell_id_from_scope(self.__wrapped__, self.scope)
             self.base_block = self._build_base_block(
@@ -392,8 +394,9 @@ class _cache_call(CacheContext):
                 raise TypeError(
                     "cache() takes at most 1 argument (expecting function)"
                 )
+            fn = args[0]
             # Check if the function is async - if so, create async variant
-            if inspect.iscoroutinefunction(args[0]):
+            if inspect.iscoroutinefunction(fn):
                 async_copy = _cache_call_async(
                     None,
                     self._loader_partial,
@@ -402,12 +405,12 @@ class _cache_call(CacheContext):
                 )
                 async_copy._frame_offset = self._frame_offset
                 async_copy._frame_offset -= 4
-                async_copy._set_context(args[0])
+                async_copy._set_context(fn)
                 return async_copy
             # Remove the additional frames from singledispatch, because invoking
             # the function directly.
             self._frame_offset -= 4
-            self._set_context(args[0])
+            self._set_context(fn)
             return self
 
         # Prepare execution context
@@ -418,7 +421,7 @@ class _cache_call(CacheContext):
         try:
             if attempt.hit:
                 attempt.restore(scope)
-                return attempt.meta["return"]
+                return attempt.meta.get("return")
 
             start_time = time.time()
             response = self.__wrapped__(*args, **kwargs)
@@ -527,7 +530,7 @@ class _cache_call_async(_cache_call):
         try:
             if attempt.hit:
                 attempt.restore(scope)
-                return attempt.meta["return"]
+                return attempt.meta.get("return")
 
             start_time = time.time()
             # Await the coroutine to get the actual result
