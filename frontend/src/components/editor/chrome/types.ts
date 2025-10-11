@@ -14,7 +14,6 @@ import {
   type LucideIcon,
   NetworkIcon,
   NotebookPenIcon,
-  ScrollTextIcon,
   SquareDashedBottomCodeIcon,
   TextSearchIcon,
   XCircleIcon,
@@ -48,13 +47,29 @@ export interface PanelDescriptor {
   position: "sidebar" | "footer";
 }
 
+/* Panels are ordered in roughly decreasing order of importance as well as
+ * logically grouped.
+ *
+ * 1. Must-have panels first.
+ * 2. Panels that can add cells to the editor.
+ * 3. Nice-to-have observability panels.
+ */
 export const PANELS: PanelDescriptor[] = [
+  // 1. Must-have panels.
+  //
+  // The files panel is at the top to orient
+  // users within their filesystem and give
+  // them a quick glance at their project structure,
+  // without having to leave their editor.
   {
     type: "files",
     Icon: FolderTreeIcon,
     tooltip: "View files",
     position: "sidebar",
   },
+  // Because notebooks uniquely have data in RAM,
+  // it's important to give humans visibility into
+  // what that data is.
   {
     type: "variables",
     Icon: FunctionSquareIcon,
@@ -67,31 +82,18 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "Explore data sources",
     position: "sidebar",
   },
-  {
-    type: "dependencies",
-    Icon: NetworkIcon,
-    tooltip: "Explore dependencies",
-    position: "sidebar",
-  },
+  // Every notebook has a package environment that must
+  // be managed.
   {
     type: "packages",
     Icon: BoxIcon,
     tooltip: "Manage packages",
     position: "sidebar",
   },
-  {
-    type: "cache",
-    Icon: DatabaseZapIcon,
-    tooltip: "Manage cache",
-    position: "sidebar",
-    hidden: !getFeatureFlag("cache_panel"),
-  },
-  {
-    type: "outline",
-    Icon: ScrollTextIcon,
-    tooltip: "View outline",
-    position: "sidebar",
-  },
+  // 2. "Add cells" panels.
+  //
+  // We start with chat because it's the easiest
+  // way to add new cells to the editor.
   {
     type: "chat",
     Icon: BotMessageSquareIcon,
@@ -99,12 +101,38 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
+    // TODO(akshayka): Consider merging with chat panel
+    // before release.
     type: "agents",
     Icon: HatGlassesIcon,
     tooltip: "Agents",
     position: "sidebar",
     hidden: !getFeatureFlag("external_agents"),
   },
+  // Scratchpad is the only way users can
+  // code without DAG restrictions, so it is
+  // privileged.
+  {
+    type: "scratchpad",
+    Icon: NotebookPenIcon,
+    tooltip: "Scratchpad",
+    position: "sidebar",
+  },
+  {
+    // TODO(akshayka): Consider making snippets default
+    // off, user configuration to enable.
+    type: "snippets",
+    Icon: SquareDashedBottomCodeIcon,
+    tooltip: "Snippets",
+    position: "sidebar",
+  },
+  // 3. Nice-to-have observability panels.
+  //
+  // Utility panels that provide observability
+  // into the state or structure of the notebook. These
+  // observability panels are less crucial than variables
+  // or datasets, so they are positioned at the end of the
+  // sidebar.
   {
     type: "documentation",
     Icon: TextSearchIcon,
@@ -118,15 +146,18 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
-    type: "tracing",
-    Icon: ActivityIcon,
-    tooltip: "Tracing",
+    // TODO(akshayka): Consider making dependencies
+    // default off; the minimap is a more effective
+    // overview.
+    type: "dependencies",
+    Icon: NetworkIcon,
+    tooltip: "Explore dependencies",
     position: "sidebar",
   },
   {
-    type: "snippets",
-    Icon: SquareDashedBottomCodeIcon,
-    tooltip: "Snippets",
+    type: "tracing",
+    Icon: ActivityIcon,
+    tooltip: "Tracing",
     position: "sidebar",
   },
   {
@@ -137,11 +168,15 @@ export const PANELS: PanelDescriptor[] = [
     hidden: isWasm(),
     position: "sidebar",
   },
+  // TODO(akshayka): The cache panel should not be default shown,
+  // even when it's out of feature flag. (User config to
+  // turn it on.)
   {
-    type: "scratchpad",
-    Icon: NotebookPenIcon,
-    tooltip: "Scratchpad",
+    type: "cache",
+    Icon: DatabaseZapIcon,
+    tooltip: "Manage cache",
     position: "sidebar",
+    hidden: !getFeatureFlag("cache_panel"),
   },
   {
     type: "errors",
