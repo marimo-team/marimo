@@ -3,7 +3,7 @@
 import type { components } from "@marimo-team/marimo-api";
 import { Memoize } from "typescript-memoize";
 import { type ZodObject, z } from "zod";
-import type { AiTool } from "./base";
+import { type AiTool, ToolExecutionError } from "./base";
 import { TestFrontendTool } from "./sample-tool";
 
 export type AnyZodObject = ZodObject<z.ZodRawShape>;
@@ -72,13 +72,29 @@ export class FrontendToolRegistry {
       const output = response.data;
       return output;
     } catch (error) {
+      // Handle structured errors
+      if (error instanceof ToolExecutionError) {
+        const { code, message, isRetryable, suggestedFix, meta } = error;
+        return {
+          status: "error" as const,
+          code,
+          message,
+          isRetryable,
+          suggestedFix,
+          meta,
+        };
+      }
+
+      // Handle unknown/generic errors
       return {
-        status: "error",
+        status: "error" as const,
         code: "TOOL_ERROR",
         message: error instanceof Error ? error.message : String(error),
-        suggestedFix: "Try again with valid arguments.",
+        isRetryable: false,
+        suggestedFix: "Check the error message and try again with valid arguments.",
         meta: {
           args: rawArgs,
+          errorType: error?.constructor?.name ?? typeof error,
         },
       };
     }

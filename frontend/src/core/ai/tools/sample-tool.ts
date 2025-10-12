@@ -1,7 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { z } from "zod";
-import { type AiTool, type ToolOutputBase, toolOutputBaseSchema } from "./base";
+import {
+  type AiTool,
+  type ToolOutputBase,
+  toolOutputBaseSchema,
+  ToolExecutionError,
+} from "./base";
 import type { CopilotMode } from "./registry";
 
 const description = `
@@ -41,6 +46,17 @@ export class TestFrontendTool implements AiTool<Input, Output> {
   readonly mode: CopilotMode[] = ["ask"];
 
   async handler({ name }: Input): Promise<Output> {
+    // Example: Validate input and throw ToolExecutionError on invalid data
+    if (!name.trim()) {
+      throw new ToolExecutionError(
+        "Name cannot be empty",
+        "INVALID_INPUT",
+        false,
+        "Please provide a non-empty name",
+        { field: "name", received: name },
+      );
+    }
+
     return {
       status: "success",
       data: {

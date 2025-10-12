@@ -9,6 +9,40 @@ import type { CopilotMode } from "./registry";
 export type StatusValue = "success" | "error" | "warning";
 
 /**
+ * Structured error for tool execution failures.
+ * Mirrors the ToolExecutionError dataclass from marimo/_ai/_tools/utils/exceptions.py
+ *
+ * @example
+ * throw new ToolExecutionError(
+ *   "Failed to fetch data",
+ *   "FETCH_ERROR",
+ *   true,
+ *   "Check your network connection"
+ * );
+ */
+export class ToolExecutionError extends Error {
+  readonly code: string;
+  readonly isRetryable: boolean;
+  readonly suggestedFix?: string;
+  readonly meta?: Record<string, unknown>;
+
+  constructor(
+    message: string,
+    code = "TOOL_ERROR",
+    isRetryable = false,
+    suggestedFix?: string,
+    meta?: Record<string, unknown>,
+  ) {
+    super(message);
+    this.name = "ToolExecutionError";
+    this.code = code;
+    this.isRetryable = isRetryable;
+    this.suggestedFix = suggestedFix;
+    this.meta = meta;
+  }
+}
+
+/**
  * Base interface for tool output responses.
  * Mirrors the SuccessResult dataclass from marimo/_ai/_tools/types.py
  *
