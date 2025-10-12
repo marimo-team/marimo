@@ -196,7 +196,7 @@ extra-dependencies = [
     "hypothesis~=6.102.1",
     # For server testing
     "httpx~=0.27.0",
-    "matplotlib~=3.9.2",
+    "matplotlib~=3.10.6",
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",

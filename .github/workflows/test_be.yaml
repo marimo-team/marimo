@@ -79,7 +79,7 @@ jobs:
             dependencies: "core"
           - os: ubuntu-latest
             python-version: "3.14"
-            dependencies: "core,optional"
+            dependencies: "core"
           - os: ubuntu-latest
             python-version: "3.10"
             dependencies: "core,optional"
