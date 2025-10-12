@@ -1,12 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
-from __future__ import annotations
-
 """
 MCP (Model Context Protocol) Server Implementation for Marimo
 
 This module implements an MCP server that provides LLMs with access to marimo
 notebook context and functionality.
 """
+
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -19,9 +19,10 @@ LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
     from starlette.applications import Starlette
+    from starlette.types import Receive, Scope, Send
 
 
-def setup_mcp_server(app: "Starlette") -> None:
+def setup_mcp_server(app: Starlette) -> None:
     """Create and configure MCP server for marimo integration.
 
     Args:
@@ -36,7 +37,6 @@ def setup_mcp_server(app: "Starlette") -> None:
     from starlette.middleware.base import BaseHTTPMiddleware
     from starlette.responses import JSONResponse
     from starlette.routing import Mount
-    from starlette.types import Receive, Scope, Send
 
     mcp = FastMCP(
         "marimo-mcp-server",

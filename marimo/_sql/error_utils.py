@@ -1,13 +1,14 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-import ast
 import re
 from typing import TYPE_CHECKING, Callable, Optional, TypedDict
 
 from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
+    import ast
+
     from marimo._messaging.errors import MarimoSQLError
 
 from marimo import _loggers
@@ -181,7 +182,7 @@ def create_sql_error_metadata(
     )
 
 
-def metadata_to_sql_error(metadata: SQLErrorMetadata) -> "MarimoSQLError":
+def metadata_to_sql_error(metadata: SQLErrorMetadata) -> MarimoSQLError:
     """Convert SQLErrorMetadata to MarimoSQLError for frontend messaging."""
     from marimo._messaging.errors import MarimoSQLError
 
@@ -228,7 +229,7 @@ def log_sql_error(
 
 def create_sql_error_from_exception(
     exception: BaseException, cell: object
-) -> "MarimoSQLError":
+) -> MarimoSQLError:
     """Create a MarimoSQLError from a SQL parsing exception."""
     # Get SQL statement from cell
     sql_statement = ""

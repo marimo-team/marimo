@@ -1,10 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
-from __future__ import annotations
-
 """Interactive UI elements.
 
 This module contains a library of interactive UI elements.
 """
+
+from __future__ import annotations
 
 __all__ = [
     "altair_chart",

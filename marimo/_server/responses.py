@@ -1,10 +1,14 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-import msgspec
+from typing import TYPE_CHECKING
+
 import starlette.responses
 
 from marimo._messaging.msgspec_encoder import encode_json_bytes
+
+if TYPE_CHECKING:
+    import msgspec
 
 
 class StructResponse(starlette.responses.Response):

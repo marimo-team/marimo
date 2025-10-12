@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
-from __future__ import annotations
-
 """Create loading indicators."""
+
+from __future__ import annotations
 
 __all__ = ["progress_bar", "spinner", "toast"]
 

@@ -1,6 +1,4 @@
 # Copyright 2024 Marimo. All rights reserved.
-from __future__ import annotations
-
 """The marimo library.
 
 The marimo library brings marimo notebooks to life with powerful
@@ -15,6 +13,8 @@ marimo is designed to be:
     4. seamless
     5. fun
 """
+
+from __future__ import annotations
 
 __all__ = [
     # Core API

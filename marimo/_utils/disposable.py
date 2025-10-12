@@ -20,5 +20,5 @@ class Disposable:
         return self._is_disposed
 
     @staticmethod
-    def empty() -> "Disposable":
+    def empty() -> Disposable:
         return Disposable(lambda: None)

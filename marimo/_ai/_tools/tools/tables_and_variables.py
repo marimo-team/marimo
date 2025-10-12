@@ -65,7 +65,7 @@ class GetTablesAndVariables(
         return self._get_tables_and_variables(session, args.variable_names)
 
     def _get_tables_and_variables(
-        self, session: "Session", variable_names: list[str]
+        self, session: Session, variable_names: list[str]
     ) -> TablesAndVariablesOutput:
         session_view = session.session_view
         # convert to set for O(1) lookup

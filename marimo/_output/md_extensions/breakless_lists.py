@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from xml.etree.ElementTree import Element
+from typing import TYPE_CHECKING
 
 from markdown import (  # type: ignore
     Extension,
@@ -10,6 +10,9 @@ from markdown import (  # type: ignore
     preprocessors,
     treeprocessors,
 )
+
+if TYPE_CHECKING:
+    from xml.etree.ElementTree import Element
 
 
 class BreaklessListsPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]

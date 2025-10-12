@@ -1,7 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
-from __future__ import annotations
-
 """Formatters for diagnostic output."""
+
+from __future__ import annotations
 
 from marimo._lint.formatters.base import DiagnosticFormatter
 from marimo._lint.formatters.full import FullFormatter
