@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from starlette.applications import Starlette
 
 
-def setup_mcp_server(app: "Starlette") -> None:
+def setup_mcp_server(app: Starlette) -> None:
     """Create and configure MCP server for marimo integration.
 
     Args:

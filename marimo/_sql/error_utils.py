@@ -181,7 +181,7 @@ def create_sql_error_metadata(
     )
 
 
-def metadata_to_sql_error(metadata: SQLErrorMetadata) -> "MarimoSQLError":
+def metadata_to_sql_error(metadata: SQLErrorMetadata) -> MarimoSQLError:
     """Convert SQLErrorMetadata to MarimoSQLError for frontend messaging."""
     from marimo._messaging.errors import MarimoSQLError
 
@@ -228,7 +228,7 @@ def log_sql_error(
 
 def create_sql_error_from_exception(
     exception: BaseException, cell: object
-) -> "MarimoSQLError":
+) -> MarimoSQLError:
     """Create a MarimoSQLError from a SQL parsing exception."""
     # Get SQL statement from cell
     sql_statement = ""

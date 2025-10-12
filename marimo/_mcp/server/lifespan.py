@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 @contextlib.asynccontextmanager
-async def mcp_server_lifespan(app: "Starlette") -> AsyncIterator[None]:
+async def mcp_server_lifespan(app: Starlette) -> AsyncIterator[None]:
     """Lifespan for MCP server functionality (exposing marimo as MCP server)."""
 
     try:

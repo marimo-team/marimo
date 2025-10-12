@@ -44,7 +44,7 @@ class _AppConfig:
     @staticmethod
     def from_untrusted_dict(
         updates: dict[str, Any], silent: bool = False
-    ) -> "_AppConfig":
+    ) -> _AppConfig:
         # Certain flags are useful to pass to App for construction, but
         # shouldn't make it into the config. (e.g. the _filename flag is
         # internal)
@@ -66,7 +66,7 @@ class _AppConfig:
             k: v for (k, v) in asdict(self).items() if not k.startswith("_")
         }
 
-    def update(self, updates: dict[str, Any]) -> "_AppConfig":
+    def update(self, updates: dict[str, Any]) -> _AppConfig:
         config_dict = asdict(self)
         for key in updates:
             if key in config_dict:

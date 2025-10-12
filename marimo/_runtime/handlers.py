@@ -36,7 +36,7 @@ def construct_interrupt_handler(
     return interrupt_handler
 
 
-def construct_sigterm_handler(kernel: "Kernel") -> Callable[[int, Any], None]:
+def construct_sigterm_handler(kernel: Kernel) -> Callable[[int, Any], None]:
     del kernel
 
     @dataclass
