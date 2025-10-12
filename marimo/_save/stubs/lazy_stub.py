@@ -71,7 +71,6 @@ class Cache(msgspec.Struct):
     ui_defs: list[str] = msgspec.field(default_factory=list)
 
 
-
 class ReferenceStub:
     def __init__(self, name: str, loader: str | None = None) -> None:
         self.name = name
@@ -90,6 +89,7 @@ class ReferenceStub:
 
     def to_bytes(self) -> bytes:
         from marimo._save.stubs import LAZY_STUB_LOOKUP
+
         if self.loader is None:
             self.loader = LAZY_STUB_LOOKUP.get(type(self), "pickle")
         maybe_bytes = get_store().get(self.name)

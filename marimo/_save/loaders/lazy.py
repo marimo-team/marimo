@@ -95,7 +95,9 @@ def from_item(item: Item) -> Any:
         return module_stub
     elif item.function is not None:
         function_stub = FunctionStub.__new__(FunctionStub)
-        function_stub.filename, function_stub.code, function.linenumber = item.function  # type: ignore[attr-defined]
+        function_stub.filename, function_stub.code, function.linenumber = (
+            item.function
+        )  # type: ignore[attr-defined]
         return function_stub
     elif item.primitive is not None:
         # Direct primitive value
