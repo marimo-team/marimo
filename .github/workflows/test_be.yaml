@@ -119,6 +119,11 @@ jobs:
         if: ${{ matrix.python-version == '3.12' }}
         run: hatch run typecheck:check
 
+      # Required since python3.14 not pulled automatically for now.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
       # Test with base dependencies
       - name: Test with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
