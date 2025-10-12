@@ -32,7 +32,8 @@ class Item(msgspec.Struct):
     primitive: Optional[Any] = None
     reference: Optional[str] = None
     module: Optional[str] = None
-    function: Optional[str] = None
+    # filename, code, linenumber
+    function: Optional[tuple[str, str, int]] = None
     unhashable: Optional[dict[str, str]] = None
 
     def __post_init__(self) -> None:

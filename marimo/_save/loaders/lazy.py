@@ -58,7 +58,7 @@ def to_item(
 
     if isinstance(value, FunctionStub):
         # If the value is a FunctionStub, store the code
-        return Item(function=value.code)
+        return Item(function=value.dump())
     if isinstance(value, ModuleStub):
         # If the value is a ModuleStub, store the module name
         return Item(module=value.name)
@@ -95,7 +95,7 @@ def from_item(item: Item) -> Any:
         return module_stub
     elif item.function is not None:
         function_stub = FunctionStub.__new__(FunctionStub)
-        function_stub.code = item.function  # type: ignore[attr-defined]
+        function_stub.filename, function_stub.code, function.linenumber = item.function  # type: ignore[attr-defined]
         return function_stub
     elif item.primitive is not None:
         # Direct primitive value
