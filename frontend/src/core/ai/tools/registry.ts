@@ -3,7 +3,7 @@
 import type { components } from "@marimo-team/marimo-api";
 import { Memoize } from "typescript-memoize";
 import { type ZodObject, z } from "zod";
-import { type AiTool, ToolExecutionError } from "./base";
+import { type AiTool, ToolExecutionError, type StatusValue } from "./base";
 import { TestFrontendTool } from "./sample-tool";
 
 export type AnyZodObject = ZodObject<z.ZodRawShape>;
@@ -74,9 +74,11 @@ export class FrontendToolRegistry {
     } catch (error) {
       // Handle structured errors
       if (error instanceof ToolExecutionError) {
-        const { code, message, isRetryable, suggestedFix, meta } = error;
+        // Do not include stack trace in the response
+        // it will confuse the Agent/LLM
+        const { status, code, message, isRetryable, suggestedFix, meta } = error;
         return {
-          status: "error" as const,
+          status,
           code,
           message,
           isRetryable,
@@ -87,7 +89,7 @@ export class FrontendToolRegistry {
 
       // Handle unknown/generic errors
       return {
-        status: "error" as const,
+        status: "error" as StatusValue,
         code: "TOOL_ERROR",
         message: error instanceof Error ? error.message : String(error),
         isRetryable: false,
