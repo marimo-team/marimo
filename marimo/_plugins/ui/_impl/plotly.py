@@ -135,9 +135,23 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                     "Using an empty configuration."
                 )
 
+        initial_value: dict[str, Any] = {}
+
+        def add_selection(selection: go.layout.Selection) -> None:
+            if not all(
+                hasattr(selection, k) for k in ["x0", "x1", "y0", "y1"]
+            ):
+                return
+            initial_value["range"] = {
+                "x": [selection.x0, selection.x1],
+                "y": [selection.y0, selection.y1],
+            }
+
+        figure.for_each_selection(add_selection)
+
         super().__init__(
             component_name=plotly.name,
-            initial_value={},
+            initial_value=initial_value,
             label=label,
             args={
                 "figure": json.loads(json_str),
