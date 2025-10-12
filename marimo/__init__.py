@@ -14,8 +14,6 @@ marimo is designed to be:
     5. fun
 """
 
-from __future__ import annotations
-
 __all__ = [
     # Core API
     "App",

@@ -1,8 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 """AI utilities."""
 
-from __future__ import annotations
-
 __all__ = [
     "ChatMessage",
     "ChatModelConfig",
