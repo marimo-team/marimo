@@ -1,4 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
+
 import contextlib
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING

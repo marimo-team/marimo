@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 """MCP (Model Context Protocol) client implementation for marimo."""
 
 from marimo._server.ai.mcp.client import (

@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from urllib.parse import urlparse
 from xml.etree.ElementTree import Element
 

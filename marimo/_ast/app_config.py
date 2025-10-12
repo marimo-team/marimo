@@ -1,4 +1,5 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
 
 import os
 from dataclasses import asdict, dataclass, field
