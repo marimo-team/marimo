@@ -196,12 +196,12 @@ extra-dependencies = [
     "hypothesis~=6.102.1",
     # For server testing
     "httpx~=0.27.0",
-    "matplotlib~=3.10.6",
+    "matplotlib~=3.10.7",
     # Forced for modern matplotlib.
     "pillow>=9",
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.6.1",
+    "pytest-codecov~=0.7.0",
     "pytest-rerunfailures~=15.1",
     "pytest-asyncio~=0.26.0",
     "pytest-picked>=0.5.1",
