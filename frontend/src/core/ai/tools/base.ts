@@ -25,7 +25,6 @@ export class ToolExecutionError extends Error {
   readonly isRetryable: boolean;
   readonly suggestedFix?: string;
   readonly meta?: Record<string, unknown>;
-  readonly status: StatusValue;
 
   constructor(
     message: string,
@@ -40,7 +39,16 @@ export class ToolExecutionError extends Error {
     this.isRetryable = isRetryable;
     this.suggestedFix = suggestedFix;
     this.meta = meta;
-    this.status = "error" as StatusValue; // default to error
+  }
+
+  toStructuredString(): string {
+    return JSON.stringify({
+      message: this.message,
+      code: this.code,
+      is_retryable: this.isRetryable,
+      suggested_fix: this.suggestedFix,
+      meta: this.meta ?? {},
+    });
   }
 }
 
