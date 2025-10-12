@@ -87,7 +87,7 @@ export class FrontendToolRegistry {
         return {
           tool_name: toolName,
           result: null,
-          error: `Error invoking tool ${toolName}: ${error.toStructuredString()}`,
+          error: error.toStructuredString(),
         };
       }
 
@@ -105,7 +105,7 @@ export class FrontendToolRegistry {
       return {
         tool_name: toolName,
         result: null,
-        error: `Error invoking tool ${toolName}: ${genericError.toStructuredString()}`,
+        error: genericError.toStructuredString(),
       };
     }
   }
