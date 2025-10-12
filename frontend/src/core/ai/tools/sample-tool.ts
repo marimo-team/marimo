@@ -3,9 +3,9 @@
 import { z } from "zod";
 import {
   type AiTool,
+  ToolExecutionError,
   type ToolOutputBase,
   toolOutputBaseSchema,
-  ToolExecutionError,
 } from "./base";
 import type { CopilotMode } from "./registry";
 
