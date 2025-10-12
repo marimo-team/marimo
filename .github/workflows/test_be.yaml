@@ -61,10 +61,6 @@ jobs:
         dependencies: ["core", "core,optional"]
         python-version: ["3.10"]
         include:
-          # TODO: deprecate 3.9 after 2025-11-01
-          - os: ubuntu-latest
-            python-version: "3.9"
-            dependencies: "core"
           - os: ubuntu-latest
             python-version: "3.10"
             dependencies: "minimal"
