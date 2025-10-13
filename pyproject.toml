@@ -509,6 +509,12 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 timeout = 30 # seconds, per test
 
+[tool.testmon]
+noselect = [
+    "tests/_save/*",
+    "tests/_secrets/test_secrets.py::test_get_secret_keys_multiple_dotenv"
+]
+
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]
 
