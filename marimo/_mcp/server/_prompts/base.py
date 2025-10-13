@@ -7,6 +7,8 @@ import re
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Callable
 
+from marimo._utils.case import to_snake_case
+
 if TYPE_CHECKING:
     from mcp.types import PromptMessage
 
@@ -30,7 +32,7 @@ class PromptBase(ABC):
 
         # Infer name from class name (e.g., ActiveNotebooksPrompt -> active_notebooks_prompt)
         if self.name == "":
-            self.name = self._to_snake_case(self.__class__.__name__)
+            self.name = to_snake_case(self.__class__.__name__)
 
         # Get description from class docstring
         if self.description == "":
@@ -70,14 +72,3 @@ class PromptBase(ABC):
         handler.__annotations__ = {"return": list[PromptMessage]}
 
         return handler
-
-    def _to_snake_case(self, name: str) -> str:
-        """Convert PascalCase class name to snake_case.
-
-        Examples:
-            ActiveNotebooksPrompt -> active_notebooks_prompt
-            ActiveNotebooks -> active_notebooks
-        """
-        s1 = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
-        s2 = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1)
-        return s2.replace("-", "_").lower()

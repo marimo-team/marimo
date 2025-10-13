@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
@@ -14,6 +15,15 @@ def to_camel_case(snake_str: str) -> str:
 
     pascal_case = "".join(x.capitalize() for x in snake_str.lower().split("_"))
     return snake_str[0].lower() + pascal_case[1:]
+
+
+def to_snake_case(string: str) -> str:
+    if string == "":
+        return ""
+
+    s1 = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", string)
+    s2 = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1)
+    return s2.replace("-", "_").lower()
 
 
 def deep_to_camel_case(snake_dict: Any) -> dict[str, Any]:
