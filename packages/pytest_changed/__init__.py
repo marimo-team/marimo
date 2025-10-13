@@ -68,7 +68,15 @@ def get_changed_files(ref: str, repo_root: Path) -> set[Path]:
 
         return changed_files
     except subprocess.CalledProcessError as e:
-        pytest.exit(f"Failed to get git diff: {e}", returncode=1)
+        error_msg = f"Failed to get git diff from '{ref}': {e}"
+        if e.stderr:
+            error_msg += f"\nStderr: {e.stderr}"
+        error_msg += (
+            "\n\nTip: Make sure the reference exists. "
+            "In CI, you may need to fetch history with 'fetch-depth: 0' "
+            "in actions/checkout."
+        )
+        pytest.exit(error_msg, returncode=1)
 
 
 def get_dependency_graph(

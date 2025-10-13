@@ -96,6 +96,8 @@ jobs:
         uses: styfle/cancel-workflow-action@0.12.1
 
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for git diff
 
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
@@ -119,11 +121,13 @@ jobs:
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
+          # On PRs, compare against base branch; on main, compare against HEAD~1
+          CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
           hatch run +py=${{ matrix.python-version }} test:test tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
-            -p packages.pytest_changed --changed-from=origin/${{ github.base_ref }} \
+            -p packages.pytest_changed --changed-from=$CHANGED_FROM \
             --picked=first
 
       # Test with optional dependencies
@@ -132,12 +136,14 @@ jobs:
         # Include all tests on 3.13 or main
         run: |
           INCLUDE_UNCHANGED=${{ matrix.python-version == '3.13' }} || ${{ github.ref == 'refs/heads/main' }}
+          # On PRs, compare against base branch; on main, compare against HEAD~1
+          CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
 
           hatch run +py=${{ matrix.python-version }} test-optional:test tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
-            -p packages.pytest_changed --changed-from=origin/${{ github.base_ref }} \
+            -p packages.pytest_changed --changed-from=$CHANGED_FROM \
             --include-unchanged=$INCLUDE_UNCHANGED \
             --picked=first
 
@@ -147,12 +153,14 @@ jobs:
       - name: Test with minimal dependencies (lowest resolution)
         if: ${{ matrix.dependencies == 'minimal' }}
         run: |
+          # On PRs, compare against base branch; on main, compare against HEAD~1
+          CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
           hatch run +py=${{ matrix.python-version }} test:test tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
             --picked=first \
-            -p packages.pytest_changed --changed-from=origin/${{ github.base_ref }}
+            -p packages.pytest_changed --changed-from=$CHANGED_FROM
         env:
           UV_RESOLUTION: lowest
 
