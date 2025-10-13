@@ -19,6 +19,7 @@ export function getNodeHeight(linesOfCode: number) {
   return Math.min(linesOfCode * LINE_HEIGHT + 35, 200);
 }
 
+// The nodes must have the same handle IDs to ensure edges connect correctly
 export const OUTPUTS_HANDLE_ID = "outputs";
 export const INPUTS_HANDLE_ID = "inputs";
 
