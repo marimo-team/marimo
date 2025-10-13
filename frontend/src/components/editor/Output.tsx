@@ -49,13 +49,18 @@ const LazyVegaLite = React.lazy(() =>
 type MimeBundle = Record<OutputMessage["mimetype"], { [key: string]: unknown }>;
 type MimeBundleOrTuple = MimeBundle | [MimeBundle, { [key: string]: unknown }];
 
+export type OnRefactorWithAI = (opts: {
+  prompt: string;
+  triggerImmediately: boolean;
+}) => void;
+
 /**
  * Renders an output based on an OutputMessage.
  */
 export const OutputRenderer: React.FC<{
   message: Pick<OutputMessage, "channel" | "data" | "mimetype">;
   cellId?: CellId;
-  onRefactorWithAI?: (opts: { prompt: string }) => void;
+  onRefactorWithAI?: OnRefactorWithAI;
   wrapText?: boolean;
 }> = memo((props) => {
   const { message, onRefactorWithAI, cellId, wrapText } = props;

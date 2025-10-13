@@ -3,7 +3,6 @@
 import { type DOMNode, Element, Text } from "html-react-parser";
 import { useAtomValue } from "jotai";
 import {
-  BugIcon,
   BugPlayIcon,
   ChevronDown,
   CopyIcon,
@@ -40,12 +39,14 @@ import {
   getTracebackInfo,
 } from "@/utils/traceback";
 import { cn } from "../../../utils/cn";
+import { AIFixButton } from "../errors/auto-fix";
 import { CellLinkTraceback } from "../links/cell-link";
+import type { OnRefactorWithAI } from "../Output";
 
 interface Props {
   cellId: CellId | undefined;
   traceback: string;
-  onRefactorWithAI?: (opts: { prompt: string }) => void;
+  onRefactorWithAI?: OnRefactorWithAI;
 }
 
 const KEY = "item";
@@ -69,9 +70,10 @@ export const MarimoTracebackOutput = ({
   // Get last traceback info
   const tracebackInfo = extractAllTracebackInfo(traceback)?.at(0);
 
-  const handleRefactorWithAI = () => {
+  const handleRefactorWithAI = (triggerImmediately: boolean) => {
     onRefactorWithAI?.({
       prompt: `My code gives the following error:\n\n${lastTracebackLine}`,
+      triggerImmediately,
     });
   };
 
@@ -103,10 +105,11 @@ export const MarimoTracebackOutput = ({
       </Accordion>
       <div className="flex gap-2">
         {onRefactorWithAI && aiEnabled && (
-          <Button size="xs" variant="outline" onClick={handleRefactorWithAI}>
-            <BugIcon className="h-3 w-3 mr-2" />
-            Fix with AI
-          </Button>
+          <AIFixButton
+            tooltip="Fix with AI"
+            openPrompt={() => handleRefactorWithAI(false)}
+            applyAutofix={() => handleRefactorWithAI(true)}
+          />
         )}
         {tracebackInfo && tracebackInfo.kind === "cell" && !isWasm() && (
           <Tooltip content={"Attach pdb to the exception point."}>
