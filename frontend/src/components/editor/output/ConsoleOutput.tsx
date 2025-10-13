@@ -6,7 +6,6 @@ import React, { useLayoutEffect } from "react";
 import { ToggleButton } from "react-aria-components";
 import { DebuggerControls } from "@/components/debugger/debugger-code";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { prettyPrintHotkey } from "@/components/shortcuts/renderShortcut";
 import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
@@ -113,44 +112,31 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     (output) => output.channel === "stdin",
   );
 
-  const getOutputString = (event: React.MouseEvent): string => {
-    const text = reversedOutputs
+  const getOutputString = (): string => {
+    const text = consoleOutputs
       .filter((output) => output.channel !== "pdb")
       .map((output) => {
-        // If alt key is pressed, don't parse as HTML
-        // If starts with `<`, then assume it's HTML
         if (
-          !event.altKey &&
-          typeof output.data === "string" &&
-          output.data.startsWith("<")
+          output.mimetype.startsWith("application/vnd.marimo") ||
+          output.mimetype === "text/html"
         ) {
-          return parseHtmlContent(output.data);
+          return parseHtmlContent(Strings.asString(output.data));
         }
 
-        // Otherwise, convert the ANSI to HTML, then parse as HTML
+        // Convert ANSI to HTML, then parse as HTML
         return ansiToPlainText(Strings.asString(output.data));
       })
       .join("\n");
     return text;
   };
 
-  const prettyPrintAlt = prettyPrintHotkey("Alt")[1];
-
   return (
     <div className="relative group">
       {hasOutputs && (
         <div className="absolute top-1 right-5 z-10 opacity-0 group-hover:opacity-100 flex gap-1">
           <CopyClipboardIcon
-            tooltip={
-              <div className="flex flex-col gap-1">
-                <p>Copy console output</p>
-                <p className="text-xs text-muted-foreground border-t border-border/50 pt-1">
-                  Hold {prettyPrintAlt} for raw output
-                </p>
-              </div>
-            }
+            tooltip="Copy console output"
             value={getOutputString}
-            ariaLabel="Copy console output (Alt for raw)"
             className="h-4 w-4"
           />
           <Tooltip content={wrapText ? "Disable wrap text" : "Wrap text"}>
