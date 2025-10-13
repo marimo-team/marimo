@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from marimo._runtime.packages.conda_package_manager import PixiPackageManager
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.pypi_package_manager import (

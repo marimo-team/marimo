@@ -1,5 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 # This data serializes
+from __future__ import annotations
+
 from typing import Any
 
 
