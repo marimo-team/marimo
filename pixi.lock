@@ -1101,13 +1101,13 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.16.5
-  sha256: b8561aba1c9a637dab6d94e436aaa8372325a3bef25d0b796efff990a60d4b66
+  sha256: 00660bfd80ed86fe2742590ac0f59cbd50d764290e29293c6a16beb233d9632b
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
   - markdown>=3.6,<4
   - pymdown-extensions>=10.15,<11
-  - pygments>=2.13,<3
+  - pygments>=2.19,<3
   - tomlkit>=0.12.0
   - pyyaml>=6.0
   - uvicorn>=0.22.0,<0.36.0

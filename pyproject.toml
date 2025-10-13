@@ -20,7 +20,7 @@ dependencies = [
     # Pinned to specific version for introduction of codeblock handling.
     "pymdown-extensions>=10.15,<11",
     # syntax highlighting of code in markdown
-    "pygments>=2.13,<3",
+    "pygments>=2.19,<3",
     # for reading, writing configs
     "tomlkit>= 0.12.0",
     # for managing frontmatter headers in markdown
