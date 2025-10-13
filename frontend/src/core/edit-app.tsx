@@ -100,8 +100,6 @@ export const EditApp: React.FC<AppProps> = ({
       "Untitled Notebook";
   }, [appConfig.app_title, filename]);
 
-
-
   const runStaleCells = useRunStaleCells();
   const runAllCells = useRunAllCells();
   const togglePresenting = useTogglePresenting();
