@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import React, { memo, use, useId } from "react";
+import React, { memo, use } from "react";
 import { Handle, Position, useStore } from "reactflow";
 import { TinyCode } from "@/components/editor/cell/TinyCode";
 import { useCellIds } from "@/core/cells/cells";
@@ -37,24 +37,21 @@ export const CustomNode = memo((props: CustomNodeProps) => {
   const reactFlowWidth = useStore(({ width }) => width);
   const edgeMarkers = use(EdgeMarkerContext);
 
-  const inputOneId = useId();
-  const inputTwoId = useId();
-  const outputOneId = useId();
-  const outputTwoId = useId();
-
   const linesOfCode = cell.code.split("\n").length;
   return (
     <div>
+      {/** biome-ignore lint/correctness/useUniqueElementIds: Static ids are used for edge connections */}
       <Handle
         type="target"
-        id={inputOneId}
+        id="inputs"
         data-testid="input-one"
         position={edgeMarkers === "LR" ? Position.Left : Position.Top}
         style={{ background: color }}
       />
+      {/** biome-ignore lint/correctness/useUniqueElementIds: Static ids are used for edge connections */}
       <Handle
         type="source"
-        id={inputTwoId}
+        id="inputs"
         data-testid="input-two"
         position={edgeMarkers === "LR" ? Position.Left : Position.Top}
         style={{ background: color }}
@@ -74,16 +71,18 @@ export const CustomNode = memo((props: CustomNodeProps) => {
         </div>
         <TinyCode code={cell.code} />
       </div>
+      {/** biome-ignore lint/correctness/useUniqueElementIds: Static ids are used for edge connections */}
       <Handle
         type="source"
-        id={outputOneId}
+        id="outputs"
         data-testid="output-one"
         position={edgeMarkers === "LR" ? Position.Right : Position.Bottom}
         style={{ background: color }}
       />
+      {/** biome-ignore lint/correctness/useUniqueElementIds: Static ids are used for edge connections */}
       <Handle
         type="target"
-        id={outputTwoId}
+        id="outputs"
         data-testid="output-two"
         position={edgeMarkers === "LR" ? Position.Right : Position.Bottom}
         style={{ background: color }}
