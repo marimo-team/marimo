@@ -88,9 +88,7 @@ jobs:
           - os: ubuntu-latest
             python-version: "3.13"
             dependencies: "core,optional"
-          - os: ubuntu-latest
-            python-version: "3.14"
-            dependencies: "core,optional"
+          # TODO: Add in 3.14 optional once there is broader wheel support
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
