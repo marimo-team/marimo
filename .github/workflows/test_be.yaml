@@ -59,11 +59,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         dependencies: ["core", "core,optional"]
-        python-version: ["3.9"]
+        python-version: ["3.10"]
         include:
           - os: ubuntu-latest
             python-version: "3.10"
-            dependencies: "core"
+            dependencies: "minimal"
           - os: ubuntu-latest
             python-version: "3.11"
             dependencies: "core"
@@ -74,8 +74,8 @@ jobs:
             python-version: "3.13"
             dependencies: "core"
           - os: ubuntu-latest
-            python-version: "3.9"
-            dependencies: "core,optional"
+            python-version: "3.14"
+            dependencies: "core"
           - os: ubuntu-latest
             python-version: "3.10"
             dependencies: "core,optional"
@@ -88,9 +88,7 @@ jobs:
           - os: ubuntu-latest
             python-version: "3.13"
             dependencies: "core,optional"
-          - os: ubuntu-latest
-            python-version: "3.9"
-            dependencies: "minimal"
+          # TODO: Add in 3.14 optional once there is broader wheel support
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
@@ -114,6 +112,11 @@ jobs:
       - name: Typecheck
         if: ${{ matrix.python-version == '3.12' }}
         run: hatch run typecheck:check
+
+      # Required since python3.14 not pulled automatically for now.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
 
       # Test with base dependencies
       - name: Test with base dependencies

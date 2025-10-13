@@ -1101,19 +1101,19 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.16.5
-  sha256: 5558c60bca6ce981e35b3b1a108f3e8f289b0e9df1a04a4020be1edfc92f795b
+  sha256: 00660bfd80ed86fe2742590ac0f59cbd50d764290e29293c6a16beb233d9632b
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
   - markdown>=3.6,<4
   - pymdown-extensions>=10.15,<11
-  - pygments>=2.13,<3
+  - pygments>=2.19,<3
   - tomlkit>=0.12.0
   - pyyaml>=6.0
   - uvicorn>=0.22.0,<0.36.0
   - starlette>=0.35.0,!=0.36.0
   - websockets>=14.2.0
-  - loro>=1.5.0 ; python_full_version >= '3.11'
+  - loro>=1.5.0 ; python_full_version >= '3.11' and python_full_version < '3.14'
   - typing-extensions>=4.4.0 ; python_full_version < '3.11'
   - docutils>=0.16.0
   - psutil>=5.0
