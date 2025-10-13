@@ -97,7 +97,7 @@ def get_dependency_graph(
         result = subprocess.run(
             [
                 "uvx",
-                "ruff",
+                "ruff@0.13.2",
                 "analyze",
                 "graph",
                 "--detect-string-imports",
