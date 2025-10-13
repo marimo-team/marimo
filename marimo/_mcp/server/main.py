@@ -36,6 +36,10 @@ def setup_mcp_server(app: "Starlette") -> None:
     from starlette.routing import Mount
     from starlette.types import Receive, Scope, Send
 
+    from marimo._mcp.server._prompts.registry import (
+        SUPPORTED_MCP_PROMPTS,
+    )
+
     mcp = FastMCP(
         "marimo-mcp-server",
         stateless_http=True,
@@ -44,11 +48,18 @@ def setup_mcp_server(app: "Starlette") -> None:
         streamable_http_path="/server",
     )
 
-    # Register all tools
+    # Create context for tools and prompts
     context = ToolContext(app=app)
+
+    # Register all tools
     for tool in SUPPORTED_BACKEND_AND_MCP_TOOLS:
         tool_with_context = tool(context)
         mcp.tool()(tool_with_context.as_mcp_tool_fn())
+
+    # Register all prompts
+    for prompt in SUPPORTED_MCP_PROMPTS:
+        prompt_with_context = prompt(context)
+        mcp.prompt()(prompt_with_context.as_mcp_prompt_fn())
 
     # Initialize streamable HTTP app
     mcp_app = mcp.streamable_http_app()
