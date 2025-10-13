@@ -1,11 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
 
-from pathlib import Path
 from sys import stdout
+from typing import TYPE_CHECKING
 
 import click
 
 from marimo._config.settings import GLOBAL_SETTINGS
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def prompt_to_overwrite(path: Path) -> bool:

@@ -1,4 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
+
 from marimo._lint.rules.base import LintRule
 from marimo._lint.rules.breaking.graph import (
     CycleDependenciesRule,

@@ -1,10 +1,14 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
+
 import fnmatch
 import os
 import re
-from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
-from typing import Union
+from typing import TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Generator
 
 
 def natural_sort(filename: str) -> list[Union[int, str]]:

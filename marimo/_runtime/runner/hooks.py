@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 __all__ = [
     # hooks to run before the runner starts running its subgraph
     "PREPARATION_HOOKS",

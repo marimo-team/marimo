@@ -1,4 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
+
 import json
 import urllib.error
 import urllib.parse
@@ -58,7 +60,7 @@ class Response:
         # This matches Python's universal newline mode used by Path.read_text()
         return decoded.replace("\r\n", "\n").replace("\r", "\n")
 
-    def raise_for_status(self) -> "Response":
+    def raise_for_status(self) -> Response:
         """Raise an exception for non-2xx status codes.
 
         Returns:
