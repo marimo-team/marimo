@@ -116,23 +116,29 @@ jobs:
         run: hatch run typecheck:check
 
       # Test with base dependencies
-      - name: Test with base dependencies
+      - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
           hatch run +py=${{ matrix.python-version }} test:test tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
+            -p packages.pytest_changed --changed-from=origin/${{ github.base_ref }} \
             --picked=first
 
       # Test with optional dependencies
-      - name: Test with optional dependencies
-        if: ${{ matrix.dependencies == 'core,optional' }}
+      - name: Test changed with optional dependencies
+        if: ${{ matrix.dependencies == 'core,optional' && matrix.python-version != '3.13' }}
+        # Include all tests on 3.13 or main
         run: |
+          INCLUDE_UNCHANGED=${{ matrix.python-version == '3.13' }} || ${{ github.ref == 'refs/heads/main' }}
+
           hatch run +py=${{ matrix.python-version }} test-optional:test tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
+            -p packages.pytest_changed --changed-from=origin/${{ github.base_ref }} \
+            --include-unchanged=$INCLUDE_UNCHANGED \
             --picked=first
 
       # Test with minimal dependencies using lowest resolution
@@ -145,7 +151,8 @@ jobs:
             -v \
             -k "not test_cli" \
             --durations=10 \
-            --picked=first
+            --picked=first \
+            -p packages.pytest_changed --changed-from=origin/${{ github.base_ref }}
         env:
           UV_RESOLUTION: lowest
 
@@ -174,8 +181,13 @@ jobs:
 
       - name: Test with optional dependencies
         run: |
-          hatch run +py=3.12 test-optional:test -v tests/ -k "not test_cli" --durations=10 \
-          --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
+          hatch run +py=3.12 test-optional:test \
+            -v \
+            tests/ \
+            -k "not test_cli" \
+            --durations=10 \
+            --picked=first \
+            --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
       # Only upload coverage on `main` so it is not blocking
       # and only on `3.12`, `ubuntu-latest`, with optional deps since it is mostly duplicate
