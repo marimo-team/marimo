@@ -96,8 +96,8 @@ export class VerticalElementsBuilder implements ElementsBuilder {
           }
           visited.add(key);
           edges.push(
-            this.createEdge(fromId, toId, "inputs"),
-            this.createEdge(fromId, toId, "outputs"),
+            this.createEdge(fromId, toId, INPUTS_HANDLE_ID),
+            this.createEdge(fromId, toId, OUTPUTS_HANDLE_ID),
           );
         }
       }
@@ -117,6 +117,7 @@ export class TreeElementsBuilder implements ElementsBuilder {
       // Make thicker
       style: { strokeWidth: 2 },
       source: source,
+      // Use the same handle ids as the custom node
       sourceHandle: OUTPUTS_HANDLE_ID,
       targetHandle: INPUTS_HANDLE_ID,
       target: target,
