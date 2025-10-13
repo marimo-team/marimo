@@ -31,9 +31,10 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
     group.addoption(
         "--include-unchanged",
-        action="store_true",
+        action="store",
         dest="include_unchanged",
         default=False,
+        type=lambda x: x.lower() in ("true", "1", "yes"),
         help="Also run tests that haven't changed (in addition to affected tests)",
     )
 
