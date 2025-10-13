@@ -6,7 +6,7 @@ import React, { useLayoutEffect } from "react";
 import { ToggleButton } from "react-aria-components";
 import { DebuggerControls } from "@/components/debugger/debugger-code";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { MinimalHotkeys } from "@/components/shortcuts/renderShortcut";
+import { prettyPrintHotkey } from "@/components/shortcuts/renderShortcut";
 import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
@@ -134,20 +134,23 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     return text;
   };
 
+  const prettyPrintAlt = prettyPrintHotkey("Alt")[1];
+
   return (
     <div className="relative group">
       {hasOutputs && (
         <div className="absolute top-1 right-5 z-10 opacity-0 group-hover:opacity-100 flex gap-1">
           <CopyClipboardIcon
             tooltip={
-              <span>
-                Copy all (
-                <MinimalHotkeys className="inline" shortcut="Alt-click" /> for
-                raw)
-              </span>
+              <div className="flex flex-col gap-1">
+                <p>Copy console output</p>
+                <p className="text-xs text-muted-foreground border-t border-border/50 pt-1">
+                  Hold {prettyPrintAlt} for raw output
+                </p>
+              </div>
             }
             value={getOutputString}
-            ariaLabel="Copy all (Alt-click for raw)"
+            ariaLabel="Copy console output (Alt for raw)"
             className="h-4 w-4"
           />
           <Tooltip content={wrapText ? "Disable wrap text" : "Wrap text"}>
