@@ -7,7 +7,12 @@ import { TinyCode } from "@/components/editor/cell/TinyCode";
 import { useCellIds } from "@/core/cells/cells";
 import { displayCellName } from "@/core/cells/names";
 import { cn } from "@/utils/cn";
-import { type CustomNodeProps, getNodeHeight } from "./elements";
+import {
+  type CustomNodeProps,
+  getNodeHeight,
+  INPUTS_HANDLE_ID,
+  OUTPUTS_HANDLE_ID,
+} from "./elements";
 import type { LayoutDirection } from "./types";
 
 function getWidth(canvasWidth: number) {
@@ -40,18 +45,16 @@ export const CustomNode = memo((props: CustomNodeProps) => {
   const linesOfCode = cell.code.split("\n").length;
   return (
     <div>
-      {/** biome-ignore lint/correctness/useUniqueElementIds: Static ids are used for edge connections */}
       <Handle
         type="target"
-        id="inputs"
+        id={INPUTS_HANDLE_ID}
         data-testid="input-one"
         position={edgeMarkers === "LR" ? Position.Left : Position.Top}
         style={{ background: color }}
       />
-      {/** biome-ignore lint/correctness/useUniqueElementIds: Static ids are used for edge connections */}
       <Handle
         type="source"
-        id="inputs"
+        id={INPUTS_HANDLE_ID}
         data-testid="input-two"
         position={edgeMarkers === "LR" ? Position.Left : Position.Top}
         style={{ background: color }}
@@ -71,18 +74,16 @@ export const CustomNode = memo((props: CustomNodeProps) => {
         </div>
         <TinyCode code={cell.code} />
       </div>
-      {/** biome-ignore lint/correctness/useUniqueElementIds: Static ids are used for edge connections */}
       <Handle
         type="source"
-        id="outputs"
+        id={OUTPUTS_HANDLE_ID}
         data-testid="output-one"
         position={edgeMarkers === "LR" ? Position.Right : Position.Bottom}
         style={{ background: color }}
       />
-      {/** biome-ignore lint/correctness/useUniqueElementIds: Static ids are used for edge connections */}
       <Handle
         type="target"
-        id="outputs"
+        id={OUTPUTS_HANDLE_ID}
         data-testid="output-two"
         position={edgeMarkers === "LR" ? Position.Right : Position.Bottom}
         style={{ background: color }}

@@ -19,6 +19,9 @@ export function getNodeHeight(linesOfCode: number) {
   return Math.min(linesOfCode * LINE_HEIGHT + 35, 200);
 }
 
+export const OUTPUTS_HANDLE_ID = "outputs";
+export const INPUTS_HANDLE_ID = "inputs";
+
 interface ElementsBuilder {
   createElements: (
     cellIds: CellId[],
@@ -114,8 +117,8 @@ export class TreeElementsBuilder implements ElementsBuilder {
       // Make thicker
       style: { strokeWidth: 2 },
       source: source,
-      sourceHandle: "outputs",
-      targetHandle: "inputs",
+      sourceHandle: OUTPUTS_HANDLE_ID,
+      targetHandle: INPUTS_HANDLE_ID,
       target: target,
     };
   }
