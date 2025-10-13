@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import time
 from functools import wraps
 from typing import Any, Callable, TypeVar, cast

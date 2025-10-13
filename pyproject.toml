@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.8.3,<0.9.0"]
+requires = ["uv_build>=0.8.3,<0.10.0"]
 build-backend = "uv_build"
 
 [project]
@@ -250,6 +250,8 @@ extra-dependencies = [
     "sqlglot[rs]>=26.2.0",
     "sqlalchemy>=2.0.40",
     "pyiceberg>=0.9.0",
+    # TODO: Remove pydantic or upgrade pyiceberg once upstream is fixed https://github.com/apache/iceberg-python/issues/2590
+    "pydantic<2.12.0",
     # For testing clickhouse
     "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
     "clickhouse-connect>=0.8.18",
@@ -521,6 +523,7 @@ Nd = "Nd"         # Confused with And
 pn = "pn"         # Panel
 caf = "caf"       # cafe
 ser = "ser"       # Used in pydantic-core package as part of a function name
+oint = "oint"     # Contour integrals in markdown completions
 
 [tool.typos.files]
 extend-exclude = [

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from typing import Optional
+from typing import Literal, Optional
 
 import click
 from click import echo
@@ -93,6 +93,7 @@ def _check_port_in_use(port: int) -> Optional[str]:
 
 def run_in_docker(
     file_path: str,
+    mode: Literal["edit", "run"],
     *,
     port: Optional[int],
     debug: bool = False,
@@ -132,7 +133,7 @@ def run_in_docker(
         "uvx",
         "marimo",
         "-d" if debug else "",
-        "edit",
+        mode,
         "--sandbox",
         "--no-token",
         "-p",

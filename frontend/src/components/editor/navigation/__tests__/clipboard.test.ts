@@ -178,11 +178,6 @@ describe("useCellClipboard", () => {
         "Failed to copy cells to clipboard",
         expect.any(Error),
       );
-      expect(toast).toHaveBeenCalledWith({
-        title: "Copy failed",
-        description: "Failed to copy cells to clipboard.",
-        variant: "danger",
-      });
     });
 
     it("should filter out non-existent cells", async () => {

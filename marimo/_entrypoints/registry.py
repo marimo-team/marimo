@@ -1,4 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
+
 import os
 from importlib.metadata import entry_points
 from typing import TYPE_CHECKING, Generic, Optional, TypeVar, cast
@@ -150,7 +152,7 @@ class EntryPointRegistry(Generic[T]):
         return f"{type(self).__name__}(group={self.entry_point_group!r}, registered={self.names()!r})"
 
 
-def get_entry_points(group: KnownEntryPoint) -> "EntryPoints":
+def get_entry_points(group: KnownEntryPoint) -> EntryPoints:
     ep = entry_points()
     if hasattr(ep, "select"):
         return ep.select(group=group)

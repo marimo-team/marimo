@@ -44,7 +44,8 @@ manager = PipPackageManager()
 async def test_install(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
 
-    result = await manager._install("package1 package2", upgrade=False)
+    with patch.object(manager, "is_manager_installed", return_value=True):
+        result = await manager._install("package1 package2", upgrade=False)
 
     mock_run.assert_called_once_with(
         ["pip", "--python", PY_EXE, "install", "package1", "package2"],
@@ -65,7 +66,8 @@ async def test_install_failure(mock_run: MagicMock):
 async def test_uninstall(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
 
-    result = await manager.uninstall("package1 package2")
+    with patch.object(manager, "is_manager_installed", return_value=True):
+        result = await manager.uninstall("package1 package2")
 
     mock_run.assert_called_once_with(
         [
@@ -91,12 +93,14 @@ def test_list_packages(mock_run: MagicMock):
     )
     mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
 
-    packages = manager.list_packages()
+    with patch.object(manager, "is_manager_installed", return_value=True):
+        packages = manager.list_packages()
 
     mock_run.assert_called_once_with(
         ["pip", "--python", PY_EXE, "list", "--format=json"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
     assert len(packages) == 2
     assert packages[0] == PackageDescription(name="package1", version="1.0.0")
@@ -310,6 +314,7 @@ def test_uv_list_packages(mock_run: MagicMock):
         ["uv", "pip", "list", "--format=json", "-p", PY_EXE],
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
     assert len(packages) == 2
     assert packages[0] == PackageDescription(name="package1", version="1.0.0")
@@ -402,6 +407,7 @@ def test_uv_list_packages_tree_fallback_to_pip_list(
         ["uv", "pip", "list", "--format=json", "-p", PY_EXE],
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
 
     # Should return packages from fallback method
@@ -458,3 +464,64 @@ def test_uv_is_in_uv_project_uv_project_environment_mismatch():
     """Test is_in_uv_project returns False when UV_PROJECT_ENVIRONMENT doesn't match VIRTUAL_ENV"""
     mgr = UvPackageManager()
     assert mgr.is_in_uv_project is False
+
+
+# Encoding tests for Windows compatibility
+
+
+@patch("subprocess.run")
+def test_pip_list_packages_uses_utf8_encoding(mock_run: MagicMock):
+    """Test that pip list uses UTF-8 encoding to handle non-ASCII characters"""
+    mock_output = json.dumps(
+        [
+            {"name": "package-中文", "version": "1.0.0"},
+            {"name": "пакет", "version": "2.0.0"},
+        ]
+    )
+    mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
+    mgr = PipPackageManager()
+
+    with patch.object(mgr, "is_manager_installed", return_value=True):
+        packages = mgr.list_packages()
+
+    # Verify encoding='utf-8' is passed
+    mock_run.assert_called_once()
+    call_kwargs = mock_run.call_args[1]
+    assert call_kwargs.get("encoding") == "utf-8"
+    assert call_kwargs.get("text") is True
+
+
+@patch("subprocess.run")
+def test_uv_dependency_tree_uses_utf8_encoding(mock_run: MagicMock):
+    """Test that uv tree uses UTF-8 encoding"""
+    mock_output = "test-package v1.0.0\n"
+    mock_run.return_value = MagicMock(
+        returncode=0, stdout=mock_output, stderr=""
+    )
+    mgr = UvPackageManager()
+
+    mgr.dependency_tree(filename="test.py")
+
+    # Verify encoding='utf-8' is passed
+    mock_run.assert_called_once()
+    call_kwargs = mock_run.call_args[1]
+    assert call_kwargs.get("encoding") == "utf-8"
+    assert call_kwargs.get("text") is True
+
+
+@patch("subprocess.run")
+def test_uv_pip_list_uses_utf8_encoding(mock_run: MagicMock):
+    """Test that uv pip list uses UTF-8 encoding"""
+    mock_output = json.dumps([{"name": "test-pkg", "version": "1.0.0"}])
+    mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
+    mgr = UvPackageManager()
+
+    # Mock dependency_tree to return None so it falls back to pip list
+    with patch.object(mgr, "dependency_tree", return_value=None):
+        mgr.list_packages()
+
+    # Verify encoding='utf-8' is passed
+    mock_run.assert_called_once()
+    call_kwargs = mock_run.call_args[1]
+    assert call_kwargs.get("encoding") == "utf-8"
+    assert call_kwargs.get("text") is True

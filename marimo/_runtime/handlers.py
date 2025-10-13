@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
@@ -34,7 +36,7 @@ def construct_interrupt_handler(
     return interrupt_handler
 
 
-def construct_sigterm_handler(kernel: "Kernel") -> Callable[[int, Any], None]:
+def construct_sigterm_handler(kernel: Kernel) -> Callable[[int, Any], None]:
     del kernel
 
     @dataclass

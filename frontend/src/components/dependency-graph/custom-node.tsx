@@ -1,13 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import React, { memo, use, useId } from "react";
+import React, { memo, use } from "react";
 import { Handle, Position, useStore } from "reactflow";
 import { TinyCode } from "@/components/editor/cell/TinyCode";
 import { useCellIds } from "@/core/cells/cells";
 import { displayCellName } from "@/core/cells/names";
 import { cn } from "@/utils/cn";
-import { type CustomNodeProps, getNodeHeight } from "./elements";
+import {
+  type CustomNodeProps,
+  getNodeHeight,
+  INPUTS_HANDLE_ID,
+  OUTPUTS_HANDLE_ID,
+} from "./elements";
 import type { LayoutDirection } from "./types";
 
 function getWidth(canvasWidth: number) {
@@ -37,24 +42,19 @@ export const CustomNode = memo((props: CustomNodeProps) => {
   const reactFlowWidth = useStore(({ width }) => width);
   const edgeMarkers = use(EdgeMarkerContext);
 
-  const inputOneId = useId();
-  const inputTwoId = useId();
-  const outputOneId = useId();
-  const outputTwoId = useId();
-
   const linesOfCode = cell.code.split("\n").length;
   return (
     <div>
       <Handle
         type="target"
-        id={inputOneId}
+        id={INPUTS_HANDLE_ID}
         data-testid="input-one"
         position={edgeMarkers === "LR" ? Position.Left : Position.Top}
         style={{ background: color }}
       />
       <Handle
         type="source"
-        id={inputTwoId}
+        id={INPUTS_HANDLE_ID}
         data-testid="input-two"
         position={edgeMarkers === "LR" ? Position.Left : Position.Top}
         style={{ background: color }}
@@ -76,14 +76,14 @@ export const CustomNode = memo((props: CustomNodeProps) => {
       </div>
       <Handle
         type="source"
-        id={outputOneId}
+        id={OUTPUTS_HANDLE_ID}
         data-testid="output-one"
         position={edgeMarkers === "LR" ? Position.Right : Position.Bottom}
         style={{ background: color }}
       />
       <Handle
         type="target"
-        id={outputTwoId}
+        id={OUTPUTS_HANDLE_ID}
         data-testid="output-two"
         position={edgeMarkers === "LR" ? Position.Right : Position.Bottom}
         style={{ background: color }}

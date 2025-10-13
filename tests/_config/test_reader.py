@@ -111,7 +111,7 @@ def test_read_pyproject_config_no_file(tmp_path: Path):
     assert nearest_pyproject_toml is None
 
 
-def testfind_nearest_pyproject_toml():
+def test_find_nearest_pyproject_toml():
     with tempfile.TemporaryDirectory() as temp_dir:
         parent_dir = os.path.join(temp_dir, "parent")
         os.makedirs(parent_dir)
@@ -125,9 +125,16 @@ def testfind_nearest_pyproject_toml():
         assert result == Path(pyproject_path)
 
 
-def testfind_nearest_pyproject_toml_not_found():
+def test_find_nearest_pyproject_toml_not_found():
     with tempfile.TemporaryDirectory() as temp_dir:
         result = find_nearest_pyproject_toml(temp_dir)
+        assert result is None
+
+
+def test_find_nearest_pyproject_toml_permission_error():
+    with patch("pathlib.Path.exists") as mock_exists:
+        mock_exists.side_effect = PermissionError("Permission denied")
+        result = find_nearest_pyproject_toml("/some/path")
         assert result is None
 
 

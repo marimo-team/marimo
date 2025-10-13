@@ -52,10 +52,13 @@ def find_nearest_pyproject_toml(
     """Find the nearest pyproject.toml file."""
     path = Path(start_path)
     root = path.anchor
-    while not path.joinpath("pyproject.toml").exists():
-        if str(path) == root:
-            return None
-        if path.parent == path:
-            return None
-        path = path.parent
+    try:
+        while not path.joinpath("pyproject.toml").exists():
+            if str(path) == root:
+                return None
+            if path.parent == path:
+                return None
+            path = path.parent
+    except OSError:
+        return None
     return path.joinpath("pyproject.toml")

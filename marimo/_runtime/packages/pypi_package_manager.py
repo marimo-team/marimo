@@ -39,7 +39,9 @@ class PypiPackageManager(CanonicalizingPackageManager):
     ) -> list[PackageDescription]:
         if not self.is_manager_installed():
             return []
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8"
+        )
         if proc.returncode != 0:
             return []
         try:
@@ -56,19 +58,15 @@ class PipPackageManager(PypiPackageManager):
     name = "pip"
     docs_url = "https://pip.pypa.io/"
 
-    async def _install(
-        self,
-        package: str,
-        *,
-        upgrade: bool,
-        log_callback: Optional[LogCallback] = None,
-    ) -> bool:
-        LOGGER.info(f"Installing {package} with pip")
-        cmd = ["pip", "--python", PY_EXE, "install"]
-        if upgrade:
-            cmd.append("--upgrade")
-        cmd.extend(split_packages(package))
-        return self.run(cmd, log_callback=log_callback)
+    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
+        return [
+            "pip",
+            "--python",
+            PY_EXE,
+            "install",
+            *(["--upgrade"] if upgrade else []),
+            *split_packages(package),
+        ]
 
     async def uninstall(self, package: str) -> bool:
         LOGGER.info(f"Uninstalling {package} with pip")
@@ -165,20 +163,11 @@ class UvPackageManager(PypiPackageManager):
     def is_manager_installed(self) -> bool:
         return self._uv_bin != "uv" or super().is_manager_installed()
 
-    async def _install(
-        self,
-        package: str,
-        *,
-        upgrade: bool,
-        log_callback: Optional[LogCallback] = None,
-    ) -> bool:
+    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
         install_cmd: list[str]
         if self.is_in_uv_project:
-            LOGGER.info(f"Installing in {package} with 'uv add'")
             install_cmd = [self._uv_bin, "add"]
         else:
-            LOGGER.info(f"Installing in {package} with 'uv pip install'")
-
             install_cmd = [self._uv_bin, "pip", "install"]
 
             # Allow for explicit site directory location if needed
@@ -189,10 +178,28 @@ class UvPackageManager(PypiPackageManager):
         if upgrade:
             install_cmd.append("--upgrade")
 
-        return self.run(
+        return install_cmd + [
             # trade installation time for faster start time
-            install_cmd
-            + ["--compile", *split_packages(package), "-p", PY_EXE],
+            "--compile",
+            *split_packages(package),
+            "-p",
+            PY_EXE,
+        ]
+
+    async def _install(
+        self,
+        package: str,
+        *,
+        upgrade: bool,
+        log_callback: Optional[LogCallback] = None,
+    ) -> bool:
+        """Installation logic."""
+        LOGGER.info(
+            f"Installing in {package} with 'uv {'add' if self.is_in_uv_project else 'pip install'}'"
+        )
+        return await super()._install(
+            package,
+            upgrade=upgrade,
             log_callback=log_callback,
         )
 
@@ -454,6 +461,7 @@ class UvPackageManager(PypiPackageManager):
                 tree_cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 check=True,
             )
             tree = parse_uv_tree(result.stdout)
@@ -474,21 +482,12 @@ class RyePackageManager(PypiPackageManager):
     name = "rye"
     docs_url = "https://rye.astral.sh/"
 
-    async def _install(
-        self,
-        package: str,
-        *,
-        upgrade: bool,
-        log_callback: Optional[LogCallback] = None,
-    ) -> bool:
-        if upgrade:
-            return self.run(
-                ["rye", "sync", "--update", *split_packages(package)],
-                log_callback=log_callback,
-            )
-        return self.run(
-            ["rye", "add", *split_packages(package)], log_callback=log_callback
-        )
+    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
+        return [
+            "rye",
+            *(["sync", "--update"] if upgrade else ["add"]),
+            *split_packages(package),
+        ]
 
     async def uninstall(self, package: str) -> bool:
         return self.run(
@@ -504,28 +503,13 @@ class PoetryPackageManager(PypiPackageManager):
     name = "poetry"
     docs_url = "https://python-poetry.org/docs/"
 
-    async def _install(
-        self,
-        package: str,
-        *,
-        upgrade: bool,
-        log_callback: Optional[LogCallback] = None,
-    ) -> bool:
-        if upgrade:
-            return self.run(
-                [
-                    "poetry",
-                    "update",
-                    "--no-interaction",
-                    *split_packages(package),
-                ],
-                log_callback=log_callback,
-            )
-
-        return self.run(
-            ["poetry", "add", "--no-interaction", *split_packages(package)],
-            log_callback=log_callback,
-        )
+    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
+        return [
+            "poetry",
+            "update" if upgrade else "add",
+            "--no-interaction",
+            *split_packages(package),
+        ]
 
     async def uninstall(self, package: str) -> bool:
         return self.run(
@@ -538,7 +522,9 @@ class PoetryPackageManager(PypiPackageManager):
     ) -> list[PackageDescription]:
         if not self.is_manager_installed():
             return []
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8"
+        )
         if proc.returncode != 0:
             return []
 

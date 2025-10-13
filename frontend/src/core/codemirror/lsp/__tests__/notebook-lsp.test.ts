@@ -195,35 +195,36 @@ describe("createNotebookLens", () => {
 });
 
 describe("NotebookLanguageServerClient", () => {
-  let plugins: any[] = [];
   let mockClient: Mocked<ILanguageServerClient>;
   let notebookClient: NotebookLanguageServerClient;
 
   beforeEach(() => {
-    plugins = [];
     mockClient = {
-      plugins,
       ready: true,
       capabilities: {},
       initializePromise: Promise.resolve(),
+      clientCapabilities: {},
+      completionItemResolve: vi.fn(),
       initialize: vi.fn(),
       close: vi.fn(),
-      detachPlugin: vi.fn().mockImplementation((plugin) => {
-        plugins = plugins.filter((p) => p !== plugin);
-      }),
-      attachPlugin: vi.fn().mockImplementation((plugin) => {
-        plugins.push(plugin);
-      }),
+      onNotification: vi.fn(),
       textDocumentDidOpen: vi.fn(),
       textDocumentDidChange: vi.fn(),
       textDocumentHover: vi.fn(),
       textDocumentCompletion: vi.fn(),
+      textDocumentDefinition: vi.fn(),
+      textDocumentPrepareRename: vi.fn(),
+      textDocumentCodeAction: vi.fn(),
+      textDocumentSignatureHelp: vi.fn(),
       textDocumentRename: vi.fn(),
-      processNotification: vi.fn(),
-      notify: vi.fn(),
-      request: vi.fn(),
-    } as unknown as Mocked<ILanguageServerClient>;
-    notebookClient = new NotebookLanguageServerClient(mockClient, {});
+    };
+    (mockClient as any).processNotification = vi.fn();
+    (mockClient as any).notify = vi.fn();
+    notebookClient = new NotebookLanguageServerClient(mockClient, {}, () => ({
+      [Cells.cell1]: new EditorView({ doc: "# this is a comment" }),
+      [Cells.cell2]: new EditorView({ doc: "import math\nimport numpy" }),
+      [Cells.cell3]: new EditorView({ doc: "print(math.sqrt(4))" }),
+    }));
 
     // Mock the atom instead of the instance method
     vi.spyOn(store, "get").mockImplementation((atom) => {
@@ -403,6 +404,12 @@ describe("NotebookLanguageServerClient", () => {
         ],
       });
       expect(mockView3.state.doc.toString()).toBe("print(math.sqrt(4))");
+
+      (notebookClient as any).getNotebookEditors = () => ({
+        [Cells.cell1]: mockView1,
+        [Cells.cell2]: mockView2,
+        [Cells.cell3]: mockView3,
+      });
 
       // Setup rename params
       const renameParams: LSP.RenameParams = {

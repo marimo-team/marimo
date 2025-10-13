@@ -13,18 +13,43 @@ describe("FrontendToolRegistry", () => {
 
   it("invokes a tool with valid args and validates input/output", async () => {
     const registry = new FrontendToolRegistry([new TestFrontendTool()]);
-    const ok = await registry.invoke("test_frontend_tool", { name: "Alice" });
-    expect(ok).toEqual({ message: "Hello: Alice" });
+    const response = await registry.invoke("test_frontend_tool", {
+      name: "Alice",
+    });
+
+    // Check InvokeResult wrapper
+    expect(response.tool_name).toBe("test_frontend_tool");
+    expect(response.error).toBeNull();
+
+    // Check the actual tool output
+    expect(response.result).toMatchObject({
+      status: "success",
+      data: {
+        greeting: "Hello: Alice",
+      },
+      next_steps: expect.arrayContaining([expect.any(String)]),
+    });
+
+    // Verify timestamp is present and valid
+    const output = response.result as { data: { timestamp: string } };
+    expect(output.data.timestamp).toBeDefined();
+    expect(typeof output.data.timestamp).toBe("string");
   });
 
   it("returns a structured error on invalid args", async () => {
     const registry = new FrontendToolRegistry([new TestFrontendTool()]);
-    const err = (await registry.invoke("test_frontend_tool", {})) as Record<
-      string,
-      unknown
-    >;
-    expect(err.status).toBe("error");
-    expect(err.code).toBe("TOOL_ERROR");
+    const response = await registry.invoke("test_frontend_tool", {});
+
+    // Check InvokeResult wrapper
+    expect(response.tool_name).toBe("test_frontend_tool");
+    expect(response.result).toBeNull();
+    expect(response.error).toBeDefined();
+    expect(typeof response.error).toBe("string");
+
+    // Verify error message contains expected prefix
+    expect(response.error).toContain("Error invoking tool ToolExecutionError:");
+    expect(response.error).toContain('"code":"TOOL_ERROR"');
+    expect(response.error).toContain('"is_retryable":false');
   });
 
   it("returns tool schemas with expected shape and memoizes the result", () => {

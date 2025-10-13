@@ -11,6 +11,7 @@ import pytest
 from marimo._loggers import (
     _LOG_LEVEL,
     _LOGGERS,
+    WindowsSafeRotatingFileHandler,
     get_log_directory,
     get_logger,
     make_log_directory,
@@ -115,6 +116,61 @@ def test_handler_levels():
     set_level(logging.DEBUG)
     assert stream_handler.level == logging.DEBUG
     assert file_handler.level == logging.DEBUG
+
+
+def test_windows_safe_handler(tmp_path: Path):
+    """Test that WindowsSafeRotatingFileHandler handles rotation gracefully."""
+    log_file = tmp_path / "test.log"
+
+    # Create handler
+    handler = WindowsSafeRotatingFileHandler(
+        log_file,
+        when="S",  # Rotate every second for testing
+        interval=1,
+        backupCount=3,
+        encoding="utf-8",
+    )
+
+    # Write some logs
+    logger = logging.getLogger("test_windows")
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
+    logger.info("Test message 1")
+    logger.info("Test message 2")
+
+    # Test that doRollover doesn't crash even with PermissionError
+    try:
+        handler.doRollover()
+        # Should succeed or gracefully handle errors
+        assert True
+    except PermissionError:
+        # Should not raise PermissionError
+        pytest.fail("WindowsSafeRotatingFileHandler raised PermissionError")
+    finally:
+        handler.close()
+        logger.removeHandler(handler)
+
+
+def test_file_handler_uses_windows_safe_on_windows(tmp_path: Path):
+    """Test that _file_handler uses WindowsSafeRotatingFileHandler on Windows."""
+    from marimo._loggers import _file_handler
+
+    # Test on Windows
+    with patch("sys.platform", "win32"):
+        with patch("marimo._loggers.get_log_directory", return_value=tmp_path):
+            handler = _file_handler()
+            assert isinstance(handler, WindowsSafeRotatingFileHandler)
+            handler.close()
+
+    # Test on non-Windows
+    with patch("sys.platform", "linux"):
+        with patch("marimo._loggers.get_log_directory", return_value=tmp_path):
+            handler = _file_handler()
+            assert isinstance(handler, TimedRotatingFileHandler)
+            # Should not be the Windows-safe subclass on non-Windows
+            assert not isinstance(handler, WindowsSafeRotatingFileHandler)
+            handler.close()
 
 
 @pytest.fixture(autouse=True)

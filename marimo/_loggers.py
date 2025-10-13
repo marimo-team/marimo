@@ -41,6 +41,35 @@ _LOG_FORMATTER = LogFormatter()
 _LOGGERS: dict[str, logging.Logger] = {}
 
 
+class WindowsSafeRotatingFileHandler(TimedRotatingFileHandler):
+    """
+    A Windows-compatible rotating file handler that closes the file
+    before rotation to avoid PermissionError on Windows.
+
+    On Windows, TimedRotatingFileHandler.doRollover() can fail with
+    PermissionError when attempting to rename a file that's still open
+    by another process or handler.
+    """
+
+    def doRollover(self) -> None:
+        """
+        Override doRollover to close the stream before rotation on Windows.
+        """
+        if self.stream:
+            self.stream.close()
+            self.stream = None  # type: ignore[assignment]
+        try:
+            super().doRollover()
+        except PermissionError:
+            # If rotation fails, log the error but don't crash
+            # The log file will continue to grow until the lock is released
+            pass
+        finally:
+            # Reopen the stream
+            if self.stream is None:
+                self.stream = self._open()
+
+
 def log_level_string_to_int(level: str) -> int:
     level = level.upper()
     if level == "DEBUG":
@@ -160,10 +189,19 @@ def make_log_directory() -> None:
 
 
 def _file_handler() -> logging.FileHandler:
+    from marimo._utils.platform import is_windows
+
     make_log_directory()
 
+    # Use Windows-safe handler on Windows to avoid PermissionError during rotation
+    handler_class = (
+        WindowsSafeRotatingFileHandler
+        if is_windows()
+        else TimedRotatingFileHandler
+    )
+
     # We log to the same file daily, and keep the last 7 days of logs
-    file_handler = TimedRotatingFileHandler(
+    file_handler = handler_class(
         get_log_directory() / "marimo.log",
         when="D",
         interval=1,

@@ -1,6 +1,8 @@
 # Copyright 2025 Marimo. All rights reserved.
 """AST visitors for linting purposes."""
 
+from __future__ import annotations
+
 import ast
 from typing import Optional
 

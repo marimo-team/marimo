@@ -56,7 +56,16 @@ class PackageManager(abc.ABC):
         )
         return False
 
-    @abc.abstractmethod
+    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
+        """
+        Get the shell command to install a package (where applicable).
+
+        Used by the _install method. If not applicable (for example, with micropip),
+        override the _install method instead.
+        """
+        # PackageManager's may not implement this method if they override _install
+        raise NotImplementedError
+
     async def _install(
         self,
         package: str,
@@ -65,7 +74,10 @@ class PackageManager(abc.ABC):
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         """Installation logic."""
-        ...
+        return self.run(
+            self.install_command(package, upgrade=upgrade),
+            log_callback=log_callback,
+        )
 
     async def install(
         self,

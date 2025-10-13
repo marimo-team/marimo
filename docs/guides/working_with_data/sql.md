@@ -141,7 +141,7 @@ You can also check out our [examples on GitHub](https://github.com/marimo-team/m
 
 ## Escaping SQL brackets
 
-Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which allows for parameterized SQL like which allows for parameterized SQL like `SELECT * from table where value < {min}`.
+Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which allows for parameterized SQL like `SELECT * from table where value < {min}`.
 
 To escape real `{`/`}` that you don't want parameterized, use double `{{...}}`:
 
