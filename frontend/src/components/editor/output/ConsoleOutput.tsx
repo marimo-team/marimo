@@ -19,7 +19,7 @@ import { invariant } from "@/utils/invariant";
 import { Strings } from "@/utils/strings";
 import { NameCellContentEditable } from "../actions/name-cell-input";
 import { ErrorBoundary } from "../boundary/ErrorBoundary";
-import { OutputRenderer } from "../Output";
+import { type OnRefactorWithAI, OutputRenderer } from "../Output";
 import { useWrapText } from "./useWrapText";
 
 const ansiUp = new AnsiUp();
@@ -31,7 +31,7 @@ interface Props {
   consoleOutputs: WithResponse<OutputMessage>[];
   stale: boolean;
   debuggerActive: boolean;
-  onRefactorWithAI?: (opts: { prompt: string }) => void;
+  onRefactorWithAI?: OnRefactorWithAI;
   onClear?: () => void;
   onSubmitDebugger: (text: string, index: number) => void;
 }

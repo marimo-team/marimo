@@ -86,7 +86,7 @@ import {
   useTemporarilyShownCode,
   useTemporarilyShownCodeActions,
 } from "./navigation/state";
-import { OutputArea } from "./Output";
+import { type OnRefactorWithAI, OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
 
@@ -532,9 +532,15 @@ const EditableCellComponent = ({
       isMarkdownCodeHidden && hasOutput && !navigationProps["data-selected"],
   });
 
-  const handleRefactorWithAI = useEvent((opts: { prompt: string }) => {
-    setAiCompletionCell({ cellId, initialPrompt: opts.prompt });
-  });
+  const handleRefactorWithAI: OnRefactorWithAI = useEvent(
+    (opts: { prompt: string; triggerImmediately: boolean }) => {
+      setAiCompletionCell({
+        cellId,
+        initialPrompt: opts.prompt,
+        triggerImmediately: opts.triggerImmediately,
+      });
+    },
+  );
 
   // TODO(akshayka): Move to our own Tooltip component once it's easier
   // to get the tooltip to show next to the cursor ...
@@ -1027,9 +1033,15 @@ const SetupCellComponent = ({
     },
   );
 
-  const handleRefactorWithAI = useEvent((opts: { prompt: string }) => {
-    setAiCompletionCell({ cellId, initialPrompt: opts.prompt });
-  });
+  const handleRefactorWithAI: OnRefactorWithAI = useEvent(
+    (opts: { prompt: string; triggerImmediately: boolean }) => {
+      setAiCompletionCell({
+        cellId,
+        initialPrompt: opts.prompt,
+        triggerImmediately: opts.triggerImmediately,
+      });
+    },
+  );
 
   // TODO(akshayka): Move to our own Tooltip component once it's easier
   // to get the tooltip to show next to the cursor ...

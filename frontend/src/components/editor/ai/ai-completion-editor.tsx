@@ -3,7 +3,7 @@
 import { useCompletion } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
 import { AtSignIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
-import React, { useEffect, useId, useState } from "react";
+import React, { useCallback, useEffect, useId, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { Button } from "@/components/ui/button";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
@@ -23,7 +23,6 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { selectAllText } from "@/core/codemirror/utils";
 import { useRuntimeManager } from "@/core/runtime/config";
-import { useEvent } from "@/hooks/useEvent";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
@@ -127,11 +126,12 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
   const completion = untrimmedCompletion.trimEnd();
 
-  const initialSubmit = useEvent(() => {
+  const initialSubmit = useCallback(() => {
     if (triggerImmediately && !isLoading && initialPrompt) {
       handleSubmit();
     }
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triggerImmediately]);
 
   // Focus the input
   useEffect(() => {
