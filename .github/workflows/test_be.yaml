@@ -132,7 +132,7 @@ jobs:
 
       # Test with optional dependencies
       - name: Test changed with optional dependencies
-        if: ${{ matrix.dependencies == 'core,optional' && matrix.python-version != '3.13' }}
+        if: ${{ matrix.dependencies == 'core,optional' }}
         # Include all tests on 3.13 or main
         run: |
           INCLUDE_UNCHANGED=${{ matrix.python-version == '3.13' }} || ${{ github.ref == 'refs/heads/main' }}
