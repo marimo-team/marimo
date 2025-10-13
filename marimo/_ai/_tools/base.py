@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import inspect
-import re
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, is_dataclass
 from typing import (
@@ -28,10 +27,9 @@ from marimo._server.ai.tools.types import (
 from marimo._server.api.deps import AppStateBase
 from marimo._server.sessions import Session, SessionManager
 from marimo._types.ids import SessionId
+from marimo._utils.case import to_snake_case
 from marimo._utils.dataclass_to_openapi import PythonTypeToOpenAPI
 from marimo._utils.parse_dataclass import parse_raw
-from marimo._utils.case import to_snake_case
-
 
 LOGGER = _loggers.marimo_logger()
 
