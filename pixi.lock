@@ -1101,7 +1101,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.16.5
-  sha256: 5558c60bca6ce981e35b3b1a108f3e8f289b0e9df1a04a4020be1edfc92f795b
+  sha256: b8561aba1c9a637dab6d94e436aaa8372325a3bef25d0b796efff990a60d4b66
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1113,7 +1113,7 @@ packages:
   - uvicorn>=0.22.0,<0.36.0
   - starlette>=0.35.0,!=0.36.0
   - websockets>=14.2.0
-  - loro>=1.5.0 ; python_full_version >= '3.11'
+  - loro>=1.5.0 ; python_full_version >= '3.11' and python_full_version < '3.14'
   - typing-extensions>=4.4.0 ; python_full_version < '3.11'
   - docutils>=0.16.0
   - psutil>=5.0
