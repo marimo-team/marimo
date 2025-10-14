@@ -251,6 +251,13 @@ def pytest_configure(config: pytest.Config) -> None:
     # Store the test files in config for collection hook
     config.option.changed_test_files = test_files
 
+    if test_files:
+        # Convert to relative paths for cleaner output
+        test_paths = [
+            str(f.relative_to(repo_root)) for f in sorted(test_files)
+        ]
+        config.args[:] = test_paths
+
 
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
