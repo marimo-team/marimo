@@ -24,9 +24,7 @@ export function jsonParseWithSpecialChar<T = unknown>(
   // This regex handling is expensive and often not needed.
   // We try to parse with JSON.parse first, and if that fails, we use the regex.
   try {
-    return JSON.parse(value, (_key, value) => {
-      return sanitizeBigInt(value);
-    }) as T;
+    return JSON.parse(value, (_key, value) => sanitizeBigInt(value)) as T;
   } catch {
     // Do nothing
   }
@@ -78,12 +76,15 @@ export function jsonToTSV(json: Record<string, unknown>[]) {
   return `${keys.join("\t")}\n${values.join("\n")}`;
 }
 
-export function sanitizeBigInt(value: unknown): unknown {
-  if (typeof value === "string" && value.endsWith("n")) {
-    const num = value.slice(0, -1);
-    if (/^-?\d+$/.test(num)) {
-      return BigInt(num);
-    }
+/** Adapted from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt#use_within_json */
+function sanitizeBigInt(value: unknown): unknown {
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    "$bigint" in value &&
+    typeof value.$bigint === "string"
+  ) {
+    return BigInt(value.$bigint);
   }
   return value;
 }

@@ -218,6 +218,29 @@ describe("getCopyValue", () => {
     `,
     );
   });
+
+  it("should handle bigint", () => {
+    const bigint = 2 ** 64;
+    const value = `text/plain+bigint:${bigint}`;
+    const result = getCopyValue(value);
+    expect(result).toMatchInlineSnapshot(`"${bigint}"`);
+
+    const nestedBigInt = {
+      key1: bigint,
+      key2: `text/plain+bigint:${bigint}`,
+      key3: true,
+    };
+    const nestedResult = getCopyValue(nestedBigInt);
+    expect(nestedResult).toMatchInlineSnapshot(
+      `
+      "{
+        "key1": ${bigint},
+        "key2": ${bigint},
+        "key3": True
+      }"
+      `,
+    );
+  });
 });
 
 describe("determineMaxDisplayLength", () => {

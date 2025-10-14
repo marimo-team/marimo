@@ -204,7 +204,7 @@ def sanitize_json_bigint(
     """
     from json import dumps, loads
 
-    BIGINT_SUFFIX = "n"
+    BIGINT_KEY = "$bigint"
 
     def convert_key(key: Any) -> Any:
         # Keys must be str, int, float, bool, or None
@@ -220,9 +220,9 @@ def sanitize_json_bigint(
         elif isinstance(obj, list):
             return [convert_bigint(item) for item in obj]  # type: ignore
         elif isinstance(obj, int) and is_bigint(obj):
-            # If the value is outside the safe integer range, convert it to a string with "n" at the end
-            # Frontend will convert the string back to an integer.
-            return str(obj) + BIGINT_SUFFIX
+            # If the value is outside the safe integer range, convert it to an object with a $bigint key
+            # Frontend will convert the object back to an integer.
+            return {BIGINT_KEY: str(obj)}
         else:
             return obj
 

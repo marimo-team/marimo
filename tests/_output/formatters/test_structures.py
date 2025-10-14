@@ -86,13 +86,15 @@ def test_format_structure_simple() -> None:
 def test_format_structure_nested() -> None:
     StructuresFormatter().register()
 
+    bigint = 2**64
+
     nested_structure = {
         "a": [1, 2, {"b": 3, "c": True}],
-        "d": (4, 5, False, 1.0),
+        "d": (4, 5, False, 1.0, bigint),
     }
     assert get_and_format(nested_structure) == (
         "application/json",
-        '{"a": [1, 2, {"b": 3, "c": true}], "d": [4, 5, false, "text/plain+float:1.0"]}',
+        f'{{"a": [1, 2, {{"b": 3, "c": true}}], "d": [4, 5, false, "text/plain+float:1.0", "text/plain+bigint:{bigint}"]}}',
     )
 
 
@@ -224,6 +226,11 @@ def test_format_structure_subclasses_with_different_built_in_repr() -> None:
 def test_format_structure_set() -> None:
     test_set = {1, 2, 3}
     assert format_structure([test_set]) == (["text/plain+set:{1, 2, 3}"])
+
+
+def test_format_structure_bigint() -> None:
+    bigint = 2**64
+    assert format_structure([bigint]) == ([f"text/plain+bigint:{bigint}"])
 
 
 def test_format_structure_tuple() -> None:
