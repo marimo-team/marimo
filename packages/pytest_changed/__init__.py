@@ -97,6 +97,8 @@ def get_dependency_graph(
         result = subprocess.run(
             [
                 "uvx",
+                # uv notes `analyze graph` is experimental,
+                # so we fix the ruff version for now
                 "ruff@0.13.2",
                 "analyze",
                 "graph",
