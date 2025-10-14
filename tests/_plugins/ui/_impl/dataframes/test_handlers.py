@@ -9,7 +9,7 @@ import pytest
 
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     TransformsContainer,
-    _apply_transforms,
+    apply_transforms_to_df,
 )
 from marimo._plugins.ui._impl.dataframes.transforms.handlers import (
     NarwhalsTransformHandler,
@@ -43,19 +43,7 @@ pytest.importorskip("pyarrow")
 
 
 def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
-    """Apply a transform to a dataframe using NarwhalsTransformHandler."""
-    nw_df = nw.from_native(df)
-    was_lazy = is_narwhals_lazyframe(nw_df)
-    nw_df = nw_df.lazy()
-
-    result_nw = _apply_transforms(
-        nw_df,
-        NarwhalsTransformHandler(),
-        Transformations(transforms=[transform]),
-    )
-    if was_lazy:
-        return result_nw.to_native()
-    return result_nw.collect().to_native()
+    return apply_transforms_to_df(df, transform)
 
 
 def create_test_dataframes(

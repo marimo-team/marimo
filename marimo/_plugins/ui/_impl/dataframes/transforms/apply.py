@@ -14,7 +14,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
 )
 from marimo._utils.assert_never import assert_never
-from marimo._utils.narwhals_utils import can_narwhalify
+from marimo._utils.narwhals_utils import can_narwhalify, is_narwhals_lazyframe
 
 T = TypeVar("T")
 
@@ -50,6 +50,33 @@ def _handle(df: T, handler: TransformHandler[T], transform: Transform) -> T:
     if transform.type is TransformType.UNIQUE:
         return handler.handle_unique(df, transform)
     assert_never(transform.type)
+
+
+def apply_transforms_to_df(
+    df: DataFrameType, transform: Transform
+) -> DataFrameType:
+    """Apply a transform to a dataframe using NarwhalsTransformHandler."""
+    if not can_narwhalify(df):
+        raise ValueError(
+            f"Unsupported dataframe type. Must be Pandas, Polars, Ibis, Pyarrow, or DuckDB. Got: {type(df)}"
+        )
+
+    import narwhals.stable.v2 as nw
+
+    nw_df = nw.from_native(df)
+    was_lazy = is_narwhals_lazyframe(nw_df)
+    nw_df = nw_df.lazy()
+
+    result_nw = _apply_transforms(
+        nw_df,
+        NarwhalsTransformHandler(),
+        Transformations(transforms=[transform]),
+    )
+
+    if was_lazy:
+        return result_nw.to_native()
+
+    return result_nw.collect().to_native()
 
 
 def _apply_transforms(

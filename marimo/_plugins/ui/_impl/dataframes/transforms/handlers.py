@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import narwhals.stable.v2 as nw
 from narwhals.stable.v2 import col
@@ -189,7 +189,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         if transform.operation == "keep_rows":
             result = df.filter(filter_expr)
         elif transform.operation == "remove_rows":
-            result = df.filter(~filter_expr)
+            result = df.filter(~filter_expr)  # type: ignore[operator]
         else:
             assert_never(transform.operation)
 
@@ -344,22 +344,3 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 # In case it is not a SQL backend
                 return None
         return None
-
-
-def _coerce_value(dtype: Any, value: Any) -> Any:
-    """Coerce value to match column dtype while preserving numeric precision."""
-    import numpy as np
-
-    # Handle None/empty values
-    if value is None:
-        return None
-
-    # If its a int or float, return as is
-    if isinstance(value, (int, float)):
-        return value
-
-    # Default coercion for other cases
-    try:
-        return np.array([value]).astype(dtype)[0]
-    except Exception:
-        return value

@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def dtm() -> None:
+def dtm() -> DefaultTableManager:
     return DefaultTableManager([])
 
 
@@ -584,13 +584,6 @@ def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
     ]
 
 
-@pytest.mark.parametrize(
-    "df", create_dataframes({"a": [1, 2, 3]}, include=["ibis"])
-)
-def test_value_with_cell_selection_unsupported_for_ibis(df: Any) -> None:
-    _table = ui.table(df, selection="multi-cell")
-
-
 def test_search_sort_nonexistent_columns() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)
@@ -924,23 +917,25 @@ def test_get_column_summaries_after_search() -> None:
     assert summaries.stats["a"].max is None
 
 
-@pytest.mark.skipif(
-    not DependencyManager.pandas.has(), reason="Pandas not installed"
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"a": list(range(20))}, exclude=NON_EAGER_LIBS),
 )
-def test_get_column_summaries_after_search_df() -> None:
-    import pandas as pd
-
-    table = ui.table(pd.DataFrame({"a": list(range(20))}))
+def test_get_column_summaries_after_search_df(df: Any) -> None:
+    table = ui.table(df)
     summaries = table._get_column_summaries(
         ColumnSummariesArgs(precompute=False)
     )
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
-    assert summaries.data.startswith(
-        "data:text/plain;base64,"
-    ) or summaries.data.startswith(
-        "data:application/vnd.apache.arrow.file;base64,"
-    )
+    # Different dataframe types return different formats
+    FORMATS = [
+        "data:text/plain;base64,",  # arrow format for polars
+        "data:application/vnd.apache.arrow.file;base64,",
+        "data:text/csv;base64,",
+    ]
+
+    assert any(summaries.data.startswith(fmt) for fmt in FORMATS)
     assert summaries.stats["a"].min == 0
     assert summaries.stats["a"].max == 19
 
@@ -957,12 +952,7 @@ def test_get_column_summaries_after_search_df() -> None:
     )
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
-    # Result is csv
-    assert summaries.data.startswith(
-        "data:text/csv;base64,"
-    ) or summaries.data.startswith(
-        "data:application/vnd.apache.arrow.file;base64,"
-    )
+    assert any(summaries.data.startswith(fmt) for fmt in FORMATS)
     # We don't have column summaries for non-dataframe data
     assert summaries.stats["a"].min == 2
     assert summaries.stats["a"].max == 12
@@ -1024,14 +1014,11 @@ def test_show_column_summaries_modes():
 
 
 class TestTableBinValues:
-    @pytest.mark.skipif(
-        not DependencyManager.pandas.has(), reason="Pandas not installed"
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes({"a": [None] * 20}, exclude=["duckdb"]),
     )
-    def test_bin_values_all_nulls(self) -> None:
-        import pandas as pd
-
-        data = {"a": [None] * 20}
-        df = pd.DataFrame(data)
+    def test_bin_values_all_nulls(self, df: Any) -> None:
         table = ui.table(df)
         summaries = table._get_column_summaries(
             ColumnSummariesArgs(precompute=True)
@@ -1105,13 +1092,12 @@ def test_table_with_frozen_columns() -> None:
     assert table._component_args["freeze-columns-right"] == ["d", "e"]
 
 
-@pytest.mark.skipif(
-    not DependencyManager.pandas.has(), reason="Pandas not installed"
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"a": [1, 2, 3], "b": ["abc", "def", None]}),
 )
-def test_table_with_filtered_columns_pandas() -> None:
-    import pandas as pd
-
-    table = ui.table(pd.DataFrame({"a": [1, 2, 3], "b": ["abc", "def", None]}))
+def test_table_with_filtered_columns(df: Any) -> None:
+    table = ui.table(df)
     result = table._search(
         SearchTableArgs(
             filters=[Condition(column_id="b", operator="contains", value="f")],
@@ -1119,24 +1105,6 @@ def test_table_with_filtered_columns_pandas() -> None:
             page_number=0,
         )
     )
-    assert result.total_rows == 1
-
-
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="Polars not installed"
-)
-def test_table_with_filtered_columns_polars() -> None:
-    import polars as pl
-
-    table = ui.table(pl.DataFrame({"a": [1, 2, 3], "b": ["abc", "def", None]}))
-    result = table._search(
-        SearchTableArgs(
-            filters=[Condition(column_id="b", operator="contains", value="a")],
-            page_size=10,
-            page_number=0,
-        )
-    )
-
     assert result.total_rows == 1
 
 
@@ -1177,7 +1145,7 @@ def test_data_with_rich_components():
             "a": [1, 2],
             "b": [ui.text("foo"), ui.slider(start=0, stop=10)],
         },
-        include=["polars", "pandas"],
+        exclude=["pyarrow", "ibis"],
     ),
 )
 def test_data_with_rich_components_in_data_frames(df: Any) -> None:
@@ -1213,114 +1181,106 @@ def test_show_column_summaries_disabled():
     assert len(summaries.stats) == 0
 
 
-@pytest.mark.skipif(
-    not DependencyManager.pandas.has(), reason="Pandas not installed"
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": [1, 2, 3], "b": [4, 5, 6]},
+    ),
 )
-def test_show_download():
-    import pandas as pd
-
-    data = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
-    table_default = ui.table(data)
+def test_show_download(df: Any) -> None:
+    table_default = ui.table(df)
     assert table_default._component_args["show-download"] is True
 
-    table_true = ui.table(data, show_download=True)
+    table_true = ui.table(df, show_download=True)
     assert table_true._component_args["show-download"] is True
 
-    table_false = ui.table(data, show_download=False)
+    table_false = ui.table(df, show_download=False)
     assert table_false._component_args["show-download"] is False
 
 
 DOWNLOAD_FORMATS = ["csv", "json", "parquet"]
 
 
-@pytest.mark.skipif(
-    not DependencyManager.pandas.has(), reason="Pandas not installed"
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"cities": ["Newark", "New York", "Los Angeles"]},
+        exclude=NON_EAGER_LIBS,
+    ),
 )
-def test_download_as_pandas() -> None:
-    """Test downloading table data as different formats with pandas DataFrame."""
-    import pandas as pd
-    from pandas.testing import assert_frame_equal
+def test_download_as(df: Any) -> None:
+    """Test downloading table data as different formats with DataFrames."""
+    import io
 
-    data = pd.DataFrame({"cities": ["Newark", "New York", "Los Angeles"]})
-    table = ui.table(data)
+    import narwhals as nw
+
+    nw_df = nw.from_native(df)
+    table = ui.table(df)
 
     def download_and_convert(
         format_type: str, table_instance: ui.table
-    ) -> pd.DataFrame:
-        """Helper to download and convert table data to DataFrame."""
-        download_str = table_instance._download_as(
-            DownloadAsArgs(format=format_type)
-        )
-        return _convert_data_bytes_to_pandas_df(download_str, format_type)
-
-    # Test base downloads (full data)
-    for format_type in DOWNLOAD_FORMATS:
-        downloaded_df = download_and_convert(format_type, table)
-        assert_frame_equal(data, downloaded_df)
-
-    # Test downloads with search filter
-    table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
-    for format_type in DOWNLOAD_FORMATS:
-        filtered_df = download_and_convert(format_type, table)
-        assert len(filtered_df) == 2
-        assert all(filtered_df["cities"].isin(["Newark", "New York"]))
-
-    # Test downloads with row selection (includes search from before)
-    table._convert_value(["1"])  # select one row of the filtered view
-    for format_type in DOWNLOAD_FORMATS:
-        selected_df = download_and_convert(format_type, table)
-        # For row selection, selection is respected (single row)
-        assert len(selected_df) == 1
-        assert selected_df["cities"].iloc[0] == "New York"
-
-
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="Polars not installed"
-)
-def test_download_as_polars() -> None:
-    """Test downloading table data as different formats with polars DataFrame."""
-    import polars as pl
-    from polars.testing import assert_frame_equal
-
-    data = pl.DataFrame({"cities": ["Newark", "New York", "Los Angeles"]})
-    table = ui.table(data)
-
-    def download_and_convert(
-        format_type: str, table_instance: ui.table
-    ) -> pl.DataFrame:
+    ) -> Any:
         """Helper to download and convert table data to DataFrame."""
         download_str = table_instance._download_as(
             DownloadAsArgs(format=format_type)
         )
         data_bytes = from_data_uri(download_str)[1]
+        buffer = io.BytesIO(data_bytes)
 
+        # Convert back to native format using narwhals
         if format_type == "json":
-            return pl.read_json(data_bytes)
-        if format_type == "parquet":
-            return pl.read_parquet(data_bytes)
-        if format_type == "csv":
-            return pl.read_csv(data_bytes)
+            if DependencyManager.pandas.has():
+                import pandas as pd
+
+                return pd.read_json(buffer)
+            elif DependencyManager.polars.has():
+                import polars as pl
+
+                return pl.read_json(buffer)
+        elif format_type == "parquet":
+            if DependencyManager.pandas.has():
+                import pandas as pd
+
+                return pd.read_parquet(buffer)
+            elif DependencyManager.polars.has():
+                import polars as pl
+
+                return pl.read_parquet(buffer)
+        elif format_type == "csv":
+            if DependencyManager.pandas.has():
+                import pandas as pd
+
+                return pd.read_csv(buffer)
+            elif DependencyManager.polars.has():
+                import polars as pl
+
+                return pl.read_csv(buffer)
         raise ValueError(f"Unsupported format: {format_type}")
 
     # Test base downloads (full data)
     for format_type in DOWNLOAD_FORMATS:
         downloaded_df = download_and_convert(format_type, table)
-        assert_frame_equal(data, downloaded_df)
+        downloaded_nw = nw.from_native(downloaded_df)
+        assert len(downloaded_nw) == len(nw_df)
+        assert downloaded_nw["cities"].to_list() == nw_df["cities"].to_list()
 
     # Test downloads with search filter
     table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
     for format_type in DOWNLOAD_FORMATS:
         filtered_df = download_and_convert(format_type, table)
-        assert len(filtered_df) == 2
-        assert all(filtered_df["cities"].is_in(["Newark", "New York"]))
+        filtered_nw = nw.from_native(filtered_df)
+        assert len(filtered_nw) == 2
+        cities = filtered_nw["cities"].to_list()
+        assert all(city in ["Newark", "New York"] for city in cities)
 
     # Test downloads with row selection (includes search from before)
     table._convert_value(["1"])  # select one row of the filtered view
     for format_type in DOWNLOAD_FORMATS:
         selected_df = download_and_convert(format_type, table)
+        selected_nw = nw.from_native(selected_df)
         # For row selection, selection is respected (single row)
-        assert len(selected_df) == 1
-        assert selected_df["cities"][0] == "New York"
+        assert len(selected_nw) == 1
+        assert selected_nw["cities"][0] == "New York"
 
 
 def test_download_as_ignores_cell_selection() -> None:
@@ -1350,18 +1310,18 @@ def test_download_as_for_supported_cell_selection() -> None:
         table._download_as(DownloadAsArgs(format="csv"))
 
 
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(),
-    reason="Polars not installed",
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": [1, 2, 3], "b": ["x", "y", "z"]},
+        exclude=NON_EAGER_LIBS,
+    ),
 )
 @pytest.mark.parametrize(
     "fmt",
     ["csv", "json", "parquet"],
 )
-def test_download_as_for_dataframes(fmt: str) -> None:
-    import polars as pl
-
-    df = pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+def test_download_as_for_dataframes(df: Any, fmt: str) -> None:
     table = ui.table(df)
     table._download_as(DownloadAsArgs(format=fmt))
 
@@ -1542,14 +1502,16 @@ def test_column_clamping_with_single_column():
     assert table._component_args["field-types"] is None
 
 
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="Polars not installed"
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {f"col{i}": [1, 2, 3] for i in range(60)},
+        exclude=NON_EAGER_LIBS
+        + ["pyarrow"],  # pyarrow doesn't have field-types
+    ),
 )
-def test_column_clamping_with_polars():
-    import polars as pl
-
-    data = pl.DataFrame({f"col{i}": [1, 2, 3] for i in range(60)})
-    table = ui.table(data)
+def test_column_clamping_with_dataframes(df: Any):
+    table = ui.table(df)
 
     # Check that the table is clamped
     assert len(table._manager.get_column_names()) == 60
@@ -1561,7 +1523,7 @@ def test_column_clamping_with_polars():
     # Field types are not clamped
     assert len(table._component_args["field-types"]) == 60
 
-    table = ui.table(data, max_columns=40)
+    table = ui.table(df, max_columns=40)
 
     # Check that the table is clamped
     assert len(table._manager.get_column_names()) == 60
@@ -1573,7 +1535,7 @@ def test_column_clamping_with_polars():
     # Field types aren't clamped
     assert len(table._component_args["field-types"]) == 60
 
-    table = ui.table(data, max_columns=None)
+    table = ui.table(df, max_columns=None)
 
     # Check that the table is not clamped
     assert len(table._manager.get_column_names()) == 60
@@ -1698,18 +1660,27 @@ def test_cell_style_edge_cases():
     }
 
 
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="Polars not installed"
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "column_0": [
+                "apples",
+                "apples",
+                "bananas",
+                "bananas",
+                "carrots",
+                "carrots",
+            ]
+        },
+        exclude=NON_EAGER_LIBS,
+    ),
 )
-def test_cell_search_df_styles():
+def test_cell_search_df_styles(df: Any):
     def always_green(_row, _col, _value):
         return {"backgroundColor": "green"}
 
-    import polars as pl
-
-    data = ["apples", "apples", "bananas", "bananas", "carrots", "carrots"]
-
-    table = ui.table(pl.DataFrame(data), style_cell=always_green)
+    table = ui.table(df, style_cell=always_green)
     page = table._search(
         SearchTableArgs(page_size=2, page_number=0, query="carrot")
     )
@@ -1719,18 +1690,28 @@ def test_cell_search_df_styles():
     }
 
 
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="Polars not installed"
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "column_0": [
+                "apples",
+                "apples",
+                "bananas",
+                "bananas",
+                "carrots",
+                "carrots",
+            ]
+        },
+        exclude=NON_EAGER_LIBS,
+    ),
 )
 @pytest.mark.xfail(reason="Sorted rows are not supported for styling yet")
-def test_cell_search_df_styles_sorted():
+def test_cell_search_df_styles_sorted(df: Any):
     def always_green(_row, _col, _value):
         return {"backgroundColor": "green"}
 
-    import polars as pl
-
-    data = ["apples", "apples", "bananas", "bananas", "carrots", "carrots"]
-    table = ui.table(pl.DataFrame(data), style_cell=always_green)
+    table = ui.table(df, style_cell=always_green)
     page = table._search(
         SearchTableArgs(
             page_size=2,
@@ -1794,27 +1775,26 @@ def test_json_multi_col_idx_table() -> None:
     ]
 
 
+LAZY_DATAFRAMES = ["lazy-polars", "duckdb", "ibis"]
+
+
 # Test for lazy dataframes
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(),
-    reason="Polars not installed",
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"col1": range(1000), "col2": [f"value_{i}" for i in range(1000)]},
+        include=LAZY_DATAFRAMES,
+    ),
 )
-def test_lazy_dataframe() -> None:
+def test_lazy_dataframe(df: Any) -> None:
     import warnings
 
     # Capture warnings that might be raised during lazy dataframe operations
     with warnings.catch_warnings(record=True) as recorded_warnings:
-        import polars as pl
-
         num_rows = 21
 
-        # Create a large dataframe that would trigger lazy loading
-        large_df = pl.LazyFrame(
-            {"col1": range(1000), "col2": [f"value_{i}" for i in range(1000)]}
-        )
-
         # Create table with _internal_lazy=True to simulate lazy loading
-        table = ui.table.lazy(large_df, page_size=num_rows)
+        table = ui.table.lazy(df, page_size=num_rows)
 
         # Verify the lazy flag is set
         assert table._lazy is True
@@ -1855,17 +1835,14 @@ def test_lazy_dataframe() -> None:
     assert value is None
 
 
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(),
-    reason="Polars not installed",
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"col1": range(1000), "col2": [f"value_{i}" for i in range(1000)]},
+        exclude=LAZY_DATAFRAMES,
+    ),
 )
-def test_lazy_dataframe_with_non_lazy_dataframe():
-    import polars as pl
-
-    # Create a Polars LazyFrame
-    df = pl.DataFrame(
-        {"col1": range(1000), "col2": [f"value_{i}" for i in range(1000)]}
-    )
+def test_lazy_dataframe_with_non_lazy_dataframe(df: Any):
     with pytest.raises(ValueError):
         table = ui.table.lazy(df)
 
@@ -2049,16 +2026,15 @@ def test_max_columns_not_provided_with_sort():
     assert len(result_data[0].keys()) == 100
 
 
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(),
-    reason="Pandas not installed",
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {f"col{i}": [1, 2, 3] for i in range(100)},
+    ),
 )
-def test_max_columns_not_provided_with_filters():
+def test_max_columns_not_provided_with_filters(df: Any):
     # Create data with many columns
-    import polars as pl
-
-    data = pl.DataFrame({f"col{i}": [1, 2, 3] for i in range(100)})
-    table = ui.table(data)
+    table = ui.table(df, selection=None)
 
     # Test filters with default max_columns
     search_args = SearchTableArgs(
@@ -2069,7 +2045,8 @@ def test_max_columns_not_provided_with_filters():
     )
     response = table._search(search_args)
     result_data = json.loads(response.data)
-    assert len(result_data[0].keys()) == 50
+    # Pandas has an index column (empty string), others don't
+    assert len(result_data[0].keys()) in (50, 51)
 
     # Test filters with explicit max_columns
     search_args = SearchTableArgs(
@@ -2080,7 +2057,8 @@ def test_max_columns_not_provided_with_filters():
     )
     response = table._search(search_args)
     result_data = json.loads(response.data)
-    assert len(result_data[0].keys()) == 20
+    # Pandas has an index column (empty string), others don't
+    assert len(result_data[0].keys()) in (20, 21)
 
     # Test filters with max_columns=None
     search_args = SearchTableArgs(
@@ -2091,18 +2069,20 @@ def test_max_columns_not_provided_with_filters():
     )
     response = table._search(search_args)
     result_data = json.loads(response.data)
-    assert len(result_data[0].keys()) == 101  # +1 for marimo_row_id
+    # Pandas has an index column (empty string), others have marimo_row_id
+    print(result_data[0].keys())
+    assert len(result_data[0].keys()) in (100, 101)
 
 
-@pytest.mark.skipif(
-    not DependencyManager.pandas.has(), reason="Pandas not installed"
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]},
+    ),
 )
-def test_filters_with_nonexistent_columns():
+def test_filters_with_nonexistent_columns(df: Any):
     """Test that filters for non-existent columns are filtered out gracefully."""
-    import pandas as pd
-
-    data = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]})
-    table = ui.table(data)
+    table = ui.table(df)
 
     # Test with filters containing both existing and non-existent columns
     search_args = SearchTableArgs(
@@ -2324,18 +2304,27 @@ def test_cell_hover_edge_cases():
     }
 
 
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="Polars not installed"
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "column_0": [
+                "apples",
+                "apples",
+                "bananas",
+                "bananas",
+                "carrots",
+                "carrots",
+            ]
+        },
+        exclude=NON_EAGER_LIBS,
+    ),
 )
-def test_cell_search_df_hover_texts():
+def test_cell_search_df_hover_texts(df: Any):
     def hover_text(_row: str, _col: str, value: Any) -> str:
         return f"hover:{value}"
 
-    import polars as pl
-
-    data = ["apples", "apples", "bananas", "bananas", "carrots", "carrots"]
-
-    table = ui.table(pl.DataFrame(data), hover_template=hover_text)
+    table = ui.table(df, hover_template=hover_text)
     page = table._search(
         SearchTableArgs(page_size=2, page_number=0, query="carrot")
     )
@@ -2345,18 +2334,27 @@ def test_cell_search_df_hover_texts():
     }
 
 
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="Polars not installed"
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "column_0": [
+                "apples",
+                "apples",
+                "bananas",
+                "bananas",
+                "carrots",
+                "carrots",
+            ]
+        },
+    ),
 )
 @pytest.mark.xfail(reason="Sorted rows are not supported for hover yet")
-def test_cell_search_df_hover_texts_sorted():
+def test_cell_search_df_hover_texts_sorted(df: Any):
     def hover_text(_row: str, _col: str, value: Any) -> str:
         return f"hover:{value}"
 
-    import polars as pl
-
-    data = ["apples", "apples", "bananas", "bananas", "carrots", "carrots"]
-    table = ui.table(pl.DataFrame(data), hover_template=hover_text)
+    table = ui.table(df, hover_template=hover_text)
     page = table._search(
         SearchTableArgs(
             page_size=2,
