@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { AnsiUp } from "ansi_up";
-import { ChevronRightIcon, CopyIcon, WrapTextIcon } from "lucide-react";
+import { ChevronRightIcon, WrapTextIcon } from "lucide-react";
 import React, { useLayoutEffect } from "react";
 import { ToggleButton } from "react-aria-components";
 import { DebuggerControls } from "@/components/debugger/debugger-code";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
@@ -13,7 +14,6 @@ import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { useSelectAllContent } from "@/hooks/useSelectAllContent";
 import { cn } from "@/utils/cn";
-import { copyToClipboard } from "@/utils/copy";
 import { ansiToPlainText, parseHtmlContent } from "@/utils/dom";
 import { invariant } from "@/utils/invariant";
 import { Strings } from "@/utils/strings";
@@ -112,39 +112,33 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     (output) => output.channel === "stdin",
   );
 
+  const getOutputString = (): string => {
+    const text = consoleOutputs
+      .filter((output) => output.channel !== "pdb")
+      .map((output) => {
+        if (
+          output.mimetype.startsWith("application/vnd.marimo") ||
+          output.mimetype === "text/html"
+        ) {
+          return parseHtmlContent(Strings.asString(output.data));
+        }
+
+        // Convert ANSI to HTML, then parse as HTML
+        return ansiToPlainText(Strings.asString(output.data));
+      })
+      .join("\n");
+    return text;
+  };
+
   return (
     <div className="relative group">
       {hasOutputs && (
         <div className="absolute top-1 right-5 z-10 opacity-0 group-hover:opacity-100 flex gap-1">
-          <Tooltip content="Copy all">
-            <span>
-              <button
-                aria-label="Copy all console output"
-                className="p-1 rounded bg-transparent text-muted-foreground hover:text-foreground"
-                type="button"
-                onClick={() => {
-                  const text = reversedOutputs
-                    .filter((output) => output.channel !== "pdb")
-                    .map((output) => {
-                      // If starts with `<`, then assume it's HTML
-                      if (
-                        typeof output.data === "string" &&
-                        output.data.startsWith("<")
-                      ) {
-                        return parseHtmlContent(output.data);
-                      }
-
-                      // Otherwise, convert the ANSI to HTML, then parse as HTML
-                      return ansiToPlainText(Strings.asString(output.data));
-                    })
-                    .join("\n");
-                  void copyToClipboard(text);
-                }}
-              >
-                <CopyIcon className="h-4 w-4" />
-              </button>
-            </span>
-          </Tooltip>
+          <CopyClipboardIcon
+            tooltip="Copy console output"
+            value={getOutputString}
+            className="h-4 w-4"
+          />
           <Tooltip content={wrapText ? "Disable wrap text" : "Wrap text"}>
             <span>
               <ToggleButton
