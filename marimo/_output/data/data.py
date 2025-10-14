@@ -188,6 +188,7 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
 # JavaScript's safe integer limits
 MAX_SAFE_INTEGER = 9007199254740991
 MIN_SAFE_INTEGER = -9007199254740991
+BIGINT_KEY = "$bigint"
 
 
 def is_bigint(value: int | float) -> bool:
@@ -203,8 +204,6 @@ def sanitize_json_bigint(
     Number.MAX_SAFE_INTEGER to Number.MAX_SAFE_INTEGER.
     """
     from json import dumps, loads
-
-    BIGINT_KEY = "$bigint"
 
     def convert_key(key: Any) -> Any:
         # Keys must be str, int, float, bool, or None
