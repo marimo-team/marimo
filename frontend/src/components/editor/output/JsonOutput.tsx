@@ -352,6 +352,9 @@ function pythonJsonReplacer(_key: string, value: unknown): unknown {
   if (typeof value === "object") {
     return value;
   }
+  if (typeof value === "bigint") {
+    return `${REPLACE_PREFIX}${value}${REPLACE_SUFFIX}`;
+  }
   if (Array.isArray(value)) {
     return value;
   }

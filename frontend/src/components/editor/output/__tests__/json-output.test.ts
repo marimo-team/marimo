@@ -240,6 +240,26 @@ describe("getCopyValue", () => {
       }"
       `,
     );
+
+    const bigintRaw = BigInt(2 ** 64);
+    const bigintRawResult = getCopyValue(bigintRaw);
+    expect(bigintRawResult).toMatchInlineSnapshot(`"18446744073709551616"`);
+
+    const nestedBigIntRaw = {
+      key1: bigintRaw, // raw number
+      key2: `text/plain+bigint:${bigintRaw}`,
+      key3: true,
+    };
+    const nestedBigIntRawResult = getCopyValue(nestedBigIntRaw);
+    expect(nestedBigIntRawResult).toMatchInlineSnapshot(
+      `
+      "{
+        "key1": 18446744073709551616,
+        "key2": 18446744073709551616,
+        "key3": True
+      }"
+      `,
+    );
   });
 });
 
