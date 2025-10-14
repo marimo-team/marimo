@@ -35,23 +35,62 @@ def hydrate(
     _graph: DirectedGraph,
     _loader: Loader,
 ) -> None:
-    """Hydrate references in the global scope."""
+    """Hydrate references in the global scope by loading stubs.
+
+    Args:
+        refs: Set of reference names that the cell depends on
+        glbls: Global scope dictionary to update with loaded values
+        _graph: Dataflow graph (unused for now)
+        _loader: Loader instance (unused for now)
+
+    Raises:
+        ValueError: If any UnhashableStubs are found that cannot be loaded
+    """
     from marimo._save.stubs.lazy_stub import UnhashableStub
 
+    unhashable_stubs = []
+
+    # Check all refs mentioned by the cell
     for ref in refs:
         obj = glbls.get(ref, None)
+        if obj is None:
+            continue
+
         if isinstance(obj, ReferenceStub):
-            for var, value in obj.load(glbls).items():
-                # TODO: Set privates too
-                glbls[var] = value
+            # Load the pickled data
+            try:
+                loaded_vars = obj.load(glbls)
+                # Update scope with all loaded variables
+                for var, value in loaded_vars.items():
+                    glbls[var] = value
+                    LOGGER.debug(
+                        f"[hydrate] Loaded reference stub for '{var}'"
+                    )
+            except Exception as e:
+                LOGGER.error(
+                    f"[hydrate] Failed to load reference stub '{ref}': {e}"
+                )
+                raise
+
         elif isinstance(obj, UnhashableStub):
-            # Cannot hydrate UnhashableStub - log warning
-            LOGGER.warning(
-                f"Cannot hydrate unhashable variable '{obj.var_name}' "
-                f"of type {obj.type_name}. Cell may need to be re-executed. "
-                f"Original error: {obj.error_msg}"
+            # Cannot hydrate - collect for error reporting
+            unhashable_stubs.append(obj)
+            LOGGER.debug(
+                f"[hydrate] Found unhashable stub '{obj.var_name}' "
+                f"of type {obj.type_name}"
             )
-            # TODO: Queue rerun of upstream cells that produce this stub
+
+    # If we found unhashable stubs, we cannot proceed
+    if unhashable_stubs:
+        stub_info = ", ".join(
+            f"'{s.var_name}' ({s.type_name})" for s in unhashable_stubs
+        )
+        error_details = "; ".join(s.error_msg for s in unhashable_stubs)
+        raise ValueError(
+            f"Cannot restore cache: found {len(unhashable_stubs)} unhashable variable(s): {stub_info}. "
+            f"These cells need to be re-executed. "
+            f"Errors: {error_details}"
+        )
 
 
 def process(
@@ -66,6 +105,9 @@ def process(
             scope=glbls,
             pin_modules=True,
             loader=loader,
+            # TODO: Could be default behavior.
+            # Technically cache breaking, so gate it for now.
+            lazy=True,
         )
         # TODO: Do not restore if there are known side effects.
         if attempt.hit:

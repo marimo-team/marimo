@@ -75,7 +75,7 @@ def from_item(item: Item) -> Any:
     # Check which field is set (mimicking protobuf oneof behavior)
     if item.reference is not None:
         # If the item is a reference, we don't need to load it
-        return ReferenceStub(item.reference)
+        return ReferenceStub(item.reference, item.hash)
     elif item.unhashable is not None:
         # Reconstruct UnhashableStub from stored metadata
         from marimo._save.stubs.lazy_stub import UnhashableStub
@@ -95,7 +95,11 @@ def from_item(item: Item) -> Any:
         return module_stub
     elif item.function is not None:
         function_stub = FunctionStub.__new__(FunctionStub)
-        function_stub.filename, function_stub.code, function.linenumber = item.function  # type: ignore[attr-defined]
+        (
+            function_stub.code,
+            function_stub.filename,
+            function_stub.linenumber,
+        ) = item.function  # type: ignore[attr-defined]
         return function_stub
     elif item.primitive is not None:
         # Direct primitive value
@@ -177,6 +181,8 @@ class LazyLoader(BasePersistenceLoader):
     def to_blob(self, cache: Cache) -> bytes:
         collections: dict[str, dict[str, Any]] = {}
         path = Path(self.name) / cache.hash  # / "lazy"
+        # TODO: Provide cach context
+        hash_lookup = cache.meta.get("hash_lookup", {})
         return_item = to_item(path, cache.meta.get("return", None))
         if return_item.reference:
             return_item.reference = (path / "return.pickle").as_posix()

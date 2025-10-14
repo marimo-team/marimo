@@ -19,6 +19,7 @@ from marimo._ast.variables import (
 )
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._loggers import marimo_logger
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.dataflow import induced_subgraph
@@ -35,7 +36,11 @@ from marimo._runtime.side_effect import CellHash, SideEffect
 from marimo._runtime.state import SetFunctor, State
 from marimo._runtime.watch._path import PathState
 from marimo._save.cache import Cache, CacheType
-from marimo._save.stubs import maybe_get_custom_stub
+from marimo._save.stubs import (
+    ReferenceStub,
+    UnhashableStub,
+    maybe_get_custom_stub,
+)
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -57,6 +62,9 @@ if TYPE_CHECKING:
 # mitigated with a signed cache, and performance is neligible compared to the
 # rest of the hashing mechanism.
 DEFAULT_HASH = "sha256"
+
+# Module-level logger for hash operations
+LOGGER = marimo_logger()
 
 
 # NamedTuple over dataclass for unpacking.
@@ -339,6 +347,7 @@ class BlockHasher:
         apply_content_hash: bool = True,
         scoped_refs: Optional[set[Name]] = None,
         external: bool = False,
+        lazy: bool = False,
     ) -> None:
         """Hash the context of the module, and return a cache object.
 
@@ -386,11 +395,21 @@ class BlockHasher:
                 accounted for via content hashing.
             external: If True, then the object was imported as a module. As such, the context should
                 not be respected, and ignored.
+            lazy:
+                If true, use v4 hashing, which will use the hash of content
+                addressed variables- enabling lazy loading of Unhashable and
+                Reference Variables.
         """
 
         # Hash should not be pinned to cell id
         scope = {unmangle_local(k, cell_id).name: v for k, v in scope.items()}
         self.module = DeprivateVisitor().visit(module)
+
+        LOGGER.debug(
+            f"[BlockHasher] Initializing for cell_id={cell_id}, "
+            f"external={external}, pin_modules={pin_modules}, "
+            f"hash_type={hash_type}, apply_content_hash={apply_content_hash}"
+        )
 
         if not scoped_refs:
             scoped_refs = set()
@@ -405,6 +424,8 @@ class BlockHasher:
         self.cell_id = cell_id
         self.pin_modules = pin_modules
         self.fn_cache: FN_CACHE_TYPE = {}
+        self.lazy = lazy
+        self._lazy = {}
 
         # Empty name, so we can match and fill in cell context on load.
         self.visitor = ScopedVisitor("", ignore_local=True)
@@ -413,11 +434,20 @@ class BlockHasher:
         refs = set(self.visitor.refs)
         self.defs = self.visitor.defs
 
+        LOGGER.debug(
+            f"[BlockHasher] Found {len(refs)} initial refs: {refs}, "
+            f"{len(self.defs)} defs: {self.defs}"
+        )
+
         # Deferred hashing (i.e. instantiation without applying content hash),
         # may yield missing references.
         self.missing: set[Name] = set()
         if not apply_content_hash:
             refs, self.missing = self.extract_missing_ref(refs, scope)
+            if self.missing:
+                LOGGER.debug(
+                    f"[BlockHasher] Deferred hashing - missing refs: {self.missing}"
+                )
 
         ctx = None
         if not external:
@@ -446,12 +476,19 @@ class BlockHasher:
         content_serialization: dict[Name, bytes] = {}
         if refs:
             cache_type = "ContentAddressed"
+            LOGGER.debug(
+                f"[BlockHasher] Attempting content addressing for {len(refs)} refs"
+            )
             refs, content_serialization, stateful_refs = (
                 self.collect_for_content_hash(
                     refs, scope, ctx, scoped_refs, apply_hash=False
                 )
             )
             self.stateful_refs |= stateful_refs
+            LOGGER.debug(
+                f"[BlockHasher] Content addressed: {len(content_serialization)} refs, "
+                f"remaining: {len(refs)} refs"
+            )
         self.content_refs -= refs
 
         # If there are still unaccounted for references, then fallback on
@@ -459,6 +496,10 @@ class BlockHasher:
         if refs:
             cache_type = "ExecutionPath"
             to_hash = self.cells_from_refs(refs)
+            LOGGER.debug(
+                f"[BlockHasher] Using execution path for {len(refs)} refs, "
+                f"hashing {len(to_hash)} ancestor cells"
+            )
             if ctx:
                 self.collect_and_hash_side_effects(to_hash, ctx)
             subgraph, children = induced_subgraph(
@@ -472,6 +513,9 @@ class BlockHasher:
             refs = self.hash_and_dequeue_execution_refs(
                 refs, subgraph[self.cell_id], scope, ctx
             )
+            LOGGER.debug(
+                f"[BlockHasher] Execution path complete, remaining refs: {len(refs)}"
+            )
         self.execution_refs -= refs | self.content_refs
 
         # Remove values that should be provided by external scope.
@@ -481,6 +525,9 @@ class BlockHasher:
         # provided context.
         if refs:
             cache_type = "ContextExecutionPath"
+            LOGGER.debug(
+                f"[BlockHasher] Using context execution path for {len(refs)} refs: {refs}"
+            )
             if ctx:
                 self.collect_and_hash_side_effects({self.cell_id}, ctx)
             self.hash_and_verify_context_refs(refs, context)
@@ -501,6 +548,34 @@ class BlockHasher:
         self.hash_alg.update(module_hash)
         # Update execution path without content data.
         self.exe_alg.update(module_hash)
+
+        # Log final hash state
+        hash_preview = base64.urlsafe_b64encode(self.hash_alg.digest()).decode(
+            "utf-8"
+        )[:16]
+        exe_hash_preview = base64.urlsafe_b64encode(
+            self.exe_alg.digest()
+        ).decode("utf-8")[:16]
+        LOGGER.debug(
+            f"[BlockHasher] Initialization complete - cache_type={cache_type}, "
+            f"hash={hash_preview}..., exe_hash={exe_hash_preview}..."
+        )
+        LOGGER.debug(
+            f"[BlockHasher] Reference summary - "
+            f"content_refs={len(self.content_refs)}, "
+            f"execution_refs={len(self.execution_refs)}, "
+            f"context_refs={len(self.context_refs)}, "
+            f"stateful_refs={len(self.stateful_refs)}"
+        )
+        if self.stateful_refs:
+            LOGGER.debug(f"[BlockHasher] Stateful refs: {self.stateful_refs}")
+        if self.lazy:
+            self._lazy = content_serialization
+            LOGGER.debug(
+                f"[BlockHasher] Content serialization summary: "
+                f"{len(content_serialization)} refs, "
+                f"total bytes: {sum(len(v) for v in content_serialization.values())}"
+            )
 
     @staticmethod
     def from_parent(
@@ -581,8 +656,15 @@ class BlockHasher:
         apply_hash: bool = True,
     ) -> SerialRefs:
         self._hash = None
+        LOGGER.debug(
+            f"[BlockHasher.collect_for_content_hash] Processing {len(refs)} refs"
+        )
         refs, content_serialization, _ = (
             self.serialize_and_dequeue_content_refs(refs, scope)
+        )
+        LOGGER.debug(
+            f"[BlockHasher.collect_for_content_hash] Serialized {len(content_serialization)} refs, "
+            f"{len(refs)} refs remain"
         )
         # If scoped refs are present, then they are unhashable
         # and we should fallback to normal hash or fail.
@@ -590,6 +672,10 @@ class BlockHasher:
             # pickle is a python default
             import pickle
 
+            LOGGER.debug(
+                f"[BlockHasher.collect_for_content_hash] Attempting pickle fallback for "
+                f"{len(unhashable)} unhashable refs: {unhashable}"
+            )
             failed = []
             exceptions = []
             # By rights, could just fail here - but this final attempt should
@@ -798,6 +884,10 @@ class BlockHasher:
         # Content addressed hash is valid if every reference is accounted for
         # and can be shown to be a primitive value.
         imports = get_imports(scope)
+        LOGGER.debug(
+            f"[BlockHasher.serialize_and_dequeue_content_refs] Processing {len(refs)} refs, "
+            f"found {len(imports)} imports"
+        )
         for local_ref in sorted(refs):
             ref = if_local_then_mangle(local_ref, self.cell_id)
             if ref in imports:
@@ -816,6 +906,10 @@ class BlockHasher:
                 content_serialization[ref] = type_sign(
                     bytes(f"module:{ref}:{version}", "utf-8"), "module"
                 )
+                LOGGER.debug(
+                    f"[BlockHasher.serialize_and_dequeue_content_refs] "
+                    f"Module import: {local_ref}, version={version if version else 'unpinned'}"
+                )
                 # No need to watch the module otherwise. If the block depends
                 # on it then it should be caught when hashing the block.
                 refs.remove(local_ref)
@@ -823,28 +917,56 @@ class BlockHasher:
             if local_ref not in scope:
                 # ref is somehow not defined, because of execution path
                 # so do not utilize content hash in this case.
+                LOGGER.debug(
+                    f"[BlockHasher.serialize_and_dequeue_content_refs] "
+                    f"Missing ref in scope, skipping: {local_ref}"
+                )
                 continue
             value = scope[local_ref]
-
             serial_value = None
+            # TODO: This is a breaking cache change, but we should just use a
+            # resultant hash of the referenced object, opposed to loading the
+            # full thing.
+            if isinstance(value, ReferenceStub):
+                if not self.lazy:
+                    value = value.load(scope)
+                elif value.hash:
+                    _hash = hashlib.new(
+                        self.hash_alg.name, usedforsecurity=False
+                    )
+                    _hash.update(value.hash)
+                    content_serialization[ref] = _hash.digest()
+
             if is_primitive(value):
                 serial_value = primitive_to_bytes(value)
+                serialization_method = "primitive"
             elif is_data_primitive(value):
                 serial_value = data_to_buffer(value)
+                serialization_method = "data_primitive"
             elif is_data_primitive_container(value):
                 serial_value = common_container_to_bytes(value)
+                serialization_method = "data_primitive_container"
             elif is_pure_function(
                 local_ref, value, scope, self.fn_cache, self.graph
             ):
                 serial_value = hash_wrapped_functions(
                     value, self.hash_alg.name
                 )
+                serialization_method = "pure_function"
             # An external module variable is assumed to be pure, with module
             # pinning being the mechanism for invalidation.
-            elif getattr(value, "__module__", "__main__") == "__main__":
+            elif (
+                isinstance(value, UnhashableStub)
+                or getattr(value, "__module__", "__main__") == "__main__"
+            ):
+                LOGGER.debug(
+                    f"[BlockHasher.serialize_and_dequeue_content_refs] "
+                    f"Skipping __main__ ref: {local_ref}"
+                )
                 continue
             elif stub := maybe_get_custom_stub(value):
                 serial_value = stub.to_bytes()
+                serialization_method = "custom_stub"
             # External module that is not a class or function, may be some
             # container we don't know how to hash.
             # Note, function cases care caught by is_pure_function
@@ -852,10 +974,27 @@ class BlockHasher:
             elif not inspect.isclass(
                 value
             ) and not value.__module__.startswith("marimo"):
+                LOGGER.debug(
+                    f"[BlockHasher.serialize_and_dequeue_content_refs] "
+                    f"Skipping external module ref: {local_ref}, module={value.__module__}"
+                )
                 continue
 
             if serial_value is not None:
-                content_serialization[ref] = serial_value
+                if self.lazy:
+                    _hash = hashlib.new(
+                        self.hash_alg.name, usedforsecurity=False
+                    )
+                    _hash.update(serial_value)
+                    content_serialization[ref] = _hash.digest()
+                else:
+                    # TODO: Old v3 behavior
+                    content_serialization[ref] = serial_value
+                LOGGER.debug(
+                    f"[BlockHasher.serialize_and_dequeue_content_refs] "
+                    f"Serialized {local_ref} as {serialization_method}, "
+                    f"{len(serial_value)} bytes"
+                )
             # Fall through means that the references should be dequeued.
             refs.remove(local_ref)
         return SerialRefs(refs, content_serialization, set())
@@ -947,8 +1086,16 @@ class BlockHasher:
         provided, as those references should be accounted for in that context.
         """
         if ctx is None:
+            LOGGER.debug(
+                f"[BlockHasher.hash_and_dequeue_execution_refs] "
+                f"No context, using fallback for {len(parents)} parent cells"
+            )
             return self.hash_and_dequeue_execution_refs_fallback(refs, parents)
 
+        LOGGER.debug(
+            f"[BlockHasher.hash_and_dequeue_execution_refs] "
+            f"Processing {len(parents)} parent cells for {len(refs)} refs"
+        )
         self._hash = None
         # We want to do a DFS graph traversal, pruning when we either get to a
         # content, or pure hashed cell. For each cell, we either use the known
@@ -969,10 +1116,21 @@ class BlockHasher:
                         "Cell Hash registered multiple times, this is unexpected. "
                         "Please report this issue to marimo-team/marimo"
                     )
+                    hash_preview = base64.urlsafe_b64encode(
+                        cell_hash[0]
+                    ).decode("utf-8")[:16]
+                    LOGGER.debug(
+                        f"[BlockHasher.hash_and_dequeue_execution_refs] "
+                        f"Using cached hash for cell {cell_id}: {hash_preview}..."
+                    )
                     hashes.append(cell_hash[0])
                     refs -= cell.defs
                     continue
 
+            LOGGER.debug(
+                f"[BlockHasher.hash_and_dequeue_execution_refs] "
+                f"Computing new hash for cell {cell_id} (recursive BlockHasher)"
+            )
             attempt = BlockHasher(
                 cell.mod,
                 self.graph,
@@ -988,6 +1146,10 @@ class BlockHasher:
             refs -= cell.defs
             hashes.append(attempt.raw_hash)
 
+        LOGGER.debug(
+            f"[BlockHasher.hash_and_dequeue_execution_refs] "
+            f"Updating hash with {len(hashes)} cell hashes"
+        )
         self.hash_alg.update(b"".join(sorted(hashes)))
         return refs
 
@@ -1007,6 +1169,11 @@ class BlockHasher:
             invocation, but still in the same cell.
         """
         self._hash = None
+
+        LOGGER.debug(
+            f"[BlockHasher.hash_and_verify_context_refs] "
+            f"Verifying {len(refs)} refs against context"
+        )
 
         # Native save won't pass down context, so if we are here,
         # then something is wrong with the remaining references.
@@ -1040,7 +1207,15 @@ class BlockHasher:
             "This is unexpected, please report this issue to "
             "https://github.com/marimo-team/marimo/issues"
         )
-        self.hash_alg.update(hash_raw_module(context, self.hash_alg.name))
+        context_hash = hash_raw_module(context, self.hash_alg.name)
+        context_hash_preview = base64.urlsafe_b64encode(context_hash).decode(
+            "utf-8"
+        )[:16]
+        LOGGER.debug(
+            f"[BlockHasher.hash_and_verify_context_refs] "
+            f"Updating hash with context module hash: {context_hash_preview}..."
+        )
+        self.hash_alg.update(context_hash)
         # refs have been accounted for at this point. Nothing to return
 
     def collect_and_hash_side_effects(
@@ -1118,6 +1293,7 @@ def cache_attempt_from_hash(
     scoped_refs: Optional[set[Name]] = None,
     loader: Loader,
     as_fn: bool = False,
+    lazy: bool = False,
 ) -> Cache:
     """Hash a code block with context from the same cell, and return a cache
     object.
@@ -1130,6 +1306,11 @@ def cache_attempt_from_hash(
       - A cache object that may, or may not be fully populated.
     """
 
+    LOGGER.debug(
+        f"[cache_attempt_from_hash] Starting hash for cell_id={cell_id}, "
+        f"scope_size={len(scope)}, pin_modules={pin_modules}, as_fn={as_fn}"
+    )
+
     hasher = BlockHasher(
         module=module,
         graph=graph,
@@ -1139,16 +1320,35 @@ def cache_attempt_from_hash(
         pin_modules=pin_modules,
         hash_type=hash_type,
         scoped_refs=scoped_refs,
+        lazy=lazy,
     )
 
     if as_fn:
         hasher.defs.clear()
 
-    return loader.cache_attempt(
+    cache = loader.cache_attempt(
         hasher.defs,
         hasher.key,
         hasher.stateful_refs,
     )
+
+    # Store hash lookup for lazy loading optimization
+    if hasher.lazy and hasher._lazy:
+        # Convert bytes to base64 strings for JSON serialization
+        cache.meta["hash_lookup"] = {
+            k: base64.urlsafe_b64encode(v).decode("utf-8")
+            for k, v in hasher._lazy.items()
+        }
+        LOGGER.debug(
+            f"[cache_attempt_from_hash] Stored hash_lookup with {len(hasher._lazy)} entries"
+        )
+
+    LOGGER.debug(
+        f"[cache_attempt_from_hash] Completed - cache_type={hasher.cache_type}, "
+        f"hash={hasher.hash[:16]}..., cache_hit={cache.hit}"
+    )
+
+    return cache
 
 
 def content_cache_attempt_from_base(
@@ -1183,6 +1383,14 @@ def content_cache_attempt_from_base(
 
     if required_refs is None:
         required_refs = set()
+
+    LOGGER.debug(
+        f"[content_cache_attempt_from_base] Using parent block, "
+        f"parent_cache_type={previous_block.cache_type}, "
+        f"scoped_refs={len(scoped_refs) if scoped_refs else 0}, "
+        f"required_refs={len(required_refs) if required_refs else 0}, "
+        f"sensitive={sensitive}, as_fn={as_fn}"
+    )
 
     scope = {
         unmangle_local(k, previous_block.cell_id).name: v
@@ -1232,8 +1440,19 @@ def content_cache_attempt_from_base(
     if as_fn:
         hasher.defs.clear()
 
-    return loader.cache_attempt(
+    cache = loader.cache_attempt(
         hasher.defs,
         hasher.key,
         stateful_refs,
     )
+
+    parent_hash_preview = (
+        previous_block.hash[:16] if previous_block._hash else "not_computed"
+    )
+    LOGGER.debug(
+        f"[content_cache_attempt_from_base] Completed - "
+        f"cache_type={hasher.cache_type}, hash={hasher.hash[:16]}..., "
+        f"parent_hash={parent_hash_preview}..., cache_hit={cache.hit}"
+    )
+
+    return cache

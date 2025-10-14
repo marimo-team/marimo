@@ -58,7 +58,7 @@ CACHE_PREFIX: dict[CacheType, str] = {
 }
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
-MetaKey = Literal["return", "version", "runtime"]
+MetaKey = Literal["return", "version", "runtime", "hash_lookup"]
 # Matches functools
 CacheInfo = namedtuple(
     "CacheInfo", ["hits", "misses", "maxsize", "currsize", "time_saved"]
@@ -169,14 +169,16 @@ class Cache:
 
         # Convert objects to stubs in both defs and meta
         memo: dict[int, Any] = {}  # Track processed objects to handle cycles
+        hash_lookup = self.meta.get("hash_lookup", {})
+
         for key, value in self.defs.items():
             self.defs[key] = _convert_to_stub_if_needed(
-                value, memo, preserve_pointers
+                key, value, memo, preserve_pointers, hash_lookup
             )
 
         for key, value in self.meta.items():
             self.meta[key] = _convert_to_stub_if_needed(
-                value, memo, preserve_pointers
+                key, value, memo, preserve_pointers, hash_lookup
             )
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
@@ -325,18 +327,26 @@ class CellCacheContext:
 
 
 def _convert_to_stub_if_needed(
+    key: str,
     value: Any,
     memo: dict[int, Any] | None = None,
     preserve_pointers: bool = True,
+    hash_lookup: dict[str, str] | None = None,
 ) -> Any:
     """Convert objects to stubs if needed, recursively handling collections.
 
     Args:
+        key: The variable name/key for hash lookup
         value: The value to convert
         memo: Memoization dict to handle cycles
         preserve_pointers: If True, modifies containers in-place to preserve
                          object identity. If False, creates new containers.
+        hash_lookup: Dictionary mapping variable names to their hash values
     """
+    hash_value = None
+    if hash_lookup and key in hash_lookup:
+        hash_value = hash_lookup[key]
+
     if memo is None:
         memo = {}
 
@@ -348,10 +358,10 @@ def _convert_to_stub_if_needed(
     result: Any = None
 
     if inspect.ismodule(value):
-        result = ModuleStub(value)
+        result = ModuleStub(value, hash=hash_value or "")
     elif inspect.isfunction(value):
         result = (
-            UnhashableStub(value)
+            UnhashableStub(value, var_name=key, hash_value=hash_value or "")
             if _is_unhashable_function(value)
             else FunctionStub(value)
         )
@@ -361,13 +371,13 @@ def _convert_to_stub_if_needed(
         # tuples are immutable and cannot be recursive, but we still want to
         # iteratively convert the internal items.
         result = tuple(
-            _convert_to_stub_if_needed(item, memo, preserve_pointers)
+            _convert_to_stub_if_needed(key, item, memo, preserve_pointers)
             for item in value
         )
     elif isinstance(value, set):
         # sets cannot be recursive (require hashable items)
         converted = set(
-            _convert_to_stub_if_needed(item, memo, preserve_pointers)
+            _convert_to_stub_if_needed(key, item, memo, preserve_pointers)
             for item in value
         )
         if preserve_pointers:
@@ -381,7 +391,7 @@ def _convert_to_stub_if_needed(
             # Preserve original list reference
             memo[obj_id] = value
             converted_list = [
-                _convert_to_stub_if_needed(item, memo, preserve_pointers)
+                _convert_to_stub_if_needed(key, item, memo, preserve_pointers)
                 for item in value
             ]
             value.clear()
@@ -393,7 +403,9 @@ def _convert_to_stub_if_needed(
             memo[obj_id] = result
             result.extend(
                 [
-                    _convert_to_stub_if_needed(item, memo, preserve_pointers)
+                    _convert_to_stub_if_needed(
+                        key, item, memo, preserve_pointers
+                    )
                     for item in value
                 ]
             )
@@ -402,7 +414,7 @@ def _convert_to_stub_if_needed(
             # Preserve original dict reference
             memo[obj_id] = value
             converted_dict = {
-                k: _convert_to_stub_if_needed(v, memo, preserve_pointers)
+                k: _convert_to_stub_if_needed(key, v, memo, preserve_pointers)
                 for k, v in value.items()
             }
             value.clear()
@@ -414,7 +426,9 @@ def _convert_to_stub_if_needed(
             memo[obj_id] = result
             result.update(
                 {
-                    k: _convert_to_stub_if_needed(v, memo, preserve_pointers)
+                    k: _convert_to_stub_if_needed(
+                        key, v, memo, preserve_pointers
+                    )
                     for k, v in value.items()
                 }
             )

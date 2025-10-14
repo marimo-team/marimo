@@ -10,10 +10,7 @@ from typing import Any, Optional
 import msgspec
 
 from marimo._save.stores import get_store
-from marimo._save.stubs.function_stub import FunctionStub
-from marimo._save.stubs.module_stub import ModuleStub
 from marimo._save.stubs.stubs import CustomStub
-from marimo._save.stubs.ui_element_stub import UIElementStub
 
 
 class CacheType(Enum):
@@ -35,6 +32,7 @@ class Item(msgspec.Struct):
     # filename, code, linenumber
     function: Optional[tuple[str, str, int]] = None
     unhashable: Optional[dict[str, str]] = None
+    hash: Optional[str] = None
 
     def __post_init__(self) -> None:
         # Ensure only one field is set (mimicking protobuf oneof behavior)
@@ -71,25 +69,37 @@ class Cache(msgspec.Struct):
     ui_defs: list[str] = msgspec.field(default_factory=list)
 
 
-
 class ReferenceStub:
-    def __init__(self, name: str, loader: str | None = None) -> None:
+    def __init__(
+        self, name: str, loader: str | None = None, hash_value: str = ""
+    ) -> None:
         self.name = name
         self.loader = loader
+        self.hash = hash_value
 
-    def load(self, glbls: dict[str, Any]) -> Any:
-        """Load the reference from the store."""
+    def load(self, glbls: dict[str, Any]) -> dict[str, Any]:
+        """Load the reference from the store, returning all variables.
+
+        Returns:
+            A dictionary mapping variable names to their loaded values.
+        """
         from marimo._save.cache import _restore_from_stub_if_needed
 
         blob = self.to_bytes()
-        if blob is None:
-            raise ValueError(f"Reference {self.name} not found in scope.")
-        response = pickle.loads(blob)
-        value = _restore_from_stub_if_needed(response, glbls)
-        return value
+        if not blob:
+            raise ValueError(f"Reference {self.name} not found in store.")
+
+        # The blob is a pickled dict of {var_name: value, ...}
+        pickled_dict = pickle.loads(blob)
+
+        # Restore any nested stubs
+        restored_dict = _restore_from_stub_if_needed(pickled_dict, glbls)
+
+        return restored_dict
 
     def to_bytes(self) -> bytes:
         from marimo._save.stubs import LAZY_STUB_LOOKUP
+
         if self.loader is None:
             self.loader = LAZY_STUB_LOOKUP.get(type(self), "pickle")
         maybe_bytes = get_store().get(self.name)
@@ -105,7 +115,11 @@ class UnhashableStub:
     """
 
     def __init__(
-        self, obj: Any, error: Optional[Exception] = None, var_name: str = ""
+        self,
+        obj: Any,
+        error: Optional[Exception] = None,
+        var_name: str = "",
+        hash_value: str = "",
     ) -> None:
         self.obj_type = type(obj)
         self.type_name = f"{self.obj_type.__module__}.{self.obj_type.__name__}"
@@ -114,6 +128,7 @@ class UnhashableStub:
         # lambda (in which case, no error but unhashable)
         self.error_msg = "<scoped function>" if not error else str(error)
         self.var_name = var_name
+        self.hash = hash_value
 
     def load(self, glbls: dict[str, Any]) -> Any:
         """Cannot load unhashable stubs - need to rerun the cell."""

@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from marimo._save.stubs.function_stub import FunctionStub
-from marimo._save.stubs.lazy_stub import UnhashableStub
+from marimo._save.stubs.lazy_stub import ReferenceStub, UnhashableStub
 from marimo._save.stubs.module_stub import ModuleStub
 from marimo._save.stubs.pydantic_stub import PydanticStub
 from marimo._save.stubs.stubs import (
