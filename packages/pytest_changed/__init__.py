@@ -184,11 +184,8 @@ def find_test_files(affected_files: set[Path], repo_root: Path) -> set[Path]:
 
     for file_path in affected_files:
         # Check if it's a test file
-        if file_path.exists() and (
-            file_path.name.startswith("test_")
-            or file_path.name.endswith("_test.py")
-            or "tests" in file_path.parts
-        ):
+        # N.B Our test naming convention is test_*.py
+        if file_path.exists() and file_path.name.startswith("test_"):
             test_files.add(file_path)
 
     return test_files
