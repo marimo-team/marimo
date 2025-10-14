@@ -269,7 +269,10 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             error = f"Error applying dataframe transform: {str(e)}\n\n"
             sys.stderr.write(error)
             self._error = error
-            return _maybe_collect(self._data, self._was_lazy)
+            return _maybe_collect(
+                nw.from_native(self._data, pass_through=False).lazy(),
+                self._was_lazy,
+            )
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         offset = args.page_number * args.page_size
@@ -344,5 +347,5 @@ def _maybe_collect(
     df: nw.LazyFrame[IntoLazyFrame], was_lazy: bool
 ) -> DataFrameType:
     if was_lazy:
-        return df.collect().to_native()
+        return df.collect().to_native()  # type: ignore[no-any-return]
     return df.to_native()

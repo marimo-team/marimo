@@ -37,9 +37,9 @@ from marimo._utils.narwhals_utils import is_narwhals_lazyframe
 from tests._data.mocks import create_dataframes
 
 pytest.importorskip("ibis")
+pd = pytest.importorskip("pandas")
 pytest.importorskip("polars")
 pytest.importorskip("pyarrow")
-pd = pytest.importorskip("pandas")
 
 
 def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
@@ -54,8 +54,8 @@ def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
         Transformations(transforms=[transform]),
     )
     if was_lazy:
-        return result_nw.collect().to_native()
-    return result_nw.to_native()
+        return result_nw.to_native()
+    return result_nw.collect().to_native()
 
 
 def create_test_dataframes(

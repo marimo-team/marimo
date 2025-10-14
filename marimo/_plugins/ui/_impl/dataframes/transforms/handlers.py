@@ -32,7 +32,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
-    from narwhals.typing import Expr
+    from narwhals.expr import Expr
 
 
 __all__ = [
@@ -336,7 +336,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def as_sql_code(transformed_df: DataFrame) -> str | None:
         native_df = transformed_df.to_native()
         if nw.dependencies.is_ibis_table(native_df):
-            import ibis
+            import ibis  # type: ignore[import-untyped]
 
             try:
                 return str(ibis.to_sql(native_df))
@@ -346,7 +346,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         return None
 
 
-def _coerce_value(dtype: Any, value: Any) -> DataFrame:
+def _coerce_value(dtype: Any, value: Any) -> Any:
     """Coerce value to match column dtype while preserving numeric precision."""
     import numpy as np
 
