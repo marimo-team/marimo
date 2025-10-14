@@ -32,6 +32,7 @@ import { UIElementRegistry } from "@/core/dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
 import { LocaleProvider } from "@/core/i18n/locale-provider";
 import { store } from "@/core/state/jotai";
+import { isStaticNotebook } from "@/core/static/static-state";
 import {
   type HTMLElementNotDerivedFromRef,
   useEventListener,
@@ -182,10 +183,13 @@ function PluginSlotInternal<T>(
         const objectId = getUIElementObjectId(hostElement);
         invariant(objectId, "Object ID should exist");
 
+        const isStatic = isStaticNotebook();
+
         const htmlId = HTMLCellId.findElementThroughShadowDOMs(hostElement)?.id;
         const cellId = htmlId ? HTMLCellId.parse(htmlId) : null;
-        if (cellId) {
+        if (cellId && !isStatic) {
           // If the cell is not initialized, throw an error
+          // Continue if the cell is static, so we can propagate a clearer error message.
           const notebookState = store.get(notebookAtom);
           const cellRuntime = notebookState.cellRuntime[cellId];
           const cellData = notebookState.cellData[cellId];
