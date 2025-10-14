@@ -90,12 +90,9 @@ sql = [
 
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
-# This includes the `sql` deps
 recommended = [
-    "duckdb>=1.0.0",            # SQL cells
+    "marimo[sql]",
     "altair>=5.4.0",            # Plotting in datasource viewer
-    "polars[pyarrow]>=1.9.0",   # SQL output back in Python
-    "sqlglot[rs]>=26.2.0",      # SQL cells parsing
     "openai>=1.55.3",           # AI features
     "ruff",                     # Formatting
     "nbformat>=5.7.0",          # Export as IPYNB
@@ -124,6 +121,25 @@ lsp = [
 mcp = [
     "mcp>=1.0.0; python_version >= '3.10'",
     "pydantic>2; python_version >= '3.10'",
+]
+
+[dependency-groups]
+testing = [
+    "dirty-equals~=0.9.0",
+    "hypothesis~=6.140.4",
+    # For server testing
+    "httpx~=0.28.1",
+    "urllib3~=2.5.0",
+    "matplotlib~=3.10.7",
+    # Forced for modern matplotlib.
+    "pillow>=9",
+    "pytest~=8.4.2",
+    "pytest-timeout~=2.4.0",
+    "pytest-codecov~=0.7.0",
+    "pytest-rerunfailures~=16.1",
+    "pytest-asyncio~=1.2.0",
+    "pytest-picked>=0.5.1",
+    "inline-snapshot~=0.29.4",
 ]
 
 [tool.hatch]
@@ -191,23 +207,7 @@ check = "mypy marimo --exclude=marimo/_tutorials/"
 tutorials = "mypy marimo/_tutorials"
 
 [tool.hatch.envs.test]
-extra-dependencies = [
-    "dirty-equals~=0.9.0",
-    "hypothesis~=6.102.1",
-    # For server testing
-    "httpx~=0.27.0",
-    "urllib3~=2.5.0",
-    "matplotlib~=3.10.7",
-    # Forced for modern matplotlib.
-    "pillow>=9",
-    "pytest~=8.3.4",
-    "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.7.0",
-    "pytest-rerunfailures~=15.1",
-    "pytest-asyncio~=0.26.0",
-    "pytest-picked>=0.5.1",
-    "inline-snapshot~=0.29.0",
-]
+groups = ["testing"]
 
 [[tool.hatch.envs.test.matrix]]
 python = ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
@@ -227,18 +227,8 @@ test-narwhals = """
 
 [tool.hatch.envs.test-optional]
 template = "test"
+groups = ["testing"]
 extra-dependencies = [
-    "dirty-equals~=0.9.0",
-    "hypothesis~=6.102.1",
-    "httpx~=0.27.0",
-    "matplotlib~=3.9.2",
-    "pytest~=8.3.4",
-    "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.6.1",
-    "pytest-rerunfailures~=15.1",
-    "pytest-asyncio~=0.26.0",
-    "pytest-picked>=0.5.1",
-    "inline-snapshot~=0.29.0",
     "python-lsp-server>=1.10.0",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
