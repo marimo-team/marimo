@@ -15,7 +15,7 @@ from typing import (
     cast,
 )
 
-import msgspec
+import msgspec_m as msgspec
 
 from marimo import _loggers
 from marimo._utils.parse_dataclass import parse_raw

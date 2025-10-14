@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-import msgspec
+import msgspec_m as msgspec
 
 
 class CompletionOption(msgspec.Struct):

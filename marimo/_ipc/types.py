@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import typing
 
-import msgspec
-import msgspec.json
+import msgspec_m as msgspec
+import msgspec_m.json
 
 from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig
@@ -40,4 +40,4 @@ class KernelArgs(msgspec.Struct):
 
     @classmethod
     def decode_json(cls, buf: bytes) -> KernelArgs:
-        return msgspec.json.decode(buf, type=cls)
+        return msgspec_m.json.decode(buf, type=cls)

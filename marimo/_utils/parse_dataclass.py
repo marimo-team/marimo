@@ -18,8 +18,8 @@ from typing import (
     get_type_hints,
 )
 
-import msgspec
-import msgspec.json
+import msgspec_m as msgspec
+import msgspec_m.json
 
 # Import NotRequired from typing_extensions for Python < 3.11
 if sys.version_info < (3, 11):
@@ -206,7 +206,7 @@ def _parse_msgspec(
     if isinstance(value, dict):
         return msgspec.convert(value, strict=strict, type=cls)
 
-    return msgspec.json.decode(value, strict=strict, type=cls)
+    return msgspec_m.json.decode(value, strict=strict, type=cls)
 
 
 def parse_raw(

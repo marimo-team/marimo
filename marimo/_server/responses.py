@@ -8,7 +8,7 @@ import starlette.responses
 from marimo._messaging.msgspec_encoder import encode_json_bytes
 
 if TYPE_CHECKING:
-    import msgspec
+    import msgspec_m as msgspec
 
 
 class StructResponse(starlette.responses.Response):

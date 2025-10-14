@@ -1,6 +1,6 @@
 import typing as t
 
-import msgspec
+import msgspec_m as msgspec
 
 from marimo._ai._tools.tools.cells import (
     GetCellRuntimeDataArgs,
