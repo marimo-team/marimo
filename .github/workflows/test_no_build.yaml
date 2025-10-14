@@ -1,5 +1,8 @@
 name: Test Pre-built Wheel
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
