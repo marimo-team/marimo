@@ -220,22 +220,22 @@ describe("getCopyValue", () => {
   });
 
   it("should handle bigint", () => {
-    const bigint = 2 ** 64;
+    const bigint = String(BigInt(2 ** 64));
     const value = `text/plain+bigint:${bigint}`;
     const result = getCopyValue(value);
-    expect(result).toMatchInlineSnapshot(`"18446744073709552000"`);
+    expect(result).toMatchInlineSnapshot(`"18446744073709551616"`);
 
     const nestedBigInt = {
-      key1: bigint,
-      key2: `text/plain+bigint:${bigint}`,
+      key1: bigint, // this will be just a string
+      key2: `text/plain+bigint:${bigint}`, // this will convert to number
       key3: true,
     };
     const nestedResult = getCopyValue(nestedBigInt);
     expect(nestedResult).toMatchInlineSnapshot(
       `
       "{
-        "key1": 18446744073709552000,
-        "key2": 18446744073709552000,
+        "key1": "18446744073709551616",
+        "key2": 18446744073709551616,
         "key3": True
       }"
       `,
