@@ -17,7 +17,7 @@ interface JSON {
     reviver?: (this: any, key: string, value: any) => any,
   ): unknown;
 
-  rawJSON(value: string): any;
+  rawJSON(value: string): unknown;
 }
 
 // Improve type inference for Array.filter with BooleanConstructor
