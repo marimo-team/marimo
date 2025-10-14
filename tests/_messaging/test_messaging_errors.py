@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import msgspec
+import msgspec_m as msgspec
 
 from marimo._messaging.errors import (
     CycleError,

@@ -178,7 +178,7 @@ async def tutorial(
                     schema:
                         $ref: "#/components/schemas/MarimoFile"
     """
-    import msgspec
+    import msgspec_m as msgspec
 
     # Create a new tutorial file and return the filepath
     try:

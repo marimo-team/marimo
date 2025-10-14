@@ -17,7 +17,7 @@ from typing import (
     Union,
 )
 
-import msgspec
+import msgspec_m as msgspec
 import pytest
 
 from marimo._config.config import ExperimentalConfigType
