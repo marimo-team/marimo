@@ -94,6 +94,8 @@ jobs:
         uses: styfle/cancel-workflow-action@0.12.1
 
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for git diff
 
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
@@ -119,23 +121,33 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       # Test with base dependencies
-      - name: Test with base dependencies
+      - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
+          # On PRs, compare against base branch; on main, compare against HEAD~1
+          CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
           hatch run +py=${{ matrix.python-version }} test:test tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
+            -p packages.pytest_changed --changed-from=$CHANGED_FROM \
             --picked=first
 
       # Test with optional dependencies
-      - name: Test with optional dependencies
+      - name: Test changed with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
+        # Include all tests on 3.13 or main
         run: |
+          INCLUDE_UNCHANGED=${{ matrix.python-version == '3.13' }} || ${{ github.ref == 'refs/heads/main' }}
+          # On PRs, compare against base branch; on main, compare against HEAD~1
+          CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
+
           hatch run +py=${{ matrix.python-version }} test-optional:test tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
+            -p packages.pytest_changed --changed-from=$CHANGED_FROM \
+            --include-unchanged=$INCLUDE_UNCHANGED \
             --picked=first
 
       # Test with minimal dependencies using lowest resolution
@@ -144,11 +156,14 @@ jobs:
       - name: Test with minimal dependencies (lowest resolution)
         if: ${{ matrix.dependencies == 'minimal' }}
         run: |
+          # On PRs, compare against base branch; on main, compare against HEAD~1
+          CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
           hatch run +py=${{ matrix.python-version }} test:test tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
-            --picked=first
+            --picked=first \
+            -p packages.pytest_changed --changed-from=$CHANGED_FROM
         env:
           UV_RESOLUTION: lowest
 
@@ -177,8 +192,13 @@ jobs:
 
       - name: Test with optional dependencies
         run: |
-          hatch run +py=3.12 test-optional:test -v tests/ -k "not test_cli" --durations=10 \
-          --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
+          hatch run +py=3.12 test-optional:test \
+            -v \
+            tests/ \
+            -k "not test_cli" \
+            --durations=10 \
+            --picked=first \
+            --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
       # Only upload coverage on `main` so it is not blocking
       # and only on `3.12`, `ubuntu-latest`, with optional deps since it is mostly duplicate

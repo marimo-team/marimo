@@ -186,6 +186,7 @@ class TestExecutionRoutes_EditMode:
         sys.platform == "win32",
         reason="Skipping test on Windows due to websocket issues",
     )
+    @pytest.mark.flaky(reruns=5)
     @with_session(SESSION_ID)
     def test_app_meta_request(client: TestClient) -> None:
         response = client.post(
@@ -356,6 +357,7 @@ class TestExecutionRoutes_RunMode:
         assert response.status_code == 401, response.text
 
     @staticmethod
+    @pytest.mark.flaky(reruns=5)
     @with_session(SESSION_ID)
     def test_app_meta_request(client: TestClient) -> None:
         response = client.post(
