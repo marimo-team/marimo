@@ -185,6 +185,15 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
     raise ValueError(f"Unsupported data type: {type(data)}")
 
 
+# JavaScript's safe integer limits
+MAX_SAFE_INTEGER = 9007199254740991
+MIN_SAFE_INTEGER = -9007199254740991
+
+
+def is_bigint(value: int) -> bool:
+    return value > MAX_SAFE_INTEGER or value < MIN_SAFE_INTEGER
+
+
 def sanitize_json_bigint(
     data: Union[str, dict[str, Any], list[dict[str, Any]]],
 ) -> str:
@@ -195,9 +204,7 @@ def sanitize_json_bigint(
     """
     from json import dumps, loads
 
-    # JavaScript's safe integer limits
-    MAX_SAFE_INTEGER = 9007199254740991
-    MIN_SAFE_INTEGER = -9007199254740991
+    BIGINT_SUFFIX = "n"
 
     def convert_key(key: Any) -> Any:
         # Keys must be str, int, float, bool, or None
@@ -212,10 +219,10 @@ def sanitize_json_bigint(
             return {convert_key(k): convert_bigint(v) for k, v in obj.items()}  # type: ignore
         elif isinstance(obj, list):
             return [convert_bigint(item) for item in obj]  # type: ignore
-        elif isinstance(obj, int) and (
-            obj > MAX_SAFE_INTEGER or obj < MIN_SAFE_INTEGER
-        ):
-            return str(obj)
+        elif isinstance(obj, int) and is_bigint(obj):
+            # If the value is outside the safe integer range, convert it to a string with "n" at the end
+            # Frontend will convert the string back to an integer.
+            return str(obj) + BIGINT_SUFFIX
         else:
             return obj
 

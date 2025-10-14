@@ -194,6 +194,7 @@ const LEAF_RENDERERS = {
   "video/": (value: string) => <VideoOutput src={value} />,
   "text/html:": (value: string) => <HtmlOutput html={value} inline={true} />,
   "text/plain+float:": (value: string) => <span>{value}</span>,
+  "text/plain+bigint:": (value: string) => <span>{value}</span>,
   "text/plain+set:": (value: string) => <span>set{value}</span>,
   "text/plain+tuple:": (value: string) => <span>{value}</span>,
   "text/plain:": (value: string) => <CollapsibleTextOutput text={value} />,
@@ -358,6 +359,11 @@ function pythonJsonReplacer(_key: string, value: unknown): unknown {
     // If float, we want to keep the quotes around the number.
     if (value.startsWith("text/plain+float:")) {
       return `${REPLACE_PREFIX}${leafData(value)}${REPLACE_SUFFIX}`;
+    }
+    if (value.startsWith("text/plain+bigint:")) {
+      // Use BigInt to avoid precision loss
+      const number = BigInt(leafData(value));
+      return `${REPLACE_PREFIX}${number}${REPLACE_SUFFIX}`;
     }
     if (value.startsWith("text/plain+tuple:")) {
       // replace first and last characters [] with ()

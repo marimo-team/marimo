@@ -8,6 +8,7 @@ from typing import Any, Union
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output import formatting
+from marimo._output.data.data import is_bigint
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatters.repr_formatters import maybe_get_repr_formatter
 from marimo._plugins.stateless.inspect import inspect
@@ -26,6 +27,8 @@ def _leaf_formatter(
     if isinstance(value, str):
         return value
     if isinstance(value, int):
+        if is_bigint(value):
+            return f"text/plain+bigint:{value}"
         return value
     # floats are still converted to strings because JavaScript
     # can't reliably distinguish between them (eg 1 and 1.0)
