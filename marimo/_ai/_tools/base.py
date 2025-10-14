@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import inspect
-import re
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, is_dataclass
 from typing import (
@@ -28,6 +27,7 @@ from marimo._server.ai.tools.types import (
 from marimo._server.api.deps import AppStateBase
 from marimo._server.sessions import Session, SessionManager
 from marimo._types.ids import SessionId
+from marimo._utils.case import to_snake_case
 from marimo._utils.dataclass_to_openapi import PythonTypeToOpenAPI
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -123,7 +123,7 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
 
         # get name from class name
         if self.name == "":
-            self.name = self._to_snake_case(self.__class__.__name__)
+            self.name = to_snake_case(self.__class__.__name__)
 
         # get description from class docstring
         if self.description == "":
@@ -240,17 +240,6 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
             # Already parsed
             return args  # type: ignore[return-value]
         return parse_raw(args, self.Args)
-
-    def _to_snake_case(self, name: str) -> str:
-        """Convert a PascalCase/CamelCase class name to snake_case function name.
-
-        Examples:
-            GetCellMap -> get_cell_map
-        """
-        # Handle acronyms and normal Camel/Pascal case transitions
-        s1 = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
-        s2 = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1)
-        return s2.replace("-", "_").lower()
 
     # error defaults/hooks
     def _default_error_code(self) -> str:
