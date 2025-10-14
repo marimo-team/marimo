@@ -76,7 +76,7 @@ def apply_transforms_to_df(
     if was_lazy:
         return result_nw.to_native()
 
-    return result_nw.collect().to_native()
+    return result_nw.collect().to_native()  # type: ignore[no-any-return]
 
 
 def _apply_transforms(
