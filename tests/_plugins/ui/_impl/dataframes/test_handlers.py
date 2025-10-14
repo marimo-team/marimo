@@ -3,12 +3,10 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Any, Optional, cast
-from unittest.mock import Mock
 
 import narwhals.stable.v2 as nw
 import pytest
 
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     TransformsContainer,
     _apply_transforms,
@@ -38,22 +36,10 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe
 from tests._data.mocks import create_dataframes
 
-HAS_DEPS = (
-    DependencyManager.pandas.has()
-    and DependencyManager.polars.has()
-    and DependencyManager.ibis.has()
-)
-
-if HAS_DEPS:
-    import ibis
-    import numpy as np
-    import pandas as pd
-    import polars as pl
-else:
-    pd = Mock()
-    pl = Mock()
-    np = Mock()
-    ibis = Mock()
+pytest.importorskip("ibis")
+pytest.importorskip("polars")
+pytest.importorskip("pyarrow")
+pd = pytest.importorskip("pandas")
 
 
 def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
@@ -80,8 +66,6 @@ def create_test_dataframes(
     strict: bool = True,
 ) -> list[DataFrameType]:
     """Create test dataframes including ibis if available."""
-    if not HAS_DEPS:
-        return []
     return create_dataframes(
         data,
         include=include or ["pandas", "polars", "pyarrow", "ibis"],
@@ -109,13 +93,10 @@ def assert_frame_not_equal(df1: DataFrameType, df2: DataFrameType) -> None:
 
 
 def df_size(df: DataFrameType) -> int:
-    if not HAS_DEPS:
-        return 0
     nw_df = collect_df(df)
     return nw_df.shape[0]
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 class TestTransformHandler:
     @staticmethod
     @pytest.mark.parametrize(
