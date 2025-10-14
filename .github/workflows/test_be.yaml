@@ -141,14 +141,17 @@ jobs:
         run: |
           # Set CHANGED_FROM: On PRs, compare against base branch; on main, compare against HEAD~1
           CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
+          echo "changed_from=$CHANGED_FROM"
           echo "changed_from=$CHANGED_FROM" >> $GITHUB_OUTPUT
 
-          # Set INCLUDE_UNCHANGED: true if test-all label, python 3.13, or main branch
+          # Set INCLUDE_UNCHANGED: true if test-all label, python 3.13 + optional deps, or main branch
           if [[ "${{ contains(github.event.pull_request.labels.*.name, 'test-all') }}" == "true" ]] || \
-             [[ "${{ matrix.python-version }}" == "3.13" ]] || \
+             [[ "${{ matrix.python-version }}" == "3.13" && "${{ matrix.dependencies }}" == "core,optional" ]] || \
              [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "include_unchanged=true"
             echo "include_unchanged=true" >> $GITHUB_OUTPUT
           else
+            echo "include_unchanged=false"
             echo "include_unchanged=false" >> $GITHUB_OUTPUT
           fi
 
