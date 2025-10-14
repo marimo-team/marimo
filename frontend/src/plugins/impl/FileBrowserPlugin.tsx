@@ -476,7 +476,7 @@ export const FileBrowser = ({
               </span>
               <button
                 className={cn(
-                  "text-xs text-destructive hover:underline cursor-pointer",
+                  "text-xs text-destructive hover:underline",
                 )}
                 onClick={() => setValue([])}
                 type="button"

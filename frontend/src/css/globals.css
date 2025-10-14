@@ -135,6 +135,11 @@
   a.hyperlink:hover {
     text-decoration: underline;
   }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
 @theme {

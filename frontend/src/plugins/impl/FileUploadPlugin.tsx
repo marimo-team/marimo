@@ -211,7 +211,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
 
               <button
                 className={cn(
-                  "text-xs cursor-pointer text-destructive hover:underline",
+                  "text-xs text-destructive hover:underline",
                 )}
                 onClick={() => setValue([])}
                 type="button"
