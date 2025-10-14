@@ -55,7 +55,7 @@ def assert_multiple_called_once(
 
 
 class TestNativeOutputFormat:
-    """Test native output format scenarios."""
+    """Test different native output format scenarios."""
 
     def test_with_to_native(self, mock_functions: MockFnDict) -> None:
         """Test native output format when to_native is provided."""
