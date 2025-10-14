@@ -7,10 +7,17 @@ on:
   push:
     branches:
       - main
+    paths:
+      - .github/workflows/test_no_build.yaml
+      - pyproject.toml
+      - marimo/_cli/**
   pull_request:
     branches:
       - main
-  workflow_dispatch:
+    paths:
+      - .github/workflows/test_no_build.yaml
+      - pyproject.toml
+      - marimo/_cli/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
