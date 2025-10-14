@@ -28,7 +28,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.charts.altair_transformer import _to_marimo_arrow
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
-    get_handler_for_dataframe,
+    apply_transforms_to_df,
 )
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     Condition,
@@ -403,7 +403,7 @@ class table(
 
         if not can_narwhalify_lazyframe(data):
             raise ValueError(
-                "data must be a Polars LazyFrame or DuckDBRelation. Got: "
+                "data must be a Polars LazyFrame, Ibis Table, or DuckDBRelation. Got: "
                 + type(data).__name__
             )
 
@@ -1164,10 +1164,8 @@ class table(
             ]
 
             if valid_filters:
-                data = unwrap_narwhals_dataframe(result.data)
-                handler = get_handler_for_dataframe(data)
-                data = handler.handle_filter_rows(
-                    data,
+                data = apply_transforms_to_df(
+                    result.data,
                     FilterRowsTransform(
                         type=TransformType.FILTER_ROWS,
                         where=valid_filters,

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
+import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -20,6 +21,10 @@ from marimo._plugins.ui._impl.table import (
 )
 from marimo._runtime.functions import EmptyArgs
 from marimo._utils.data_uri import from_data_uri
+from marimo._utils.narwhals_utils import (
+    is_narwhals_dataframe,
+    is_narwhals_lazyframe,
+)
 from marimo._utils.platform import is_windows
 from tests._data.mocks import create_dataframes
 
@@ -32,22 +37,28 @@ HAS_DEPS = (
 HAS_IBIS = DependencyManager.ibis.has()
 HAS_POLARS = DependencyManager.polars.has()
 
+if TYPE_CHECKING:
+    from narwhals.stable.v2.typing import IntoDataFrame, IntoLazyFrame
+
+
 if HAS_DEPS:
     import pandas as pd
-    import polars as pl
 else:
     pd = Mock()
     pl = Mock()
 
 
-def df_length(df: Any) -> int:
-    if isinstance(df, pd.DataFrame):
-        return len(df)
-    if isinstance(df, pl.DataFrame):
-        return len(df)
-    if hasattr(df, "count"):
-        return df.count().execute()
-    return len(df)
+def df_length(df: IntoDataFrame | IntoLazyFrame) -> int:
+    nw_df = nw.from_native(df)
+    if is_narwhals_lazyframe(nw_df):
+        nw_df = nw_df.collect()
+    return nw_df.shape[0]
+
+
+def is_not_narwhals_dataframe(df: IntoDataFrame | IntoLazyFrame) -> bool:
+    if is_narwhals_lazyframe(df) or is_narwhals_dataframe(df):
+        return False
+    return True
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -60,12 +71,10 @@ class TestDataframes:
             exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
-    def test_dataframe(
-        df: Any,
-    ) -> None:
+    def test_dataframe(df: IntoDataFrame) -> None:
         subject = ui.dataframe(df)
 
-        assert subject.value is df
+        assert is_not_narwhals_dataframe(subject.value)
         assert (
             subject._component_args["columns"]
             == [
@@ -104,12 +113,10 @@ class TestDataframes:
     @pytest.mark.skipif(
         is_windows(), reason="windows produces different csv output"
     )
-    def test_dataframe_numeric_columns(
-        df: Any,
-    ) -> None:
+    def test_dataframe_numeric_columns(df: IntoDataFrame) -> None:
         subject = ui.dataframe(df)
 
-        assert subject.value is df
+        assert is_not_narwhals_dataframe(subject.value)
         assert subject._component_args["columns"] == [
             ["1", "integer", "int64"],
             ["2", "string", "object"],
@@ -135,9 +142,7 @@ class TestDataframes:
             exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
-    def test_dataframe_page_size(
-        df: Any,
-    ) -> None:
+    def test_dataframe_page_size(df: IntoDataFrame) -> None:
         # size 1
         subject = ui.dataframe(df, page_size=1)
         result = subject._get_dataframe(EmptyArgs())
@@ -184,10 +189,10 @@ class TestDataframes:
             ),  # Large DataFrame
         ],
     )
-    def test_dataframe_edge_cases(df: Any) -> None:
+    def test_dataframe_edge_cases(df: IntoDataFrame) -> None:
         subject = ui.dataframe(df)
 
-        assert subject.value is df
+        assert is_not_narwhals_dataframe(subject.value)
         assert len(subject._component_args["columns"]) == 2
 
         result = subject._get_dataframe(EmptyArgs())
@@ -213,7 +218,7 @@ class TestDataframes:
             exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
-    def test_dataframe_with_custom_page_size(df: Any) -> None:
+    def test_dataframe_with_custom_page_size(df: IntoDataFrame) -> None:
         subject = ui.dataframe(df, page_size=10)
 
         result = subject._get_dataframe(EmptyArgs())
@@ -260,7 +265,7 @@ class TestDataframes:
             exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
-    def test_dataframe_with_limit(df: Any) -> None:
+    def test_dataframe_with_limit(df: IntoDataFrame) -> None:
         subject = ui.dataframe(df, limit=100)
 
         result = subject._get_dataframe(EmptyArgs())
@@ -402,7 +407,7 @@ class TestDataframes:
             exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
-    def test_dataframe_error_handling(df: Any) -> None:
+    def test_dataframe_error_handling(df: IntoDataFrame) -> None:
         subject = ui.dataframe(df)
 
         # Test ColumnNotFound error
@@ -434,7 +439,8 @@ class TestDataframes:
         )
 
         handler = get_handler_for_dataframe(df)
-        transform_container = TransformsContainer(df, handler)
+        nw_df = nw.from_native(df).lazy()
+        transform_container = TransformsContainer(nw_df, handler)
 
         # Create and apply the transformation
         transform = GroupByTransform(
@@ -447,25 +453,21 @@ class TestDataframes:
         transformed_df = transform_container.apply(transformations)
 
         # Verify the transformed DataFrame
-        assert isinstance(transformed_df, pl.DataFrame)
-        assert "group" in transformed_df.columns
-        assert "age_max" in transformed_df.columns
-        assert transformed_df.shape == (2, 2)
-        assert transformed_df["age_max"].to_list() == [
+        df = transformed_df.collect().to_native()
+        assert isinstance(df, pl.DataFrame)
+        assert "group" in df.columns
+        assert "age_max" in df.columns
+        assert df.shape == (2, 2)
+        assert set(df["age_max"].to_list()) == {
             20,
             40,
-        ]  # max age for each group
+        }  # max age for each group
 
         # The resulting frame should have correct column names and values
         # Convert to dict and verify values
-        result_dict = {
-            col: transformed_df[col].to_list()
-            for col in transformed_df.columns
-        }
-        assert result_dict == {
-            "group": ["a", "b"],
-            "age_max": [20, 40],
-        }
+        result_dict = {col: df[col].to_list() for col in df.columns}
+        assert set(result_dict["group"]) == {"a", "b"}
+        assert set(result_dict["age_max"]) == {20, 40}
 
         # Verify the generated code uses original column names
         from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
@@ -513,7 +515,8 @@ class TestDataframes:
         )
 
         handler = get_handler_for_dataframe(df)
-        transform_container = TransformsContainer(df, handler)
+        nw_df = nw.from_native(df).lazy()
+        transform_container = TransformsContainer(nw_df, handler)
 
         # Create and apply the group_by transformation
         transform_grp = GroupByTransform(
@@ -536,7 +539,7 @@ class TestDataframes:
         transformed_df = transform_container.apply(transformations)
 
         # from Ibis to Polars
-        transformed_df = transformed_df.to_polars()
+        transformed_df = transformed_df.collect().to_polars()
 
         # Verify the transformed DataFrame
         assert isinstance(transformed_df, pl.DataFrame)

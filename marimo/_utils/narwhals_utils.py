@@ -10,8 +10,6 @@ import narwhals.stable.v1 as nw1
 import narwhals.stable.v2 as nw
 from narwhals.typing import IntoDataFrame
 
-from marimo._dependencies.dependencies import DependencyManager
-
 if sys.version_info < (3, 11):
     from typing_extensions import TypeGuard
 else:
@@ -166,27 +164,11 @@ def can_narwhalify_lazyframe(df: Any) -> TypeGuard[Any]:
     """
     Check if the given object is a narwhals lazyframe.
     """
-    if nw.dependencies.is_polars_lazyframe(df):
-        return True
-    if hasattr(
-        nw.dependencies, "is_pyspark_dataframe"
-    ) and nw.dependencies.is_pyspark_dataframe(df):
-        return True
-    if hasattr(
-        nw.dependencies, "is_pyspark_connect_dataframe"
-    ) and nw.dependencies.is_pyspark_connect_dataframe(df):
-        return True
-    if nw.dependencies.is_dask_dataframe(df):
-        return True
-    if hasattr(nw.dependencies, "is_duckdb_relation"):
-        if nw.dependencies.is_duckdb_relation(df):
-            return True
-    elif DependencyManager.duckdb.has():
-        # Fallback if is_duckdb_relation is not available
-        import duckdb
-
-        return isinstance(df, duckdb.DuckDBPyRelation)
-    return False
+    try:
+        nw_df = nw.from_native(df, pass_through=False, eager_only=False)
+        return is_narwhals_lazyframe(nw_df)
+    except Exception:
+        return False
 
 
 @overload
