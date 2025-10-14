@@ -336,7 +336,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def as_sql_code(transformed_df: DataFrame) -> str | None:
         native_df = transformed_df.to_native()
         if nw.dependencies.is_ibis_table(native_df):
-            import ibis  # type: ignore[import-untyped]
+            import ibis  # type: ignore[import-not-found]
 
             try:
                 return str(ibis.to_sql(native_df))
