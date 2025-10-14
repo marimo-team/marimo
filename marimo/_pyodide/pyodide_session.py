@@ -10,7 +10,7 @@ import typing
 from pathlib import Path
 from typing import Any, Callable, TypeVar
 
-import msgspec
+import msgspec_m as msgspec
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig

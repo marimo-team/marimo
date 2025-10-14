@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-import msgspec
+import msgspec_m as msgspec
 
 from marimo._server.models.models import BaseResponse
 

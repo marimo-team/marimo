@@ -19,7 +19,7 @@ from typing import (
 )
 from uuid import uuid4
 
-import msgspec
+import msgspec_m as msgspec
 
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig

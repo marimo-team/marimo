@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Mapping
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
-import msgspec
+import msgspec_m as msgspec
 
 from marimo import _loggers
 from marimo._ast.parse import ast_parse

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 
-import msgspec
+import msgspec_m as msgspec
 import pytest
 
 from marimo._messaging.ops import (

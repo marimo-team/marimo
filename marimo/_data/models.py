@@ -39,7 +39,7 @@ class DataTableColumn(BaseStruct):
     sample_values: list[Any]
 
     def __post_init__(self) -> None:
-        # Sometimes like pandas, sqlalchemy or ibis may return column names as objects
+        # Sometimes libraries (like pandas, sqlalchemy or ibis) may return column names as objects
         # instead of strings, although their type hints are str
         # Instead of trying to track this down each time, just convert to string
         self.name = str(self.name)

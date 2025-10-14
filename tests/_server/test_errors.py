@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import msgspec
+import msgspec_m as msgspec
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
