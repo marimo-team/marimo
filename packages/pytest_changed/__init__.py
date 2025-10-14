@@ -251,6 +251,14 @@ def pytest_configure(config: pytest.Config) -> None:
     # Store the test files in config for collection hook
     config.option.changed_test_files = test_files
 
+    include_unchanged: bool = config.getoption("include_unchanged")
+    if test_files and not include_unchanged:
+        # Convert to relative paths for cleaner output
+        test_paths = [
+            str(f.relative_to(repo_root)) for f in sorted(test_files)
+        ]
+        config.args[:] = test_paths
+
 
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
@@ -275,7 +283,7 @@ def pytest_collection_modifyitems(
             )
         return
 
-    include_unchanged = config.getoption("include_unchanged")
+    include_unchanged: bool = config.getoption("include_unchanged")
 
     # Filter items to only those in affected test files
     selected: list[pytest.Item] = []

@@ -45,9 +45,32 @@ jobs:
       - name: 📚 Build docs
         run: hatch run docs:build --strict
 
-  test_python:
+  test_check:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' }}
+    name: Test lint and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🥚 Install Hatch
+        uses: pypa/hatch@install
+
+      - name: 🧹 Lint
+        run: hatch run lint
+
+      - name: 🔍 Typecheck
+        run: hatch run typecheck:check
+
+  # For PRs, we only run the tests for the changed files.
+  # If there is a `test-all` label, we run the tests across unchanged files as well.
+  test_python:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
     name: ${{ matrix.os }} / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -107,47 +130,55 @@ jobs:
           cp frontend/index.html marimo/_static/index.html
           cp frontend/public/favicon.ico marimo/_static/favicon.ico
 
-      - name: Lint
-        if: ${{ matrix.python-version == '3.12' }}
-        run: hatch run lint
-
-      - name: Typecheck
-        if: ${{ matrix.python-version == '3.12' }}
-        run: hatch run typecheck:check
-
       # Required since python3.14 not pulled automatically for now.
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
+      # Setup test flags based on conditions
+      - name: Setup test flags
+        id: setup-flags
+        run: |
+          # Set CHANGED_FROM: On PRs, compare against base branch; on main, compare against HEAD~1
+          CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
+          echo "changed_from=$CHANGED_FROM"
+          echo "changed_from=$CHANGED_FROM" >> $GITHUB_OUTPUT
+
+          # Set INCLUDE_UNCHANGED: true if test-all label, python 3.13 + optional deps, or main branch
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'test-all') }}" == "true" ]] || \
+             [[ "${{ matrix.python-version }}" == "3.13" && "${{ matrix.dependencies }}" == "core,optional" ]] || \
+             [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "include_unchanged=true"
+            echo "include_unchanged=true" >> $GITHUB_OUTPUT
+          else
+            echo "include_unchanged=false"
+            echo "include_unchanged=false" >> $GITHUB_OUTPUT
+          fi
+
       # Test with base dependencies
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          # On PRs, compare against base branch; on main, compare against HEAD~1
-          CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
           hatch run +py=${{ matrix.python-version }} test:test tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
-            -p packages.pytest_changed --changed-from=$CHANGED_FROM \
+            -p packages.pytest_changed \
+            --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
+            --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
             --picked=first
 
       # Test with optional dependencies
       - name: Test changed with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
-        # Include all tests on 3.13 or main
         run: |
-          INCLUDE_UNCHANGED=${{ matrix.python-version == '3.13' }} || ${{ github.ref == 'refs/heads/main' }}
-          # On PRs, compare against base branch; on main, compare against HEAD~1
-          CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
-
           hatch run +py=${{ matrix.python-version }} test-optional:test tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
-            -p packages.pytest_changed --changed-from=$CHANGED_FROM \
-            --include-unchanged=$INCLUDE_UNCHANGED \
+            -p packages.pytest_changed \
+            --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
+            --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
             --picked=first
 
       # Test with minimal dependencies using lowest resolution
@@ -156,14 +187,14 @@ jobs:
       - name: Test with minimal dependencies (lowest resolution)
         if: ${{ matrix.dependencies == 'minimal' }}
         run: |
-          # On PRs, compare against base branch; on main, compare against HEAD~1
-          CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
           hatch run +py=${{ matrix.python-version }} test:test tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
-            --picked=first \
-            -p packages.pytest_changed --changed-from=$CHANGED_FROM
+            -p packages.pytest_changed \
+            --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
+            --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
+            --picked=first
         env:
           UV_RESOLUTION: lowest
 
@@ -192,7 +223,7 @@ jobs:
 
       - name: Test with optional dependencies
         run: |
-          hatch run +py=3.12 test-optional:test \
+          hatch run +py=3.13 test-optional:test \
             -v \
             tests/ \
             -k "not test_cli" \
@@ -201,8 +232,8 @@ jobs:
             --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
       # Only upload coverage on `main` so it is not blocking
-      # and only on `3.12`, `ubuntu-latest`, with optional deps since it is mostly duplicate
-      # coverage from the other matrix jobs.
+      # and only on `3.13`, `ubuntu-latest`, with optional deps since it will cover
+      # the most surface area.
       - name: Upload coverage reports to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v5
