@@ -82,3 +82,11 @@ def test_sanitize_json_bigint_keys() -> None:
     assert (
         mo_data.sanitize_json_bigint(data_dict) == '{"2021-01-01":"date key"}'
     )
+
+
+def test_sanitize_json_bigint_floats() -> None:
+    data_dict = {"float": 125339796295248046.9}
+    assert (
+        mo_data.sanitize_json_bigint(data_dict)
+        == '{"float":"1.2533979629524805e+17"}'
+    )

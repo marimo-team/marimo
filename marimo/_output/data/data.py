@@ -190,14 +190,14 @@ MAX_SAFE_INTEGER = 9007199254740991
 MIN_SAFE_INTEGER = -9007199254740991
 
 
-def is_bigint(value: int) -> bool:
+def is_bigint(value: int | float) -> bool:
     return value > MAX_SAFE_INTEGER or value < MIN_SAFE_INTEGER
 
 
 def sanitize_json_bigint(
     data: Union[str, dict[str, Any], list[dict[str, Any]]],
 ) -> str:
-    """Sanitize JSON bigint to a string.
+    """Sanitize JSON big numbers to a string.
 
     This is necessary because the frontend will round ints larger than
     Number.MAX_SAFE_INTEGER to Number.MAX_SAFE_INTEGER.
@@ -223,6 +223,9 @@ def sanitize_json_bigint(
             # If the value is outside the safe integer range, convert it to an object with a $bigint key
             # Frontend will convert the object back to an integer.
             return {BIGINT_KEY: str(obj)}
+        elif isinstance(obj, float) and is_bigint(obj):
+            # Decimals are not handled currently, we just convert them to strings.
+            return str(obj)
         else:
             return obj
 
