@@ -12,7 +12,7 @@ from marimo._utils.parse_dataclass import parse_raw
 if TYPE_CHECKING:
     from typing import Callable
 
-    import msgspec_m as msgspec
+    import msgspec
 
 
 def try_assert_n_times(n: int, assert_fn: Callable[[], None]) -> None:

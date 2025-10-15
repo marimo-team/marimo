@@ -14,7 +14,7 @@ from typing import (
 )
 from uuid import uuid4
 
-import msgspec_m as msgspec
+import msgspec
 
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig

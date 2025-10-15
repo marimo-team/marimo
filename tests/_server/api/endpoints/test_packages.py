@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import msgspec_m as msgspec
+import msgspec
 import pytest
 
 from marimo._runtime.packages.package_manager import PackageManager

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-import msgspec_m as msgspec
+import msgspec
 
 from marimo._server.models.files import FileInfo
 from marimo._tutorials import Tutorial  # type: ignore
