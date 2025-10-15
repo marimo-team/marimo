@@ -41,21 +41,21 @@ def test_sanitize_json_bigint() -> None:
     json_str = '{"bigint": 9007199254740992}'
     assert (
         mo_data.sanitize_json_bigint(json_str)
-        == '{"bigint":"9007199254740992"}'
+        == '{"bigint":{"$bigint":"9007199254740992"}}'
     )
 
     # Test with dict input
     data_dict = {"bigint": 9007199254740992}
     assert (
         mo_data.sanitize_json_bigint(data_dict)
-        == '{"bigint":"9007199254740992"}'
+        == '{"bigint":{"$bigint":"9007199254740992"}}'
     )
 
     # Test with list of dicts input
     data_list = [{"bigint": 9007199254740992}]
     assert (
         mo_data.sanitize_json_bigint(data_list)
-        == '[{"bigint":"9007199254740992"}]'
+        == '[{"bigint":{"$bigint":"9007199254740992"}}]'
     )
 
     # Test with regular numbers (should not be converted)
@@ -69,7 +69,7 @@ def test_sanitize_json_bigint() -> None:
     }
     assert (
         mo_data.sanitize_json_bigint(data_dict)
-        == '{"bigint":"9007199254740992","nested":{"bigint":"9007199254740993","regular":42}}'  # noqa: E501
+        == '{"bigint":{"$bigint":"9007199254740992"},"nested":{"bigint":{"$bigint":"9007199254740993"},"regular":42}}'  # noqa: E501
     )
 
 
@@ -81,4 +81,12 @@ def test_sanitize_json_bigint_keys() -> None:
     }
     assert (
         mo_data.sanitize_json_bigint(data_dict) == '{"2021-01-01":"date key"}'
+    )
+
+
+def test_sanitize_json_bigint_floats() -> None:
+    data_dict = {"float": 125339796295248046.9}
+    assert (
+        mo_data.sanitize_json_bigint(data_dict)
+        == '{"float":"1.2533979629524805e+17"}'
     )

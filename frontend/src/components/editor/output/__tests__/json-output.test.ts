@@ -218,6 +218,49 @@ describe("getCopyValue", () => {
     `,
     );
   });
+
+  it("should handle bigint", () => {
+    const bigint = String(BigInt(2 ** 64));
+    const value = `text/plain+bigint:${bigint}`;
+    const result = getCopyValue(value);
+    expect(result).toMatchInlineSnapshot(`"18446744073709551616"`);
+
+    const nestedBigInt = {
+      key1: bigint, // this will be just a string
+      key2: `text/plain+bigint:${bigint}`, // this will convert to number
+      key3: true,
+    };
+    const nestedResult = getCopyValue(nestedBigInt);
+    expect(nestedResult).toMatchInlineSnapshot(
+      `
+      "{
+        "key1": "18446744073709551616",
+        "key2": 18446744073709551616,
+        "key3": True
+      }"
+      `,
+    );
+
+    const bigintRaw = BigInt(2 ** 64);
+    const bigintRawResult = getCopyValue(bigintRaw);
+    expect(bigintRawResult).toMatchInlineSnapshot(`"18446744073709551616"`);
+
+    const nestedBigIntRaw = {
+      key1: bigintRaw, // raw number
+      key2: `text/plain+bigint:${bigintRaw}`,
+      key3: true,
+    };
+    const nestedBigIntRawResult = getCopyValue(nestedBigIntRaw);
+    expect(nestedBigIntRawResult).toMatchInlineSnapshot(
+      `
+      "{
+        "key1": 18446744073709551616,
+        "key2": 18446744073709551616,
+        "key3": True
+      }"
+      `,
+    );
+  });
 });
 
 describe("determineMaxDisplayLength", () => {
