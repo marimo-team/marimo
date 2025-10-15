@@ -42,7 +42,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
 
       - name: Adapt pyproject.toml to build marimo-base
         run: uv run ./scripts/modify_pyproject_for_marimo_base.py

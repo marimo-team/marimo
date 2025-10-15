@@ -45,7 +45,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
 
       # patch pyproject.toml version to be of the form
       # X.Y.<Z+1>-dev{n-commits-since-last-tag}
