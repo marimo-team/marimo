@@ -174,6 +174,7 @@ def start(
     """
     Start the server.
     """
+    import packaging.version
 
     # Defaults when mcp is enabled
     if mcp:
@@ -296,6 +297,33 @@ def start(
     initialize_fd_limit(limit=4096)
     initialize_signals()
 
+    # Platform-specific initialization of the event loop policy (Windows
+    # requires SelectorEventLoop).
+    initialize_asyncio()
+
+    if packaging.version.Version(
+        uvicorn.__version__
+    ) >= packaging.version.Version("0.36.0"):
+        # uvicorn 0.36.0 introduced custom event loop policies, and uses a loop
+        # factory instead of asyncio's global event loop policy (the latter was
+        # deprecated in Python 3.14).
+        #
+        # We have to use a SelectorEventLoop on Windows in particular (because
+        # we use the add_reader API); Selector is already the default on Unix.
+        #
+        # The syntax is awkward: <module>:function
+        edit_loop_policy = "asyncio:SelectorEventLoop"
+    else:
+        # Older versions of uvicorn use the globally configured event
+        # loop policy
+        edit_loop_policy = "asyncio"
+
+    # Under uvloop, reading the socket we monitor under add_reader()
+    # occasionally throws BlockingIOError (errno 11, or errno 35,
+    # ...). RUN mode no longer uses a socket (it has no IPC) but EDIT
+    # does, so force asyncio.
+    loop_policy = edit_loop_policy if mode == SessionMode.EDIT else "auto"
+
     server = uvicorn.Server(
         uvicorn.Config(
             app,
@@ -323,16 +351,12 @@ def start(
             # close the websocket if we don't receive a pong after 60 seconds
             ws_ping_timeout=60,
             timeout_graceful_shutdown=1,
-            # Under uvloop, reading the socket we monitor under add_reader()
-            # occasionally throws BlockingIOError (errno 11, or errno 35,
-            # ...). RUN mode no longer uses a socket (it has no IPC) but EDIT
-            # does, so force asyncio.
-            loop="asyncio" if mode == SessionMode.EDIT else "auto",
+            # loop can take an arbitrary string but mypy is complaining
+            # expecting it to be a Literal
+            loop=loop_policy,  # type:ignore[arg-type]
         )
     )
     app.state.server = server
-
-    initialize_asyncio()
 
     # Execute server startup command if provided
     if server_startup_command:
