@@ -14,7 +14,12 @@ def test_markdown_to_marimo():
     assert utils.markdown_to_marimo(markdown) == expected
 
     markdown = 'Here are some quotes: """'
-    expected = r'mo.md(r"""Here are some quotes: \"\"\"""")'
+    expected = r'''
+mo.md(
+    r"""
+Here are some quotes: \"\"\"
+"""
+)'''.strip()
 
     assert utils.markdown_to_marimo(markdown) == expected
 
