@@ -111,7 +111,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c0/5a/9cac0c82afec3d09ccd97c8b6502d48f165f9124db81b4bcb90b4af974ee/jedi-0.19.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a3/48/f97f0920c20bc522c34f1eaec4c62d7a03c95c37da2dec858f65c8cb4325/loro-1.5.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/51/3f/afe76f8e2246ffbc867440cbcf90525264df0e658f8a5ca1f872b3f6192a/markdown-3.8-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/03/13/d7f707a92fce3cfbb5095dea81c94e26fee3fa57a761f396bb1cee6c54a0/msgspec_m-0.19.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/72/1c/10118a9213fd5034421baf37e83eb4050aa27b4cf916579a38c887e1dd47/msgspec_m-0.19.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c6/ac/dac4a63f978e4dcb3c6d3a78c4d8e0192a113d288502a1216950c41b1027/parso-0.8.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bf/b9/b0eb3f3cbcb734d930fdf839431606844a825b23eaf9a6ab371edac8162c/psutil-7.0.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
@@ -1101,7 +1101,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.16.5
-  sha256: e4c4bc12febc3a8a910657fc38ab6d6bc3c9421af1f8acaa717d601e863d7700
+  sha256: 77ef9ff85233c3d605c205957266f517c66edffb6659ac49475ecf4a69e4fa42
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1124,10 +1124,8 @@ packages:
   - duckdb>=1.0.0 ; extra == 'sql'
   - polars[pyarrow]>=1.9.0 ; extra == 'sql'
   - sqlglot[rs]>=26.2.0 ; extra == 'sql'
-  - duckdb>=1.0.0 ; extra == 'recommended'
+  - marimo[sql] ; extra == 'recommended'
   - altair>=5.4.0 ; extra == 'recommended'
-  - polars[pyarrow]>=1.9.0 ; extra == 'recommended'
-  - sqlglot[rs]>=26.2.0 ; extra == 'recommended'
   - openai>=1.55.3 ; extra == 'recommended'
   - ruff ; extra == 'recommended'
   - nbformat>=5.7.0 ; extra == 'recommended'
@@ -1211,10 +1209,10 @@ packages:
   - pkg:pypi/more-itertools?source=hash-mapping
   size: 61359
   timestamp: 1745349566387
-- pypi: https://files.pythonhosted.org/packages/03/13/d7f707a92fce3cfbb5095dea81c94e26fee3fa57a761f396bb1cee6c54a0/msgspec_m-0.19.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+- pypi: https://files.pythonhosted.org/packages/72/1c/10118a9213fd5034421baf37e83eb4050aa27b4cf916579a38c887e1dd47/msgspec_m-0.19.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
   name: msgspec-m
   version: 0.19.1
-  sha256: 1912ad1ab6ab2e29a63ebe22277b60d6da78466d16b2c8300294fd25471cb528
+  sha256: 1f3f053a8ccd6e41b466f754e6c1ac05a46779896f8ea259afbbd9e6f799e938
   requires_dist:
   - pyyaml ; extra == 'yaml'
   - tomli ; python_full_version < '3.11' and extra == 'toml'
