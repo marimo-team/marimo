@@ -21,3 +21,13 @@ class SuccessResult:
 @dataclass
 class EmptyArgs:
     pass
+
+@dataclass
+class ToolGuidelines:
+    """Structured guidance for AI assistants on when and how to use a tool."""
+    when_to_use: Optional[list[str]] = None
+    avoid_if: Optional[list[str]] = None
+    prerequisites: Optional[list[str]] = None
+    side_effects: Optional[list[str]] = None
+    additional_info: Optional[str] = None
+
