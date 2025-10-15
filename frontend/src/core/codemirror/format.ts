@@ -17,6 +17,7 @@ import {
   getEditorCodeAsPython,
   updateEditorCodeFromPython,
 } from "./language/utils";
+import { replaceEditorContent } from "./replace-editor-content";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
@@ -106,15 +107,7 @@ export async function formatSQL(editor: EditorView) {
   });
 
   // Update editor with formatted SQL
-  const doc = editor.state.doc;
-
-  // Noop if the code is the same
-  if (doc.toString() === formattedSQL) {
-    return;
-  }
-
-  editor.dispatch({
-    changes: { from: 0, to: doc.length, insert: formattedSQL },
+  replaceEditorContent(editor, formattedSQL, {
     effects: [formattingChangeEffect.of(true)],
   });
 }

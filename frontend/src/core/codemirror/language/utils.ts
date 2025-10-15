@@ -2,6 +2,7 @@
 
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { replaceEditorContent } from "../replace-editor-content";
 import { languageAdapterState } from "./extension";
 import { languageMetadataField } from "./metadata";
 
@@ -36,14 +37,8 @@ export function updateEditorCodeFromPython(
 ): string {
   const languageAdapter = editor.state.field(languageAdapterState);
   const [code] = languageAdapter.transformIn(pythonCode);
-  const doc = editor.state.doc;
-  // Noop if the code is the same
-  if (doc.toString() === code) {
-    return code;
-  }
-  editor.dispatch({
-    changes: { from: 0, to: doc.length, insert: code },
-  });
+  // Use replaceEditorContent which preserves cursor position when focused
+  replaceEditorContent(editor, code);
   return code;
 }
 
