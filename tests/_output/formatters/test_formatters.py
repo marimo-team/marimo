@@ -185,7 +185,7 @@ def test_repr_markdown():
     assert mime == "text/html"
     assert (
         content
-        == '<span class="markdown prose dark:prose-invert"><h1 id="hello-world">Hello, World!</h1></span>'  # noqa: E501
+        == '<span class="markdown prose dark:prose-invert contents"><h1 id="hello-world">Hello, World!</h1></span>'  # noqa: E501
     )
 
 
@@ -201,7 +201,7 @@ def test_repr_latex():
     assert mime == "text/html"
     assert (
         content
-        == '<span class="markdown prose dark:prose-invert"><span class="paragraph"><marimo-tex class="arithmatex">||(f(x) = e^x||)</marimo-tex></span></span>'  # noqa: E501
+        == '<span class="markdown prose dark:prose-invert contents"><span class="paragraph"><marimo-tex class="arithmatex">||(f(x) = e^x||)</marimo-tex></span></span>'  # noqa: E501
     )
 
 
@@ -429,7 +429,7 @@ def test_repr_mimebundle_with_markdown():
     mime, content = formatter(obj)
     assert mime == "application/vnd.marimo+mimebundle"
     assert content == {
-        "text/html": '<span class="markdown prose dark:prose-invert"><h1 id="hello-world">Hello, World!</h1></span>',
+        "text/html": '<span class="markdown prose dark:prose-invert contents"><h1 id="hello-world">Hello, World!</h1></span>',
         "text/markdown": "# Hello, World!",
     }
 
@@ -465,7 +465,7 @@ def test_repr_mimebundle_with_latex():
     mime, content = formatter(obj)
     assert mime == "application/vnd.marimo+mimebundle"
     assert content == {
-        "text/html": '<span class="markdown prose dark:prose-invert"><span class="paragraph"><marimo-tex class="arithmatex">||(e^x||)</marimo-tex></span></span>',
+        "text/html": '<span class="markdown prose dark:prose-invert contents"><span class="paragraph"><marimo-tex class="arithmatex">||(e^x||)</marimo-tex></span></span>',
         "text/latex": r"$e^x$",
     }
 
@@ -670,7 +670,10 @@ def test_as_html_with_repr_markdown() -> None:
 
     obj = CustomMarkdown()
     result = as_html(obj)
-    assert '<span class="markdown prose dark:prose-invert">' in result.text
+    assert (
+        '<span class="markdown prose dark:prose-invert contents">'
+        in result.text
+    )
     assert '<h1 id="markdown-title">Markdown Title</h1>' in result.text
 
 
