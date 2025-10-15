@@ -252,7 +252,7 @@ def to_functiondef(
         defs = tuple(
             name for name in sorted(cell.defs) if name not in sql_defs
         )
-        if used_refs:
+        if used_refs is not None:
             defs = tuple(name for name in defs if name in used_refs)
 
     decorator = to_decorator(cell.config, fn=fn)
