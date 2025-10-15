@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.0"
 app = marimo.App()
 
 
@@ -43,13 +43,14 @@ def _(mo):
         hover_template=cell_hover,
     )
     hover_table
-    return (hover_table,)
+    return
 
 
 @app.cell
 def _(table):
     table.value
     return
+
 
 @app.cell
 def _(mo):
@@ -61,8 +62,7 @@ def _(mo):
         max_height=300,
     )
     long_table
-    return (long_table,)
-
+    return
 
 
 if __name__ == "__main__":
