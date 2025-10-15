@@ -67,6 +67,7 @@ export interface CellEditorProps
   // DOM node where the editorView will be mounted
   editorViewParentRef?: React.RefObject<HTMLDivElement | null>;
   showHiddenCode: (opts?: { focus?: boolean }) => void;
+  outputArea?: "above" | "below";
 }
 
 const CellEditorInternal = ({
@@ -88,6 +89,7 @@ const CellEditorInternal = ({
   languageAdapter,
   setLanguageAdapter,
   showLanguageToggles = true,
+  outputArea,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const deleteCell = useDeleteCellCallback();
@@ -435,6 +437,7 @@ const CellEditorInternal = ({
         setAiCompletionCell(null);
       })}
       runCell={handleRunCell}
+      outputArea={outputArea}
     >
       <div className="relative w-full" {...navigationProps}>
         {showHideButton && (

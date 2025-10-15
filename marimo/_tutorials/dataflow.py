@@ -37,10 +37,8 @@ def _(mo):
         r"""
         **Tip: disabling automatic execution.**
 
-        marimo lets you disable automatic execution: just go into the notebook settings
-        and set
-
-        "Runtime > On Cell Change" to "lazy".
+        marimo lets you disable automatic execution: in the notebook
+        footer, change "On Cell Change" to "lazy".
 
         When the runtime is lazy, after running a cell, marimo marks its
         descendants as stale instead of automatically running them. The lazy

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional, Union
 
-import msgspec_m as msgspec
+import msgspec
 
 from marimo._ai._types import ChatMessage
 from marimo._server.ai.tools.types import ToolDefinition

@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from typing import Literal, Optional, Union
 
-import msgspec_m as msgspec
+import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager

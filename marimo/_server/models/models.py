@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from typing import Any, Literal, Optional
 
-import msgspec_m as msgspec
+import msgspec
 
 from marimo._ast.cell import CellConfig
 from marimo._runtime.requests import (

@@ -7,7 +7,7 @@ from typing import Optional
 import marimo._utils.requests as requests
 from marimo import _loggers
 from marimo._ai._tools.base import ToolBase
-from marimo._ai._tools.types import EmptyArgs, SuccessResult
+from marimo._ai._tools.types import EmptyArgs, SuccessResult, ToolGuidelines
 
 LOGGER = _loggers.marimo_logger()
 
@@ -28,6 +28,15 @@ class GetMarimoRules(ToolBase[EmptyArgs, GetMarimoRulesOutput]):
     Returns:
         The content of the rules file.
     """
+
+    guidelines = ToolGuidelines(
+        when_to_use=[
+            "Before using other marimo mcp tools, reading a marimo notebook, or writing to a notebook ALWAYS use this first to understand how marimo works",
+        ],
+        avoid_if=[
+            "The rules have already been retrieved recently, as they rarely change",
+        ],
+    )
 
     def handle(self, args: EmptyArgs) -> GetMarimoRulesOutput:
         del args

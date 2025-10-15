@@ -1199,6 +1199,11 @@ class SessionFileChangeHandler:
         # Get the latest codes
         codes = list(session.app_file_manager.app.cell_manager.codes())
         cell_ids = list(session.app_file_manager.app.cell_manager.cell_ids())
+
+        LOGGER.info(
+            f"File changed: {file_path}. num_cell_ids: {len(cell_ids)}, num_codes: {len(codes)}, changed_cell_ids: {changed_cell_ids}"
+        )
+
         # Send the updated cell ids and codes to the frontend
         session.write_operation(
             UpdateCellIdsRequest(cell_ids=cell_ids),

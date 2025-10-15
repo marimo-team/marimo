@@ -1,7 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-import msgspec_m as msgspec
+import msgspec
 
 from marimo._secrets.models import SecretKeysWithProvider, SecretProviderType
 

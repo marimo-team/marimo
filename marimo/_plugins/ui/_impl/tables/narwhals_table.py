@@ -7,7 +7,7 @@ import io
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
-import msgspec_m as msgspec
+import msgspec
 import narwhals.stable.v2 as nw
 from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 

@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Coroutine
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -110,15 +110,36 @@ def _create_watchdog(
             self.loop = loop
             self.observer = watchdog.observers.Observer()
 
-        def on_modified(self, event: Any) -> None:
+        def on_modified(
+            self,
+            event: watchdog.events.FileModifiedEvent
+            | watchdog.events.DirModifiedEvent,
+        ) -> None:
             del event
             self.loop.create_task(self.on_file_changed())
+
+        def on_moved(
+            self,
+            event: watchdog.events.FileMovedEvent
+            | watchdog.events.DirMovedEvent,
+        ) -> None:
+            # Handle editors that save by creating a temp file and moving it
+            # (e.g., Claude Code, some vim configurations)
+            dest_path_str = (
+                event.dest_path
+                if isinstance(event.dest_path, str)
+                else event.dest_path.decode("utf-8")
+            )
+
+            if self.path == Path(dest_path_str):
+                self.loop.create_task(self.on_file_changed())
 
         def start(self) -> None:
             event_handler = watchdog.events.PatternMatchingEventHandler(  # type: ignore # noqa: E501
                 patterns=[str(self.path)]
             )
             event_handler.on_modified = self.on_modified  # type: ignore
+            event_handler.on_moved = self.on_moved  # type: ignore
             self.observer.schedule(  # type: ignore
                 event_handler,
                 str(self.path.parent),
