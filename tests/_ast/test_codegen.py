@@ -669,21 +669,26 @@ class TestToFunctionDef:
         code1 = "empty = mo.sql('CREATE TABLE cars_df ();')"
         # Cell 2: uses the SQL variable (cars) - should appear in signature
         code2 = "result = cars_df.filter(lambda x: x > 0); empty"
-        expected = wrap_generate_filecontents([code1, code2], ["cell1", "cell2"])
-        assert "\n".join(
-            [
-                "@app.cell",
-                "def cell1(mo):",
-                "    empty = mo.sql('CREATE TABLE cars_df ();')",
-                "    return (empty,)",  # Doesn't return cars_df
-                "",
-                "",
-                "@app.cell",
-                "def cell2(cars_df, empty):",
-                "    result = cars_df.filter(lambda x: x > 0); empty",
-                "    return",
-            ]
-        ) in expected
+        expected = wrap_generate_filecontents(
+            [code1, code2], ["cell1", "cell2"]
+        )
+        assert (
+            "\n".join(
+                [
+                    "@app.cell",
+                    "def cell1(mo):",
+                    "    empty = mo.sql('CREATE TABLE cars_df ();')",
+                    "    return (empty,)",  # Doesn't return cars_df
+                    "",
+                    "",
+                    "@app.cell",
+                    "def cell2(cars_df, empty):",
+                    "    result = cars_df.filter(lambda x: x > 0); empty",
+                    "    return",
+                ]
+            )
+            in expected
+        )
 
     def test_should_remove_defaults(self) -> None:
         code = "x = 0"
