@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from marimo._ai._tools.base import ToolBase
-from marimo._ai._tools.types import SuccessResult
+from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._data.models import DataTableColumn
 from marimo._messaging.ops import VariableValue
 from marimo._server.sessions import Session
@@ -59,6 +59,19 @@ class GetTablesAndVariables(
     Returns:
         A success result containing tables (columns, primary keys, indexes, engine, etc.) and variables (value, data type).
     """
+
+    guidelines = ToolGuidelines(
+        when_to_use=[
+            "When inspecting in-memory DataFrames or Python variables in the notebook",
+            "Before suggesting data operations to understand available data",
+        ],
+        prerequisites=[
+            "You must have a valid session id from an active notebook",
+        ],
+        avoid_if=[
+            "the user is asking about database tables or data sources, use the get_database_tables tool instead",
+        ],
+    )
 
     def handle(self, args: TablesAndVariablesArgs) -> TablesAndVariablesOutput:
         session = self.context.get_session(args.session_id)

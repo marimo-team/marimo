@@ -7,7 +7,7 @@ from typing import Any, Optional
 from marimo import _loggers
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.tools.cells import ErrorDetail
-from marimo._ai._tools.types import SuccessResult
+from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._server.sessions import Session
 from marimo._types.ids import CellId_t, SessionId
 
@@ -44,6 +44,16 @@ class GetNotebookErrors(
     Returns:
         A success result containing per-cell error details and totals.
     """
+
+    guidelines = ToolGuidelines(
+        when_to_use=[
+            "When the user reports errors or issues in their notebook",
+            "Before debugging or fixing broken cells",
+        ],
+        prerequisites=[
+            "You must have a valid session id from an active notebook",
+        ],
+    )
 
     def handle(self, args: GetNotebookErrorsArgs) -> GetNotebookErrorsOutput:
         session = self.context.get_session(args.session_id)

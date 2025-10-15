@@ -7,7 +7,7 @@ from typing import Optional
 
 from marimo import _loggers
 from marimo._ai._tools.base import ToolBase
-from marimo._ai._tools.types import SuccessResult
+from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._data.models import DataTable
 from marimo._server.sessions import Session
@@ -50,6 +50,19 @@ class GetDatabaseTables(
 
     The tables returned contain information about the database, schema and connection name to use in forming SQL queries.
     """
+
+    guidelines = ToolGuidelines(
+        when_to_use=[
+            "When exploring database tables from external connections (SQL databases)",
+            "Before writing SQL queries to understand schema structure",
+        ],
+        prerequisites=[
+            "You must have a valid session id from an active notebook",
+        ],
+        avoid_if=[
+            "the user is asking about in-memory DataFrames, use the get_tables_and_variables tool instead",
+        ],
+    )
 
     def handle(self, args: GetDatabaseTablesArgs) -> GetDatabaseTablesOutput:
         session_id = args.session_id
