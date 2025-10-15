@@ -9,7 +9,6 @@ from unittest.mock import Mock, patch
 import click
 import pytest
 
-from docs.blocks import uri_encode_component
 from marimo._cli.file_path import (
     FileContentReader,
     GenericURLReader,
@@ -23,6 +22,7 @@ from marimo._cli.file_path import (
     is_github_src,
     validate_name,
 )
+from marimo._output.utils import uri_encode_component
 from marimo._utils.requests import Response
 from tests.mocks import EDGE_CASE_FILENAMES
 

@@ -17,7 +17,9 @@ def browser_open_fallback(
     """
     import inspect
 
-    import marimo as mo
+    import marimo._runtime.output._output as output
+    from marimo._output.hypertext import Html
+    from marimo._plugins.stateless.image import image
 
     del new, autoraise  # unused
 
@@ -44,8 +46,8 @@ def browser_open_fallback(
         stack[2].filename.endswith("antigravity.py")
         or (stack[1].filename.endswith("antigravity.py"))
     ):
-        mo.output.append(
-            mo.image(
+        output.append(
+            image(
                 "https://marimo.app/images/antigravity.png",
                 alt=(
                     "The image shows 2 stick figures in XKCD style. The one "
@@ -67,8 +69,8 @@ def browser_open_fallback(
             )
         )
     else:
-        mo.output.append(
-            mo.Html(
+        output.append(
+            Html(
                 f"<iframe src='{url}' style='width:100%;height:500px'></iframe>",
             )
         )
