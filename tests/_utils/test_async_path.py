@@ -1,6 +1,5 @@
 import asyncio
 import os
-import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -416,10 +415,6 @@ class TestAsyncPathThreading:
 
 
 class TestAsyncPathEdgeCases:
-    @pytest.mark.skipif(
-        sys.version_info < (3, 10),
-        reason="Hardlink requires Python 3.10 or higher",
-    )
     async def test_hardlink_to(self):
         """Test hardlink_to creates hard link."""
         with tempfile.TemporaryDirectory() as tmp:
@@ -436,10 +431,6 @@ class TestAsyncPathEdgeCases:
             target_stat = await target.stat()
             assert source_stat.st_ino == target_stat.st_ino
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 10),
-        reason="Hardlink requires Python 3.10 or higher",
-    )
     async def test_write_text_with_newline(self):
         """Test write_text with custom newline parameter."""
         with tempfile.TemporaryDirectory() as tmp:
