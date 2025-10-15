@@ -15,8 +15,6 @@ from textwrap import dedent
 from typing import Any, Callable, TypeVar
 from unittest.mock import MagicMock
 
-import pytest
-
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._config.manager import (
@@ -438,10 +436,6 @@ def test_session_with_kiosk_consumers() -> None:
     assert session.room.main_consumer is None
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 10),
-    reason="This test is flaky on Python 3.9",
-)
 @save_and_restore_main
 async def test_session_manager_file_watching(tmp_path: Path) -> None:
     # Create a temporary file
@@ -659,10 +653,6 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
         session_manager_no_watch.shutdown()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 10),
-    reason="This test is flaky on Python 3.9",
-)
 @save_and_restore_main
 async def test_watch_mode_with_watcher_on_save_config() -> None:
     """Test that watch mode works correctly with watcher_on_save config."""
@@ -814,10 +804,6 @@ def __():
         os.remove(tmp_path)
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 10),
-    reason="This test is flaky on Python 3.9",
-)
 @save_and_restore_main
 async def test_session_manager_file_rename() -> None:
     """Test that file renaming works correctly with file watching."""

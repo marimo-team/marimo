@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import difflib
 import re
-import sys
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Callable
@@ -102,15 +101,6 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
             )
 
             if result != expected:
-                # Old versions of markdown are allowed to have different
-                # tags and whitespace
-                if sys.version_info < (3, 10):
-                    if ToText.apply(result) == ToText.apply(expected):
-                        pytest.xfail(
-                            "Different tags in older markdown versions"
-                        )
-                        return
-
                 write_result()
                 print("Snapshot updated")
 
