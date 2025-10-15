@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import msgspec_m as msgspec
+import msgspec
 
 if TYPE_CHECKING:
     from pydantic import GetCoreSchemaHandler

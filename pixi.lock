@@ -111,7 +111,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c0/5a/9cac0c82afec3d09ccd97c8b6502d48f165f9124db81b4bcb90b4af974ee/jedi-0.19.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a3/48/f97f0920c20bc522c34f1eaec4c62d7a03c95c37da2dec858f65c8cb4325/loro-1.5.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/51/3f/afe76f8e2246ffbc867440cbcf90525264df0e658f8a5ca1f872b3f6192a/markdown-3.8-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/03/13/d7f707a92fce3cfbb5095dea81c94e26fee3fa57a761f396bb1cee6c54a0/msgspec_m-0.19.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/d0/ef/c5422ce8af73928d194a6606f8ae36e93a52fd5e8df5abd366903a5ca8da/msgspec-0.19.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c6/ac/dac4a63f978e4dcb3c6d3a78c4d8e0192a113d288502a1216950c41b1027/parso-0.8.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bf/b9/b0eb3f3cbcb734d930fdf839431606844a825b23eaf9a6ab371edac8162c/psutil-7.0.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
@@ -208,7 +208,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c0/5a/9cac0c82afec3d09ccd97c8b6502d48f165f9124db81b4bcb90b4af974ee/jedi-0.19.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/ee/7e042a13e93f09c24618dc804f01849735d81740f8b74827124ff7fc8396/loro-1.5.0-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/3f/08/83871f3c50fc983b88547c196d11cf8c3340e37c32d2e9d6152abe2c61f7/Markdown-3.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/dc/0e/d6ace44429887a0a8381fbc887dc59061e5f96be8a64ba7ed60d6d581330/msgspec_m-0.19.1-cp312-cp312-macosx_11_0_arm64.whl
+      - pypi: https://files.pythonhosted.org/packages/89/b0/1b9763938cfae12acf14b682fcf05c92855974d921a5a985ecc197d1c672/msgspec-0.19.0-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/7d/81/1cf7a468ef2f8e88266d5c3e5ab026a045aa76150e6640bfe9c5450a8c11/narwhals-2.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c6/ac/dac4a63f978e4dcb3c6d3a78c4d8e0192a113d288502a1216950c41b1027/parso-0.8.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/04/8b/30f930733afe425e3cbfc0e1468a30a18942350c1a8816acfade80c005c4/psutil-7.0.0-cp36-abi3-macosx_11_0_arm64.whl
@@ -1101,7 +1101,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.16.5
-  sha256: e4c4bc12febc3a8a910657fc38ab6d6bc3c9421af1f8acaa717d601e863d7700
+  sha256: 00660bfd80ed86fe2742590ac0f59cbd50d764290e29293c6a16beb233d9632b
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1120,7 +1120,7 @@ packages:
   - itsdangerous>=2.0.0
   - narwhals>=2.0.0
   - packaging
-  - msgspec-m>=0.19.1
+  - msgspec>=0.19.0
   - duckdb>=1.0.0 ; extra == 'sql'
   - polars[pyarrow]>=1.9.0 ; extra == 'sql'
   - sqlglot[rs]>=26.2.0 ; extra == 'sql'
@@ -1211,10 +1211,10 @@ packages:
   - pkg:pypi/more-itertools?source=hash-mapping
   size: 61359
   timestamp: 1745349566387
-- pypi: https://files.pythonhosted.org/packages/03/13/d7f707a92fce3cfbb5095dea81c94e26fee3fa57a761f396bb1cee6c54a0/msgspec_m-0.19.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-  name: msgspec-m
-  version: 0.19.1
-  sha256: 1912ad1ab6ab2e29a63ebe22277b60d6da78466d16b2c8300294fd25471cb528
+- pypi: https://files.pythonhosted.org/packages/89/b0/1b9763938cfae12acf14b682fcf05c92855974d921a5a985ecc197d1c672/msgspec-0.19.0-cp312-cp312-macosx_11_0_arm64.whl
+  name: msgspec
+  version: 0.19.0
+  sha256: 43bbb237feab761b815ed9df43b266114203f53596f9b6e6f00ebd79d178cdf2
   requires_dist:
   - pyyaml ; extra == 'yaml'
   - tomli ; python_full_version < '3.11' and extra == 'toml'
@@ -1248,10 +1248,10 @@ packages:
   - tomli ; python_full_version < '3.11' and extra == 'dev'
   - tomli-w ; extra == 'dev'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/dc/0e/d6ace44429887a0a8381fbc887dc59061e5f96be8a64ba7ed60d6d581330/msgspec_m-0.19.1-cp312-cp312-macosx_11_0_arm64.whl
-  name: msgspec-m
-  version: 0.19.1
-  sha256: 073df7c7dac9137bd2e6511e65a029dff5f2252dc35d22b225f8150f89f20708
+- pypi: https://files.pythonhosted.org/packages/d0/ef/c5422ce8af73928d194a6606f8ae36e93a52fd5e8df5abd366903a5ca8da/msgspec-0.19.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+  name: msgspec
+  version: 0.19.0
+  sha256: d911c442571605e17658ca2b416fd8579c5050ac9adc5e00c2cb3126c97f73bc
   requires_dist:
   - pyyaml ; extra == 'yaml'
   - tomli ; python_full_version < '3.11' and extra == 'toml'

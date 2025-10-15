@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
-import msgspec_m as msgspec
+import msgspec
 import pytest
 
 from marimo._utils.platform import is_windows

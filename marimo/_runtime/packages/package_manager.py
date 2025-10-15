@@ -6,7 +6,7 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, Callable, Optional
 
-import msgspec_m as msgspec
+import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager

@@ -7,7 +7,7 @@ import time
 from enum import Enum
 from typing import Any, Union
 
-import msgspec_m as msgspec
+import msgspec
 
 from marimo._messaging.errors import Error
 from marimo._messaging.mimetypes import ConsoleMimeType, KnownMimeType
