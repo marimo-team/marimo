@@ -242,6 +242,28 @@ describe("replaceEditorContent", () => {
     view.destroy();
   });
 
+  it("should stay at end of line when new line is added", () => {
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "Hello World",
+        selection: { anchor: 11 }, // At end (column 11)
+      }),
+    });
+
+    Object.defineProperty(view, "hasFocus", {
+      get: () => true,
+      configurable: true,
+    });
+
+    replaceEditorContent(view, "Hello World\nSome new line");
+
+    expect(view.state.doc.toString()).toBe("Hello World\nSome new line");
+    const newCursorPos = view.state.selection.main.head;
+    expect(newCursorPos).toBe(11);
+
+    view.destroy();
+  });
+
   it("should preserve cursor on same line with column clamping", () => {
     const view = new EditorView({
       state: EditorState.create({
@@ -263,6 +285,51 @@ describe("replaceEditorContent", () => {
     // Cursor should be clamped to end of shorter line
     const newCursorPos = view.state.selection.main.head;
     expect(newCursorPos).toBe(9); // End of "def fn():"
+
+    view.destroy();
+  });
+
+  it("should handle selection range (collapses to head position)", () => {
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "Hello World",
+        selection: { anchor: 0, head: 5 }, // "Hello" selected
+      }),
+    });
+
+    Object.defineProperty(view, "hasFocus", {
+      get: () => true,
+      configurable: true,
+    });
+
+    replaceEditorContent(view, "Goodbye Everyone");
+
+    expect(view.state.doc.toString()).toBe("Goodbye Everyone");
+    // Selection head (5) is preserved as cursor position
+    expect(view.state.selection.main.head).toBe(5);
+    expect(view.state.selection.main.anchor).toBe(5);
+
+    view.destroy();
+  });
+
+  it("should handle replacing with empty string", () => {
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "Some content to clear",
+        selection: { anchor: 10 },
+      }),
+    });
+
+    Object.defineProperty(view, "hasFocus", {
+      get: () => true,
+      configurable: true,
+    });
+
+    replaceEditorContent(view, "");
+
+    expect(view.state.doc.toString()).toBe("");
+    // Cursor should be at position 0 (only valid position in empty doc)
+    expect(view.state.selection.main.head).toBe(0);
 
     view.destroy();
   });
