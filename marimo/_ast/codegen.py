@@ -300,7 +300,7 @@ def generate_unparsable_cell(
 
     flags = {}
     if config != CellConfig():
-        flags = dict(config.__dict__)
+        flags = config.asdict()
 
     if name is not None:
         flags["name"] = name

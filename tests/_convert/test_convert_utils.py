@@ -23,6 +23,19 @@ def test_markdown_to_marimo():
     assert utils.markdown_to_marimo(markdown) == expected
 
 
+def test_markdown_to_marimo_with_quotes():
+    markdown = '"this is markdown"'
+    expected = (
+        '''\
+mo.md(
+    r"""
+"this is markdown"
+"""
+)'''
+    ).strip()
+    assert utils.markdown_to_marimo(markdown) == expected
+
+
 def test_generate_from_sources():
     # Test with basic sources
     sources = ["print('Hello')", "x = 5"]
@@ -91,4 +104,31 @@ def _():
 if __name__ == "__main__":
     app.run()
         """.lstrip()
+    )
+
+
+def test_markdown_with_quotes_and_cell_configs():
+    """Test that markdown ending in double quotes works with cell configs.
+
+    Regression test for issue #6741 where markdown cells ending in double
+    quotes failed to convert when cell configs were non-default.
+    """
+    # Simulate a markdown cell ending in double quotes that can't be parsed
+    markdown_code = 'mo.md("Marimo is the best")'
+    sources = [markdown_code]
+    cell_configs = [CellConfig(hide_code=True)]
+
+    # This should not raise AttributeError
+    result = codegen.generate_filecontents(
+        codes=sources,
+        names=["_"],
+        cell_configs=cell_configs,
+    )
+
+    # Verify the result contains the expected config
+    assert "hide_code=True" in result
+    # Verify the markdown content is properly escaped
+    assert (
+        r"mo.md(\"Marimo is the best\")" in result
+        or "Marimo is the best" in result
     )

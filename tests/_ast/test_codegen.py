@@ -226,6 +226,20 @@ class TestGeneration:
         assert stringified[3] == " " * 4
 
     @staticmethod
+    def test_generate_unparsable_cell_with_config() -> None:
+        """Test that generate_unparsable_cell works with non-default CellConfig."""
+        code = 'mo.md("markdown in marimo")'
+        config = CellConfig(hide_code=True)
+
+        # This should not raise AttributeError
+        raw = codegen.generate_unparsable_cell(code, None, config)
+
+        # Verify the config is included in the output
+        assert "hide_code=True" in raw
+        # Verify the code is properly escaped and included
+        assert 'mo.md(\\"markdown in marimo\\")' in raw
+
+    @staticmethod
     def test_long_line_in_main() -> None:
         cell_one = "\n".join(
             [
