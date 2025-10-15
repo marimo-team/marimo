@@ -6,7 +6,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 from marimo._ai._tools.base import ToolBase
-from marimo._ai._tools.types import SuccessResult
+from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ast.models import CellData
 from marimo._messaging.ops import VariableValue
@@ -114,6 +114,16 @@ class GetLightweightCellMap(
         A success result containing lightweight cell previews and navigation info.
     """
 
+    guidelines = ToolGuidelines(
+        when_to_use=[
+            "To get an overview of notebook structure and all cell IDs",
+            "When navigating a notebook before making targeted changes",
+        ],
+        prerequisites=[
+            "You must have a valid session id from an active notebook",
+        ],
+    )
+
     def handle(
         self, args: GetLightweightCellMapArgs
     ) -> GetLightweightCellMapOutput:
@@ -208,6 +218,17 @@ class GetCellRuntimeData(
     Returns:
         A success result containing cell runtime data including code, errors, and variables.
     """
+
+    guidelines = ToolGuidelines(
+        when_to_use=[
+            "When inspecting a specific cell's code, errors, or variables",
+            "After identifying a cell of interest from the cell map",
+        ],
+        prerequisites=[
+            "You must have a valid session id from an active notebook",
+            "You must have a valid cell id from an active notebook",
+        ],
+    )
 
     def handle(self, args: GetCellRuntimeDataArgs) -> GetCellRuntimeDataOutput:
         session_id = args.session_id
