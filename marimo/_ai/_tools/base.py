@@ -130,7 +130,7 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
         # get description from class docstring
         if self.description == "":
             base_description = (self.__class__.__doc__ or "").strip()
-            
+
             # If guidelines exist, append them
             if self.guidelines is not None:
                 self.description = self._format_with_guidelines(
@@ -250,7 +250,7 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
             # Already parsed
             return args  # type: ignore[return-value]
         return parse_raw(args, self.Args)
-    
+
     def _format_with_guidelines(
         self, description: str, guidelines: ToolGuidelines
     ) -> str:
