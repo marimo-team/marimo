@@ -53,6 +53,7 @@ from marimo._server.templates.templates import (
 )
 from marimo._server.tokens import SkewProtectionToken
 from marimo._types.ids import CellId_t
+from marimo._utils import async_path
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
@@ -529,10 +530,10 @@ class AutoExporter:
         if export_dir in self._created_dirs:
             return
 
-        if not directory.exists():
+        if not await async_path.exists(directory):
             raise FileNotFoundError(f"Directory {directory} does not exist")
 
-        export_dir.mkdir(parents=True, exist_ok=True)
+        await async_path.mkdir(export_dir, parents=True, exist_ok=True)
 
         # Cache that we've created this directory
         self._created_dirs.add(export_dir)

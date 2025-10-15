@@ -10,6 +10,7 @@ from tempfile import NamedTemporaryFile
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils import async_path
 from marimo._utils.file_watcher import FileWatcherManager, PollingFileWatcher
 
 
@@ -203,5 +204,5 @@ async def test_watchdog_file_moved() -> None:
 
     finally:
         # Cleanup
-        if tmp_path.exists():
+        if await async_path.exists(tmp_path):
             os.remove(tmp_path)

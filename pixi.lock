@@ -598,7 +598,8 @@ packages:
   - python
   license: MIT
   license_family: MIT
-  purls: []
+  purls:
+  - pkg:pypi/hyperlink?source=hash-mapping
   size: 74751
   timestamp: 1733319972207
 - conda: https://conda.anaconda.org/conda-forge/linux-64/icu-75.1-he02047a_0.conda
@@ -1100,8 +1101,8 @@ packages:
   timestamp: 1727801725384
 - pypi: ./
   name: marimo
-  version: 0.16.5
-  sha256: 8e9c9303b4e9fb4005c9807e648993e54689447a06edc421a0f6117eb2bb5029
+  version: 0.17.0
+  sha256: 3ad30865c3f4e4123cc42ed7f504c66d52bf4c3c4378026197cd8a0bf4040350
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1637,7 +1638,8 @@ packages:
   - python
   license: BSD-3-Clause
   license_family: BSD
-  purls: []
+  purls:
+  - pkg:pypi/pycparser?source=hash-mapping
   size: 110100
   timestamp: 1733195786147
 - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.19.1-pyhd8ed1ab_0.conda

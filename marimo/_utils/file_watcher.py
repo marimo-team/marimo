@@ -11,6 +11,7 @@ from typing import Callable, Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils import async_path
 
 LOGGER = _loggers.marimo_logger()
 
@@ -79,7 +80,7 @@ class PollingFileWatcher(FileWatcher):
 
     async def _poll(self) -> None:
         while self._running:
-            if not os.path.exists(self.path):
+            if not await async_path.exists(self.path):
                 LOGGER.warning(f"File at {self.path} does not exist.")
                 raise FileNotFoundError(f"File at {self.path} does not exist.")
 
