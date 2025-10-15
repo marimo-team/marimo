@@ -244,6 +244,14 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
             "- All tool use is strictly read-only. You may not perform write, edit, or execution actions.\n"
             "- You must always explain to the user why you are using a tool before invoking it.\n"
         )
+    elif mode == "agent":
+        return (
+            f"{base_intro}"
+            "## Capabilities\n"
+            "- You can use a set of read and write tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation) and to modify the notebook (e.g., adding cells, editing cells, deleting cells).\n"
+            "## Limitations\n"
+            "- You must always explain to the user why you are using a tool before invoking it.\n"
+        )
 
 
 def _get_session_info(session_id: SessionId) -> str:

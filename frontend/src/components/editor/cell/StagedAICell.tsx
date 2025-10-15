@@ -2,8 +2,11 @@
 
 import { useAtomValue, useStore } from "jotai";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
+import { cellHandleAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import { cn } from "@/utils/cn";
+import { Logger } from "@/utils/Logger";
 import { CompletionActionsCellFooter } from "../ai/completion-handlers";
 
 export const StagedAICellBackground: React.FC<{
@@ -24,9 +27,11 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
 }) => {
   const store = useStore();
   const stagedAICells = useAtomValue(stagedAICellsAtom);
+  const stagedAiCell = stagedAICells.get(cellId);
+
   const { deleteStagedCell, removeStagedCell } = useStagedCells(store);
 
-  if (!stagedAICells.has(cellId)) {
+  if (!stagedAiCell) {
     return null;
   }
 
@@ -35,7 +40,27 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   };
 
   const handleDeclineCompletion = () => {
-    deleteStagedCell(cellId);
+    switch (stagedAiCell.type) {
+      case "update_cell": {
+        // Revert cell code
+        const cellHandle = store.get(cellHandleAtom(cellId));
+        const editorView = cellHandle?.current?.editorView;
+        if (!editorView) {
+          Logger.error("Editor for this cell not found", { cellId });
+          break;
+        }
+
+        updateEditorCodeFromPython(editorView, stagedAiCell.previousCode);
+        removeStagedCell(cellId);
+        break;
+      }
+      case "add_cell":
+        // Delete the cell since it's newly created
+        deleteStagedCell(cellId);
+        break;
+      case "delete_cell":
+        break;
+    }
   };
 
   return (

@@ -19,15 +19,24 @@ import {
 import type { LanguageAdapterType } from "../codemirror/language/types";
 import { updateEditorCodeFromPython } from "../codemirror/language/utils";
 import type { JotaiStore } from "../state/jotai";
+import type { EditType } from "./tools/edit-notebook-tool";
 
 /**
  * Cells that are staged for AI completion
- * They function similarly to cells in the notebook, but they can be deleted or accepted by the user.
- * We only track one set of staged cells at a time.
+ * They function similarly to cells in the notebook, but they can be accepted or rejected by the user.
+ * We track edited, new and deleted cells.
+ * And we only track one set of staged cells at a time.
  */
 
-const initialState = (): Set<CellId> => {
-  return new Set();
+type Edit =
+  | { type: Extract<EditType, "update_cell">; previousCode: string }
+  | { type: Extract<EditType, "add_cell"> }
+  | { type: Extract<EditType, "delete_cell">; previousCode: string };
+
+type StagedAICells = Map<CellId, Edit>;
+
+const initialState = (): StagedAICells => {
+  return new Map();
 };
 
 const {
@@ -38,10 +47,12 @@ const {
 } = createReducerAndAtoms(initialState, {
   addStagedCell: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
-    return new Set([...state, cellId]);
+    return new Map([...state, [cellId, { type: "add_cell" }]]);
   },
   removeStagedCell: (state, cellId: CellId) => {
-    return new Set([...state].filter((id) => id !== cellId));
+    const newState = new Map(state);
+    newState.delete(cellId);
+    return newState;
   },
   clearStagedCells: () => {
     return initialState();
@@ -105,7 +116,7 @@ export function useStagedCells(store: JotaiStore) {
   // Delete all staged cells and the corresponding cells in the notebook.
   const deleteAllStagedCells = () => {
     const stagedAICells = store.get(stagedAICellsAtom);
-    for (const cellId of stagedAICells) {
+    for (const cellId of stagedAICells.keys()) {
       deleteCellCallback({ cellId });
     }
     clearStagedCells();

@@ -407,9 +407,8 @@ const CellEditorInternal = ({
 
   return (
     <AiCompletionEditor
-      enabled={aiCompletionCell?.cellId === cellId}
-      initialPrompt={aiCompletionCell?.initialPrompt}
-      triggerImmediately={aiCompletionCell?.triggerImmediately}
+      cellId={cellId}
+      aiCompletionCell={aiCompletionCell}
       currentCode={editorViewRef.current?.state.doc.toString() ?? code}
       currentLanguageAdapter={languageAdapter}
       declineChange={useEvent(() => {
