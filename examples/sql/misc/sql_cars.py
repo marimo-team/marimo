@@ -31,7 +31,7 @@ def _(cars_df, mo):
         CREATE OR REPLACE TABLE cars AS SELECT * FROM cars_df;
         """
     )
-    return (cars,)
+    return
 
 
 @app.cell
