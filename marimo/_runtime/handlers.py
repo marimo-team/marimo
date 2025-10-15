@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import Interrupted
 from marimo._runtime.context import get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
@@ -31,6 +32,20 @@ def construct_interrupt_handler(
         # probability of that happening is low.
         if context.execution_context is not None:
             Interrupted().broadcast()
+            # DuckDB connections are sometimes left in an inconsistent
+            # state when interrupted by a SIGINT. Manually interrupting
+            # duckdb through its own API seems to be safer.
+            if context.execution_context.duckdb_connection is not None:
+                try:
+                    context.execution_context.duckdb_connection.interrupt()
+                except Exception as e:
+                    # Coarse try/except; let's not kill the kernel if something
+                    # goes wrong.
+                    LOGGER.warning(
+                        "Failed to interrupt running duckdb connection. This "
+                        "may be a bug in duckdb or marimo. %s",
+                        e,
+                    )
             raise MarimoInterrupt
 
     return interrupt_handler
