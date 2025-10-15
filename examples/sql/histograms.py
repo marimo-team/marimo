@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.0"
 app = marimo.App(width="medium")
 
 
@@ -60,7 +60,7 @@ def _(URL, mo):
         FROM dataset
         """
     )
-    return (dataset,)
+    return
 
 
 @app.cell

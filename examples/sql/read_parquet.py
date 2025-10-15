@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.0"
 app = marimo.App(width="medium")
 
 
@@ -117,7 +117,7 @@ def _(mo):
         CREATE OR REPLACE TABLE myTable AS SELECT * FROM 'data.parquet'
         """
     )
-    return (mytable,)
+    return
 
 
 @app.cell
