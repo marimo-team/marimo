@@ -14,7 +14,10 @@ def markdown_to_marimo(source: str) -> str:
     if not source:
         source = " "
 
-    if "\n" not in source:
+    # If quotes are on either side, we need to use the multiline format.
+    bounded_by_quotes = source.startswith('"') or source.endswith('"')
+
+    if "\n" not in source and not bounded_by_quotes:
         return f'mo.md(r"""{source}""")'
 
     return "\n".join(

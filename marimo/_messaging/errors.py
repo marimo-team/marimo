@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Optional, Union
 
-import msgspec_m as msgspec
+import msgspec
 
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._types.ids import CellId_t

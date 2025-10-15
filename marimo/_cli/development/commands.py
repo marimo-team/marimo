@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import click
-import msgspec_m as msgspec
-import msgspec_m.json
+import msgspec
+import msgspec.json
 
 from marimo._cli.print import orange
 from marimo._data.models import DataType
@@ -275,7 +275,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         error: MarimoError
         data_type: DataType
 
-    specs = msgspec_m.json.schema_components(
+    specs = msgspec.json.schema_components(
         MESSAGES + [KnownUnions],
         ref_template="#/components/schemas/{name}",
     )

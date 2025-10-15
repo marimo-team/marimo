@@ -17,6 +17,7 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._ai._tools.types import ToolGuidelines
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._config.config import CopilotMode
 from marimo._server.ai.tools.types import (
@@ -95,6 +96,7 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
     # Override in subclass, or rely on fallbacks below
     name: str = ""
     description: str = ""
+    guidelines: Optional[ToolGuidelines] = None
     Args: type[ArgsT]
     Output: type[OutT]
     context: ToolContext
@@ -127,7 +129,15 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
 
         # get description from class docstring
         if self.description == "":
-            self.description = (self.__class__.__doc__ or "").strip()
+            base_description = (self.__class__.__doc__ or "").strip()
+
+            # If guidelines exist, append them
+            if self.guidelines is not None:
+                self.description = self._format_with_guidelines(
+                    base_description, self.guidelines
+                )
+            else:
+                self.description = base_description
 
     async def __call__(self, args: ArgsT) -> OutT:
         """
@@ -240,6 +250,34 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
             # Already parsed
             return args  # type: ignore[return-value]
         return parse_raw(args, self.Args)
+
+    def _format_with_guidelines(
+        self, description: str, guidelines: ToolGuidelines
+    ) -> str:
+        """Combine description with structured guidelines."""
+        parts = [description] if description else []
+
+        if guidelines.when_to_use:
+            parts.append("\n## When to use:")
+            parts.extend(f"- {item}" for item in guidelines.when_to_use)
+
+        if guidelines.avoid_if:
+            parts.append("\n## Avoid if:")
+            parts.extend(f"- {item}" for item in guidelines.avoid_if)
+
+        if guidelines.prerequisites:
+            parts.append("\n## Prerequisites:")
+            parts.extend(f"- {item}" for item in guidelines.prerequisites)
+
+        if guidelines.side_effects:
+            parts.append("\n## Side effects:")
+            parts.extend(f"- {item}" for item in guidelines.side_effects)
+
+        if guidelines.additional_info:
+            parts.append("\n## Additional info:")
+            parts.append(guidelines.additional_info)
+
+        return "\n".join(parts)
 
     # error defaults/hooks
     def _default_error_code(self) -> str:

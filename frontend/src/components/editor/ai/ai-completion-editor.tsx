@@ -50,6 +50,7 @@ interface Props {
   enabled: boolean;
   triggerImmediately?: boolean;
   runCell: () => void;
+  outputArea?: "above" | "below";
   /**
    * Children shown when there is no completion
    */
@@ -74,6 +75,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   enabled,
   triggerImmediately,
   runCell,
+  outputArea,
   children,
 }) => {
   const [showInputPrompt, setShowInputPrompt] = useState(false);
@@ -94,6 +96,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     setCompletion,
     setInput,
     handleSubmit,
+    complete,
   } = useCompletion({
     api: runtimeManager.getAiURL("completion").toString(),
     headers: runtimeManager.headers(),
@@ -128,7 +131,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const initialSubmit = useCallback(() => {
     if (triggerImmediately && !isLoading && initialPrompt) {
-      handleSubmit();
+      // Use complete to pass the prompt directly, else input might be empty
+      complete(initialPrompt);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triggerImmediately]);
@@ -176,6 +180,27 @@ export const AiCompletionEditor: React.FC<Props> = ({
     enabled && triggerImmediately && (completion || isLoading);
 
   const showInput = enabled && (!triggerImmediately || showInputPrompt);
+
+  const completionBanner = (
+    <div
+      className={cn(
+        "w-full bg-(--cm-background) flex justify-center transition-all duration-300 ease-in-out overflow-hidden",
+        showCompletionBanner
+          ? "max-h-20 opacity-100 translate-y-0"
+          : "max-h-0 opacity-0 -translate-y-2",
+      )}
+    >
+      <CompletionBanner
+        status={isLoading ? "loading" : "generated"}
+        onAccept={handleAcceptCompletion}
+        onReject={handleDeclineCompletion}
+        showInputPrompt={showInputPrompt}
+        setShowInputPrompt={setShowInputPrompt}
+        runCell={runCell}
+        className="mt-4 mb-3 w-128"
+      />
+    </div>
+  );
 
   return (
     <div className={cn("flex flex-col w-full rounded-[inherit]", className)}>
@@ -292,6 +317,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
           </>
         )}
       </div>
+      {outputArea === "above" && completionBanner}
       {completion && enabled && (
         <CodeMirrorMerge className="cm" theme={theme}>
           <Original
@@ -308,24 +334,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
         </CodeMirrorMerge>
       )}
       {(!completion || !enabled) && children}
-      <div
-        className={cn(
-          "w-full bg-(--cm-background) flex justify-center transition-all duration-300 ease-in-out overflow-hidden",
-          showCompletionBanner
-            ? "max-h-20 opacity-100 translate-y-0"
-            : "max-h-0 opacity-0 -translate-y-2",
-        )}
-      >
-        <CompletionBanner
-          status={isLoading ? "loading" : "generated"}
-          onAccept={handleAcceptCompletion}
-          onReject={handleDeclineCompletion}
-          showInputPrompt={showInputPrompt}
-          setShowInputPrompt={setShowInputPrompt}
-          runCell={runCell}
-          className="mt-4 mb-3 w-128"
-        />
-      </div>
+      {/* By default, show the completion banner below the code */}
+      {(outputArea === "below" || !outputArea) && completionBanner}
     </div>
   );
 };

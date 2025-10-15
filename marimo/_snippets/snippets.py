@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Generator
 from pathlib import Path
 from typing import Any, Optional
 
-import msgspec_m as msgspec
+import msgspec
 
 from marimo import _loggers
 from marimo._ast.load import load_app
