@@ -628,6 +628,7 @@ const EditableCellComponent = ({
                 showHiddenCode={showHiddenCode}
                 languageAdapter={languageAdapter}
                 setLanguageAdapter={setLanguageAdapter}
+                outputArea={cellOutput}
               />
               <CellRightSideActions
                 className={cn(
