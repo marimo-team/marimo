@@ -294,7 +294,10 @@ def strip_explain_from_error_message(error_message: str) -> str:
     explain_length = len("EXPLAIN ")
 
     # Replace the first "EXPLAIN " with empty string
-    result = error_message[:explain_pos] + error_message[explain_pos + explain_length :]
+    result = (
+        error_message[:explain_pos]
+        + error_message[explain_pos + explain_length :]
+    )
 
     # Find the next newline and strip the same amount from the next line
     next_newline = result.find("\n", explain_pos)
@@ -302,7 +305,8 @@ def strip_explain_from_error_message(error_message: str) -> str:
         # Remove the same length from the beginning of the next line
         # This is the caret position
         result = (
-            result[: next_newline + 1] + result[next_newline + 1 + explain_length :]
+            result[: next_newline + 1]
+            + result[next_newline + 1 + explain_length :]
         )
 
     return result

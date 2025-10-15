@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
 from marimo import _loggers
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import Interrupted
 from marimo._runtime.context import get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext

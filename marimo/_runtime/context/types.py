@@ -72,7 +72,9 @@ class ExecutionContext:
     duckdb_connection: duckdb.DuckDBPyConnection | None = None
 
     @contextmanager
-    def with_connection(self, connection: duckdb.DuckDBPyConnection) -> Iterator[None]:
+    def with_connection(
+        self, connection: duckdb.DuckDBPyConnection
+    ) -> Iterator[None]:
         old_conn = self.duckdb_connection
         self.duckdb_connection = connection
         yield
