@@ -13,10 +13,12 @@ from typing import (
     Union,
 )
 
-# Could be a DataFrame from pandas, polars, pyarrow, DataFrameProtocol, etc.
-DataFrameType = TypeVar("DataFrameType")
+from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
-ColumnId = Union[str, int]
+# Could be a DataFrame from pandas, polars, pyarrow, DataFrameProtocol, etc.
+DataFrameType = Union[IntoDataFrame, IntoLazyFrame]
+
+ColumnId = str
 ColumnIds = list[ColumnId]
 NumpyDataType = str
 Operator = Literal[
@@ -261,9 +263,9 @@ class TransformHandler(abc.ABC, Generic[T]):
 
     @staticmethod
     def as_python_code(
-        df_name: str, columns: list[str], transforms: list[Transform]
+        df: T, df_name: str, columns: list[str], transforms: list[Transform]
     ) -> str | None:
-        del df_name, transforms, columns
+        del df_name, transforms, columns, df
         return None
 
     @staticmethod

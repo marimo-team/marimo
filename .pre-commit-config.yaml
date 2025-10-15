@@ -7,7 +7,7 @@ repos:
       - id: check-yaml
 
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.7
+    rev: v1.7.8
     hooks:
       - id: actionlint
         args: [-ignore, SC]
@@ -31,7 +31,7 @@ repos:
         pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.13.3
+    rev: v0.14.0
     hooks:
       # Run the linter
       - id: ruff

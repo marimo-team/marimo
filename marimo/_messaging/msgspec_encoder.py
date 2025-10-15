@@ -10,8 +10,8 @@ from math import isnan
 from pathlib import PurePath
 from typing import Any
 
-import msgspec
-import msgspec.json
+import msgspec_m as msgspec
+import msgspec_m.json
 
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -200,7 +200,7 @@ def enc_hook(obj: Any) -> Any:
     return repr(obj)
 
 
-_encoder = msgspec.json.Encoder(enc_hook=enc_hook, decimal_format="number")
+_encoder = msgspec_m.json.Encoder(enc_hook=enc_hook, decimal_format="number")
 
 
 def encode_json_bytes(obj: Any) -> bytes:

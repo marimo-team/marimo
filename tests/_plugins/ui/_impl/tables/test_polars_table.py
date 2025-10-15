@@ -11,6 +11,7 @@ import pytest
 
 from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.data.data import BIGINT_KEY
 from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.polars_table import (
@@ -961,9 +962,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert json_data[0]["A"] == 20
         assert json_data[0]["B"] == -20
 
-        # Large integers should be converted to strings
-        assert json_data[1]["A"] == "9007199254740992"
-        assert json_data[1]["B"] == "-9007199254740992"
+        # Large integers should be converted to objects
+        assert json_data[1]["A"] == {BIGINT_KEY: "9007199254740992"}
+        assert json_data[1]["B"] == {BIGINT_KEY: "-9007199254740992"}
 
     @pytest.mark.xfail(
         reason="Polars does not support writing binary data to JSON"

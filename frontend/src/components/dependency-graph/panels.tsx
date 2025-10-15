@@ -12,7 +12,7 @@ import {
   WorkflowIcon,
   XIcon,
 } from "lucide-react";
-import React, { memo } from "react";
+import React, { memo, useId } from "react";
 import { type Edge, Panel } from "reactflow";
 import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
@@ -44,6 +44,8 @@ export const GraphToolbar: React.FC<Props> = memo(
       onSettingsChange({ ...settings, [key]: value });
     };
 
+    const checkboxId = useId();
+
     const settingsButton = (
       <Popover>
         <PopoverTrigger asChild={true}>
@@ -56,13 +58,13 @@ export const GraphToolbar: React.FC<Props> = memo(
           <div className="flex items-center gap-2">
             <Checkbox
               data-testid="hide-pure-markdown-checkbox"
-              id="hide-pure-markdown"
+              id={checkboxId}
               checked={settings.hidePureMarkdown}
               onCheckedChange={(checked) =>
                 handleSettingChange("hidePureMarkdown", Boolean(checked))
               }
             />
-            <Label htmlFor="hide-pure-markdown">Hide pure markdown</Label>
+            <Label htmlFor={checkboxId}>Hide pure markdown</Label>
           </div>
         </PopoverContent>
       </Popover>
@@ -114,7 +116,7 @@ export const GraphSelectionPanel: React.FC<{
   onClearSelection: () => void;
   edges: Edge[];
   variables: Variables;
-}> = memo(({ selection, edges, variables, onClearSelection }) => {
+}> = memo(({ selection, variables, onClearSelection }) => {
   if (!selection) {
     return null;
   }

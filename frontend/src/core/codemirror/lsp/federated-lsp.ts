@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { LanguageServerPlugin } from "@marimo-team/codemirror-languageserver";
 import type * as LSP from "vscode-languageserver-protocol";
 import { Objects } from "@/utils/objects";
 import type { ILanguageServerClient } from "./types";
@@ -22,6 +21,26 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
   constructor(clients: ILanguageServerClient[]) {
     this.clients = clients;
     this.documentUri = getLSPDocument();
+  }
+
+  onNotification(
+    listener: (n: {
+      jsonrpc: "2.0";
+      id?: null | undefined;
+      method: "textDocument/publishDiagnostics";
+      params: LSP.PublishDiagnosticsParams;
+    }) => void,
+  ): () => boolean {
+    const callbacks: Array<() => boolean> = [];
+    for (const client of this.clients) {
+      callbacks.push(client.onNotification(listener));
+    }
+    return () => {
+      for (const cb of callbacks) {
+        cb();
+      }
+      return true;
+    };
   }
 
   get clientCapabilities(): LSP.ClientCapabilities | undefined {
@@ -151,14 +170,6 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
       return client.textDocumentSignatureHelp(params);
     }
     return null;
-  }
-
-  attachPlugin(plugin: LanguageServerPlugin): void {
-    this.clients.forEach((client) => client.attachPlugin(plugin));
-  }
-
-  detachPlugin(plugin: LanguageServerPlugin): void {
-    this.clients.forEach((client) => client.detachPlugin(plugin));
   }
 
   // Merge completions from all clients

@@ -8,9 +8,7 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 
 
 def patch_sympy(*objs: Any) -> None:
-    import marimo as mo
-
-    """adds the _mime_() method to sympy objects
+    """Adds the _mime_() method to sympy objects
     e.g.
     Symbol._mime_ = sympy_html
     example:
@@ -18,26 +16,29 @@ def patch_sympy(*objs: Any) -> None:
     """
     from sympy import latex  # type: ignore
 
+    from marimo._output.md import md
+
     for obj in objs:
         # the lambda below is our sympy_html
         obj._mime_ = lambda obj: (
             "text/html",
-            mo.md(f"""\\[{latex(obj)}\\]""").text,
+            md(f"""\\[{latex(obj)}\\]""").text,
         )
 
 
 def sympy_as_html(obj: Any) -> tuple[KnownMimeType, str]:
-    from sympy import latex
-
-    import marimo as mo
-
-    """creates HTML output from a Printable Sympy object
+    """Creates HTML output from a Printable Sympy object
     e.g.
-    example:
+
+    Example:
     integral = Integral(x**2, x)
     sympy_as_html(integral)
     """
-    return ("text/html", mo.md(f"""\\[{latex(obj)}\\]""").text)
+    from sympy import latex
+
+    from marimo._output.md import md
+
+    return ("text/html", md(f"""\\[{latex(obj)}\\]""").text)
 
 
 class SympyFormatter(FormatterFactory):

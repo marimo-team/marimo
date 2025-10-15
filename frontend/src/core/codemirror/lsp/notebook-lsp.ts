@@ -1,18 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { EditorView } from "@codemirror/view";
 import type * as LSP from "vscode-languageserver-protocol";
+import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
+import { Objects } from "@/utils/objects";
 import { topologicalCodesAtom } from "../copilot/getCodes";
 import { createNotebookLens, type NotebookLens } from "./lens";
 import {
   CellDocumentUri,
   type ILanguageServerClient,
   isClientWithNotify,
-  isClientWithPlugins,
 } from "./types";
 import { getLSPDocument } from "./utils";
 
@@ -84,18 +86,32 @@ class Snapshotter {
   }
 }
 
+const defaultGetNotebookEditors = () => {
+  const evs = getNotebook().cellHandles;
+  return Objects.mapValues(evs, (r) => r.current?.editorViewOrNull);
+};
+
 export class NotebookLanguageServerClient implements ILanguageServerClient {
   public readonly documentUri: LSP.DocumentUri;
   private readonly client: ILanguageServerClient;
   private readonly snapshotter: Snapshotter;
+  private readonly getNotebookEditors: () => Record<
+    CellId,
+    EditorView | null | undefined
+  >;
 
   private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<CellDocumentUri>();
 
   constructor(
     client: ILanguageServerClient,
     initialSettings: Record<string, unknown>,
+    getNotebookEditors: () => Record<
+      CellId,
+      EditorView | null | undefined
+    > = defaultGetNotebookEditors,
   ) {
     this.documentUri = getLSPDocument();
+    this.getNotebookEditors = getNotebookEditors;
 
     this.client = client;
     this.patchProcessNotification();
@@ -112,6 +128,17 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     });
 
     this.snapshotter = new Snapshotter(this.getNotebookCode.bind(this));
+  }
+
+  onNotification(
+    listener: (n: {
+      jsonrpc: "2.0";
+      id?: null | undefined;
+      method: "textDocument/publishDiagnostics";
+      params: LSP.PublishDiagnosticsParams;
+    }) => void,
+  ): () => boolean {
+    return this.client.onNotification(listener);
   }
 
   get ready(): boolean {
@@ -148,16 +175,6 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
   close(): void {
     this.client.close();
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  detachPlugin(plugin: any): void {
-    this.client.detachPlugin(plugin);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  attachPlugin(plugin: any): void {
-    this.client.attachPlugin(plugin);
   }
 
   private getNotebookCode() {
@@ -371,37 +388,26 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     const newEdits = lens.getEditsForNewText(edit.newText);
     const editsToNewCode = new Map(newEdits.map((e) => [e.cellId, e.text]));
 
-    invariant(
-      isClientWithPlugins(this.client),
-      "Expected client with plugins.",
-    );
-
     // Update the code in the plugins manually
-    for (const plugin of this.client.plugins) {
-      const documentUri: string = plugin.documentUri;
-      if (!CellDocumentUri.is(documentUri)) {
-        Logger.warn("Invalid cell document URI", documentUri);
-        continue;
-      }
-
-      const cellId = CellDocumentUri.parse(documentUri);
+    const editors = this.getNotebookEditors();
+    for (const [cellId, ev] of Objects.entries(editors)) {
       const newCode = editsToNewCode.get(cellId);
       if (newCode == null) {
         Logger.warn("No new code for cell", cellId);
         continue;
       }
 
-      if (!plugin.view) {
-        Logger.warn("No view for plugin", plugin);
+      if (!ev) {
+        Logger.warn("No view for plugin", cellId);
         continue;
       }
 
       // Only update if it has changed
-      if (plugin.view.state.doc.toString() !== newCode) {
-        plugin.view.dispatch({
+      if (ev.state.doc.toString() !== newCode) {
+        ev.dispatch({
           changes: {
             from: 0,
-            to: plugin.view.state.doc.length,
+            to: ev.state.doc.length,
             insert: newCode,
           },
         });

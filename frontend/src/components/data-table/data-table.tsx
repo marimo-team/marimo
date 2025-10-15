@@ -307,7 +307,7 @@ const DataTableInternal = <TData,>({
         )}
         <Table className="relative" ref={tableRef}>
           {showLoadingBar && (
-            <div className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
+            <thead className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
           )}
           {renderTableHeader(table, Boolean(maxHeight))}
           <CellSelectionProvider>

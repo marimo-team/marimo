@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import msgspec
+import msgspec_m as msgspec
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 

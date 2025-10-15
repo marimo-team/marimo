@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Literal
 
-import msgspec
+import msgspec_m as msgspec
 
 SecretProviderType = Literal["env", "dotenv"]
 

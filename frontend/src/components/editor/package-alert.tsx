@@ -463,6 +463,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
               <button
                 className="hover:bg-muted/50 rounded text-sm px-1 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 min-w-0 flex-1 truncate text-left"
                 title={`Selected extras: ${selectedExtras.join(", ")}`}
+                type="button"
               >
                 {selectedExtras.join(",")}
               </button>
@@ -523,6 +524,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
                 !canSelectExtras && "opacity-50 cursor-not-allowed",
               )}
               title={canSelectExtras ? "Add extras" : "Loading extras..."}
+              type="button"
             >
               <PlusIcon className="w-3 h-3 shrink-0" />
             </button>
@@ -619,6 +621,7 @@ const StreamingLogsViewer: React.FC<StreamingLogsViewerProps> = ({
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        type="button"
       >
         {isExpanded ? (
           <ChevronDownIcon className="w-4 h-4" />

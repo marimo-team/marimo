@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc

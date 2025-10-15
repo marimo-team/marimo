@@ -1,4 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
+
 from typing import Any
 
 from marimo._ai._tools.base import ToolBase

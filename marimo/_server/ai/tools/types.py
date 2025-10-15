@@ -1,4 +1,5 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Optional, TypeVar

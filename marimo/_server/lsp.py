@@ -196,7 +196,7 @@ class CopilotLspServer(BaseLspServer):
             LOGGER.debug("LSP binary not found at %s", lsp_bin)
             return []
 
-        copilot_bin = self._lsp_dir() / "copilot" / "language-server.js"
+        copilot_bin = self._lsp_dir() / "copilot" / "language-server.cjs"
         log_file = _loggers.get_log_directory() / "github-copilot-lsp.log"
 
         # Use typed format to avoid quoting issues: copilot:<binary_path>

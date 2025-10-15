@@ -1,25 +1,27 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
-from narwhals.dependencies import is_narwhals_dataframe
-
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.handlers import (
-    IbisTransformHandler,
-    PandasTransformHandler,
-    PolarsTransformHandler,
+    NarwhalsTransformHandler,
 )
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
+    DataFrameType,
     Transform,
     Transformations,
     TransformHandler,
     TransformType,
 )
 from marimo._utils.assert_never import assert_never
+from marimo._utils.narwhals_utils import can_narwhalify, is_narwhals_lazyframe
 
 T = TypeVar("T")
+
+
+if TYPE_CHECKING:
+    import narwhals.stable.v2 as nw
+    from narwhals.typing import IntoLazyFrame
 
 
 def _handle(df: T, handler: TransformHandler[T], transform: Transform) -> T:
@@ -50,6 +52,33 @@ def _handle(df: T, handler: TransformHandler[T], transform: Transform) -> T:
     assert_never(transform.type)
 
 
+def apply_transforms_to_df(
+    df: DataFrameType, transform: Transform
+) -> DataFrameType:
+    """Apply a transform to a dataframe using NarwhalsTransformHandler."""
+    if not can_narwhalify(df):
+        raise ValueError(
+            f"Unsupported dataframe type. Must be Pandas, Polars, Ibis, Pyarrow, or DuckDB. Got: {type(df)}"
+        )
+
+    import narwhals.stable.v2 as nw
+
+    nw_df = nw.from_native(df)
+    was_lazy = is_narwhals_lazyframe(nw_df)
+    nw_df = nw_df.lazy()
+
+    result_nw = _apply_transforms(
+        nw_df,
+        NarwhalsTransformHandler(),
+        Transformations(transforms=[transform]),
+    )
+
+    if was_lazy:
+        return result_nw.to_native()
+
+    return result_nw.collect().to_native()  # type: ignore[no-any-return]
+
+
 def _apply_transforms(
     df: T, handler: TransformHandler[T], transforms: Transformations
 ) -> T:
@@ -61,54 +90,39 @@ def _apply_transforms(
 
 
 def get_handler_for_dataframe(
-    df: Any,
-) -> TransformHandler[Any]:
+    df: DataFrameType,
+) -> NarwhalsTransformHandler:
     """
     Gets the handler for the given dataframe.
 
     raises ValueError if the dataframe type is not supported.
     """
-    if DependencyManager.pandas.imported():
-        import pandas as pd
+    if not can_narwhalify(df):
+        raise ValueError(
+            f"Unsupported dataframe type. Must be Pandas, Polars, Ibis, Pyarrow, or DuckDB. Got: {type(df)}"
+        )
 
-        if isinstance(df, pd.DataFrame):
-            return PandasTransformHandler()
-    if DependencyManager.polars.imported():
-        import polars as pl
-
-        if isinstance(df, pl.DataFrame):
-            return PolarsTransformHandler()
-
-    if DependencyManager.ibis.imported():
-        import ibis  # type: ignore
-
-        if isinstance(df, ibis.Table):
-            return IbisTransformHandler()
-
-    if DependencyManager.narwhals.imported():
-        if is_narwhals_dataframe(df):
-            return get_handler_for_dataframe(df.to_native())
-
-    raise ValueError(
-        "Unsupported dataframe type. Must be Pandas or Polars."
-        f" Got: {type(df)}"
-    )
+    return NarwhalsTransformHandler()
 
 
-class TransformsContainer(Generic[T]):
+class TransformsContainer:
     """
     Keeps internal state of the last transformation applied to the dataframe.
     So that we can incrementally apply transformations.
     """
 
-    def __init__(self, df: T, handler: TransformHandler[T]) -> None:
+    def __init__(
+        self,
+        df: nw.LazyFrame[IntoLazyFrame],
+        handler: NarwhalsTransformHandler,
+    ) -> None:
         self._original_df = df
         # The dataframe for the given transform.
         self._snapshot_df = df
         self._handler = handler
         self._transforms: list[Transform] = []
 
-    def apply(self, transform: Transformations) -> T:
+    def apply(self, transform: Transformations) -> nw.LazyFrame[IntoLazyFrame]:
         """
         Applies the given transformations to the dataframe.
         """

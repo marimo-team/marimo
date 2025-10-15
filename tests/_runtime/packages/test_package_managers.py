@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.packages.package_manager import LogCallback
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.pypi_package_manager import (
@@ -531,3 +532,59 @@ def test_package_manager_run_manager_not_installed() -> None:
         # Should also return False with log callback
         result = pm.run(["test", "command"], log_callback=lambda _: None)
         assert result is False
+
+
+# Encoding tests for Windows compatibility
+
+
+@pytest.mark.skipif(
+    not DependencyManager.which("poetry"), reason="poetry not installed"
+)
+@patch("subprocess.run")
+def test_poetry_list_packages_uses_utf8_encoding(mock_run: MagicMock):
+    """Test that poetry list uses UTF-8 encoding to handle non-ASCII characters"""
+    from marimo._runtime.packages.pypi_package_manager import (
+        PoetryPackageManager,
+    )
+
+    mock_output = "package-中文    1.0.0\npакет    2.0.0\n"
+    mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
+    mgr = PoetryPackageManager()
+
+    packages = mgr.list_packages()
+
+    # Verify encoding='utf-8' is passed
+    mock_run.assert_called_once()
+    call_kwargs = mock_run.call_args[1]
+    assert call_kwargs.get("encoding") == "utf-8"
+    assert call_kwargs.get("text") is True
+
+
+@pytest.mark.skipif(
+    not DependencyManager.which("pixi"), reason="pixi not installed"
+)
+@patch("subprocess.run")
+def test_pixi_list_packages_uses_utf8_encoding(mock_run: MagicMock):
+    """Test that pixi list uses UTF-8 encoding to handle non-ASCII characters"""
+    import json
+
+    from marimo._runtime.packages.conda_package_manager import (
+        PixiPackageManager,
+    )
+
+    mock_output = json.dumps(
+        [
+            {"name": "package-中文", "version": "1.0.0"},
+            {"name": "пакет", "version": "2.0.0"},
+        ]
+    )
+    mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
+    mgr = PixiPackageManager()
+
+    packages = mgr.list_packages()
+
+    # Verify encoding='utf-8' is passed
+    mock_run.assert_called_once()
+    call_kwargs = mock_run.call_args[1]
+    assert call_kwargs.get("encoding") == "utf-8"
+    assert call_kwargs.get("text") is True

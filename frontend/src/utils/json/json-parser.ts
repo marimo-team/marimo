@@ -2,6 +2,18 @@
 
 import type { JsonString } from "./base64";
 
+declare global {
+  interface BigInt {
+    toJSON(): unknown;
+  }
+}
+
+// Treat BigInts as numbers
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON#using_json_numbers
+BigInt.prototype.toJSON = function () {
+  return JSON.rawJSON(this.toString());
+};
+
 /**
  * Parse an attribute value as JSON.
  * This also handles NaN, Infinity, and -Infinity.
@@ -12,7 +24,7 @@ export function jsonParseWithSpecialChar<T = unknown>(
   // This regex handling is expensive and often not needed.
   // We try to parse with JSON.parse first, and if that fails, we use the regex.
   try {
-    return JSON.parse(value) as T;
+    return JSON.parse(value, (_key, value) => sanitizeBigInt(value)) as T;
   } catch {
     // Do nothing
   }
@@ -36,7 +48,7 @@ export function jsonParseWithSpecialChar<T = unknown>(
     );
     return JSON.parse(value, (_key, v) => {
       if (typeof v !== "string") {
-        return v;
+        return sanitizeBigInt(v);
       }
       if (v === `${CHAR}NaN${CHAR}`) {
         return Number.NaN;
@@ -47,7 +59,7 @@ export function jsonParseWithSpecialChar<T = unknown>(
       if (v === `${CHAR}-Infinity${CHAR}`) {
         return Number.NEGATIVE_INFINITY;
       }
-      return v;
+      return sanitizeBigInt(v);
     }) as T;
   } catch {
     return {} as T;
@@ -62,4 +74,17 @@ export function jsonToTSV(json: Record<string, unknown>[]) {
   const keys = Object.keys(json[0]);
   const values = json.map((row) => keys.map((key) => row[key]).join("\t"));
   return `${keys.join("\t")}\n${values.join("\n")}`;
+}
+
+/** Adapted from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt#use_within_json */
+function sanitizeBigInt(value: unknown): unknown {
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    "$bigint" in value &&
+    typeof value.$bigint === "string"
+  ) {
+    return BigInt(value.$bigint);
+  }
+  return value;
 }

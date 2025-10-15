@@ -127,7 +127,7 @@ export async function handleToolCall({
       addToolResult({
         tool: toolCall.toolName,
         toolCallId: toolCall.toolCallId,
-        output: response,
+        output: response.result || response.error,
       });
     } else {
       // Invoke the backend/mcp tool

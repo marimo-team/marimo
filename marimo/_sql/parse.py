@@ -1,9 +1,10 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
 
 import re
 from typing import Literal, Optional, Union
 
-import msgspec
+import msgspec_m as msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager

@@ -20,15 +20,14 @@ dependencies = [
     # Pinned to specific version for introduction of codeblock handling.
     "pymdown-extensions>=10.15,<11",
     # syntax highlighting of code in markdown
-    "pygments>=2.13,<3",
+    "pygments>=2.19,<3",
     # for reading, writing configs
     "tomlkit>= 0.12.0",
     # for managing frontmatter headers in markdown
     "pyyaml>=6.0",
     # web server
     # - 0.22.0 introduced timeout-graceful-shutdown, which we use
-    # - 0.36.0 fails to create new notebooks, see https://github.com/marimo-team/marimo/issues/6453
-    "uvicorn>=0.22.0,<0.36.0",
+    "uvicorn>=0.22.0",
     # web framework
     # - 0.29.0 introduced Middleware kwargs, which we use
     # - starlette 0.36.0 introduced a bug
@@ -36,7 +35,7 @@ dependencies = [
     # websockets for use with starlette, and for lsp
     "websockets >= 14.2.0",
     # loro for collaborative editing
-    "loro>=1.5.0; python_version >= '3.11'",
+    "loro>=1.5.0; python_version >= '3.11' and python_version < '3.14'",
     # python <=3.10 compatibility
     "typing_extensions>=4.4.0; python_version < '3.11'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
@@ -49,7 +48,7 @@ dependencies = [
     "narwhals>=2.0.0",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
-    "msgspec>=0.19.0",
+    "msgspec_m>=0.19.1",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -68,6 +67,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3 :: Only",
 ]
 
@@ -195,10 +195,13 @@ extra-dependencies = [
     "hypothesis~=6.102.1",
     # For server testing
     "httpx~=0.27.0",
-    "matplotlib~=3.9.2",
+    "urllib3~=2.5.0",
+    "matplotlib~=3.10.7",
+    # Forced for modern matplotlib.
+    "pillow>=9",
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.6.1",
+    "pytest-codecov~=0.7.0",
     "pytest-rerunfailures~=15.1",
     "pytest-asyncio~=0.26.0",
     "pytest-picked>=0.5.1",
@@ -206,7 +209,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.test.scripts]
 test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
@@ -284,7 +287,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.docs]
 dependencies = [

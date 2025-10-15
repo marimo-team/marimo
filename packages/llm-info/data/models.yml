@@ -221,29 +221,43 @@
 
 # Bedrock
 
+- name: Claude 4.5 Sonnet (Bedrock)
+  model: global.anthropic.claude-sonnet-4-5-20250929-v1:0
+  description: Enhanced Sonnet model with improved capabilities
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 4.1 Opus (Bedrock)
+  model: us.anthropic.claude-opus-4-1-20250805-v1:0
+  description: Opus model for deep thinking
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: false
+
 - name: Claude 3.7 Sonnet (Bedrock)
-  model: anthropic.claude-3-7-sonnet-20250219-v1:0
+  model: us.anthropic.claude-3-7-sonnet-20250219-v1:0
   description: Enhanced Sonnet model with improved capabilities
   providers: [bedrock]
   roles: [chat, edit]
   thinking: false
 
 - name: Claude 3.5 Sonnet v2 (Bedrock)
-  model: anthropic.claude-3-5-sonnet-20241022-v2:0
+  model: us.anthropic.claude-3-5-sonnet-20241022-v2:0
   description: Balanced model with strong performance across reasoning, math, and coding
   providers: [bedrock]
   roles: [chat, edit]
   thinking: false
 
 - name: Claude 3.5 Haiku (Bedrock)
-  model: anthropic.claude-3-5-haiku-20241022-v1:0
+  model: us.anthropic.claude-3-5-haiku-20241022-v1:0
   description: Fast and efficient model with excellent performance for everyday tasks
   providers: [bedrock]
   roles: [chat, edit]
   thinking: false
 
 - name: Llama 3.3 70B Instruct
-  model: meta.llama3-3-70b-instruct-v1:0
+  model: us.meta.llama3-3-70b-instruct-v1:0
   description: Large language model optimized for instruction following and chat
   providers: [bedrock]
   roles: [chat, edit]

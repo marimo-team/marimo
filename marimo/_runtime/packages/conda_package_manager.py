@@ -46,6 +46,7 @@ class PixiPackageManager(CondaPackageManager):
                 ["pixi", "list", "--json"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 check=True,
             )
             packages = json.loads(proc.stdout)

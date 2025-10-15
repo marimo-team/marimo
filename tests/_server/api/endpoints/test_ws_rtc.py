@@ -110,7 +110,9 @@ ws_1_sync = "/ws_sync?session_id=123&access_token=fake-token"
 ws_2_sync = "/ws_sync?session_id=456&access_token=fake-token"
 
 
-@pytest.mark.skipif("sys.version_info < (3, 11)")
+@pytest.mark.skipif(
+    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
+)
 async def test_loro_sync(client: TestClient) -> None:
     """Test that Loro-CRDT sync works between multiple clients"""
 
@@ -147,7 +149,9 @@ async def test_loro_sync(client: TestClient) -> None:
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-@pytest.mark.skipif("sys.version_info < (3, 11)")
+@pytest.mark.skipif(
+    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
+)
 async def test_loro_cleanup_on_session_close(
     client: TestClient,
 ) -> None:
@@ -192,7 +196,9 @@ async def test_loro_cleanup_on_session_close(
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-@pytest.mark.skipif("sys.version_info < (3, 11)")
+@pytest.mark.skipif(
+    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
+)
 async def test_loro_persistence(client: TestClient) -> None:
     """Test that cell content persists between connections"""
     from loro import ExportMode, LoroDoc

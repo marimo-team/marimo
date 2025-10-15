@@ -19,7 +19,7 @@ from typing import (
 )
 from uuid import uuid4
 
-import msgspec
+import msgspec_m as msgspec
 
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
@@ -614,7 +614,7 @@ class ColumnPreview(msgspec.Struct):
 
 
 # We shouldn't need to make table_name and column_name have default values.
-# We can use kw_only=True once we drop support for Python 3.9.
+# We can use kw_only=True once we drop support for Python 3.9 (25-11-01).
 class DataColumnPreview(Op, ColumnPreview, tag="data-column-preview"):
     """Preview of a column in a dataset."""
 

@@ -6,7 +6,7 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, Callable, Optional
 
-import msgspec
+import msgspec_m as msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -127,7 +127,7 @@ class PackageManager(abc.ABC):
 
         if log_callback is None:
             # Original behavior - just run the command without capturing output
-            completed_process = subprocess.run(command)  # noqa: ASYNC101
+            completed_process = subprocess.run(command)
             return completed_process.returncode == 0
 
         # Stream output to both the callback and the terminal

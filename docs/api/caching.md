@@ -36,6 +36,32 @@ def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.nda
 
 ///
 
+/// tab | `mo.cache` (async)
+
+```python
+import marimo as mo
+
+@mo.cache
+async def fetch_data(url: str, params: dict) -> dict:
+    response = await http_client.get(url, params=params)
+    return response.json()
+```
+
+///
+
+/// tab | `mo.persistent_cache` (async)
+
+```python
+import marimo as mo
+
+@mo.persistent_cache
+async def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.ndarray:
+    response = await llm_client.get_embeddings(data, model)
+    return response.embeddings
+```
+
+///
+
 Roughly speaking, the first time a cached function is called with a particular
 sequence of arguments, the function will run and its return value will be
 cached. The next time it is called with the same sequence of arguments (on
@@ -48,6 +74,13 @@ slower and consumes space on disk, but it persists across notebook runs,
 letting you pick up where you left off.
 
 (For an in-memory cache of bounded size, use [`mo.lru_cache`][marimo.lru_cache].)
+
+!!! note "Async functions are fully supported"
+    All cache decorators (`mo.cache`, `mo.lru_cache`, `mo.persistent_cache`) work
+    seamlessly with both synchronous and asynchronous functions. When multiple
+    concurrent calls are made to a cached async function with the same arguments,
+    only one execution occurs—the rest await the result. This prevents race conditions
+    and duplicate work.
 
 !!! tip "Where persistent caches are stored"
     By default, persistent caches are stored in `__marimo__/cache/`, in the directory of the
@@ -202,6 +235,7 @@ Here is a table comparing marimo's cache with `functools.cache`:
 | Tracks closed-over variables | ✅ | ❌ |
 | Allows unhashable arguments? | ✅ | ❌ |
 | Allows Array-like arguments? | ✅ | ❌ |
+| Supports async functions? | ✅ | ❌ |
 | Suitable for lightweight functions (microseconds)? | ❌  | ✅ |
 
 
