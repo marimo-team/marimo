@@ -177,7 +177,7 @@ an AI pair programmer, similar to VS Code:
 <div align="center">
 <figure>
 <img src="/_static/docs-ai-completion-gh.png" width="740px"/>
-<figcaption>Enable GitHub Copilot in the settings menu.</figcaption>
+<figcaption>Follow these instructions.</figcaption>
 </figure>
 </div>
 
