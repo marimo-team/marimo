@@ -14,7 +14,11 @@ from marimo._ast.parse import (
     is_non_marimo_python_script,
     parse_notebook,
 )
-from marimo._schemas.serialization import NotebookSerialization, UnparsableCell
+from marimo._schemas.serialization import (
+    CellDef,
+    NotebookSerialization,
+    UnparsableCell,
+)
 
 LOGGER = _loggers.marimo_logger()
 
@@ -87,6 +91,18 @@ def _static_load(filepath: Path) -> Optional[App]:
         return None
 
     return load_notebook_ir(notebook, filepath=str(filepath))
+
+
+def find_cell(filename, lineno) -> CellDef:
+    load_result = get_notebook_status(filename)
+    if load_result.notebook is None:
+        raise OSError("Could not resolve notebook.")
+    previous = None
+    for cell in load_result.notebook.cells:
+        if cell.lineno > lineno:
+            break
+        previous = cell
+    return previous
 
 
 def load_notebook_ir(
