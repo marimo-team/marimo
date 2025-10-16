@@ -2288,6 +2288,63 @@ describe("cell reducer", () => {
       expect(focusSpy).not.toHaveBeenCalled();
       expect(state.cellIds.inOrderIds).toEqual(initialState.cellIds.inOrderIds);
     });
+
+    it("creates a new SQL cell when moving after a SQL cell", () => {
+      // Create a SQL cell
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        code: `_df = mo.sql(f"""SELECT * FROM table""")`,
+      });
+
+      const sqlCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      const initialCellCount = state.cellIds.inOrderIds.length;
+
+      // Move to next cell (should create a new SQL cell)
+      actions.moveToNextCell({
+        cellId: sqlCellId,
+        before: false,
+        noCreate: false,
+      });
+
+      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount + 1);
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      const newCell = state.cellData[newCellId];
+
+      // The new cell should have SQL code (mo.sql)
+      expect(newCell.code).toContain("mo.sql");
+      expect(newCell.code).toContain("_df");
+    });
+
+    it("creates a new Python cell when moving after a Python cell", () => {
+      // Create a Python cell
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        code: "x = 1",
+      });
+
+      const pythonCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      const initialCellCount = state.cellIds.inOrderIds.length;
+
+      // Move to next cell (should create a new Python cell)
+      actions.moveToNextCell({
+        cellId: pythonCellId,
+        before: false,
+        noCreate: false,
+      });
+
+      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount + 1);
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      const newCell = state.cellData[newCellId];
+
+      // The new cell should be empty (default Python cell)
+      expect(newCell.code).toBe("");
+    });
   });
 
   describe("untouched cells functionality", () => {
