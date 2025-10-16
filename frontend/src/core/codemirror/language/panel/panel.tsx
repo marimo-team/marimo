@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
+import type { QuotePrefixKind } from "@marimo-team/smart-cells";
 import { InfoIcon, PaintRollerIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,7 +21,6 @@ import {
   updateLanguageMetadata,
 } from "../metadata";
 import type { LanguageMetadataOf } from "../types";
-import type { QuotePrefixKind } from "../utils/quotes";
 import { getQuotePrefix, MarkdownQuotePrefixTooltip } from "./markdown";
 import { SQLEngineSelect, SQLModeSelect } from "./sql";
 

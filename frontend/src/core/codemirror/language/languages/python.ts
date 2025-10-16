@@ -17,6 +17,7 @@ import {
   LanguageServerClient,
   languageServerWithClient,
 } from "@marimo-team/codemirror-languageserver";
+import { PythonParser } from "@marimo-team/smart-cells";
 import type { CellId } from "@/core/cells/ids";
 import { hasCapability } from "@/core/config/capabilities";
 import type {
@@ -172,20 +173,24 @@ const pyrightClient = once((_: LSPConfig) => {
  * Language adapter for Python.
  */
 export class PythonLanguageAdapter implements LanguageAdapter<{}> {
+  private parser = new PythonParser();
+
   readonly type = "python";
-  readonly defaultCode = "";
-  readonly defaultMetadata = {};
+  readonly defaultCode = this.parser.defaultCode;
+  readonly defaultMetadata = this.parser.defaultMetadata;
 
   transformIn(code: string): [string, number, {}] {
-    return [code, 0, {}];
+    const result = this.parser.transformIn(code);
+    return [result.code, result.offset, result.metadata];
   }
 
-  transformOut(code: string, _metadata: {}): [string, number] {
-    return [code, 0];
+  transformOut(code: string, metadata: {}): [string, number] {
+    const result = this.parser.transformOut(code, metadata);
+    return [result.code, result.offset];
   }
 
-  isSupported(_code: string): boolean {
-    return true;
+  isSupported(code: string): boolean {
+    return this.parser.isSupported(code);
   }
 
   getExtension(

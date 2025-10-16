@@ -55,6 +55,7 @@
     "@marimo-team/codemirror-sql": "^0.2.3",
     "@marimo-team/llm-info": "workspace:*",
     "@marimo-team/marimo-api": "workspace:*",
+    "@marimo-team/smart-cells": "workspace:*",
     "@marimo-team/react-slotz": "^0.2.0",
     "@mui/material": "^6.5.0",
     "@open-rpc/client-js": "^1.8.1",
