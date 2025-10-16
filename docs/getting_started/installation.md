@@ -27,13 +27,13 @@ Before installing marimo, we recommend creating and activating a Python
 /// admonition | Using uv?
     type: tip
 
-[uv](https://github.com/astral-sh/uv) is a next-generation Python package
+[uv](https://docs.astral.sh/uv/) is a next-generation Python package
 installer and manager that is 10-100x faster than pip, and also makes it easy
-to install Python and manage projects.
-
-With `uv`, starting a project that will automatically create and manage a virtual environment is as easy as running `uv init --bare`. After which, you don't even have to activate the virtual environment as long as you use `uv` commands!
-
-For detailed information on using marimo with `uv`, see our [uv guide](../package_management/using_uv.md).
+to install Python and manage projects. Create a [uv
+project](https://docs.astral.sh/uv/guides/projects/) with `uv init`; this
+creates and manages a virtual environment for you behind-the-scenes. For
+detailed information on using marimo with `uv`, see our [uv
+guide](../guides/package_management/using_uv.md).
 ///
 
 ## Install with minimal dependencies
