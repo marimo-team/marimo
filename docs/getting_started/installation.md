@@ -29,8 +29,11 @@ Before installing marimo, we recommend creating and activating a Python
 
 [uv](https://github.com/astral-sh/uv) is a next-generation Python package
 installer and manager that is 10-100x faster than pip, and also makes it easy
-to install Python and manage projects. With `uv`, creating a virtual
-environment is as easy as `uv venv`.
+to install Python and manage projects.
+
+With `uv`, starting a project that will automatically create and manage a virtual environment is as easy as running `uv init --bare`. After which, you don't even have to activate the virtual environment as long as you use `uv` commands!
+
+For detailed information on using marimo with `uv`, see our [uv guide](../package_management/using_uv.md).
 ///
 
 ## Install with minimal dependencies
