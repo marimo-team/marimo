@@ -10,7 +10,7 @@ __all__ = ["ModuleStub"]
 class ModuleStub:
     """Stub for module objects, storing only the module name."""
 
-    def __init__(self, module: Any, hash: str="") -> None:
+    def __init__(self, module: Any, hash: str = "") -> None:
         self.name = module.__name__
         self.hash = hash
 

@@ -81,6 +81,9 @@ class RuntimeContext(abc.ABC):
     app_kernel_runner_registry: AppKernelRunnerRegistry
     cache_store: Store
     cell_cache_context: CellCacheContext
+    # Memoization store for content hash speedup across cells
+    # Key: variable_name -> hash bytes
+    cell_hash_memo: dict[str, bytes]
     # stream, stdout, stderr are _not_ owned by the context
     stream: Stream
     stdout: Stdout | None

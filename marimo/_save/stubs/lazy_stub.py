@@ -119,7 +119,7 @@ class UnhashableStub:
         obj: Any,
         error: Optional[Exception] = None,
         var_name: str = "",
-        hash_value: str = "",
+        hash_value: Optional[str] = None,
     ) -> None:
         self.obj_type = type(obj)
         self.type_name = f"{self.obj_type.__module__}.{self.obj_type.__name__}"

@@ -29,29 +29,87 @@ def deserializer_by_suffix(_suffix: str) -> Any:
     return pickle.loads
 
 
+def _hydrate_value_recursive(
+    value: Any, glbls: dict[str, Any], memo: dict[int, Any] | None = None
+) -> Any:
+    """Recursively hydrate all stubs in a value.
+
+    This walks through data structures (dicts, lists, tuples, sets) and
+    restores any stubs found within them.
+
+    Args:
+        value: The value to hydrate
+        glbls: Global scope for stub restoration
+        memo: Memoization dict to handle cycles
+
+    Returns:
+        The hydrated value with all stubs restored
+
+    Raises:
+        ValueError: If any UnhashableStubs are found
+    """
+    from marimo._save.cache import _restore_from_stub_if_needed
+    from marimo._save.stubs.lazy_stub import UnhashableStub
+
+    if memo is None:
+        memo = {}
+
+    # Check for cycles
+    obj_id = id(value)
+    if obj_id in memo:
+        return memo[obj_id]
+
+    # Check for UnhashableStub - these need to error out
+    if isinstance(value, UnhashableStub):
+        raise ValueError(
+            f"Cannot load unhashable variable '{value.var_name}' "
+            f"of type {value.type_name}. Original error: {value.error_msg}. "
+            "Cell needs to be re-executed."
+        )
+
+    # Use the existing restoration logic which handles all stub types
+    result = _restore_from_stub_if_needed(value, glbls, memo)
+
+    return result
+
+
 def hydrate(
     refs: set[Name],
     glbls: dict[str, Any],
-    _graph: DirectedGraph,
+    graph: DirectedGraph,
     _loader: Loader,
 ) -> None:
     """Hydrate references in the global scope by loading stubs.
 
+    Only hydrates the transitive dependencies of the cell's refs, not the
+    entire scope. This mirrors the approach in StrictExecutor.
+
     Args:
         refs: Set of reference names that the cell depends on
         glbls: Global scope dictionary to update with loaded values
-        _graph: Dataflow graph (unused for now)
+        graph: Dataflow graph for computing transitive references
         _loader: Loader instance (unused for now)
 
     Raises:
         ValueError: If any UnhashableStubs are found that cannot be loaded
     """
+    from marimo._runtime.primitives import (
+        CLONE_PRIMITIVES,
+        build_ref_predicate_for_primitives,
+    )
     from marimo._save.stubs.lazy_stub import UnhashableStub
+
+    # Get transitive references like StrictExecutor does
+    # This prevents us from hydrating the entire scope unnecessarily
+    transitive_refs = graph.get_transitive_references(
+        refs,
+        predicate=build_ref_predicate_for_primitives(glbls, CLONE_PRIMITIVES),
+    )
 
     unhashable_stubs = []
 
-    # Check all refs mentioned by the cell
-    for ref in refs:
+    # Check all transitive refs mentioned by the cell
+    for ref in transitive_refs:
         obj = glbls.get(ref, None)
         if obj is None:
             continue
@@ -92,6 +150,17 @@ def hydrate(
             f"Errors: {error_details}"
         )
 
+    # Now recursively hydrate only the transitive refs to handle nested stubs
+    # This catches cases like dicts of functions that were stubbed
+    for ref in transitive_refs:
+        if ref in glbls:
+            try:
+                glbls[ref] = _hydrate_value_recursive(glbls[ref], glbls)
+            except ValueError as e:
+                # Re-raise unhashable errors with context
+                LOGGER.error(f"[hydrate] Failed to hydrate '{ref}': {e}")
+                raise
+
 
 def process(
     cell: CellImpl, glbls: dict[str, Any], graph: DirectedGraph, loader: Loader
@@ -131,9 +200,59 @@ def backfill(
     loader: Loader,
     runtime: float,
 ) -> Any:
+    # TODO: Observed to fail in the instance where we can't extract function
+    # source. Maybe just mark as unhashable in this case?
+
+    # Extract variable hashes from memo, or compute them for child cell speedup
+    # IMPORTANT: Skip stateful_refs (UIElements, State setters) - these need
+    # to invalidate cache when their values change
+    variable_hashes = {}
+    try:
+        import base64
+        from marimo._save.hash import serialize_and_hash_value
+
+        ctx = get_context()
+        # Extract/compute hashes for variables defined by this cell
+        # Skip stateful refs - they're handled by the cache restoration logic
+        for var in attempt.defs.keys():
+            if var in attempt.stateful_refs:
+                # Skip UIElements and State setters - their values can change
+                # and need to invalidate the cache
+                continue
+
+            if var in ctx.cell_hash_memo:
+                # Use cached hash from memo
+                hash_bytes = ctx.cell_hash_memo[var]
+            else:
+                # Compute hash for this variable
+                value = glbls.get(var)
+                if value is not None:
+                    hash_bytes = serialize_and_hash_value(value)
+                    if hash_bytes is not None:
+                        # Store in memo for future reuse
+                        ctx.cell_hash_memo[var] = hash_bytes
+                    else:
+                        # Cannot hash this variable, skip it
+                        continue
+                else:
+                    # Variable not in scope, skip it
+                    continue
+
+            # Encode bytes to base64 string for storage
+            hash_str = base64.urlsafe_b64encode(hash_bytes).decode("utf-8")
+            variable_hashes[var] = hash_str
+
+        if variable_hashes:
+            LOGGER.debug(
+                f"[backfill] Extracted/computed {len(variable_hashes)} hashes "
+                f"for cell {cell.cell_id} (skipped {len(attempt.stateful_refs)} stateful refs)"
+            )
+    except ContextNotInitializedError:
+        pass
+
     attempt.update(
         {**glbls},
-        {"return": result, "runtime": runtime},
+        {"return": result, "runtime": runtime, "variable_hashes": variable_hashes},
         preserve_pointers=False,
     )
     try:
@@ -186,7 +305,7 @@ class CachedExecutor(Executor):
     ) -> Any:
         LOGGER.info(f"{glbls.keys()=}")
         # TODO: Loader should persist on the context level.
-        loader = LazyLoader(name=cell.cell_id)
+        loader = LazyLoader(name="lazy")
 
         load_start = time.time()
         attempt = process(cell, glbls, graph, loader)
@@ -194,7 +313,29 @@ class CachedExecutor(Executor):
 
         if attempt.hit:
             self._record_cache_hit(cell.cell_id, load_time, attempt)
-            return attempt.meta.get("return")
+
+            # Populate memo from cached hashes for child cell speedup
+            try:
+                ctx = get_context()
+                variable_hashes = attempt.meta.get("variable_hashes", {})
+                if variable_hashes:
+                    import base64
+                    for var_name, hash_str in variable_hashes.items():
+                        # Decode base64 string to bytes for memo storage
+                        hash_bytes = base64.urlsafe_b64decode(hash_str)
+                        ctx.cell_hash_memo[var_name] = hash_bytes
+                    LOGGER.debug(
+                        f"[CachedExecutor] Populated memo with {len(variable_hashes)} "
+                        f"hashes from cache for cell {cell.cell_id}"
+                    )
+            except ContextNotInitializedError:
+                pass
+
+            # Hydrate the return value to restore any nested stubs
+            return_value = attempt.meta.get("return")
+            if return_value is not None:
+                return_value = _hydrate_value_recursive(return_value, glbls)
+            return return_value
 
         self._record_cache_miss()
         hydrate(cell.refs, glbls, graph, loader)
@@ -219,7 +360,7 @@ class CachedExecutor(Executor):
     ) -> Any:
         LOGGER.info(f"{glbls.keys()=}")
         # TODO: Loader should persist on the context level.
-        loader = LazyLoader(name=cell.cell_id)
+        loader = LazyLoader(name="lazy")
 
         load_start = time.time()
         attempt = process(cell, glbls, graph, loader)
@@ -227,7 +368,29 @@ class CachedExecutor(Executor):
 
         if attempt.hit:
             self._record_cache_hit(cell.cell_id, load_time, attempt)
-            return attempt.meta.get("return")
+
+            # Populate memo from cached hashes for child cell speedup
+            try:
+                ctx = get_context()
+                variable_hashes = attempt.meta.get("variable_hashes", {})
+                if variable_hashes:
+                    import base64
+                    for var_name, hash_str in variable_hashes.items():
+                        # Decode base64 string to bytes for memo storage
+                        hash_bytes = base64.urlsafe_b64decode(hash_str)
+                        ctx.cell_hash_memo[var_name] = hash_bytes
+                    LOGGER.debug(
+                        f"[CachedExecutor] Populated memo with {len(variable_hashes)} "
+                        f"hashes from cache for cell {cell.cell_id}"
+                    )
+            except ContextNotInitializedError:
+                pass
+
+            # Hydrate the return value to restore any nested stubs
+            return_value = attempt.meta.get("return")
+            if return_value is not None:
+                return_value = _hydrate_value_recursive(return_value, glbls)
+            return return_value
 
         self._record_cache_miss()
         hydrate(cell.refs, glbls, graph, loader)

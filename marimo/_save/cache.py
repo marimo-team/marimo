@@ -58,7 +58,7 @@ CACHE_PREFIX: dict[CacheType, str] = {
 }
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
-MetaKey = Literal["return", "version", "runtime", "hash_lookup"]
+MetaKey = Literal["return", "version", "runtime", "variable_hashes"]
 # Matches functools
 CacheInfo = namedtuple(
     "CacheInfo", ["hits", "misses", "maxsize", "currsize", "time_saved"]
@@ -169,16 +169,15 @@ class Cache:
 
         # Convert objects to stubs in both defs and meta
         memo: dict[int, Any] = {}  # Track processed objects to handle cycles
-        hash_lookup = self.meta.get("hash_lookup", {})
 
         for key, value in self.defs.items():
             self.defs[key] = _convert_to_stub_if_needed(
-                key, value, memo, preserve_pointers, hash_lookup
+                key, value, memo, preserve_pointers
             )
 
         for key, value in self.meta.items():
             self.meta[key] = _convert_to_stub_if_needed(
-                key, value, memo, preserve_pointers, hash_lookup
+                key, value, memo, preserve_pointers
             )
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
@@ -331,21 +330,16 @@ def _convert_to_stub_if_needed(
     value: Any,
     memo: dict[int, Any] | None = None,
     preserve_pointers: bool = True,
-    hash_lookup: dict[str, str] | None = None,
 ) -> Any:
     """Convert objects to stubs if needed, recursively handling collections.
 
     Args:
-        key: The variable name/key for hash lookup
+        key: The variable name/key
         value: The value to convert
         memo: Memoization dict to handle cycles
         preserve_pointers: If True, modifies containers in-place to preserve
                          object identity. If False, creates new containers.
-        hash_lookup: Dictionary mapping variable names to their hash values
     """
-    hash_value = None
-    if hash_lookup and key in hash_lookup:
-        hash_value = hash_lookup[key]
 
     if memo is None:
         memo = {}
@@ -358,13 +352,18 @@ def _convert_to_stub_if_needed(
     result: Any = None
 
     if inspect.ismodule(value):
-        result = ModuleStub(value, hash=hash_value or "")
+        result = ModuleStub(value)
     elif inspect.isfunction(value):
-        result = (
-            UnhashableStub(value, var_name=key, hash_value=hash_value or "")
-            if _is_unhashable_function(value)
-            else FunctionStub(value)
-        )
+        if not _is_unhashable_function(value):
+            try:
+                result = FunctionStub(value)
+            except OSError:
+                pass
+
+        # Did not hydrate
+        if result is None:
+            result = UnhashableStub(value, var_name=key)
+
     elif isinstance(value, UIElement):
         result = UIElementStub(value)
     elif isinstance(value, tuple):

@@ -163,6 +163,7 @@ def create_kernel_context(
         function_registry=FunctionRegistry(),
         cache_store=get_store(kernel.app_metadata.filename),
         cell_cache_context=CellCacheContext(),
+        cell_hash_memo={},
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=AppKernelRunnerRegistry(),
         virtual_file_registry=VirtualFileRegistry(),

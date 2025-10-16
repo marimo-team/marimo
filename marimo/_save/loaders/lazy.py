@@ -30,7 +30,8 @@ from marimo._save.stubs.lazy_stub import (
 
 
 def to_item(
-    path: Path, value: Optional[Any], loader: Optional[str] = None
+    path: Path, value: Optional[Any], loader: Optional[str] = None,
+    hash: Optional[str] = ""
 ) -> Item:
     if value is None:
         # If the value is None, we store it as an empty item
@@ -40,7 +41,7 @@ def to_item(
         loader = LAZY_STUB_LOOKUP.get(type(value), "pickle")
 
     if loader == "pickle":
-        return Item(reference=(path / "pickles.pickle").as_posix())
+        return Item(reference=(path / "pickles.pickle").as_posix(), hash=hash)
     if loader == "ui":
         return Item(reference=(path / "ui.pickle").as_posix())
     if loader == "unhashable":
@@ -68,7 +69,7 @@ def to_item(
         return Item(primitive=value)
 
     # For other types, use reference
-    return Item(reference=(path / "pickles.pickle").as_posix())
+    return Item(reference=(path / "pickles.pickle").as_posix(), hash=hash)
 
 
 def from_item(item: Item) -> Any:
@@ -124,6 +125,7 @@ class LazyLoader(BasePersistenceLoader):
 
     def restore_cache(self, _key: HashKey, blob: bytes) -> Cache:
         defs = {}
+        variable_hashes = {}
         # Decode msgspec JSON
         cache_data = msgspec.json.decode(blob, type=CacheSchema)
 
@@ -146,6 +148,10 @@ class LazyLoader(BasePersistenceLoader):
                     f"Invalid cache reference: {defs[var_name].name}"
                 )
 
+            # Extract hash from item for memoization
+            if item.hash:
+                variable_hashes[var_name] = item.hash
+
         return_item = (
             from_item(cache_data.meta.return_value)
             if cache_data.meta.return_value
@@ -163,6 +169,7 @@ class LazyLoader(BasePersistenceLoader):
             meta={
                 "version": cache_data.meta.version or MARIMO_CACHE_VERSION,
                 "return": return_item,
+                "variable_hashes": variable_hashes,
             },
             hit=True,
         )
@@ -181,8 +188,8 @@ class LazyLoader(BasePersistenceLoader):
     def to_blob(self, cache: Cache) -> bytes:
         collections: dict[str, dict[str, Any]] = {}
         path = Path(self.name) / cache.hash  # / "lazy"
-        # TODO: Provide cach context
-        hash_lookup = cache.meta.get("hash_lookup", {})
+        # Extract variable hashes from cache metadata
+        variable_hashes = cache.meta.get("variable_hashes", {})
         return_item = to_item(path, cache.meta.get("return", None))
         if return_item.reference:
             return_item.reference = (path / "return.pickle").as_posix()
@@ -218,7 +225,8 @@ class LazyLoader(BasePersistenceLoader):
                 collections[loader] = collection
             if loader == "ui":
                 ui_defs_list.append(var)
-            defs_dict[var] = to_item(path, obj, loader)
+            defs_dict[var] = to_item(path, obj, loader,
+                                     hash=variable_hashes.get(var, ""))
 
         store = CacheSchema(
             hash=cache.hash,

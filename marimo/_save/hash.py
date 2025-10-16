@@ -286,6 +286,33 @@ def data_to_buffer(data: Tensor) -> bytes:
     return type_sign(memoryview(data_c_contiguous.view("uint8")), "data")
 
 
+def serialize_and_hash_value(
+    value: Any,
+    hash_alg_name: str = "sha256",
+) -> Optional[bytes]:
+    """Serialize and hash a single value.
+
+    Returns the hash digest bytes, or None if the value cannot be hashed.
+    """
+    serial_value = None
+
+    if is_primitive(value):
+        serial_value = primitive_to_bytes(value)
+    elif is_data_primitive(value):
+        serial_value = data_to_buffer(value)
+    elif is_data_primitive_container(value):
+        serial_value = common_container_to_bytes(value)
+    elif stub := maybe_get_custom_stub(value):
+        serial_value = stub.to_bytes()
+
+    if serial_value is not None:
+        _hash = hashlib.new(hash_alg_name, usedforsecurity=False)
+        _hash.update(serial_value)
+        return _hash.digest()
+
+    return None
+
+
 def attempt_signed_bytes(value: bytes, label: str) -> bytes:
     # Prevents hash collisions like:
     # >>> fib(1)
@@ -425,7 +452,6 @@ class BlockHasher:
         self.pin_modules = pin_modules
         self.fn_cache: FN_CACHE_TYPE = {}
         self.lazy = lazy
-        self._lazy = {}
 
         # Empty name, so we can match and fill in cell context on load.
         self.visitor = ScopedVisitor("", ignore_local=True)
@@ -468,9 +494,10 @@ class BlockHasher:
         # Default type, means that there are no references at all.
         cache_type: CacheType = "Pure"
 
-        # TODO: Consider memoizing the serialized contents and hashed cells,
-        # such that a parent cell's BlockHasher can be used to speed up the
-        # hashing of child.
+        # TODO: Memoization of content-addressed hashes (lazy=True) happens in two places:
+        # 1. During serialize_and_dequeue_content_refs when computing new hashes
+        # 2. In lazy_executor when restoring from cache (populates memo from cached hashes)
+        # This allows parent cell's BlockHasher work to speed up hashing of child cells.
 
         # Collect references that will be utilized for a content hash.
         content_serialization: dict[Name, bytes] = {}
@@ -569,13 +596,24 @@ class BlockHasher:
         )
         if self.stateful_refs:
             LOGGER.debug(f"[BlockHasher] Stateful refs: {self.stateful_refs}")
-        if self.lazy:
-            self._lazy = content_serialization
-            LOGGER.debug(
-                f"[BlockHasher] Content serialization summary: "
-                f"{len(content_serialization)} refs, "
-                f"total bytes: {sum(len(v) for v in content_serialization.values())}"
-            )
+
+        # Populate memoization from content serialization when using lazy mode
+        # IMPORTANT: Skip stateful refs (UIElements, State) - they can change
+        # and need to invalidate cache
+        if self.lazy and ctx and content_serialization:
+            memo_count = 0
+            for ref, hash_bytes in content_serialization.items():
+                # Unmangle to get the original local reference name
+                local_ref = unmangle_local(ref, cell_id).name
+                # Skip stateful refs - their values can change
+                if local_ref not in self.stateful_refs:
+                    ctx.cell_hash_memo[local_ref] = hash_bytes
+                    memo_count += 1
+            if memo_count > 0:
+                LOGGER.debug(
+                    f"[BlockHasher] Populated memo with {memo_count} hashes "
+                    f"from content serialization (skipped {len(self.stateful_refs)} stateful refs)"
+                )
 
     @staticmethod
     def from_parent(
@@ -660,7 +698,7 @@ class BlockHasher:
             f"[BlockHasher.collect_for_content_hash] Processing {len(refs)} refs"
         )
         refs, content_serialization, _ = (
-            self.serialize_and_dequeue_content_refs(refs, scope)
+            self.serialize_and_dequeue_content_refs(refs, scope, ctx)
         )
         LOGGER.debug(
             f"[BlockHasher.collect_for_content_hash] Serialized {len(content_serialization)} refs, "
@@ -692,7 +730,7 @@ class BlockHasher:
             closure -= set(content_serialization.keys()) | self.execution_refs
             unhashable_closure, relevant_serialization, _ = (
                 self.serialize_and_dequeue_content_refs(
-                    closure - unhashable, scope
+                    closure - unhashable, scope, ctx
                 )
             )
             unhashable |= unhashable_closure
@@ -854,7 +892,8 @@ class BlockHasher:
         return SerialRefs(refs, {}, stateful_refs)
 
     def serialize_and_dequeue_content_refs(
-        self, refs: set[Name], scope: dict[Name, Any]
+        self, refs: set[Name], scope: dict[Name, Any],
+        ctx: Optional[RuntimeContext] = None
     ) -> SerialRefs:
         """Use hashable references to update the hash object and dequeue them.
 
@@ -890,6 +929,22 @@ class BlockHasher:
         )
         for local_ref in sorted(refs):
             ref = if_local_then_mangle(local_ref, self.cell_id)
+
+            # Check memoization first for performance
+            # Skip stateful refs - they can change and need fresh hashing
+            if (
+                ctx
+                and local_ref in ctx.cell_hash_memo
+                and local_ref not in self.stateful_refs
+            ):
+                content_serialization[ref] = ctx.cell_hash_memo[local_ref]
+                refs.remove(local_ref)
+                LOGGER.debug(
+                    f"[BlockHasher.serialize_and_dequeue_content_refs] "
+                    f"Reused memoized hash for {local_ref}"
+                )
+                continue
+
             if ref in imports:
                 # TODO: There may be a way to tie this in with module watching.
                 # e.g. module watcher could mutate the version number based
@@ -928,14 +983,17 @@ class BlockHasher:
             # resultant hash of the referenced object, opposed to loading the
             # full thing.
             if isinstance(value, ReferenceStub):
-                if not self.lazy:
+                LOGGER.debug(
+                    f"[BlockHasher.serialize_and_dequeue_content_refs] "
+                    f"attempting {local_ref} as stub, "
+                    f"value.hash={value.hash}"
+                )
+                if self.lazy and value.hash:
+                    content_serialization[local_ref] = value.hash
+                    refs.remove(local_ref)
+                else:
                     value = value.load(scope)
-                elif value.hash:
-                    _hash = hashlib.new(
-                        self.hash_alg.name, usedforsecurity=False
-                    )
-                    _hash.update(value.hash)
-                    content_serialization[ref] = _hash.digest()
+                continue
 
             if is_primitive(value):
                 serial_value = primitive_to_bytes(value)
@@ -986,10 +1044,26 @@ class BlockHasher:
                         self.hash_alg.name, usedforsecurity=False
                     )
                     _hash.update(serial_value)
-                    content_serialization[ref] = _hash.digest()
+                    hash_digest = _hash.digest()
+                    content_serialization[ref] = hash_digest
+
+                    # Store in memoization for future reuse
+                    # Skip stateful refs - their values can change
+                    if ctx and local_ref not in self.stateful_refs:
+                        ctx.cell_hash_memo[local_ref] = hash_digest
+                        LOGGER.debug(
+                            f"[BlockHasher.serialize_and_dequeue_content_refs] "
+                            f"Stored hash in memo for {local_ref}"
+                        )
+                    elif local_ref in self.stateful_refs:
+                        LOGGER.debug(
+                            f"[BlockHasher.serialize_and_dequeue_content_refs] "
+                            f"Skipped memo for stateful ref {local_ref}"
+                        )
                 else:
                     # TODO: Old v3 behavior
                     content_serialization[ref] = serial_value
+
                 LOGGER.debug(
                     f"[BlockHasher.serialize_and_dequeue_content_refs] "
                     f"Serialized {local_ref} as {serialization_method}, "
@@ -1041,7 +1115,7 @@ class BlockHasher:
         )
         # Attempt content hash again on the extracted stateful refs.
         refs, content_serialization, _ = (
-            self.serialize_and_dequeue_content_refs(refs, scope)
+            self.serialize_and_dequeue_content_refs(refs, scope, ctx)
         )
         return SerialRefs(refs, content_serialization, stateful_refs)
 
@@ -1331,17 +1405,6 @@ def cache_attempt_from_hash(
         hasher.key,
         hasher.stateful_refs,
     )
-
-    # Store hash lookup for lazy loading optimization
-    if hasher.lazy and hasher._lazy:
-        # Convert bytes to base64 strings for JSON serialization
-        cache.meta["hash_lookup"] = {
-            k: base64.urlsafe_b64encode(v).decode("utf-8")
-            for k, v in hasher._lazy.items()
-        }
-        LOGGER.debug(
-            f"[cache_attempt_from_hash] Stored hash_lookup with {len(hasher._lazy)} entries"
-        )
 
     LOGGER.debug(
         f"[cache_attempt_from_hash] Completed - cache_type={hasher.cache_type}, "
