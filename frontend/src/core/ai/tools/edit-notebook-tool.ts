@@ -175,23 +175,28 @@ export class EditNotebookTool
 
         break;
       }
-      case "delete_cell": {
-        const { cellId } = edit;
-        const notebook = this.store.get(notebookAtom);
-        this.validateCellIdExists(cellId, notebook);
+      case "delete_cell":
+        return {
+          status: "error",
+          message: "Deleting cells are not supported yet",
+        };
 
-        const editorView = this.getCellEditorView(cellId, notebook);
-        const currentCellCode = editorView.state.doc.toString();
+      // const { cellId } = edit;
 
-        // Add to staged AICells
-        this.stagedAICellsActions.addStagedCell({
-          cellId,
-          edit: { type: "delete_cell", previousCode: currentCellCode },
-        });
+      // const notebook = this.store.get(notebookAtom);
+      // this.validateCellIdExists(cellId, notebook);
 
-        this.notebookActions.deleteCell({ cellId });
-        break;
-      }
+      // const editorView = this.getCellEditorView(cellId, notebook);
+      // const currentCellCode = editorView.state.doc.toString();
+
+      // // Add to staged AICells
+      // this.stagedAICellsActions.addStagedCell({
+      //   cellId,
+      //   edit: { type: "delete_cell", previousCode: currentCellCode },
+      // });
+
+      // this.notebookActions.deleteCell({ cellId });
+      // break;
     }
     return {
       status: "success",

@@ -59,6 +59,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
         break;
       case "delete_cell":
         // TODO: Revert delete
+        removeStagedCell(cellId);
         break;
     }
   };
