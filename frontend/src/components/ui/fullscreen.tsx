@@ -1,8 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useRef, useState } from "react";
+import type { PopoverContentProps } from "@radix-ui/react-popover";
+import React, { useState } from "react";
 import { isInVscodeExtension } from "@/core/vscode/is-in-vscode";
 import { useEventListener } from "@/hooks/useEventListener";
+
+const VSCODE_OUTPUT_CONTAINER_SELECTOR = "[data-vscode-output-container]";
+
+// vscode has smaller viewport so we need all the max-height we can get.
+// Otherwise, we give a 30px buffer to the max-height.
+export const MAX_HEIGHT_OFFSET = isInVscodeExtension() ? 0 : 30;
 
 /**
  * Get the full screen element if we are in full screen mode
@@ -26,36 +33,21 @@ export function withFullScreenAsRoot<
     container?: Element | DocumentFragment | null;
   },
 >(Component: React.ComponentType<T>) {
-  console.warn("[debug] Component", Component);
-
   const FindClosestVscodeOutputContainer = (props: T) => {
-    const el = useRef<HTMLDivElement>(null);
-    const [, setMounted] = useState(false);
-    console.warn("[debug] el.current", el.current);
-    if (!el.current) {
-      return (
-        <>
-          <div
-            ref={(element) => {
-              setMounted(true);
-              el.current = element;
-            }}
-            className="contents invisible"
-          />
-          <span>should not show this...</span>
-        </>
-      );
-    }
+    const [closest, setClosest] = React.useState<Element | null>(null);
+    const el = React.useRef<HTMLDivElement>(null);
 
-    const closest = closestThroughShadowDOMs(
-      el.current,
-      "[data-vscode-output-container]",
-    );
-    console.warn(
-      "[debug] el.current.closest('[data-vscode-output-container]')",
-      "el.current.closest('[data-vscode-output-container]')",
-      closest,
-    );
+    React.useLayoutEffect(() => {
+      if (!el.current) {
+        return;
+      }
+
+      const found = closestThroughShadowDOMs(
+        el.current,
+        VSCODE_OUTPUT_CONTAINER_SELECTOR,
+      );
+      setClosest(found);
+    }, []);
 
     return (
       <>
@@ -68,7 +60,6 @@ export function withFullScreenAsRoot<
   const Comp = (props: T) => {
     // If we are in the VSCode extension, we use the VSCode output container
     const vscodeOutputContainer = isInVscodeExtension();
-    console.warn("[debug] vscodeOutputContainer", vscodeOutputContainer);
     if (vscodeOutputContainer) {
       return <FindClosestVscodeOutputContainer {...props} />;
     }
@@ -85,6 +76,56 @@ export function withFullScreenAsRoot<
   return Comp;
 }
 
+/**
+ * HOC wrapping a PortalContent component to set a better collision boundary,
+ * when inside vscode.
+ */
+export function withSmartCollisionBoundary<
+  T extends {
+    collisionBoundary?: PopoverContentProps["collisionBoundary"];
+  },
+>(Component: React.ComponentType<T>) {
+  const FindClosestVscodeOutputContainer = (props: T) => {
+    const [closest, setClosest] = React.useState<Element | null>(null);
+    const el = React.useRef<HTMLDivElement>(null);
+
+    React.useLayoutEffect(() => {
+      if (!el.current) {
+        return;
+      }
+
+      const found = closestThroughShadowDOMs(
+        el.current,
+        VSCODE_OUTPUT_CONTAINER_SELECTOR,
+      );
+      setClosest(found);
+    }, []);
+
+    return (
+      <>
+        <div ref={el} className="contents invisible" />
+        <Component {...props} collisionBoundary={closest} />
+      </>
+    );
+  };
+
+  const Comp = (props: T) => {
+    // If we are in the VSCode extension, we use the VSCode output container
+    const vscodeOutputContainer = isInVscodeExtension();
+    if (vscodeOutputContainer) {
+      return <FindClosestVscodeOutputContainer {...props} />;
+    }
+
+    return <Component {...props} />;
+  };
+
+  Comp.displayName = Component.displayName;
+  return Comp;
+}
+
+/**
+ * Find the closest element (with .closest), but through shadow DOMs.
+ */
 function closestThroughShadowDOMs(
   element: Element,
   selector: string,

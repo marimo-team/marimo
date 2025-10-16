@@ -10,7 +10,11 @@ import type { VariantProps } from "class-variance-authority";
 import * as React from "react";
 import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";
-import { withFullScreenAsRoot } from "./fullscreen";
+import {
+  MAX_HEIGHT_OFFSET,
+  withFullScreenAsRoot,
+  withSmartCollisionBoundary,
+} from "./fullscreen";
 import {
   MenuShortcut,
   menuContentCommon,
@@ -25,6 +29,12 @@ const ContextMenu = ContextMenuPrimitive.Root;
 const ContextMenuTrigger = ContextMenuPrimitive.Trigger;
 const ContextMenuGroup = ContextMenuPrimitive.Group;
 const ContextMenuPortal = withFullScreenAsRoot(ContextMenuPrimitive.Portal);
+const InternalContextMenuContent = withSmartCollisionBoundary(
+  ContextMenuPrimitive.Content,
+);
+const InternalContextMenuSubContent = withSmartCollisionBoundary(
+  ContextMenuPrimitive.SubContent,
+);
 const ContextMenuSub = ContextMenuPrimitive.Sub;
 const ContextMenuRadioGroup = ContextMenuPrimitive.RadioGroup;
 
@@ -52,7 +62,7 @@ const ContextMenuSubContent = React.forwardRef<
   React.ElementRef<typeof ContextMenuPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubContent>
 >(({ className, ...props }, ref) => (
-  <ContextMenuPrimitive.SubContent
+  <InternalContextMenuSubContent
     ref={ref}
     className={cn(
       menuContentCommon({ subcontent: true }),
@@ -72,7 +82,7 @@ const ContextMenuContent = React.forwardRef<
 >(({ className, scrollable = true, ...props }, ref) => (
   <ContextMenuPortal>
     <StyleNamespace>
-      <ContextMenuPrimitive.Content
+      <InternalContextMenuContent
         ref={ref}
         className={cn(
           menuContentCommon(),
@@ -83,7 +93,7 @@ const ContextMenuContent = React.forwardRef<
         style={{
           ...props.style,
           maxHeight: scrollable
-            ? "calc(var(--radix-context-menu-content-available-height) - 30px)"
+            ? `calc(var(--radix-context-menu-content-available-height) - ${MAX_HEIGHT_OFFSET}px)`
             : undefined,
         }}
         {...props}

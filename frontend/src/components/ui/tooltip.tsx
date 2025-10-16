@@ -4,6 +4,7 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import * as React from "react";
 import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";
+import { withFullScreenAsRoot, withSmartCollisionBoundary } from "./fullscreen";
 
 const TooltipProvider = ({
   delayDuration = 400,
@@ -12,7 +13,12 @@ const TooltipProvider = ({
   <TooltipPrimitive.Provider delayDuration={delayDuration} {...props} />
 );
 
+const TooltipPortal = withFullScreenAsRoot(TooltipPrimitive.Portal);
+
 const TooltipRoot = TooltipPrimitive.Root;
+const InternalTooltipContent = withSmartCollisionBoundary(
+  TooltipPrimitive.Content,
+);
 
 const TooltipTrigger = TooltipPrimitive.Trigger;
 
@@ -21,7 +27,7 @@ const TooltipContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
 >(({ className, sideOffset = 4, ...props }, ref) => (
   <StyleNamespace>
-    <TooltipPrimitive.Content
+    <InternalTooltipContent
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
@@ -64,11 +70,11 @@ const Tooltip: React.FC<
         {children}
       </TooltipTrigger>
       {usePortal ? (
-        <TooltipPrimitive.TooltipPortal>
+        <TooltipPortal>
           <TooltipContent side={side} align={align}>
             {content}
           </TooltipContent>
-        </TooltipPrimitive.TooltipPortal>
+        </TooltipPortal>
       ) : (
         <TooltipContent side={side} align={align}>
           {content}
@@ -83,5 +89,6 @@ export {
   TooltipRoot,
   TooltipTrigger,
   TooltipContent,
+  TooltipPortal,
   TooltipProvider,
 };

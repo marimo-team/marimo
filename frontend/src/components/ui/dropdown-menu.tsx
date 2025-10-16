@@ -5,7 +5,11 @@ import { Check, ChevronRight, Circle } from "lucide-react";
 import React from "react";
 import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";
-import { withFullScreenAsRoot } from "./fullscreen";
+import {
+  MAX_HEIGHT_OFFSET,
+  withFullScreenAsRoot,
+  withSmartCollisionBoundary,
+} from "./fullscreen";
 import {
   MenuShortcut,
   menuContentCommon,
@@ -21,6 +25,12 @@ const DropdownMenu = DropdownMenuPrimitive.Root;
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 const DropdownMenuPortal = withFullScreenAsRoot(DropdownMenuPrimitive.Portal);
+const InternalDropdownMenuContent = withSmartCollisionBoundary(
+  DropdownMenuPrimitive.Content,
+);
+const InternalDropdownMenuSubContent = withSmartCollisionBoundary(
+  DropdownMenuPrimitive.SubContent,
+);
 const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
@@ -47,7 +57,7 @@ const DropdownMenuSubContent = React.forwardRef<
   React.ComponentRef<typeof DropdownMenuPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>
 >(({ className, ...props }, ref) => (
-  <DropdownMenuPrimitive.SubContent
+  <InternalDropdownMenuSubContent
     ref={ref}
     className={cn(
       menuContentCommon({ subcontent: true }),
@@ -68,7 +78,7 @@ const DropdownMenuContent = React.forwardRef<
 >(({ className, scrollable = true, sideOffset = 4, ...props }, ref) => (
   <DropdownMenuPortal>
     <StyleNamespace>
-      <DropdownMenuPrimitive.Content
+      <InternalDropdownMenuContent
         ref={ref}
         sideOffset={sideOffset}
         className={cn(
@@ -80,7 +90,7 @@ const DropdownMenuContent = React.forwardRef<
         style={{
           ...props.style,
           maxHeight: scrollable
-            ? "calc(var(--radix-dropdown-menu-content-available-height) - 30px)"
+            ? `calc(var(--radix-dropdown-menu-content-available-height) - ${MAX_HEIGHT_OFFSET}px)`
             : undefined,
         }}
         {...props}
