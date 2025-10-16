@@ -1,4 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -6,6 +8,7 @@ from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import (
     EmptyArgs,
     SuccessResult,
+    ToolGuidelines,
 )
 from marimo._server.model import ConnectionState
 from marimo._server.models.home import MarimoFile
@@ -57,6 +60,14 @@ class GetActiveNotebooks(ToolBase[EmptyArgs, GetActiveNotebooksOutput]):
     Returns:
         A success result containing summary statistics and notebook details.
     """
+
+    guidelines = ToolGuidelines(
+        when_to_use=[
+            "At the start of marimo notebook interactions to get session IDs",
+            "When receiving session-related errors",
+        ],
+        additional_info="Use the file paths returned by this tool to directly edit a notebook.",
+    )
 
     def handle(self, args: EmptyArgs) -> GetActiveNotebooksOutput:
         del args

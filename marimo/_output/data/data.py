@@ -185,19 +185,25 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
     raise ValueError(f"Unsupported data type: {type(data)}")
 
 
+# JavaScript's safe integer limits
+MAX_SAFE_INTEGER = 9007199254740991
+MIN_SAFE_INTEGER = -9007199254740991
+BIGINT_KEY = "$bigint"
+
+
+def is_bigint(value: int | float) -> bool:
+    return value > MAX_SAFE_INTEGER or value < MIN_SAFE_INTEGER
+
+
 def sanitize_json_bigint(
     data: Union[str, dict[str, Any], list[dict[str, Any]]],
 ) -> str:
-    """Sanitize JSON bigint to a string.
+    """Sanitize JSON big numbers to a string.
 
     This is necessary because the frontend will round ints larger than
     Number.MAX_SAFE_INTEGER to Number.MAX_SAFE_INTEGER.
     """
     from json import dumps, loads
-
-    # JavaScript's safe integer limits
-    MAX_SAFE_INTEGER = 9007199254740991
-    MIN_SAFE_INTEGER = -9007199254740991
 
     def convert_key(key: Any) -> Any:
         # Keys must be str, int, float, bool, or None
@@ -212,9 +218,12 @@ def sanitize_json_bigint(
             return {convert_key(k): convert_bigint(v) for k, v in obj.items()}  # type: ignore
         elif isinstance(obj, list):
             return [convert_bigint(item) for item in obj]  # type: ignore
-        elif isinstance(obj, int) and (
-            obj > MAX_SAFE_INTEGER or obj < MIN_SAFE_INTEGER
-        ):
+        elif isinstance(obj, int) and is_bigint(obj):
+            # If the value is outside the safe integer range, convert it to an object with a $bigint key
+            # Frontend will convert the object back to an integer.
+            return {BIGINT_KEY: str(obj)}
+        elif isinstance(obj, float) and is_bigint(obj):
+            # Decimals are not handled currently, we just convert them to strings.
             return str(obj)
         else:
             return obj

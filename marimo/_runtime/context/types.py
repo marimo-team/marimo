@@ -18,6 +18,8 @@ from marimo._messaging.context import HTTP_REQUEST_CTX
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    import duckdb
+
     from marimo._ast.app import (
         AppKernelRunnerRegistry,
         InternalApp,
@@ -68,6 +70,16 @@ class ExecutionContext:
     local_cell_id: Optional[CellId_t] = None
     # output object set imperatively
     output: Optional[list[Html]] = None
+    duckdb_connection: duckdb.DuckDBPyConnection | None = None
+
+    @contextmanager
+    def with_connection(
+        self, connection: duckdb.DuckDBPyConnection
+    ) -> Iterator[None]:
+        old_conn = self.duckdb_connection
+        self.duckdb_connection = connection
+        yield
+        self.duckdb_connection = old_conn
 
 
 @dataclass

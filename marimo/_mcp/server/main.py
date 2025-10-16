@@ -6,6 +6,8 @@ This module implements an MCP server that provides LLMs with access to marimo
 notebook context and functionality.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from marimo._ai._tools.base import ToolContext
@@ -17,9 +19,10 @@ LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
     from starlette.applications import Starlette
+    from starlette.types import Receive, Scope, Send
 
 
-def setup_mcp_server(app: "Starlette") -> None:
+def setup_mcp_server(app: Starlette) -> None:
     """Create and configure MCP server for marimo integration.
 
     Args:
@@ -34,7 +37,10 @@ def setup_mcp_server(app: "Starlette") -> None:
     from starlette.middleware.base import BaseHTTPMiddleware
     from starlette.responses import JSONResponse
     from starlette.routing import Mount
-    from starlette.types import Receive, Scope, Send
+
+    from marimo._mcp.server._prompts.registry import (
+        SUPPORTED_MCP_PROMPTS,
+    )
 
     mcp = FastMCP(
         "marimo-mcp-server",
@@ -44,11 +50,18 @@ def setup_mcp_server(app: "Starlette") -> None:
         streamable_http_path="/server",
     )
 
-    # Register all tools
+    # Create context for tools and prompts
     context = ToolContext(app=app)
+
+    # Register all tools
     for tool in SUPPORTED_BACKEND_AND_MCP_TOOLS:
         tool_with_context = tool(context)
         mcp.tool()(tool_with_context.as_mcp_tool_fn())
+
+    # Register all prompts
+    for prompt in SUPPORTED_MCP_PROMPTS:
+        prompt_with_context = prompt(context)
+        mcp.prompt()(prompt_with_context.as_mcp_prompt_fn())
 
     # Initialize streamable HTTP app
     mcp_app = mcp.streamable_http_app()

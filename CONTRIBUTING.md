@@ -33,8 +33,8 @@ Install [pixi](https://github.com/prefix-dev/pixi) to manage your development en
 pixi shell
 ```
 
-If you have the right non-python dependencies installed via other methods (e.g. homebrew) you can simply activate your `marimo` development 
-environment with `hatch shell`. 
+If you have the right non-python dependencies installed via other methods (e.g. homebrew) you can simply activate your `marimo` development
+environment with `hatch shell`.
 
 Now you can install the environment frontend and Python dependencies.
 
@@ -85,8 +85,6 @@ To build the frontend unminified, run:
 ```bash
 NODE_ENV=development make fe -B
 ```
-
-
 
 ## `make` commands
 
@@ -354,6 +352,14 @@ If you use vscode, you might find the following `settings.json` useful:
   }
 }
 ```
+
+## PRs
+
+When submitting a pull request, marimo will run: lint, typecheck, and test jobs.
+
+We have some labels which can influence which tests are run:
+
+- `test-all`: Run all tests across unchanged files as well.
 
 ## Your first PR
 

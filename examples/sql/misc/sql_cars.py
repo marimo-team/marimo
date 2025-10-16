@@ -1,18 +1,18 @@
 # /// script
 # requires-python = ">=3.9"
 # dependencies = [
-#     "altair==5.4.1",
-#     "duckdb==1.1.1",
+#     "altair>=5.4.1",
+#     "duckdb>=1.1.1",
 #     "marimo",
-#     "polars==1.18.0",
-#     "pyarrow==18.1.0",
-#     "vega-datasets==0.9.0",
+#     "polars>=1.18.0",
+#     "pyarrow>=18.1.0",
+#     "vega-datasets>=0.9.0",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.0"
 app = marimo.App(width="medium")
 
 
@@ -31,7 +31,7 @@ def _(cars_df, mo):
         CREATE OR REPLACE TABLE cars AS SELECT * FROM cars_df;
         """
     )
-    return (cars,)
+    return
 
 
 @app.cell
@@ -54,7 +54,7 @@ def _(origin):
 @app.cell
 def _(mo, origin, top_n):
     mo.md(
-        f"""##Top {top_n.value} Cars {f"in {origin.value}" if origin.value != None else ""} """
+        f"""##Top {top_n.value} Cars {f"in {origin.value}" if origin.value != None else ""}"""
     )
     return
 

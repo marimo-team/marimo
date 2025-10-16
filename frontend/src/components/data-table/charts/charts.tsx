@@ -48,6 +48,7 @@ const CHART_HEIGHT = 290;
 
 export interface TablePanelProps {
   cellId: CellId | null;
+  data: unknown[];
   dataTable: JSX.Element;
   displayHeader: boolean;
   getDataUrl?: GetDataUrl;
@@ -56,6 +57,7 @@ export interface TablePanelProps {
 
 export const TablePanel: React.FC<TablePanelProps> = ({
   cellId,
+  data,
   dataTable,
   getDataUrl,
   fieldTypes,
@@ -211,6 +213,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
         return (
           <TabsContent key={idx} value={tab.tabName} className="h-[400px] mt-1">
             <ChartPanel
+              tableData={data}
               chartConfig={tab.config}
               chartType={tab.chartType}
               saveChart={saveChart}
@@ -228,6 +231,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
 const CHART_PLACEHOLDER_CODE = "X and Y columns are not set";
 
 export const ChartPanel: React.FC<{
+  tableData: unknown[];
   chartConfig: ChartSchemaType | null;
   chartType: ChartType;
   saveChart: (formValues: ChartSchemaType) => void;
@@ -235,6 +239,7 @@ export const ChartPanel: React.FC<{
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
 }> = ({
+  tableData,
   chartConfig,
   chartType,
   saveChart,
@@ -255,7 +260,7 @@ export const ChartPanel: React.FC<{
   const { ref: chartContainerRef } = useResizeObserver();
 
   const { data, isPending, error } = useAsyncData(async () => {
-    if (!getDataUrl) {
+    if (!getDataUrl || tableData.length === 0) {
       return [];
     }
 
@@ -276,7 +281,8 @@ export const ChartPanel: React.FC<{
       },
     );
     return chartData;
-  }, []);
+    // Re-run when the data table changes
+  }, [tableData]);
 
   const formValues = form.watch();
 

@@ -3,13 +3,19 @@
 import type { components } from "@marimo-team/marimo-api";
 import { Memoize } from "typescript-memoize";
 import { type ZodObject, z } from "zod";
-import type { AiTool } from "./base";
+import { type AiTool, ToolExecutionError } from "./base";
 import { TestFrontendTool } from "./sample-tool";
 
 export type AnyZodObject = ZodObject<z.ZodRawShape>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type StoredTool = AiTool<any, any>;
+
+interface InvokeResult<TName> {
+  tool_name: TName;
+  result: unknown;
+  error: string | null;
+}
 
 /** should be the same as marimo/_config/config.py > CopilotMode */
 
@@ -43,7 +49,7 @@ export class FrontendToolRegistry {
   async invoke<TName extends string>(
     toolName: TName,
     rawArgs: unknown,
-  ): Promise<unknown> {
+  ): Promise<InvokeResult<TName>> {
     const tool = this.getToolOrThrow(toolName);
     const handler = tool.handler;
     const inputSchema = tool.schema;
@@ -69,17 +75,37 @@ export class FrontendToolRegistry {
           `Tool ${toolName} returned invalid output: ${strError}`,
         );
       }
-      const output = response.data;
-      return output;
-    } catch (error) {
+      const result = response.data;
       return {
-        status: "error",
-        code: "TOOL_ERROR",
-        message: error instanceof Error ? error.message : String(error),
-        suggestedFix: "Try again with valid arguments.",
-        meta: {
+        tool_name: toolName,
+        result,
+        error: null,
+      };
+    } catch (error) {
+      // Handle structured errors
+      if (error instanceof ToolExecutionError) {
+        return {
+          tool_name: toolName,
+          result: null,
+          error: error.toStructuredString(),
+        };
+      }
+
+      // Handle unknown/generic errors
+      const genericError = new ToolExecutionError(
+        error instanceof Error ? error.message : String(error),
+        "TOOL_ERROR",
+        false,
+        "Check the error message and try again with valid arguments.",
+        {
           args: rawArgs,
+          errorType: error?.constructor?.name ?? typeof error,
         },
+      );
+      return {
+        tool_name: toolName,
+        result: null,
+        error: genericError.toStructuredString(),
       };
     }
   }

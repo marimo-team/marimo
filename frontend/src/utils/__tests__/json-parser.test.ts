@@ -55,6 +55,19 @@ it("can fail to jsonParseWithSpecialChar", () => {
   expect(jsonParseWithSpecialChar("[nan]")).toMatchInlineSnapshot("{}");
 });
 
+it("can parse bigInts", () => {
+  const bigint = JSON.stringify({ bigint: { $bigint: "123456" } });
+  expect(jsonParseWithSpecialChar(bigint)).toEqual({ bigint: BigInt(123_456) });
+
+  const arrayOfBigInts = JSON.stringify([{ $bigint: "123456" }]);
+  expect(jsonParseWithSpecialChar(arrayOfBigInts)).toEqual([BigInt(123_456)]);
+
+  const nestedBigInt = JSON.stringify({ bigint: [{ $bigint: "123456" }] });
+  expect(jsonParseWithSpecialChar(nestedBigInt)).toEqual({
+    bigint: [BigInt(123_456)],
+  });
+});
+
 it("can convert json to tsv", () => {
   expect(jsonToTSV([])).toEqual("");
 

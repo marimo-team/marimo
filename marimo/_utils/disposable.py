@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from typing import Callable
 
 
@@ -18,5 +20,5 @@ class Disposable:
         return self._is_disposed
 
     @staticmethod
-    def empty() -> "Disposable":
+    def empty() -> Disposable:
         return Disposable(lambda: None)

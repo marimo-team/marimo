@@ -6,8 +6,6 @@ import { type SQLDialect, type SQLNamespace, sql } from "@codemirror/lang-sql";
 import type { EditorState, Extension } from "@codemirror/state";
 import { Compartment } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import type { SyntaxNode, TreeCursor } from "@lezer/common";
-import { parser } from "@lezer/python";
 import {
   defaultSqlHoverTheme,
   NodeSqlParser,
@@ -17,7 +15,7 @@ import {
   sqlExtension,
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
-import dedent from "string-dedent";
+import { type SQLMetadata, SQLParser } from "@marimo-team/smart-cells";
 import type { CellId } from "@/core/cells/ids";
 import { cellIdState } from "@/core/codemirror/cells/state";
 import type { PlaceholderType } from "@/core/codemirror/config/types";
@@ -44,10 +42,6 @@ import { Logger } from "@/utils/Logger";
 import { variableCompletionSource } from "../../embedded/embedded-python";
 import { languageMetadataField } from "../../metadata";
 import type { LanguageAdapter } from "../../types";
-import { parseArgsKwargs } from "../../utils/ast";
-import { indentOneTab } from "../../utils/indentOneTab";
-import type { QuotePrefixKind } from "../../utils/quotes";
-import { MarkdownLanguageAdapter } from "../markdown";
 import {
   clearSqlValidationError,
   setSqlValidationError,
@@ -65,11 +59,7 @@ const DEFAULT_PARSER_DIALECT = "DuckDB";
 // A compartment for the SQL config, so we can update the config of codemirror
 const sqlConfigCompartment = new Compartment();
 
-export interface SQLLanguageAdapterMetadata {
-  dataframeName: string;
-  quotePrefix: QuotePrefixKind;
-  commentLines: string[];
-  showOutput: boolean;
+export interface SQLLanguageAdapterMetadata extends SQLMetadata {
   engine: ConnectionName;
 }
 
@@ -83,6 +73,7 @@ function getLatestEngine(): ConnectionName {
 export class SQLLanguageAdapter
   implements LanguageAdapter<SQLLanguageAdapterMetadata>
 {
+  private parser = new SQLParser();
   readonly type = "sql";
   sqlModeEnabled: boolean;
 
@@ -92,25 +83,20 @@ export class SQLLanguageAdapter
 
   get defaultMetadata(): SQLLanguageAdapterMetadata {
     return {
-      dataframeName: "_df",
-      quotePrefix: "f",
-      commentLines: [],
-      showOutput: true,
-      engine: getLatestEngine() || this.defaultEngine,
+      ...this.parser.defaultMetadata,
+      engine: getLatestEngine() || DUCKDB_ENGINE,
     };
   }
 
   get defaultCode(): string {
-    const latestEngine = getLatestEngine();
-    if (latestEngine === this.defaultEngine) {
-      return `_df = mo.sql(f"""SELECT * FROM """)`;
+    const engine = getLatestEngine();
+    if (engine && engine !== DUCKDB_ENGINE) {
+      return `_df = mo.sql(f"""SELECT * FROM """, engine=${engine})`;
     }
-    return `_df = mo.sql(f"""SELECT * FROM """, engine=${latestEngine})`;
+    return this.parser.defaultCode;
   }
 
-  static fromQuery = (query: string) => `_df = mo.sql(f"""${query.trim()}""")`;
-
-  private readonly defaultEngine = DUCKDB_ENGINE;
+  static fromQuery = (query: string) => SQLParser.fromQuery(query);
 
   transformIn(
     pythonCode: string,
@@ -119,100 +105,29 @@ export class SQLLanguageAdapter
     queryStartOffset: number,
     metadata: SQLLanguageAdapterMetadata,
   ] {
-    pythonCode = pythonCode.trim();
+    this.parser.defaultMetadata.engine = getLatestEngine() || DUCKDB_ENGINE;
+    const result = this.parser.transformIn(pythonCode);
 
-    // Default metadata
-    const metadata: SQLLanguageAdapterMetadata = {
-      ...this.defaultMetadata,
-      commentLines: this.extractCommentLines(pythonCode),
-    };
+    // Handle engine selection side effect
+    const metadata = result.metadata as SQLLanguageAdapterMetadata;
 
-    if (!this.isSupported(pythonCode)) {
-      // Attempt to remove any markdown wrappers
-      const [transformedCode, offset] =
-        new MarkdownLanguageAdapter().transformIn(pythonCode);
-      // Just return the original code
-      return [transformedCode, offset, metadata];
+    if (metadata.engine && metadata.engine !== DUCKDB_ENGINE) {
+      setLatestEngineSelected(metadata.engine as ConnectionName);
     }
 
-    // Handle empty strings
-    if (pythonCode === "") {
-      return ["", 0, metadata];
-    }
-
-    const sqlStatement = parseSQLStatement(pythonCode);
-    if (sqlStatement) {
-      metadata.dataframeName = sqlStatement.dfName;
-      metadata.showOutput = sqlStatement.output ?? true;
-      metadata.engine =
-        (sqlStatement.engine as ConnectionName) ?? this.defaultEngine;
-
-      if (metadata.engine !== this.defaultEngine) {
-        // User selected a new engine, set it as latest.
-        // This makes new SQL statements use the new engine by default.
-        setLatestEngineSelected(metadata.engine);
-      }
-
-      return [
-        dedent(`\n${sqlStatement.sqlString}\n`).trim(),
-        sqlStatement.startPosition,
-        metadata,
-      ];
-    }
-
-    return [pythonCode, 0, metadata];
+    return [result.code, result.offset, metadata];
   }
 
   transformOut(
     code: string,
     metadata: SQLLanguageAdapterMetadata,
   ): [string, number] {
-    const { quotePrefix, commentLines, showOutput, engine, dataframeName } =
-      metadata;
-
-    const start = `${dataframeName} = mo.sql(\n    ${quotePrefix}"""\n`;
-    const escapedCode = code.replaceAll('"""', String.raw`\"""`);
-
-    const showOutputParam = showOutput ? "" : ",\n    output=False";
-    const engineParam =
-      engine === this.defaultEngine ? "" : `,\n    engine=${engine}`;
-    const end = `\n    """${showOutputParam}${engineParam}\n)`;
-
-    return [
-      [...commentLines, start].join("\n") + indentOneTab(escapedCode) + end,
-      start.length + 1,
-    ];
+    const result = this.parser.transformOut(code, metadata);
+    return [result.code, result.offset];
   }
 
   isSupported(pythonCode: string): boolean {
-    if (pythonCode.trim() === "") {
-      return true;
-    }
-
-    // Has at least one `mo.sql` call
-    if (!pythonCode.includes("mo.sql")) {
-      return false;
-    }
-
-    // Does not have 2 `mo.sql` calls
-    if (pythonCode.split("mo.sql").length > 2) {
-      return false;
-    }
-
-    return parseSQLStatement(pythonCode) !== null;
-  }
-
-  private extractCommentLines(pythonCode: string): string[] {
-    const lines = pythonCode.split("\n");
-    const commentLines = [];
-    for (const line of lines) {
-      if (line.startsWith("#")) {
-        commentLines.push(line);
-      } else {
-        break;
-      }
-    }
-    return commentLines;
+    return this.parser.isSupported(pythonCode);
   }
 
   getExtension(
@@ -473,194 +388,6 @@ function connectionNameToParserDialect(
       return "Noql";
     default:
       return null;
-  }
-}
-
-interface SQLParseInfo {
-  dfName: string;
-  sqlString: string;
-  engine: string | undefined;
-  output: boolean | undefined;
-  startPosition: number;
-}
-
-// Finds an assignment node that is preceded only by comments.
-function findAssignment(cursor: TreeCursor): SyntaxNode | null {
-  do {
-    if (cursor.name === "AssignStatement") {
-      return cursor.node;
-    }
-
-    if (cursor.name !== "Comment") {
-      return null;
-    }
-  } while (cursor.next());
-  return null;
-}
-
-function getStringContent(node: SyntaxNode, code: string): string | null {
-  // Handle triple quoted strings
-  if (node.name === "String") {
-    const content = code.slice(node.from, node.to);
-    // Remove quotes and trim
-    if (content.startsWith('"""') || content.startsWith("'''")) {
-      return safeDedent(content.slice(3, -3));
-    }
-    // Handle single quoted strings
-    return safeDedent(content.slice(1, -1));
-  }
-  // Handle f-strings
-  if (node.name === "FormatString") {
-    const content = code.slice(node.from, node.to);
-    if (content.startsWith('f"""') || content.startsWith("f'''")) {
-      return safeDedent(content.slice(4, -3));
-    }
-    return safeDedent(content.slice(2, -1));
-  }
-  return null;
-}
-
-/**
- * Parses a SQL statement from a Python code string.
- *
- * @param code - The Python code string to parse.
- * @returns The parsed SQL statement or null if parsing fails.
- */
-function parseSQLStatement(code: string): SQLParseInfo | null {
-  try {
-    const tree = parser.parse(code);
-    const cursor = tree.cursor();
-
-    // Trees start with a Script node.
-    if (cursor.name === "Script") {
-      cursor.next();
-    }
-    const assignStmt = findAssignment(cursor);
-    if (!assignStmt) {
-      return null;
-    }
-
-    // Code after the assignment statement is not allowed.
-    if (code.slice(assignStmt.to).trim().length > 0) {
-      return null;
-    }
-
-    let dfName: string | null = null;
-    let sqlString: string | null = null;
-    let engine: string | undefined;
-    let output: boolean | undefined;
-    let startPosition = 0;
-
-    // Parse the assignment
-    const assignCursor = assignStmt.cursor();
-    assignCursor.firstChild(); // Move to first child of assignment
-
-    // First child should be the variable name
-    if (assignCursor.name === "VariableName") {
-      dfName = code.slice(assignCursor.from, assignCursor.to);
-    }
-
-    if (!dfName) {
-      return null;
-    }
-
-    // Move to the expression part (after the =)
-    while (assignCursor.next()) {
-      if (assignCursor.name === "CallExpression") {
-        // Check if it's mo.sql call
-        const callCursor = assignCursor.node.cursor();
-        let isMoSql = false;
-
-        callCursor.firstChild(); // Move to first child of call
-        if (callCursor.name === "MemberExpression") {
-          const memberText = code.slice(callCursor.from, callCursor.to);
-          isMoSql = memberText === "mo.sql";
-        }
-
-        if (!isMoSql) {
-          return null;
-        }
-
-        // Move to arguments
-        while (callCursor.next()) {
-          if (callCursor.name === "ArgList") {
-            const argListCursor = callCursor.node.cursor();
-
-            const { args, kwargs } = parseArgsKwargs(argListCursor, code);
-
-            // Parse positional args (SQL query)
-            if (args.length === 1) {
-              sqlString = getStringContent(args[0], code);
-              startPosition =
-                args[0].from +
-                getPrefixLength(code.slice(args[0].from, args[0].to));
-            }
-
-            // Parse kwargs (engine and output)
-            for (const { key, value } of kwargs) {
-              switch (key) {
-                case "engine":
-                  engine = value;
-                  break;
-                case "output":
-                  output = value === "True";
-                  break;
-              }
-            }
-
-            // Check if sql string is empty
-            if (sqlString === "") {
-              return { dfName, sqlString: "", engine, output, startPosition };
-            }
-
-            break;
-          }
-        }
-      }
-    }
-
-    if (!dfName || !sqlString) {
-      return null;
-    }
-
-    return {
-      dfName,
-      sqlString,
-      engine,
-      output,
-      startPosition,
-    };
-  } catch (error) {
-    Logger.warn("Failed to parse SQL statement", { error: error });
-    return null;
-  }
-}
-
-function getPrefixLength(code: string): number {
-  if (code === "") {
-    return 0;
-  }
-  if (code.startsWith('f"""') || code.startsWith("f'''")) {
-    return 4;
-  }
-  if (code.startsWith('"""') || code.startsWith("'''")) {
-    return 3;
-  }
-  if (code.startsWith("f'") || code.startsWith('f"')) {
-    return 2;
-  }
-  if (code.startsWith("'") || code.startsWith('"')) {
-    return 1;
-  }
-  return 0;
-}
-
-function safeDedent(code: string): string {
-  try {
-    // Dedent expects the first and last line to be empty / contain only whitespace, so we pad with \n
-    return dedent(`\n${code}\n`).trim();
-  } catch {
-    return code;
   }
 }
 

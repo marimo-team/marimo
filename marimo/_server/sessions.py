@@ -75,6 +75,7 @@ from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import ProcessLike
 from marimo._server.utils import print_, print_tabbed
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
+from marimo._utils import async_path
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
     ConnectionDistributor,
@@ -898,7 +899,7 @@ class SessionManager:
 
         async def on_file_changed(path: Path) -> None:
             # Skip if the session does not relate to the file
-            if session.app_file_manager.path != os.path.abspath(path):
+            if session.app_file_manager.path != await async_path.abspath(path):
                 return
 
             # Use the centralized file change handler
@@ -1148,7 +1149,7 @@ class SessionFileChangeHandler:
         This method reloads the notebook and sends appropriate operations
         to the frontend when a marimo file is modified.
         """
-        abs_file_path = os.path.abspath(file_path)
+        abs_file_path = await async_path.abspath(file_path)
 
         # Use a lock to prevent concurrent processing of the same file
         if abs_file_path not in self._file_change_locks:
@@ -1199,6 +1200,11 @@ class SessionFileChangeHandler:
         # Get the latest codes
         codes = list(session.app_file_manager.app.cell_manager.codes())
         cell_ids = list(session.app_file_manager.app.cell_manager.cell_ids())
+
+        LOGGER.info(
+            f"File changed: {file_path}. num_cell_ids: {len(cell_ids)}, num_codes: {len(codes)}, changed_cell_ids: {changed_cell_ids}"
+        )
+
         # Send the updated cell ids and codes to the frontend
         session.write_operation(
             UpdateCellIdsRequest(cell_ids=cell_ids),

@@ -96,54 +96,61 @@ export function useSaveNotebook() {
   const store = useStore();
 
   // Save the notebook with the given filename
-  const saveNotebook = useEvent((filename: string, userInitiated: boolean) => {
-    const notebook = getNotebook();
-    const cells = notebookCells(notebook);
-    const cellIds = cells.map((cell) => cell.id);
-    const codes = cells.map((cell) => cell.code);
-    const cellNames = cells.map((cell) => cell.name);
-    const configs = getCellConfigs(notebook);
-    const connection = store.get(connectionAtom);
-    const autoSaveConfig = store.get(autoSaveConfigAtom);
-    const layout = store.get(layoutStateAtom);
-    const kioskMode = store.get(kioskModeAtom);
+  const saveNotebook = useEvent(
+    async (filename: string, userInitiated: boolean) => {
+      const connection = store.get(connectionAtom);
+      const autoSaveConfig = store.get(autoSaveConfigAtom);
+      const kioskMode = store.get(kioskModeAtom);
 
-    if (kioskMode) {
-      return;
-    }
-
-    // Don't save if there are no cells
-    if (codes.length === 0) {
-      return;
-    }
-
-    // Don't save if we are not connected to a kernel
-    if (connection.state !== WebSocketState.OPEN) {
-      openAlert("Failed to save notebook: not connected to a kernel.");
-      return;
-    }
-
-    Logger.log("saving to ", filename);
-    sendSave({
-      cellIds: cellIds,
-      codes,
-      names: cellNames,
-      filename,
-      configs,
-      layout: getSerializedLayout(),
-      persist: true,
-    }).then(() => {
-      if (userInitiated && autoSaveConfig.format_on_save) {
-        formatAll();
+      if (kioskMode) {
+        return;
       }
+
+      // Don't save if we are not connected to a kernel
+      if (connection.state !== WebSocketState.OPEN) {
+        openAlert("Failed to save notebook: not connected to a kernel.");
+        return;
+      }
+
+      Logger.log("saving to ", filename);
+
+      if (userInitiated && autoSaveConfig.format_on_save) {
+        Logger.log("formatting notebook (onSave)");
+        await formatAll();
+      }
+
+      // Grab the latest notebook state, after formatting
+      const notebook = getNotebook();
+      const cells = notebookCells(notebook);
+      const cellIds = cells.map((cell) => cell.id);
+      const codes = cells.map((cell) => cell.code);
+      const cellNames = cells.map((cell) => cell.name);
+      const configs = getCellConfigs(notebook);
+      const layout = store.get(layoutStateAtom);
+
+      // Don't save if there are no cells
+      if (codes.length === 0) {
+        return;
+      }
+
+      await sendSave({
+        cellIds: cellIds,
+        codes,
+        names: cellNames,
+        filename,
+        configs,
+        layout: getSerializedLayout(),
+        persist: true,
+      });
+
       setLastSavedNotebook({
         names: cellNames,
         codes,
         configs,
         layout,
       });
-    });
-  });
+    },
+  );
 
   // Save the notebook with the current filename, only if the filename exists
   const saveIfNotebookIsPersistent = useEvent((userInitiated = false) => {

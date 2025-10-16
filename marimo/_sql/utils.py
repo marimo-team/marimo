@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
 from marimo import _loggers
@@ -43,11 +44,18 @@ def wrapped_sql(
     except ContextNotInitializedError:
         relation = connection.sql(query=query)
     else:
-        relation = eval(
-            "connection.sql(query=query)",
-            ctx.globals,
-            {"query": query, "connection": connection},
+        install_connection = (
+            ctx.execution_context.with_connection
+            if ctx.execution_context is not None
+            else nullcontext
         )
+        with install_connection(connection):
+            relation = eval(
+                "connection.sql(query=query)",
+                ctx.globals,
+                {"query": query, "connection": connection},
+            )
+
     return relation
 
 

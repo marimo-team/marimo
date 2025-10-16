@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 __all__ = [
     "MarimoIslandGenerator",
     "MarimoIslandStub",

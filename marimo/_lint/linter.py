@@ -17,6 +17,7 @@ from marimo._lint.formatters import LintResultJSON
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
 from marimo._loggers import capture_output
 from marimo._schemas.serialization import NotebookSerialization
+from marimo._utils import async_path
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
@@ -114,7 +115,7 @@ class Linter:
         file_path = str(file)
         file_status = FileStatus(file=file_path)
         # Check if file exists first
-        if not file.exists():
+        if not await async_path.exists(file):
             self.errored = True
             file_status.failed = True
             file_status.message = f"File not found: {file_path}"

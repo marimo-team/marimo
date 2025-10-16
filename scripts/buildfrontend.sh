@@ -10,6 +10,8 @@ else
 fi
 
 if $cmd; then
+  echo "Formatting generated OpenAPI client..."
+  pnpm format packages/openapi/
   echo "Removing old static files..."
   rm -rf marimo/_static/
   echo "Copying new static files..."

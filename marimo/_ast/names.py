@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 DEFAULT_CELL_NAME = "_"
 SETUP_CELL_NAME = "setup"
 # Intentionally an invalid name character

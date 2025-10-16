@@ -226,6 +226,20 @@ class TestGeneration:
         assert stringified[3] == " " * 4
 
     @staticmethod
+    def test_generate_unparsable_cell_with_config() -> None:
+        """Test that generate_unparsable_cell works with non-default CellConfig."""
+        code = 'mo.md("markdown in marimo")'
+        config = CellConfig(hide_code=True)
+
+        # This should not raise AttributeError
+        raw = codegen.generate_unparsable_cell(code, None, config)
+
+        # Verify the config is included in the output
+        assert "hide_code=True" in raw
+        # Verify the code is properly escaped and included
+        assert 'mo.md(\\"markdown in marimo\\")' in raw
+
+    @staticmethod
     def test_long_line_in_main() -> None:
         cell_one = "\n".join(
             [
@@ -647,6 +661,34 @@ class TestToFunctionDef:
         # Verify that the dotted name is not in the function signature
         assert "my_schema.pokemon_db" not in fndef
         assert "def foo(my_schema.pokemon_db" not in fndef
+
+    def test_sql_defs_filtered_from_return(self) -> None:
+        """Test that SQL definitions are filtered from return but can still be referenced."""
+
+        # Cell 1: defines a SQL variable (cars) - should NOT be in return
+        code1 = "empty = mo.sql('CREATE TABLE cars_df ();')"
+        # Cell 2: uses the SQL variable (cars) - should appear in signature
+        code2 = "result = cars_df.filter(lambda x: x > 0); empty"
+        expected = wrap_generate_filecontents(
+            [code1, code2], ["cell1", "cell2"]
+        )
+        assert (
+            "\n".join(
+                [
+                    "@app.cell",
+                    "def cell1(mo):",
+                    "    empty = mo.sql('CREATE TABLE cars_df ();')",
+                    "    return (empty,)",  # Doesn't return cars_df
+                    "",
+                    "",
+                    "@app.cell",
+                    "def cell2(cars_df, empty):",
+                    "    result = cars_df.filter(lambda x: x > 0); empty",
+                    "    return",
+                ]
+            )
+            in expected
+        )
 
     def test_should_remove_defaults(self) -> None:
         code = "x = 0"

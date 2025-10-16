@@ -128,7 +128,15 @@ def python_print_pandas(
         )
         if not column_ids:
             return f"{df_name}.agg({_list_of_strings(aggregations)})"
-        return f"{df_name}.agg({{{', '.join(f'{_as_literal(column_id)}: {_list_of_strings(aggregations)}' for column_id in column_ids)}}})"  # noqa: E501
+        # Generate code that matches narwhals behavior: columns named like 'column_agg'
+        # Use pd.DataFrame to create a single-row dataframe with proper column names
+        agg_parts = []
+        for agg in aggregations:
+            for col in column_ids:
+                agg_parts.append(
+                    f"{_as_literal(f'{col}_{agg}')}: [{df_name}[{_as_literal(col)}].{agg}()]"
+                )
+        return f"pd.DataFrame({{{', '.join(agg_parts)}}})"
 
     elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation, drop_na = (
@@ -138,19 +146,30 @@ def python_print_pandas(
         )
         args = _args_list(_list_of_strings(column_ids), f"dropna={drop_na}")
         group_by = f"{df_name}.groupby({args})"
+        # Narwhals adds suffixes to aggregated columns like 'column_count'
+        # We need to replicate this behavior by using agg() with explicit column names
         if aggregation == "count":
-            return f"{group_by}.count()"
+            agg_func = "count"
         elif aggregation == "sum":
-            return f"{group_by}.sum()"
+            agg_func = "sum"
         elif aggregation == "mean":
-            return f"{group_by}.mean(numeric_only=True)"
+            agg_func = "mean"
         elif aggregation == "median":
-            return f"{group_by}.median(numeric_only=True)"
+            agg_func = "median"
         elif aggregation == "min":
-            return f"{group_by}.min()"
+            agg_func = "min"
         elif aggregation == "max":
-            return f"{group_by}.max()"
-        assert_never(aggregation)
+            agg_func = "max"
+        else:
+            assert_never(aggregation)
+        # Use pandas pipe to add suffixes
+        if aggregation in ["mean", "median"]:
+            agg_call = f"{group_by}.{agg_func}(numeric_only=True)"
+        else:
+            agg_call = f"{group_by}.{agg_func}()"
+        # Need to escape the f-string properly for the lambda and include the aggregation string literal
+        # Use single curly braces in the f-string since we want them in the generated code
+        return f"({agg_call}.reset_index().rename(columns=lambda col: col if col in {_list_of_strings(column_ids)} else f'{{col}}_{aggregation}'))"
 
     elif transform.type == TransformType.SELECT_COLUMNS:
         column_ids = transform.column_ids

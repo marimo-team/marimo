@@ -102,7 +102,9 @@ export const MinimalHotkeys: React.FC<{
   );
 };
 
-function prettyPrintHotkey(key: string): [label: string, symbol?: string] {
+export function prettyPrintHotkey(
+  key: string,
+): [label: string, symbol?: string] {
   const platform = isPlatformMac() ? "mac" : "default";
 
   const lowerKey = key.toLowerCase();

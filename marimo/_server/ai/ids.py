@@ -1,4 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import NewType
 
@@ -23,7 +25,7 @@ class AiModelId:
         return f"AiModelId(provider={self.provider}, model={self.model})"
 
     @staticmethod
-    def from_model(model_id: str) -> "AiModelId":
+    def from_model(model_id: str) -> AiModelId:
         if "/" not in model_id:
             LOGGER.warning(
                 f"Invalid model ID: {model_id}. Model ID must be in the format <provider>/<model>"

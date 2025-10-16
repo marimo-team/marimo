@@ -236,15 +236,24 @@ def to_functiondef(
     # other static analysis tools can capture unused variables across cells.
     defs: tuple[str, ...] = tuple()
     if cell.defs:
+        # SQL defs should not be included in the return value.
+        sql_defs = (
+            {
+                name
+                for name, value in variable_data.items()
+                if value.language == "sql"
+            }
+            if variable_data
+            else set()
+        )
         # There are possible name error cases where a cell defines, and also
         # requires a variable. We remove defs from the signature such that
         # this causes a lint error in pyright.
-        if used_refs is None:
-            defs = tuple(name for name in sorted(cell.defs))
-        else:
-            defs = tuple(
-                name for name in sorted(cell.defs) if name in used_refs
-            )
+        defs = tuple(
+            name for name in sorted(cell.defs) if name not in sql_defs
+        )
+        if used_refs is not None:
+            defs = tuple(name for name in defs if name in used_refs)
 
     decorator = to_decorator(cell.config, fn=fn)
     prefix = "" if not cell.is_coroutine() else "async "
@@ -300,7 +309,7 @@ def generate_unparsable_cell(
 
     flags = {}
     if config != CellConfig():
-        flags = dict(config.__dict__)
+        flags = config.asdict()
 
     if name is not None:
         flags["name"] = name
