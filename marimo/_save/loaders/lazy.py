@@ -97,8 +97,8 @@ def from_item(item: Item) -> Any:
     elif item.function is not None:
         function_stub = FunctionStub.__new__(FunctionStub)
         (
-            function_stub.code,
             function_stub.filename,
+            function_stub.code,
             function_stub.linenumber,
         ) = item.function  # type: ignore[attr-defined]
         return function_stub
