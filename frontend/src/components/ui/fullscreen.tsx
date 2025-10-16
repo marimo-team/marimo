@@ -58,13 +58,14 @@ export function withFullScreenAsRoot<
   };
 
   const Comp = (props: T) => {
+    const fullScreenElement = useFullScreenElement();
+
     // If we are in the VSCode extension, we use the VSCode output container
     const vscodeOutputContainer = isInVscodeExtension();
     if (vscodeOutputContainer) {
       return <FindClosestVscodeOutputContainer {...props} />;
     }
 
-    const fullScreenElement = useFullScreenElement();
     if (!fullScreenElement) {
       return <Component {...props} />;
     }
