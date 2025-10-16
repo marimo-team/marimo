@@ -729,15 +729,13 @@ const AgentPanel: React.FC = () => {
   }, [wsUrl]);
 
   const handleNewSession = useEvent(async () => {
-    if (isCreatingNewSession.current) {
-      return;
-    }
     if (!agent) {
       return;
     }
 
     // If there is an active session, we should stop it
     if (activeSessionId) {
+      setActiveSessionId(null);
       await agent.cancel({ sessionId: activeSessionId }).catch((error) => {
         logger.error("Failed to cancel active session", { error });
       });
