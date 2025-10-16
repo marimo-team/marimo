@@ -6,6 +6,7 @@ import type {
 } from "@zed-industries/agent-client-protocol";
 import { capitalize } from "lodash-es";
 import {
+  BotMessageSquareIcon,
   FileAudio2Icon,
   FileIcon,
   FileImageIcon,
@@ -114,16 +115,37 @@ export const ErrorBlock = (props: {
   );
 };
 
+export const ReadyToChatBlock = () => {
+  return (
+    <div className="flex-1 flex items-center justify-center h-full min-h-[200px] flex-col">
+      <div className="text-center space-y-3">
+        <div className="w-12 h-12 mx-auto rounded-full bg-[var(--blue-3)] flex items-center justify-center">
+          <BotMessageSquareIcon className="h-6 w-6 text-[var(--blue-10)]" />
+        </div>
+        <div>
+          <h3 className="text-lg font-medium text-foreground mb-1">
+            Agent is connected
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            You can start chatting with your agent now
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const ConnectionChangeBlock = (props: {
   data: ConnectionChangeNotificationEvent["data"];
   isConnected: boolean;
   onRetry?: () => void;
   timestamp?: number;
+  isOnlyBlock: boolean;
 }) => {
   const { status } = props.data;
 
-  if (props.isConnected) {
-    return null;
+  if (props.isConnected && props.isOnlyBlock) {
+    return <ReadyToChatBlock />;
   }
 
   const getStatusConfig = () => {

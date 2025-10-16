@@ -66,6 +66,7 @@ export const AgentThread = ({
           key={lastConnectionChange.id}
           data={lastConnectionChange.data}
           isConnected={isConnected}
+          isOnlyBlock={combinedNotifications.length === 1}
           onRetry={onRetryConnection}
           timestamp={lastConnectionChange.timestamp}
         />
