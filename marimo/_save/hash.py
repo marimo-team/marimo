@@ -892,8 +892,10 @@ class BlockHasher:
         return SerialRefs(refs, {}, stateful_refs)
 
     def serialize_and_dequeue_content_refs(
-        self, refs: set[Name], scope: dict[Name, Any],
-        ctx: Optional[RuntimeContext] = None
+        self,
+        refs: set[Name],
+        scope: dict[Name, Any],
+        ctx: Optional[RuntimeContext] = None,
     ) -> SerialRefs:
         """Use hashable references to update the hash object and dequeue them.
 

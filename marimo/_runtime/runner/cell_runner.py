@@ -573,10 +573,13 @@ class Runner:
                 # Find all cells between the defining cells and current cell
                 # This includes the defining cells, all intermediate dependencies, and current cell
                 cells_to_skip_cache = set(e.cells_to_rerun)
-                cells_to_skip_cache.add(cell_id)  # Add current cell that failed
+                cells_to_skip_cache.add(
+                    cell_id
+                )  # Add current cell that failed
 
                 # Add all cells that are ancestors of current cell and descendants of defining cells
                 from marimo._runtime import dataflow
+
                 for defining_cell in e.cells_to_rerun:
                     # Get all descendants of the defining cell that are ancestors of current cell
                     descendants_of_defining = dataflow.transitive_closure(
@@ -586,7 +589,9 @@ class Runner:
                         self.graph, {cell_id}, children=False
                     )
                     # The intersection is the cells "between" defining cell and current
-                    between_cells = descendants_of_defining & ancestors_of_current
+                    between_cells = (
+                        descendants_of_defining & ancestors_of_current
+                    )
                     cells_to_skip_cache.update(between_cells)
 
                 # Add all cells to skip-cache set and cells needing rerun
@@ -613,7 +618,9 @@ class Runner:
                 # Cancel this cell and its descendants, but don't interrupt the runner
                 # This allows other independent cells to continue
                 self.cancel(cell_id)
-                run_result = RunResult(output=None, exception=MarimoInterrupt())
+                run_result = RunResult(
+                    output=None, exception=MarimoInterrupt()
+                )
             # Check that MarimoRuntimeException hasn't already handled the
             # error, since exceptions fall through except blocks.
             # If not, then this is an unexpected error.

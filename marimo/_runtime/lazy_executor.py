@@ -241,6 +241,7 @@ def backfill(
     variable_hashes = {}
     try:
         import base64
+
         from marimo._save.hash import serialize_and_hash_value
 
         ctx = get_context()
@@ -284,7 +285,11 @@ def backfill(
 
     attempt.update(
         {**glbls},
-        {"return": result, "runtime": runtime, "variable_hashes": variable_hashes},
+        {
+            "return": result,
+            "runtime": runtime,
+            "variable_hashes": variable_hashes,
+        },
         preserve_pointers=False,
     )
     try:
@@ -349,7 +354,9 @@ class CachedExecutor(Executor):
                 ctx.cells_skip_cache.discard(cell.cell_id)
                 self._record_cache_miss()
                 # Execute directly without cache
-                assert self.base is not None, "CachedExecutor requires a base executor"
+                assert self.base is not None, (
+                    "CachedExecutor requires a base executor"
+                )
                 return self.base.execute_cell(cell, glbls, graph)
         except ContextNotInitializedError:
             pass
@@ -367,6 +374,7 @@ class CachedExecutor(Executor):
                 variable_hashes = attempt.meta.get("variable_hashes", {})
                 if variable_hashes:
                     import base64
+
                     for var_name, hash_str in variable_hashes.items():
                         # Decode base64 string to bytes for memo storage
                         hash_bytes = base64.urlsafe_b64decode(hash_str)
@@ -381,7 +389,9 @@ class CachedExecutor(Executor):
             # Hydrate the return value to restore any nested stubs
             return_value = attempt.meta.get("return")
             if return_value is not None:
-                return_value = _hydrate_value_recursive(return_value, glbls, graph)
+                return_value = _hydrate_value_recursive(
+                    return_value, glbls, graph
+                )
             return return_value
 
         self._record_cache_miss()
@@ -419,7 +429,9 @@ class CachedExecutor(Executor):
                 ctx.cells_skip_cache.discard(cell.cell_id)
                 self._record_cache_miss()
                 # Execute directly without cache
-                assert self.base is not None, "CachedExecutor requires a base executor"
+                assert self.base is not None, (
+                    "CachedExecutor requires a base executor"
+                )
                 return await self.base.execute_cell_async(cell, glbls, graph)
         except ContextNotInitializedError:
             pass
@@ -437,6 +449,7 @@ class CachedExecutor(Executor):
                 variable_hashes = attempt.meta.get("variable_hashes", {})
                 if variable_hashes:
                     import base64
+
                     for var_name, hash_str in variable_hashes.items():
                         # Decode base64 string to bytes for memo storage
                         hash_bytes = base64.urlsafe_b64decode(hash_str)
@@ -451,7 +464,9 @@ class CachedExecutor(Executor):
             # Hydrate the return value to restore any nested stubs
             return_value = attempt.meta.get("return")
             if return_value is not None:
-                return_value = _hydrate_value_recursive(return_value, glbls, graph)
+                return_value = _hydrate_value_recursive(
+                    return_value, glbls, graph
+                )
             return return_value
 
         self._record_cache_miss()

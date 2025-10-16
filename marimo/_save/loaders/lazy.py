@@ -30,8 +30,10 @@ from marimo._save.stubs.lazy_stub import (
 
 
 def to_item(
-    path: Path, value: Optional[Any], loader: Optional[str] = None,
-    hash: Optional[str] = ""
+    path: Path,
+    value: Optional[Any],
+    loader: Optional[str] = None,
+    hash: Optional[str] = "",
 ) -> Item:
     if value is None:
         # If the value is None, we store it as an empty item
@@ -225,8 +227,9 @@ class LazyLoader(BasePersistenceLoader):
                 collections[loader] = collection
             if loader == "ui":
                 ui_defs_list.append(var)
-            defs_dict[var] = to_item(path, obj, loader,
-                                     hash=variable_hashes.get(var, ""))
+            defs_dict[var] = to_item(
+                path, obj, loader, hash=variable_hashes.get(var, "")
+            )
 
         store = CacheSchema(
             hash=cache.hash,
