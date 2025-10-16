@@ -160,6 +160,12 @@ See the [llm_providers](../configuration/llm_providers.md) guide for detailed in
 
 ## Copilots
 
+Copilots allow you to tab-complete code based on your notebook's context, similar to editors like Cursor. 
+
+<video autoplay muted loop playsinline width="100%" height="100%" align="center">
+  <source src="/_static/docs-ai-completion-preview.mp4" type="video/mp4">
+</video>
+
 ### GitHub Copilot
 
 The marimo editor natively supports [GitHub Copilot](https://copilot.github.com/),
@@ -167,6 +173,13 @@ an AI pair programmer, similar to VS Code:
 
 1. Install [Node.js](https://nodejs.org/en/download).
 2. Enable Copilot via the settings menu in the marimo editor.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-ai-completion-gh.png" width="740px"/>
+<figcaption>Enable GitHub Copilot in the settings menu.</figcaption>
+</figure>
+</div>
 
 _GitHUb Copilot is not yet available in our conda distribution; please install
 marimo using `pip`/`uv` if you need Copilot._
