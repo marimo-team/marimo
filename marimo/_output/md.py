@@ -246,7 +246,7 @@ class _md(Html):
         ).replace("</p>", "</span>")
 
         if apply_markdown_class:
-            classes = ["markdown", "prose", "dark:prose-invert"]
+            classes = ["markdown", "prose", "dark:prose-invert", "contents"]
             if size is not None:
                 classes.append(f"prose-{size}")
             super().__init__(
