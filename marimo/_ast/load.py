@@ -93,7 +93,7 @@ def _static_load(filepath: Path) -> Optional[App]:
     return load_notebook_ir(notebook, filepath=str(filepath))
 
 
-def find_cell(filename, lineno) -> CellDef:
+def find_cell(filename, lineno) -> CellDef | None:
     load_result = get_notebook_status(filename)
     if load_result.notebook is None:
         raise OSError("Could not resolve notebook.")
