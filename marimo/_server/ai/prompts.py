@@ -389,13 +389,27 @@ chart = alt.Chart(df).mark_circle(opacity=0.7).encode(
 chart
 </example>"""
 
-    for language in language_rules:
-        if len(language_rules[language]) == 0:
-            continue
+    if mode == "agent":
+        # In agent-mode, we can add how to insert cells into the notebook.
+        for lang in LANGUAGES:
+            # check if multiple_cells rules are present for this language
+            rule_to_add = language_rules_multiple_cells.get(
+                lang, language_rules.get(lang, [])
+            )
+            if rule_to_add:
+                system_prompt += (
+                    f"\n\n## Rules for {lang}:\n{_rules(rule_to_add)}"
+                )
 
-        system_prompt += (
-            f"\n\n## Rules for {language}:\n{_rules(language_rules[language])}"
-        )
+        system_prompt += "\n\n## Rules for inserting cells:\n"
+        system_prompt += 'For markdown cells, use `mo.md(f"""{content}""")`\n'
+        system_prompt += 'For sql cells, use `mo.sql(f"""{content}""")`. If a database engine is specified, use `mo.sql(f"""{content}""", engine=engine)` instead.\n'
+    else:
+        for language in language_rules:
+            if len(language_rules[language]) == 0:
+                continue
+
+            system_prompt += f"\n\n## Rules for {language}:\n{_rules(language_rules[language])}"
 
     if custom_rules and custom_rules.strip():
         system_prompt += f"\n\n## Additional rules:\n{custom_rules}"

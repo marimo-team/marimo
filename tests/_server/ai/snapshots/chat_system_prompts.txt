@@ -1027,7 +1027,14 @@ chart
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
 ## Rules for sql:
-1. The SQL must use duckdb syntax.
+1. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
+2. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
+3. The SQL must use the syntax of the database engine specified in the `engine` variable. If no engine, then use duckdb syntax.
+
+## Rules for inserting cells:
+For markdown cells, use `mo.md(f"""{content}""")`
+For sql cells, use `mo.sql(f"""{content}""")`. If a database engine is specified, use `mo.sql(f"""{content}""", engine=engine)` instead.
+
 
 ==================== kitchen sink ====================
 

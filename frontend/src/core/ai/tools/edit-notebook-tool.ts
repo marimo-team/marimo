@@ -44,6 +44,10 @@ const description: ToolDescription = {
         Pass { type: "__end__", columnId: columnId } to add the new cell at the end of the specified column.
     - delete_cell: Delete an existing cell, pass CellId.
 
+    For adding code, use the following guidelines:
+    - Markdown cells: use mo.md(f"""{content}""") function to insert content.
+    - SQL cells: use mo.sql(f"""{content}""") function to insert content. If a database engine is specified, use mo.sql(f"""{content}""", engine=engine) instead.
+
     Returns:
     - A result object containing standard tool metadata.`,
 };
