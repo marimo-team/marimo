@@ -448,8 +448,14 @@ When you run a SQL cell in marimo, you can get the output returned as a datafram
 </figure>
 </div>
 
+Alternatively you can also use the [marimo configuration file](/guides/configuration/#user-configuration) to configure the default SQL output. 
 
-## Example notebook {#example-notebook}
+```toml
+[runtime]
+default_sql_output = "polars"
+```
+
+##Example notebook {#example-notebook}
 
 For a comprehensive example of using Polars with marimo, check out our [Polars example notebook](https://github.com/marimo-team/marimo/blob/main/examples/third_party/polars/polars_example.py).
 
