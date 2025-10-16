@@ -691,6 +691,7 @@ export const LoadingDataTableComponent = memo(
         {props.showChartBuilder ? (
           <TablePanel
             displayHeader={displayHeader}
+            data={data?.rows || []}
             dataTable={dataTable}
             getDataUrl={props.get_data_url}
             fieldTypes={props.fieldTypes}
