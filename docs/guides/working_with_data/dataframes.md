@@ -217,6 +217,8 @@ def __():
 
 ///
 
+///
+
 
 ### Custom filters
 
@@ -299,6 +301,8 @@ def __():
 
 ///
 
+///
+
 ## Select dataframe rows {#selecting-dataframes}
 
 Display dataframes as interactive, [selectable charts](plotting.md) using
@@ -377,6 +381,8 @@ def __():
     table.value
     return
 ```
+
+///
 
 ///
 
