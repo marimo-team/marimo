@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import * as SliderPrimitive from "@radix-ui/react-slider";
-import { TooltipPortal } from "@radix-ui/react-tooltip";
 import * as React from "react";
 import { useLocale } from "react-aria";
 import { cn } from "@/utils/cn";
@@ -9,6 +8,7 @@ import { prettyScientificNumber } from "@/utils/numbers";
 import { useBoolean } from "../../hooks/useBoolean";
 import {
   TooltipContent,
+  TooltipPortal,
   TooltipProvider,
   TooltipRoot,
   TooltipTrigger,
