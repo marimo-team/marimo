@@ -322,7 +322,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       },
       {
         value: "agent",
-        label: "Agent",
+        label: "Agent (beta)",
         subtitle: "Use AI with access to read and write tools",
       },
     ];
