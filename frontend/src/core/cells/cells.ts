@@ -145,13 +145,18 @@ export function initialNotebookState(): NotebookState {
   });
 }
 
+/** The target cell ID to create a new cell relative to. Can be:
+ * - A CellId string for an existing cell
+ * - "__end__" to append at the end of the first column
+ * - {type: "__end__", columnId} to append at the end of a specific column
+ */
+export type CellPosition =
+  | CellId
+  | "__end__"
+  | { type: "__end__"; columnId: CellColumnId };
+
 export interface CreateNewCellAction {
-  /** The target cell ID to create a new cell relative to. Can be:
-   * - A CellId string for an existing cell
-   * - "__end__" to append at the end of the first column
-   * - {type: "__end__", columnId} to append at the end of a specific column
-   */
-  cellId: CellId | "__end__" | { type: "__end__"; columnId: CellColumnId };
+  cellId: CellPosition;
   /** Whether to insert before (true) or after (false) the target cell */
   before: boolean;
   /** Initial code content for the new cell */

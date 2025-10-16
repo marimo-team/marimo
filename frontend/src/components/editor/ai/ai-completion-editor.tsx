@@ -192,6 +192,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const showCompletionBanner =
     enabled && triggerImmediately && (completion || isLoading);
+  // Set default output area to below if not specified
+  outputArea = outputArea === undefined ? "below" : outputArea;
 
   const showInput = enabled && (!triggerImmediately || showInputPrompt);
 
@@ -215,6 +217,35 @@ export const AiCompletionEditor: React.FC<Props> = ({
       />
     </div>
   );
+
+  const renderMergeEditor = (originalCode: string, modifiedCode: string) => {
+    return (
+      <CodeMirrorMerge className="cm" theme={theme}>
+        <Original
+          onChange={onChange}
+          value={originalCode}
+          extensions={baseExtensions}
+        />
+        <Modified
+          value={modifiedCode}
+          editable={false}
+          readOnly={true}
+          extensions={baseExtensions}
+        />
+      </CodeMirrorMerge>
+    );
+  };
+
+  const renderCompletionEditor = () => {
+    if (completion && enabled) {
+      return renderMergeEditor(currentCode, completion);
+    }
+    // If there is no completion and there is previous cell code, it means there is an AI change to the cell.
+    // And we want to render the previous cell code as the original
+    if (!completion && previousCellCode) {
+      return renderMergeEditor(previousCellCode, currentCode);
+    }
+  };
 
   return (
     <div className={cn("flex flex-col w-full rounded-[inherit]", className)}>
@@ -332,35 +363,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
         )}
       </div>
       {outputArea === "above" && completionBanner}
-      {completion && enabled && (
-        <CodeMirrorMerge className="cm" theme={theme}>
-          <Original
-            onChange={onChange}
-            value={currentCode}
-            extensions={baseExtensions}
-          />
-          <Modified
-            value={completion}
-            editable={false}
-            readOnly={true}
-            extensions={baseExtensions}
-          />
-        </CodeMirrorMerge>
-      )}
-      {previousCellCode && (
-        <CodeMirrorMerge className="cm" theme={theme}>
-          <Original value={previousCellCode} extensions={baseExtensions} />
-          <Modified
-            value={currentCode}
-            editable={false}
-            readOnly={true}
-            extensions={baseExtensions}
-          />
-        </CodeMirrorMerge>
-      )}
+      {renderCompletionEditor()}
       {(!completion || !enabled) && !previousCellCode && children}
       {/* By default, show the completion banner below the code */}
-      {(outputArea === "below" || !outputArea) && completionBanner}
+      {outputArea === "below" && completionBanner}
     </div>
   );
 };

@@ -13,7 +13,7 @@ import { Logger } from "@/utils/Logger";
 import { maybeAddMarimoImport } from "../cells/add-missing-import";
 import {
   type CreateNewCellAction,
-  cellHandleAtom,
+  getCellEditorView,
   useCellActions,
 } from "../cells/cells";
 import type { LanguageAdapterType } from "../codemirror/language/types";
@@ -45,9 +45,9 @@ const {
   createActions,
   reducer,
 } = createReducerAndAtoms(initialState, {
-  addStagedCell: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-    return new Map([...state, [cellId, { type: "add_cell" }]]);
+  addStagedCell: (state, action: { cellId: CellId; edit: Edit }) => {
+    const { cellId, edit } = action;
+    return new Map([...state, [cellId, edit]]);
   },
   removeStagedCell: (state, cellId: CellId) => {
     const newState = new Map(state);
@@ -58,6 +58,11 @@ const {
     return initialState();
   },
 });
+
+export {
+  createActions as createStagedAICellsActions,
+  reducer as stagedAICellsReducer,
+};
 
 interface UpdateStagedCellAction {
   cellId: CellId;
@@ -78,7 +83,7 @@ export function useStagedCells(store: JotaiStore) {
 
   const createStagedCell = (code: string): CellId => {
     const newCellId = CellId.create();
-    addStagedCell({ cellId: newCellId });
+    addStagedCell({ cellId: newCellId, edit: { type: "add_cell" } });
     createNewCell({
       cellId: "__end__",
       code,
@@ -97,8 +102,7 @@ export function useStagedCells(store: JotaiStore) {
       return;
     }
 
-    const cellHandle = store.get(cellHandleAtom(cellId));
-    const editorView = cellHandle?.current?.editorViewOrNull;
+    const editorView = getCellEditorView(cellId);
     if (!editorView) {
       Logger.error("Editor for this cell not found", { cellId });
       return;
@@ -186,14 +190,14 @@ class CellCreationStream {
 
   private onCreateCell: (code: string) => CellId;
   private onUpdateCell: (opts: UpdateStagedCellAction) => void;
-  private addStagedCell: (payload: { cellId: CellId }) => void;
+  private addStagedCell: (payload: { cellId: CellId; edit: Edit }) => void;
   private createNewCell: (opts: CreateNewCellAction) => void;
   private hasMarimoImport = false;
 
   constructor(
     onCreateCell: (code: string) => CellId,
     onUpdateCell: (opts: UpdateStagedCellAction) => void,
-    addStagedCell: (payload: { cellId: CellId }) => void,
+    addStagedCell: (payload: { cellId: CellId; edit: Edit }) => void,
     createNewCell: (opts: CreateNewCellAction) => void,
   ) {
     this.onCreateCell = onCreateCell;
@@ -240,7 +244,7 @@ class CellCreationStream {
       before: true,
     });
     if (cellId) {
-      this.addStagedCell({ cellId });
+      this.addStagedCell({ cellId, edit: { type: "add_cell" } });
     }
     this.hasMarimoImport = true;
   }

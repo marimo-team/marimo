@@ -2,7 +2,7 @@
 
 import { useAtomValue, useStore } from "jotai";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
-import { cellHandleAtom } from "@/core/cells/cells";
+import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import { cn } from "@/utils/cn";
@@ -43,8 +43,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
     switch (stagedAiCell.type) {
       case "update_cell": {
         // Revert cell code
-        const cellHandle = store.get(cellHandleAtom(cellId));
-        const editorView = cellHandle?.current?.editorView;
+        const editorView = getCellEditorView(cellId);
         if (!editorView) {
           Logger.error("Editor for this cell not found", { cellId });
           break;
@@ -59,6 +58,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
         deleteStagedCell(cellId);
         break;
       case "delete_cell":
+        // TODO: Revert delete
         break;
     }
   };

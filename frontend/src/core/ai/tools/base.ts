@@ -83,15 +83,18 @@ export const toolOutputBaseSchema = z.object({
   meta: z.record(z.string(), z.unknown()).optional(),
 });
 
-/**
- * Contract for a frontend tool.
- *
- * Implementations can be plain objects or classes. The registry consumes this
- * interface without caring about the underlying implementation.
- */
+export interface ToolDescription {
+  baseDescription: string;
+  whenToUse?: string[];
+  avoidIf?: string[];
+  prerequisites?: string[];
+  sideEffects?: string[];
+  additionalInfo?: string;
+}
+
 export interface AiTool<TIn, TOut> {
   name: string;
-  description: string;
+  description: ToolDescription;
   schema: z.ZodType<TIn>;
   outputSchema: z.ZodType<TOut>;
   mode: CopilotMode[];
