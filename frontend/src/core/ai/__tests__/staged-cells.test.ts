@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "../../codemirror/language/utils";
 import {
+  type StagedAICells,
   stagedAICellsAtom,
   useStagedCells,
   visibleForTesting,
@@ -247,13 +248,11 @@ describe("staged-cells", () => {
 
     it("should delete all staged cells when cells exist", () => {
       // First set the atom state before rendering the hook
-      store.set(
-        stagedAICellsAtom,
-        new Map([
-          [cellId1, { type: "add_cell" }],
-          [cellId2, { type: "add_cell" }],
-        ]),
-      );
+      const initialState: StagedAICells = new Map([
+        [cellId1, { type: "add_cell" }],
+        [cellId2, { type: "add_cell" }],
+      ]);
+      store.set(stagedAICellsAtom, initialState);
 
       const { result } = renderHook(() => useStagedCells(store));
       result.current.deleteAllStagedCells();

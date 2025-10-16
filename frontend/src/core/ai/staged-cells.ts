@@ -33,7 +33,7 @@ type Edit =
   | { type: Extract<EditType, "add_cell"> }
   | { type: Extract<EditType, "delete_cell">; previousCode: string };
 
-type StagedAICells = Map<CellId, Edit>;
+export type StagedAICells = Map<CellId, Edit>;
 
 const initialState = (): StagedAICells => {
   return new Map();
