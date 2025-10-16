@@ -452,7 +452,7 @@ Alternatively you can also use the [marimo configuration file](/guides/configura
 
 ```toml
 [runtime]
-default_sql_output = "polars"
+default_sql_output = "native"
 ```
 
 ##Example notebook {#example-notebook}
