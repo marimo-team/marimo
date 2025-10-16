@@ -30,7 +30,10 @@ def deserializer_by_suffix(_suffix: str) -> Any:
 
 
 def _hydrate_value_recursive(
-    value: Any, glbls: dict[str, Any], memo: dict[int, Any] | None = None
+    value: Any,
+    glbls: dict[str, Any],
+    graph: DirectedGraph,
+    memo: dict[int, Any] | None = None,
 ) -> Any:
     """Recursively hydrate all stubs in a value.
 
@@ -40,13 +43,14 @@ def _hydrate_value_recursive(
     Args:
         value: The value to hydrate
         glbls: Global scope for stub restoration
+        graph: Dataflow graph for finding defining cells
         memo: Memoization dict to handle cycles
 
     Returns:
         The hydrated value with all stubs restored
 
     Raises:
-        ValueError: If any UnhashableStubs are found
+        MarimoUnhashableCacheError: If any UnhashableStubs are found
     """
     from marimo._save.cache import _restore_from_stub_if_needed
     from marimo._save.stubs.lazy_stub import UnhashableStub
@@ -61,10 +65,23 @@ def _hydrate_value_recursive(
 
     # Check for UnhashableStub - these need to error out
     if isinstance(value, UnhashableStub):
-        raise ValueError(
-            f"Cannot load unhashable variable '{value.var_name}' "
-            f"of type {value.type_name}. Original error: {value.error_msg}. "
-            "Cell needs to be re-executed."
+        from marimo._runtime.exceptions import MarimoUnhashableCacheError
+
+        # Find which cells define this variable
+        cells_to_rerun = set()
+        try:
+            defining_cells = graph.get_defining_cells(value.var_name)
+            cells_to_rerun.update(defining_cells)
+        except KeyError:
+            # Variable not found in graph
+            LOGGER.warning(
+                f"Unhashable variable '{value.var_name}' not found in graph"
+            )
+
+        raise MarimoUnhashableCacheError(
+            cells_to_rerun=cells_to_rerun,
+            variables=[value.var_name],
+            error_details=f"{value.var_name} ({value.type_name}): {value.error_msg}",
         )
 
     # Use the existing restoration logic which handles all stub types
@@ -140,14 +157,29 @@ def hydrate(
 
     # If we found unhashable stubs, we cannot proceed
     if unhashable_stubs:
-        stub_info = ", ".join(
-            f"'{s.var_name}' ({s.type_name})" for s in unhashable_stubs
+        from marimo._runtime.exceptions import MarimoUnhashableCacheError
+
+        # Find which cells define these variables
+        cells_to_rerun = set()
+        for stub in unhashable_stubs:
+            try:
+                defining_cells = graph.get_defining_cells(stub.var_name)
+                cells_to_rerun.update(defining_cells)
+            except KeyError:
+                # Variable not found in graph
+                LOGGER.warning(
+                    f"Unhashable variable '{stub.var_name}' not found in graph"
+                )
+
+        variables = [s.var_name for s in unhashable_stubs]
+        error_details = "; ".join(
+            f"{s.var_name} ({s.type_name}): {s.error_msg}"
+            for s in unhashable_stubs
         )
-        error_details = "; ".join(s.error_msg for s in unhashable_stubs)
-        raise ValueError(
-            f"Cannot restore cache: found {len(unhashable_stubs)} unhashable variable(s): {stub_info}. "
-            f"These cells need to be re-executed. "
-            f"Errors: {error_details}"
+        raise MarimoUnhashableCacheError(
+            cells_to_rerun=cells_to_rerun,
+            variables=variables,
+            error_details=error_details,
         )
 
     # Now recursively hydrate only the transitive refs to handle nested stubs
@@ -155,8 +187,8 @@ def hydrate(
     for ref in transitive_refs:
         if ref in glbls:
             try:
-                glbls[ref] = _hydrate_value_recursive(glbls[ref], glbls)
-            except ValueError as e:
+                glbls[ref] = _hydrate_value_recursive(glbls[ref], glbls, graph)
+            except Exception as e:
                 # Re-raise unhashable errors with context
                 LOGGER.error(f"[hydrate] Failed to hydrate '{ref}': {e}")
                 raise
@@ -307,6 +339,21 @@ class CachedExecutor(Executor):
         # TODO: Loader should persist on the context level.
         loader = LazyLoader(name="lazy")
 
+        # Check if this cell should skip cache due to previous unhashable error
+        try:
+            ctx = get_context()
+            if cell.cell_id in ctx.cells_skip_cache:
+                LOGGER.info(
+                    f"Skipping cache for cell {cell.cell_id} due to unhashable error"
+                )
+                ctx.cells_skip_cache.discard(cell.cell_id)
+                self._record_cache_miss()
+                # Execute directly without cache
+                assert self.base is not None, "CachedExecutor requires a base executor"
+                return self.base.execute_cell(cell, glbls, graph)
+        except ContextNotInitializedError:
+            pass
+
         load_start = time.time()
         attempt = process(cell, glbls, graph, loader)
         load_time = time.time() - load_start
@@ -334,7 +381,7 @@ class CachedExecutor(Executor):
             # Hydrate the return value to restore any nested stubs
             return_value = attempt.meta.get("return")
             if return_value is not None:
-                return_value = _hydrate_value_recursive(return_value, glbls)
+                return_value = _hydrate_value_recursive(return_value, glbls, graph)
             return return_value
 
         self._record_cache_miss()
@@ -362,6 +409,21 @@ class CachedExecutor(Executor):
         # TODO: Loader should persist on the context level.
         loader = LazyLoader(name="lazy")
 
+        # Check if this cell should skip cache due to previous unhashable error
+        try:
+            ctx = get_context()
+            if cell.cell_id in ctx.cells_skip_cache:
+                LOGGER.info(
+                    f"Skipping cache for cell {cell.cell_id} due to unhashable error"
+                )
+                ctx.cells_skip_cache.discard(cell.cell_id)
+                self._record_cache_miss()
+                # Execute directly without cache
+                assert self.base is not None, "CachedExecutor requires a base executor"
+                return await self.base.execute_cell_async(cell, glbls, graph)
+        except ContextNotInitializedError:
+            pass
+
         load_start = time.time()
         attempt = process(cell, glbls, graph, loader)
         load_time = time.time() - load_start
@@ -389,7 +451,7 @@ class CachedExecutor(Executor):
             # Hydrate the return value to restore any nested stubs
             return_value = attempt.meta.get("return")
             if return_value is not None:
-                return_value = _hydrate_value_recursive(return_value, glbls)
+                return_value = _hydrate_value_recursive(return_value, glbls, graph)
             return return_value
 
         self._record_cache_miss()

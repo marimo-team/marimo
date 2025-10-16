@@ -1452,7 +1452,9 @@ class Kernel:
             )
             self.state_updates.clear()
         self.state_updates.clear()
-        return cells_with_stale_state
+        # Combine cells needing rerun from both state updates and cache errors
+        cells_to_rerun = cells_with_stale_state | runner.cells_needing_rerun
+        return cells_to_rerun
 
     def register_state_update(self, state: State[Any]) -> None:
         """Register a state object as having been updated.

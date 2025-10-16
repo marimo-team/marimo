@@ -133,6 +133,8 @@ class UnhashableStub:
     def load(self, glbls: dict[str, Any]) -> Any:
         """Cannot load unhashable stubs - need to rerun the cell."""
         del glbls  # Unused
+        # Raise ValueError to signal unhashable - will be caught and converted
+        # to MarimoUnhashableCacheError with proper cell IDs by the caller
         raise ValueError(
             f"Cannot load unhashable variable '{self.var_name}' "
             f"of type {self.type_name}. Original error: {self.error_msg}. "

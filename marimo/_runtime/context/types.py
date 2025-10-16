@@ -84,6 +84,8 @@ class RuntimeContext(abc.ABC):
     # Memoization store for content hash speedup across cells
     # Key: variable_name -> hash bytes
     cell_hash_memo: dict[str, bytes]
+    # Cells that should skip cache during this run (due to unhashable errors)
+    cells_skip_cache: set[CellId_t]
     # stream, stdout, stderr are _not_ owned by the context
     stream: Stream
     stdout: Stdout | None
