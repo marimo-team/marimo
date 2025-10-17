@@ -31,7 +31,6 @@ def _():
     return globe, shadow
 
 
-# Sanity check that base case works.
 @app.function
 def addition(a, b):
     return a + b
