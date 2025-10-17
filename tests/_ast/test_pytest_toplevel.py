@@ -11,7 +11,6 @@ with app.setup:
 
 
 @app.function
-# Sanity check that base case works.
 def add(a, b):
     return a + b
 
