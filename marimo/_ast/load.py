@@ -95,6 +95,7 @@ def _static_load(filepath: Path) -> Optional[App]:
 
 def find_cell(filename: str, lineno: int) -> CellDef | None:
     """Find the cell at the given line number in the notebook.
+
     Args:
         filename: Path to a marimo notebook file (.py or .md)
         lineno: Line number to search for
