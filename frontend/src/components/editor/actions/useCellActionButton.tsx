@@ -39,7 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
+import { hasOnlyOneCellAtom, useCellActions, SETUP_CELL_ID } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
 import { formatEditorViews } from "@/core/codemirror/format";
@@ -136,7 +136,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     }
   };
 
-  const isSetupCell = cellId === "setup";
+  const isSetupCell = cellId === SETUP_CELL_ID;
 
   // Actions
   const actions: ActionButton[][] = [
