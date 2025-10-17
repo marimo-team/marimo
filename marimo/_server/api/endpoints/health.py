@@ -241,6 +241,13 @@ async def usage(request: Request) -> JSONResponse:
                 index_str, name, total_str, used_str, free_str = line.split(
                     ", "
                 )
+                # This is what you get on a DGX Spark
+                if total_str == "[N/A]":
+                    total_str = "0"
+                if used_str == "[N/A]":
+                    used_str = "0"
+                if free_str == "[N/A]":
+                    free_str = "0"
                 total = int(total_str) * 1024 * 1024  # Convert MB to bytes
                 used = int(used_str) * 1024 * 1024
                 free = int(free_str) * 1024 * 1024
