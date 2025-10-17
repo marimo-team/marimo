@@ -32,7 +32,7 @@ const description: ToolDescription = {
   baseDescription:
     "Perform editing operations on the current notebook. Call this tool multiple times to perform multiple edits.",
   prerequisites: [
-    "Find out the cellIds and columnIds first (call get_lightweight_cell_map tool)",
+    "Find out the cellIds and columnIds first (call lightweight cell map tool)",
   ],
   additionalInfo: `
   Args:
