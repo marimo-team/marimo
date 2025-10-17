@@ -2,7 +2,13 @@
 
 import { useCompletion } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
-import { AtSignIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
+import {
+  AtSignIcon,
+  CircleCheckIcon,
+  Loader2Icon,
+  SparklesIcon,
+  XIcon,
+} from "lucide-react";
 import React, { useCallback, useEffect, useId, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { Button } from "@/components/ui/button";
@@ -370,12 +376,22 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
       )}
     >
       <div className="flex flex-row items-center gap-2">
-        <div
-          className={cn(
-            "w-2 h-2 rounded-full",
-            status === "loading" ? "bg-blue-500 animate-pulse" : "bg-green-500",
-          )}
-        />
+        {isLoading ? (
+          <Loader2Icon
+            className="animate-spin text-blue-600 mb-[1px]"
+            size={15}
+            strokeWidth={2}
+            aria-label="Generating fix"
+          />
+        ) : (
+          <CircleCheckIcon
+            className="text-green-600 mb-[1px]"
+            size={15}
+            strokeWidth={2}
+            aria-label="Fix generated"
+          />
+        )}
+
         <p className="transition-opacity duration-200 text-muted-foreground">
           {isLoading ? "Generating fix..." : "Showing fix"}
         </p>
