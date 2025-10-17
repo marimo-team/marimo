@@ -193,7 +193,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const showCompletionBanner =
     enabled && triggerImmediately && (completion || isLoading);
   // Set default output area to below if not specified
-  outputArea = outputArea === undefined ? "below" : outputArea;
+  outputArea = outputArea ?? "below";
 
   const showInput = enabled && (!triggerImmediately || showInputPrompt);
 
