@@ -171,6 +171,62 @@ describe("state utility functions", () => {
       `);
     });
 
+    it("should clear externalAgentSessionId when switching between different agents", () => {
+      // Start with a Claude session that has an active external session ID
+      const claudeSession: AgentSession = {
+        agentId: "claude",
+        tabId: "tab_claude" as TabId,
+        title: "Claude session",
+        createdAt: 1_735_689_600_000,
+        lastUsedAt: 1_735_689_600_000,
+        externalAgentSessionId: "claude-session-123" as ExternalAgentSessionId,
+      };
+      const initialState: AgentSessionState = {
+        sessions: [claudeSession],
+        activeTabId: claudeSession.tabId,
+      };
+
+      // Switch to Gemini
+      const newState = addSession(initialState, { agentId: "gemini" });
+
+      // Should create a new Gemini session with null externalAgentSessionId
+      // and remove the Claude session (MAX_SESSIONS = 1)
+      expect(newState.sessions).toHaveLength(1);
+      expect(newState.sessions[0].agentId).toBe("gemini");
+      expect(newState.sessions[0].externalAgentSessionId).toBe(null);
+
+      // The active tab should be the new Gemini session
+      expect(newState.activeTabId).toBe(newState.sessions[0].tabId);
+    });
+
+    it("should clear externalAgentSessionId when switching from Gemini to Claude", () => {
+      // Start with a Gemini session that has an active external session ID
+      const geminiSession: AgentSession = {
+        agentId: "gemini",
+        tabId: "tab_gemini" as TabId,
+        title: "Gemini session",
+        createdAt: 1_735_689_600_000,
+        lastUsedAt: 1_735_689_600_000,
+        externalAgentSessionId: "gemini-session-456" as ExternalAgentSessionId,
+      };
+      const initialState: AgentSessionState = {
+        sessions: [geminiSession],
+        activeTabId: geminiSession.tabId,
+      };
+
+      // Switch to Claude
+      const newState = addSession(initialState, { agentId: "claude" });
+
+      // Should create a new Claude session with null externalAgentSessionId
+      // and remove the Gemini session (MAX_SESSIONS = 1)
+      expect(newState.sessions).toHaveLength(1);
+      expect(newState.sessions[0].agentId).toBe("claude");
+      expect(newState.sessions[0].externalAgentSessionId).toBe(null);
+
+      // The active tab should be the new Claude session
+      expect(newState.activeTabId).toBe(newState.sessions[0].tabId);
+    });
+
     it("should not mutate original state", () => {
       const initialState: AgentSessionState = {
         sessions: [],

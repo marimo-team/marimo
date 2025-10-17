@@ -5,6 +5,7 @@ import { groupNotifications } from "use-acp";
 import {
   ConnectionChangeBlock,
   ErrorBlock,
+  ReadyToChatBlock,
   SessionNotificationsBlock,
 } from "./blocks";
 
@@ -30,7 +31,15 @@ export const AgentThread = ({
   let combinedNotifications = groupNotifications(notifications);
 
   // Filter out all connection changes unless it is the last one
+  // Filter out available_commands_update
   combinedNotifications = combinedNotifications.filter((group, index) => {
+    if (
+      isSessionNotificationGroup(group) &&
+      group[0].data.update.sessionUpdate === "available_commands_update"
+    ) {
+      return false;
+    }
+
     const isLast = index === combinedNotifications.length - 1;
     if (isLast) {
       return true;
@@ -66,6 +75,7 @@ export const AgentThread = ({
           key={lastConnectionChange.id}
           data={lastConnectionChange.data}
           isConnected={isConnected}
+          isOnlyBlock={combinedNotifications.length === 1}
           onRetry={onRetryConnection}
           timestamp={lastConnectionChange.timestamp}
         />
@@ -87,12 +97,13 @@ export const AgentThread = ({
   };
 
   return (
-    <div className="flex flex-col gap-4 px-2 pb-10">
+    <div className="flex flex-col gap-4 px-2 pb-10 flex-1">
       {combinedNotifications.map((notification) => (
         <React.Fragment key={notification[0].id}>
           {renderNotification(notification)}
         </React.Fragment>
       ))}
+      {combinedNotifications.length === 0 && <ReadyToChatBlock />}
     </div>
   );
 };

@@ -33,6 +33,7 @@
 
   code {
     font-size: inherit !important;
+    white-space: pre-wrap;
   }
 
   li.task-list-item {

@@ -76,6 +76,8 @@ export const DelayMount = ({
   const shouldShow = visibility && !hasBeenVisible ? false : mounted;
 
   return (
-    <div ref={visibility ? ref : null}>{shouldShow ? children : fallback}</div>
+    <div ref={visibility ? ref : null} className="contents">
+      {shouldShow ? children : fallback}
+    </div>
   );
 };

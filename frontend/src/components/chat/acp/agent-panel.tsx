@@ -62,12 +62,14 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
+import { DelayMount } from "@/components/utils/delay-mount";
 import { useRequestClient } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { Functions } from "@/utils/functions";
 import { Paths } from "@/utils/paths";
 import { FileAttachmentPill } from "../chat-components";
+import { ReadyToChatBlock } from "./blocks";
 import {
   convertFilesToResourceLinks,
   parseContextFromPrompt,
@@ -548,6 +550,52 @@ const ChatContent = memo<ChatContentProps>(
       }
     }, [notifications.length, isScrolledToBottom, scrollToBottom]);
 
+    const renderThread = () => {
+      if (hasNotifications) {
+        return (
+          <AgentThread
+            isConnected={connectionState.status === "connected"}
+            notifications={notifications}
+            onRetryConnection={onRetryConnection}
+            onRetryLastAction={onRetryLastAction}
+          />
+        );
+      }
+
+      const isConnected = connectionState.status === "connected";
+      if (isConnected) {
+        return <ReadyToChatBlock />;
+      }
+
+      return (
+        <div className="flex items-center justify-center h-full min-h-[200px] flex-col">
+          <PanelEmptyState
+            title="Waiting for agent"
+            description="Your AI agent will appear here when active"
+            icon={<BotMessageSquareIcon />}
+          />
+          {isDisconnected && agentId && (
+            <AgentDocs
+              className="border-t pt-6 px-5"
+              title="Make sure you're connected to an agent"
+              description="Run this command in your terminal:"
+              agents={[agentId]}
+            />
+          )}
+          {isDisconnected && (
+            <Button
+              variant="outline"
+              onClick={onRetryConnection}
+              type="button"
+              className="mt-4"
+            >
+              Retry
+            </Button>
+          )}
+        </div>
+      );
+    };
+
     return (
       <div className="flex-1 flex flex-col overflow-hidden flex-shrink-0 relative">
         {pendingPermission && (
@@ -569,43 +617,7 @@ const ChatContent = memo<ChatContentProps>(
               Session ID: {sessionId}
             </div>
           )}
-          {hasNotifications ? (
-            <div className="space-y-2">
-              <AgentThread
-                isConnected={connectionState.status === "connected"}
-                notifications={notifications}
-                onRetryConnection={onRetryConnection}
-                onRetryLastAction={onRetryLastAction}
-                onDismissError={onDismissError}
-              />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full min-h-[200px] flex-col">
-              <PanelEmptyState
-                title="Waiting for agent"
-                description="Your AI agent will appear here when active"
-                icon={<BotMessageSquareIcon />}
-              />
-              {isDisconnected && agentId && (
-                <AgentDocs
-                  className="border-t pt-6 px-5"
-                  title="Make sure you're connected to an agent"
-                  description="Run this command in your terminal:"
-                  agents={[agentId]}
-                />
-              )}
-              {isDisconnected && (
-                <Button
-                  variant="outline"
-                  onClick={onRetryConnection}
-                  type="button"
-                  className="mt-4"
-                >
-                  Retry
-                </Button>
-              )}
-            </div>
-          )}
+          {renderThread()}
         </div>
 
         <ScrollToBottomButton
@@ -671,6 +683,7 @@ const AgentPanel: React.FC = () => {
   const {
     connect,
     disconnect,
+    setActiveSessionId,
     connectionState,
     notifications,
     pendingPermission,
@@ -695,6 +708,8 @@ const AgentPanel: React.FC = () => {
 
   // Auto-connect to agent when we have an active session, but only once per session
   useEffect(() => {
+    setActiveSessionId(null);
+
     if (wsUrl === NO_WS_SET) {
       return;
     }
@@ -702,7 +717,9 @@ const AgentPanel: React.FC = () => {
     logger.debug("Auto-connecting to agent", {
       sessionId: activeSessionId,
     });
-    connect();
+    void connect().catch((error) => {
+      logger.error("Failed to connect to agent", { error });
+    });
 
     return () => {
       // We don't want to disconnect so users can switch between different
@@ -712,15 +729,13 @@ const AgentPanel: React.FC = () => {
   }, [wsUrl]);
 
   const handleNewSession = useEvent(async () => {
-    if (isCreatingNewSession.current) {
-      return;
-    }
     if (!agent) {
       return;
     }
 
     // If there is an active session, we should stop it
     if (activeSessionId) {
+      setActiveSessionId(null);
       await agent.cancel({ sessionId: activeSessionId }).catch((error) => {
         logger.error("Failed to cancel active session", { error });
       });
@@ -969,6 +984,92 @@ const AgentPanel: React.FC = () => {
     );
   }
 
+  const renderBody = () => {
+    const isConnecting = connectionState.status === "connecting";
+    const delay = 200; // ms
+    if (isConnecting) {
+      return (
+        <DelayMount milliseconds={delay}>
+          <div className="flex items-center justify-center h-full min-h-[200px] flex-col">
+            <Spinner size="medium" className="text-primary" />
+            <span className="text-sm text-muted-foreground">
+              Connecting to the agent...
+            </span>
+          </div>
+        </DelayMount>
+      );
+    }
+
+    const isLoadingSession =
+      tabLastActiveSessionId == null && connectionState.status === "connected";
+    if (isLoadingSession) {
+      return (
+        <DelayMount milliseconds={delay}>
+          <div className="flex items-center justify-center h-full min-h-[200px] flex-col">
+            <Spinner size="medium" className="text-primary" />
+            <span className="text-sm text-muted-foreground">
+              Creating a new session...
+            </span>
+          </div>
+        </DelayMount>
+      );
+    }
+
+    return (
+      <>
+        <ChatContent
+          key={activeSessionId}
+          agentId={selectedTab?.agentId}
+          sessionId={selectedTab?.externalAgentSessionId ?? null}
+          hasNotifications={hasNotifications}
+          connectionState={connectionState}
+          notifications={notifications}
+          pendingPermission={pendingPermission}
+          onResolvePermission={(option) => {
+            logger.debug("Resolving permission request", {
+              sessionId: activeSessionId,
+              option,
+            });
+            resolvePermission(option);
+          }}
+          onRetryConnection={handleManualConnect}
+        />
+
+        <LoadingIndicator
+          isLoading={isLoading}
+          isRequestingPermission={!!pendingPermission}
+          onStop={handleStop}
+        />
+
+        {files && files.length > 0 && (
+          <div className="flex flex-row gap-1 flex-wrap p-3 border-t">
+            {files.map((file) => (
+              <FileAttachmentPill
+                file={file}
+                key={file.name}
+                onRemove={() => handleRemoveFile(file)}
+              />
+            ))}
+          </div>
+        )}
+
+        <PromptArea
+          isLoading={isLoading}
+          activeSessionId={activeSessionId}
+          promptValue={promptValue}
+          onPromptValueChange={setPromptValue}
+          onPromptSubmit={handlePromptSubmit}
+          onAddFiles={handleAddFiles}
+          onStop={handleStop}
+          fileInputRef={fileInputRef}
+          commands={availableCommands}
+          sessionMode={sessionMode}
+          onModeChange={handleModeChange}
+        />
+      </>
+    );
+  };
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden mo-agent-panel">
       <AgentPanelHeader
@@ -982,54 +1083,7 @@ const AgentPanel: React.FC = () => {
       />
       <SessionTabs />
 
-      <ChatContent
-        agentId={selectedTab?.agentId}
-        sessionId={activeSessionId}
-        hasNotifications={hasNotifications}
-        connectionState={connectionState}
-        notifications={notifications}
-        pendingPermission={pendingPermission}
-        onResolvePermission={(option) => {
-          logger.debug("Resolving permission request", {
-            sessionId: activeSessionId,
-            option,
-          });
-          resolvePermission(option);
-        }}
-        onRetryConnection={handleManualConnect}
-      />
-
-      <LoadingIndicator
-        isLoading={isLoading}
-        isRequestingPermission={!!pendingPermission}
-        onStop={handleStop}
-      />
-
-      {files && files.length > 0 && (
-        <div className="flex flex-row gap-1 flex-wrap p-3 border-t">
-          {files.map((file) => (
-            <FileAttachmentPill
-              file={file}
-              key={file.name}
-              onRemove={() => handleRemoveFile(file)}
-            />
-          ))}
-        </div>
-      )}
-
-      <PromptArea
-        isLoading={isLoading}
-        activeSessionId={activeSessionId}
-        promptValue={promptValue}
-        onPromptValueChange={setPromptValue}
-        onPromptSubmit={handlePromptSubmit}
-        onAddFiles={handleAddFiles}
-        onStop={handleStop}
-        fileInputRef={fileInputRef}
-        commands={availableCommands}
-        sessionMode={sessionMode}
-        onModeChange={handleModeChange}
-      />
+      {renderBody()}
     </div>
   );
 };
