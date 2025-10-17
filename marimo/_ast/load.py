@@ -93,7 +93,12 @@ def _static_load(filepath: Path) -> Optional[App]:
     return load_notebook_ir(notebook, filepath=str(filepath))
 
 
-def find_cell(filename, lineno) -> CellDef | None:
+def find_cell(filename: str, lineno: int) -> CellDef | None:
+    """Find the cell at the given line number in the notebook.
+    Args:
+        filename: Path to a marimo notebook file (.py or .md)
+        lineno: Line number to search for
+    """
     load_result = get_notebook_status(filename)
     if load_result.notebook is None:
         raise OSError("Could not resolve notebook.")
