@@ -59,21 +59,26 @@ def get_optional_modules_list() -> dict[str, str]:
     packages = [
         "altair",
         "anywidget",
+        "basedpyright",
         "duckdb",
         "ibis-framework",
+        "loro",
+        "mcp",
         "nbformat",
         "openai",
         "opentelemetry",
         "pandas",
         "polars",
         "pyarrow",
-        "loro",
         "pylsp-mypy",
         "pytest",
         "python-lsp-ruff",
         "python-lsp-server",
         "ruff",
         "sqlglot",
+        "ty",
+        "vegafusion",
+        "watchdog",
     ]
     return _get_versions(packages, include_missing=False)
 
