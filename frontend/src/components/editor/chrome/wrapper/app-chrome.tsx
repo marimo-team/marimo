@@ -25,6 +25,7 @@ import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-p
 import { useChromeActions, useChromeState } from "../state";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
+import { PendingAICells } from "./pending-ai-cells";
 import { createStorage } from "./storage";
 import { handleDragging } from "./utils";
 
@@ -272,6 +273,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         <ContextAwarePanel />
       </PanelGroup>
       <Minimap />
+      <PendingAICells />
       <ErrorBoundary>
         <TooltipProvider>
           <Footer />

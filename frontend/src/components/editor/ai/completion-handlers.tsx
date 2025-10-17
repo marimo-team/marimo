@@ -114,6 +114,7 @@ export const CompletionActionsCellFooter: React.FC<{
 export const AcceptCompletionButton: React.FC<{
   isLoading: boolean;
   onAccept: () => void;
+  text?: string;
   size?: "xs" | "sm";
   buttonStyles?: string;
   playButtonStyles?: string;
@@ -122,6 +123,7 @@ export const AcceptCompletionButton: React.FC<{
 }> = ({
   isLoading,
   onAccept,
+  text = "Accept",
   size = "sm",
   buttonStyles,
   acceptShortcut,
@@ -150,7 +152,7 @@ export const AcceptCompletionButton: React.FC<{
           onClick={onAccept}
           className={`${baseClasses} rounded-r-none ${buttonStyles}`}
         >
-          Accept
+          {text}
           {acceptShortcut && (
             <MinimalHotkeys className="ml-1 inline" shortcut={acceptShortcut} />
           )}
@@ -178,7 +180,7 @@ export const AcceptCompletionButton: React.FC<{
       onClick={onAccept}
       className={`${baseClasses} rounded px-3 ${buttonStyles}`}
     >
-      Accept
+      {text}
       {acceptShortcut && (
         <MinimalHotkeys className="ml-1 inline" shortcut={acceptShortcut} />
       )}
@@ -188,10 +190,17 @@ export const AcceptCompletionButton: React.FC<{
 
 export const RejectCompletionButton: React.FC<{
   onDecline: () => void;
+  text?: string;
   size?: "xs" | "sm";
   className?: string;
   declineShortcut?: string;
-}> = ({ onDecline, size = "sm", className, declineShortcut }) => {
+}> = ({
+  onDecline,
+  text = "Reject",
+  size = "sm",
+  className,
+  declineShortcut,
+}) => {
   return (
     <Button
       variant="text"
@@ -202,7 +211,7 @@ export const RejectCompletionButton: React.FC<{
     active:bg-(--red-5) dark:active:bg-(--red-4)
     border-(--red-6) border hover:shadow-xs ${className}`}
     >
-      Reject
+      {text}
       {declineShortcut && (
         <MinimalHotkeys className="ml-1 inline" shortcut={declineShortcut} />
       )}

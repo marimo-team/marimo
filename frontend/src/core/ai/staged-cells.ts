@@ -28,7 +28,7 @@ import type { EditType } from "./tools/edit-notebook-tool";
  * And we only track one set of staged cells at a time.
  */
 
-type Edit =
+export type Edit =
   | { type: Extract<EditType, "update_cell">; previousCode: string }
   | { type: Extract<EditType, "add_cell"> }
   | { type: Extract<EditType, "delete_cell">; previousCode: string };

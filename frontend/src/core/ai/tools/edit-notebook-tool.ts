@@ -42,7 +42,7 @@ const description: ToolDescription = {
         Pass "__end__" to add the new cell at the end of the notebook. 
         Pass { cellId: cellId, before: true } to add the new cell before the specified cell. And before: false if after the specified cell.
         Pass { type: "__end__", columnId: columnId } to add the new cell at the end of the specified column.
-    - delete_cell: Delete an existing cell, pass CellId.
+    - delete_cell: Delete an existing cell, pass CellId. For deleting cells, the user needs to accept the deletion to actually delete the cell, so you may still see the cell in the notebook on subsequent edits which is fine.
 
     For adding code, use the following guidelines:
     - Markdown cells: use mo.md(f"""{content}""") function to insert content.
@@ -175,28 +175,24 @@ export class EditNotebookTool
 
         break;
       }
-      case "delete_cell":
-        return {
-          status: "error",
-          message: "Deleting cells are not supported yet",
-        };
+      case "delete_cell": {
+        const { cellId } = edit;
 
-      // const { cellId } = edit;
+        const notebook = this.store.get(notebookAtom);
+        this.validateCellIdExists(cellId, notebook);
 
-      // const notebook = this.store.get(notebookAtom);
-      // this.validateCellIdExists(cellId, notebook);
+        const editorView = this.getCellEditorView(cellId, notebook);
+        const currentCellCode = editorView.state.doc.toString();
 
-      // const editorView = this.getCellEditorView(cellId, notebook);
-      // const currentCellCode = editorView.state.doc.toString();
+        // Add to staged AICells - don't actually delete the cell yet
+        this.stagedAICellsActions.addStagedCell({
+          cellId,
+          edit: { type: "delete_cell", previousCode: currentCellCode },
+        });
 
-      // // Add to staged AICells
-      // this.stagedAICellsActions.addStagedCell({
-      //   cellId,
-      //   edit: { type: "delete_cell", previousCode: currentCellCode },
-      // });
-
-      // this.notebookActions.deleteCell({ cellId });
-      // break;
+        scrollAndHighlightCell(cellId);
+        break;
+      }
     }
     return {
       status: "success",
