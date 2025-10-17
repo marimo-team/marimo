@@ -398,9 +398,8 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         icon: <Columns2Icon size={13} strokeWidth={1.5} />,
         label: "Break into new column",
         hotkey: "cell.addColumnBreakpoint",
-        hidden: appWidth !== "columns",
         handle: () => addColumnBreakpoint({ cellId }),
-        hidden: isSetupCell,
+        hidden: appWidth !== "columns" || isSetupCell,
       },
     ],
 
