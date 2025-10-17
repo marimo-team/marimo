@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
 import type { CellId } from "@/core/cells/ids";
+import { getNextIndex } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
 import {
   AcceptCompletionButton,
@@ -30,40 +31,14 @@ export const PendingAICells: React.FC = () => {
     scrollAndHighlightCell(cellId, "focus");
   };
 
-  const clickUp = () => {
-    if (currentIndex === null) {
-      setCurrentIndex(0);
-      scrollToCell(listStagedCells[0]);
-      return;
-    }
-
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      scrollToCell(listStagedCells[currentIndex - 1]);
-      return;
-    }
-
-    // Wrap around to last cell
-    setCurrentIndex(listStagedCells.length - 1);
-    scrollToCell(listStagedCells[listStagedCells.length - 1]);
-  };
-
-  const clickDown = () => {
-    if (currentIndex === null) {
-      setCurrentIndex(0);
-      scrollToCell(listStagedCells[0]);
-      return;
-    }
-
-    if (currentIndex < listStagedCells.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      scrollToCell(listStagedCells[currentIndex + 1]);
-      return;
-    }
-
-    // Wrap around to first cell
-    setCurrentIndex(0);
-    scrollToCell(listStagedCells[0]);
+  const clickNext = (direction: "up" | "down") => {
+    const newIndex = getNextIndex(
+      currentIndex,
+      listStagedCells.length,
+      direction,
+    );
+    setCurrentIndex(newIndex);
+    scrollToCell(listStagedCells[newIndex]);
   };
 
   const acceptAllCompletions = () => {
@@ -90,7 +65,7 @@ export const PendingAICells: React.FC = () => {
       <SparklesIcon className="h-4 w-4 text-primary" />
 
       <div className="flex items-center">
-        <Button variant="ghost" size="icon" onClick={clickUp}>
+        <Button variant="ghost" size="icon" onClick={() => clickNext("up")}>
           <ChevronUp className="h-3.5 w-3.5" />
         </Button>
         <span className="text-xs font-mono min-w-[3.5rem] text-center">
@@ -98,7 +73,7 @@ export const PendingAICells: React.FC = () => {
             ? `${listStagedCells.length} pending`
             : `${currentIndex + 1} / ${listStagedCells.length}`}
         </span>
-        <Button variant="ghost" size="icon" onClick={clickDown}>
+        <Button variant="ghost" size="icon" onClick={() => clickNext("down")}>
           <ChevronDown className="h-3.5 w-3.5" />
         </Button>
       </div>
