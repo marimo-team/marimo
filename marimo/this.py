@@ -1,6 +1,6 @@
 print("""take a step back, know what to do first.
 never forget that hidden failures are the worst.
-features on paper don't reflect how a user might feel,
+spend some time, understand how a user might feel,
 sometimes it's totally fine to reinvent the wheel.
  
 the best details are often hidden without any kind of flair,
