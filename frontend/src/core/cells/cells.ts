@@ -18,6 +18,7 @@ import { Objects } from "@/utils/objects";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
+import { LanguageAdapters } from "../codemirror/language/LanguageAdapters";
 import {
   splitEditor,
   updateEditorCodeFromPython,
@@ -955,15 +956,29 @@ const {
     const isPastLastCell = nextCellIndex === column.length;
     const isBeforeFirstCell = nextCellIndex === -1;
 
+    const getNewCellCode = (): string => {
+      const currentCell = state.cellData[cellId];
+      if (!currentCell) {
+        return "";
+      }
+
+      const isSqlCell = LanguageAdapters.sql.isSupported(currentCell.code);
+      if (isSqlCell) {
+        return LanguageAdapters.sql.defaultCode;
+      }
+
+      return "";
+    };
     // Create a new cell at the end and set scrollKey to focus it
     if (isPastLastCell && !noCreate) {
       const newCellId = CellId.create();
+      const newCellCode = getNewCellCode();
       return {
         ...state,
         cellIds: state.cellIds.insertId(newCellId, column.id, nextCellIndex),
         cellData: {
           ...state.cellData,
-          [newCellId]: createCell({ id: newCellId }),
+          [newCellId]: createCell({ id: newCellId, code: newCellCode }),
         },
         cellRuntime: {
           ...state.cellRuntime,
@@ -979,12 +994,13 @@ const {
 
     if (isBeforeFirstCell && !noCreate) {
       const newCellId = CellId.create();
+      const newCellCode = getNewCellCode();
       return {
         ...state,
         cellIds: state.cellIds.insertId(newCellId, column.id, 0),
         cellData: {
           ...state.cellData,
-          [newCellId]: createCell({ id: newCellId }),
+          [newCellId]: createCell({ id: newCellId, code: newCellCode }),
         },
         cellRuntime: {
           ...state.cellRuntime,
