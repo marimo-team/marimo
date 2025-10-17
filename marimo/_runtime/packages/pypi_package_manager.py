@@ -242,6 +242,26 @@ class UvPackageManager(PypiPackageManager):
 
         version_map = self._get_version_map()
 
+        def _is_direct_reference(package: str) -> bool:
+            """Check if a package is a direct reference (git, URL, or local path).
+
+            Direct references should bypass the _is_installed check because:
+            - Git URLs (git+https://...) won't appear in version_map with that prefix
+            - Direct URL references (package @ https://...) use @ syntax
+            - Local paths (package @ file://...) use @ syntax
+            - These should be passed directly to uv which handles them correctly
+            """
+            # Git URLs: git+https://, git+ssh://, git://
+            if package.startswith("git+") or package.startswith("git://"):
+                return True
+            # Direct references with @ (PEP 440 direct references)
+            if " @ " in package:
+                return True
+            # URLs (https://, http://, file://)
+            if "://" in package:
+                return True
+            return False
+
         def _is_installed(package: str) -> bool:
             without_brackets = package.split("[")[0]
             return without_brackets.lower() in version_map
@@ -256,11 +276,13 @@ class UvPackageManager(PypiPackageManager):
                 return f"{package}=={version}"
             return package
 
-        # Filter to packages that are found in "uv pip list"
+        # Filter to packages that are found in "uv pip list" OR are direct references
+        # Direct references (git URLs, direct URLs, local paths) bypass the installed check
+        # because they won't appear in the version map with their full reference syntax
         packages_to_add = [
-            _maybe_add_version(im)
+            _maybe_add_version(im) if not _is_direct_reference(im) else im
             for im in packages_to_add
-            if _is_installed(im)
+            if _is_direct_reference(im) or _is_installed(im)
         ]
 
         if filepath.endswith(".md") or filepath.endswith(".qmd"):
