@@ -69,6 +69,9 @@ importers:
       '@codemirror/lint':
         specifier: ^6.9.0
         version: 6.9.0
+      '@codemirror/merge':
+        specifier: ^6.11.0
+        version: 6.11.0
       '@codemirror/search':
         specifier: ^6.5.11
         version: 6.5.11
@@ -1148,8 +1151,8 @@ packages:
   '@codemirror/lint@6.9.0':
     resolution: {integrity: sha512-wZxW+9XDytH3SKvS8cQzMyQCaaazH8XL1EMHleHe00wVzsv7NBQKVW2yzEHrRhmM7ZOhVdItPbvlRBvMp9ej7A==}
 
-  '@codemirror/merge@6.10.2':
-    resolution: {integrity: sha512-rmHzVkt5FnCtsi0IgvDIDjh/J4LmbfOboB7FMvVl21IHO0p1QM6jSwjkBjBD3D+c+T79OabEqoduCqvJCBV8Yg==}
+  '@codemirror/merge@6.11.0':
+    resolution: {integrity: sha512-Wu5Camx8u0jKA4yV3IxcWGMIoXUxuptsbWW9kTje8d/NInnnALeyQaxcVssJznp9FRnu4As3qsBhacERyB9p6w==}
 
   '@codemirror/search@6.5.11':
     resolution: {integrity: sha512-KmWepDE6jUdL6n8cAAqIpRmLPBZ5ZKnicE8oGU/s3QrAVID+0VhLFrzUucVKHG5035/BSykhExDL/Xm7dHthiA==}
@@ -10848,7 +10851,7 @@ snapshots:
       '@codemirror/view': 6.38.5
       crelt: 1.0.6
 
-  '@codemirror/merge@6.10.2':
+  '@codemirror/merge@6.11.0':
     dependencies:
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
@@ -19466,7 +19469,7 @@ snapshots:
   react-codemirror-merge@4.25.1(@babel/runtime@7.27.6)(@codemirror/autocomplete@6.19.0)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.0)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.38.5)(codemirror@6.0.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       '@babel/runtime': 7.27.6
-      '@codemirror/merge': 6.10.2
+      '@codemirror/merge': 6.11.0
       '@codemirror/state': 6.5.2
       '@codemirror/theme-one-dark': 6.1.3
       '@codemirror/view': 6.38.5

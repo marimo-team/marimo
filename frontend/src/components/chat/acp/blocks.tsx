@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 import type {
   ContentBlock,
   ToolCallContent,
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 import React from "react";
 import { mergeToolCalls } from "use-acp";
+import { ReadonlyDiff } from "@/components/editor/code/readonly-diff";
 import { JsonOutput } from "@/components/editor/output/JsonOutput";
 import { Button } from "@/components/ui/button";
 import {
@@ -584,42 +586,16 @@ export const DiffBlocks = (props: {
         return (
           <div
             key={item.path}
-            className="border rounded-md overflow-hidden bg-[var(--gray-2)] max-h-64 overflow-y-auto scrollbar-thin"
+            className="border rounded-md overflow-hidden bg-[var(--gray-2)] overflow-y-auto scrollbar-thin"
           >
             {/* File path header */}
             <div className="px-2 py-1 bg-[var(--gray-2)] border-b text-xs font-medium text-[var(--gray-11)]">
               {item.path}
             </div>
-
-            <div className="font-mono text-xs">
-              {/* Removed lines */}
-              {item.oldText && (
-                <div className="px-3 py-1 border-b bg-[var(--red-2)] border-b-[var(--red-6)]">
-                  <div className="flex">
-                    <span className="text-[var(--red-11)] select-none mr-2">
-                      -
-                    </span>
-                    <pre className="text-[var(--red-11)] px-1 rounded whitespace-pre-wrap break-words flex-1 line-through opacity-80">
-                      {item.oldText}
-                    </pre>
-                  </div>
-                </div>
-              )}
-
-              {/* Added lines */}
-              {item.newText && (
-                <div className="px-3 py-1 bg-[var(--grass-2)] border-b-[var(--grass-6)]">
-                  <div className="flex">
-                    <span className="text-[var(--grass-11)] select-none mr-2">
-                      +
-                    </span>
-                    <pre className="text-[var(--grass-11)] px-1 rounded whitespace-pre-wrap break-words flex-1 italic opacity-90">
-                      {item.newText}
-                    </pre>
-                  </div>
-                </div>
-              )}
-            </div>
+            <ReadonlyDiff
+              original={item.oldText || ""}
+              modified={item.newText || ""}
+            />
           </div>
         );
       })}
