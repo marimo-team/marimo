@@ -39,7 +39,11 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
+import {
+  hasOnlyOneCellAtom,
+  SETUP_CELL_ID,
+  useCellActions,
+} from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
 import { formatEditorViews } from "@/core/codemirror/format";
@@ -136,6 +140,8 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     }
   };
 
+  const isSetupCell = cellId === SETUP_CELL_ID;
+
   // Actions
   const actions: ActionButton[][] = [
     [
@@ -181,6 +187,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
             onEnterKey={() => closePopover?.()}
           />
         ),
+        hidden: isSetupCell,
       },
       {
         icon: <PlayIcon size={13} strokeWidth={1.5} />,
@@ -254,6 +261,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
           />
         ),
         handle: toggleDisabled,
+        hidden: isSetupCell,
       },
       {
         icon: <XCircleIcon size={13} strokeWidth={1.5} />,
@@ -282,6 +290,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
             keepCodeAsIs: false,
           });
         },
+        hidden: isSetupCell,
       },
       {
         icon: <DatabaseIcon size={13} strokeWidth={1.5} />,
@@ -297,6 +306,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
             keepCodeAsIs: false,
           });
         },
+        hidden: isSetupCell,
       },
       {
         icon: <PythonIcon />,
@@ -309,6 +319,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
           maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
           toggleToLanguage(editorView, "python", { force: true });
         },
+        hidden: isSetupCell,
       },
     ],
 
@@ -324,6 +335,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         label: "Create cell above",
         hotkey: "cell.createAbove",
         handle: () => createCell({ cellId, before: true }),
+        hidden: isSetupCell,
       },
       {
         icon: (
@@ -341,26 +353,28 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         label: "Move cell up",
         hotkey: "cell.moveUp",
         handle: () => moveCell({ cellId, before: true }),
+        hidden: isSetupCell,
       },
       {
         icon: <ChevronDownIcon size={13} strokeWidth={1.5} />,
         label: "Move cell down",
         hotkey: "cell.moveDown",
         handle: () => moveCell({ cellId, before: false }),
+        hidden: isSetupCell,
       },
       {
         icon: <ChevronLeftIcon size={13} strokeWidth={1.5} />,
         label: "Move cell left",
         hotkey: "cell.moveLeft",
         handle: () => moveCell({ cellId, direction: "left" }),
-        hidden: appWidth !== "columns",
+        hidden: appWidth !== "columns" || isSetupCell,
       },
       {
         icon: <ChevronRightIcon size={13} strokeWidth={1.5} />,
         label: "Move cell right",
         hotkey: "cell.moveRight",
         handle: () => moveCell({ cellId, direction: "right" }),
-        hidden: appWidth !== "columns",
+        hidden: appWidth !== "columns" || isSetupCell,
       },
       {
         icon: <ChevronsUpIcon size={13} strokeWidth={1.5} />,
@@ -369,6 +383,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         // When using the cell menu, likely the user doesn't want to scroll
         // and instead just wants to get the cell out of the way
         handle: () => sendToTop({ cellId, scroll: false }),
+        hidden: isSetupCell,
       },
       {
         icon: <ChevronsDownIcon size={13} strokeWidth={1.5} />,
@@ -377,13 +392,14 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         // When using the cell menu, likely the user doesn't want to scroll
         // and instead just wants to get the cell out of the way
         handle: () => sendToBottom({ cellId, scroll: false }),
+        hidden: isSetupCell,
       },
       {
         icon: <Columns2Icon size={13} strokeWidth={1.5} />,
         label: "Break into new column",
         hotkey: "cell.addColumnBreakpoint",
-        hidden: appWidth !== "columns",
         handle: () => addColumnBreakpoint({ cellId }),
+        hidden: appWidth !== "columns" || isSetupCell,
       },
     ],
 
