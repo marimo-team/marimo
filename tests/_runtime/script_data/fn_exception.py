@@ -17,7 +17,6 @@ def bad_divide(x, y):
 
 # Also a check for no call
 @app.function
-# Technically legal, but messy
 def bad_divide_curry(x):
     # Filler line
     # To push the error
