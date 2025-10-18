@@ -3,21 +3,23 @@
 import { z } from "zod";
 import {
   type AiTool,
+  type ToolDescription,
   ToolExecutionError,
   type ToolOutputBase,
   toolOutputBaseSchema,
 } from "./base";
 import type { CopilotMode } from "./registry";
 
-const description = `
-Test frontend tool that returns a greeting message.
+const description: ToolDescription = {
+  baseDescription: "Test frontend tool that returns a greeting message.",
+  additionalInfo: `
+  Args:
+    - name (string): The name to include in the greeting.
 
-Args:
-- name (string): The name to include in the greeting.
-
-Returns:
-- Output with data containing the greeting message.
-`;
+  Returns:
+    - Output with data containing the greeting message.
+  `,
+};
 
 interface Input {
   name: string;

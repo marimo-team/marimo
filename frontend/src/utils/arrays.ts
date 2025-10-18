@@ -86,3 +86,28 @@ export function uniqueBy<T>(arr: T[], key: (item: T) => string): T[] {
   }
   return result;
 }
+
+/**
+ * Get the next index in the list, wrapping around to the start or end if necessary.
+ * @param currentIndex - The current index, or null if there is no current index.
+ * @param listLength - The length of the list.
+ * @param direction - The direction to move in.
+ * @returns The next index.
+ */
+export function getNextIndex(
+  currentIndex: number | null,
+  listLength: number,
+  direction: "up" | "down",
+): number {
+  if (listLength === 0) {
+    return 0;
+  }
+
+  if (currentIndex === null) {
+    return direction === "up" ? 0 : listLength - 1;
+  }
+
+  return direction === "up"
+    ? (currentIndex + 1) % listLength
+    : (currentIndex - 1 + listLength) % listLength;
+}

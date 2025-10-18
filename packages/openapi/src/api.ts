@@ -2847,7 +2847,7 @@ export interface components {
       inline_tooltip?: boolean;
       max_tokens?: number;
       /** @enum {unknown} */
-      mode?: "ask" | "manual";
+      mode?: "agent" | "ask" | "manual";
       models?: components["schemas"]["AiModelConfig"];
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
@@ -4614,7 +4614,7 @@ export interface components {
      */
     ToolDefinition: {
       description: string;
-      mode: ("ask" | "manual")[];
+      mode: ("agent" | "ask" | "manual")[];
       name: string;
       parameters: Record<string, any>;
       /** @enum {unknown} */

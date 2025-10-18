@@ -36,7 +36,10 @@ import {
   type ChatId,
   chatStateAtom,
 } from "@/core/ai/state";
-import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
+import {
+  type CopilotMode,
+  FRONTEND_TOOL_REGISTRY,
+} from "@/core/ai/tools/registry";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
@@ -301,7 +304,11 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 
     const { saveModeChange } = useModelChange();
 
-    const modeOptions = [
+    const modeOptions: {
+      value: CopilotMode;
+      label: string;
+      subtitle: string;
+    }[] = [
       {
         value: "ask",
         label: "Ask",
@@ -312,6 +319,11 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
         value: "manual",
         label: "Manual",
         subtitle: "Pure chat, no tool usage",
+      },
+      {
+        value: "agent",
+        label: "Agent (beta)",
+        subtitle: "Use AI with access to read and write tools",
       },
     ];
 

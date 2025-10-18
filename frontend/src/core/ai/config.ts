@@ -4,7 +4,11 @@ import type { Role } from "@marimo-team/llm-info";
 import { useAtom } from "jotai";
 import type { QualifiedModelId } from "@/core/ai/ids/ids";
 import { userConfigAtom } from "@/core/config/config";
-import type { AIModelKey, UserConfig } from "@/core/config/config-schema";
+import type {
+  AIModelKey,
+  CopilotMode,
+  UserConfig,
+} from "@/core/config/config-schema";
 import { useRequestClient } from "@/core/network/requests";
 
 // Extract only the supported roles from the Role type
@@ -60,7 +64,7 @@ export const useModelChange = () => {
     saveConfig(newConfig);
   };
 
-  const saveModeChange = async (newMode: "ask" | "manual") => {
+  const saveModeChange = async (newMode: CopilotMode) => {
     const newConfig: UserConfig = {
       ...userConfig,
       ai: {

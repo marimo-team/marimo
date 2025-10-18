@@ -44,6 +44,9 @@ export const DEFAULT_AI_MODEL = "openai/gpt-4o";
  */
 const AUTO_DOWNLOAD_FORMATS = ["html", "markdown", "ipynb"] as const;
 
+const COPILOT_MODES = ["manual", "ask", "agent"] as const;
+export type CopilotMode = (typeof COPILOT_MODES)[number];
+
 const AiConfigSchema = z
   .object({
     api_key: z.string().optional(),
@@ -151,7 +154,7 @@ export const UserConfigSchema = z
     ai: z
       .looseObject({
         rules: z.string().prefault(""),
-        mode: z.enum(["manual", "ask"]).prefault("manual"),
+        mode: z.enum(COPILOT_MODES).prefault("manual"),
         inline_tooltip: z.boolean().prefault(false),
         open_ai: AiConfigSchema.optional(),
         anthropic: AiConfigSchema.optional(),

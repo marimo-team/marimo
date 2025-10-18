@@ -64,6 +64,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
 
   return (
     <button
+      type="button"
       data-node-id={cell.id}
       className={cn(
         "group bg-transparent text-left w-full flex relative justify-between items-center",
@@ -107,6 +108,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
         width="1"
         height="1"
       >
+        <title>Cell dependency connections for cell {cell.id}</title>
         {isSelected ? (
           <SelectedCell
             cell={cell}

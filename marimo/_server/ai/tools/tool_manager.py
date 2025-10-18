@@ -53,7 +53,8 @@ class ToolManager:
         """Register a backend tool with its handler function and optional validator."""
         name = tool.name
         tool_definition, validation_function = tool.as_backend_tool(
-            mode=["ask"]
+            # TODO: Tools should define their own supported modes
+            mode=["ask", "agent"]
         )
         self._tools[name] = tool_definition
         self._backend_handlers[name] = tool.__call__
@@ -175,8 +176,9 @@ class ToolManager:
             description=mcp_tool.description or "No description available",
             parameters=mcp_tool.inputSchema,
             source="mcp",
-            mode=["ask"],  # MCP tools available in ask mode for now
-            # TODO(bjoaquinc): change default mode to "agent" when we add agent mode
+            # MCP tools available in ask mode and agent mode
+            # TODO: Determine which tools to support in agent mode
+            mode=["ask", "agent"],
         )
 
     async def invoke_tool(

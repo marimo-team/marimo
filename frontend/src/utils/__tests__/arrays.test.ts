@@ -8,6 +8,7 @@ import {
   arrayMove,
   arrayShallowEquals,
   arrayToggle,
+  getNextIndex,
 } from "../arrays";
 
 describe("arrays", () => {
@@ -126,5 +127,46 @@ describe("arrays", () => {
     it("should handle empty array", () => {
       expect(arrayToggle([], 1)).toEqual([1]);
     });
+  });
+});
+
+describe("getNextIndex", () => {
+  it("should return 0 if listLength is 0", () => {
+    expect(getNextIndex(null, 0, "up")).toBe(0);
+    expect(getNextIndex(null, 0, "down")).toBe(0);
+    expect(getNextIndex(0, 0, "up")).toBe(0);
+    expect(getNextIndex(0, 0, "down")).toBe(0);
+  });
+
+  it("should return 0 if currentIndex is null and direction is up", () => {
+    expect(getNextIndex(null, 10, "up")).toBe(0);
+  });
+
+  it("should return last index if currentIndex is null and direction is down", () => {
+    expect(getNextIndex(null, 10, "down")).toBe(9);
+  });
+
+  it("should return the next index in the list", () => {
+    expect(getNextIndex(0, 10, "up")).toBe(1);
+  });
+
+  it("should wrap around to the start of the list", () => {
+    expect(getNextIndex(9, 10, "up")).toBe(0);
+  });
+
+  it("should return next index in middle of list", () => {
+    expect(getNextIndex(5, 10, "up")).toBe(6);
+  });
+
+  it("should return previous index in middle of list", () => {
+    expect(getNextIndex(5, 10, "down")).toBe(4);
+  });
+
+  it("should wrap around to the end of the list", () => {
+    expect(getNextIndex(0, 10, "down")).toBe(9);
+  });
+
+  it("should return the previous index in the list", () => {
+    expect(getNextIndex(1, 10, "down")).toBe(0);
   });
 });
