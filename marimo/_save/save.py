@@ -27,6 +27,7 @@ from typing import (
 )
 
 from marimo._ast.cell_id import is_external_cell_id
+from marimo._ast.load import find_cell
 from marimo._ast.transformers import (
     ARG_PREFIX,
     CacheExtractWithBlock,
@@ -596,7 +597,7 @@ class _cache_context(SkipContext, CacheContext):
         # causing this function to terminate before reaching this block.
         self._frame = with_frame
         for i, frame in enumerate(stack[::-1]):
-            _filename, lineno, function_name, _code = frame
+            filename, lineno, function_name, _code = frame
             if function_name == "<module>":
                 ctx = get_context()
                 if ctx.execution_context is None:
@@ -608,10 +609,30 @@ class _cache_context(SkipContext, CacheContext):
                     )
                 graph = ctx.graph
                 cell_id = ctx.cell_id or ctx.execution_context.cell_id
+
+                # We are calling from script mode, so our line number is
+                # absolute.
+                if "__marimo__" not in filename:
+                    cell = find_cell(filename, lineno)
+                    if cell is None:
+                        raise CacheException(
+                            "Could not resolve cell for cache."
+                            f"{UNEXPECTED_FAILURE_BOILERPLATE}"
+                        )
+                    lineno -= cell.lineno
+                    code = cell.code
+                elif cell_id in graph.cells:
+                    code = graph.cells[cell_id].code
+                else:
+                    raise CacheException(
+                        "Could not resolve cell for cache."
+                        f"{UNEXPECTED_FAILURE_BOILERPLATE}"
+                    )
+
                 pre_module, save_module = CacheExtractWithBlock(
                     lineno - 1
                 ).visit(
-                    ast.parse(graph.cells[cell_id].code).body  # type: ignore[arg-type]
+                    ast.parse(code).body  # type: ignore[arg-type]
                 )
 
                 self._cache = cache_attempt_from_hash(

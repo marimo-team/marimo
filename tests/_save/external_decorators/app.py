@@ -8,13 +8,22 @@ with app.setup:
 
 
 @app.cell
-def _():
+def decorator_wrap():
     @mo.cache
     def cache(x):
         return x + 1
 
     bar = cache(1)
     return (bar, cache)
+
+
+@app.cell
+def block_wrap(mo):
+    with mo.cache("random"):
+        x = []
+
+    a = "need a final line to trigger invalid block capture"
+    return (x,)
 
 
 if __name__ == "__main__":
