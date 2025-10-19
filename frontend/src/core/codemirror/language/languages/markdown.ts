@@ -26,7 +26,7 @@ import { parseLatex } from "../embedded/latex";
 import { languageMetadataField } from "../metadata";
 import type { LanguageAdapter } from "../types";
 
-export type MarkdownLanguageAdapterMetadata = MarkdownMetadata
+export type MarkdownLanguageAdapterMetadata = MarkdownMetadata;
 
 /**
  * Language adapter for Markdown.
