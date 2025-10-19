@@ -31,7 +31,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
       params: LSP.PublishDiagnosticsParams;
     }) => void,
   ): () => boolean {
-    const callbacks: Array<() => boolean> = [];
+    const callbacks: (() => boolean)[] = [];
     for (const client of this.clients) {
       callbacks.push(client.onNotification(listener));
     }

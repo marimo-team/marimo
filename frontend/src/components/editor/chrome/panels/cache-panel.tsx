@@ -38,11 +38,11 @@ const CachePanel = () => {
       });
       // Request updated cache info after purge
       refetch();
-    } catch (err) {
+    } catch (error) {
       toast({
         title: "Error",
         description:
-          err instanceof Error ? err.message : "Failed to purge cache",
+          error instanceof Error ? error.message : "Failed to purge cache",
         variant: "danger",
       });
     } finally {

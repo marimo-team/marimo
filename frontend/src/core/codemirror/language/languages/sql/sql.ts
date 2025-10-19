@@ -112,7 +112,7 @@ export class SQLLanguageAdapter
     const metadata = result.metadata as SQLLanguageAdapterMetadata;
 
     if (metadata.engine && metadata.engine !== DUCKDB_ENGINE) {
-      setLatestEngineSelected(metadata.engine as ConnectionName);
+      setLatestEngineSelected(metadata.engine);
     }
 
     return [result.code, result.offset, metadata];
