@@ -243,6 +243,7 @@ const DEFAULT_HOT_KEY = {
     name: "Duplicate selection",
     group: "Editing",
     key: "Ctrl-Shift-ArrowDown",
+    editable: false,
   },
 
   // Markdown
