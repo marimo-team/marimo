@@ -311,6 +311,15 @@ def test_chat_system_prompts():
         session_id=SessionId("s_test"),
     )
 
+    result += _header("with agent mode")
+    result += get_chat_system_prompt(
+        custom_rules=None,
+        include_other_code="",
+        context=None,
+        mode="agent",
+        session_id=SessionId("s_test"),
+    )
+
     result += _header("kitchen sink")
     result += get_chat_system_prompt(
         custom_rules="Always be polite.",

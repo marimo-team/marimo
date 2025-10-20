@@ -3,8 +3,10 @@
 import type { components } from "@marimo-team/marimo-api";
 import { Memoize } from "typescript-memoize";
 import { type ZodObject, z } from "zod";
+import { store } from "@/core/state/jotai";
 import { type AiTool, ToolExecutionError } from "./base";
-import { TestFrontendTool } from "./sample-tool";
+import { EditNotebookTool } from "./edit-notebook-tool";
+import { formatToolDescription } from "./utils";
 
 export type AnyZodObject = ZodObject<z.ZodRawShape>;
 
@@ -114,7 +116,7 @@ export class FrontendToolRegistry {
   getToolSchemas(): FrontendToolDefinition[] {
     return [...this.tools.values()].map((tool) => ({
       name: tool.name,
-      description: tool.description,
+      description: formatToolDescription(tool.description),
       parameters: z.toJSONSchema(tool.schema),
       source: "frontend",
       mode: tool.mode,
@@ -123,6 +125,6 @@ export class FrontendToolRegistry {
 }
 
 export const FRONTEND_TOOL_REGISTRY = new FrontendToolRegistry([
-  ...(import.meta.env.DEV ? [new TestFrontendTool()] : []),
+  new EditNotebookTool(store),
   // ADD MORE TOOLS HERE
 ]);

@@ -231,7 +231,7 @@ class PackageManagementConfig(TypedDict):
     manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
 
 
-CopilotMode = Literal["ask", "manual"]
+CopilotMode = Literal["ask", "manual", "agent"]
 
 
 @mddoc

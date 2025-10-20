@@ -17,14 +17,16 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/language
 import "./merge-editor.css";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { includeOtherCellsAtom } from "@/core/ai/state";
+import { stagedAICellsAtom } from "@/core/ai/staged-cells";
+import { type AiCompletionCell, includeOtherCellsAtom } from "@/core/ai/state";
+import type { CellId } from "@/core/cells/ids";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { selectAllText } from "@/core/codemirror/utils";
@@ -46,15 +48,14 @@ const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
 interface Props {
+  cellId: CellId;
+  aiCompletionCell: AiCompletionCell | null;
   className?: string;
   currentCode: string;
   currentLanguageAdapter: LanguageAdapterType | undefined;
-  initialPrompt: string | undefined;
   onChange: (code: string) => void;
   declineChange: () => void;
   acceptChange: (rightHandCode: string) => void;
-  enabled: boolean;
-  triggerImmediately?: boolean;
   runCell: () => void;
   outputArea?: "above" | "below";
   /**
@@ -71,15 +72,14 @@ const baseExtensions = [customPythonLanguageSupport(), EditorView.lineWrapping];
  * This shows a left/right split with the original and modified code.
  */
 export const AiCompletionEditor: React.FC<Props> = ({
+  cellId,
+  aiCompletionCell,
   className,
   onChange,
-  initialPrompt,
   currentLanguageAdapter,
   currentCode,
   declineChange,
   acceptChange,
-  enabled,
-  triggerImmediately,
   runCell,
   outputArea,
   children,
@@ -93,6 +93,20 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const includeOtherCellsCheckboxId = useId();
 
   const runtimeManager = useRuntimeManager();
+
+  const {
+    initialPrompt,
+    triggerImmediately,
+    cellId: aiCellId,
+  } = aiCompletionCell ?? {};
+  const enabled = aiCellId === cellId;
+
+  const stagedAICells = useAtomValue(stagedAICellsAtom);
+  const updatedCell = stagedAICells.get(cellId);
+  let previousCellCode: string | undefined;
+  if (updatedCell?.type === "update_cell") {
+    previousCellCode = updatedCell.previousCode;
+  }
 
   const {
     completion: untrimmedCompletion,
@@ -184,6 +198,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const showCompletionBanner =
     enabled && triggerImmediately && (completion || isLoading);
+  // Set default output area to below if not specified
+  outputArea = outputArea ?? "below";
 
   const showInput = enabled && (!triggerImmediately || showInputPrompt);
 
@@ -207,6 +223,35 @@ export const AiCompletionEditor: React.FC<Props> = ({
       />
     </div>
   );
+
+  const renderMergeEditor = (originalCode: string, modifiedCode: string) => {
+    return (
+      <CodeMirrorMerge className="cm" theme={theme}>
+        <Original
+          onChange={onChange}
+          value={originalCode}
+          extensions={baseExtensions}
+        />
+        <Modified
+          value={modifiedCode}
+          editable={false}
+          readOnly={true}
+          extensions={baseExtensions}
+        />
+      </CodeMirrorMerge>
+    );
+  };
+
+  const renderCompletionEditor = () => {
+    if (completion && enabled) {
+      return renderMergeEditor(currentCode, completion);
+    }
+    // If there is no completion and there is previous cell code, it means there is an AI change to the cell.
+    // And we want to render the previous cell code as the original
+    if (!completion && previousCellCode) {
+      return renderMergeEditor(previousCellCode, currentCode);
+    }
+  };
 
   return (
     <div className={cn("flex flex-col w-full rounded-[inherit]", className)}>
@@ -324,24 +369,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
         )}
       </div>
       {outputArea === "above" && completionBanner}
-      {completion && enabled && (
-        <CodeMirrorMerge className="cm" theme={theme}>
-          <Original
-            onChange={onChange}
-            value={currentCode}
-            extensions={baseExtensions}
-          />
-          <Modified
-            value={completion}
-            editable={false}
-            readOnly={true}
-            extensions={baseExtensions}
-          />
-        </CodeMirrorMerge>
-      )}
-      {(!completion || !enabled) && children}
+      {renderCompletionEditor()}
+      {(!completion || !enabled) && !previousCellCode && children}
       {/* By default, show the completion banner below the code */}
-      {(outputArea === "below" || !outputArea) && completionBanner}
+      {outputArea === "below" && completionBanner}
     </div>
   );
 };

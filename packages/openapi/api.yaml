@@ -114,6 +114,7 @@ components:
           type: integer
         mode:
           enum:
+          - agent
           - ask
           - manual
         models:
@@ -3403,6 +3404,7 @@ components:
         mode:
           items:
             enum:
+            - agent
             - ask
             - manual
           type: array
