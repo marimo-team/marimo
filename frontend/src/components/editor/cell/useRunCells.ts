@@ -61,6 +61,10 @@ export function useRunCells() {
     }
 
     const notebook = getNotebook();
+
+    // Set a flag that a user has manually run at least one cell.
+    setHasRunAnyCell(true);
+
     return runCells({ cellIds, sendRun, prepareForRun, notebook });
   });
 
@@ -106,9 +110,6 @@ export async function runCells({
     codes.push(code);
     prepareForRun({ cellId });
   }
-
-  // Set a flag that a user has manually run at least one cell.
-  setHasRunAnyCell(true);
 
   // Send the run request to the Kernel
   await sendRun({ cellIds: cellIds, codes: codes }).catch((error) => {
