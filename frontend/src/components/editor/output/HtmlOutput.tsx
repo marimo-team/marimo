@@ -5,19 +5,20 @@ import { cn } from "../../../utils/cn";
 
 interface Props {
   html: string;
+  alwaysSanitizeHtml: boolean;
   inline?: boolean;
   className?: string;
 }
 
 export const HtmlOutput: React.FC<Props> = memo(
-  ({ html, inline = false, className }) => {
+  ({ html, inline = false, className, alwaysSanitizeHtml }) => {
     if (!html) {
       return null;
     }
 
     return (
       <div className={cn(className, { "inline-flex": inline, block: !inline })}>
-        {renderHTML({ html })}
+        {renderHTML({ html, alwaysSanitizeHtml })}
       </div>
     );
   },

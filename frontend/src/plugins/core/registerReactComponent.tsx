@@ -362,7 +362,8 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
      * Get the children of the element as React nodes.
      */
     private getChildren(): React.ReactNode {
-      return renderHTML({ html: this.innerHTML });
+      // We don't sanitize the HTML here because it could be an iframe inside of tabs or accordions
+      return renderHTML({ html: this.innerHTML, alwaysSanitizeHtml: false });
     }
 
     /**

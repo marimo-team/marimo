@@ -5,7 +5,7 @@ import os
 import weakref
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast, final
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
@@ -136,7 +136,6 @@ class Html(MIME):
         """A string of HTML representing this element."""
         return self._text
 
-    @final
     def _mime_(self) -> tuple[KnownMimeType, str]:
         no_js = os.getenv("MARIMO_NO_JS", "false").lower() == "true"
         if no_js and hasattr(self, "_repr_png_"):

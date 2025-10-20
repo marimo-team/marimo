@@ -30,6 +30,15 @@ def test_html_mime():
     }
 
 
+def test_html_mime_with_script():
+    # Test that Html returns text/html even with script tags
+    # This is expected behavior - Html is for raw HTML that may include scripts
+    html = Html('<p>Test</p><script>console.log("hello")</script>')
+    mime_type, content = html._mime_()
+    assert mime_type == "text/html"
+    assert '<script>console.log("hello")</script>' in content
+
+
 def test_html_format():
     html = Html("<p>\n  Hello\n</p>")
     assert f"{html}" == "<p> Hello </p>"
