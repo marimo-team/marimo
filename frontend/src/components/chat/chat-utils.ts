@@ -104,13 +104,56 @@ interface AddToolResult {
   output: unknown;
 }
 
+/**
+ * Extracts FileUIPart attachments from a tool result.
+ * This handles extracting attachments from tool results like RunStaleCellsTool
+ * which include cellAttachments and consoleAttachments in their output.
+ */
+function extractAttachmentsFromToolResult(result: unknown): FileUIPart[] {
+  if (!result || typeof result !== "object") {
+    return [];
+  }
+
+  const attachments: FileUIPart[] = [];
+
+  // Check if this is a RunStaleCellsTool result with cellsToOutput
+  if ("cellsToOutput" in result && result.cellsToOutput) {
+    const cellsToOutput = result.cellsToOutput as Record<
+      string,
+      {
+        cellAttachments?: FileUIPart[];
+        consoleAttachments?: FileUIPart[];
+      } | null
+    >;
+
+    // Extract all attachments from all cells
+    for (const cellOutput of Object.values(cellsToOutput)) {
+      if (!cellOutput) {
+        continue;
+      }
+      if (cellOutput.cellAttachments) {
+        attachments.push(...cellOutput.cellAttachments);
+      }
+      if (cellOutput.consoleAttachments) {
+        attachments.push(...cellOutput.consoleAttachments);
+      }
+    }
+  }
+
+  return attachments;
+}
+
 export async function handleToolCall({
   invokeAiTool,
   addToolResult,
   toolCall,
+  setMessages,
 }: {
   invokeAiTool: (request: InvokeAiToolRequest) => Promise<InvokeAiToolResponse>;
   addToolResult: (result: AddToolResult) => Promise<void>;
+  setMessages: (
+    messages: UIMessage[] | ((messages: UIMessage[]) => UIMessage[]),
+  ) => void;
   toolCall: {
     toolName: string;
     toolCallId: string;
@@ -129,6 +172,32 @@ export async function handleToolCall({
         toolCallId: toolCall.toolCallId,
         output: response.result || response.error,
       });
+
+      // // Extract and add any file attachments as separate parts
+      // const attachments = extractAttachmentsFromToolResult(response.result);
+      // if (attachments.length > 0) {
+      //   setMessages((prevMessages) => {
+      //     // Find the last message (should be from assistant with the tool result)
+      //     const lastMessageIndex = prevMessages.length - 1;
+      //     if (lastMessageIndex < 0) {
+      //       return prevMessages;
+      //     }
+
+      //     const lastMessage = prevMessages[lastMessageIndex];
+      //     if (lastMessage.role !== "assistant") {
+      //       return prevMessages;
+      //     }
+
+      //     // Add file parts to the message
+      //     return [
+      //       ...prevMessages.slice(0, lastMessageIndex),
+      //       {
+      //         ...lastMessage,
+      //         parts: [...lastMessage.parts, ...attachments],
+      //       },
+      //     ];
+      //   });
+      // }
     } else {
       // Invoke the backend/mcp tool
       const response = await invokeAiTool({

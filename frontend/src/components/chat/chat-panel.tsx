@@ -535,6 +535,7 @@ const ChatPanelBody = () => {
     regenerate,
     stop,
     addToolResult,
+    setMessages,
     id: chatId,
   } = useChat({
     id: activeChatId,
@@ -570,6 +571,7 @@ const ChatPanelBody = () => {
       await handleToolCall({
         invokeAiTool,
         addToolResult,
+        setMessages,
         toolCall: {
           toolName: toolCall.toolName,
           toolCallId: toolCall.toolCallId,

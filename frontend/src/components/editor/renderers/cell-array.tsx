@@ -14,10 +14,17 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 import { StartupLogsAlert } from "@/components/editor/alerts/startup-logs-alert";
+import { MarkdownIcon, PythonIcon } from "@/components/editor/cell/code/icons";
 import { Cell } from "@/components/editor/notebook-cell";
 import { PackageAlert } from "@/components/editor/package-alert";
 import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
@@ -35,6 +42,7 @@ import {
   useCellIds,
   useScrollKey,
 } from "../../../core/cells/cells";
+import type { CellId } from "../../../core/cells/ids";
 import { formatAll } from "../../../core/codemirror/format";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
@@ -221,22 +229,150 @@ const CellColumn: React.FC<{
           }
 
           return (
-            <Cell
-              key={cellId}
-              cellId={cellId}
-              theme={theme}
-              showPlaceholder={hasOnlyOneCell}
-              canDelete={!hasOnlyOneCell}
-              mode={mode}
-              userConfig={userConfig}
-              isCollapsed={column.isCollapsed(cellId)}
-              collapseCount={column.getCount(cellId)}
-              canMoveX={appConfig.width === "columns"}
-            />
+            <>
+              <Cell
+                key={cellId}
+                cellId={cellId}
+                theme={theme}
+                showPlaceholder={hasOnlyOneCell}
+                canDelete={!hasOnlyOneCell}
+                mode={mode}
+                userConfig={userConfig}
+                isCollapsed={column.isCollapsed(cellId)}
+                collapseCount={column.getCount(cellId)}
+                canMoveX={appConfig.width === "columns"}
+              />
+              <CellDivider cellId={cellId} columnId={columnId} />
+            </>
           );
         })}
       </SortableContext>
     </Column>
+  );
+};
+
+const CellDivider: React.FC<{
+  cellId: CellId;
+  columnId: CellColumnId;
+}> = ({ cellId }) => {
+  const { createNewCell } = useCellActions();
+  const isConnected = useAtomValue(isConnectedAtom);
+
+  const createCell = (code?: string, hideCode?: boolean) => {
+    maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+    createNewCell({
+      cellId,
+      before: false,
+      code,
+      hideCode,
+    });
+  };
+
+  return (
+    <div className="group/divider relative w-full flex items-center h-4 -my-4.5">
+      {/* Buttons that appear on hover */}
+      <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover/divider:opacity-100 transition-opacity duration-200 z-100">
+        <Tooltip content="Add Python cell" delayDuration={300} asChild={false}>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!isConnected}
+            onClick={() => createCell()}
+            className="h-7 px-2 rounded text-xs hover:bg-accent hover:text-accent-foreground"
+          >
+            <SquareCodeIcon className="size-3 mr-1" />
+            Python
+          </Button>
+        </Tooltip>
+
+        <Tooltip
+          content="Add Markdown cell"
+          delayDuration={300}
+          asChild={false}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!isConnected}
+            onClick={() =>
+              createCell(LanguageAdapters.markdown.defaultCode, true)
+            }
+            className="h-7 px-2 rounded text-xs hover:bg-accent hover:text-accent-foreground"
+          >
+            <SquareMIcon className="size-3 mr-1" />
+            Markdown
+          </Button>
+        </Tooltip>
+
+        <Tooltip content="Add SQL cell" delayDuration={300} asChild={false}>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!isConnected}
+            onClick={() => createCell(LanguageAdapters.sql.defaultCode)}
+            className="h-7 px-2 rounded text-xs hover:bg-accent hover:text-accent-foreground"
+          >
+            <DatabaseIcon className="size-3 mr-1" />
+            SQL
+          </Button>
+        </Tooltip>
+
+        <DropdownMenu>
+          <Tooltip
+            content="Choose cell type"
+            delayDuration={300}
+            asChild={false}
+          >
+            <DropdownMenuTrigger asChild={true}>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!isConnected}
+                className="h-7 px-2 rounded text-xs hover:bg-accent hover:text-accent-foreground"
+              >
+                <SparklesIcon className="size-3 mr-1" />
+                Dropdown
+              </Button>
+            </DropdownMenuTrigger>
+          </Tooltip>
+          <DropdownMenuContent>
+            <DropdownMenuItem
+              onSelect={(evt) => {
+                evt.stopPropagation();
+                createCell();
+              }}
+            >
+              <div className="mr-2 text-muted-foreground">
+                <PythonIcon />
+              </div>
+              Python
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(evt) => {
+                evt.stopPropagation();
+                createCell(LanguageAdapters.markdown.defaultCode, true);
+              }}
+            >
+              <div className="mr-2 text-muted-foreground">
+                <MarkdownIcon />
+              </div>
+              Markdown
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(evt) => {
+                evt.stopPropagation();
+                createCell(LanguageAdapters.sql.defaultCode);
+              }}
+            >
+              <div className="mr-2 text-muted-foreground">
+                <DatabaseIcon size={13} strokeWidth={1.5} />
+              </div>
+              SQL
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
   );
 };
 

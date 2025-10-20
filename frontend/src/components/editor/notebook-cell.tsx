@@ -4,8 +4,10 @@ import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
+  DatabaseIcon,
   HelpCircleIcon,
   MoreHorizontalIcon,
+  PlusIcon,
   SquareFunctionIcon,
 } from "lucide-react";
 import {
@@ -23,11 +25,19 @@ import { mergeProps } from "react-aria";
 import useEvent from "react-use-event-hook";
 import { StopButton } from "@/components/editor/cell/StopButton";
 import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { aiCompletionCellAtom } from "@/core/ai/state";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
+import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { canCollapseOutline } from "@/core/dom/outline";
 import { isErrorMime } from "@/core/mime";
@@ -37,6 +47,7 @@ import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
+import { Events } from "@/utils/events";
 import type { Milliseconds, Seconds } from "@/utils/time";
 import {
   type CellActions,
@@ -51,9 +62,11 @@ import type { CellId } from "../../core/cells/ids";
 import { isUninstantiated } from "../../core/cells/utils";
 import type { UserConfig } from "../../core/config/config-schema";
 import {
+  getConnectionTooltip,
   isAppConnected,
   isAppInteractionDisabled,
 } from "../../core/websocket/connection-utils";
+import type { WebSocketState } from "../../core/websocket/types";
 import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import type { Theme } from "../../theme/useTheme";
 import { derefNotNull } from "../../utils/dereference";
@@ -61,13 +74,14 @@ import { Functions } from "../../utils/functions";
 import { Logger } from "../../utils/Logger";
 import { renderShortcut } from "../shortcuts/renderShortcut";
 import { CellStatusComponent } from "./cell/CellStatus";
-import { CreateCellButton } from "./cell/CreateCellButton";
+// import { CreateCellButton } from "./cell/CreateCellButton"; // OLD PROTOTYPE
 import {
   CellActionsDropdown,
   type CellActionsDropdownHandle,
 } from "./cell/cell-actions";
 import { CellActionsContextMenu } from "./cell/cell-context-menu";
 import { CellEditor } from "./cell/code/cell-editor";
+import { MarkdownIcon, PythonIcon } from "./cell/code/icons";
 import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { DeleteButton } from "./cell/DeleteButton";
 import { PendingDeleteConfirmation } from "./cell/PendingDeleteConfirmation";
@@ -582,7 +596,10 @@ const EditableCellComponent = ({
             {...cellDomProps(cellId, cellData.name)}
           >
             {cellOutput === "above" && outputArea}
-            <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
+            <div
+              className={cn("tray group/cell")}
+              data-hidden={isMarkdownCodeHidden}
+            >
               <StagedAICellBackground cellId={cellId} />
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
@@ -818,6 +835,115 @@ const CellRightSideActions = memo(
 
 CellRightSideActions.displayName = "CellRightSideActions";
 
+const SubtleCellButtons = ({
+  connectionState,
+  onCreateAbove,
+  onCreateBelow,
+  createAboveTooltip,
+  createBelowTooltip,
+}: {
+  connectionState: WebSocketState;
+  onCreateAbove:
+    | ((opts: { code: string; hideCode?: boolean }) => void)
+    | undefined;
+  onCreateBelow:
+    | ((opts: { code: string; hideCode?: boolean }) => void)
+    | undefined;
+  createAboveTooltip: React.ReactNode;
+  createBelowTooltip: React.ReactNode;
+}) => {
+  const { createNewCell } = useCellActions();
+  const disabled = isAppInteractionDisabled(connectionState);
+  const baseAboveTooltip =
+    getConnectionTooltip(connectionState) || createAboveTooltip;
+  const baseBelowTooltip =
+    getConnectionTooltip(connectionState) || createBelowTooltip;
+
+  return (
+    <div className="flex flex-col items-center h-full opacity-0 group-hover/cell:opacity-100 transition-opacity duration-200">
+      {/* Top plus button with dropdown */}
+      <DropdownMenu>
+        <Tooltip content={baseAboveTooltip}>
+          <DropdownMenuTrigger asChild={true}>
+            <button
+              disabled={disabled}
+              onMouseDown={Events.preventFocus}
+              className={cn(
+                "w-4 h-4 rounded-full flex items-center justify-center",
+                "hover:bg-accent hover:text-accent-foreground transition-colors",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                "text-muted-foreground",
+              )}
+            >
+              <PlusIcon size={12} strokeWidth={2} />
+            </button>
+          </DropdownMenuTrigger>
+        </Tooltip>
+        <DropdownMenuContent>
+          <DropdownMenuItem
+            onSelect={(evt) => {
+              evt.stopPropagation();
+              onCreateAbove?.({ code: "" });
+            }}
+          >
+            <div className="mr-2 text-muted-foreground">
+              <PythonIcon />
+            </div>
+            Python
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={(evt) => {
+              evt.stopPropagation();
+              maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+              onCreateAbove?.({
+                code: LanguageAdapters.markdown.defaultCode,
+                hideCode: true,
+              });
+            }}
+          >
+            <div className="mr-2 text-muted-foreground">
+              <MarkdownIcon />
+            </div>
+            Markdown
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={(evt) => {
+              evt.stopPropagation();
+              maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+              onCreateAbove?.({ code: LanguageAdapters.sql.defaultCode });
+            }}
+          >
+            <div className="mr-2 text-muted-foreground">
+              <DatabaseIcon size={13} strokeWidth={1.5} />
+            </div>
+            SQL
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Thin connecting bar */}
+      <div className="flex-1 w-px bg-border my-1" />
+
+      {/* Bottom plus button */}
+      <Tooltip content={baseBelowTooltip}>
+        <button
+          onClick={() => onCreateBelow?.({ code: "" })}
+          disabled={disabled}
+          onMouseDown={Events.preventFocus}
+          className={cn(
+            "w-4 h-4 rounded-full flex items-center justify-center",
+            "hover:bg-accent hover:text-accent-foreground transition-colors",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
+            "text-muted-foreground",
+          )}
+        >
+          <PlusIcon size={12} strokeWidth={2} />
+        </button>
+      </Tooltip>
+    </div>
+  );
+};
+
 const CellLeftSideActions = memo(
   (props: {
     className?: string;
@@ -841,11 +967,12 @@ const CellLeftSideActions = memo(
     return (
       <div
         className={cn(
-          "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
+          "absolute flex flex-col gap-[2px] justify-center h-full left-[-20px] z-20",
           className,
         )}
       >
-        <CreateCellButton
+        {/* OLD PROTOTYPE - Commented out */}
+        {/* <CreateCellButton
           tooltipContent={renderShortcut("cell.createAbove")}
           connectionState={connection.state}
           onClick={isConnected ? createAbove : undefined}
@@ -855,6 +982,15 @@ const CellLeftSideActions = memo(
           tooltipContent={renderShortcut("cell.createBelow")}
           connectionState={connection.state}
           onClick={isConnected ? createBelow : undefined}
+        /> */}
+
+        {/* NEW PROTOTYPE - Subtle plus icons with thin bar */}
+        <SubtleCellButtons
+          connectionState={connection.state}
+          onCreateAbove={isConnected ? createAbove : undefined}
+          onCreateBelow={isConnected ? createBelow : undefined}
+          createAboveTooltip={renderShortcut("cell.createAbove")}
+          createBelowTooltip={renderShortcut("cell.createBelow")}
         />
       </div>
     );
@@ -1076,7 +1212,7 @@ const SetupCellComponent = ({
           tabIndex={-1}
           data-setup-cell={true}
         >
-          <div className={cn("tray")} data-hidden={!isCellCodeShown}>
+          <div className={cn("tray group/cell")} data-hidden={!isCellCodeShown}>
             <div className="absolute right-2 -top-4 z-10">
               <CellToolbar
                 edited={cellData.edited}
