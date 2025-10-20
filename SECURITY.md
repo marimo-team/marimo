@@ -4,7 +4,7 @@
 
 To report a security vulnerability, [please draft an advisory through
 Github](https://github.com/marimo-team/marimo/security/advisories/new), or
-email the marimo team; engineering [at] marimo [dot] io.
+email the marimo team; security [at] marimo [dot] io.
 
 Advisories will be escalated to a CVE and/or a general advisory issued if end-users
 are directly impacted. Attribution for any actionable report will be provided
@@ -21,3 +21,4 @@ acknowledge the contributions of the following individuals for their reporting:
  - @s-celles
  - @acepace
  - @devgi
+ - @W-M-T (Ward Theunisse)
