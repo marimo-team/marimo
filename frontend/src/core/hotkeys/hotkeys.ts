@@ -239,6 +239,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "F2",
   },
+  "cell.duplicateSelection": {
+    name: "Duplicate selection",
+    group: "Editing",
+    key: "Ctrl-Shift-ArrowDown",
+  },
 
   // Markdown
   "markdown.bold": {
