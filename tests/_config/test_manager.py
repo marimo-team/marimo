@@ -5,8 +5,11 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 from unittest.mock import patch
 
+import pytest
+
 from marimo._config.config import PartialMarimoConfig, merge_default_config
 from marimo._config.manager import (
+    EnvConfigManager,
     MarimoConfigManager,
     MarimoConfigReaderWithOverrides,
     ScriptConfigManager,
@@ -390,3 +393,37 @@ def test_project_config_manager_resolve_invalid_custom_css(
 
     # Verify invalid custom_css is not modified
     assert config["display"]["custom_css"] == "not_a_list"
+
+
+def test_env_config_manager_auto_instantiate_true(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that EnvConfigManager correctly loads auto_instantiate from env"""
+    monkeypatch.setenv("_MARIMO_CONFIG_OVERLOAD_AUTO_INSTANTIATE", "true")
+    manager = EnvConfigManager()
+    config = manager.get_config(hide_secrets=False)
+    assert config == {"runtime": {"auto_instantiate": True}}
+
+
+@pytest.mark.parametrize(
+    (
+        "env_value",
+        "expected",
+    ),
+    [("true", True), ("True", True), ("false", False), ("False", False)],
+)
+def test_env_config_manager_boolean_case_insensitive(
+    monkeypatch: pytest.MonkeyPatch, env_value: str, expected: bool
+) -> None:
+    """Test boolean parsing is case-insensitive"""
+    monkeypatch.setenv("_MARIMO_CONFIG_OVERLOAD_AUTO_INSTANTIATE", env_value)
+    manager = EnvConfigManager()
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["auto_instantiate"] is expected
+
+
+def test_env_config_manager_no_env_vars() -> None:
+    """Test that missing env vars return empty config"""
+    manager = EnvConfigManager()
+    config = manager.get_config(hide_secrets=False)
+    assert config == {}

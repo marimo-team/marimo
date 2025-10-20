@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from marimo._ast.app_config import _AppConfig
+from marimo._ast.app_config import _AppConfig, overloads_from_env
 
 
 def test_app_config_default():
@@ -99,3 +99,12 @@ def test_app_config_auto_download(
 ) -> None:
     config = _AppConfig(auto_download=auto_download)
     assert config.auto_download == expected
+
+
+def test_app_config_overloads_from_env_with_none_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that env var value 'NoNe' (case-insensitive) loads as None"""
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_APP_TITLE", "NoNe")
+    config = overloads_from_env()
+    assert config.app_title is None
