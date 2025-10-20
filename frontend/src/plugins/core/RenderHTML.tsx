@@ -141,11 +141,17 @@ const CopyableCode = ({ children }: { children: ReactNode }) => {
 
 export const renderHTML = ({ html, additionalReplacements = [] }: Options) => {
   return (
-    <RenderHTML html={html} additionalReplacements={additionalReplacements} />
+    <RenderHTMLComponent
+      html={html}
+      additionalReplacements={additionalReplacements}
+    />
   );
 };
 
-const RenderHTML = ({ html, additionalReplacements = [] }: Options) => {
+const RenderHTMLComponent = ({
+  html,
+  additionalReplacements = [],
+}: Options) => {
   const shouldSanitizeHtml = useSanitizeHtml();
   const sanitizedHtml = useMemo(() => {
     if (shouldSanitizeHtml) {
@@ -154,6 +160,10 @@ const RenderHTML = ({ html, additionalReplacements = [] }: Options) => {
     return html;
   }, [html, shouldSanitizeHtml]);
 
+  return parseHtml({ html: sanitizedHtml, additionalReplacements });
+};
+
+function parseHtml({ html, additionalReplacements = [] }: Options) {
   const renderFunctions: ReplacementFn[] = [
     replaceValidTags,
     replaceValidIframes,
@@ -167,7 +177,7 @@ const RenderHTML = ({ html, additionalReplacements = [] }: Options) => {
     removeWrappingHtmlTags,
   ];
 
-  return parse(sanitizedHtml, {
+  return parse(html, {
     replace: (domNode: DOMNode, index: number) => {
       for (const renderFunction of renderFunctions) {
         const replacement = renderFunction(domNode, index);
@@ -187,4 +197,8 @@ const RenderHTML = ({ html, additionalReplacements = [] }: Options) => {
       return reactNode as JSX.Element;
     },
   });
+}
+
+export const visibleForTesting = {
+  parseHtml,
 };

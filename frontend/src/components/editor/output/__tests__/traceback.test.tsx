@@ -1,10 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { render } from "@testing-library/react";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { Tracebacks } from "@/__mocks__/tracebacks";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
+import { initialModeAtom } from "@/core/mode";
+import { store } from "@/core/state/jotai";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   MarimoTracebackOutput,
@@ -17,6 +19,7 @@ const cellId = "1" as CellId;
 describe("traceback component", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    store.set(initialModeAtom, "edit");
   });
 
   test("extracts cell-link", () => {
@@ -58,6 +61,10 @@ describe("traceback component", () => {
 });
 
 describe("traceback replacement", () => {
+  beforeAll(() => {
+    store.set(initialModeAtom, "edit");
+  });
+
   test("replaces File with Cell", () => {
     const traceback = renderHTML({
       html: Tracebacks.assertion,

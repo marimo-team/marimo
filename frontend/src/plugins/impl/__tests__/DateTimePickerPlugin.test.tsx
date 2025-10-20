@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { initialModeAtom } from "@/core/mode";
+import { store } from "@/core/state/jotai";
 import type { IPluginProps } from "../../types";
 import { DateTimePickerPlugin } from "../DateTimePickerPlugin";
 
@@ -13,6 +15,11 @@ interface DateTimeData {
 }
 
 describe("DateTimePickerPlugin", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    store.set(initialModeAtom, "edit");
+  });
+
   it("should render when initial value is not provided", () => {
     const plugin = new DateTimePickerPlugin();
     // Create a host element as required by IPluginProps
