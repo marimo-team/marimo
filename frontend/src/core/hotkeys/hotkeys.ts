@@ -242,7 +242,7 @@ const DEFAULT_HOT_KEY = {
   "cell.duplicateSelection": {
     name: "Duplicate selection",
     group: "Editing",
-    key: "Ctrl-Shift-ArrowDown",
+    key: "Alt-Shift-ArrowDown",
     editable: false,
   },
 
