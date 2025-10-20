@@ -39,6 +39,8 @@ from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
 
 TIMEOUT = 30
+# Long-thinking models can take a long time to complete, so we set a longer timeout
+LONG_THINKING_TIMEOUT = 120
 
 if TYPE_CHECKING:
     from anthropic import (  # type: ignore[import-not-found]
@@ -536,8 +538,7 @@ class OpenAIProvider(
                 ),
             ),
             "stream": True,
-            # Long-thinking models can take a long time to complete, so we set a longer timeout
-            "timeout": 120
+            "timeout": LONG_THINKING_TIMEOUT
             if self._is_reasoning_model(self.model)
             else TIMEOUT,
         }
