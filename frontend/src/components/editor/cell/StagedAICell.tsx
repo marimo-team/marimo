@@ -12,6 +12,7 @@ import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { CompletionActionsCellFooter } from "../ai/completion-handlers";
+import { useRunCell } from "./useRunCells";
 
 export const StagedAICellBackground: React.FC<{
   cellId: CellId;
@@ -38,6 +39,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   const store = useStore();
   const stagedAICells = useAtomValue(stagedAICellsAtom);
   const stagedAiCell = stagedAICells.get(cellId);
+  const runCell = useRunCell(cellId);
 
   const { deleteStagedCell, removeStagedCell } = useStagedCells(store);
 
@@ -58,6 +60,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
         onAccept={() => handleCompletion("accept")}
         onDecline={() => handleCompletion("reject")}
         size="xs"
+        runCell={runCell}
       />
     </div>
   );

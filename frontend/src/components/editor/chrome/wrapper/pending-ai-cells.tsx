@@ -13,6 +13,7 @@ import {
   RejectCompletionButton,
 } from "../../ai/completion-handlers";
 import { acceptStagedCell, rejectStagedCell } from "../../cell/StagedAICell";
+import { useRunCells } from "../../cell/useRunCells";
 import { scrollAndHighlightCell } from "../../links/cell-link";
 
 export const PendingAICells: React.FC = () => {
@@ -22,6 +23,7 @@ export const PendingAICells: React.FC = () => {
   const listStagedCells = [...stagedAiCells.keys()];
   const store = useStore();
   const { deleteStagedCell, removeStagedCell } = useStagedCells(store);
+  const runCell = useRunCells();
 
   if (stagedAiCells.size === 0) {
     return null;
@@ -53,6 +55,10 @@ export const PendingAICells: React.FC = () => {
     }
   };
 
+  const runAllCells = () => {
+    runCell(listStagedCells);
+  };
+
   const cyanShadow = "shadow-[0_0_6px_0_#00A2C733]";
 
   return (
@@ -82,14 +88,15 @@ export const PendingAICells: React.FC = () => {
 
       <div className="flex items-center gap-1.5">
         <AcceptCompletionButton
-          text="Accept all"
+          multipleCompletions={true}
           onAccept={acceptAllCompletions}
           isLoading={false}
           size="xs"
           buttonStyles="h-6.5"
+          runCell={runAllCells}
         />
         <RejectCompletionButton
-          text="Reject all"
+          multipleCompletions={true}
           onDecline={rejectAllCompletions}
           size="xs"
           className="h-6.5"

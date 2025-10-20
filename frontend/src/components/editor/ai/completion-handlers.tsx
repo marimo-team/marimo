@@ -98,13 +98,15 @@ export const CompletionActionsCellFooter: React.FC<{
   onDecline: () => void;
   size?: "xs" | "sm";
   multipleCompletions?: boolean;
-}> = ({ isLoading, onAccept, onDecline }) => {
+  runCell?: () => void;
+}> = ({ isLoading, onAccept, onDecline, runCell }) => {
   return (
     <>
       <AcceptCompletionButton
         isLoading={isLoading}
         onAccept={onAccept}
         size="xs"
+        runCell={runCell}
       />
       <RejectCompletionButton onDecline={onDecline} size="xs" />
     </>
@@ -114,7 +116,7 @@ export const CompletionActionsCellFooter: React.FC<{
 export const AcceptCompletionButton: React.FC<{
   isLoading: boolean;
   onAccept: () => void;
-  text?: string;
+  multipleCompletions?: boolean;
   size?: "xs" | "sm";
   buttonStyles?: string;
   playButtonStyles?: string;
@@ -123,7 +125,7 @@ export const AcceptCompletionButton: React.FC<{
 }> = ({
   isLoading,
   onAccept,
-  text = "Accept",
+  multipleCompletions = false,
   size = "sm",
   buttonStyles,
   acceptShortcut,
@@ -136,6 +138,8 @@ export const AcceptCompletionButton: React.FC<{
       runCell();
     }
   };
+
+  const text = multipleCompletions ? "Accept all" : "Accept";
 
   const baseClasses = `h-6 text-(--grass-11) bg-(--grass-3)/60
     hover:bg-(--grass-3) dark:bg-(--grass-4)/80 dark:hover:bg-(--grass-3) font-semibold
@@ -157,7 +161,13 @@ export const AcceptCompletionButton: React.FC<{
             <MinimalHotkeys className="ml-1 inline" shortcut={acceptShortcut} />
           )}
         </Button>
-        <Tooltip content="Accept and run cell">
+        <Tooltip
+          content={
+            multipleCompletions
+              ? "Accept and run all cells"
+              : "Accept and run cell"
+          }
+        >
           <Button
             variant="text"
             size={size}
@@ -190,13 +200,13 @@ export const AcceptCompletionButton: React.FC<{
 
 export const RejectCompletionButton: React.FC<{
   onDecline: () => void;
-  text?: string;
+  multipleCompletions?: boolean;
   size?: "xs" | "sm";
   className?: string;
   declineShortcut?: string;
 }> = ({
   onDecline,
-  text = "Reject",
+  multipleCompletions = false,
   size = "sm",
   className,
   declineShortcut,
@@ -211,7 +221,7 @@ export const RejectCompletionButton: React.FC<{
     active:bg-(--red-5) dark:active:bg-(--red-4)
     border-(--red-6) border hover:shadow-xs ${className}`}
     >
-      {text}
+      Reject{multipleCompletions && " all"}
       {declineShortcut && (
         <MinimalHotkeys className="ml-1 inline" shortcut={declineShortcut} />
       )}
