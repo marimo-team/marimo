@@ -93,6 +93,7 @@ export const PendingAICells: React.FC = () => {
           isLoading={false}
           size="xs"
           buttonStyles="h-6.5"
+          playButtonStyles="h-6.5"
           runCell={runAllCells}
         />
         <RejectCompletionButton
