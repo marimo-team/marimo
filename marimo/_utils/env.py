@@ -11,7 +11,7 @@ def env_to_value(key: str) -> tuple[str | None | list[str] | bool] | None:
         if value.lower() in ("true", "false"):
             return (value.lower() == "true",)
         elif value.startswith("[") and value.endswith("]"):
-            return (os.environ[key].split(","),)
+            return (os.environ[key][1:-1].split(","),)
         elif value.lower() == "none":
             return None
         return (os.environ[key],)
