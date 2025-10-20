@@ -104,23 +104,23 @@ describe("CellOutputContextProvider", () => {
       const textItem = items.find((item) => item.data.cellId === "cell1");
       const mediaItem = items.find((item) => item.data.cellId === "cell2");
 
-      expect(textItem?.data.outputType).toBe("text");
-      expect(mediaItem?.data.outputType).toBe("media");
+      expect(textItem?.data.cellOutput.outputType).toBe("text");
+      expect(mediaItem?.data.cellOutput.outputType).toBe("media");
     });
 
     it("should process text content correctly", () => {
       const items = provider.getItems();
       const textItem = items.find((item) => item.data.cellId === "cell1");
 
-      expect(textItem?.data.processedContent).toBe("hello world");
+      expect(textItem?.data.cellOutput.processedContent).toBe("hello world");
     });
 
     it("should mark media items for download when no direct URL available", () => {
       const items = provider.getItems();
       const mediaItem = items.find((item) => item.data.cellId === "cell2");
 
-      expect(mediaItem?.data.shouldDownloadImage).toBe(true);
-      expect(mediaItem?.data.imageUrl).toBeUndefined();
+      expect(mediaItem?.data.cellOutput.shouldDownloadImage).toBe(true);
+      expect(mediaItem?.data.cellOutput.imageUrl).toBeUndefined();
     });
 
     it("should include cell code and names", () => {
@@ -156,6 +156,8 @@ describe("CellOutputContextProvider", () => {
       expect(context).toContain("print('hello world')");
       expect(context).toContain("Output:");
       expect(context).toContain("hello world");
+
+      expect(context).toMatchSnapshot("text-output-context");
     });
 
     it("should format media output context correctly", () => {
@@ -173,6 +175,8 @@ describe("CellOutputContextProvider", () => {
       expect(context).toContain("Cell Code:");
       expect(context).toContain("import matplotlib.pyplot as plt");
       expect(context).toContain("Media Output: Contains image/png content");
+
+      expect(context).toMatchSnapshot("media-output-context");
     });
   });
 
@@ -239,7 +243,7 @@ describe("Cell output utility functions", () => {
         provider = new CellOutputContextProvider(mockStore);
         const items = provider.getItems();
 
-        expect(items[0]?.data.outputType).toBe(testCase.expected);
+        expect(items[0]?.data.cellOutput.outputType).toBe(testCase.expected);
       }
     });
 
@@ -274,7 +278,7 @@ describe("Cell output utility functions", () => {
         provider = new CellOutputContextProvider(mockStore);
         const items = provider.getItems();
 
-        expect(items[0]?.data.outputType).toBe(testCase.expected);
+        expect(items[0]?.data.cellOutput.outputType).toBe(testCase.expected);
       }
     });
 
@@ -308,7 +312,7 @@ describe("Cell output utility functions", () => {
         provider = new CellOutputContextProvider(mockStore);
         const items = provider.getItems();
 
-        expect(items[0]?.data.outputType).toBe(testCase.expected);
+        expect(items[0]?.data.cellOutput.outputType).toBe(testCase.expected);
       }
     });
   });
@@ -371,7 +375,7 @@ describe("Cell output utility functions", () => {
       provider = new CellOutputContextProvider(mockStore);
       const items = provider.getItems();
 
-      expect(items[0]?.data.processedContent).toBe("Hello world!");
+      expect(items[0]?.data.cellOutput.processedContent).toBe("Hello world!");
     });
   });
 });

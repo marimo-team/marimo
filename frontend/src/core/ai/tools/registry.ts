@@ -3,9 +3,20 @@
 import type { components } from "@marimo-team/marimo-api";
 import { Memoize } from "typescript-memoize";
 import { type ZodObject, z } from "zod";
+import {
+  createNotebookActions,
+  notebookAtom,
+  notebookReducer,
+} from "@/core/cells/cells";
 import { store } from "@/core/state/jotai";
+import {
+  createStagedAICellsActions,
+  stagedAICellsAtom,
+  stagedAICellsReducer,
+} from "../staged-cells";
 import { type AiTool, ToolExecutionError } from "./base";
 import { EditNotebookTool } from "./edit-notebook-tool";
+import { RunStaleCellsTool } from "./run-cells-tool";
 import { formatToolDescription } from "./utils";
 
 export type AnyZodObject = ZodObject<z.ZodRawShape>;
@@ -124,7 +135,16 @@ export class FrontendToolRegistry {
   }
 }
 
+// Share actions across all tools for performance
+const notebookActions = createNotebookActions((action) => {
+  store.set(notebookAtom, (state) => notebookReducer(state, action));
+});
+
+const stagedAICellsActions = createStagedAICellsActions((action) => {
+  store.set(stagedAICellsAtom, (state) => stagedAICellsReducer(state, action));
+});
+
 export const FRONTEND_TOOL_REGISTRY = new FrontendToolRegistry([
-  new EditNotebookTool(store),
-  // ADD MORE TOOLS HERE
+  new EditNotebookTool(store, notebookActions, stagedAICellsActions),
+  new RunStaleCellsTool(store, notebookActions),
 ]);

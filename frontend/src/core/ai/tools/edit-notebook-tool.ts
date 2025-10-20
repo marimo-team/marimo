@@ -4,21 +4,16 @@ import type { EditorView } from "@codemirror/view";
 import { z } from "zod";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
 import {
-  createNotebookActions,
+  type createNotebookActions,
   type CellPosition as NotebookCellPosition,
   type NotebookState,
   notebookAtom,
-  notebookReducer,
 } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import type { JotaiStore } from "@/core/state/jotai";
 import type { CellColumnId } from "@/utils/id-tree";
-import {
-  createStagedAICellsActions,
-  stagedAICellsAtom,
-  stagedAICellsReducer,
-} from "../staged-cells";
+import type { createStagedAICellsActions } from "../staged-cells";
 import {
   type AiTool,
   type ToolDescription,
@@ -93,27 +88,23 @@ export type EditType = EditOperation["type"];
 export class EditNotebookTool
   implements AiTool<EditNotebookInput, ToolOutputBase>
 {
-  private readonly store: JotaiStore;
-  private readonly notebookActions: ReturnType<typeof createNotebookActions>;
-  private readonly stagedAICellsActions: ReturnType<
-    typeof createStagedAICellsActions
-  >;
+  private store: JotaiStore;
+  private notebookActions: ReturnType<typeof createNotebookActions>;
+  private stagedAICellsActions: ReturnType<typeof createStagedAICellsActions>;
   readonly name = "edit_notebook_tool";
   readonly description = description;
   readonly schema = editNotebookSchema;
   readonly outputSchema = toolOutputBaseSchema;
   readonly mode: CopilotMode[] = ["agent"];
 
-  constructor(store: JotaiStore) {
+  constructor(
+    store: JotaiStore,
+    notebookActions: ReturnType<typeof createNotebookActions>,
+    stagedAICellsActions: ReturnType<typeof createStagedAICellsActions>,
+  ) {
     this.store = store;
-    this.notebookActions = createNotebookActions((action) => {
-      this.store.set(notebookAtom, (state) => notebookReducer(state, action));
-    });
-    this.stagedAICellsActions = createStagedAICellsActions((action) => {
-      this.store.set(stagedAICellsAtom, (state) =>
-        stagedAICellsReducer(state, action),
-      );
-    });
+    this.notebookActions = notebookActions;
+    this.stagedAICellsActions = stagedAICellsActions;
   }
 
   handler = async ({ edit }: EditNotebookInput): Promise<ToolOutputBase> => {

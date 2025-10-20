@@ -53,6 +53,9 @@ export class ToolExecutionError extends Error {
   }
 }
 
+// Can be any input
+export type EmptyToolInput = unknown;
+
 /**
  * Base interface for tool output responses.
  * Mirrors the SuccessResult dataclass from marimo/_ai/_tools/types.py
