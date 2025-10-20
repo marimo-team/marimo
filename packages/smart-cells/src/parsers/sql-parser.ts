@@ -19,7 +19,7 @@ import {
 export interface SQLMetadata {
   dataframeName: string;
   quotePrefix: QuotePrefixKind;
-  commentLines: string[];
+  commentLines: readonly string[];
   showOutput: boolean;
   engine: string;
 }
