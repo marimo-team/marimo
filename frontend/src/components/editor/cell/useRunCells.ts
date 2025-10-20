@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { closeCompletion } from "@codemirror/autocomplete";
+import { atom, useSetAtom } from "jotai";
 import useEvent from "react-use-event-hook";
 import {
   getNotebook,
@@ -14,6 +15,8 @@ import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { useRequestClient } from "@/core/network/requests";
 import type { RunRequest } from "@/core/network/types";
 import { Logger } from "@/utils/Logger";
+
+export const hasRunAnyCellAtom = atom<boolean>(false);
 
 /**
  * Creates a function that runs all cells that have been edited or interrupted.
@@ -50,6 +53,7 @@ export function useRunAllCells() {
 export function useRunCells() {
   const { prepareForRun } = useCellActions();
   const { sendRun } = useRequestClient();
+  const setHasRunAnyCell = useSetAtom(hasRunAnyCellAtom);
 
   const runCellsMemoized = useEvent(async (cellIds: CellId[]) => {
     if (cellIds.length === 0) {
@@ -102,6 +106,9 @@ export async function runCells({
     codes.push(code);
     prepareForRun({ cellId });
   }
+
+  // Set a flag that a user has manually run at least one cell.
+  setHasRunAnyCell(true);
 
   // Send the run request to the Kernel
   await sendRun({ cellIds: cellIds, codes: codes }).catch((error) => {

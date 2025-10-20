@@ -5,8 +5,15 @@ import parse, {
   Element,
   type HTMLReactParserOptions,
 } from "html-react-parser";
-import React, { isValidElement, type JSX, type ReactNode, useId } from "react";
+import React, {
+  isValidElement,
+  type JSX,
+  type ReactNode,
+  useId,
+  useMemo,
+} from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
 
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
 type TransformFn = NonNullable<HTMLReactParserOptions["transform"]>;
@@ -133,6 +140,20 @@ const CopyableCode = ({ children }: { children: ReactNode }) => {
 };
 
 export const renderHTML = ({ html, additionalReplacements = [] }: Options) => {
+  return (
+    <RenderHTML html={html} additionalReplacements={additionalReplacements} />
+  );
+};
+
+const RenderHTML = ({ html, additionalReplacements = [] }: Options) => {
+  const shouldSanitizeHtml = useSanitizeHtml();
+  const sanitizedHtml = useMemo(() => {
+    if (shouldSanitizeHtml) {
+      return sanitizeHtml(html);
+    }
+    return html;
+  }, [html, shouldSanitizeHtml]);
+
   const renderFunctions: ReplacementFn[] = [
     replaceValidTags,
     replaceValidIframes,
@@ -146,7 +167,7 @@ export const renderHTML = ({ html, additionalReplacements = [] }: Options) => {
     removeWrappingHtmlTags,
   ];
 
-  return parse(html, {
+  return parse(sanitizedHtml, {
     replace: (domNode: DOMNode, index: number) => {
       for (const renderFunction of renderFunctions) {
         const replacement = renderFunction(domNode, index);
