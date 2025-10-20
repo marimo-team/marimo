@@ -437,7 +437,6 @@ class OpenAIProvider(
     DEFAULT_REASONING_EFFORT = "medium"
 
     def _is_reasoning_model(self, model: str) -> bool:
-        # only o-series models support reasoning
         return model.startswith("o") or model.startswith("gpt-5")
 
     def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
@@ -537,7 +536,10 @@ class OpenAIProvider(
                 ),
             ),
             "stream": True,
-            "timeout": TIMEOUT,
+            # Long-thinking models can take a long time to complete, so we set a longer timeout
+            "timeout": 120
+            if self._is_reasoning_model(self.model)
+            else TIMEOUT,
         }
         if tools:
             all_tools = tools + additional_tools
