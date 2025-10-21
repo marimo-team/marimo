@@ -91,13 +91,6 @@ class AppFileManager:
                 detail=f"File {filename} already exists",
             )
 
-    def _assert_path_is_the_same(self, filename: str) -> None:
-        if self.filename is not None and not self._is_same_path(filename):
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Save handler cannot rename files.",
-            )
-
     def _create_parent_directories(self, filename: str) -> None:
         try:
             pathlib.Path(filename).parent.mkdir(parents=True, exist_ok=True)
