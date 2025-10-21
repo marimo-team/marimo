@@ -8,6 +8,7 @@ from marimo import _loggers
 from marimo._config.config import CacheConfig, StoreKey
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._save.stores.file import FileStore
+from marimo._save.stores.memory import MemoryStore
 from marimo._save.stores.redis import RedisStore
 from marimo._save.stores.rest import RestStore
 from marimo._save.stores.store import Store, StoreType
@@ -18,6 +19,7 @@ LOGGER = _loggers.marimo_logger()
 
 CACHE_STORES: dict[StoreKey, StoreType] = {
     "file": FileStore,
+    "memory": MemoryStore,
     "redis": RedisStore,
     "rest": RestStore,
     "tiered": TieredStore,
@@ -82,6 +84,7 @@ __all__ = [
     "CACHE_STORES",
     "DEFAULT_STORE",
     "FileStore",
+    "MemoryStore",
     "RedisStore",
     "RestStore",
     "TieredStore",

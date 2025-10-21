@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
 import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
 import { type Seconds, Time } from "@/utils/time";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { parseOutline } from "../dom/outline";
@@ -23,6 +24,7 @@ export function transitionCell(
       nextCell.errored = false;
       nextCell.runElapsedTimeMs = null;
       nextCell.debuggerActive = false;
+      nextCell.cache = null;
       // We intentionally don't update lastCodeRun, since the kernel queues
       // whatever code was last registered with it, which might not match
       // the cell's current code if the user modified it.
@@ -74,6 +76,11 @@ export function transitionCell(
   nextCell.staleInputs = message.stale_inputs ?? nextCell.staleInputs;
   nextCell.status = message.status ?? nextCell.status;
   nextCell.serialization = message.serialization;
+  nextCell.cache = message.cache ?? nextCell.cache;
+
+  if (message.cache != null) {
+    Logger.log(`[cache] Cell ${message.cell_id} cache: ${message.cache}`);
+  }
 
   let didInterruptFromThisMessage = false;
 

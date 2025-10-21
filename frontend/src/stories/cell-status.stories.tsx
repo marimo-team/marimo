@@ -5,6 +5,7 @@ import {
   type CellStatusComponentProps,
 } from "@/components/editor/cell/CellStatus";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { Seconds } from "@/utils/time";
 
 const meta: Meta<typeof CellStatusComponent> = {
   title: "CellStatusComponent",
@@ -142,4 +143,141 @@ EditedAndStale.args = {
   interrupted: false,
   disabled: false,
   elapsedTime: null,
+};
+
+export const Uninstantiated = Template.bind({});
+Uninstantiated.args = {
+  editing: true,
+  status: "idle",
+  edited: false,
+  interrupted: false,
+  disabled: false,
+  staleInputs: false,
+  uninstantiated: true,
+  elapsedTime: null,
+};
+
+export const StaleInputs = Template.bind({});
+StaleInputs.args = {
+  editing: true,
+  status: "idle",
+  edited: false,
+  interrupted: false,
+  disabled: false,
+  staleInputs: true,
+  uninstantiated: false,
+  elapsedTime: 250,
+};
+
+export const IdleWithElapsedTime = Template.bind({});
+IdleWithElapsedTime.args = {
+  editing: true,
+  status: "idle",
+  edited: false,
+  interrupted: false,
+  disabled: false,
+  staleInputs: false,
+  uninstantiated: false,
+  elapsedTime: 1500,
+};
+
+export const IdleWithElapsedTimeAndLastRun = Template.bind({});
+IdleWithElapsedTimeAndLastRun.args = {
+  editing: true,
+  status: "idle",
+  edited: false,
+  interrupted: false,
+  disabled: false,
+  staleInputs: false,
+  uninstantiated: false,
+  elapsedTime: 1500,
+  lastRunStartTimestamp: (Date.now() / 1000 - 300) as Seconds, // 5 minutes ago
+};
+
+export const CachedHit = Template.bind({});
+CachedHit.args = {
+  editing: true,
+  status: "idle",
+  edited: false,
+  interrupted: false,
+  disabled: false,
+  staleInputs: false,
+  uninstantiated: false,
+  cache: "hit",
+  elapsedTime: null,
+};
+
+export const CachedAfterRunning = Template.bind({});
+CachedAfterRunning.args = {
+  editing: true,
+  status: "idle",
+  edited: false,
+  interrupted: false,
+  disabled: false,
+  staleInputs: false,
+  uninstantiated: false,
+  cache: "cached",
+  elapsedTime: 2500,
+};
+
+export const RunningWithTimestamp = Template.bind({});
+RunningWithTimestamp.args = {
+  editing: true,
+  status: "running",
+  edited: false,
+  interrupted: false,
+  disabled: false,
+  staleInputs: false,
+  uninstantiated: false,
+  runStartTimestamp: (Date.now() / 1000 - 5) as Seconds, // started 5 seconds ago
+  elapsedTime: null,
+};
+
+export const DisabledWithStaleInputs = Template.bind({});
+DisabledWithStaleInputs.args = {
+  editing: true,
+  status: "idle",
+  edited: false,
+  interrupted: false,
+  disabled: true,
+  staleInputs: true,
+  uninstantiated: false,
+  elapsedTime: null,
+};
+
+export const EditedWithLongElapsedTime = Template.bind({});
+EditedWithLongElapsedTime.args = {
+  editing: true,
+  status: "idle",
+  edited: true,
+  interrupted: false,
+  disabled: false,
+  staleInputs: false,
+  uninstantiated: false,
+  elapsedTime: 125000, // over 2 minutes
+};
+
+export const InterruptedWithLastRun = Template.bind({});
+InterruptedWithLastRun.args = {
+  editing: true,
+  status: "idle",
+  edited: false,
+  interrupted: true,
+  disabled: false,
+  staleInputs: false,
+  uninstantiated: false,
+  elapsedTime: 3000,
+  lastRunStartTimestamp: (Date.now() / 1000 - 600) as Seconds, // 10 minutes ago
+};
+
+export const NotEditing = Template.bind({});
+NotEditing.args = {
+  editing: false,
+  status: "idle",
+  edited: false,
+  interrupted: false,
+  disabled: false,
+  staleInputs: false,
+  uninstantiated: false,
+  elapsedTime: 100,
 };

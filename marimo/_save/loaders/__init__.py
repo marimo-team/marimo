@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Literal
 
 from marimo._save.loaders.json import JsonLoader
+from marimo._save.loaders.lazy import LazyLoader
 from marimo._save.loaders.loader import (
     BasePersistenceLoader,
     Loader,
@@ -29,4 +30,5 @@ __all__ = [
     "LoaderType",
     "MemoryLoader",
     "PickleLoader",
+    "LazyLoader",
 ]
