@@ -91,9 +91,7 @@ def _get_mount_config(
             "session": {session},
             "runtimeConfig": {runtime_config},
         }}
-""".format(
-        **{k: json_script(v) for k, v in options.items()}
-    ).strip()
+""".format(**{k: json_script(v) for k, v in options.items()}).strip()
 
 
 def home_page_template(

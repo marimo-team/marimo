@@ -737,7 +737,9 @@ class TestStaticNotebookTemplate(unittest.TestCase):
 
     def test_static_malicious_filename_injection(self) -> None:
         """Test that malicious filenames in static exports are properly escaped."""
-        malicious_filepath = self.tmp_path / "</script><script>alert(1)</script>.py"
+        malicious_filepath = (
+            self.tmp_path / "</script><script>alert(1)</script>.py"
+        )
 
         result = templates.static_notebook_template(
             self.html,
@@ -755,7 +757,9 @@ class TestStaticNotebookTemplate(unittest.TestCase):
 
         # Must not contain unescaped script tags
         assert "</script><script>" not in result
-        assert "<script>alert(1)" not in result.replace("\\u003Cscript\\u003E", "")
+        assert "<script>alert(1)" not in result.replace(
+            "\\u003Cscript\\u003E", ""
+        )
 
         # Must contain escaped versions in JSON context
         assert "\\u003C" in result or "\\u003E" in result
