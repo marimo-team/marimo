@@ -40,8 +40,7 @@ def sanitize_pyproject_dict(
             if key in current_level and isinstance(current_level[key], dict):
                 current_level = current_level[key]
             else:
-                current_level = None
-                break
+                return pyproject_dict
         if current_level and key_path[-1] in current_level:
             del current_level[key_path[-1]]
     return pyproject_dict
