@@ -5,7 +5,6 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.hypertext import (
     Html,
-    _js,
     patch_html_for_non_interactive_output,
 )
 from marimo._plugins.ui._impl.batch import batch as batch_plugin
@@ -124,11 +123,6 @@ def test_html_style():
     assert "font-size:16px" in styled.text
 
 
-def test_js():
-    js_html = _js("console.log('Hello');")
-    assert js_html.text == "<script>console.log('Hello');</script>"
-
-
 # Add more tests as needed for edge cases and other functionalities
 
 
@@ -167,23 +161,6 @@ def test_html_style_empty_dict():
     html = Html("<p>No Style</p>")
     styled = html.style({})
     assert styled.text == "<div><p>No Style</p></div>"
-
-
-def test_js_empty():
-    js_html = _js("")
-    assert js_html.text == "<script></script>"
-
-
-def test_js_multiple_lines():
-    js_code = """
-    console.log('Line 1');
-    console.log('Line 2');
-    """
-    js_html = _js(js_code)
-    assert "<script>" in js_html.text
-    assert "console.log('Line 1');" in js_html.text
-    assert "console.log('Line 2');" in js_html.text
-    assert "</script>" in js_html.text
 
 
 def test_html_repr_html():
