@@ -95,6 +95,7 @@ export const AddCellWithAI: React.FC<{
     addStagedCell,
     createNewCell,
     prepareForRun,
+    sendRun,
   };
 
   const { sendMessage, stop, status, addToolResult } = useChat({
