@@ -10,6 +10,7 @@ from marimo._ai._tools.tools.cells import (
 )
 from marimo._ai._tools.tools.datasource import GetDatabaseTables
 from marimo._ai._tools.tools.errors import GetNotebookErrors
+from marimo._ai._tools.tools.lint import LintNotebook
 from marimo._ai._tools.tools.notebooks import GetActiveNotebooks
 from marimo._ai._tools.tools.rules import GetMarimoRules
 from marimo._ai._tools.tools.tables_and_variables import GetTablesAndVariables
@@ -22,4 +23,5 @@ SUPPORTED_BACKEND_AND_MCP_TOOLS: list[type[ToolBase[Any, Any]]] = [
     GetTablesAndVariables,
     GetDatabaseTables,
     GetNotebookErrors,
+    LintNotebook,
 ]
