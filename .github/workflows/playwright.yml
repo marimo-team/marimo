@@ -24,6 +24,7 @@ jobs:
             playwright:
               - 'frontend/**'
               - 'marimo/**'
+              - '.github/workflows/playwright.yml'
   test:
     needs: changes
     if: ${{ needs.changes.outputs.playwright == 'true' }}
