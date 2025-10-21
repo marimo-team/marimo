@@ -52,7 +52,7 @@ dependencies = [
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Operating System :: OS Independent",
     "License :: OSI Approved :: Apache Software License",
@@ -62,7 +62,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Intended Audience :: Education",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -209,7 +208,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.test.scripts]
 test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
@@ -259,17 +258,17 @@ extra-dependencies = [
     "pandas>=1.5.3",
     "hvplot~=0.11.3",
     # Causes issues installing `shapely` (v2.0.7)
-    # "geopandas~=1.0.1; python_version > '3.9'",
+    # "geopandas~=1.0.1",
     # FOr testing sql
     "duckdb<=1.3.0", # 1.4.0 does pass
-    "ibis-framework[duckdb]>=10.3.0; python_version > '3.9'",
+    "ibis-framework[duckdb]>=10.3.0",
     # For testing mo.image
     "pillow~=10.4.0",
     "anywidget~=0.9.18",
     "ipython~=8.12.3",
     # testing gen ai
     "openai>=1.55.3",
-    "anthropic==0.52.2; python_version > '3.9'",
+    "anthropic==0.52.2",
     "google-genai>=0.2.0",
     "boto3>=1.38.46",
     "litellm==1.70.0",
@@ -287,7 +286,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.docs]
 dependencies = [
@@ -367,8 +366,8 @@ ignore = [
     "E501",  # Line too long, we still trim
     "D415", # First line should end with a period, question mark, or exclamation point
     "FA102", # Use `from __future__ import annotations`
-    "UP007", # Use X | Y for type annotations, not supported in 3.9
-    "UP045", # Use X | None for optional type annotations, not supported in 3.9
+    "UP007", # Use X | Y for type annotations, wasn't supported in 3.9
+    "UP045", # Use X | None for optional type annotations, wasn't supported in 3.9
 ]
 extend-select = [
     # pyflakes

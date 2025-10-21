@@ -8,13 +8,12 @@ import io
 import linecache
 import os
 import re
-import sys
 import textwrap
 import token as token_types
 import warnings
 from tokenize import tokenize
 from types import CodeType, FrameType
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Optional, TypeAlias, cast
 
 from marimo import _loggers
 from marimo._ast import parse
@@ -31,11 +30,6 @@ from marimo._ast.visitor import ImportData, Name, ScopedVisitor
 from marimo._schemas.serialization import CellDef, ClassCell, FunctionCell
 from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
-
-if sys.version_info < (3, 10):
-    from typing_extensions import TypeAlias
-else:
-    from typing import TypeAlias
 
 LOGGER = _loggers.marimo_logger()
 Cls: TypeAlias = type
