@@ -119,6 +119,8 @@ const ToolArgsRenderer: React.FC<{ input: unknown }> = ({ input }) => {
     return null;
   }
 
+  const isEmptyInput = isEmpty(input);
+
   const isObject =
     typeof input === "object" &&
     Object.keys(input as Record<string, unknown>).length > 0;
@@ -129,7 +131,11 @@ const ToolArgsRenderer: React.FC<{ input: unknown }> = ({ input }) => {
         Tool Request
       </h3>
       <pre className="bg-[var(--slate-2)] p-2 text-muted-foreground border border-[var(--slate-4)] rounded text-xs overflow-auto scrollbar-thin max-h-64">
-        {isObject ? JSON.stringify(input, null, 2) : String(input)}
+        {isEmptyInput
+          ? "{}"
+          : isObject
+            ? JSON.stringify(input, null, 2)
+            : String(input)}
       </pre>
     </div>
   );
