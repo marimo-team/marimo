@@ -29,6 +29,7 @@ from marimo._config.reader import (
     get_marimo_config_from_pyproject_dict,
     read_marimo_config,
     read_pyproject_marimo_config,
+    sanitize_pyproject_dict,
 )
 from marimo._config.secrets import (
     mask_secrets,
@@ -325,7 +326,7 @@ class EnvConfigManager(PartialMarimoConfigReader):
         # We could do this dynamically, but list explicitly for now to reduce
         # surface area
         self._maybe_override_from_env(
-            "_MARIMO_CONFIG_OVERLOAD_AUTO_INSTANTIATE",
+            "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE",
             ["runtime", "auto_instantiate"],
             project_config,
         )
@@ -362,6 +363,11 @@ class ScriptConfigManager(PartialMarimoConfigReader):
             script_config = read_pyproject_from_script(script_content)
             if script_config is None:
                 return {}
+
+            script_config = sanitize_pyproject_dict(
+                script_config,
+                (("tool", "marimo", "runtime", "auto_instantiate"),),
+            )
 
             marimo_config = get_marimo_config_from_pyproject_dict(
                 script_config

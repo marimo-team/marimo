@@ -30,6 +30,23 @@ def read_pyproject_marimo_config(
     return marimo_tool_config
 
 
+def sanitize_pyproject_dict(
+    pyproject_dict: dict[str, Any], keys: tuple[tuple[str, ...], ...]
+) -> dict[str, Any]:
+    """Sanitize the pyproject.toml dictionary by removing specified keys."""
+    for key_path in keys:
+        current_level = pyproject_dict
+        for key in key_path[:-1]:
+            if key in current_level and isinstance(current_level[key], dict):
+                current_level = current_level[key]
+            else:
+                current_level = None
+                break
+        if current_level and key_path[-1] in current_level:
+            del current_level[key_path[-1]]
+    return pyproject_dict
+
+
 def get_marimo_config_from_pyproject_dict(
     pyproject_dict: dict[str, Any],
 ) -> Optional[PartialMarimoConfig]:
