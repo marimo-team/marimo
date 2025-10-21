@@ -73,6 +73,7 @@ import { derefNotNull } from "../../utils/dereference";
 import { Functions } from "../../utils/functions";
 import { Logger } from "../../utils/Logger";
 import { renderShortcut } from "../shortcuts/renderShortcut";
+import { Button } from "../ui/button";
 import { CellStatusComponent } from "./cell/CellStatus";
 // import { CreateCellButton } from "./cell/CreateCellButton"; // OLD PROTOTYPE
 import {
@@ -103,7 +104,6 @@ import {
 import { type OnRefactorWithAI, OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
-import { Button } from "../ui/button";
 
 /**
  * Hook for handling cell completion logic
