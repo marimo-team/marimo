@@ -29,9 +29,17 @@ claude
 
 **Connection command:**
 
-```bash
-npx stdio-to-ws "npx @zed-industries/claude-code-acp" --port 3017
-```
+=== "macOS/Linux"
+
+    ```bash
+    npx stdio-to-ws "npx @zed-industries/claude-code-acp" --port 3017
+    ```
+
+=== "Windows"
+
+    ```bash
+    npx stdio-to-ws "cmd /c npx @zed-industries/claude-code-acp" --port 3017
+    ```
 
 ### Gemini Agent
 
@@ -41,9 +49,17 @@ See login and authentication instructions in the [Gemini CLI documentation](http
 
 **Connection command:**
 
-```bash
-npx stdio-to-ws "npx @google/gemini-cli --experimental-acp" --port 3019
-```
+=== "macOS/Linux"
+
+    ```bash
+    npx stdio-to-ws "npx @google/gemini-cli --experimental-acp" --port 3019
+    ```
+
+=== "Windows"
+
+    ```bash
+    npx stdio-to-ws "cmd /c npx @google/gemini-cli --experimental-acp" --port 3019
+    ```
 
 ## Connecting to an agent
 
