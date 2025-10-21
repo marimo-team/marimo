@@ -110,7 +110,7 @@ def test_format_structure_nested_with_html() -> None:
 
     assert get_and_format(nested_structure) == (
         "application/json",
-        f'[1, "text/html:{escape(_markdown.text)}", "text/html:{escape(_slider.text)}"]',
+        f'[1, "text/markdown:{escape(_markdown.text)}", "text/html:{escape(_slider.text)}"]',
     )
 
 

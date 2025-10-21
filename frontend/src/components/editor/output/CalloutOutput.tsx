@@ -12,7 +12,7 @@ interface Props {
 export const CalloutOutput: React.FC<Props> = memo(({ html, kind }) => {
   return (
     <div className={calloutStyles({ kind })}>
-      <HtmlOutput html={html} />
+      <HtmlOutput html={html} alwaysSanitizeHtml={true} />
     </div>
   );
 });

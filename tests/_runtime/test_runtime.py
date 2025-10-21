@@ -3445,7 +3445,7 @@ class TestMarkdownHandling:
 
         output_op = output_ops[0]
         assert output_op.output.channel == CellChannel.OUTPUT
-        assert output_op.output.mimetype == "text/html"
+        assert output_op.output.mimetype == "text/markdown"
         assert "Hello World" in output_op.output.data
         assert "<h1" in output_op.output.data  # Should be rendered as HTML
         assert output_op.status == "idle"

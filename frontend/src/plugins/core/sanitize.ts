@@ -26,6 +26,9 @@ const sanitizeHtmlAtom = atom<boolean>((get) => {
   return true;
 });
 
+/**
+ * Whether to sanitize the html.
+ */
 export function useSanitizeHtml() {
   return useAtomValue(sanitizeHtmlAtom);
 }

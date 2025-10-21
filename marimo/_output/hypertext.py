@@ -5,7 +5,7 @@ import os
 import weakref
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast, final
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
@@ -136,9 +136,8 @@ class Html(MIME):
         """A string of HTML representing this element."""
         return self._text
 
-    @final
     def _mime_(self) -> tuple[KnownMimeType, str]:
-        no_js = os.getenv("MARIMO_NO_JS", "false").lower() == "true"
+        no_js = is_no_js()
         if no_js and hasattr(self, "_repr_png_"):
             return (
                 "image/png",
@@ -289,9 +288,7 @@ class Html(MIME):
         return self.text
 
 
-def _js(text: str) -> Html:
-    # TODO: interpolation of Python values to javascript
-    return Html("<script>" + text + "</script>")
+MARIMO_NO_JS_KEY = "MARIMO_NO_JS"
 
 
 @contextmanager
@@ -304,9 +301,18 @@ def patch_html_for_non_interactive_output() -> Iterator[None]:
     # thread
     # This won't work when we are running a marimo server and are auto-exporting
     # with this enabled.
-    old_no_js = os.getenv("MARIMO_NO_JS", "false")
+    old_no_js = os.getenv(MARIMO_NO_JS_KEY, "false")
     try:
-        os.environ["MARIMO_NO_JS"] = "true"
+        os.environ[MARIMO_NO_JS_KEY] = "true"
         yield
     finally:
-        os.environ["MARIMO_NO_JS"] = old_no_js
+        os.environ[MARIMO_NO_JS_KEY] = old_no_js
+
+
+def is_no_js() -> bool:
+    """Whether to render HTML objects as best as possible assuming
+    that this will be rendered without javascript.
+
+    For example, prefer images or markdown over rich HTML output.
+    """
+    return os.getenv(MARIMO_NO_JS_KEY, "false").lower() == "true"

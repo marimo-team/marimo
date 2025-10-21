@@ -4,7 +4,7 @@
     data-reactive="true"
 >
     <marimo-cell-output>
-    <span class="markdown prose dark:prose-invert contents"><span class="paragraph">Hello, islands!</span></span>
+    <marimo-mime-renderer data-mime='&quot;text/markdown&quot;' data-data='&quot;&lt;span class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&gt;&lt;span class=&#92;&quot;paragraph&#92;&quot;&gt;Hello, islands!&lt;/span&gt;&lt;/span&gt;&quot;'></marimo-mime-renderer>
     </marimo-cell-output>
     <marimo-cell-code hidden>mo.md('Hello%2C%20islands!')</marimo-cell-code>
 </marimo-island>

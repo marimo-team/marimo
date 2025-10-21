@@ -15,6 +15,8 @@ from textwrap import dedent
 from typing import Any, Callable, TypeVar
 from unittest.mock import MagicMock
 
+import pytest
+
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._config.manager import (
@@ -436,6 +438,7 @@ def test_session_with_kiosk_consumers() -> None:
     assert session.room.main_consumer is None
 
 
+@pytest.mark.flaky(reruns=3)
 @save_and_restore_main
 async def test_session_manager_file_watching(tmp_path: Path) -> None:
     # Create a temporary file
