@@ -24,9 +24,22 @@ from marimo._version import __version__
 MOUNT_CONFIG_TEMPLATE = "'{{ mount_config }}'"
 
 
+_json_script_escapes = {
+    ord(">"): "\\u003E",
+    ord("<"): "\\u003C",
+    ord("&"): "\\u0026",
+}
+
+
 def _html_escape(text: str) -> str:
     """Escape HTML special characters."""
     return html.escape(text, quote=True)
+
+
+def json_script(data: Any) -> str:
+    # See https://github.com/django/django/blob/main/django/utils/html.py#L88C1-L92C2
+    # Only escape values that can break out of a script tag
+    return json.dumps(data, sort_keys=True).translate(_json_script_escapes)
 
 
 def _get_mount_config(
@@ -79,7 +92,7 @@ def _get_mount_config(
             "runtimeConfig": {runtime_config},
         }}
 """.format(
-        **{k: json.dumps(v, sort_keys=True) for k, v in options.items()}
+        **{k: json_script(v) for k, v in options.items()}
     ).strip()
 
 
@@ -258,7 +271,7 @@ def static_notebook_template(
         f"""
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {{}};
-        window.__MARIMO_STATIC__.files = {json.dumps(files)};
+        window.__MARIMO_STATIC__.files = {json_script(files)};
     </script>
     """
     )
