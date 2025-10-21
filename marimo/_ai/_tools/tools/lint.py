@@ -52,8 +52,8 @@ class LintNotebook(ToolBase[LintNotebookArgs, LintNotebookOutput]):
 
     guidelines = ToolGuidelines(
         when_to_use=[
-            "ALWAYS use this tool after making changes to a marimo notebook to verify you didn't introduce any issues",
-            "ALWAYS use this tool when you want to lint a marimo notebook to check for issues",
+            "ALWAYS use this tool after making ANY EDITS, CELLS, OR CHANGES to a marimo notebook to verify you didn't introduce any issues",
+            "ALWAYS use this tool when you want to lint a marimo notebook instead of using your own default linting tool",
             "When the user asks to check or validate their notebook",
         ],
         prerequisites=[
@@ -69,20 +69,15 @@ class LintNotebook(ToolBase[LintNotebookArgs, LintNotebookOutput]):
     )
 
     async def handle(self, args: LintNotebookArgs) -> LintNotebookOutput:  # type: ignore[override]
-        # Get the session
-        session = self.context.get_session(args.session_id)
 
-        # Get NotebookSerialization IR from session
+        session = self.context.get_session(args.session_id)
         notebook_ir = session.app_file_manager.app.to_ir()
 
-        # Create default rule engine and lint the notebook
         rule_engine = RuleEngine.create_default()
         diagnostics = await rule_engine.check_notebook(notebook_ir)
-
-        # Get diagnostics severity summary
+        
         summary = self._get_diagnostic_summary(diagnostics)
-
-        # Build next steps based on what was found
+        
         next_steps = self._build_next_steps(summary)
 
         return LintNotebookOutput(
@@ -98,7 +93,6 @@ class LintNotebook(ToolBase[LintNotebookArgs, LintNotebookOutput]):
         summary = DiagnosticSummary()
 
         for diagnostic in diagnostics:
-            # Add severity count
             if diagnostic.severity == Severity.BREAKING:
                 summary.breaking_issues += 1
             elif diagnostic.severity == Severity.RUNTIME:
@@ -106,7 +100,6 @@ class LintNotebook(ToolBase[LintNotebookArgs, LintNotebookOutput]):
             elif diagnostic.severity == Severity.FORMATTING:
                 summary.formatting_issues += 1
 
-            # Add total issue count
             summary.total_issues += 1
 
         return summary
