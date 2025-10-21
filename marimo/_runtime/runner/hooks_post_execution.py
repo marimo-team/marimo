@@ -93,7 +93,17 @@ def _set_run_result_status(
     elif runner.cancelled(cell.cell_id):
         cell.set_run_result_status("cancelled")
     elif run_result.exception is not None:
-        cell.set_run_result_status("exception")
+        cell.set_run_result_status(
+            "exception",
+            (
+                # TODO(akshayka): "run_result.exception" can unfortunately
+                # hold things that are not exceptions; remove this check
+                # if/when that is ever cleaned up.
+                run_result.exception
+                if isinstance(run_result.exception, Exception)
+                else None
+            ),
+        )
     else:
         cell.set_run_result_status("success")
 

@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as shortcuts from "@/core/hotkeys/shortcuts";
 import {
   type AgentSession,
   type AgentSessionState,
@@ -658,15 +659,31 @@ describe("state utility functions", () => {
   });
 
   describe("getAgentConnectionCommand", () => {
-    it("should return correct command for claude", () => {
+    it("should return correct command for claude on non-Windows", () => {
+      vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(false);
       expect(getAgentConnectionCommand("claude")).toMatchInlineSnapshot(`
         "npx stdio-to-ws "npx @zed-industries/claude-code-acp" --port 3017"
       `);
     });
 
-    it("should return correct command for gemini", () => {
+    it("should return correct command for claude on Windows", () => {
+      vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(true);
+      expect(getAgentConnectionCommand("claude")).toMatchInlineSnapshot(`
+        "npx stdio-to-ws "cmd /c npx @zed-industries/claude-code-acp" --port 3017"
+      `);
+    });
+
+    it("should return correct command for gemini on non-Windows", () => {
+      vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(false);
       expect(getAgentConnectionCommand("gemini")).toMatchInlineSnapshot(`
         "npx stdio-to-ws "npx @google/gemini-cli --experimental-acp" --port 3019"
+      `);
+    });
+
+    it("should return correct command for gemini on Windows", () => {
+      vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(true);
+      expect(getAgentConnectionCommand("gemini")).toMatchInlineSnapshot(`
+        "npx stdio-to-ws "cmd /c npx @google/gemini-cli --experimental-acp" --port 3019"
       `);
     });
   });

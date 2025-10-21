@@ -1706,7 +1706,6 @@ def test_cell_search_df_styles(df: Any):
         exclude=NON_EAGER_LIBS,
     ),
 )
-@pytest.mark.xfail(reason="Sorted rows are not supported for styling yet")
 def test_cell_search_df_styles_sorted(df: Any):
     def always_green(_row, _col, _value):
         return {"backgroundColor": "green"}

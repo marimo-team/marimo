@@ -13,7 +13,8 @@ import markdown  # type: ignore
 import markdown.preprocessors  # type: ignore
 import pymdownx.emoji  # type: ignore
 
-from marimo._output.hypertext import Html
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.hypertext import Html, is_no_js
 from marimo._output.md_extensions.breakless_lists import (
     BreaklessListsExtension,
 )
@@ -257,6 +258,14 @@ class _md(Html):
 
     def _repr_markdown_(self) -> str:
         return self._markdown_text
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        no_js = is_no_js()
+        if no_js:
+            return ("text/markdown", self._markdown_text)
+        # We return text/markdown instead of text/html
+        # so the frontend sanitizes the HTML
+        return ("text/markdown", self.text)
 
     def __format__(self, spec: str) -> str:
         """

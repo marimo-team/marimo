@@ -1879,6 +1879,22 @@ except NameError:
         assert k.globals["y"] == 2
         assert not k.errors
 
+    async def test_missing_module_detected(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [er := ExecutionRequest(cell_id="0", code="import foobar")]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert cell.exception is not None
+        assert isinstance(cell.exception, ModuleNotFoundError)
+        assert cell.exception.name == "foobar"
+
+        await k.run(
+            [er := ExecutionRequest(cell_id="0", code="import marimo")]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert cell.exception is None
+
 
 class TestStrictExecution:
     @staticmethod
@@ -3429,7 +3445,7 @@ class TestMarkdownHandling:
 
         output_op = output_ops[0]
         assert output_op.output.channel == CellChannel.OUTPUT
-        assert output_op.output.mimetype == "text/html"
+        assert output_op.output.mimetype == "text/markdown"
         assert "Hello World" in output_op.output.data
         assert "<h1" in output_op.output.data  # Should be rendered as HTML
         assert output_op.status == "idle"

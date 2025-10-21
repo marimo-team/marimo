@@ -2880,12 +2880,25 @@ class PackagesCallbacks:
         if self.should_update_script_metadata():
             self.update_script_metadata(installed_modules)
 
+        # All cells that depend on successfully installed modules are re-run.
+        #
+        # This consists of cells that either statically reference the installed
+        # module, or that previously failed with a ModuleNotFoundError matching
+        # an installed module.
         cells_to_run = set(
             cid
             for module in installed_modules
             if (cid := self._kernel.module_registry.defining_cell(module))
             is not None
         )
+
+        for cid, cell in self._kernel.graph.cells.items():
+            if (
+                isinstance(cell.exception, ModuleNotFoundError)
+                and cell.exception.name in installed_modules
+            ):
+                cells_to_run.add(cid)
+
         if cells_to_run:
             await self._kernel._if_autorun_then_run_cells(cells_to_run)
 

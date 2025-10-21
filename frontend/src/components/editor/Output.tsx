@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { renderHTML } from "@/plugins/core/RenderHTML";
-import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { useTheme } from "@/theme/useTheme";
@@ -93,7 +92,14 @@ export const OutputRenderer: React.FC<{
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
-      return <HtmlOutput className={channel} html={data} />;
+      // We don't sanitize HTML in text/html to allow for iframes or rich javascript content.
+      return (
+        <HtmlOutput
+          className={channel}
+          html={data}
+          alwaysSanitizeHtml={false}
+        />
+      );
 
     case "text/plain":
       invariant(
@@ -124,7 +130,7 @@ export const OutputRenderer: React.FC<{
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
-      return renderHTML({ html: data });
+      return renderHTML({ html: data, alwaysSanitizeHtml: true });
 
     case "video/mp4":
     case "video/mpeg":
@@ -164,13 +170,7 @@ export const OutputRenderer: React.FC<{
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
       return (
-        <LazyAnyLanguageCodeMirror
-          theme={theme === "dark" ? "dark" : "light"}
-          value={data}
-          readOnly={true}
-          editable={false}
-          language="markdown"
-        />
+        <HtmlOutput className={channel} html={data} alwaysSanitizeHtml={true} />
       );
     case "application/vnd.vegalite.v5+json":
     case "application/vnd.vega.v5+json":

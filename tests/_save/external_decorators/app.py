@@ -19,11 +19,11 @@ def decorator_wrap():
 
 @app.cell
 def block_wrap(mo):
-    with mo.cache("random"):
+    with mo.cache("random") as cache_block:
         x = []
 
     a = "need a final line to trigger invalid block capture"
-    return (x,)
+    return (x, cache_block)
 
 
 if __name__ == "__main__":

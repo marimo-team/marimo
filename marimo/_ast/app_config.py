@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 from marimo import _loggers
 from marimo._config.config import ExportType, SqlOutputType, WidthType
+from marimo._utils.env import env_to_value
 
 LOGGER = _loggers.marimo_logger()
 
@@ -90,11 +91,7 @@ def overloads_from_env() -> _AppConfig:
     for key in os.environ:
         if key.startswith(prefix):
             new_key = key[len(prefix) :].lower()
-            value = os.environ[key]
-            if value.lower() in ("true", "false"):
-                overloads[new_key] = value.lower() == "true"
-            elif value.startswith("[") and value.endswith("]"):
-                overloads[new_key] = os.environ[key][1:-1].split(",")
-            else:
-                overloads[new_key] = os.environ[key]
+            value = env_to_value(key)
+            if isinstance(value, tuple):
+                overloads[new_key] = value[0]
     return _AppConfig.from_untrusted_dict(overloads, silent=True)
