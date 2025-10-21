@@ -8,6 +8,7 @@ import {
 import { useAtomValue } from "jotai";
 import {
   DatabaseIcon,
+  PlusIcon,
   SparklesIcon,
   SquareCodeIcon,
   SquareMIcon,
@@ -271,52 +272,9 @@ const CellDivider: React.FC<{
   return (
     <div className="group/divider relative w-full flex items-center h-4 -my-4.5">
       {/* Buttons that appear on hover */}
+      <hr className="w-full border-t-1 border-dashed border-gray-300 opacity-0 group-hover/divider:opacity-100 transition-opacity duration-200" />
+
       <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover/divider:opacity-100 transition-opacity duration-200 z-100">
-        <Tooltip content="Add Python cell" delayDuration={300} asChild={false}>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!isConnected}
-            onClick={() => createCell()}
-            className="h-7 px-2 rounded text-xs hover:bg-accent hover:text-accent-foreground"
-          >
-            <SquareCodeIcon className="size-3 mr-1" />
-            Python
-          </Button>
-        </Tooltip>
-
-        <Tooltip
-          content="Add Markdown cell"
-          delayDuration={300}
-          asChild={false}
-        >
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!isConnected}
-            onClick={() =>
-              createCell(LanguageAdapters.markdown.defaultCode, true)
-            }
-            className="h-7 px-2 rounded text-xs hover:bg-accent hover:text-accent-foreground"
-          >
-            <SquareMIcon className="size-3 mr-1" />
-            Markdown
-          </Button>
-        </Tooltip>
-
-        <Tooltip content="Add SQL cell" delayDuration={300} asChild={false}>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!isConnected}
-            onClick={() => createCell(LanguageAdapters.sql.defaultCode)}
-            className="h-7 px-2 rounded text-xs hover:bg-accent hover:text-accent-foreground"
-          >
-            <DatabaseIcon className="size-3 mr-1" />
-            SQL
-          </Button>
-        </Tooltip>
-
         <DropdownMenu>
           <Tooltip
             content="Choose cell type"
@@ -328,10 +286,12 @@ const CellDivider: React.FC<{
                 variant="ghost"
                 size="sm"
                 disabled={!isConnected}
-                className="h-7 px-2 rounded text-xs hover:bg-accent hover:text-accent-foreground"
+                className="h-5 px-2 rounded text-xs bg-muted/80"
               >
-                <SparklesIcon className="size-3 mr-1" />
-                Dropdown
+                <span className="inline-flex items-center gap-1">
+                  <PlusIcon className="w-3 h-3 text-muted-foreground" />
+                  <span>Insert new cell</span>
+                </span>
               </Button>
             </DropdownMenuTrigger>
           </Tooltip>

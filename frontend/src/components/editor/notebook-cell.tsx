@@ -103,6 +103,7 @@ import {
 import { type OnRefactorWithAI, OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
+import { Button } from "../ui/button";
 
 /**
  * Hook for handling cell completion logic
@@ -406,6 +407,16 @@ const EditableCellComponent = ({
   const runCell = useRunCell(cellId);
   const { sendStdin } = useRequestClient();
 
+  const createBelow = useEvent(
+    (opts: { code?: string; hideCode?: boolean } = {}) =>
+      actions.createNewCell({ cellId, before: false, ...opts }),
+  );
+  const createAbove = useEvent(
+    (opts: { code?: string; hideCode?: boolean } = {}) =>
+      actions.createNewCell({ cellId, before: true, ...opts }),
+  );
+  const isConnected = isAppConnected(connection.state);
+
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
 
   const disabledOrAncestorDisabled =
@@ -591,10 +602,22 @@ const EditableCellComponent = ({
               className,
               navigationProps.className,
               "focus:ring-1 focus:ring-(--blue-7) focus:ring-offset-0",
+              "relative group/cell",
             )}
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}
           >
+            {/* Subtle cell buttons that span entire cell height */}
+            <div className="absolute left-[-18px] top-0 bottom-0 z-20 border-b-0!">
+              <SubtleCellButtons
+                connectionState={connection.state}
+                onCreateAbove={isConnected ? createAbove : undefined}
+                onCreateBelow={isConnected ? createBelow : undefined}
+                createAboveTooltip={renderShortcut("cell.createAbove")}
+                createBelowTooltip={renderShortcut("cell.createBelow")}
+              />
+            </div>
+
             {cellOutput === "above" && outputArea}
             <div
               className={cn("tray group/cell")}
@@ -875,7 +898,7 @@ const SubtleCellButtons = ({
                 "text-muted-foreground",
               )}
             >
-              <PlusIcon size={12} strokeWidth={2} />
+              <PlusIcon size={12} strokeWidth={4} />
             </button>
           </DropdownMenuTrigger>
         </Tooltip>
@@ -922,7 +945,7 @@ const SubtleCellButtons = ({
       </DropdownMenu>
 
       {/* Thin connecting bar */}
-      <div className="flex-1 w-px bg-border my-1" />
+      <div className="flex-1 w-px bg-border my-1 opacity-0" />
 
       {/* Bottom plus button */}
       <Tooltip content={baseBelowTooltip}>
@@ -937,7 +960,7 @@ const SubtleCellButtons = ({
             "text-muted-foreground",
           )}
         >
-          <PlusIcon size={12} strokeWidth={2} />
+          <PlusIcon size={12} strokeWidth={4} />
         </button>
       </Tooltip>
     </div>
@@ -950,19 +973,7 @@ const CellLeftSideActions = memo(
     cellId: CellId;
     actions: CellComponentActions;
   }) => {
-    const connection = useAtomValue(connectionAtom);
-    const { className, actions, cellId } = props;
-
-    const createBelow = useEvent(
-      (opts: { code?: string; hideCode?: boolean } = {}) =>
-        actions.createNewCell({ cellId, before: false, ...opts }),
-    );
-    const createAbove = useEvent(
-      (opts: { code?: string; hideCode?: boolean } = {}) =>
-        actions.createNewCell({ cellId, before: true, ...opts }),
-    );
-
-    const isConnected = isAppConnected(connection.state);
+    const { className } = props;
 
     return (
       <div
@@ -984,14 +995,8 @@ const CellLeftSideActions = memo(
           onClick={isConnected ? createBelow : undefined}
         /> */}
 
-        {/* NEW PROTOTYPE - Subtle plus icons with thin bar */}
-        <SubtleCellButtons
-          connectionState={connection.state}
-          onCreateAbove={isConnected ? createAbove : undefined}
-          onCreateBelow={isConnected ? createBelow : undefined}
-          createAboveTooltip={renderShortcut("cell.createAbove")}
-          createBelowTooltip={renderShortcut("cell.createBelow")}
-        />
+        {/* NEW PROTOTYPE - Moved to outer container to span full cell height */}
+        {/* SubtleCellButtons now rendered at the cell container level */}
       </div>
     );
   },
@@ -1106,6 +1111,16 @@ const SetupCellComponent = ({
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const runCell = useRunCell(cellId);
 
+  const createBelow = useEvent(
+    (opts: { code?: string; hideCode?: boolean } = {}) =>
+      actions.createNewCell({ cellId, before: false, ...opts }),
+  );
+  const createAbove = useEvent(
+    (opts: { code?: string; hideCode?: boolean } = {}) =>
+      actions.createNewCell({ cellId, before: true, ...opts }),
+  );
+  const isConnected = isAppConnected(connection.state);
+
   const disabledOrAncestorDisabled =
     cellData.config.disabled || cellRuntime.status === "disabled-transitively";
 
@@ -1203,6 +1218,7 @@ const SetupCellComponent = ({
             className: cn(
               className,
               "focus:ring-1 focus:ring-(--blue-7) focus:ring-offset-0",
+              "relative group/cell",
             ),
             onBlur: closeCompletionHandler,
             onKeyDown: resumeCompletionHandler,
@@ -1212,7 +1228,18 @@ const SetupCellComponent = ({
           tabIndex={-1}
           data-setup-cell={true}
         >
-          <div className={cn("tray group/cell")} data-hidden={!isCellCodeShown}>
+          {/* Subtle cell buttons that span entire cell height */}
+          <div className="absolute left-[-22px] top-0 bottom-0 z-20 flex items-stretch">
+            <SubtleCellButtons
+              connectionState={connection.state}
+              onCreateAbove={isConnected ? createAbove : undefined}
+              onCreateBelow={isConnected ? createBelow : undefined}
+              createAboveTooltip={renderShortcut("cell.createAbove")}
+              createBelowTooltip={renderShortcut("cell.createBelow")}
+            />
+          </div>
+
+          <div className={cn("tray")} data-hidden={!isCellCodeShown}>
             <div className="absolute right-2 -top-4 z-10">
               <CellToolbar
                 edited={cellData.edited}
