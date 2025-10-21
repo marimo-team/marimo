@@ -124,7 +124,11 @@ class TestJsonScriptEscaping:
         # Must contain escaped versions of dangerous chars
         # json_script escapes <, >, & to \uXXXX format
         if "<" in payload or ">" in payload or "&" in payload:
-            assert "\\u003C" in result or "\\u003E" in result or "\\u0026" in result
+            assert (
+                "\\u003C" in result
+                or "\\u003E" in result
+                or "\\u0026" in result
+            )
 
         # Must be valid JSON that round-trips correctly
         parsed = json.loads(result)
@@ -181,9 +185,9 @@ class TestJsonScriptEscaping:
             # Combining characters
             {"text": "e\u0301"},  # é as combining character
             # Right-to-left marks
-            {"text": "\u200F"},
+            {"text": "\u200f"},
             # Zero-width characters
-            {"text": "test\u200Bword"},
+            {"text": "test\u200bword"},
         ],
     )
     def test_unicode_handling(self, data: dict) -> None:
