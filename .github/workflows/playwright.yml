@@ -45,6 +45,8 @@ jobs:
 
       - name: Write TOML
         run: |
+          echo "[runtime]" > .marimo.toml
+          echo "auto_instantiate=true" >> .marimo.toml
           echo "[experimental]" > .marimo.toml
           echo "layouts=true" >> .marimo.toml
 
