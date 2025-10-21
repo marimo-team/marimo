@@ -16,7 +16,7 @@ import type { NotebookState } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { JotaiStore } from "@/core/state/jotai";
-import { CellOutputContextProvider } from "../cell-output";
+import { CellOutputContextProvider, getCellContextData } from "../cell-output";
 
 // Test helper to create mock store
 function createMockStore(notebook: NotebookState): JotaiStore {
@@ -376,6 +376,186 @@ describe("Cell output utility functions", () => {
       const items = provider.getItems();
 
       expect(items[0]?.data.cellOutput.processedContent).toBe("Hello world!");
+    });
+  });
+
+  describe("getCellContextData", () => {
+    let mockNotebook: NotebookState;
+
+    beforeEach(() => {
+      mockNotebook = {
+        cellIds: {
+          inOrderIds: ["cell1" as CellId, "cell2" as CellId],
+        },
+        cellData: {
+          cell1: {
+            id: "cell1" as CellId,
+            name: "My Named Cell",
+            code: "x = 42",
+          },
+          cell2: {
+            id: "cell2" as CellId,
+            name: "",
+            code: "y = x * 2",
+          },
+        },
+        cellRuntime: {
+          cell1: {
+            output: {
+              mimetype: "text/plain",
+              data: "42",
+            } as OutputMessage,
+            consoleOutputs: [],
+          },
+          cell2: {
+            output: null,
+            consoleOutputs: [
+              {
+                mimetype: "text/plain",
+                data: "console log message",
+              } as OutputMessage,
+            ],
+          },
+        },
+      } as unknown as NotebookState;
+    });
+
+    it("should extract basic cell data", () => {
+      const result = getCellContextData("cell1" as CellId, mockNotebook);
+
+      expect(result.cellId).toBe("cell1");
+      expect(result.cellName).toBe("My Named Cell");
+      expect(result.cellCode).toBe("x = 42");
+    });
+
+    it("should generate cell name for unnamed cells", () => {
+      const result = getCellContextData("cell2" as CellId, mockNotebook);
+
+      expect(result.cellName).toBe("cell-1"); // 0-indexed, so cell2 is at index 1
+    });
+
+    it("should include cell output when present", () => {
+      const result = getCellContextData("cell1" as CellId, mockNotebook);
+
+      expect(result.cellOutput).toBeDefined();
+      expect(result.cellOutput?.outputType).toBe("text");
+      expect(result.cellOutput?.processedContent).toBe("42");
+    });
+
+    it("should not include cell output when not present", () => {
+      const result = getCellContextData("cell2" as CellId, mockNotebook);
+
+      expect(result.cellOutput).toBeUndefined();
+    });
+
+    it("should not include console outputs by default", () => {
+      const result = getCellContextData("cell2" as CellId, mockNotebook);
+
+      expect(result.consoleOutputs).toBeUndefined();
+    });
+
+    it("should include console outputs when opted in", () => {
+      const result = getCellContextData("cell2" as CellId, mockNotebook, {
+        includeConsoleOutput: true,
+      });
+
+      expect(result.consoleOutputs).toBeDefined();
+      expect(result.consoleOutputs).toHaveLength(1);
+      expect(result.consoleOutputs?.[0]?.processedContent).toBe(
+        "console log message",
+      );
+    });
+
+    it("should filter out empty console outputs", () => {
+      const cell2Runtime = mockNotebook.cellRuntime["cell2" as CellId];
+      if (cell2Runtime) {
+        (cell2Runtime as { consoleOutputs: OutputMessage[] }).consoleOutputs = [
+          {
+            mimetype: "text/plain",
+            data: "valid output",
+          } as OutputMessage,
+          {
+            mimetype: "text/plain",
+            data: "",
+          } as OutputMessage,
+        ];
+      }
+
+      const result = getCellContextData("cell2" as CellId, mockNotebook, {
+        includeConsoleOutput: true,
+      });
+
+      expect(result.consoleOutputs).toHaveLength(1);
+      expect(result.consoleOutputs?.[0]?.processedContent).toBe("valid output");
+    });
+
+    it("should handle cells with both cell output and console outputs", () => {
+      const cell1Runtime = mockNotebook.cellRuntime["cell1" as CellId];
+      if (cell1Runtime) {
+        (cell1Runtime as { consoleOutputs: OutputMessage[] }).consoleOutputs = [
+          {
+            mimetype: "text/plain",
+            data: "debug message",
+          } as OutputMessage,
+        ];
+      }
+
+      const result = getCellContextData("cell1" as CellId, mockNotebook, {
+        includeConsoleOutput: true,
+      });
+
+      expect(result.cellOutput).toBeDefined();
+      expect(result.cellOutput?.processedContent).toBe("42");
+      expect(result.consoleOutputs).toHaveLength(1);
+      expect(result.consoleOutputs?.[0]?.processedContent).toBe(
+        "debug message",
+      );
+    });
+
+    it("should handle empty console outputs array", () => {
+      const result = getCellContextData("cell1" as CellId, mockNotebook, {
+        includeConsoleOutput: true,
+      });
+
+      expect(result.consoleOutputs).toEqual([]);
+    });
+
+    it("should handle media outputs in cell output", () => {
+      const cell1Runtime = mockNotebook.cellRuntime["cell1" as CellId];
+      if (cell1Runtime) {
+        (cell1Runtime as { output: OutputMessage | null }).output = {
+          mimetype: "image/png",
+          data: "data:image/png;base64,test",
+        } as OutputMessage;
+      }
+
+      const result = getCellContextData("cell1" as CellId, mockNotebook);
+
+      expect(result.cellOutput).toBeDefined();
+      expect(result.cellOutput?.outputType).toBe("media");
+      expect(result.cellOutput?.imageUrl).toBe("data:image/png;base64,test");
+    });
+
+    it("should handle media outputs in console outputs", () => {
+      const cell2Runtime = mockNotebook.cellRuntime["cell2" as CellId];
+      if (cell2Runtime) {
+        (cell2Runtime as { consoleOutputs: OutputMessage[] }).consoleOutputs = [
+          {
+            mimetype: "image/png",
+            data: "https://example.com/image.png",
+          } as OutputMessage,
+        ];
+      }
+
+      const result = getCellContextData("cell2" as CellId, mockNotebook, {
+        includeConsoleOutput: true,
+      });
+
+      expect(result.consoleOutputs).toHaveLength(1);
+      expect(result.consoleOutputs?.[0]?.outputType).toBe("media");
+      expect(result.consoleOutputs?.[0]?.imageUrl).toBe(
+        "https://example.com/image.png",
+      );
     });
   });
 });

@@ -25,9 +25,9 @@ import type { CopilotMode } from "./registry";
 
 interface CellOutput {
   consoleOutput?: string;
-  consoleAttachments?: FileUIPart[];
+  // consoleAttachments?: FileUIPart[];
   cellOutput?: string;
-  cellAttachments?: FileUIPart[];
+  // cellAttachments?: FileUIPart[];
 }
 
 // Must use Record instead of Map because Map serializes to JSON as {}
@@ -53,17 +53,19 @@ export class RunStaleCellsTool
   readonly description = description;
   readonly schema = z.object({});
   readonly outputSchema = toolOutputBaseSchema.extend({
-    cellsToOutput: z.record(
-      z.string(),
-      z
-        .object({
-          consoleOutput: z.string().optional(),
-          cellOutput: z.string().optional(),
-          consoleAttachments: z.array(filePartSchema).optional(),
-          cellAttachments: z.array(filePartSchema).optional(),
-        })
-        .nullable(),
-    ),
+    cellsToOutput: z
+      .record(
+        z.string(),
+        z
+          .object({
+            consoleOutput: z.string().optional(),
+            cellOutput: z.string().optional(),
+            consoleAttachments: z.array(filePartSchema).optional(),
+            cellAttachments: z.array(filePartSchema).optional(),
+          })
+          .nullable(),
+      )
+      .optional(),
   }) satisfies z.ZodType<RunStaleCellsOutput>;
   readonly mode: CopilotMode[] = ["agent"];
   private store: JotaiStore;

@@ -5,13 +5,16 @@ import { EditorView } from "@codemirror/view";
 import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
+import type { createNotebookActions } from "@/core/cells/cells";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { CellColumnId } from "@/utils/id-tree";
 import { MultiColumn } from "@/utils/id-tree";
 import { cellConfigExtension } from "../../../codemirror/config/extension";
 import { adaptiveLanguageConfiguration } from "../../../codemirror/language/extension";
+import type { createStagedAICellsActions } from "../../staged-cells";
 import { stagedAICellsAtom } from "../../staged-cells";
 import { ToolExecutionError } from "../base";
 import { EditNotebookTool } from "../edit-notebook-tool";
@@ -25,8 +28,6 @@ vi.mock("@/components/editor/links/cell-link", () => ({
 vi.mock("@/core/codemirror/language/utils", () => ({
   updateEditorCodeFromPython: vi.fn(),
 }));
-
-import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 
 function createMockEditorView(code: string): EditorView {
   return new EditorView({
@@ -66,10 +67,31 @@ describe("EditNotebookTool", () => {
   let cellId1: CellId;
   let cellId2: CellId;
   let cellId3: CellId;
+  let mockNotebookActions: Partial<ReturnType<typeof createNotebookActions>>;
+  let mockStagedAICellsActions: Partial<
+    ReturnType<typeof createStagedAICellsActions>
+  >;
 
   beforeEach(() => {
     store = getDefaultStore();
-    tool = new EditNotebookTool(store);
+
+    // Reset atom states first
+    store.set(stagedAICellsAtom, new Map());
+
+    mockNotebookActions = {
+      createNewCell: vi.fn(),
+    };
+    mockStagedAICellsActions = {
+      addStagedCell: vi.fn(({ cellId, edit }) => {
+        const current = store.get(stagedAICellsAtom);
+        store.set(stagedAICellsAtom, new Map(current).set(cellId, edit));
+      }),
+    };
+    tool = new EditNotebookTool(
+      store,
+      mockNotebookActions as never,
+      mockStagedAICellsActions as never,
+    );
 
     cellId1 = "cell-1" as CellId;
     cellId2 = "cell-2" as CellId;
@@ -77,9 +99,6 @@ describe("EditNotebookTool", () => {
 
     // Reset mocks
     vi.clearAllMocks();
-
-    // Reset atom states
-    store.set(stagedAICellsAtom, new Map());
   });
 
   describe("tool metadata", () => {

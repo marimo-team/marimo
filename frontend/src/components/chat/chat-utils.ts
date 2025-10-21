@@ -106,7 +106,7 @@ interface AddToolResult {
 
 export async function handleToolCall({
   invokeAiTool,
-  addToolResult,
+  addToolResult, // Important that we don't await addToolResult to prevent potential deadlocks
   toolCall,
 }: {
   invokeAiTool: (request: InvokeAiToolRequest) => Promise<InvokeAiToolResponse>;
