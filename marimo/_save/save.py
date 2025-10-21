@@ -342,6 +342,11 @@ class _cache_call(CacheContext):
             return "<cache>"
         return self.__wrapped__.__name__
 
+    @property
+    def last_hash(self) -> Optional[str]:
+        """Return the last computed hash for this cache call."""
+        return self._last_hash
+
     def __get__(
         self, instance: Any, _owner: Optional[type] = None
     ) -> _cache_call:
@@ -565,7 +570,10 @@ class _cache_context(SkipContext, CacheContext):
         self.pin_modules = pin_modules
         self.hash_type = hash_type
         # Wrap loader in State to match CacheContext's _loader type
-        self._loader = State(loader, _name=name)
+        if isinstance(loader, MemoryLoader):
+            self._loader = loader.partial().create_or_reconfigure(name)
+        else:
+            self._loader = State(loader, _name=name)
         self._start_time: float = 0.0
 
     @property
@@ -730,6 +738,13 @@ class _cache_context(SkipContext, CacheContext):
                 ctx.cell_lifecycle_registry.add(SideEffect(self._cache.hash))
 
         return False
+
+    @property
+    def last_hash(self) -> Optional[str]:
+        """Return the last computed hash for this cache context."""
+        if self._cache is None:
+            return None
+        return self._cache.hash
 
 
 # A note on overloading:
