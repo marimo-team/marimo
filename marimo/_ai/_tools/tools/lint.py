@@ -69,15 +69,14 @@ class LintNotebook(ToolBase[LintNotebookArgs, LintNotebookOutput]):
     )
 
     async def handle(self, args: LintNotebookArgs) -> LintNotebookOutput:  # type: ignore[override]
-
         session = self.context.get_session(args.session_id)
         notebook_ir = session.app_file_manager.app.to_ir()
 
         rule_engine = RuleEngine.create_default()
         diagnostics = await rule_engine.check_notebook(notebook_ir)
-        
+
         summary = self._get_diagnostic_summary(diagnostics)
-        
+
         next_steps = self._build_next_steps(summary)
 
         return LintNotebookOutput(
