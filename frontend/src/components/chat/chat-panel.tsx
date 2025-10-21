@@ -30,16 +30,19 @@ import {
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { useModelChange } from "@/core/ai/config";
 import { AiModelId, type ProviderId } from "@/core/ai/ids/ids";
+import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import {
   activeChatAtom,
   type Chat,
   type ChatId,
   chatStateAtom,
 } from "@/core/ai/state";
+import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import {
   type CopilotMode,
   FRONTEND_TOOL_REGISTRY,
 } from "@/core/ai/tools/registry";
+import { useCellActions } from "@/core/cells/cells";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
@@ -48,7 +51,6 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
-
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
@@ -523,9 +525,18 @@ const ChatPanelBody = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const runtimeManager = useRuntimeManager();
-  const { invokeAiTool } = useRequestClient();
+  const { invokeAiTool, sendRun } = useRequestClient();
 
   const activeChatId = activeChat?.id;
+
+  const { addStagedCell } = useStagedAICellsActions();
+  const { createNewCell, prepareForRun } = useCellActions();
+  const toolContext: ToolNotebookContext = {
+    addStagedCell,
+    createNewCell,
+    prepareForRun,
+    sendRun,
+  };
 
   const {
     messages,
@@ -567,6 +578,13 @@ const ChatPanelBody = () => {
       });
     },
     onToolCall: async ({ toolCall }) => {
+      // Dynamic tool calls will throw an error for toolName
+      // https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-tool-usage#client-side-page
+      if (toolCall.dynamic) {
+        Logger.debug("Skipping dynamic tool call", toolCall);
+        return;
+      }
+
       await handleToolCall({
         invokeAiTool,
         addToolResult,
@@ -575,6 +593,7 @@ const ChatPanelBody = () => {
           toolCallId: toolCall.toolCallId,
           input: toolCall.input as Record<string, never>,
         },
+        toolContext,
       });
     },
     onError: (error) => {

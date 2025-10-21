@@ -3,11 +3,9 @@
 import type { FileUIPart } from "ai";
 import { z } from "zod";
 import { runCells } from "@/components/editor/cell/useRunCells";
-import type { createNotebookActions } from "@/core/cells/cells";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { staleCellIds } from "@/core/cells/utils";
-import { requestClientAtom } from "@/core/network/requests";
 import { type JotaiStore, waitFor } from "@/core/state/jotai";
 import {
   type BaseOutput,
@@ -17,7 +15,7 @@ import {
   type AiTool,
   type EmptyToolInput,
   type ToolDescription,
-  ToolExecutionError,
+  type ToolNotebookContext,
   type ToolOutputBase,
   toolOutputBaseSchema,
 } from "./base";
@@ -69,17 +67,17 @@ export class RunStaleCellsTool
   }) satisfies z.ZodType<RunStaleCellsOutput>;
   readonly mode: CopilotMode[] = ["agent"];
   private store: JotaiStore;
-  private notebookActions: ReturnType<typeof createNotebookActions>;
 
-  constructor(
-    store: JotaiStore,
-    notebookActions: ReturnType<typeof createNotebookActions>,
-  ) {
+  constructor(store: JotaiStore) {
     this.store = store;
-    this.notebookActions = notebookActions;
   }
 
-  handler = async (): Promise<RunStaleCellsOutput> => {
+  handler = async (
+    _args: EmptyToolInput,
+    toolContext: ToolNotebookContext,
+  ): Promise<RunStaleCellsOutput> => {
+    const { prepareForRun, sendRun } = toolContext;
+
     const notebook = this.store.get(notebookAtom);
     const staleCells = staleCellIds(notebook);
 
@@ -90,20 +88,10 @@ export class RunStaleCellsTool
       };
     }
 
-    const requestClient = this.store.get(requestClientAtom);
-    if (!requestClient) {
-      throw new ToolExecutionError(
-        "Request client not found",
-        "REQUEST_CLIENT_NOT_FOUND",
-        false,
-        "Internal error, ask the user to report this error",
-      );
-    }
-
     await runCells({
       cellIds: staleCells,
-      sendRun: requestClient.sendRun,
-      prepareForRun: this.notebookActions.prepareForRun,
+      sendRun: sendRun,
+      prepareForRun,
       notebook,
     });
 

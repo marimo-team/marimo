@@ -4,7 +4,6 @@ import type { EditorView } from "@codemirror/view";
 import { z } from "zod";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
 import {
-  type createNotebookActions,
   type CellPosition as NotebookCellPosition,
   type NotebookState,
   notebookAtom,
@@ -13,11 +12,11 @@ import { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import type { JotaiStore } from "@/core/state/jotai";
 import type { CellColumnId } from "@/utils/id-tree";
-import type { createStagedAICellsActions } from "../staged-cells";
 import {
   type AiTool,
   type ToolDescription,
   ToolExecutionError,
+  type ToolNotebookContext,
   type ToolOutputBase,
   toolOutputBaseSchema,
 } from "./base";
@@ -89,25 +88,22 @@ export class EditNotebookTool
   implements AiTool<EditNotebookInput, ToolOutputBase>
 {
   private store: JotaiStore;
-  private notebookActions: ReturnType<typeof createNotebookActions>;
-  private stagedAICellsActions: ReturnType<typeof createStagedAICellsActions>;
   readonly name = "edit_notebook_tool";
   readonly description = description;
   readonly schema = editNotebookSchema;
   readonly outputSchema = toolOutputBaseSchema;
   readonly mode: CopilotMode[] = ["agent"];
 
-  constructor(
-    store: JotaiStore,
-    notebookActions: ReturnType<typeof createNotebookActions>,
-    stagedAICellsActions: ReturnType<typeof createStagedAICellsActions>,
-  ) {
+  constructor(store: JotaiStore) {
     this.store = store;
-    this.notebookActions = notebookActions;
-    this.stagedAICellsActions = stagedAICellsActions;
   }
 
-  handler = async ({ edit }: EditNotebookInput): Promise<ToolOutputBase> => {
+  handler = async (
+    { edit }: EditNotebookInput,
+    toolContext: ToolNotebookContext,
+  ): Promise<ToolOutputBase> => {
+    const { addStagedCell, createNewCell } = toolContext;
+
     switch (edit.type) {
       case "update_cell": {
         const { cellId, code } = edit;
@@ -119,7 +115,7 @@ export class EditNotebookTool
         scrollAndHighlightCell(cellId);
 
         const currentCellCode = editorView.state.doc.toString();
-        this.stagedAICellsActions.addStagedCell({
+        addStagedCell({
           cellId,
           edit: { type: "update_cell", previousCode: currentCellCode },
         });
@@ -148,15 +144,14 @@ export class EditNotebookTool
           }
         }
 
-        this.notebookActions.createNewCell({
+        createNewCell({
           cellId: notebookPosition,
           before,
           code,
           newCellId,
         });
 
-        // Add to staged AICells
-        this.stagedAICellsActions.addStagedCell({
+        addStagedCell({
           cellId: newCellId,
           edit: { type: "add_cell" },
         });
@@ -176,7 +171,7 @@ export class EditNotebookTool
         const currentCellCode = editorView.state.doc.toString();
 
         // Add to staged AICells - don't actually delete the cell yet
-        this.stagedAICellsActions.addStagedCell({
+        addStagedCell({
           cellId,
           edit: { type: "delete_cell", previousCode: currentCellCode },
         });

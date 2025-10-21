@@ -5,8 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { requestClientAtom } from "@/core/network/requests";
-import { ToolExecutionError } from "../base";
 import { RunStaleCellsTool } from "../run-cells-tool";
 
 // Mock runCells
@@ -28,23 +26,23 @@ describe("RunStaleCellsTool", () => {
   let cellId1: CellId;
   let cellId2: CellId;
   let cellId3: CellId;
-  let mockNotebookActions: {
+  let toolContext: {
+    addStagedCell: ReturnType<typeof vi.fn>;
+    createNewCell: ReturnType<typeof vi.fn>;
     prepareForRun: ReturnType<typeof vi.fn>;
-  };
-  let mockRequestClient: {
     sendRun: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
     store = getDefaultStore();
-    mockNotebookActions = {
+    toolContext = {
+      addStagedCell: vi.fn(),
+      createNewCell: vi.fn(),
       prepareForRun: vi.fn(),
-    };
-    mockRequestClient = {
       sendRun: vi.fn().mockResolvedValue(null),
     };
 
-    tool = new RunStaleCellsTool(store, mockNotebookActions as never);
+    tool = new RunStaleCellsTool(store);
 
     cellId1 = "cell-1" as CellId;
     cellId2 = "cell-2" as CellId;
@@ -52,9 +50,6 @@ describe("RunStaleCellsTool", () => {
 
     // Reset mocks
     vi.clearAllMocks();
-
-    // Set up request client
-    store.set(requestClientAtom, mockRequestClient as never);
   });
 
   describe("no stale cells", () => {
@@ -77,30 +72,12 @@ describe("RunStaleCellsTool", () => {
       };
       store.set(notebookAtom, notebook);
 
-      const result = await tool.handler();
+      const result = await tool.handler({}, toolContext as never);
 
       expect(result.status).toBe("success");
       expect(result.message).toBe("No stale cells found.");
       expect(result.cellsToOutput).toBeUndefined();
       expect(vi.mocked(runCells)).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("error handling", () => {
-    it("should throw ToolExecutionError when request client is not found", async () => {
-      // Create a notebook with stale cells
-      const notebook = MockNotebook.notebookState({
-        cellData: {
-          [cellId1]: { code: "x = 1", edited: true },
-        },
-      });
-      store.set(notebookAtom, notebook);
-
-      // Clear request client
-      store.set(requestClientAtom, null);
-
-      await expect(tool.handler()).rejects.toThrow(ToolExecutionError);
-      await expect(tool.handler()).rejects.toThrow("Request client not found");
     });
   });
 
@@ -177,7 +154,7 @@ describe("RunStaleCellsTool", () => {
         return {} as never;
       });
 
-      const result = await tool.handler();
+      const result = await tool.handler({}, toolContext as never);
 
       expect(result.status).toBe("success");
       expect(result.cellsToOutput).toBeDefined();
@@ -188,8 +165,8 @@ describe("RunStaleCellsTool", () => {
       // Verify runCells was called with correct parameters
       expect(vi.mocked(runCells)).toHaveBeenCalledWith({
         cellIds: [cellId1, cellId3],
-        sendRun: mockRequestClient.sendRun,
-        prepareForRun: mockNotebookActions.prepareForRun,
+        sendRun: toolContext.sendRun,
+        prepareForRun: toolContext.prepareForRun,
         notebook,
       });
     });
@@ -219,7 +196,7 @@ describe("RunStaleCellsTool", () => {
         cellName: "cell1",
       } as never);
 
-      const result = await tool.handler();
+      const result = await tool.handler({}, toolContext as never);
 
       expect(result.status).toBe("success");
       expect(result.cellsToOutput).toBeDefined();
@@ -258,7 +235,7 @@ describe("RunStaleCellsTool", () => {
         cellName: "cell1",
       } as never);
 
-      const result = await tool.handler();
+      const result = await tool.handler({}, toolContext as never);
 
       expect(result.status).toBe("success");
       expect(result.cellsToOutput).toBeDefined();
@@ -296,7 +273,7 @@ describe("RunStaleCellsTool", () => {
         cellName: "cell1",
       } as never);
 
-      const result = await tool.handler();
+      const result = await tool.handler({}, toolContext as never);
 
       expect(result.status).toBe("success");
       expect(result.cellsToOutput).toBeDefined();
@@ -345,7 +322,7 @@ describe("RunStaleCellsTool", () => {
         cellName: "cell1",
       } as never);
 
-      const result = await tool.handler();
+      const result = await tool.handler({}, toolContext as never);
 
       expect(result.status).toBe("success");
       expect(result.cellsToOutput).toBeDefined();
@@ -383,7 +360,7 @@ describe("RunStaleCellsTool", () => {
         cellName: "cell1",
       } as never);
 
-      const result = await tool.handler();
+      const result = await tool.handler({}, toolContext as never);
 
       expect(result.status).toBe("success");
       expect(result.cellsToOutput).toBeDefined();
@@ -423,7 +400,7 @@ describe("RunStaleCellsTool", () => {
         cellName: "cell1",
       } as never);
 
-      const result = await tool.handler();
+      const result = await tool.handler({}, toolContext as never);
 
       expect(result.status).toBe("success");
       expect(result.cellsToOutput).toBeDefined();

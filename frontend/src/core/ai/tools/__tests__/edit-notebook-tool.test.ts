@@ -5,7 +5,6 @@ import { EditorView } from "@codemirror/view";
 import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
-import type { createNotebookActions } from "@/core/cells/cells";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
@@ -14,7 +13,6 @@ import type { CellColumnId } from "@/utils/id-tree";
 import { MultiColumn } from "@/utils/id-tree";
 import { cellConfigExtension } from "../../../codemirror/config/extension";
 import { adaptiveLanguageConfiguration } from "../../../codemirror/language/extension";
-import type { createStagedAICellsActions } from "../../staged-cells";
 import { stagedAICellsAtom } from "../../staged-cells";
 import { ToolExecutionError } from "../base";
 import { EditNotebookTool } from "../edit-notebook-tool";
@@ -67,10 +65,12 @@ describe("EditNotebookTool", () => {
   let cellId1: CellId;
   let cellId2: CellId;
   let cellId3: CellId;
-  let mockNotebookActions: Partial<ReturnType<typeof createNotebookActions>>;
-  let mockStagedAICellsActions: Partial<
-    ReturnType<typeof createStagedAICellsActions>
-  >;
+  let toolContext: {
+    addStagedCell: ReturnType<typeof vi.fn>;
+    createNewCell: ReturnType<typeof vi.fn>;
+    prepareForRun: ReturnType<typeof vi.fn>;
+    sendRun: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     store = getDefaultStore();
@@ -78,20 +78,16 @@ describe("EditNotebookTool", () => {
     // Reset atom states first
     store.set(stagedAICellsAtom, new Map());
 
-    mockNotebookActions = {
-      createNewCell: vi.fn(),
-    };
-    mockStagedAICellsActions = {
+    toolContext = {
       addStagedCell: vi.fn(({ cellId, edit }) => {
         const current = store.get(stagedAICellsAtom);
         store.set(stagedAICellsAtom, new Map(current).set(cellId, edit));
       }),
+      createNewCell: vi.fn(),
+      prepareForRun: vi.fn(),
+      sendRun: vi.fn().mockResolvedValue(null),
     };
-    tool = new EditNotebookTool(
-      store,
-      mockNotebookActions as never,
-      mockStagedAICellsActions as never,
-    );
+    tool = new EditNotebookTool(store);
 
     cellId1 = "cell-1" as CellId;
     cellId2 = "cell-2" as CellId;
@@ -127,13 +123,16 @@ describe("EditNotebookTool", () => {
       notebook.cellHandles[cellId1] = { current: { editorView } } as never;
       store.set(notebookAtom, notebook);
 
-      const result = await tool.handler({
-        edit: {
-          type: "update_cell",
-          cellId: cellId1,
-          code: newCode,
+      const result = await tool.handler(
+        {
+          edit: {
+            type: "update_cell",
+            cellId: cellId1,
+            code: newCode,
+          },
         },
-      });
+        toolContext as never,
+      );
 
       expect(result.status).toBe("success");
       expect(vi.mocked(updateEditorCodeFromPython)).toHaveBeenCalledWith(
@@ -159,23 +158,29 @@ describe("EditNotebookTool", () => {
       store.set(notebookAtom, notebook);
 
       await expect(
-        tool.handler({
-          edit: {
-            type: "update_cell",
-            cellId: "nonexistent" as CellId,
-            code: "x = 2",
+        tool.handler(
+          {
+            edit: {
+              type: "update_cell",
+              cellId: "nonexistent" as CellId,
+              code: "x = 2",
+            },
           },
-        }),
+          toolContext as never,
+        ),
       ).rejects.toThrow(ToolExecutionError);
 
       await expect(
-        tool.handler({
-          edit: {
-            type: "update_cell",
-            cellId: "nonexistent" as CellId,
-            code: "x = 2",
+        tool.handler(
+          {
+            edit: {
+              type: "update_cell",
+              cellId: "nonexistent" as CellId,
+              code: "x = 2",
+            },
           },
-        }),
+          toolContext as never,
+        ),
       ).rejects.toThrow("Cell not found");
     });
 
@@ -190,13 +195,16 @@ describe("EditNotebookTool", () => {
       store.set(notebookAtom, notebook);
 
       await expect(
-        tool.handler({
-          edit: {
-            type: "update_cell",
-            cellId: cellId1,
-            code: "x = 2",
+        tool.handler(
+          {
+            edit: {
+              type: "update_cell",
+              cellId: cellId1,
+              code: "x = 2",
+            },
           },
-        }),
+          toolContext as never,
+        ),
       ).rejects.toThrow("Cell editor not found");
     });
   });
@@ -211,13 +219,16 @@ describe("EditNotebookTool", () => {
       store.set(notebookAtom, notebook);
 
       const newCode = "y = 2";
-      const result = await tool.handler({
-        edit: {
-          type: "add_cell",
-          position: "__end__",
-          code: newCode,
+      const result = await tool.handler(
+        {
+          edit: {
+            type: "add_cell",
+            position: "__end__",
+            code: newCode,
+          },
         },
-      });
+        toolContext as never,
+      );
 
       expect(result.status).toBe("success");
 
@@ -239,13 +250,16 @@ describe("EditNotebookTool", () => {
       store.set(notebookAtom, notebook);
 
       const newCode = "y = 2";
-      const result = await tool.handler({
-        edit: {
-          type: "add_cell",
-          position: { cellId: cellId2, before: true },
-          code: newCode,
+      const result = await tool.handler(
+        {
+          edit: {
+            type: "add_cell",
+            position: { cellId: cellId2, before: true },
+            code: newCode,
+          },
         },
-      });
+        toolContext as never,
+      );
 
       expect(result.status).toBe("success");
 
@@ -266,13 +280,16 @@ describe("EditNotebookTool", () => {
       store.set(notebookAtom, notebook);
 
       const newCode = "y = 2";
-      const result = await tool.handler({
-        edit: {
-          type: "add_cell",
-          position: { cellId: cellId2, before: false },
-          code: newCode,
+      const result = await tool.handler(
+        {
+          edit: {
+            type: "add_cell",
+            position: { cellId: cellId2, before: false },
+            code: newCode,
+          },
         },
-      });
+        toolContext as never,
+      );
 
       expect(result.status).toBe("success");
 
@@ -294,13 +311,16 @@ describe("EditNotebookTool", () => {
       store.set(notebookAtom, notebook);
 
       const newCode = "y = 2";
-      const result = await tool.handler({
-        edit: {
-          type: "add_cell",
-          position: { type: "__end__", columnId },
-          code: newCode,
+      const result = await tool.handler(
+        {
+          edit: {
+            type: "add_cell",
+            position: { type: "__end__", columnId },
+            code: newCode,
+          },
         },
-      });
+        toolContext as never,
+      );
 
       expect(result.status).toBe("success");
 
@@ -318,13 +338,16 @@ describe("EditNotebookTool", () => {
       store.set(notebookAtom, notebook);
 
       await expect(
-        tool.handler({
-          edit: {
-            type: "add_cell",
-            position: { cellId: "nonexistent" as CellId, before: true },
-            code: "y = 2",
+        tool.handler(
+          {
+            edit: {
+              type: "add_cell",
+              position: { cellId: "nonexistent" as CellId, before: true },
+              code: "y = 2",
+            },
           },
-        }),
+          toolContext as never,
+        ),
       ).rejects.toThrow("Cell not found");
     });
 
@@ -337,16 +360,19 @@ describe("EditNotebookTool", () => {
       store.set(notebookAtom, notebook);
 
       await expect(
-        tool.handler({
-          edit: {
-            type: "add_cell",
-            position: {
-              type: "__end__",
-              columnId: "nonexistent" as CellColumnId,
+        tool.handler(
+          {
+            edit: {
+              type: "add_cell",
+              position: {
+                type: "__end__",
+                columnId: "nonexistent" as CellColumnId,
+              },
+              code: "y = 2",
             },
-            code: "y = 2",
           },
-        }),
+          toolContext as never,
+        ),
       ).rejects.toThrow("Column not found");
     });
   });
@@ -364,12 +390,15 @@ describe("EditNotebookTool", () => {
       notebook.cellHandles[cellId1] = { current: { editorView } } as never;
       store.set(notebookAtom, notebook);
 
-      const result = await tool.handler({
-        edit: {
-          type: "delete_cell",
-          cellId: cellId1,
+      const result = await tool.handler(
+        {
+          edit: {
+            type: "delete_cell",
+            cellId: cellId1,
+          },
         },
-      });
+        toolContext as never,
+      );
 
       expect(result.status).toBe("success");
 
@@ -391,12 +420,15 @@ describe("EditNotebookTool", () => {
       store.set(notebookAtom, notebook);
 
       await expect(
-        tool.handler({
-          edit: {
-            type: "delete_cell",
-            cellId: "nonexistent" as CellId,
+        tool.handler(
+          {
+            edit: {
+              type: "delete_cell",
+              cellId: "nonexistent" as CellId,
+            },
           },
-        }),
+          toolContext as never,
+        ),
       ).rejects.toThrow("Cell not found");
     });
 
@@ -411,12 +443,15 @@ describe("EditNotebookTool", () => {
       store.set(notebookAtom, notebook);
 
       await expect(
-        tool.handler({
-          edit: {
-            type: "delete_cell",
-            cellId: cellId1,
+        tool.handler(
+          {
+            edit: {
+              type: "delete_cell",
+              cellId: cellId1,
+            },
           },
-        }),
+          toolContext as never,
+        ),
       ).rejects.toThrow("Cell editor not found");
     });
   });
@@ -440,23 +475,29 @@ describe("EditNotebookTool", () => {
       notebook.cellHandles[cellId3] = { current: { editorView } } as never;
 
       await expect(
-        tool.handler({
-          edit: {
-            type: "update_cell",
-            cellId: cellId1,
-            code: "y = 1",
+        tool.handler(
+          {
+            edit: {
+              type: "update_cell",
+              cellId: cellId1,
+              code: "y = 1",
+            },
           },
-        }),
+          toolContext as never,
+        ),
       ).resolves.toBeDefined();
 
       await expect(
-        tool.handler({
-          edit: {
-            type: "update_cell",
-            cellId: cellId3,
-            code: "y = 3",
+        tool.handler(
+          {
+            edit: {
+              type: "update_cell",
+              cellId: cellId3,
+              code: "y = 3",
+            },
           },
-        }),
+          toolContext as never,
+        ),
       ).resolves.toBeDefined();
     });
   });
@@ -470,13 +511,16 @@ describe("EditNotebookTool", () => {
       });
       store.set(notebookAtom, notebook);
 
-      const result = await tool.handler({
-        edit: {
-          type: "add_cell",
-          position: "__end__",
-          code: "y = 2",
+      const result = await tool.handler(
+        {
+          edit: {
+            type: "add_cell",
+            position: "__end__",
+            code: "y = 2",
+          },
         },
-      });
+        toolContext as never,
+      );
 
       expect(result.status).toBe("success");
       expect(result.next_steps).toBeDefined();

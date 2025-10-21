@@ -3,18 +3,12 @@
 import type { components } from "@marimo-team/marimo-api";
 import { Memoize } from "typescript-memoize";
 import { type ZodObject, z } from "zod";
-import {
-  createNotebookActions,
-  notebookAtom,
-  notebookReducer,
-} from "@/core/cells/cells";
 import { store } from "@/core/state/jotai";
 import {
-  createStagedAICellsActions,
-  stagedAICellsAtom,
-  stagedAICellsReducer,
-} from "../staged-cells";
-import { type AiTool, ToolExecutionError } from "./base";
+  type AiTool,
+  ToolExecutionError,
+  type ToolNotebookContext,
+} from "./base";
 import { EditNotebookTool } from "./edit-notebook-tool";
 import { RunStaleCellsTool } from "./run-cells-tool";
 import { formatToolDescription } from "./utils";
@@ -62,6 +56,7 @@ export class FrontendToolRegistry {
   async invoke<TName extends string>(
     toolName: TName,
     rawArgs: unknown,
+    toolContext: ToolNotebookContext,
   ): Promise<InvokeResult<TName>> {
     const tool = this.getToolOrThrow(toolName);
     const handler = tool.handler;
@@ -78,7 +73,7 @@ export class FrontendToolRegistry {
       const args = inputResponse.data;
 
       // Call the handler
-      const rawOutput = await handler(args);
+      const rawOutput = await handler(args, toolContext);
 
       // Parse output
       const response = await outputSchema.safeParseAsync(rawOutput);
@@ -135,16 +130,7 @@ export class FrontendToolRegistry {
   }
 }
 
-// Share actions across all tools for performance
-const notebookActions = createNotebookActions((action) => {
-  store.set(notebookAtom, (state) => notebookReducer(state, action));
-});
-
-const stagedAICellsActions = createStagedAICellsActions((action) => {
-  store.set(stagedAICellsAtom, (state) => stagedAICellsReducer(state, action));
-});
-
 export const FRONTEND_TOOL_REGISTRY = new FrontendToolRegistry([
-  new EditNotebookTool(store, notebookActions, stagedAICellsActions),
-  new RunStaleCellsTool(store, notebookActions),
+  new EditNotebookTool(store),
+  new RunStaleCellsTool(store),
 ]);

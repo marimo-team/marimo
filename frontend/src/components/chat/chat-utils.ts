@@ -2,6 +2,7 @@
 
 import type { components } from "@marimo-team/marimo-api";
 import type { FileUIPart, ToolUIPart, UIMessage } from "ai";
+import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 import type {
   InvokeAiToolRequest,
@@ -108,6 +109,7 @@ export async function handleToolCall({
   invokeAiTool,
   addToolResult, // Important that we don't await addToolResult to prevent potential deadlocks
   toolCall,
+  toolContext,
 }: {
   invokeAiTool: (request: InvokeAiToolRequest) => Promise<InvokeAiToolResponse>;
   addToolResult: (result: AddToolResult) => Promise<void>;
@@ -116,6 +118,7 @@ export async function handleToolCall({
     toolCallId: string;
     input: Record<string, never>;
   };
+  toolContext: ToolNotebookContext;
 }) {
   try {
     if (FRONTEND_TOOL_REGISTRY.has(toolCall.toolName)) {
@@ -123,6 +126,7 @@ export async function handleToolCall({
       const response = await FRONTEND_TOOL_REGISTRY.invoke(
         toolCall.toolName,
         toolCall.input,
+        toolContext,
       );
       addToolResult({
         tool: toolCall.toolName,
