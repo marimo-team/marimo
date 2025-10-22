@@ -6,6 +6,10 @@ on:
       - 'marimo/_schemas/**/*.yaml'
       - 'packages/openapi/api.yaml'
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   changes:
     runs-on: ubuntu-latest

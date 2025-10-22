@@ -5,6 +5,10 @@ on:
     paths:
       - 'README.md'
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   notify-translators:
     # Only run this job when the PR is merged, not when it's closed without merging

@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 env:
   MARIMO_SKIP_UPDATE_CHECK: 1
 
