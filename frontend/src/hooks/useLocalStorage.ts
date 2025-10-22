@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useState } from "react";
-import { TypedLocalStorage } from "@/utils/localStorage";
+import { TypedLocalStorage } from "@/utils/storage/typed";
 
 /**
  * React hook to use localStorage

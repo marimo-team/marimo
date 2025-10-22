@@ -7,13 +7,15 @@ import {
   resolvedMarimoConfigAtom,
 } from "@/core/config/config";
 import { store, waitFor } from "@/core/state/jotai";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
+import { availableStorage } from "@/utils/storage/storage";
 
 const KEY = "marimo:copilot:signedIn";
 
 export const isGitHubCopilotSignedInState = atomWithStorage<boolean | null>(
   KEY,
   null,
-  undefined,
+  jotaiJsonStorage,
   {
     getOnInit: true,
   },
@@ -49,7 +51,7 @@ export function clearGitHubCopilotLoadingVersion(expectedVersion: number) {
 }
 
 function getIsLastSignedIn() {
-  const lastSignedIn = localStorage.getItem(KEY);
+  const lastSignedIn = availableStorage.getItem(KEY);
   return lastSignedIn === "true";
 }
 

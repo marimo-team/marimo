@@ -53,7 +53,8 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
-import { ZodLocalStorage } from "@/utils/localStorage";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
+import { ZodLocalStorage } from "@/utils/storage/typed";
 import { PythonIcon } from "../cell/code/icons";
 import {
   CompletionActions,
@@ -66,6 +67,7 @@ import { StreamingChunkTransport } from "./transport/chat-transport";
 const languageAtom = atomWithStorage<"python" | "sql">(
   "marimo:ai-language",
   "python",
+  jotaiJsonStorage,
 );
 
 const KEY = "marimo:ai-prompt-history";

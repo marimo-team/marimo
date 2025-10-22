@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { createJSONStorage } from "jotai/utils";
 import type { SyncStorage } from "jotai/vanilla/utils/atomWithStorage";
-import { Logger } from "./Logger";
+import { Logger } from "../Logger";
+import { availableStorage } from "./storage";
 
 /**
  * Converts a value to and from a serializable format for storage.
@@ -10,14 +12,18 @@ import { Logger } from "./Logger";
  * @param opts - The options for the storage adapter.
  * @returns - The storage adapter.
  */
+
 export function adaptForLocalStorage<Value, Serializable>(opts: {
   toSerializable: (v: Value) => Serializable;
   fromSerializable: (s: Serializable) => Value;
+  storage?: Storage;
 }): SyncStorage<Value> {
+  const storage = opts.storage || availableStorage;
+
   return {
     getItem(key, initialValue) {
       try {
-        const value = localStorage.getItem(key);
+        const value = storage.getItem(key);
         if (!value) {
           return initialValue;
         }
@@ -29,10 +35,16 @@ export function adaptForLocalStorage<Value, Serializable>(opts: {
       }
     },
     setItem: (key, value): void => {
-      localStorage.setItem(key, JSON.stringify(opts.toSerializable(value)));
+      storage.setItem(key, JSON.stringify(opts.toSerializable(value)));
     },
     removeItem: (key: string): void => {
-      localStorage.removeItem(key);
+      storage.removeItem(key);
     },
   };
 }
+
+/**
+ * A JSON storage adapter that uses the best available storage.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const jotaiJsonStorage = createJSONStorage<any>(() => availableStorage);
