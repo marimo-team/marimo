@@ -9,8 +9,8 @@ import {
   EditIcon,
   FlaskConicalIcon,
   FolderCog2,
+  LayersIcon,
   MonitorIcon,
-  PackageIcon,
 } from "lucide-react";
 import React, { useId, useRef } from "react";
 import { useLocale } from "react-aria";
@@ -53,11 +53,11 @@ import { Badge } from "../ui/badge";
 import { ExternalLink } from "../ui/links";
 import { Tooltip } from "../ui/tooltip";
 import { AiConfig } from "./ai-config";
-import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
+import { formItemClasses, SettingGroup } from "./common";
+import { DataForm } from "./data-form";
 import { IsOverridden } from "./is-overridden";
 import { OptionalFeatures } from "./optional-features";
 
-const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 const categories = [
   {
     id: "editor",
@@ -72,9 +72,9 @@ const categories = [
     className: "bg-(--grass-4)",
   },
   {
-    id: "packageManagement",
-    label: "Package Management",
-    Icon: PackageIcon,
+    id: "packageManagementAndData",
+    label: "Packages & Data",
+    Icon: LayersIcon,
     className: "bg-(--red-4)",
   },
   {
@@ -559,35 +559,6 @@ export const UserConfigForm: React.FC = () => {
               />
             </SettingGroup>
 
-            <SettingGroup title="Diagnostics">
-              <FormField
-                control={form.control}
-                name="diagnostics.sql_linter"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>SQL Linter</FormLabel>
-                      <FormControl>
-                        <Checkbox
-                          data-testid="sql-linter-checkbox"
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="diagnostics.sql_linter"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      Better linting and autocompletions for SQL cells.
-                    </FormDescription>
-                  </div>
-                )}
-              />
-            </SettingGroup>
-
             <SettingGroup title="Keymap">
               <FormField
                 control={form.control}
@@ -887,22 +858,30 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+            </SettingGroup>
+          </>
+        );
+      case "packageManagementAndData":
+        return (
+          <>
+            <SettingGroup title="Package Management">
               <FormField
                 control={form.control}
-                name="display.dataframes"
+                disabled={isWasmRuntime}
+                name="package_management.manager"
                 render={({ field }) => (
                   <div className="flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
-                      <FormLabel>Dataframe viewer</FormLabel>
+                      <FormLabel>Manager</FormLabel>
                       <FormControl>
                         <NativeSelect
-                          data-testid="display-dataframes-select"
+                          data-testid="package-manager-select"
                           onChange={(e) => field.onChange(e.target.value)}
                           value={field.value}
                           disabled={field.disabled}
                           className="inline-flex mr-2"
                         >
-                          {["rich", "plain"].map((option) => (
+                          {PackageManagerNames.map((option) => (
                             <option value={option} key={option}>
                               {option}
                             </option>
@@ -912,148 +891,34 @@ export const UserConfigForm: React.FC = () => {
                       <FormMessage />
                       <IsOverridden
                         userConfig={config}
-                        name="display.dataframes"
+                        name="package_management.manager"
                       />
                     </FormItem>
 
                     <FormDescription>
-                      Whether to use marimo's rich dataframe viewer or a plain
-                      HTML table. This requires restarting your notebook to take
-                      effect.
-                    </FormDescription>
-                  </div>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="display.default_table_page_size"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Default table page size</FormLabel>
-                      <FormControl>
-                        <NumberField
-                          aria-label="Default table page size"
-                          data-testid="default-table-page-size-input"
-                          className="m-0 w-24"
-                          {...field}
-                          value={field.value}
-                          minValue={1}
-                          step={1}
-                          onChange={(value) => {
-                            field.onChange(value);
-                            if (!Number.isNaN(value)) {
-                              onSubmit(form.getValues());
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="display.default_table_page_size"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      The default number of rows displayed in dataframes and SQL
-                      results.
-                    </FormDescription>
-                  </div>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="display.default_table_max_columns"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Default table max columns</FormLabel>
-                      <FormControl>
-                        <NumberField
-                          aria-label="Default table max columns"
-                          data-testid="default-table-max-columns-input"
-                          className="m-0 w-24"
-                          {...field}
-                          value={field.value}
-                          minValue={1}
-                          step={1}
-                          onChange={(value) => {
-                            field.onChange(value);
-                            if (!Number.isNaN(value)) {
-                              onSubmit(form.getValues());
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="display.default_table_max_columns"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      The default maximum number of columns displayed in
-                      dataframes and SQL results.
+                      When marimo comes across a module that is not installed,
+                      you will be prompted to install it using your preferred
+                      package manager. Learn more in the{" "}
+                      <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html">
+                        docs
+                      </ExternalLink>
+                      .
+                      <br />
+                      <br />
+                      Running marimo in a{" "}
+                      <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only">
+                        sandboxed environment
+                      </ExternalLink>{" "}
+                      is only supported by <Kbd className="inline">uv</Kbd>
                     </FormDescription>
                   </div>
                 )}
               />
             </SettingGroup>
+            <SettingGroup title="Data">
+              <DataForm form={form} config={config} onSubmit={onSubmit} />
+            </SettingGroup>
           </>
-        );
-      case "packageManagement":
-        return (
-          <SettingGroup title="Package Management">
-            <FormField
-              control={form.control}
-              disabled={isWasmRuntime}
-              name="package_management.manager"
-              render={({ field }) => (
-                <div className="flex flex-col space-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel>Manager</FormLabel>
-                    <FormControl>
-                      <NativeSelect
-                        data-testid="package-manager-select"
-                        onChange={(e) => field.onChange(e.target.value)}
-                        value={field.value}
-                        disabled={field.disabled}
-                        className="inline-flex mr-2"
-                      >
-                        {PackageManagerNames.map((option) => (
-                          <option value={option} key={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    </FormControl>
-                    <FormMessage />
-                    <IsOverridden
-                      userConfig={config}
-                      name="package_management.manager"
-                    />
-                  </FormItem>
-
-                  <FormDescription>
-                    When marimo comes across a module that is not installed, you
-                    will be prompted to install it using your preferred package
-                    manager. Learn more in the{" "}
-                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html">
-                      docs
-                    </ExternalLink>
-                    .
-                    <br />
-                    <br />
-                    Running marimo in a{" "}
-                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only">
-                      sandboxed environment
-                    </ExternalLink>{" "}
-                    is only supported by <Kbd className="inline">uv</Kbd>
-                  </FormDescription>
-                </div>
-              )}
-            />
-          </SettingGroup>
         );
       case "runtime":
         return (
@@ -1162,43 +1027,6 @@ export const UserConfigForm: React.FC = () => {
                     executing cells. If "lazy", marimo will mark cells affected
                     by module modifications as stale; if "autorun", affected
                     cells will be automatically re-run.
-                  </FormDescription>
-                </div>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="runtime.default_sql_output"
-              render={({ field }) => (
-                <div className="flex flex-col space-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel>Default SQL output</FormLabel>
-                    <FormControl>
-                      <NativeSelect
-                        data-testid="user-config-sql-output-select"
-                        onChange={(e) => field.onChange(e.target.value)}
-                        value={field.value}
-                        disabled={field.disabled}
-                        className="inline-flex mr-2"
-                      >
-                        {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
-                          <option value={option.value} key={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    </FormControl>
-                    <FormMessage />
-                    <IsOverridden
-                      userConfig={config}
-                      name="runtime.default_sql_output"
-                    />
-                  </FormItem>
-
-                  <FormDescription>
-                    The default SQL output type for new notebooks; overridden by
-                    "sql_output" in the application config.
                   </FormDescription>
                 </div>
               )}
@@ -1432,20 +1260,5 @@ export const UserConfigForm: React.FC = () => {
         </div>
       </form>
     </Form>
-  );
-};
-
-const SettingGroup = ({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) => {
-  return (
-    <div className="flex flex-col gap-4 pb-4">
-      <SettingSubtitle>{title}</SettingSubtitle>
-      {children}
-    </div>
   );
 };

@@ -14,7 +14,11 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import InferenceConfig, SQLConnection
-from marimo._sql.utils import convert_to_output, sql_type_to_data_type
+from marimo._sql.utils import (
+    CHEAP_DISCOVERY_DATABASES,
+    convert_to_output,
+    sql_type_to_data_type,
+)
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
@@ -422,7 +426,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         return value
 
     def _is_cheap_discovery(self) -> bool:
-        return self.dialect.lower() in ("sqlite", "mysql", "postgresql")
+        return self.dialect.lower() in CHEAP_DISCOVERY_DATABASES
 
     @staticmethod
     def is_cursor_result(result: Any) -> bool:

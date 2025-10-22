@@ -211,7 +211,7 @@ const InstallPackageForm: React.FC<{
           ) : (
             <Tooltip content="Change package manager">
               <BoxIcon
-                onClick={() => openSettings("packageManagement")}
+                onClick={() => openSettings("packageManagementAndData")}
                 className="mr-2 h-4 w-4 shrink-0 opacity-50 hover:opacity-80 cursor-pointer"
               />
             </Tooltip>

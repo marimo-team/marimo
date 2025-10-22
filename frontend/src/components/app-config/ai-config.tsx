@@ -73,13 +73,11 @@ import {
 import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
-import { SettingSubtitle } from "./common";
+import { formItemClasses, SettingSubtitle } from "./common";
 import { AWS_REGIONS } from "./constants";
 import { IncorrectModelId } from "./incorrect-model-id";
 import { IsOverridden } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
-
-const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;

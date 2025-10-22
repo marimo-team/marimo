@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+CHEAP_DISCOVERY_DATABASES = ["duckdb", "sqlite", "mysql", "postgresql"]
+
 
 def wrapped_sql(
     query: str,
