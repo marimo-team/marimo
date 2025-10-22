@@ -513,6 +513,8 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
+    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
+
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
     if name is None and (stdin_contents := _get_stdin_contents()) is not None:
         temp_dir = tempfile.TemporaryDirectory()
@@ -535,45 +537,9 @@ def edit(
         )
         return
 
-    # Dangerous sandbox can be forced on by setting an environment variable;
-    # this allows our VS Code extension to force sandbox regardless of the
-    # marimo version.
-    if sandbox and os.getenv("MARIMO_DANGEROUS_SANDBOX"):
-        dangerous_sandbox = True
-
-    if dangerous_sandbox and (name is None or os.path.isdir(name)):
-        sandbox = True
-        click.echo(
-            click.style(
-                "Warning: Using sandbox with multi-notebook edit servers is dangerous.\n",
-                fg="yellow",
-            )
-            + "Notebook dependencies may not be respected, may not be written, and may be overwritten.\n"
-            + "Learn more: https://github.com/marimo-team/marimo/issues/5219l.\n",
-            err=True,
-        )
-
-    if sandbox is None:
-        # When the sandbox flag is omitted we infer whether to
-        # to start in sandbox mode by examining the notebook file and
-        # prompting the user.
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
-
-        sandbox = maybe_prompt_run_in_sandbox(name)
-    elif (
-        sandbox
-        and not dangerous_sandbox
-        and (name is None or os.path.isdir(name))
+    if should_run_in_sandbox(
+        sandbox=sandbox, dangerous_sandbox=dangerous_sandbox, name=name
     ):
-        raise click.UsageError(
-            """marimo's package sandbox requires a notebook name:
-
-    * marimo edit --sandbox my_notebook.py
-
-  Multi-notebook sandboxed servers (marimo edit --sandbox) are not supported.
-  Follow this issue at: https://github.com/marimo-team/marimo/issues/2598."""
-        )
-    elif sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
         # TODO: consider adding recommended as well
@@ -1009,6 +975,8 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
+    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
+
     # If file is a url, we prompt to run in docker
     # We only do this for remote files,
     # but later we can make this a CLI flag
@@ -1023,15 +991,9 @@ def run(
         )
         return
 
-    # Set default, if not provided
-    if sandbox is None:
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
-
-        sandbox = maybe_prompt_run_in_sandbox(name)
-
-    if sandbox:
-        from marimo._cli.sandbox import run_in_sandbox
-
+    if should_run_in_sandbox(
+        sandbox=sandbox, dangerous_sandbox=None, name=name
+    ):
         run_in_sandbox(sys.argv[1:], name=name)
         return
 
