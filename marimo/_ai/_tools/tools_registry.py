@@ -5,6 +5,7 @@ from typing import Any
 
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.tools.cells import (
+    GetCellOutputs,
     GetCellRuntimeData,
     GetLightweightCellMap,
 )
@@ -19,6 +20,7 @@ SUPPORTED_BACKEND_AND_MCP_TOOLS: list[type[ToolBase[Any, Any]]] = [
     GetMarimoRules,
     GetActiveNotebooks,
     GetCellRuntimeData,
+    GetCellOutputs,
     GetLightweightCellMap,
     GetTablesAndVariables,
     GetDatabaseTables,
