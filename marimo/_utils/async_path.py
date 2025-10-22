@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import sys
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from typing import IO, TYPE_CHECKING, Any, Optional, Union
 
@@ -138,14 +137,9 @@ class AsyncPath(PurePath):
         newline: Optional[str] = None,
     ) -> int:
         """Write text data to the file."""
-        if sys.version_info >= (3, 10):
-            return await asyncio.to_thread(
-                self._path.write_text, data, encoding, errors, newline
-            )
-        else:
-            return await asyncio.to_thread(
-                self._path.write_text, data, encoding, errors
-            )
+        return await asyncio.to_thread(
+            self._path.write_text, data, encoding, errors, newline
+        )
 
     async def write_bytes(self, data: bytes) -> int:
         """Write bytes data to the file."""

@@ -11,6 +11,7 @@ from typing import (
     Final,
     Literal,
     Optional,
+    TypeAlias,
     Union,
     cast,
 )
@@ -32,11 +33,6 @@ from marimo._utils.narwhals_utils import (
     empty_df,
     is_narwhals_lazyframe,
 )
-
-if sys.version_info < (3, 10):
-    from typing_extensions import TypeAlias
-else:
-    from typing import TypeAlias
 
 LOGGER = _loggers.marimo_logger()
 

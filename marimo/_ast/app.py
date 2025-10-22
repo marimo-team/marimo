@@ -6,7 +6,12 @@ import inspect
 import os
 import sys
 import threading
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import (
+    Iterable,
+    Iterator,
+    Mapping,
+    Sequence,  # noqa: TC003
+)
 from dataclasses import dataclass
 from pathlib import Path
 from textwrap import dedent
@@ -16,33 +21,18 @@ from typing import (
     Callable,
     Literal,
     Optional,
+    ParamSpec,
+    TypeAlias,
     TypeVar,
     Union,
     cast,
     overload,
 )
 
-from marimo._ast.app_config import _AppConfig
-from marimo._ast.cell_id import external_prefix
-from marimo._ast.parse import ast_parse
-from marimo._ast.variables import BUILTINS
-from marimo._convert.converters import MarimoConvert
-from marimo._schemas.serialization import (
-    AppInstantiation,
-    CellDef,
-    NotebookSerializationV1,
-)
-from marimo._types.ids import CellId_t
-
-if sys.version_info < (3, 10):
-    from typing_extensions import ParamSpec, TypeAlias
-else:
-    from typing import ParamSpec, TypeAlias
-
-from collections.abc import Sequence  # noqa: TC003
-
 from marimo import _loggers
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig, CellImpl
+from marimo._ast.cell_id import external_prefix
 from marimo._ast.cell_manager import CellManager
 from marimo._ast.errors import (
     CycleError,
@@ -50,6 +40,9 @@ from marimo._ast.errors import (
     SetupRootError,
     UnparsableError,
 )
+from marimo._ast.parse import ast_parse
+from marimo._ast.variables import BUILTINS
+from marimo._convert.converters import MarimoConvert
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -65,6 +58,12 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     SetUIElementValueRequest,
 )
+from marimo._schemas.serialization import (
+    AppInstantiation,
+    CellDef,
+    NotebookSerializationV1,
+)
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

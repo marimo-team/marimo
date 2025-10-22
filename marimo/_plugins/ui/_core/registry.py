@@ -1,20 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
 import weakref
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
-
-from marimo._runtime.context.types import ContextNotInitializedError
-
-if sys.version_info < (3, 10):
-    from typing_extensions import TypeAlias
-else:
-    from typing import TypeAlias
+from typing import TYPE_CHECKING, Any, Optional, TypeAlias, TypeVar
 
 from marimo._ast.app import _Namespace
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
+from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._types.ids import CellId_t, UIElementId
 
 if TYPE_CHECKING:
@@ -22,8 +15,7 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
-# Recursive types don't support | or dict[] in py3.8/3.9 (25-11-01)
-LensValue: TypeAlias = Union[T, dict[str, "LensValue[T]"]]
+LensValue: TypeAlias = T | dict[str, "LensValue[T]"]
 
 
 class UIElementRegistry:

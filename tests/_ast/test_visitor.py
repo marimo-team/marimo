@@ -722,7 +722,6 @@ def test_captured_variables() -> None:
     assert v.refs == set(["x"])
 
 
-@pytest.mark.skipif("sys.version_info < (3, 10)")
 def test_matchas() -> None:
     code = cleandoc(
         """
@@ -752,7 +751,6 @@ def test_matchas() -> None:
     }
 
 
-@pytest.mark.skipif("sys.version_info < (3, 10)")
 def test_matchstar() -> None:
     code = cleandoc(
         """
@@ -773,7 +771,6 @@ def test_matchstar() -> None:
     }
 
 
-@pytest.mark.skipif("sys.version_info < (3, 10)")
 def test_matchmapping() -> None:
     code = cleandoc(
         """

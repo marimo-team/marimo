@@ -17,15 +17,8 @@ from marimo._output.md import _md
 from marimo._output.mime import MIME
 
 if TYPE_CHECKING:
-    import sys
     from collections.abc import Mapping, Sequence
-
-    if sys.version_info < (3, 10):
-        from typing_extensions import TypeAlias
-    else:
-        from typing import TypeAlias
-
-    from typing import Optional
+    from typing import Optional, TypeAlias
 
     JSONType: TypeAlias = Union[
         Mapping[str, "JSONType"],

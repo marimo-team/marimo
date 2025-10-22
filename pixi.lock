@@ -1102,7 +1102,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.17.0
-  sha256: 3ad30865c3f4e4123cc42ed7f504c66d52bf4c3c4378026197cd8a0bf4040350
+  sha256: c7f02210574e3679303815802a2631c364000e642b29cc0cea821352011b0f9b
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1144,7 +1144,7 @@ packages:
   - python-lsp-ruff>=2.0.0 ; extra == 'lsp'
   - mcp>=1.0.0 ; python_full_version >= '3.10' and extra == 'mcp'
   - pydantic>2 ; python_full_version >= '3.10' and extra == 'mcp'
-  requires_python: '>=3.9'
+  requires_python: '>=3.10'
   editable: true
 - pypi: https://files.pythonhosted.org/packages/3f/08/83871f3c50fc983b88547c196d11cf8c3340e37c32d2e9d6152abe2c61f7/Markdown-3.7-py3-none-any.whl
   name: markdown

@@ -613,14 +613,14 @@ class ColumnPreview(msgspec.Struct):
     stats: Optional[ColumnStats] = None
 
 
-# We shouldn't need to make table_name and column_name have default values.
-# We can use kw_only=True once we drop support for Python 3.9 (25-11-01).
-class DataColumnPreview(Op, ColumnPreview, tag="data-column-preview"):
+class DataColumnPreview(
+    Op, ColumnPreview, kw_only=True, tag="data-column-preview"
+):
     """Preview of a column in a dataset."""
 
     name: ClassVar[str] = "data-column-preview"
-    table_name: str = ""
-    column_name: str = ""
+    table_name: str
+    column_name: str
 
 
 class DataSourceConnections(Op, tag="data-source-connections"):

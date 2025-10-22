@@ -452,13 +452,6 @@ def inline_packages(name: Path) -> None:
     if not name.exists():
         raise click.FileError(str(name))
 
-    # Validate >=3.10 for sys.stdlib_module_names
-    if sys.version_info < (3, 10):
-        # TOD: add support for < 3.10
-        # We can use https://github.com/omnilib/stdlibs
-        # to get the stdlib module names
-        raise click.UsageError("Requires Python >=3.10")
-
     package_names = module_name_to_pypi_name()
 
     def get_pypi_package_names() -> list[str]:
