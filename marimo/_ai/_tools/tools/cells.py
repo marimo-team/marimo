@@ -71,7 +71,7 @@ class CellRuntimeMetadata:
     execution_time: Optional[float] = None
 
 
-CellVariables = dict[str, VariableValue | str]
+CellVariables = dict[str, VariableValue]
 
 
 @dataclass
@@ -421,7 +421,7 @@ class GetCellRuntimeData(
         for var_name in cell_defs:
             if var_name in all_variables:
                 var_value = all_variables[var_name]
-                cell_variables[var_name] = var_value.llm_context or var_value
+                cell_variables[var_name] = var_value
 
         return cell_variables
 
