@@ -4,25 +4,18 @@ import type { EditorView } from "@codemirror/view";
 import { z } from "zod";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
 import {
-  createNotebookActions,
   type CellPosition as NotebookCellPosition,
   type NotebookState,
   notebookAtom,
-  notebookReducer,
 } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
-import type { JotaiStore } from "@/core/state/jotai";
 import type { CellColumnId } from "@/utils/id-tree";
-import {
-  createStagedAICellsActions,
-  stagedAICellsAtom,
-  stagedAICellsReducer,
-} from "../staged-cells";
 import {
   type AiTool,
   type ToolDescription,
   ToolExecutionError,
+  type ToolNotebookContext,
   type ToolOutputBase,
   toolOutputBaseSchema,
 } from "./base";
@@ -93,42 +86,30 @@ export type EditType = EditOperation["type"];
 export class EditNotebookTool
   implements AiTool<EditNotebookInput, ToolOutputBase>
 {
-  private readonly store: JotaiStore;
-  private readonly notebookActions: ReturnType<typeof createNotebookActions>;
-  private readonly stagedAICellsActions: ReturnType<
-    typeof createStagedAICellsActions
-  >;
   readonly name = "edit_notebook_tool";
   readonly description = description;
   readonly schema = editNotebookSchema;
   readonly outputSchema = toolOutputBaseSchema;
   readonly mode: CopilotMode[] = ["agent"];
 
-  constructor(store: JotaiStore) {
-    this.store = store;
-    this.notebookActions = createNotebookActions((action) => {
-      this.store.set(notebookAtom, (state) => notebookReducer(state, action));
-    });
-    this.stagedAICellsActions = createStagedAICellsActions((action) => {
-      this.store.set(stagedAICellsAtom, (state) =>
-        stagedAICellsReducer(state, action),
-      );
-    });
-  }
+  handler = async (
+    { edit }: EditNotebookInput,
+    toolContext: ToolNotebookContext,
+  ): Promise<ToolOutputBase> => {
+    const { addStagedCell, createNewCell, store } = toolContext;
 
-  handler = async ({ edit }: EditNotebookInput): Promise<ToolOutputBase> => {
     switch (edit.type) {
       case "update_cell": {
         const { cellId, code } = edit;
 
-        const notebook = this.store.get(notebookAtom);
+        const notebook = store.get(notebookAtom);
         this.validateCellIdExists(cellId, notebook);
         const editorView = this.getCellEditorView(cellId, notebook);
 
         scrollAndHighlightCell(cellId);
 
         const currentCellCode = editorView.state.doc.toString();
-        this.stagedAICellsActions.addStagedCell({
+        addStagedCell({
           cellId,
           edit: { type: "update_cell", previousCode: currentCellCode },
         });
@@ -146,7 +127,7 @@ export class EditNotebookTool
         const newCellId = CellId.create();
 
         if (typeof position === "object") {
-          const notebook = this.store.get(notebookAtom);
+          const notebook = store.get(notebookAtom);
           if ("cellId" in position) {
             this.validateCellIdExists(position.cellId, notebook);
             notebookPosition = position.cellId;
@@ -157,15 +138,14 @@ export class EditNotebookTool
           }
         }
 
-        this.notebookActions.createNewCell({
+        createNewCell({
           cellId: notebookPosition,
           before,
           code,
           newCellId,
         });
 
-        // Add to staged AICells
-        this.stagedAICellsActions.addStagedCell({
+        addStagedCell({
           cellId: newCellId,
           edit: { type: "add_cell" },
         });
@@ -178,14 +158,14 @@ export class EditNotebookTool
       case "delete_cell": {
         const { cellId } = edit;
 
-        const notebook = this.store.get(notebookAtom);
+        const notebook = store.get(notebookAtom);
         this.validateCellIdExists(cellId, notebook);
 
         const editorView = this.getCellEditorView(cellId, notebook);
         const currentCellCode = editorView.state.doc.toString();
 
         // Add to staged AICells - don't actually delete the cell yet
-        this.stagedAICellsActions.addStagedCell({
+        addStagedCell({
           cellId,
           edit: { type: "delete_cell", previousCode: currentCellCode },
         });

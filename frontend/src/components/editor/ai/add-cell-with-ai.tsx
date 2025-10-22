@@ -44,6 +44,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
+import type { ToolNotebookContext } from "@/core/ai/tools/base";
+import { useCellActions } from "@/core/cells/cells";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { useRequestClient } from "@/core/network/requests";
 import type { AiCompletionRequest } from "@/core/network/types";
@@ -79,14 +81,23 @@ export const AddCellWithAI: React.FC<{
   const store = useStore();
   const [input, setInput] = useState("");
 
-  const { deleteAllStagedCells, clearStagedCells, onStream } =
+  const { deleteAllStagedCells, clearStagedCells, onStream, addStagedCell } =
     useStagedCells(store);
   const [language, setLanguage] = useAtom(languageAtom);
   const runtimeManager = useRuntimeManager();
-  const { invokeAiTool } = useRequestClient();
+  const { invokeAiTool, sendRun } = useRequestClient();
 
   const stagedAICells = useAtomValue(stagedAICellsAtom);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
+
+  const { createNewCell, prepareForRun } = useCellActions();
+  const toolContext: ToolNotebookContext = {
+    store,
+    addStagedCell,
+    createNewCell,
+    prepareForRun,
+    sendRun,
+  };
 
   const { sendMessage, stop, status, addToolResult } = useChat({
     // Throttle the messages and data updates to 100ms
@@ -125,6 +136,7 @@ export const AddCellWithAI: React.FC<{
           toolCallId: toolCall.toolCallId,
           input: toolCall.input as Record<string, never>,
         },
+        toolContext,
       });
     },
     onError: (error) => {

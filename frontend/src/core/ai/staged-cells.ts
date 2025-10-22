@@ -60,6 +60,7 @@ const {
 });
 
 export {
+  useStagedAICellsActions,
   createActions as createStagedAICellsActions,
   reducer as stagedAICellsReducer,
 };
