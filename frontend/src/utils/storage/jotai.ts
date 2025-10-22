@@ -1,9 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import {
-  createJSONStorage,
-  type SyncStorage,
-} from "jotai/vanilla/utils/atomWithStorage";
+import { createJSONStorage } from "jotai/utils";
+import type { SyncStorage } from "jotai/vanilla/utils/atomWithStorage";
 import { Logger } from "../Logger";
 import { availableStorage } from "./storage";
 
