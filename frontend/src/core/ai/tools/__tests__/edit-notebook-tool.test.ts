@@ -149,6 +149,31 @@ describe("EditNotebookTool", () => {
         type: "update_cell",
         previousCode: oldCode,
       });
+
+      // Update cell again
+      const result2 = await tool.handler(
+        {
+          edit: {
+            type: "update_cell",
+            cellId: cellId1,
+            code: "x = 3",
+          },
+        },
+        toolContext as never,
+      );
+
+      expect(result2.status).toBe("success");
+      expect(vi.mocked(updateEditorCodeFromPython)).toHaveBeenCalledWith(
+        editorView,
+        "x = 3",
+      );
+
+      const stagedCells2 = store.get(stagedAICellsAtom);
+      expect(stagedCells2.has(cellId1)).toBe(true);
+      expect(stagedCells2.get(cellId1)).toEqual({
+        type: "update_cell",
+        previousCode: oldCode, // Should keep the original code
+      });
     });
 
     it("should throw error when cell ID doesn't exist", async () => {

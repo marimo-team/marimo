@@ -11,6 +11,7 @@ import {
 import { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import type { CellColumnId } from "@/utils/id-tree";
+import { stagedAICellsAtom } from "../staged-cells";
 import {
   type AiTool,
   type ToolDescription,
@@ -108,10 +109,19 @@ export class EditNotebookTool
 
         scrollAndHighlightCell(cellId);
 
+        // If previous code exists, we don't want to replace it, it means there is a new edit on top of the previous edit
+        // Keep the original code
+        const stagedCell = store.get(stagedAICellsAtom).get(cellId);
         const currentCellCode = editorView.state.doc.toString();
+        const previousCode =
+          stagedCell?.type === "update_cell" ||
+          stagedCell?.type === "delete_cell"
+            ? stagedCell.previousCode
+            : currentCellCode;
+
         addStagedCell({
           cellId,
-          edit: { type: "update_cell", previousCode: currentCellCode },
+          edit: { type: "update_cell", previousCode: previousCode },
         });
 
         updateEditorCodeFromPython(editorView, code);
