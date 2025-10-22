@@ -191,6 +191,7 @@ providing your users with an interactive code playground.
   width="100%"
   height="500"
   frameborder="0"
+  sandbox="allow-scripts"
 ></iframe>
 ```
 
@@ -200,7 +201,6 @@ providing your users with an interactive code playground.
 
     To show editor controls (such as panels icons and the run button), use
     the query parameter `show-chrome=true`
-
 
 ### Embedding an existing notebook
 
@@ -213,6 +213,7 @@ URL to your notebook](#creating-and-sharing-playground-notebooks), then put it i
   width="100%"
   height="500"
   frameborder="0"
+  sandbox="allow-scripts"
 ></iframe>
 ```
 
@@ -229,6 +230,7 @@ You can optionally render embedded notebooks in read-only mode by appending
   width="100%"
   height="500"
   frameborder="0"
+  sandbox="allow-scripts"
 ></iframe>
 ```
 
@@ -269,7 +271,7 @@ For example, if you are using MDX, you can use the following snippet:
 ```jsx
 const MdxNotebook = (props: { code: string }) => {
   return (
-    <iframe src={`https://marimo.app?embed=true&show-chrome=false&code=${encodeURIComponent(props.code)}`} />
+    <iframe src={`https://marimo.app?embed=true&show-chrome=false&code=${encodeURIComponent(props.code)}`} sandbox="allow-scripts" />
   );
 };
 
@@ -287,6 +289,6 @@ def _():
 @app.cell(hide_code=True)
 def _():
     ...
-    return 
-`} /> 
+    return
+`} />
 ```
