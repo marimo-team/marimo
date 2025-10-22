@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atomWithStorage, createJSONStorage } from "jotai/utils";
+import { atomWithStorage } from "jotai/utils";
 import { once } from "lodash-es";
-import { availableStorage } from "@/utils/storage/storage";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { getFeatureFlag } from "../config/feature-flag";
 
 /**
@@ -11,7 +11,7 @@ import { getFeatureFlag } from "../config/feature-flag";
 export const usernameAtom = atomWithStorage<string>(
   "marimo:rtc:username",
   "",
-  createJSONStorage(() => availableStorage),
+  jotaiJsonStorage,
 );
 
 /**

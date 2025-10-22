@@ -4,6 +4,7 @@ import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { capitalize } from "lodash-es";
 import { isPlatformWindows } from "@/core/hotkeys/shortcuts";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import type { TypedString } from "@/utils/typed";
 import { generateUUID } from "@/utils/uuid";
 import type { ExternalAgentSessionId, SessionSupportType } from "./types";
@@ -41,6 +42,7 @@ export const agentSessionStateAtom = atomWithStorage<AgentSessionState>(
     sessions: [],
     activeTabId: null,
   },
+  jotaiJsonStorage,
 );
 
 export const selectedTabAtom = atom(

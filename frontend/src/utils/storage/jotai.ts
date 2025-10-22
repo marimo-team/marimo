@@ -1,6 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { SyncStorage } from "jotai/vanilla/utils/atomWithStorage";
+import {
+  createJSONStorage,
+  type SyncStorage,
+} from "jotai/vanilla/utils/atomWithStorage";
 import { Logger } from "../Logger";
 import { availableStorage } from "./storage";
 
@@ -41,3 +44,9 @@ export function adaptForLocalStorage<Value, Serializable>(opts: {
     },
   };
 }
+
+/**
+ * A JSON storage adapter that uses the best available storage.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const jotaiJsonStorage = createJSONStorage<any>(() => availableStorage);
