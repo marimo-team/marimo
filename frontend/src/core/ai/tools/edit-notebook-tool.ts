@@ -10,7 +10,6 @@ import {
 } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
-import type { JotaiStore } from "@/core/state/jotai";
 import type { CellColumnId } from "@/utils/id-tree";
 import {
   type AiTool,
@@ -87,28 +86,23 @@ export type EditType = EditOperation["type"];
 export class EditNotebookTool
   implements AiTool<EditNotebookInput, ToolOutputBase>
 {
-  private store: JotaiStore;
   readonly name = "edit_notebook_tool";
   readonly description = description;
   readonly schema = editNotebookSchema;
   readonly outputSchema = toolOutputBaseSchema;
   readonly mode: CopilotMode[] = ["agent"];
 
-  constructor(store: JotaiStore) {
-    this.store = store;
-  }
-
   handler = async (
     { edit }: EditNotebookInput,
     toolContext: ToolNotebookContext,
   ): Promise<ToolOutputBase> => {
-    const { addStagedCell, createNewCell } = toolContext;
+    const { addStagedCell, createNewCell, store } = toolContext;
 
     switch (edit.type) {
       case "update_cell": {
         const { cellId, code } = edit;
 
-        const notebook = this.store.get(notebookAtom);
+        const notebook = store.get(notebookAtom);
         this.validateCellIdExists(cellId, notebook);
         const editorView = this.getCellEditorView(cellId, notebook);
 
@@ -133,7 +127,7 @@ export class EditNotebookTool
         const newCellId = CellId.create();
 
         if (typeof position === "object") {
-          const notebook = this.store.get(notebookAtom);
+          const notebook = store.get(notebookAtom);
           if ("cellId" in position) {
             this.validateCellIdExists(position.cellId, notebook);
             notebookPosition = position.cellId;
@@ -164,7 +158,7 @@ export class EditNotebookTool
       case "delete_cell": {
         const { cellId } = edit;
 
-        const notebook = this.store.get(notebookAtom);
+        const notebook = store.get(notebookAtom);
         this.validateCellIdExists(cellId, notebook);
 
         const editorView = this.getCellEditorView(cellId, notebook);

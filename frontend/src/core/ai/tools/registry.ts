@@ -3,7 +3,6 @@
 import type { components } from "@marimo-team/marimo-api";
 import { Memoize } from "typescript-memoize";
 import { type ZodObject, z } from "zod";
-import { store } from "@/core/state/jotai";
 import {
   type AiTool,
   ToolExecutionError,
@@ -131,6 +130,6 @@ export class FrontendToolRegistry {
 }
 
 export const FRONTEND_TOOL_REGISTRY = new FrontendToolRegistry([
-  new EditNotebookTool(store),
-  new RunStaleCellsTool(store),
+  new EditNotebookTool(),
+  new RunStaleCellsTool(),
 ]);

@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { CreateNewCellAction } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { RunRequest } from "@/core/network/types";
+import type { JotaiStore } from "@/core/state/jotai";
 import type { Edit } from "../staged-cells";
 import type { CopilotMode } from "./registry";
 
@@ -101,6 +102,7 @@ export interface ToolDescription {
 
 /** Utility functions for tools to interact with the notebook */
 export interface ToolNotebookContext {
+  store: JotaiStore;
   addStagedCell: (payload: { cellId: CellId; edit: Edit }) => void;
   createNewCell: (payload: CreateNewCellAction) => void;
   prepareForRun: (payload: { cellId: CellId }) => void;

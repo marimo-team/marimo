@@ -70,6 +70,7 @@ describe("EditNotebookTool", () => {
     createNewCell: ReturnType<typeof vi.fn>;
     prepareForRun: ReturnType<typeof vi.fn>;
     sendRun: ReturnType<typeof vi.fn>;
+    store: ReturnType<typeof getDefaultStore>;
   };
 
   beforeEach(() => {
@@ -86,8 +87,9 @@ describe("EditNotebookTool", () => {
       createNewCell: vi.fn(),
       prepareForRun: vi.fn(),
       sendRun: vi.fn().mockResolvedValue(null),
+      store,
     };
-    tool = new EditNotebookTool(store);
+    tool = new EditNotebookTool();
 
     cellId1 = "cell-1" as CellId;
     cellId2 = "cell-2" as CellId;

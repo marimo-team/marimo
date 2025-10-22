@@ -31,6 +31,7 @@ describe("RunStaleCellsTool", () => {
     createNewCell: ReturnType<typeof vi.fn>;
     prepareForRun: ReturnType<typeof vi.fn>;
     sendRun: ReturnType<typeof vi.fn>;
+    store: ReturnType<typeof getDefaultStore>;
   };
 
   beforeEach(() => {
@@ -40,9 +41,10 @@ describe("RunStaleCellsTool", () => {
       createNewCell: vi.fn(),
       prepareForRun: vi.fn(),
       sendRun: vi.fn().mockResolvedValue(null),
+      store,
     };
 
-    tool = new RunStaleCellsTool(store);
+    tool = new RunStaleCellsTool();
 
     cellId1 = "cell-1" as CellId;
     cellId2 = "cell-2" as CellId;

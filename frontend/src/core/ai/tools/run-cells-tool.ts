@@ -66,19 +66,14 @@ export class RunStaleCellsTool
       .optional(),
   }) satisfies z.ZodType<RunStaleCellsOutput>;
   readonly mode: CopilotMode[] = ["agent"];
-  private store: JotaiStore;
-
-  constructor(store: JotaiStore) {
-    this.store = store;
-  }
 
   handler = async (
     _args: EmptyToolInput,
     toolContext: ToolNotebookContext,
   ): Promise<RunStaleCellsOutput> => {
-    const { prepareForRun, sendRun } = toolContext;
+    const { prepareForRun, sendRun, store } = toolContext;
 
-    const notebook = this.store.get(notebookAtom);
+    const notebook = store.get(notebookAtom);
     const staleCells = staleCellIds(notebook);
 
     if (staleCells.length === 0) {
@@ -96,7 +91,7 @@ export class RunStaleCellsTool
     });
 
     // Wait for all cells to finish executing
-    const allCellsFinished = await this.waitForCellsToFinish(staleCells);
+    const allCellsFinished = await this.waitForCellsToFinish(store, staleCells);
     if (!allCellsFinished) {
       return {
         status: "success",
@@ -106,7 +101,7 @@ export class RunStaleCellsTool
     }
 
     // Get notebook state after cells have finished
-    const updatedNotebook = this.store.get(notebookAtom);
+    const updatedNotebook = store.get(notebookAtom);
 
     const cellsToOutput = new Map<CellId, CellOutput | null>();
     let resultMessage = "";
@@ -192,6 +187,7 @@ export class RunStaleCellsTool
    * Returns true if all cells finished executing, false if the timeout was reached
    */
   private async waitForCellsToFinish(
+    store: JotaiStore,
     cellIds: CellId[],
     timeout = 30_000,
   ): Promise<boolean> {
@@ -207,7 +203,7 @@ export class RunStaleCellsTool
     };
 
     // If already finished, return immediately
-    if (checkAllFinished(this.store.get(notebookAtom))) {
+    if (checkAllFinished(store.get(notebookAtom))) {
       return true;
     }
 

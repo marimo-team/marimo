@@ -5,7 +5,7 @@ import { useChat } from "@ai-sdk/react";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { DefaultChatTransport, type ToolUIPart } from "ai";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   AtSignIcon,
   BotMessageSquareIcon,
@@ -528,6 +528,7 @@ const ChatPanelBody = () => {
   const { invokeAiTool, sendRun } = useRequestClient();
 
   const activeChatId = activeChat?.id;
+  const store = useStore();
 
   const { addStagedCell } = useStagedAICellsActions();
   const { createNewCell, prepareForRun } = useCellActions();
@@ -536,6 +537,7 @@ const ChatPanelBody = () => {
     createNewCell,
     prepareForRun,
     sendRun,
+    store,
   };
 
   const {

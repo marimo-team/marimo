@@ -92,6 +92,7 @@ export const AddCellWithAI: React.FC<{
 
   const { createNewCell, prepareForRun } = useCellActions();
   const toolContext: ToolNotebookContext = {
+    store,
     addStagedCell,
     createNewCell,
     prepareForRun,
