@@ -1875,7 +1875,9 @@ class Kernel:
                 if not is_local(name)
             }
             referring_cells.update(
-                self.update_stateful_values(bound_names, value, maybe_llm_context)
+                self.update_stateful_values(
+                    bound_names, value, maybe_llm_context
+                )
             )
 
         if self.reactive_execution_mode == "autorun":
@@ -1926,14 +1928,19 @@ class Kernel:
         self.ui_initializers = {}
 
     def update_stateful_values(
-        self, bound_names: set[str], value: Any, maybe_llm_context: Optional[str] = None
+        self,
+        bound_names: set[str],
+        value: Any,
+        maybe_llm_context: Optional[str] = None,
     ) -> set[CellId_t]:
         variable_values: list[VariableValue] = []
         referring_cells: set[CellId_t] = set()
         for name in bound_names:
             # TODO update variable values even for namespaces? lenses? etc
             variable_values.append(
-                VariableValue.create(name=name, value=value, maybe_llm_context=maybe_llm_context)
+                VariableValue.create(
+                    name=name, value=value, maybe_llm_context=maybe_llm_context
+                )
             )
             try:
                 # subtracting self.graph.definitions[name]: never rerun the

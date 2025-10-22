@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import abc
 import copy
+import inspect
 import random
 import sys
 import types
 import uuid
 import weakref
-import inspect
 from dataclasses import dataclass, fields
 from html import escape
 from typing import (
@@ -467,101 +467,78 @@ class UIElement(Html, Generic[S, T]):
         return False
 
     def _get_llm_context(self) -> str:
-        """Extract LLM-friendly metadata from UIElement.
-        
-        Parses HTML, removes unnecessary attributes (IDs, styling),
-        returns only semantic data attributes.
-        
-        Args:
-            ui_element: The UIElement to extract metadata from
-            max_list_and_dict_items: Maximum number of items to show for lists and dicts
-            
-        Returns:
-            str: An LLM-friendly representation of the UIElement
-
-        Example:
-        ### UI Element: `marimo-slider`
-        Label: "Choose a value"
-        Current value: `50`
-
-        **Configuration:**
-        - `start`: 1
-        - `stop`: 100
-        - `step`: 5
-        - `steps`: []
-        - `debounce`: False
-        - `disabled`: False
-        - `orientation`: horizontal
-        - `show-value`: False
-        - `include-input`: False
-        - `full-width`: False
-
-        **Doc-Signature:**
-        ```python
-        mo.ui.slider(start=Optional[Numeric] (default=None), stop=Optional[Numeric] (default=None), step=Optional[Numeric] (default=None), value=Optional[Numeric] (default=None), debounce=bool (default=False), disabled=bool (default=False), orientation=Literal['horizontal', 'vertical'] (default='horizontal'), show_value=bool (default=False), include_input=bool (default=False), steps=Optional[Sequence[Numeric]] (default=None), label=str (default=''), on_change=Optional[Callable[[Optional[Numeric]], None]] (default=None), full_width=bool (default=False))
-        ```
-        """
+        """Extract LLM-friendly markdown string from UIElement."""
 
         MAX_LIST_AND_DICT_ITEMS = 10
-        current_value = None
-        try:
-            current_value = self._value
-        except Exception:
-            # Handle initial value creation where .value is not accessible yet
-            current_value = self._initial_value
+        current_value = self._value
         component_name = self._args.component_name
         label = self._args.label
-        args = self._args.args  # dict with component-specific args
+        args = self._args.args
         signature = self._get_compact_signature()
         # Check for options full mapping
         maybe_options = getattr(self, "options", None)
 
         # Start with clear identification
-        md_parts = [
-            f"### UI Element: `{component_name}`",
-            f"Label: \"{label}\"",
-            f"Current value: `{current_value}`",
-        ]
-        
-        # Add configuration details
-        if args:
-            md_parts.append("\n**Configuration:**")
-            for key, value in args.items():
 
-                # get options full mapping (for Dropdown, Multiselect, and Radio)
-                if key == "options" and maybe_options is not None:
-                    value = maybe_options
-                    
-                # handle long lists
-                if isinstance(value, list) and len(value) > MAX_LIST_AND_DICT_ITEMS:
-                    formatted_value = f"{value[:MAX_LIST_AND_DICT_ITEMS]}... ({len(value)} total)"
+        formatted_string = f"""
+        ### UI Element: `{component_name}`
+        Label: \"{label}\"
+        Current value: `{current_value}`s
 
-                # handle long dicts
-                elif isinstance(value, dict) and len(value) > MAX_LIST_AND_DICT_ITEMS:
-                    items = list(value.items())[:MAX_LIST_AND_DICT_ITEMS]
-                    preview = ", ".join(f"{k!r}: {v!r}" for k, v in items)
-                    formatted_value = f"{{{preview}, ... ({len(value)} total)}}"
-                else:
-                    formatted_value = value
-                md_parts.append(f"- `{key}`: {formatted_value}")
+        **Configuration:**
+        {self._format_args(args, MAX_LIST_AND_DICT_ITEMS, maybe_options)}
 
-        # Add doc signature
-        md_parts.append(f"\n**Doc-Signature:** {signature}")
-        
+        **Doc-Signature:**
+        {signature}
+        """
+
+        return formatted_string
+
+    def _format_args(
+        self,
+        args: dict[str, Any],
+        max_list_and_dict_items: int,
+        maybe_options: Optional[dict[str, Any]],
+    ) -> str:
+        """Format arguments for display."""
+        md_parts = []
+        for key, value in args.items():
+            # get full options mapping (for Dropdown, Multiselect, and Radio)
+            if key == "options" and maybe_options is not None:
+                value = maybe_options
+
+            # handle long lists
+            if (
+                isinstance(value, list)
+                and len(value) > max_list_and_dict_items
+            ):
+                formatted_value = f"{value[:max_list_and_dict_items]}... ({len(value)} total)"
+
+            # handle long dicts
+            elif (
+                isinstance(value, dict)
+                and len(value) > max_list_and_dict_items
+            ):
+                items = list(value.items())[:max_list_and_dict_items]
+                preview = ", ".join(f"{k!r}: {v!r}" for k, v in items)
+                formatted_value = f"{{{preview}, ... ({len(value)} total)}}"
+            else:
+                formatted_value = value
+            md_parts.append(f"- `{key}`: {formatted_value}")
         return "\n".join(md_parts)
 
-    def _format_signature_parameter(self,param: inspect.Parameter) -> str:
+    def _format_signature_parameter(self, param: inspect.Parameter) -> str:
         """Format parameter for compact signature display."""
         result = param.name
-        
+
         # Add type hint if available
         if param.annotation != inspect.Parameter.empty:
-            if hasattr(param.annotation, '__name__'):
+            if hasattr(param.annotation, "__name__"):
                 result += f"={param.annotation.__name__}"
             else:
                 result += f"={param.annotation}"
-        
-        # Add default value
+
+        # Add default value if available
         if param.default != inspect.Parameter.empty:
             if isinstance(param.default, str):
                 result += f" (default='{param.default}')"
@@ -569,31 +546,30 @@ class UIElement(Html, Generic[S, T]):
                 result += " (default=None)"
             else:
                 result += f" (default={param.default})"
-        
+
         return result
 
     def _get_compact_signature(self) -> str:
         """Generate a compact signature string for a UIElement.
-        
+
         Returns a signature like:
         "mo.ui.dropdown(options, value=str, searchable=bool (default=False), ...)"
         """
-        component_name_without_marimo = self._args.component_name.replace("marimo-", "")
-        
+        component_name_without_marimo = self._args.component_name.replace(
+            "marimo-", ""
+        )
+
         try:
-            # Get the signature from the class's __init__
             sig = inspect.signature(type(self).__init__)
-            
-            # Format parameters (skip 'self')
-            params = [
+            formatted_params = [
                 self._format_signature_parameter(param)
                 for name, param in sig.parameters.items()
-                if name != 'self'
+                # Skip self parameter (first parameter)
+                if name != "self"
             ]
-            
-            return f"mo.ui.{component_name_without_marimo}({', '.join(params)})"
+            return f"mo.ui.{component_name_without_marimo}({', '.join(formatted_params)})"
         except Exception:
-            # Fallback if signature extraction fails
+            # Fallback to generic signature
             return f"mo.ui.{component_name_without_marimo}(...)"
 
     def __deepcopy__(self, memo: dict[int, Any]) -> UIElement[S, T]:
