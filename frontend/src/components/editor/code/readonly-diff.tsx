@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { unifiedMergeView } from "@codemirror/merge";
 import { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
