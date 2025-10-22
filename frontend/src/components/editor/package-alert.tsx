@@ -118,44 +118,46 @@ export const PackageAlert: React.FC = () => {
             <div>
               <p>The following packages were not found:</p>
               <table className="list-disc ml-2 mt-1">
-                {packageAlert.packages.map((pkg, index) => {
-                  const parsed = parsePackageSpecifier(pkg);
-                  const currentExtras = selectedExtras[pkg] || parsed.extras;
+                <tbody>
+                  {packageAlert.packages.map((pkg, index) => {
+                    const parsed = parsePackageSpecifier(pkg);
+                    const currentExtras = selectedExtras[pkg] || parsed.extras;
 
-                  return (
-                    <tr className="font-mono text-sm" key={index}>
-                      <td className="pr-2 py-1 align-middle">
-                        <BoxIcon size="1rem" />
-                      </td>
-                      <td className="pr-2 py-1 align-middle">
-                        <ExtrasSelector
-                          packageName={parsed.name}
-                          selectedExtras={currentExtras}
-                          onExtrasChange={(extras) =>
-                            setSelectedExtras((prev) => ({
-                              ...prev,
-                              [pkg]: extras,
-                            }))
-                          }
-                        />
-                      </td>
-                      {doesSupportVersioning && (
+                    return (
+                      <tr className="font-mono text-sm" key={index}>
                         <td className="pr-2 py-1 align-middle">
-                          <PackageVersionSelect
-                            value={desiredPackageVersions[pkg] ?? "latest"}
-                            onChange={(value) =>
-                              setDesiredPackageVersions((prev) => ({
+                          <BoxIcon size="1rem" />
+                        </td>
+                        <td className="pr-2 py-1 align-middle">
+                          <ExtrasSelector
+                            packageName={parsed.name}
+                            selectedExtras={currentExtras}
+                            onExtrasChange={(extras) =>
+                              setSelectedExtras((prev) => ({
                                 ...prev,
-                                [pkg]: value,
+                                [pkg]: extras,
                               }))
                             }
-                            packageName={parsed.name}
                           />
                         </td>
-                      )}
-                    </tr>
-                  );
-                })}
+                        {doesSupportVersioning && (
+                          <td className="pr-2 py-1 align-middle">
+                            <PackageVersionSelect
+                              value={desiredPackageVersions[pkg] ?? "latest"}
+                              onChange={(value) =>
+                                setDesiredPackageVersions((prev) => ({
+                                  ...prev,
+                                  [pkg]: value,
+                                }))
+                              }
+                              packageName={parsed.name}
+                            />
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
               </table>
             </div>
             <div className="ml-auto flex flex-row items-baseline">
