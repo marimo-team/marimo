@@ -271,6 +271,7 @@ nav:
       - Miscellaneous: api/miscellaneous.md
   - Commands: cli.md
   - FAQ: faq.md
+  - Security: security.md
   - Readings & Videos: reading.md
   - Community:
       - Community: community.md
