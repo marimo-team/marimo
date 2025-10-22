@@ -109,7 +109,6 @@ def should_run_in_sandbox(
     # to start in sandbox mode by examining the notebook file and
     # prompting the user.
     if sandbox is None:
-
         sandbox = maybe_prompt_run_in_sandbox(name)
 
     # Validation: we don't yet support multi-notebook sandboxed servers.
