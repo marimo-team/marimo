@@ -4,6 +4,9 @@ name: Typos
 on:
   pull_request: {}
 
+permissions:
+  contents: read
+
 jobs:
   typos:
     name: Check for typos

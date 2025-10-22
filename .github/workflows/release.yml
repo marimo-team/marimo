@@ -7,6 +7,9 @@ on:
       - '[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
