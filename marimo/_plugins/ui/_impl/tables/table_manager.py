@@ -149,8 +149,9 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     def get_field_types(self) -> FieldTypes:
+        # Some column names may be non-string (sqlalchemy quoted names), so we convert them to strings
         return [
-            (column_name, self.get_field_type(column_name))
+            (str(column_name), self.get_field_type(column_name))
             for column_name in self.get_column_names()
         ]
 
