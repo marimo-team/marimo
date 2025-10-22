@@ -111,7 +111,7 @@ class CellOutputData:
     stderr: list[str] = field(default_factory=list)
     ui_elements: dict[str, str] = field(
         default_factory=dict
-    )  # var_name -> llm_context
+    )
 
 
 @dataclass
