@@ -109,24 +109,6 @@ function detectIframeCapabilities(): IframeCapabilities {
 }
 
 /**
- * Global singleton for iframe capabilities
- * Initialized once on first access
- */
-let cachedCapabilities: IframeCapabilities | null = null;
-
-/**
  * Get the current iframe capabilities (cached after first call)
  */
-export const getIframeCapabilities = once((): IframeCapabilities => {
-  if (cachedCapabilities === null) {
-    cachedCapabilities = detectIframeCapabilities();
-  }
-  return cachedCapabilities;
-});
-
-/**
- * Reset the cached capabilities (useful for testing)
- */
-export function resetIframeCapabilities(): void {
-  cachedCapabilities = null;
-}
+export const getIframeCapabilities = once(() => detectIframeCapabilities());
