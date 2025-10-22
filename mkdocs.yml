@@ -271,7 +271,6 @@ nav:
       - Miscellaneous: api/miscellaneous.md
   - Commands: cli.md
   - FAQ: faq.md
-  - Security: security.md
   - Readings & Videos: reading.md
   - Community:
       - Community: community.md
@@ -284,6 +283,7 @@ nav:
       - Google Cloud Storage: integrations/google_cloud_storage.md
       - Google Sheets: integrations/google_sheets.md
       - MotherDuck: integrations/motherduck.md
+  - Security: security.md
 plugins:
   - search
   - social:
