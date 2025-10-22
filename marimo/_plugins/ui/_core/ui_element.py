@@ -474,23 +474,25 @@ class UIElement(Html, Generic[S, T]):
         component_name = self._args.component_name
         label = self._args.label
         args = self._args.args
-        signature = self._get_compact_signature()
         # Check for options full mapping
         maybe_options = getattr(self, "options", None)
 
-        formatted_string = f"""
+        formatted_args = self._format_args(args, MAX_LIST_AND_DICT_ITEMS, maybe_options)
+        formatted_signature = self._get_compact_signature()
+
+        md_context = f"""
         ### UI Element: `{component_name}`
         Label: \"{label}\"
         Current value: `{current_value}`s
 
         **Configuration:**
-        {self._format_args(args, MAX_LIST_AND_DICT_ITEMS, maybe_options)}
+        {formatted_args}
 
         **Doc-Signature:**
-        {signature}
+        {formatted_signature}
         """
 
-        return formatted_string
+        return md_context
 
     def _format_args(
         self,
