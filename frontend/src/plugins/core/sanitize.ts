@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import DOMPurify, { type Config } from "dompurify";
 import { atom, useAtomValue } from "jotai";
 import { hasRunAnyCellAtom } from "@/components/editor/cell/useRunCells";

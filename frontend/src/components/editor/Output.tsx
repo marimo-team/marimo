@@ -26,6 +26,7 @@ import {
   ExpandIcon,
 } from "lucide-react";
 import { useExpandedOutput } from "@/core/cells/outputs";
+import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
@@ -378,6 +379,7 @@ const ExpandableOutput = React.memo(
     const containerRef = useRef<HTMLDivElement>(null);
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
     const [isOverflowing, setIsOverflowing] = useState(false);
+    const { hasFullscreen } = useIframeCapabilities();
 
     // Create resize observer to detect overflow
     useEffect(() => {
@@ -403,20 +405,22 @@ const ExpandableOutput = React.memo(
         <div>
           <div className="relative print:hidden">
             <div className="absolute -right-9 top-1 z-1 flex flex-col gap-1">
-              <Tooltip content="Fullscreen" side="left">
-                <Button
-                  data-testid="fullscreen-output-button"
-                  className="hover-action hover:bg-muted p-1 hover:border-border border border-transparent"
-                  onClick={async () => {
-                    await containerRef.current?.requestFullscreen();
-                  }}
-                  onMouseDown={Events.preventFocus}
-                  size="xs"
-                  variant="text"
-                >
-                  <ExpandIcon className="size-4" strokeWidth={1.25} />
-                </Button>
-              </Tooltip>
+              {hasFullscreen && (
+                <Tooltip content="Fullscreen" side="left">
+                  <Button
+                    data-testid="fullscreen-output-button"
+                    className="hover-action hover:bg-muted p-1 hover:border-border border border-transparent"
+                    onClick={async () => {
+                      await containerRef.current?.requestFullscreen();
+                    }}
+                    onMouseDown={Events.preventFocus}
+                    size="xs"
+                    variant="text"
+                  >
+                    <ExpandIcon className="size-4" strokeWidth={1.25} />
+                  </Button>
+                </Tooltip>
+              )}
               {(isOverflowing || isExpanded) && !forceExpand && (
                 <Button
                   data-testid="expand-output-button"
