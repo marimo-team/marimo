@@ -478,8 +478,6 @@ class UIElement(Html, Generic[S, T]):
         # Check for options full mapping
         maybe_options = getattr(self, "options", None)
 
-        # Start with clear identification
-
         formatted_string = f"""
         ### UI Element: `{component_name}`
         Label: \"{label}\"
