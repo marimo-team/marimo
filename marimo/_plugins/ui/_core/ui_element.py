@@ -113,7 +113,6 @@ class UIElement(Html, Generic[S, T]):
 
     _value_frontend: S
     _value: T
-    _llm_context: str
 
     # We want this to be fully random in production,
     # otherwise cached session state could use incorrect object-ids.
