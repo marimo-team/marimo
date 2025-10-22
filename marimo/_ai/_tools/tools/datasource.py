@@ -11,6 +11,7 @@ from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._data.models import DataTable
 from marimo._server.sessions import Session
+from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import SessionId
 from marimo._utils.fuzzy_match import compile_regex, is_fuzzy_match
 
@@ -29,6 +30,7 @@ class TableDetails:
     database: str
     schema: str
     table: DataTable
+    sample_query: str
 
 
 @dataclass
@@ -93,19 +95,30 @@ class GetDatabaseTables(
 
         for connection in data_connectors.connections:
             for database in connection.databases:
+                default_database = connection.default_database == database.name
                 for schema in database.schemas:
+                    default_schema = connection.default_schema == schema.name
                     # If query is None, match all schemas
                     # If matching, add all tables to the list
                     if query is None or is_fuzzy_match(
                         query, schema.name, compiled_pattern, is_regex
                     ):
                         for table in schema.tables:
+                            sample_query = self._form_sample_query(
+                                database=database.name,
+                                schema=schema.name,
+                                table=table.name,
+                                default_database=default_database,
+                                default_schema=default_schema,
+                                engine=connection.name,
+                            )
                             tables.append(
                                 TableDetails(
                                     connection=connection.name,
                                     database=database.name,
                                     schema=schema.name,
                                     table=table,
+                                    sample_query=sample_query,
                                 )
                             )
                         continue
@@ -113,18 +126,50 @@ class GetDatabaseTables(
                         if is_fuzzy_match(
                             query, table.name, compiled_pattern, is_regex
                         ):
+                            sample_query = self._form_sample_query(
+                                database=database.name,
+                                schema=schema.name,
+                                table=table.name,
+                                default_database=default_database,
+                                default_schema=default_schema,
+                                engine=connection.name,
+                            )
                             tables.append(
                                 TableDetails(
                                     connection=connection.name,
                                     database=database.name,
                                     schema=schema.name,
                                     table=table,
+                                    sample_query=sample_query,
                                 )
                             )
 
         return GetDatabaseTablesOutput(
             tables=tables,
             next_steps=[
-                'Example of an SQL query: _df = mo.sql(f"""SELECT * FROM database.schema.name LIMIT 100""")',
+                "Use the sample query as a guideline to write your own SQL query."
             ],
         )
+
+    def _form_sample_query(
+        self,
+        *,
+        database: str,
+        schema: str,
+        table: str,
+        default_database: bool,
+        default_schema: bool,
+        engine: str,
+    ) -> str:
+        sample_query = f"SELECT * FROM {database}.{schema}.{table} LIMIT 100"
+        if default_database:
+            sample_query = f"SELECT * FROM {schema}.{table} LIMIT 100"
+        if default_schema:
+            sample_query = f"SELECT * FROM {table} LIMIT 100"
+        if engine != INTERNAL_DUCKDB_ENGINE:
+            wrapped_query = (
+                f'df = mo.sql(f"""{sample_query}""", engine={engine})'
+            )
+        else:
+            wrapped_query = f'df = mo.sql(f"""{sample_query}""")'
+        return wrapped_query
