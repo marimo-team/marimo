@@ -202,7 +202,6 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
         schemas: list[Schema] = []
 
-        # Try to get schemas, with fallback for backends that don't support catalog parameter
         try:
             schema_names = self._connection.list_databases(catalog=database)
         except (TypeError, AttributeError) as e:
@@ -219,6 +218,14 @@ class IbisEngine(SQLConnection["SQLBackend"]):
                     "Backend doesn't support list_databases, using default schema"
                 )
                 schema_names = [self.default_schema or "main"]
+        except NotImplementedError:
+            LOGGER.info("Introspection is not supported for this database")
+            return []
+        except Exception:
+            LOGGER.warning(
+                "Failed to get schemas for this database", exc_info=True
+            )
+            return []
 
         for schema_name in schema_names:
             if schema_name and schema_name.lower() in meta_schemas:
