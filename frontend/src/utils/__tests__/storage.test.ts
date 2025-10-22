@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { adaptForLocalStorage } from "../storage";
+import { adaptForLocalStorage } from "../storage/jotai";
 
 // Mock localStorage
 const localStorageMock = {

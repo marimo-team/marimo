@@ -3,23 +3,27 @@
 import type { ZodType } from "zod";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { Logger } from "./Logger";
+import { Logger } from "../Logger";
+import { availableStorage } from "./storage";
 
-interface Storage<T> {
+interface ITypedStorage<T> {
   get(key: string): T;
   set(key: string, value: T): void;
   remove(key: string): void;
 }
 
-export class TypedLocalStorage<T> implements Storage<T> {
+export class TypedLocalStorage<T> implements ITypedStorage<T> {
   private defaultValue: T;
-  constructor(defaultValue: T) {
+  private storage: Storage;
+
+  constructor(defaultValue: T, storage = availableStorage) {
     this.defaultValue = defaultValue;
+    this.storage = storage;
   }
 
   get(key: string): T {
     try {
-      const item = window.localStorage.getItem(key);
+      const item = this.storage.getItem(key);
       return item ? (JSON.parse(item) as T) : this.defaultValue;
     } catch {
       return this.defaultValue;
@@ -27,26 +31,32 @@ export class TypedLocalStorage<T> implements Storage<T> {
   }
 
   set(key: string, value: T) {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    this.storage.setItem(key, JSON.stringify(value));
   }
 
   remove(key: string) {
-    window.localStorage.removeItem(key);
+    this.storage.removeItem(key);
   }
 }
 
-export class ZodLocalStorage<T> implements Storage<T> {
+export class ZodLocalStorage<T> implements ITypedStorage<T> {
   private schema: ZodType<T>;
   private getDefaultValue: () => T;
+  private storage: Storage;
 
-  constructor(schema: ZodType<T>, getDefaultValue: () => T) {
+  constructor(
+    schema: ZodType<T>,
+    getDefaultValue: () => T,
+    storage = availableStorage,
+  ) {
     this.schema = schema;
     this.getDefaultValue = getDefaultValue;
+    this.storage = storage;
   }
 
   get(key: string): T {
     try {
-      const item = window.localStorage.getItem(key);
+      const item = this.storage.getItem(key);
       if (item == null) {
         return this.getDefaultValue();
       }
@@ -63,11 +73,11 @@ export class ZodLocalStorage<T> implements Storage<T> {
   }
 
   set(key: string, value: T) {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    this.storage.setItem(key, JSON.stringify(value));
   }
 
   remove(key: string) {
-    window.localStorage.removeItem(key);
+    this.storage.removeItem(key);
   }
 }
 

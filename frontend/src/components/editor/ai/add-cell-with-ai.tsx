@@ -53,7 +53,7 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
-import { ZodLocalStorage } from "@/utils/localStorage";
+import { ZodLocalStorage } from "@/utils/storage/typed";
 import { PythonIcon } from "../cell/code/icons";
 import {
   CompletionActions,

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { TestUtils } from "@/__tests__/test-helpers";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { NotebookScopedLocalStorage } from "../localStorage";
+import { NotebookScopedLocalStorage } from "../storage/typed";
 
 describe("NotebookScopedLocalStorage", () => {
   const schema = z.object({

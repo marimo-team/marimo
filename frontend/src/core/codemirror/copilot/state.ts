@@ -7,6 +7,7 @@ import {
   resolvedMarimoConfigAtom,
 } from "@/core/config/config";
 import { store, waitFor } from "@/core/state/jotai";
+import { availableStorage } from "@/utils/storage/storage";
 
 const KEY = "marimo:copilot:signedIn";
 
@@ -49,7 +50,7 @@ export function clearGitHubCopilotLoadingVersion(expectedVersion: number) {
 }
 
 function getIsLastSignedIn() {
-  const lastSignedIn = localStorage.getItem(KEY);
+  const lastSignedIn = availableStorage.getItem(KEY);
   return lastSignedIn === "true";
 }
 

@@ -1,13 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atomWithStorage } from "jotai/utils";
+import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import { once } from "lodash-es";
+import { availableStorage } from "@/utils/storage/storage";
 import { getFeatureFlag } from "../config/feature-flag";
 
 /**
  * The username for the current user when using real-time collaboration.
  * This is stored in localStorage.
  */
-export const usernameAtom = atomWithStorage<string>("marimo:rtc:username", "");
+export const usernameAtom = atomWithStorage<string>(
+  "marimo:rtc:username",
+  "",
+  createJSONStorage(() => availableStorage),
+);
 
 /**
  * Whether RTC is enabled.
