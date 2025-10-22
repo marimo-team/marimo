@@ -127,8 +127,10 @@ For general questions about marimo, see our [FAQ](faq.md) or join us on [Discord
 <details>
 <summary>Click to expand previous security advisories</summary>
 
-- **[GHSA-xjv7-6w92-42r7](https://github.com/marimo-team/marimo/security/advisories/GHSA-xjv7-6w92-42r7)**: Unauthenticated proxy vulnerability in matplotlib endpoint. The `/mpl/<port>/<route>` endpoint allowed external attackers to reach internal services. Affected versions 0.9.20 through 0.16.3. Fixed in 0.16.4.
-
-- **[molab-0]**: iframe sandbox escape via markdown render. In molab, an attacker could exploit a vulnerability in the iframe sandboxing to escape the iframe and execute code in the parent context. Fixed in molab deployment on 2025-10-19.
+<ul>
+  <li><strong><a href="https://github.com/marimo-team/marimo/security/advisories/GHSA-xjv7-6w92-42r7">[GHSA-xjv7-6w92-42r7]</a></strong>: Unauthenticated proxy vulnerability in matplotlib endpoint. The <code>/mpl/[port]/[route]</code> endpoint allowed external attackers to reach internal services. Affected versions 0.9.20 through 0.16.3. Fixed in 0.16.4. </li>
+ 
+  <li><strong>[molab-0]</strong>: iframe sandbox escape via markdown render. In molab, an attacker could exploit a vulnerability in the iframe sandboxing to escape the iframe and execute code in the parent context. Fixed in molab deployment on 2025-10-19.</li>
+</ul>
 
 </details>
