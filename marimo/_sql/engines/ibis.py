@@ -13,7 +13,7 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import InferenceConfig, SQLConnection
-from marimo._sql.utils import convert_to_output
+from marimo._sql.utils import CHEAP_DISCOVERY_DATABASES, convert_to_output
 from marimo._types.ids import VariableName
 
 if TYPE_CHECKING:
@@ -467,9 +467,4 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         return value
 
     def _is_cheap_discovery(self) -> bool:
-        return self.dialect.lower() in (
-            "duckdb",
-            "sqlite",
-            "mysql",
-            "postgresql",
-        )
+        return self.dialect.lower() in CHEAP_DISCOVERY_DATABASES

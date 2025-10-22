@@ -191,9 +191,21 @@ export const DataForm = ({
           </div>
           <div className="text-sm text-muted-foreground mb-2">
             Whether database schemas, tables, and columns are automatically
-            discovered. <strong>auto</strong> intelligently determines
-            introspection behavior, avoiding expensive introspection on large
-            databases.
+            discovered.
+            <br />
+            <span className="font-semibold">
+              Can be expensive for large databases.
+            </span>{" "}
+            Use 'auto' to determine introspection based on the{" "}
+            <a
+              className="text-link hover:underline"
+              rel="noopener noreferrer"
+              target="_blank"
+              href="https://docs.marimo.io/guides/working_with_data/sql/?h=database#database-schema-and-table-auto-discovery"
+            >
+              database
+            </a>
+            .
           </div>
 
           {renderDiscoveryForm("datasources.auto_discover_schemas", "Schemas")}
