@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from marimo._data.models import ValueCount
+from marimo._data.preview_column import CHART_MAX_ROWS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
@@ -1041,6 +1042,25 @@ class TestTableGetValueCounts:
             ValueCount(value="3", count=1),
             ValueCount(value="4", count=1),
         ]
+
+    @pytest.mark.skipif(
+        not DependencyManager.pandas.has(), reason="Pandas not installed"
+    )
+    def test_rows_string_value_counts_limit(self) -> None:
+        import pandas as pd
+
+        data = pd.DataFrame({"a": [str(i) for i in range(CHART_MAX_ROWS)]})
+        table = ui.table(data)
+        summaries = table._get_column_summaries(ColumnSummariesArgs())
+        assert summaries.value_counts == {
+            "a": [ValueCount(value="unique values", count=CHART_MAX_ROWS)]
+        }
+
+        # If >20k rows, we should not get value_counts
+        data = pd.DataFrame({"a": [str(i) for i in range(CHART_MAX_ROWS + 1)]})
+        table = ui.table(data)
+        summaries = table._get_column_summaries(ColumnSummariesArgs())
+        assert summaries.value_counts == {}
 
     def test_with_smaller_limit(self, table: ui.table) -> None:
         value_counts = table._get_value_counts(
