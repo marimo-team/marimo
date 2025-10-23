@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { WebSocketTransport } from "@open-rpc/client-js";
+import { ReconnectingWebSocketTransport } from "@/core/lsp/transport";
 import { waitForConnectionOpen } from "../../network/connection";
 import { getRuntimeManager } from "../../runtime/config";
 
@@ -16,16 +16,10 @@ export function createTransport(
   serverName: "pylsp" | "basedpyright" | "copilot" | "ty",
 ) {
   const runtimeManager = getRuntimeManager();
-  const transport = new WebSocketTransport(
-    runtimeManager.getLSPURL(serverName).toString(),
-  );
-
-  // Override connect to ensure runtime is healthy
-  const originalConnect = transport.connect.bind(transport);
-  transport.connect = async () => {
-    await waitForConnectionOpen();
-    return originalConnect();
-  };
-
-  return transport;
+  return new ReconnectingWebSocketTransport({
+    getWsUrl: () => runtimeManager.getLSPURL(serverName).toString(),
+    waitForConnection: async () => {
+      await waitForConnectionOpen();
+    },
+  });
 }
