@@ -19,10 +19,7 @@ from narwhals.typing import IntoDataFrame
 import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ValueCount
-from marimo._data.preview_column import (
-    CHART_MAX_ROWS,
-    get_column_preview_dataset,
-)
+from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import ColumnPreview
 from marimo._output.mime import MIME
@@ -107,6 +104,7 @@ class ColumnSummaries:
 
 
 ShowColumnSummaries = Union[bool, Literal["stats", "chart"]]
+CHART_MAX_ROWS_STRING_VALUE_COUNTS = 20_000
 
 DEFAULT_MAX_COLUMNS = 50
 
@@ -976,7 +974,7 @@ class table(
                     and ("cat" in external_type or "enum" in external_type)
                     or (
                         column_type == "string"
-                        and total_rows <= CHART_MAX_ROWS
+                        and total_rows <= CHART_MAX_ROWS_STRING_VALUE_COUNTS
                     )
                 ):
                     try:
