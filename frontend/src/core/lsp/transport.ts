@@ -90,12 +90,13 @@ export class ReconnectingWebSocketTransport extends Transport {
         }
 
         // Create a new delegate if needed
-        if (!this.delegate || this.isDelegateClosedOrClosing()) {
-          this.createDelegate();
+        let delegate = this.delegate;
+        if (!delegate || this.isDelegateClosedOrClosing()) {
+          delegate = this.createDelegate();
         }
 
         // Connect the delegate
-        await this.delegate!.connect();
+        await delegate.connect();
         Logger.log("WebSocket transport connected successfully");
       } catch (error) {
         Logger.error("WebSocket transport connection failed", error);
