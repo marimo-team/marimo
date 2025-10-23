@@ -36,7 +36,11 @@ const MAX_BAR_HEIGHT = 20; // px
 // If we are concatenating charts, we need to specify each chart's height and width.
 const CHART_HEIGHT = 30;
 const CHART_WIDTH = 70;
+
+const BAR_COLOR = mint.mint11;
+const UNHOVERED_BAR_OPACITY = 0.6;
 const NULL_BAR_WIDTH = 5;
+const NULL_BAR_COLOR = orange.orange11;
 
 // Arrow formats have a magic number at the beginning of the file.
 const ARROW_MAGIC_NUMBER = "ARROW1";
@@ -110,9 +114,9 @@ export class ColumnChartSpecModel<T> {
         const decoded = typedAtob(base64);
 
         if (decoded.startsWith(ARROW_MAGIC_NUMBER)) {
-          // @ts-expect-error vega-typings does not include arrow format
           this.dataSpec = {
             values: byteStringToBinary(decoded),
+            // @ts-expect-error vega-typings does not include arrow format
             format: { type: "arrow" },
           };
         } else {
@@ -215,8 +219,6 @@ export class ColumnChartSpecModel<T> {
           return getLegacyTemporalSpec(column, type, base, scale);
         }
 
-        const binStep = calculateBinStep(binValues || []);
-
         const tooltip = getPartialTimeTooltip(binValues || []);
         const singleValue = binValues?.length === 1;
 
@@ -224,7 +226,7 @@ export class ColumnChartSpecModel<T> {
         if (singleValue) {
           return {
             ...base,
-            mark: { type: "bar", color: mint.mint11 },
+            mark: { type: "bar", color: BAR_COLOR },
             encoding: {
               x: {
                 field: "bin_start",
@@ -262,9 +264,7 @@ export class ColumnChartSpecModel<T> {
             {
               mark: {
                 type: "bar",
-                color: mint.mint11,
-                stroke: mint.mint11,
-                strokeWidth: 0,
+                color: BAR_COLOR,
               },
               params: [
                 {
@@ -279,13 +279,7 @@ export class ColumnChartSpecModel<T> {
               encoding: {
                 x: {
                   field: "bin_start",
-                  type: "temporal",
-                  bin: { binned: true, step: binStep },
-                  axis: null,
-                },
-                x2: {
-                  field: "bin_end",
-                  type: "temporal",
+                  type: "ordinal",
                   axis: null,
                 },
                 y: {
@@ -293,13 +287,21 @@ export class ColumnChartSpecModel<T> {
                   type: "quantitative",
                   axis: null,
                 },
-                strokeWidth: {
+                color: {
                   condition: {
-                    param: "hover",
-                    empty: false,
-                    value: 0.5,
+                    test: "datum['bin_start'] === null && datum['bin_end'] === null",
+                    value: NULL_BAR_COLOR,
                   },
-                  value: 0,
+                  value: BAR_COLOR,
+                },
+                opacity: {
+                  condition: [
+                    {
+                      param: "hover",
+                      value: 1,
+                    },
+                  ],
+                  value: UNHOVERED_BAR_OPACITY,
                 },
               },
             },
@@ -309,18 +311,13 @@ export class ColumnChartSpecModel<T> {
               mark: {
                 type: "bar",
                 opacity: 0,
+                // Wider bars to cover gaps between bars, prevents flickering when hovering over bars
+                width: { band: 1.2 },
               },
               encoding: {
                 x: {
                   field: "bin_start",
-                  type: "temporal",
-                  bin: { binned: true, step: binStep },
-                  axis: null,
-                },
-                x2: {
-                  field: "bin_end",
-                  type: "temporal",
-                  bin: { binned: true, step: binStep },
+                  type: "ordinal",
                   axis: null,
                 },
                 y: {
@@ -353,94 +350,9 @@ export class ColumnChartSpecModel<T> {
           ],
         };
 
-        const nullBar: TopLevelFacetedUnitSpec = {
-          height: CHART_HEIGHT,
-          width: NULL_BAR_WIDTH,
-          // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
-          layer: [
-            {
-              mark: {
-                type: "bar",
-                color: orange.orange11,
-              },
-              encoding: {
-                x: {
-                  field: "bin_start",
-                  type: "nominal",
-                  axis: null,
-                },
-                y: {
-                  field: "count",
-                  type: "quantitative",
-                  axis: null,
-                },
-              },
-            },
-
-            // Invisible tooltip layer with max-height
-            {
-              mark: {
-                type: "bar",
-                opacity: 0,
-              },
-              encoding: {
-                x: {
-                  field: "bin_start",
-                  type: "nominal",
-                  axis: null,
-                },
-                y: {
-                  aggregate: "max",
-                  type: "quantitative",
-                  axis: null,
-                },
-                tooltip: [
-                  {
-                    field: "count",
-                    type: "quantitative",
-                    title: "nulls",
-                    format: ",d",
-                  },
-                ],
-              },
-            },
-          ],
-          transform: [
-            {
-              filter:
-                "datum['bin_start'] === null && datum['bin_end'] === null",
-            },
-          ],
-        };
-
-        let chart: TopLevelFacetedUnitSpec = histogram;
-        let timeBase = base;
-
-        if (stats?.nulls) {
-          timeBase = {
-            ...base,
-            config: {
-              ...base.config,
-              concat: {
-                spacing: 0,
-              },
-            },
-            resolve: {
-              scale: {
-                y: "shared",
-              },
-            },
-          };
-          chart = {
-            // Temporal axis will not show nulls, so we concat 2 charts
-            // @ts-expect-error 'hconcat' property not in TopLevelFacetedUnitSpec
-            hconcat: [nullBar, histogram],
-          };
-        }
-
         return {
-          ...timeBase,
-          ...chart,
+          ...base,
+          ...histogram,
         };
       }
       case "integer":
@@ -463,20 +375,8 @@ export class ColumnChartSpecModel<T> {
             {
               mark: {
                 type: "bar",
-                color: mint.mint11,
-                stroke: mint.mint11,
-                strokeWidth: 0,
+                color: BAR_COLOR,
               },
-              params: [
-                {
-                  name: "hover",
-                  select: {
-                    type: "point",
-                    on: "mouseover",
-                    clear: "mouseout",
-                  },
-                },
-              ],
               encoding: {
                 x: {
                   field: "bin_start",
@@ -492,13 +392,14 @@ export class ColumnChartSpecModel<T> {
                   type: "quantitative",
                   axis: null,
                 },
-                strokeWidth: {
-                  condition: {
-                    param: "hover",
-                    empty: false,
-                    value: 0.5,
-                  },
-                  value: 0,
+                opacity: {
+                  condition: [
+                    {
+                      param: "hover",
+                      value: 1,
+                    },
+                  ],
+                  value: UNHOVERED_BAR_OPACITY,
                 },
               },
             },
@@ -509,6 +410,18 @@ export class ColumnChartSpecModel<T> {
                 type: "bar",
                 opacity: 0,
               },
+              // Add hover here to prevent flickering when hovering over bars
+              params: [
+                {
+                  name: "hover",
+                  select: {
+                    type: "point",
+                    on: "mouseover",
+                    clear: "mouseout",
+                    nearest: true,
+                  },
+                },
+              ],
               encoding: {
                 x: {
                   field: "bin_start",
@@ -571,7 +484,7 @@ export class ColumnChartSpecModel<T> {
             {
               mark: {
                 type: "bar",
-                color: orange.orange11,
+                color: NULL_BAR_COLOR,
               },
               encoding: {
                 x: {
@@ -699,7 +612,7 @@ export class ColumnChartSpecModel<T> {
           },
           mark: {
             type: "bar",
-            color: mint.mint11,
+            color: BAR_COLOR,
           },
           encoding: {
             y: {
@@ -726,7 +639,7 @@ export class ColumnChartSpecModel<T> {
               type: "nominal",
               scale: {
                 domain: ["true", "false", "null"],
-                range: [mint.mint11, mint.mint11, orange.orange11],
+                range: [BAR_COLOR, BAR_COLOR, NULL_BAR_COLOR],
               },
               legend: null,
             },
@@ -740,7 +653,7 @@ export class ColumnChartSpecModel<T> {
             {
               mark: {
                 type: "bar",
-                color: mint.mint11,
+                color: BAR_COLOR,
                 height: BAR_HEIGHT,
               },
             },
@@ -843,11 +756,11 @@ export class ColumnChartSpecModel<T> {
               condition: [
                 {
                   param: "hover_bar",
-                  value: mint.mint11,
+                  value: BAR_COLOR,
                 },
                 {
                   test: `datum.${yField} == "None" || datum.${yField} == "null"`,
-                  value: orange.orange11,
+                  value: NULL_BAR_COLOR,
                 },
               ],
               value: mint.mint8,

@@ -186,9 +186,6 @@ describe("ColumnChartSpecModel", () => {
     // @ts-expect-error data.values should be available
     expect(summary.spec?.data?.values).toEqual(mockBinValues.datetime);
 
-    // Expect hconcat since there are nulls
-    // @ts-expect-error hconcat should be available
-    expect(summary.spec?.hconcat).toBeDefined();
     expect(summary.spec).toMatchSnapshot();
 
     // Test again without the nulls
