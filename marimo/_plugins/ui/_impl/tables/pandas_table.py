@@ -264,9 +264,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                 if len(data.columns) > 0 and not isinstance(
                     data.columns[0], str
                 ):
-                    data.columns = pd.Index(
-                        [str(name) for name in data.columns]
+                    data_copy = data.copy()
+                    data_copy.columns = pd.Index(
+                        [str(name) for name in data_copy.columns]
                     )
+                    return data_copy
                 return data
 
             # We override the default implementation to use pandas
