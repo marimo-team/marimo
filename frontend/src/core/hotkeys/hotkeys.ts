@@ -239,8 +239,14 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "F2",
   },
-  "cell.duplicateSelection": {
-    name: "Duplicate selection",
+  "cell.copyLinesUp": {
+    name: "Copy line(s) up",
+    group: "Editing",
+    key: "Alt-Shift-ArrowUp",
+    editable: false,
+  },
+  "cell.copyLinesDown": {
+    name: "Copy line(s) down",
     group: "Editing",
     key: "Alt-Shift-ArrowDown",
     editable: false,
