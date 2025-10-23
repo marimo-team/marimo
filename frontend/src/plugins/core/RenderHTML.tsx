@@ -9,8 +9,8 @@ import React, {
   isValidElement,
   type JSX,
   type ReactNode,
-  useId,
   useMemo,
+  useRef,
 } from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
@@ -122,9 +122,9 @@ const addCopyButtonToCodehilite: TransformFn = (
 };
 
 const CopyableCode = ({ children }: { children: ReactNode }) => {
-  const id = useId();
+  const ref = useRef<HTMLDivElement>(null);
   return (
-    <div className="relative group codehilite-wrapper" id={id}>
+    <div className="relative group codehilite-wrapper" ref={ref}>
       {children}
 
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -132,7 +132,7 @@ const CopyableCode = ({ children }: { children: ReactNode }) => {
           tooltip={false}
           className="p-1"
           value={() => {
-            const codeElement = document.getElementById(id)?.firstChild;
+            const codeElement = ref.current?.firstChild;
             if (codeElement) {
               return codeElement.textContent || "";
             }
