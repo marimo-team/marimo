@@ -612,6 +612,13 @@ def maybe_make_full_width(chart: AltairChartType) -> AltairChartType:
             isinstance(chart, (alt.Chart, alt.LayerChart))
             and chart.width is alt.Undefined
         ):
+            # Don't make full width if chart has column encoding (faceted)
+            if (
+                hasattr(chart, "encoding")
+                and hasattr(chart.encoding, "column")
+                and chart.encoding.column is not alt.Undefined
+            ):
+                return chart
             return chart.properties(width="container")
         return chart
     except Exception:
