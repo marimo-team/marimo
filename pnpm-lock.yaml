@@ -648,7 +648,7 @@ importers:
         specifier: ^36.0.1
         version: 36.0.1(stylelint@16.23.1(typescript@5.9.3))
       tailwindcss:
-        specifier: ^4.1.14
+        specifier: ^4.1.15
         version: 4.1.15
       vite:
         specifier: npm:rolldown-vite@latest

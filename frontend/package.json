@@ -247,7 +247,7 @@
     "storybook": "^9.1.8",
     "stylelint": "^16.23.1",
     "stylelint-config-standard": "^36.0.1",
-    "tailwindcss": "^4.1.14",
+    "tailwindcss": "^4.1.15",
     "vite": "npm:rolldown-vite@^7.1.19",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.5.0",
