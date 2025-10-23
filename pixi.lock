@@ -1102,7 +1102,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.17.0
-  sha256: 3ad30865c3f4e4123cc42ed7f504c66d52bf4c3c4378026197cd8a0bf4040350
+  sha256: 5e2b68e9ec635e489b7e57183e46a5199d745621494165518f589a5498327212
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1130,6 +1130,7 @@ packages:
   - polars[pyarrow]>=1.9.0 ; extra == 'recommended'
   - sqlglot[rs]>=26.2.0 ; extra == 'recommended'
   - openai>=1.55.3 ; extra == 'recommended'
+  - google-genai>=1.20.0 ; extra == 'recommended'
   - ruff ; extra == 'recommended'
   - nbformat>=5.7.0 ; extra == 'recommended'
   - click>=8.0,<9 ; extra == 'dev'
