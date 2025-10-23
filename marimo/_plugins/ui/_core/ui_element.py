@@ -476,7 +476,9 @@ class UIElement(Html, Generic[S, T]):
         # Check for options full mapping
         maybe_options = getattr(self, "options", None)
 
-        formatted_args = self._format_args(args, MAX_LIST_AND_DICT_ITEMS, maybe_options)
+        formatted_args = self._format_args(
+            args, MAX_LIST_AND_DICT_ITEMS, maybe_options
+        )
         formatted_signature = self._get_compact_signature()
 
         md_context = f"""

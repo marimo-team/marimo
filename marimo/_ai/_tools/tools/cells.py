@@ -109,9 +109,7 @@ class CellOutputData:
     visual_mimetype: Optional[str] = None
     stdout: list[str] = field(default_factory=list)
     stderr: list[str] = field(default_factory=list)
-    ui_elements: dict[str, str] = field(
-        default_factory=dict
-    )
+    ui_elements: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
