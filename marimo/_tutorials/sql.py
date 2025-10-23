@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.0"
 app = marimo.App(width="medium")
 
 
@@ -21,10 +21,10 @@ app = marimo.App(width="medium")
 def _(mo):
     mo.md(
         r"""
-        # Hello, SQL!
+    # Hello, SQL!
 
-        _Let's dive into the world of SQL where we don't just address tables, we also join them!_
-        """
+    _Let's dive into the world of SQL where we don't just address tables, we also join them!_
+    """
     )
     return
 
@@ -33,14 +33,14 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        With marimo, you can mix-and-match both **Python and SQL**. To create a
-        SQL cell, you first need to install some additional dependencies,
-        including [duckdb](https://duckdb.org/). Obtain these dependencies with
+    With marimo, you can mix-and-match both **Python and SQL**. To create a
+    SQL cell, you first need to install some additional dependencies,
+    including [duckdb](https://duckdb.org/). Obtain these dependencies with
 
-        ```bash
-        pip install 'marimo[sql]'
-        ```
-        """
+    ```bash
+    pip install 'marimo[sql]'
+    ```
+    """
     )
     return
 
@@ -103,33 +103,33 @@ def _(has_duckdb_installed, mo):
 def _(mo):
     mo.md(
         r"""
-        ## Creating SQL cells
+    ## Creating SQL cells
 
-        Once the required dependencies are installed, you can create SQL cells
-        in one of the following ways:
+    Once the required dependencies are installed, you can create SQL cells
+    in one of the following ways:
 
-        - right click the **Add Cell** ::lucide:circle-plus:: buttons on the left of
-        a cell;
-        -  click the **Convert to SQL** ::lucide:database:: button in the cell menu ::lucide:ellipsis::
-        -  click the **Add SQL Cell** at the bottom of the page;
+    - right click the **Add Cell** ::lucide:circle-plus:: buttons on the left of
+    a cell;
+    -  click the **Convert to SQL** ::lucide:database:: button in the cell menu ::lucide:ellipsis::
+    -  click the **Add SQL Cell** at the bottom of the page;
 
-        ## Python representation
-        marimo is still just Python, even when using SQL. Here is an example of
-        how marimo embeds SQL in Python in its file format:
+    ## Python representation
+    marimo is still just Python, even when using SQL. Here is an example of
+    how marimo embeds SQL in Python in its file format:
 
-        ```python
-        output_df = mo.sql(f"SELECT * FROM my_table LIMIT {max_rows.value}")
-        ```
+    ```python
+    output_df = mo.sql(f"SELECT * FROM my_table LIMIT {max_rows.value}")
+    ```
 
-        Notice that we have an **`output_df`** variable in the cell. This is a
-        resulting Polars DataFrame (if you have `polars` installed) or a Pandas
-        DataFrame (if you don't). One of them must be installed in order to
-        interact with the SQL result.
+    Notice that we have an **`output_df`** variable in the cell. This is a
+    resulting Polars DataFrame (if you have `polars` installed) or a Pandas
+    DataFrame (if you don't). One of them must be installed in order to
+    interact with the SQL result.
 
-        The SQL statement itself is an formatted string (f-string), so this
-        means they can contain any valid Python code, such as the values of UI
-        elements. This means your SQL statement and results can be reactive! 🚀
-        """
+    The SQL statement itself is an formatted string (f-string), so this
+    means they can contain any valid Python code, such as the values of UI
+    elements. This means your SQL statement and results can be reactive! 🚀
+    """
     )
     return
 
@@ -144,19 +144,21 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        /// Tip | "Data sources panel"
+    /// Tip | "Data sources panel"
 
-            Click the database "barrel" icon in the left toolbar to see all dataframes and in-
-            memory tables that your notebook has access to.
-        ///
-        """
+        Click the database "barrel" icon in the left toolbar to see all dataframes and in-
+        memory tables that your notebook has access to.
+    ///
+    """
     )
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Let's take a look at a SQL cell. The next cell generates a dataframe called `df`.""")
+    mo.md(
+        r"""Let's take a look at a SQL cell. The next cell generates a dataframe called `df`."""
+    )
     return
 
 
@@ -200,17 +202,19 @@ def _(has_polars_installed):
         import pandas as pd
 
         df = pd.DataFrame(_data)
-    return
+    return (df,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Next, we create a SQL query, referencing the Python dataframe `df` directly.""")
+    mo.md(
+        r"""Next, we create a SQL query, referencing the Python dataframe `df` directly."""
+    )
     return
 
 
 @app.cell
-def _(mo):
+def _(df, mo):
     _df = mo.sql(
         f"""
         -- This SQL cell is special since we can reference existing dataframes in the global scope as a table in the SQL query. For example, we can reference the `df` dataframe in the global scope, which was defined in another cell using Python.
@@ -231,7 +235,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""You can create SQL statements that depend on Python values, such as UI elements:""")
+    mo.md(
+        r"""You can create SQL statements that depend on Python values, such as UI elements:"""
+    )
     return
 
 
@@ -245,7 +251,7 @@ def _(mo, string):
 
 
 @app.cell
-def _(mo, token_prefix):
+def _(df, mo, token_prefix):
     result = mo.sql(
         f"""
         -- Change the dropdown to see the SQL query filter itself!
@@ -263,9 +269,9 @@ def _(mo, token_prefix):
 def _(mo):
     mo.md(
         r"""
-        Since we named the output variable above **`result`**,
-        we can use it back in Python.
-        """
+    Since we named the output variable above **`result`**,
+    we can use it back in Python.
+    """
     )
     return
 
@@ -356,21 +362,21 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        We're not limited to querying dataframes. We can also query an **HTTP URL, S3 path, or a file path to a local csv or parquet file**.
+    We're not limited to querying dataframes. We can also query an **HTTP URL, S3 path, or a file path to a local csv or parquet file**.
 
-        ```sql
-        -- or
-        SELECT * FROM 's3://my-bucket/file.parquet';
-        -- or
-        SELECT * FROM read_csv('path/to/example.csv');
-        -- or
-        SELECT * FROM read_parquet('path/to/example.parquet');
-        ```
+    ```sql
+    -- or
+    SELECT * FROM 's3://my-bucket/file.parquet';
+    -- or
+    SELECT * FROM read_csv('path/to/example.csv');
+    -- or
+    SELECT * FROM read_parquet('path/to/example.parquet');
+    ```
 
-        With a bit of boilerplate, you can even read and write to **Postgres**, and join Postgres tables with dataframes in the same query. For a full list of supported data sources, check out the [duckdb extensions](https://duckdb.org/docs/extensions/overview) and our [example notebook on duckdb connections](https://github.com/marimo-team/marimo/blob/main/examples/sql/duckdb_connections.**py**).
+    With a bit of boilerplate, you can even read and write to **Postgres**, and join Postgres tables with dataframes in the same query. For a full list of supported data sources, check out the [duckdb extensions](https://duckdb.org/docs/extensions/overview) and our [example notebook on duckdb connections](https://github.com/marimo-team/marimo/blob/main/examples/sql/duckdb_connections.**py**).
 
-        For this example, we will query an HTTP endpoint of a csv.
-        """
+    For this example, we will query an HTTP endpoint of a csv.
+    """
     )
     return
 
@@ -387,7 +393,7 @@ def _(mo):
         SELECT * from cars;
         """
     )
-    return (cars,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -401,7 +407,7 @@ def _(cars, mo):
 
 
 @app.cell
-def _(cylinders_dropdown, mo, origin_dropdown):
+def _(cars, cylinders_dropdown, mo, origin_dropdown):
     filtered_cars = mo.sql(
         f"""
         SELECT * FROM cars

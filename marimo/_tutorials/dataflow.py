@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.0"
 app = marimo.App()
 
 
@@ -18,15 +18,15 @@ app = marimo.App()
 def _(mo):
     mo.md(
         """
-        # How marimo notebooks run
+    # How marimo notebooks run
 
-        Reactive execution is based on a single rule: when a cell is run, all other
-        cells that reference any of the global variables it defines run
-        automatically.
+    Reactive execution is based on a single rule: when a cell is run, all other
+    cells that reference any of the global variables it defines run
+    automatically.
 
-        To provide reactive execution, marimo creates a dataflow graph out of your
-        cells.
-        """
+    To provide reactive execution, marimo creates a dataflow graph out of your
+    cells.
+    """
     )
     return
 
@@ -35,16 +35,16 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        **Tip: disabling automatic execution.**
+    **Tip: disabling automatic execution.**
 
-        marimo lets you disable automatic execution: in the notebook
-        footer, change "On Cell Change" to "lazy".
+    marimo lets you disable automatic execution: in the notebook
+    footer, change "On Cell Change" to "lazy".
 
-        When the runtime is lazy, after running a cell, marimo marks its
-        descendants as stale instead of automatically running them. The lazy
-        runtime puts you in control over when cells are run, while still giving
-        guarantees about the notebook state.
-        """
+    When the runtime is lazy, after running a cell, marimo marks its
+    descendants as stale instead of automatically running them. The lazy
+    runtime puts you in control over when cells are run, while still giving
+    guarantees about the notebook state.
+    """
     )
     return
 
@@ -53,21 +53,21 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ## References and definitions
+    ## References and definitions
 
-        A marimo notebook is a directed acyclic graph in which nodes represent 
-        cells and edges represent data dependencies. marimo creates this graph by
-        analyzing each cell (without running it) to determine its
+    A marimo notebook is a directed acyclic graph in which nodes represent
+    cells and edges represent data dependencies. marimo creates this graph by
+    analyzing each cell (without running it) to determine its
 
-        - references ("refs*), the global variables it reads but doesn't define;
-        - definitions ("defs"), the global variables it defines.
+    - references ("refs*), the global variables it reads but doesn't define;
+    - definitions ("defs"), the global variables it defines.
 
-        There is an edge from one cell to another if the latter cell references any
-        global variables defined by the former cell.
+    There is an edge from one cell to another if the latter cell references any
+    global variables defined by the former cell.
 
-        The rule for reactive execution can be restated in terms of the graph: when
-        a cell is run, its descendants are run automatically.
-        """
+    The rule for reactive execution can be restated in terms of the graph: when
+    a cell is run, its descendants are run automatically.
+    """
     )
     return
 
@@ -76,11 +76,11 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ### Example
+    ### Example
 
-        The next four cells plot a sine wave with a given period and amplitude.
-        Each cell is labeled with its refs and defs.
-        """
+    The next four cells plot a sine wave with a given period and amplitude.
+    Each cell is labeled with its refs and defs.
+    """
     )
     return
 
@@ -169,10 +169,10 @@ def _(mo, np, plt):
 def _(mo):
     mo.md(
         """
-        🌊 **Try it!** In the above cells, try changing the value `period` or 
-        `amplitude`, then click the run button ( ▷ ) to register your changes. 
-        See what happens to the sine wave.
-        """
+    🌊 **Try it!** In the above cells, try changing the value `period` or
+    `amplitude`, then click the run button ( ▷ ) to register your changes.
+    See what happens to the sine wave.
+    """
     )
     return
 
@@ -181,28 +181,28 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        Here is the dataflow graph for the cells that make the sine wave plot, plus
-        the cells that import libraries. Each cell is labeled with its defs. 
+    Here is the dataflow graph for the cells that make the sine wave plot, plus
+    the cells that import libraries. Each cell is labeled with its defs.
 
-        ```
-                           +------+               +-----------+
-               +-----------| {mo} |-----------+   | {np, plt} |
-               |           +---+--+           |   +----+------+
-               |               |              |        |
-               |               |              |        |
-               v               v              v        v
-          +----------+   +-------------+   +--+----------+
-          | {period} |   | {amplitude} |   | {plot_wave} |
-          +---+------+   +-----+-------+   +------+------+
-              |                |                  |
-              |                v                  |
-              |              +----+               |
-              +------------> | {} | <-------------+
-                             +----+
-        ```
+    ```
+                       +------+               +-----------+
+           +-----------| {mo} |-----------+   | {np, plt} |
+           |           +---+--+           |   +----+------+
+           |               |              |        |
+           |               |              |        |
+           v               v              v        v
+      +----------+   +-------------+   +--+----------+
+      | {period} |   | {amplitude} |   | {plot_wave} |
+      +---+------+   +-----+-------+   +------+------+
+          |                |                  |
+          |                v                  |
+          |              +----+               |
+          +------------> | {} | <-------------+
+                         +----+
+    ```
 
-        The last cell, which doesn't define anything, produces the plot.
-        """
+    The last cell, which doesn't define anything, produces the plot.
+    """
     )
     return
 
@@ -211,12 +211,12 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ## Dataflow programming
+    ## Dataflow programming
 
-        marimo's runtime rule has some important consequences that may seem 
-        surprising if you are not used to dataflow programming. We list these
-        below.
-        """
+    marimo's runtime rule has some important consequences that may seem
+    surprising if you are not used to dataflow programming. We list these
+    below.
+    """
     )
     return
 
@@ -225,13 +225,13 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ### Execution order is not cell order
+    ### Execution order is not cell order
 
-        The order in which cells are executed is determined entirely by the
-        dataflow graph. This makes marimo notebooks more reproducible than
-        traditional notebooks. It also lets you place boilerplate, like
-        imports or long markdown strings, at the bottom of the editor.
-        """
+    The order in which cells are executed is determined entirely by the
+    dataflow graph. This makes marimo notebooks more reproducible than
+    traditional notebooks. It also lets you place boilerplate, like
+    imports or long markdown strings, at the bottom of the editor.
+    """
     )
     return
 
@@ -240,15 +240,15 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ### Global variable names must be unique
+    ### Global variable names must be unique
 
-        Every global variable can be defined by only one cell. Without this 
-        constraint, there would be no way for marimo to know which order to 
-        execute cells in.
+    Every global variable can be defined by only one cell. Without this
+    constraint, there would be no way for marimo to know which order to
+    execute cells in.
 
-        If you violate this constraint, marimo provides a helpful
-        error message, like below:
-        """
+    If you violate this constraint, marimo provides a helpful
+    error message, like below:
+    """
     )
     return
 
@@ -271,9 +271,9 @@ def _():
 def _(mo):
     mo.md(
         """
-        **🌊 Try it!** In the previous cell, change the name `planet` to `home`, 
-        then run the cell.
-        """
+    **🌊 Try it!** In the previous cell, change the name `planet` to `home`,
+    then run the cell.
+    """
     )
     return
 
@@ -282,13 +282,13 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        Because defs must be unique, global variables cannot be modified with
-        operators like `+=` or `-=` in cells other than the one that created
-        them; these operators count as redefinitions of a name.
+    Because defs must be unique, global variables cannot be modified with
+    operators like `+=` or `-=` in cells other than the one that created
+    them; these operators count as redefinitions of a name.
 
-        **🌊 Try it!** Get rid of the following errors by merging the next two 
-        cells into a single cell.
-        """
+    **🌊 Try it!** Get rid of the following errors by merging the next two
+    cells into a single cell.
+    """
     )
     return
 
@@ -309,15 +309,15 @@ def _():
 def _(mo):
     mo.md(
         """
-        ### Underscore-prefixed variables are local to cells
+    ### Underscore-prefixed variables are local to cells
 
-        Global variables prefixed with an underscore are "private" to the cells 
-        that define them. This means that multiple cells can define the same 
-        underscore-prefixed name, and one cell's private variables won't be
-        made available to other cells.
+    Global variables prefixed with an underscore are "private" to the cells
+    that define them. This means that multiple cells can define the same
+    underscore-prefixed name, and one cell's private variables won't be
+    made available to other cells.
 
-        **Example**.
-        """
+    **Example**.
+    """
     )
     return
 
@@ -347,13 +347,13 @@ def _():
 def _(mo):
     mo.md(
         """
-        ### Deleting a cell deletes its variables
+    ### Deleting a cell deletes its variables
 
-        Deleting a cell deletes its global variables and 
-        then runs all cells that reference them. This prevents severe bugs that 
-        can arise when state has been deleted from the editor but not from the 
-        program memory.
-        """
+    Deleting a cell deletes its global variables and
+    then runs all cells that reference them. This prevents severe bugs that
+    can arise when state has been deleted from the editor but not from the
+    program memory.
+    """
     )
     return
 
@@ -382,10 +382,10 @@ def _(to_be_deleted):
 def _(mo):
     mo.md(
         """
-        ### Cycles are not allowed
+    ### Cycles are not allowed
 
-        Cycles among cells are not allowed. For example:
-        """
+    Cycles among cells are not allowed. For example:
+    """
     )
     return
 
@@ -406,14 +406,14 @@ def _(one):
 def _(mo):
     mo.md(
         """
-        ### marimo doesn't track attributes
+    ### marimo doesn't track attributes
 
-        marimo only tracks global variables. Writing object attributes does not 
-        trigger reactive execution.
+    marimo only tracks global variables. Writing object attributes does not
+    trigger reactive execution.
 
-        **🌊 Example**. Change the value of `state.number` in the next cell, then
-        run the cell. Notice how the subsequent cell isn't updated.
-        """
+    **🌊 Example**. Change the value of `state.number` in the next cell, then
+    run the cell. Notice how the subsequent cell isn't updated.
+    """
     )
     return
 
@@ -458,12 +458,12 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ### marimo doesn't track mutations
+    ### marimo doesn't track mutations
 
-        In Python, it's impossible to know whether code will 
-        mutate an object without running it. So: mutations (such as
-        appending to a list) will not trigger reactive execution.
-        """
+    In Python, it's impossible to know whether code will
+    mutate an object without running it. So: mutations (such as
+    appending to a list) will not trigger reactive execution.
+    """
     )
     return
 
@@ -488,18 +488,18 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ## Best practices
+    ## Best practices
 
-        The constraints marimo puts on your notebooks are all natural consequences
-        of the fact that marimo programs are directed acyclic graphs. As long as 
-        you keep this fact in mind, you'll quickly adapt to the marimo way of
-        writing notebooks.
+    The constraints marimo puts on your notebooks are all natural consequences
+    of the fact that marimo programs are directed acyclic graphs. As long as
+    you keep this fact in mind, you'll quickly adapt to the marimo way of
+    writing notebooks.
 
-        Ultimately, these constraints will enable you to create powerful notebooks
-        and apps, and they'll encourage you to write clean, reproducible code.
+    Ultimately, these constraints will enable you to create powerful notebooks
+    and apps, and they'll encourage you to write clean, reproducible code.
 
-        Follow these tips to stay on the marimo way:
-        """
+    Follow these tips to stay on the marimo way:
+    """
     )
     return
 
@@ -514,14 +514,14 @@ def _(mo, tips):
 def _(mo):
     mo.md(
         """
-        ## What's next?
+    ## What's next?
 
-        Check out the tutorial on interactivity for a tour of UI elements:
+    Check out the tutorial on interactivity for a tour of UI elements:
 
-        ```
-        marimo tutorial ui
-        ```
-        """
+    ```
+    marimo tutorial ui
+    ```
+    """
     )
     return
 
