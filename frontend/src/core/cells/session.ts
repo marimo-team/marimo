@@ -229,7 +229,7 @@ function createCellRuntimeFromSession(
       return {
         channel: consoleOutput.name === "stderr" ? "stderr" : "stdout",
         data: consoleOutput.text,
-        mimetype: "text/plain",
+        mimetype: consoleOutput.mimetype,
         timestamp: DEFAULT_TIMESTAMP,
       };
     }),

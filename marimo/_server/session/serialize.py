@@ -151,6 +151,7 @@ def serialize_session_view(
                         if console_out.channel == CellChannel.STDERR
                         else "stdout",
                         text=str(console_out.data),
+                        mimetype=console_out.mimetype,
                     )
                 )
 
@@ -235,22 +236,33 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
             else:
                 is_stderr = console["name"] == "stderr"
                 data = console["text"]
-                # HACK: We need to detect tracebacks in stderr by checking for HTML
-                # formatting.
-                is_traceback = (
-                    is_stderr
-                    and isinstance(data, str)
-                    and data.startswith('<span class="codehilite">')
-                )
+
+                # Use mimetype from console if available (new format)
+                if "mimetype" in console and console["mimetype"] is not None:
+                    mimetype = console["mimetype"]
+                else:
+                    # Backward compatibility: detect mimetype using heuristics
+                    # HACK: We need to detect tracebacks in stderr by checking for HTML
+                    # formatting.
+                    is_traceback = (
+                        is_stderr
+                        and isinstance(data, str)
+                        and data.startswith('<span class="codehilite">')
+                    )
+                    mimetype = cast(
+                        KnownMimeType,
+                        "application/vnd.marimo+traceback"
+                        if is_traceback
+                        else "text/plain",
+                    )
+
                 console_outputs.append(
                     CellOutput(
                         channel=CellChannel.STDERR
                         if is_stderr
                         else CellChannel.STDOUT,
                         data=data,
-                        mimetype="application/vnd.marimo+traceback"
-                        if is_traceback
-                        else "text/plain",
+                        mimetype=mimetype,
                     )
                 )
 

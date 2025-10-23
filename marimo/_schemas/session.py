@@ -30,6 +30,7 @@ class StreamOutput(BaseDict):
     type: Literal["stream"]
     name: Literal["stdout", "stderr"]
     text: str
+    mimetype: Optional[KnownMimeType]
 
 
 class StreamMediaOutput(BaseDict):
