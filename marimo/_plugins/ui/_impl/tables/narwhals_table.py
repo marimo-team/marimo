@@ -715,9 +715,37 @@ class NarwhalsTableManager(
 
         # Handle Pillow images
         if DependencyManager.pillow.imported():
-            from PIL import Image
+            try:
+                from PIL import Image
 
-            if isinstance(value, Image.Image):
-                return io_to_data_url(value, "image/png")
+                if isinstance(value, Image.Image):
+                    return io_to_data_url(value, "image/png")
+            except Exception:
+                LOGGER.debug(
+                    "Unable to convert image to data URL", exc_info=True
+                )
+
+        # Handle Matplotlib figures
+        if DependencyManager.matplotlib.imported():
+            try:
+                import matplotlib.figure
+                from matplotlib.axes import Axes
+
+                from marimo._output.formatting import as_html
+                from marimo._plugins.stateless.flex import vstack
+
+                if isinstance(value, matplotlib.figure.Figure):
+                    html = as_html(vstack([str(value), value]))
+                    mimetype, data = html._mime_()
+
+                if isinstance(value, Axes):
+                    html = as_html(vstack([str(value), value]))
+                    mimetype, data = html._mime_()
+                    return {"mimetype": mimetype, "data": data}
+            except Exception:
+                LOGGER.debug(
+                    "Error converting matplotlib figures to HTML",
+                    exc_info=True,
+                )
 
         return value
