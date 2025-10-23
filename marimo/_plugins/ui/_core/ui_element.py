@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import abc
 import copy
-import inspect
 import random
 import sys
 import types
@@ -464,114 +463,6 @@ class UIElement(Html, Generic[S, T]):
         Return true if the value of the component has changed, false otherwise
         """
         return False
-
-    def _get_llm_context(self) -> str:
-        """Extract LLM-friendly markdown string from UIElement."""
-
-        MAX_LIST_AND_DICT_ITEMS = 10
-        current_value = self._value
-        component_name = self._args.component_name
-        label = self._args.label
-        args = self._args.args
-        # Check for options full mapping
-        maybe_options = getattr(self, "options", None)
-
-        formatted_args = self._format_args(
-            args, MAX_LIST_AND_DICT_ITEMS, maybe_options
-        )
-        formatted_signature = self._get_compact_signature()
-
-        md_context = f"""
-        ### UI Element: `{component_name}`
-        Label: \"{label}\"
-        Current value: `{current_value}`s
-
-        **Configuration:**
-        {formatted_args}
-
-        **Doc-Signature:**
-        {formatted_signature}
-        """
-
-        return md_context
-
-    def _format_args(
-        self,
-        args: dict[str, Any],
-        max_list_and_dict_items: int,
-        maybe_options: Optional[dict[str, Any]],
-    ) -> str:
-        """Format arguments for display."""
-        md_parts = []
-        for key, value in args.items():
-            # get full options mapping (for Dropdown, Multiselect, and Radio)
-            if key == "options" and maybe_options is not None:
-                value = maybe_options
-
-            # handle long lists
-            if (
-                isinstance(value, list)
-                and len(value) > max_list_and_dict_items
-            ):
-                formatted_value = f"{value[:max_list_and_dict_items]}... ({len(value)} total)"
-
-            # handle long dicts
-            elif (
-                isinstance(value, dict)
-                and len(value) > max_list_and_dict_items
-            ):
-                items = list(value.items())[:max_list_and_dict_items]
-                preview = ", ".join(f"{k!r}: {v!r}" for k, v in items)
-                formatted_value = f"{{{preview}, ... ({len(value)} total)}}"
-            else:
-                formatted_value = value
-            md_parts.append(f"- `{key}`: {formatted_value}")
-        return "\n".join(md_parts)
-
-    def _format_signature_parameter(self, param: inspect.Parameter) -> str:
-        """Format parameter for compact signature display."""
-        result = param.name
-
-        # Add type hint if available
-        if param.annotation != inspect.Parameter.empty:
-            if hasattr(param.annotation, "__name__"):
-                result += f"={param.annotation.__name__}"
-            else:
-                result += f"={param.annotation}"
-
-        # Add default value if available
-        if param.default != inspect.Parameter.empty:
-            if isinstance(param.default, str):
-                result += f" (default='{param.default}')"
-            elif param.default is None:
-                result += " (default=None)"
-            else:
-                result += f" (default={param.default})"
-
-        return result
-
-    def _get_compact_signature(self) -> str:
-        """Generate a compact signature string for a UIElement.
-
-        Returns a signature like:
-        "mo.ui.dropdown(options, value=str, searchable=bool (default=False), ...)"
-        """
-        component_name_without_marimo = self._args.component_name.replace(
-            "marimo-", ""
-        )
-
-        try:
-            sig = inspect.signature(type(self).__init__)
-            formatted_params = [
-                self._format_signature_parameter(param)
-                for name, param in sig.parameters.items()
-                # Skip self parameter (first parameter)
-                if name != "self"
-            ]
-            return f"mo.ui.{component_name_without_marimo}({', '.join(formatted_params)})"
-        except Exception:
-            # Fallback to generic signature
-            return f"mo.ui.{component_name_without_marimo}(...)"
 
     def __deepcopy__(self, memo: dict[int, Any]) -> UIElement[S, T]:
         # Custom deepcopy that excludes elements that can't be deepcopied

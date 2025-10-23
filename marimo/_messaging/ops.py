@@ -507,14 +507,12 @@ class VariableValue(BaseStruct):
     name: str
     value: Optional[str]
     datatype: Optional[str]
-    llm_context: Optional[str] = None
 
     @staticmethod
     def create(
         name: str,
         value: object,
         datatype: Optional[str] = None,
-        maybe_llm_context: Optional[str] = None,
     ) -> VariableValue:
         """Factory method to create a VariableValue from an object."""
         # Defensively try-catch attribute accesses, which could raise
@@ -535,18 +533,10 @@ class VariableValue(BaseStruct):
         except Exception:
             formatted_value = None
 
-        try:
-            formatted_llm_context = VariableValue._format_llm_context_static(
-                value, maybe_llm_context
-            )
-        except Exception:
-            formatted_llm_context = None
-
         return VariableValue(
             name=name,
             value=formatted_value,
             datatype=computed_datatype,
-            llm_context=formatted_llm_context,
         )
 
     @staticmethod
@@ -577,21 +567,6 @@ class VariableValue(BaseStruct):
         elif isinstance(value, ModuleType):
             resolved = value.__name__
         return VariableValue._stringify_static(resolved)
-
-    @staticmethod
-    def _format_llm_context_static(
-        value: object, maybe_llm_context: Optional[str]
-    ) -> Optional[str]:
-        resolved = None
-        # Get llm_context for initial broadcast new of UIElement
-        if isinstance(value, UIElement):
-            resolved = value._get_llm_context()
-        # Get llm_context for subsequent UIElement state updates
-        # where the llm_context is passed in directly
-        # and the type is not UIElement
-        elif maybe_llm_context is not None:
-            resolved = maybe_llm_context
-        return resolved
 
 
 class Variables(Op, tag="variables"):

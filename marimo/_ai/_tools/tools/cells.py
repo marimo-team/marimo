@@ -12,7 +12,6 @@ from marimo._ast.models import CellData
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import Error
 from marimo._messaging.ops import CellOp, VariableValue
-from marimo._server.session.session_view import SessionView
 from marimo._types.ids import CellId_t, SessionId
 
 if TYPE_CHECKING:
@@ -109,7 +108,6 @@ class CellOutputData:
     visual_mimetype: Optional[str] = None
     stdout: list[str] = field(default_factory=list)
     stderr: list[str] = field(default_factory=list)
-    ui_elements: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -425,12 +423,11 @@ class GetCellRuntimeData(
 
 
 class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
-    """Get cell execution output including visual display, console streams, and UIElement context.
+    """Get cell execution output including visual display and console streams.
 
     Returns comprehensive output data for a single cell:
     - Visual output (HTML, charts, tables, etc.) with mimetype
     - Console stdout and stderr messages
-    - Rich context for any UIElements defined by the cell
 
     Args:
         session_id: The session ID of the notebook from get_active_notebooks
@@ -442,9 +439,8 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
 
     guidelines = ToolGuidelines(
         when_to_use=[
-            "When you need to see what a cell displayed or printed",
-            "To inspect UIElements created by a cell with rich metadata",
-            "To review console output alongside visual output",
+            "When you need to see what a cell displayed or printed to the user",
+            "To review charts, visualizations, markdown, HTML, or console output from a cell",
         ],
         prerequisites=[
             "You must have a valid session id from an active notebook",
@@ -455,17 +451,13 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
     def handle(self, args: GetCellOutputArgs) -> GetCellOutputOutput:
         session = self.context.get_session(args.session_id)
         session_view = session.session_view
-        cell_manager = session.app_file_manager.app.cell_manager
         cell_id = args.cell_id
         maybe_cell_op = session_view.cell_operations.get(cell_id)
-        maybe_cell_data = cell_manager.get_cell_data(cell_id)
 
         visual_output, visual_mimetype = self._get_visual_output(maybe_cell_op)
         stdout_messages, stderr_messages = self._get_console_outputs(
             maybe_cell_op
         )
-
-        ui_elements = self._get_ui_elements(maybe_cell_data, session_view)
 
         return GetCellOutputOutput(
             data=CellOutputData(
@@ -473,12 +465,10 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
                 visual_mimetype=visual_mimetype,
                 stdout=stdout_messages,
                 stderr=stderr_messages,
-                ui_elements=ui_elements,
             ),
             next_steps=[
                 "Review visual_output to see what was displayed to the user",
                 "Check stdout/stderr for print statements and warnings",
-                "Inspect ui_elements for rich UIElement metadata and configuration",
             ],
         )
 
@@ -522,19 +512,3 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
             elif output.channel == CellChannel.STDERR:
                 stderr_messages.append(str(output.data))
         return stdout_messages, stderr_messages
-
-    def _get_ui_elements(
-        self, maybe_cell_data: Optional[CellData], session_view: SessionView
-    ) -> dict[str, str]:
-        ui_elements: dict[str, str] = {}
-        if maybe_cell_data is None or maybe_cell_data.cell is None:
-            return ui_elements
-        cell_defs = maybe_cell_data.cell._cell.defs
-        all_variables = session_view.variable_values
-        for var_name in cell_defs:
-            if var_name not in all_variables:
-                continue
-            var_value = all_variables[var_name]
-            if var_value.llm_context is not None:
-                ui_elements[var_name] = var_value.llm_context
-        return ui_elements

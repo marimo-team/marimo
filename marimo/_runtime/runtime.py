@@ -1819,7 +1819,6 @@ class Kernel:
         del request
 
         for object_id, value in resolved_requests.items():
-            maybe_llm_context = None
             try:
                 component = ui_element_registry.get_object(object_id)
                 LOGGER.debug(
@@ -1839,8 +1838,6 @@ class Kernel:
             ):
                 try:
                     component._update(value)
-                    # Get LLM context with updated "current value"
-                    maybe_llm_context = component._get_llm_context()
                 except MarimoConvertValueException:
                     # Internal marimo error
                     sys.stderr.write(
@@ -1876,7 +1873,8 @@ class Kernel:
             }
             referring_cells.update(
                 self.update_stateful_values(
-                    bound_names, value, maybe_llm_context
+                    bound_names,
+                    value,
                 )
             )
 
@@ -1931,7 +1929,6 @@ class Kernel:
         self,
         bound_names: set[str],
         value: Any,
-        maybe_llm_context: Optional[str] = None,
     ) -> set[CellId_t]:
         variable_values: list[VariableValue] = []
         referring_cells: set[CellId_t] = set()
@@ -1939,7 +1936,8 @@ class Kernel:
             # TODO update variable values even for namespaces? lenses? etc
             variable_values.append(
                 VariableValue.create(
-                    name=name, value=value, maybe_llm_context=maybe_llm_context
+                    name=name,
+                    value=value,
                 )
             )
             try:
