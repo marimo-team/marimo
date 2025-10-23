@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
+from marimo._ai._tools.utils.output_cleaning import clean_output
 from marimo._ast.models import CellData
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import Error
@@ -511,4 +512,8 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
                 stdout_messages.append(str(output.data))
             elif output.channel == CellChannel.STDERR:
                 stderr_messages.append(str(output.data))
-        return stdout_messages, stderr_messages
+
+        cleaned_stdout_messages = clean_output(stdout_messages)
+        cleaned_stderr_messages = clean_output(stderr_messages)
+
+        return cleaned_stdout_messages, cleaned_stderr_messages
