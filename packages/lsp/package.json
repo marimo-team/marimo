@@ -22,7 +22,7 @@
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.2",
+    "typescript": "^5.9.3",
     "vitest": "^3.2.4",
     "vscode-ws-jsonrpc": "^3.5.0",
     "ws": "^8.18.3"

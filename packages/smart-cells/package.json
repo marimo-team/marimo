@@ -23,7 +23,7 @@
   "devDependencies": {
     "@marimo-team/tsconfig": "workspace:*",
     "@types/node": "^20.0.0",
-    "typescript": "^5.3.3",
+    "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },
   "keywords": [
