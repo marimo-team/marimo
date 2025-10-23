@@ -75,6 +75,60 @@ def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
     return False
 
 
+def should_run_in_sandbox(
+    sandbox: bool | None, dangerous_sandbox: bool | None, name: str | None
+) -> bool:
+    """Return whether the named notebook should be run in a sandbox.
+
+    Prompts the user if sandbox is None and the notebook has sandbox metadata.
+
+    The `sandbox` arg is whether the user requested sandbox. Even
+    if running in sandbox was requested, it may not be allowed
+    if the target is a directory (unless overridden by `dangerous_sandbox`).
+    """
+
+    # Dangerous sandbox can be forced on by setting an environment variable;
+    # this allows our VS Code extension to force sandbox regardless of the
+    # marimo version.
+    if sandbox and os.getenv("MARIMO_DANGEROUS_SANDBOX"):
+        dangerous_sandbox = True
+
+    if dangerous_sandbox and (name is None or os.path.isdir(name)):
+        sandbox = True
+        click.echo(
+            click.style(
+                "Warning: Using sandbox with multi-notebook edit servers is dangerous.\n",
+                fg="yellow",
+            )
+            + "Notebook dependencies may not be respected, may not be written, and may be overwritten.\n"
+            + "Learn more: https://github.com/marimo-team/marimo/issues/5219l.\n",
+            err=True,
+        )
+
+    # When the sandbox flag is omitted we infer whether to
+    # to start in sandbox mode by examining the notebook file and
+    # prompting the user.
+    if sandbox is None:
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    # Validation: we don't yet support multi-notebook sandboxed servers.
+    if (
+        sandbox
+        and not dangerous_sandbox
+        and (name is None or os.path.isdir(name))
+    ):
+        raise click.UsageError(
+            """marimo's package sandbox requires a notebook name:
+
+    * marimo edit --sandbox my_notebook.py
+
+  Multi-notebook sandboxed servers (marimo edit --sandbox) are not supported.
+  Follow this issue at: https://github.com/marimo-team/marimo/issues/2598."""
+        )
+
+    return sandbox
+
+
 def _is_versioned(dependency: str) -> bool:
     return any(c in dependency for c in ("==", ">=", "<=", ">", "<", "~"))
 

@@ -3,9 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
+import click
+import pytest
+
 from marimo._cli.sandbox import (
     _normalize_sandbox_dependencies,
     construct_uv_command,
+    should_run_in_sandbox,
 )
 from marimo._utils.inline_script_metadata import PyProjectReader
 
@@ -406,3 +410,76 @@ import marimo
     with open(req_file_path) as f:
         requirements = f.read()
         assert "numpy" in requirements
+
+
+def test_should_run_in_sandbox_user_confirms(tmp_path: Path) -> None:
+    """Test that should_run_in_sandbox returns True when user types 'y'."""
+    # Create a file with dependencies
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """
+# /// script
+# dependencies = ["numpy"]
+# ///
+import marimo
+    """
+    )
+
+    # Mock the prompt to return True (simulating user typing 'y')
+    with patch("marimo._cli.sandbox.click.confirm", return_value=True):
+        with patch(
+            "marimo._cli.sandbox.DependencyManager.which",
+            return_value="/usr/bin/uv",
+        ):
+            with patch(
+                "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
+            ):
+                result = should_run_in_sandbox(
+                    sandbox=None,
+                    dangerous_sandbox=None,
+                    name=str(script_path),
+                )
+                assert result
+
+
+def test_should_run_in_sandbox_explicit_flag() -> None:
+    """Test that should_run_in_sandbox returns True when sandbox=True."""
+    result = should_run_in_sandbox(
+        sandbox=True,
+        dangerous_sandbox=None,
+        name="test.py",
+    )
+    assert result
+
+
+def test_should_run_in_sandbox_explicit_false() -> None:
+    """Test that should_run_in_sandbox returns False when sandbox=False."""
+    result = should_run_in_sandbox(
+        sandbox=False,
+        dangerous_sandbox=None,
+        name="test.py",
+    )
+    assert not result
+
+
+def test_should_run_in_sandbox_dangerous_sandbox(tmp_path: Path) -> None:
+    """Test that dangerous_sandbox allows sandbox for directories."""
+    dir_path = tmp_path / "notebooks"
+    dir_path.mkdir()
+
+    # Without dangerous_sandbox, should raise an error
+    with pytest.raises(click.UsageError):
+        should_run_in_sandbox(
+            sandbox=True,
+            dangerous_sandbox=False,
+            name=str(dir_path),
+        )
+
+    # With dangerous_sandbox, should work
+    with patch("click.echo"):
+        result = should_run_in_sandbox(
+            sandbox=True,
+            dangerous_sandbox=True,
+            name=str(dir_path),
+        )
+        assert result
