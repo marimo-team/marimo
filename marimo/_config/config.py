@@ -654,7 +654,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "language_servers": {
         "pylsp": {
-            "enabled": True,
+            "enabled": False,
             "enable_mypy": True,
             "enable_ruff": True,
             "enable_flake8": False,
