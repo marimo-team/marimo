@@ -510,9 +510,7 @@ class VariableValue(BaseStruct):
 
     @staticmethod
     def create(
-        name: str,
-        value: object,
-        datatype: Optional[str] = None,
+        name: str, value: object, datatype: Optional[str] = None
     ) -> VariableValue:
         """Factory method to create a VariableValue from an object."""
         # Defensively try-catch attribute accesses, which could raise
@@ -534,9 +532,7 @@ class VariableValue(BaseStruct):
             formatted_value = None
 
         return VariableValue(
-            name=name,
-            value=formatted_value,
-            datatype=computed_datatype,
+            name=name, value=formatted_value, datatype=computed_datatype
         )
 
     @staticmethod
