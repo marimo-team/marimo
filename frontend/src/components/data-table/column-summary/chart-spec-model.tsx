@@ -3,19 +3,8 @@
 import { mint, orange, slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";
 import type { StringFieldDef } from "vega-lite/build/src/channeldef";
-// @ts-expect-error vega-typings does not include formats
-import { formats } from "vega-loader";
-import { asRemoteURL } from "@/core/runtime/config";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
-import { arrow } from "@/plugins/impl/vega/formats";
-import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { logNever } from "@/utils/assertNever";
-import {
-  byteStringToBinary,
-  extractBase64FromDataURL,
-  isDataURLString,
-  typedAtob,
-} from "@/utils/json/base64";
 import type {
   BinValues,
   ColumnHeaderStats,
@@ -23,11 +12,7 @@ import type {
   FieldTypes,
   ValueCounts,
 } from "../types";
-import {
-  getLegacyBooleanSpec,
-  getLegacyNumericSpec,
-  getLegacyTemporalSpec,
-} from "./legacy-chart-spec";
+import { getLegacyBooleanSpec } from "./legacy-chart-spec";
 import { calculateBinStep, getPartialTimeTooltip } from "./utils";
 
 // We rely on vega's built-in binning to determine bar widths.
@@ -42,96 +27,45 @@ const UNHOVERED_BAR_OPACITY = 0.6;
 const NULL_BAR_WIDTH = 5;
 const NULL_BAR_COLOR = orange.orange11;
 
-// Arrow formats have a magic number at the beginning of the file.
-const ARROW_MAGIC_NUMBER = "ARROW1";
-
-// register arrow reader under type 'arrow'
-formats("arrow", arrow);
-
 export class ColumnChartSpecModel<T> {
   private columnStats = new Map<ColumnName, Partial<ColumnHeaderStats>>();
   private columnBinValues = new Map<ColumnName, BinValues>();
   private columnValueCounts = new Map<ColumnName, ValueCounts>();
 
   public static readonly EMPTY = new ColumnChartSpecModel(
-    [],
     {},
     {},
     {},
     {},
     {
       includeCharts: false,
-      usePreComputedValues: false,
     },
   );
 
   private dataSpec: TopLevelSpec["data"];
-  private sourceName: "data_0" | "source_0";
 
-  private readonly data: T[] | string;
   private readonly fieldTypes: FieldTypes;
   readonly stats: Record<ColumnName, Partial<ColumnHeaderStats>>;
   readonly binValues: Record<ColumnName, BinValues>;
   readonly valueCounts: Record<ColumnName, ValueCounts>;
   private readonly opts: {
     includeCharts: boolean;
-    usePreComputedValues?: boolean;
   };
 
   constructor(
-    data: T[] | string,
     fieldTypes: FieldTypes,
     stats: Record<ColumnName, Partial<ColumnHeaderStats>>,
     binValues: Record<ColumnName, BinValues>,
     valueCounts: Record<ColumnName, ValueCounts>,
     opts: {
       includeCharts: boolean;
-      usePreComputedValues?: boolean;
     },
   ) {
-    this.data = data;
     this.fieldTypes = fieldTypes;
     this.stats = stats;
     this.binValues = binValues;
     this.valueCounts = valueCounts;
     this.opts = opts;
-
-    // Data may come in from a few different sources:
-    // - A URL
-    // - A CSV data URI (e.g. "data:text/csv;base64,...")
-    // - A CSV string (e.g. "a,b,c\n1,2,3\n4,5,6")
-    // - An array of objects
-    // For each case, we need to set up the data spec and source name appropriately.
-    // If its a file, the source name will be "source_0", otherwise it will be "data_0".
-    // We have a few snapshot tests to ensure that the spec is correct for each case.
-    if (typeof this.data === "string") {
-      if (this.data.startsWith("./@file") || this.data.startsWith("/@file")) {
-        this.dataSpec = { url: asRemoteURL(this.data).href };
-        this.sourceName = "source_0";
-      } else if (isDataURLString(this.data)) {
-        this.sourceName = "data_0";
-        const base64 = extractBase64FromDataURL(this.data);
-        const decoded = typedAtob(base64);
-
-        if (decoded.startsWith(ARROW_MAGIC_NUMBER)) {
-          this.dataSpec = {
-            values: byteStringToBinary(decoded),
-            // @ts-expect-error vega-typings does not include arrow format
-            format: { type: "arrow" },
-          };
-        } else {
-          // Assume it's a CSV string
-          this.parseCsv(decoded);
-        }
-      } else {
-        // Assume it's a CSV string
-        this.parseCsv(this.data);
-        this.sourceName = "data_0";
-      }
-    } else {
-      this.dataSpec = { values: this.data };
-      this.sourceName = "source_0";
-    }
 
     this.columnBinValues = new Map(Object.entries(binValues));
     this.columnValueCounts = new Map(Object.entries(valueCounts));
@@ -150,18 +84,7 @@ export class ColumnChartSpecModel<T> {
     };
   }
 
-  private parseCsv(data: string) {
-    this.dataSpec = {
-      values: parseCsvData(data) as T[],
-    };
-  }
-
   private getVegaSpec(column: string): TopLevelFacetedUnitSpec | null {
-    if (!this.data) {
-      return null;
-    }
-
-    const usePreComputedValues = this.opts.usePreComputedValues;
     const binValues = this.columnBinValues.get(column);
     const valueCounts = this.columnValueCounts.get(column);
     const hasValueCounts = valueCounts && valueCounts.length > 0;
@@ -169,20 +92,18 @@ export class ColumnChartSpecModel<T> {
     let data = this.dataSpec as TopLevelFacetedUnitSpec["data"];
     const stats = this.columnStats.get(column);
 
-    if (usePreComputedValues) {
-      if (hasValueCounts) {
-        data = { values: valueCounts, name: "value_counts" };
-      } else {
-        // Bin values can be empty if all values are nulls
-        if (stats?.nulls) {
-          binValues?.push({
-            bin_start: null,
-            bin_end: null,
-            count: stats.nulls as number,
-          });
-        }
-        data = { values: binValues, name: "bin_values" };
+    if (hasValueCounts) {
+      data = { values: valueCounts, name: "value_counts" };
+    } else {
+      // Bin values can be empty if all values are nulls
+      if (stats?.nulls) {
+        binValues?.push({
+          bin_start: null,
+          bin_end: null,
+          count: stats.nulls as number,
+        });
       }
+      data = { values: binValues, name: "bin_values" };
     }
 
     const base: TopLevelFacetedUnitSpec = {
@@ -209,16 +130,10 @@ export class ColumnChartSpecModel<T> {
     // escape colons in column names
     column = column.replaceAll(":", "\\:");
 
-    const scale = this.getScale();
-
     switch (type) {
       case "date":
       case "datetime":
       case "time": {
-        if (!usePreComputedValues) {
-          return getLegacyTemporalSpec(column, type, base, scale);
-        }
-
         const tooltip = getPartialTimeTooltip(binValues || []);
         const singleValue = binValues?.length === 1;
 
@@ -360,10 +275,6 @@ export class ColumnChartSpecModel<T> {
         // Create a histogram spec that properly handles null values
         const format = type === "integer" ? ",d" : ".2f";
         const binStep = calculateBinStep(binValues || []);
-
-        if (!usePreComputedValues) {
-          return getLegacyNumericSpec(column, format, base);
-        }
 
         const stats = this.columnStats.get(column);
 
@@ -565,7 +476,7 @@ export class ColumnChartSpecModel<T> {
         };
       }
       case "boolean": {
-        if (!usePreComputedValues || !stats?.true || !stats?.false) {
+        if (!stats?.true || !stats?.false) {
           return getLegacyBooleanSpec(column, base, MAX_BAR_HEIGHT);
         }
 
@@ -677,7 +588,7 @@ export class ColumnChartSpecModel<T> {
         } as TopLevelFacetedUnitSpec; // "layer" not in TopLevelFacetedUnitSpec
       }
       case "string": {
-        if (!usePreComputedValues || !hasValueCounts) {
+        if (!hasValueCounts) {
           return null;
         }
 
@@ -753,18 +664,20 @@ export class ColumnChartSpecModel<T> {
               type: "quantitative",
             },
             color: {
+              condition: {
+                test: `datum.${yField} == "None" || datum.${yField} == "null"`,
+                value: NULL_BAR_COLOR,
+              },
+              value: BAR_COLOR,
+            },
+            opacity: {
               condition: [
                 {
                   param: "hover_bar",
-                  value: BAR_COLOR,
-                },
-                {
-                  test: `datum.${yField} == "None" || datum.${yField} == "null"`,
-                  value: NULL_BAR_COLOR,
+                  value: 1,
                 },
               ],
-              value: mint.mint8,
-              legend: null,
+              value: UNHOVERED_BAR_OPACITY,
             },
             tooltip: [
               {
@@ -832,15 +745,5 @@ export class ColumnChartSpecModel<T> {
         logNever(type);
         return null;
     }
-  }
-
-  private getScale() {
-    return {
-      align: 0,
-      paddingInner: 0,
-      paddingOuter: {
-        expr: `length(data('${this.sourceName}')) == 2 ? 1 : length(data('${this.sourceName}')) == 3 ? 0.5 : length(data('${this.sourceName}')) == 4 ? 0 : 0`,
-      },
-    };
   }
 }

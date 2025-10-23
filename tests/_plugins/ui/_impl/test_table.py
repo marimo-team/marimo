@@ -849,9 +849,7 @@ def test_table_with_too_many_rows_column_summaries_disabled() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_summary_row_limit=10)
 
-    summaries_disabled = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries_disabled = table._get_column_summaries(ColumnSummariesArgs())
     assert summaries_disabled.is_disabled is True
 
     # search results are 2 and 12
@@ -862,9 +860,7 @@ def test_table_with_too_many_rows_column_summaries_disabled() -> None:
             page_number=0,
         )
     )
-    summaries_enabled = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries_enabled = table._get_column_summaries(ColumnSummariesArgs())
     assert summaries_enabled.is_disabled is False
 
 
@@ -872,11 +868,9 @@ def test_with_too_many_rows_column_charts_disabled() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_column_charts_row_limit=10)
 
-    charts_disabled = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    charts_disabled = table._get_column_summaries(ColumnSummariesArgs())
+    assert charts_disabled.show_charts is False
     assert charts_disabled.is_disabled is False
-    assert charts_disabled.data is None
 
     # search results are 2 and 12
     table._search(
@@ -886,9 +880,8 @@ def test_with_too_many_rows_column_charts_disabled() -> None:
             page_number=0,
         )
     )
-    charts_enabled = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    charts_enabled = table._get_column_summaries(ColumnSummariesArgs())
+    assert charts_enabled.show_charts is True
     assert charts_enabled.is_disabled is False
 
 
@@ -905,13 +898,9 @@ def test_get_column_summaries_after_search() -> None:
             page_number=0,
         )
     )
-    summaries = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries = table._get_column_summaries(ColumnSummariesArgs())
+    assert summaries.show_charts is True
     assert summaries.is_disabled is False
-    summaries_data = from_data_uri(summaries.data)[1].decode("utf-8")
-    # Result is csv or json
-    assert summaries_data in ["a\n2\n12\n", '[{"a":2},{"a":12}]']
     # We don't have column summaries for non-dataframe data
     assert summaries.stats["a"].min is None
     assert summaries.stats["a"].max is None
@@ -923,11 +912,9 @@ def test_get_column_summaries_after_search() -> None:
 )
 def test_get_column_summaries_after_search_df(df: Any) -> None:
     table = ui.table(df)
-    summaries = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries = table._get_column_summaries(ColumnSummariesArgs())
+    assert summaries.show_charts is True
     assert summaries.is_disabled is False
-    assert isinstance(summaries.data, str)
     # Different dataframe types return different formats
     FORMATS = [
         "data:text/plain;base64,",  # arrow format for polars
@@ -935,7 +922,6 @@ def test_get_column_summaries_after_search_df(df: Any) -> None:
         "data:text/csv;base64,",
     ]
 
-    assert any(summaries.data.startswith(fmt) for fmt in FORMATS)
     assert summaries.stats["a"].min == 0
     assert summaries.stats["a"].max == 19
 
@@ -947,12 +933,9 @@ def test_get_column_summaries_after_search_df(df: Any) -> None:
             page_number=0,
         )
     )
-    summaries = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries = table._get_column_summaries(ColumnSummariesArgs())
+    assert summaries.show_charts is True
     assert summaries.is_disabled is False
-    assert isinstance(summaries.data, str)
-    assert any(summaries.data.startswith(fmt) for fmt in FORMATS)
     # We don't have column summaries for non-dataframe data
     assert summaries.stats["a"].min == 2
     assert summaries.stats["a"].max == 12
@@ -964,40 +947,34 @@ def test_show_column_summaries_modes():
 
     # Test stats-only mode
     table_stats = ui.table(data, show_column_summaries="stats")
-    summaries_stats = table_stats._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries_stats = table_stats._get_column_summaries(ColumnSummariesArgs())
+    assert summaries_stats.show_charts is False
     assert summaries_stats.is_disabled is False
-    assert summaries_stats.data is None
     assert summaries_stats.bin_values == {}
     assert summaries_stats.value_counts == {}
     assert len(summaries_stats.stats) > 0
 
     # Test chart-only mode
     table_chart = ui.table(data, show_column_summaries="chart")
-    summaries_chart = table_chart._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries_chart = table_chart._get_column_summaries(ColumnSummariesArgs())
+    assert summaries_chart.show_charts is True
     assert summaries_chart.is_disabled is False
-    assert summaries_chart.data is not None
     assert len(summaries_chart.stats) == 0
 
     # Test default mode (both stats and chart)
     table_both = ui.table(data, show_column_summaries=True)
-    summaries_both = table_both._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries_both = table_both._get_column_summaries(ColumnSummariesArgs())
+    assert summaries_both.show_charts is True
     assert summaries_both.is_disabled is False
-    assert summaries_both.data is not None
     assert len(summaries_both.stats) > 0
 
     # Test disabled mode
     table_disabled = ui.table(data, show_column_summaries=False)
     summaries_disabled = table_disabled._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
+        ColumnSummariesArgs()
     )
     assert summaries_disabled.is_disabled is False
-    assert summaries_disabled.data is None
+    assert summaries_disabled.show_charts is False
     assert summaries_disabled.bin_values == {}
     assert summaries_disabled.value_counts == {}
     assert len(summaries_disabled.stats) == 0
@@ -1005,10 +982,10 @@ def test_show_column_summaries_modes():
     # Test Default behavior
     table_default = ui.table(data)
     summaries_default = table_default._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
+        ColumnSummariesArgs()
     )
+    assert summaries_default.show_charts is True
     assert summaries_default.is_disabled is False
-    assert summaries_default.data is not None
     assert len(summaries_default.stats) > 0
     assert table_default._component_args["show-column-summaries"] is True
 
@@ -1020,9 +997,7 @@ class TestTableBinValues:
     )
     def test_bin_values_all_nulls(self, df: Any) -> None:
         table = ui.table(df)
-        summaries = table._get_column_summaries(
-            ColumnSummariesArgs(precompute=True)
-        )
+        summaries = table._get_column_summaries(ColumnSummariesArgs())
 
         # Returns empty list
         assert summaries.bin_values == {"a": []}
@@ -1177,7 +1152,6 @@ def test_show_column_summaries_disabled():
 
     summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
-    assert summaries.data is None
     assert len(summaries.stats) == 0
 
 
