@@ -15,7 +15,7 @@ import type { ProviderId } from "@/core/ai/ids/ids";
 import { cn } from "@/utils/cn";
 import marimoIcon from "../../assets/icon-32x32.png?inline";
 
-type Aliases = "claude" | "gemini";
+type Aliases = "claude" | "gemini" | "codex";
 
 const icons: Record<ProviderId | Aliases, string> = {
   openai: OpenAIIcon,
@@ -23,6 +23,7 @@ const icons: Record<ProviderId | Aliases, string> = {
   claude: AnthropicIcon,
   gemini: GeminiIcon,
   google: GeminiIcon,
+  codex: OpenAIIcon,
   ollama: OllamaIcon,
   azure: AzureIcon,
   bedrock: BedrockIcon,
