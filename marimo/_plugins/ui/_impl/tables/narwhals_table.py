@@ -743,7 +743,6 @@ class NarwhalsTableManager(
                     mimetype, data = html._mime_()
                     return {"mimetype": mimetype, "data": data}
             except Exception:
-                # Catch any exceptions when converting to HTML
-                pass
+                LOGGER.debug("Error converting matplotlib figures to HTML", exc_info=True)
 
         return value
