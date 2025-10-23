@@ -721,7 +721,9 @@ class NarwhalsTableManager(
                 if isinstance(value, Image.Image):
                     return io_to_data_url(value, "image/png")
             except Exception:
-                LOGGER.debug("Unable to convert image to data URL", exc_info=True)
+                LOGGER.debug(
+                    "Unable to convert image to data URL", exc_info=True
+                )
 
         # Handle Matplotlib figures
         if DependencyManager.matplotlib.imported():
