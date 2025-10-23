@@ -10,6 +10,7 @@ from marimo._ai._tools.tools.cells import (
     CellErrors,
     CellRuntimeMetadata,
     CellVariables,
+    GetCellOutputs,
     GetCellRuntimeData,
     GetLightweightCellMap,
 )
@@ -28,8 +29,9 @@ class MockCellOp:
 
 @dataclass
 class MockOutput:
-    channel: object
-    data: object
+    channel: object = None
+    data: object = None
+    mimetype: object = None
 
 
 @dataclass
@@ -116,7 +118,7 @@ def test_get_cell_errors_dict_error():
     cell_op = MockCellOp(output=output)
     session = MockSession(MockSessionView(cell_operations={"c1": cell_op}))
 
-    result = tool._get_cell_errors(session, "c1")
+    result = tool._get_cell_errors(session, CellId_t("c1"))
     assert result.has_errors is True
     assert result.error_details is not None
     assert result.error_details[0].type == "ValueError"
@@ -218,3 +220,44 @@ def test_get_cell_runtime_data_invalid_cell():
     with pytest.raises(ToolExecutionError) as exc_info:
         tool.handle(args)
     assert exc_info.value.code == "CELL_NOT_FOUND"
+
+
+def test_get_visual_output_with_html():
+    tool = GetCellOutputs(ToolContext())
+    output = MockOutput(data="<div>test</div>", mimetype="text/html")
+    cell_op = MockCellOp(output=output)
+
+    visual_output, mimetype = tool._get_visual_output(cell_op)  # type: ignore[arg-type]
+    assert visual_output == "<div>test</div>"
+    assert mimetype == "text/html"
+
+
+def test_get_visual_output_no_output():
+    tool = GetCellOutputs(ToolContext())
+    cell_op = MockCellOp(output=None)
+
+    visual_output, mimetype = tool._get_visual_output(cell_op)  # type: ignore[arg-type]
+    assert visual_output is None
+    assert mimetype is None
+
+
+def test_get_console_outputs_with_stdout_stderr():
+    tool = GetCellOutputs(ToolContext())
+    console = [
+        MockConsoleOutput(CellChannel.STDOUT, "hello"),
+        MockConsoleOutput(CellChannel.STDERR, "warning"),
+    ]
+    cell_op = MockCellOp(console=console)
+
+    stdout, stderr = tool._get_console_outputs(cell_op)  # type: ignore[arg-type]
+    assert stdout == ["hello"]
+    assert stderr == ["warning"]
+
+
+def test_get_console_outputs_no_console():
+    tool = GetCellOutputs(ToolContext())
+    cell_op = MockCellOp(console=None)
+
+    stdout, stderr = tool._get_console_outputs(cell_op)  # type: ignore[arg-type]
+    assert stdout == []
+    assert stderr == []
