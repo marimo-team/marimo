@@ -165,14 +165,24 @@ export class RunStaleCellsTool
       status: "success",
       cellsToOutput: Object.fromEntries(cellsToOutput),
       message: resultMessage === "" ? undefined : resultMessage,
+      next_steps: [
+        "Review the output of the cells, if you need to make any changes, you can run this tool again, the CellId is the key of the result object if you want to edit the cell.",
+      ],
     };
   };
 
   private formatOutputString(cellOutput: BaseOutput): string {
     let outputString = "";
     const { outputType, processedContent, imageUrl, output } = cellOutput;
-    if (outputType === "text" && processedContent) {
-      outputString += `Output:\n${processedContent}`;
+    if (outputType === "text") {
+      outputString += "Output:\n";
+      if (processedContent) {
+        outputString += processedContent;
+      } else if (typeof output.data === "string") {
+        outputString += output.data;
+      } else {
+        outputString += JSON.stringify(output.data);
+      }
     } else if (outputType === "media") {
       outputString += `Media Output: Contains ${output.mimetype} content`;
       if (imageUrl) {

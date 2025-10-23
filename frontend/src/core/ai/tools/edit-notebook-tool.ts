@@ -11,6 +11,7 @@ import {
 import { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import type { CellColumnId } from "@/utils/id-tree";
+import { stagedAICellsAtom } from "../staged-cells";
 import {
   type AiTool,
   type ToolDescription,
@@ -23,9 +24,9 @@ import type { CopilotMode } from "./registry";
 
 const description: ToolDescription = {
   baseDescription:
-    "Perform editing operations on the current notebook. Call this tool multiple times to perform multiple edits.",
+    "Perform editing operations on the current notebook. You should prefer to create new cells unless you need to edit existing cells. Call this tool multiple times to perform multiple edits. Separate code into logical individual cells to take advantage of the notebook's reactive execution model.",
   prerequisites: [
-    "Find out the cellIds and columnIds first (call lightweight cell map tool)",
+    "If you are updating existing cells, you need the cellIds or columnIds. If they are not known, call the lightweight_cell_map_tool to find out.",
   ],
   additionalInfo: `
   Args:
@@ -108,10 +109,19 @@ export class EditNotebookTool
 
         scrollAndHighlightCell(cellId);
 
+        // If previous code exists, we don't want to replace it, it means there is a new edit on top of the previous edit
+        // Keep the original code
+        const stagedCell = store.get(stagedAICellsAtom).get(cellId);
         const currentCellCode = editorView.state.doc.toString();
+        const previousCode =
+          stagedCell?.type === "update_cell" ||
+          stagedCell?.type === "delete_cell"
+            ? stagedCell.previousCode
+            : currentCellCode;
+
         addStagedCell({
           cellId,
-          edit: { type: "update_cell", previousCode: currentCellCode },
+          edit: { type: "update_cell", previousCode: previousCode },
         });
 
         updateEditorCodeFromPython(editorView, code);

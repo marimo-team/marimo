@@ -332,6 +332,45 @@ describe("RunStaleCellsTool", () => {
       expect(result.cellsToOutput?.[cellId1]?.consoleOutput).toContain("debug");
     });
 
+    it("should handle cell output with object output", async () => {
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: { code: "x = {'a': 1, 'b': 2}", edited: true },
+        },
+      });
+      store.set(notebookAtom, notebook);
+
+      // Mock runCells
+      vi.mocked(runCells).mockImplementation(async () => {
+        const updatedNotebook = store.get(notebookAtom);
+        updatedNotebook.cellRuntime[cellId1] = {
+          ...updatedNotebook.cellRuntime[cellId1],
+          status: "idle",
+        };
+        store.set(notebookAtom, updatedNotebook);
+      });
+
+      // Mock getCellContextData to return object output
+      vi.mocked(getCellContextData).mockReturnValue({
+        cellOutput: {
+          outputType: "text",
+          processedContent: null,
+          imageUrl: null,
+          output: { data: JSON.stringify({ a: 1, b: 2 }) },
+        },
+        consoleOutputs: null,
+        cellName: "cell1",
+      } as never);
+
+      const result = await tool.handler({}, toolContext as never);
+
+      expect(result.status).toBe("success");
+      expect(result.cellsToOutput).toBeDefined();
+      expect(result.cellsToOutput?.[cellId1]?.cellOutput).toEqual(
+        'Output:\n{"a":1,"b":2}',
+      );
+    });
+
     it("should return success when all stale cells have no output", async () => {
       const notebook = MockNotebook.notebookState({
         cellData: {
