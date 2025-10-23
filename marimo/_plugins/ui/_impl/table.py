@@ -89,24 +89,22 @@ class DownloadAsArgs:
 
 
 @dataclass
-class ColumnSummariesArgs:
-    """If enabled, we will precompute chart values."""
-
-    precompute: bool
+class ColumnSummariesArgs: ...
 
 
 @dataclass
 class ColumnSummaries:
-    data: Union[JSONType, str]
     stats: dict[ColumnName, ColumnStats]
     bin_values: dict[ColumnName, list[BinValue]]
     value_counts: dict[ColumnName, list[ValueCount]]
+    show_charts: bool
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
 
 
 ShowColumnSummaries = Union[bool, Literal["stats", "chart"]]
+CHART_MAX_ROWS_STRING_VALUE_COUNTS = 20_000
 
 DEFAULT_MAX_COLUMNS = 50
 
@@ -888,17 +886,19 @@ class table(
                 If summaries are disabled or row limit is exceeded, returns empty
                 summaries with is_disabled flag set appropriately.
         """
+        del args
+
         show_column_summaries = self._show_column_summaries
 
         if not show_column_summaries:
             return ColumnSummaries(
-                data=None,
                 stats={},
                 bin_values={},
                 value_counts={},
                 # This is not 'disabled' because of too many rows
                 # so we don't want to display the banner
                 is_disabled=False,
+                show_charts=False,
             )
 
         total_rows = self._searched_manager.get_num_rows(force=True) or 0
@@ -907,17 +907,17 @@ class table(
         # if we are above the limit, we hide the column summaries
         if total_rows > self._column_summary_row_limit:
             return ColumnSummaries(
-                data=None,
                 stats={},
                 bin_values={},
                 value_counts={},
                 is_disabled=True,
+                show_charts=False,
             )
 
         # If we are above the limit to show charts,
         # or if we are in stats-only mode,
-        # we don't return the chart data
-        should_get_chart_data = (
+        # we don't show charts
+        show_charts = (
             self._show_column_summaries != "stats"
             and total_rows <= self._column_charts_row_limit
         )
@@ -926,7 +926,6 @@ class table(
         should_get_stats = show_column_summaries != "chart"
         stats: dict[ColumnName, ColumnStats] = {}
 
-        chart_data = None
         bin_values: dict[ColumnName, list[BinValue]] = {}
         value_counts: dict[ColumnName, list[ValueCount]] = {}
         data = self._searched_manager
@@ -945,7 +944,7 @@ class table(
                     # BaseExceptions, which shouldn't crash the kernel
                     LOGGER.warning("Failed to get stats for column %s", column)
 
-            if should_get_chart_data and args.precompute:
+            if show_charts:
                 if not should_get_stats:
                     LOGGER.warning(
                         "Unable to compute stats for column, may not be computed correctly"
@@ -955,15 +954,12 @@ class table(
                 (column_type, external_type) = self._manager.get_field_type(
                     column
                 )
-                if column_type == "boolean":
-                    data = data.drop_columns([column])
 
                 # Handle columns with all nulls first
                 # These get empty bins regardless of type
                 if statistic and statistic.nulls == total_rows:
                     try:
                         bin_values[column] = []
-                        data = data.drop_columns([column])
                         continue
                     except BaseException as e:
                         LOGGER.warning(
@@ -971,10 +967,15 @@ class table(
                         )
                         continue
 
-                # For perf, we only compute value counts for categorical columns
+                # For now, we only compute value counts for categorical columns and small tables
                 external_type = external_type.lower()
-                if column_type == "string" and (
-                    "cat" in external_type or "enum" in external_type
+                if (
+                    column_type == "string"
+                    and ("cat" in external_type or "enum" in external_type)
+                    or (
+                        column_type == "string"
+                        and total_rows <= CHART_MAX_ROWS_STRING_VALUE_COUNTS
+                    )
                 ):
                     try:
                         val_counts = self._get_value_counts(
@@ -982,7 +983,6 @@ class table(
                         )
                         if len(val_counts) > 0:
                             value_counts[column] = val_counts
-                            data = data.drop_columns([column])
                         continue
                     except BaseException as e:
                         LOGGER.warning(
@@ -1004,23 +1004,17 @@ class table(
                 try:
                     bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
                     bin_values[column] = bins
-                    # Only drop column if we got bins to visualize
-                    if len(bins) > 0:
-                        data = data.drop_columns([column])
                     continue
                 except BaseException as e:
                     LOGGER.warning(
                         "Failed to get bin values for column %s: %s", column, e
                     )
 
-        if should_get_chart_data:
-            chart_data, _ = self._to_chart_data_url(data)
-
         return ColumnSummaries(
-            data=chart_data,
             stats=stats,
             bin_values=bin_values,
             value_counts=value_counts,
+            show_charts=show_charts,
             is_disabled=False,
         )
 
