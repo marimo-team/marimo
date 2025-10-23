@@ -1274,3 +1274,64 @@ class TestPandasTableManager(unittest.TestCase):
         assert "z" in json_data[0]  # Non-conflicting index level
         assert "x" in json_data[0]  # Original column
         assert "y" in json_data[0]  # Original column
+
+    def test_handle_non_string_column_names_no_mutation(self) -> None:
+        import pandas as pd
+
+        # Test case from GitHub issue #6898: DatetimeIndex columns
+        # Create a DataFrame with datetime columns
+        df = pd.DataFrame(
+            [[1, 2, 3], [4, 5, 6]],
+            columns=pd.DatetimeIndex(
+                ["2021-01-01", "2021-01-02", "2021-01-03"]
+            ),
+        )
+
+        # Store the original column types
+        original_columns = df.columns
+        original_columns_type = type(df.columns)
+        assert isinstance(original_columns, pd.DatetimeIndex)
+
+        # Create table manager (which calls _handle_non_string_column_names)
+        manager = self.factory.create()(df)
+
+        # Verify the manager has string column names
+        column_names = manager.get_column_names()
+        assert all(isinstance(name, str) for name in column_names)
+        assert column_names == [
+            "2021-01-01 00:00:00",
+            "2021-01-02 00:00:00",
+            "2021-01-03 00:00:00",
+        ]
+
+        # Verify the original DataFrame was NOT mutated
+        assert isinstance(df.columns, original_columns_type)
+        assert isinstance(df.columns, pd.DatetimeIndex)
+        assert all(isinstance(col, pd.Timestamp) for col in df.columns), (
+            "Original DataFrame columns should still be Timestamps"
+        )
+
+    def test_handle_integer_column_names_no_mutation(self) -> None:
+        import pandas as pd
+
+        # Test with integer column names
+        df = pd.DataFrame([[1, 2, 3], [4, 5, 6]], columns=[0, 1, 2])
+
+        # Store the original column info
+        original_columns_type = type(df.columns[0])
+        # Note: pandas converts int to np.int64
+        assert not isinstance(df.columns[0], str)
+
+        # Create table manager
+        manager = self.factory.create()(df)
+
+        # Verify the manager has string column names
+        column_names = manager.get_column_names()
+        assert all(isinstance(name, str) for name in column_names)
+        assert column_names == ["0", "1", "2"]
+
+        # Verify the original DataFrame was NOT mutated
+        assert isinstance(df.columns[0], original_columns_type)
+        assert not any(isinstance(col, str) for col in df.columns), (
+            "Original DataFrame columns should NOT be strings"
+        )
