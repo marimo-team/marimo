@@ -1278,8 +1278,6 @@ class TestPandasTableManager(unittest.TestCase):
     def test_handle_non_string_column_names_no_mutation(self) -> None:
         import pandas as pd
 
-        # Test case from GitHub issue #6898: DatetimeIndex columns
-        # Create a DataFrame with datetime columns
         df = pd.DataFrame(
             [[1, 2, 3], [4, 5, 6]],
             columns=pd.DatetimeIndex(
