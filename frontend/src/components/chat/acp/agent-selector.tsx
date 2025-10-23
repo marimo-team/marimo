@@ -42,6 +42,11 @@ const AVAILABLE_AGENTS = [
     displayName: "Gemini",
     iconId: "google",
   },
+  {
+    id: "codex",
+    displayName: "Codex",
+    iconId: "openai",
+  },
 ] as const;
 
 interface AgentMenuItemProps {
