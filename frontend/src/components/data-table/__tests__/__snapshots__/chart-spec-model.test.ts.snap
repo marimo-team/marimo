@@ -153,13 +153,14 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
   "layer": [
     {
       "encoding": {
-        "strokeWidth": {
-          "condition": {
-            "empty": false,
-            "param": "hover",
-            "value": 0.5,
-          },
-          "value": 0,
+        "opacity": {
+          "condition": [
+            {
+              "param": "hover",
+              "value": 1,
+            },
+          ],
+          "value": 0.6,
         },
         "x": {
           "bin": {
@@ -181,20 +182,8 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
       },
       "mark": {
         "color": "#027864",
-        "stroke": "#027864",
-        "strokeWidth": 0,
         "type": "bar",
       },
-      "params": [
-        {
-          "name": "hover",
-          "select": {
-            "clear": "mouseout",
-            "on": "mouseover",
-            "type": "point",
-          },
-        },
-      ],
     },
     {
       "encoding": {
@@ -242,6 +231,17 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
         "opacity": 0,
         "type": "bar",
       },
+      "params": [
+        {
+          "name": "hover",
+          "select": {
+            "clear": "mouseout",
+            "nearest": true,
+            "on": "mouseover",
+            "type": "point",
+          },
+        },
+      ],
       "transform": [
         {
           "as": "bin_range",
@@ -385,9 +385,6 @@ exports[`ColumnChartSpecModel > should handle datetime bin values when feat flag
     "axis": {
       "domain": false,
     },
-    "concat": {
-      "spacing": 0,
-    },
     "view": {
       "stroke": "transparent",
     },
@@ -412,173 +409,95 @@ exports[`ColumnChartSpecModel > should handle datetime bin values when feat flag
       },
     ],
   },
-  "hconcat": [
+  "height": 30,
+  "layer": [
     {
-      "height": 30,
-      "layer": [
-        {
-          "encoding": {
-            "x": {
-              "axis": null,
-              "field": "bin_start",
-              "type": "nominal",
-            },
-            "y": {
-              "axis": null,
-              "field": "count",
-              "type": "quantitative",
-            },
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum['bin_start'] === null && datum['bin_end'] === null",
+            "value": "#cc4e00",
           },
-          "mark": {
-            "color": "#cc4e00",
-            "type": "bar",
-          },
+          "value": "#027864",
         },
-        {
-          "encoding": {
-            "tooltip": [
-              {
-                "field": "count",
-                "format": ",d",
-                "title": "nulls",
-                "type": "quantitative",
-              },
-            ],
-            "x": {
-              "axis": null,
-              "field": "bin_start",
-              "type": "nominal",
-            },
-            "y": {
-              "aggregate": "max",
-              "axis": null,
-              "type": "quantitative",
-            },
-          },
-          "mark": {
-            "opacity": 0,
-            "type": "bar",
-          },
-        },
-      ],
-      "transform": [
-        {
-          "filter": "datum['bin_start'] === null && datum['bin_end'] === null",
-        },
-      ],
-      "width": 5,
-    },
-    {
-      "height": 30,
-      "layer": [
-        {
-          "encoding": {
-            "strokeWidth": {
-              "condition": {
-                "empty": false,
-                "param": "hover",
-                "value": 0.5,
-              },
-              "value": 0,
-            },
-            "x": {
-              "axis": null,
-              "bin": {
-                "binned": true,
-                "step": 86400000,
-              },
-              "field": "bin_start",
-              "type": "temporal",
-            },
-            "x2": {
-              "axis": null,
-              "field": "bin_end",
-              "type": "temporal",
-            },
-            "y": {
-              "axis": null,
-              "field": "count",
-              "type": "quantitative",
-            },
-          },
-          "mark": {
-            "color": "#027864",
-            "stroke": "#027864",
-            "strokeWidth": 0,
-            "type": "bar",
-          },
-          "params": [
+        "opacity": {
+          "condition": [
             {
-              "name": "hover",
-              "select": {
-                "clear": "mouseout",
-                "on": "mouseover",
-                "type": "point",
-              },
+              "param": "hover",
+              "value": 1,
             },
           ],
+          "value": 0.6,
         },
+        "x": {
+          "axis": null,
+          "field": "bin_start",
+          "type": "ordinal",
+        },
+        "y": {
+          "axis": null,
+          "field": "count",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+      "params": [
         {
-          "encoding": {
-            "tooltip": [
-              {
-                "field": "bin_start",
-                "timeUnit": "yearmonthdate",
-                "title": "datetime (start)",
-                "type": "temporal",
-              },
-              {
-                "field": "bin_end",
-                "timeUnit": "yearmonthdate",
-                "title": "datetime (end)",
-                "type": "temporal",
-              },
-              {
-                "field": "count",
-                "format": ",d",
-                "title": "Count",
-                "type": "quantitative",
-              },
-            ],
-            "x": {
-              "axis": null,
-              "bin": {
-                "binned": true,
-                "step": 86400000,
-              },
-              "field": "bin_start",
-              "type": "temporal",
-            },
-            "x2": {
-              "axis": null,
-              "bin": {
-                "binned": true,
-                "step": 86400000,
-              },
-              "field": "bin_end",
-              "type": "temporal",
-            },
-            "y": {
-              "aggregate": "max",
-              "axis": null,
-              "type": "quantitative",
-            },
-          },
-          "mark": {
-            "opacity": 0,
-            "type": "bar",
+          "name": "hover",
+          "select": {
+            "clear": "mouseout",
+            "on": "mouseover",
+            "type": "point",
           },
         },
       ],
-      "width": 70,
+    },
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "field": "bin_start",
+            "timeUnit": "yearmonthdate",
+            "title": "datetime (start)",
+            "type": "temporal",
+          },
+          {
+            "field": "bin_end",
+            "timeUnit": "yearmonthdate",
+            "title": "datetime (end)",
+            "type": "temporal",
+          },
+          {
+            "field": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": null,
+          "field": "bin_start",
+          "type": "ordinal",
+        },
+        "y": {
+          "aggregate": "max",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "opacity": 0,
+        "type": "bar",
+        "width": {
+          "band": 1.2,
+        },
+      },
     },
   ],
-  "height": 100,
-  "resolve": {
-    "scale": {
-      "y": "shared",
-    },
-  },
+  "width": 70,
 }
 `;
 
