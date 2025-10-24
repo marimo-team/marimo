@@ -72,6 +72,30 @@ export interface components {
       type: "streamMedia";
     };
     StreamOutput: {
+      /** @enum {string|null} */
+      mimetype:
+        | "application/json"
+        | "application/vnd.marimo+error"
+        | "application/vnd.marimo+traceback"
+        | "application/vnd.marimo+mimebundle"
+        | "application/vnd.vega.v5+json"
+        | "application/vnd.vegalite.v5+json"
+        | "application/vnd.jupyter.widget-view+json"
+        | "image/png"
+        | "image/svg+xml"
+        | "image/tiff"
+        | "image/avif"
+        | "image/bmp"
+        | "image/gif"
+        | "image/jpeg"
+        | "video/mp4"
+        | "video/mpeg"
+        | "text/html"
+        | "text/plain"
+        | "text/markdown"
+        | "text/latex"
+        | "text/csv"
+        | null;
       /** @enum {string} */
       name: "stdout" | "stderr";
       text: string;
