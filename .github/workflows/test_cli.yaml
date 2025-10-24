@@ -180,7 +180,7 @@ jobs:
             marimo/_tutorials/**.py >> /dev/null \
             || echo "Errors expected"
           # Fail if there's a git diff
-          if [[ -n "$(git status --porcelain)" ]]; then
+          if [[ -n "$(git status --porcelain marimo/_tutorials)" ]]; then
             echo "marimo check found issues in tutorials."
             git --no-pager diff
             exit 1
