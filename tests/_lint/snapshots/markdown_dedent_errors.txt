@@ -1,0 +1,34 @@
+warning[markdown-dedent]: Markdown string should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:14:1
+  14 | def _(mo):
+  15 |     mo.md(
+     |     ^
+  16 |     r"""
+
+warning[markdown-dedent]: Markdown string should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:25:1
+  25 | def _(mo):
+  26 |     mo.md(
+     |     ^
+  27 |         rf"""
+
+warning[markdown-dedent]: Markdown string should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:37:1
+  37 | def _(mo):
+  38 |     mo.md(
+     |     ^
+  39 |             rf"""single line""")
+
+warning[markdown-dedent]: Markdown string should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:43:1
+  43 | def _(mo):
+  44 |     mo.md(
+     |     ^
+  45 |     fr"""single line""")
+
+warning[markdown-dedent]: Markdown string should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:49:1
+  49 | def _(mo):
+  50 |     mo.md(fr"siiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiingle line")
+     |     ^
+  51 |     return
