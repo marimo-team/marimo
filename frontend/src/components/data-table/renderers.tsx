@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
+import { COLUMN_WRAPPING_STYLES } from "./column-wrapping/feature";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
@@ -130,8 +131,8 @@ export const DataTableBody = <TData,>({
           className={cn(
             "whitespace-pre truncate max-w-[300px] outline-hidden",
             cell.column.getColumnWrapping &&
-              cell.column.getColumnWrapping() === "wrap" &&
-              "whitespace-pre-wrap min-w-[200px]",
+              cell.column.getColumnWrapping?.() === "wrap" &&
+              COLUMN_WRAPPING_STYLES,
             "px-1.5 py-[0.18rem]",
             className,
           )}
