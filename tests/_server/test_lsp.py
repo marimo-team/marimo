@@ -439,7 +439,7 @@ def test_any_lsp_server_running():
     config: MarimoConfig = merge_default_config(
         {
             "completion": {"copilot": False, "activate_on_typing": True},
-            "language_servers": {},  # default is true
+            "language_servers": {},  # default is false
         }
     )
-    assert any_lsp_server_running(config) is True
+    assert any_lsp_server_running(config) is False
