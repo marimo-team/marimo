@@ -79,10 +79,12 @@ print("Hello, World!")
 <!-- from the notebook, should remain unchanged -->
 
 ````python {.marimo}
-mo.md("""
-  This is a markdown cell with an execution block in it
-  ```python {.marimo}
-  # To ambiguous to convert
-  ```
-  """)
+mo.md(
+    """
+This is a markdown cell with an execution block in it
+```python {.marimo}
+# To ambiguous to convert
+```
+"""
+)
 ````

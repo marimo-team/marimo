@@ -20,6 +20,25 @@ def _(mo):
     )
     return
 
+@app.cell
+def _(mo):
+    # With a comment
+    # and another
+    mo.md(
+        rf"""
+    Has comment. No issue
+    """
+    )
+    # Suffix
+    return
+
+@app.cell
+def _(mo):
+    # With a comment
+    # and another
+    mo.md(rf"Single line. No issue")
+    # Suffix
+    return
 
 @app.cell
 def _(mo):
