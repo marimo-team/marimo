@@ -9,6 +9,46 @@ export function isSchemaless(schemaName: string) {
   return schemaName === "";
 }
 
+interface SqlCodeFormatter {
+  /**
+   * Format the table name based on dialect-specific rules
+   */
+  formatTableName: (tableName: string) => string;
+  /**
+   * Format the SELECT clause
+   */
+  formatSelectClause: (columnName: string, tableName: string) => string;
+}
+
+const defaultFormatter: SqlCodeFormatter = {
+  formatTableName: (tableName: string) => tableName,
+  formatSelectClause: (columnName: string, tableName: string) =>
+    `SELECT ${columnName} FROM ${tableName} LIMIT 100`,
+};
+
+const SQL_CODE_FORMATTERS: Record<string, SqlCodeFormatter> = {
+  // BigQuery: Use backticks for identifiers
+  bigquery: {
+    formatTableName: (tableName: string) => `\`${tableName}\``,
+    formatSelectClause: defaultFormatter.formatSelectClause,
+  },
+  // MSSQL: Use TOP instead of LIMIT
+  mssql: {
+    formatTableName: defaultFormatter.formatTableName,
+    formatSelectClause: (columnName: string, tableName: string) =>
+      `SELECT TOP 100 ${columnName} FROM ${tableName}`,
+  },
+  // TimescaleDB: Wrap each part of qualified name with double quotes
+  timescaledb: {
+    formatTableName: (tableName: string) => {
+      const parts = tableName.split(".");
+      return parts.map((part) => `"${part}"`).join(".");
+    },
+    formatSelectClause: defaultFormatter.formatSelectClause,
+  },
+  default: defaultFormatter,
+};
+
 export function sqlCode({
   table,
   columnName,
@@ -19,8 +59,14 @@ export function sqlCode({
   sqlTableContext?: SQLTableContext;
 }) {
   if (sqlTableContext) {
-    const { engine, schema, defaultSchema, defaultDatabase, database } =
-      sqlTableContext;
+    const {
+      engine,
+      schema,
+      defaultSchema,
+      defaultDatabase,
+      database,
+      dialect,
+    } = sqlTableContext;
     let tableName = table.name;
 
     // Set the fully qualified table name based on schema and database
@@ -39,11 +85,19 @@ export function sqlCode({
       }
     }
 
+    const formatter =
+      SQL_CODE_FORMATTERS[dialect.toLowerCase()] || defaultFormatter;
+    const formattedTableName = formatter.formatTableName(tableName);
+    const selectClause = formatter.formatSelectClause(
+      columnName,
+      formattedTableName,
+    );
+
     if (engine === DUCKDB_ENGINE) {
-      return `_df = mo.sql(f"SELECT ${columnName} FROM ${tableName} LIMIT 100")`;
+      return `_df = mo.sql(f"""${selectClause}""")`;
     }
 
-    return `_df = mo.sql(f"SELECT ${columnName} FROM ${tableName} LIMIT 100", engine=${engine})`;
+    return `_df = mo.sql(f"""${selectClause}""", engine=${engine})`;
   }
 
   return `_df = mo.sql(f'SELECT "${columnName}" FROM ${table.name} LIMIT 100')`;
