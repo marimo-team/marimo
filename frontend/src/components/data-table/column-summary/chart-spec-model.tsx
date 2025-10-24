@@ -19,12 +19,12 @@ import { calculateBinStep, getPartialTimeTooltip } from "./utils";
 const MAX_BAR_HEIGHT = 20; // px
 
 // If we are concatenating charts, we need to specify each chart's height and width.
-const CHART_HEIGHT = 30;
-const CHART_WIDTH = 70;
+const CONCAT_CHART_HEIGHT = 30;
+const CONCAT_CHART_WIDTH = 70;
+const CONCAT_NULL_BAR_WIDTH = 5;
 
 const BAR_COLOR = mint.mint11;
 const UNHOVERED_BAR_OPACITY = 0.6;
-const NULL_BAR_WIDTH = 5;
 const NULL_BAR_COLOR = orange.orange11;
 
 export class ColumnChartSpecModel<T> {
@@ -172,8 +172,6 @@ export class ColumnChartSpecModel<T> {
         }
 
         const histogram: TopLevelFacetedUnitSpec = {
-          height: CHART_HEIGHT,
-          width: CHART_WIDTH,
           // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [
             {
@@ -276,11 +274,9 @@ export class ColumnChartSpecModel<T> {
         const format = type === "integer" ? ",d" : ".2f";
         const binStep = calculateBinStep(binValues || []);
 
-        const stats = this.columnStats.get(column);
-
         const histogram: TopLevelFacetedUnitSpec = {
-          height: CHART_HEIGHT,
-          width: CHART_WIDTH,
+          height: CONCAT_CHART_HEIGHT,
+          width: CONCAT_CHART_WIDTH,
           // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [
             {
@@ -388,8 +384,8 @@ export class ColumnChartSpecModel<T> {
         };
 
         const nullBar: TopLevelFacetedUnitSpec = {
-          height: CHART_HEIGHT,
-          width: NULL_BAR_WIDTH,
+          height: CONCAT_CHART_HEIGHT,
+          width: CONCAT_NULL_BAR_WIDTH,
           // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [
             {
