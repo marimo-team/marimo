@@ -3,13 +3,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
+from marimo._ai._tools.utils.output_cleaning import clean_output
 from marimo._ast.models import CellData
-from marimo._messaging.ops import VariableValue
+from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.errors import Error
+from marimo._messaging.ops import CellOp, VariableValue
 from marimo._types.ids import CellId_t, SessionId
 
 if TYPE_CHECKING:
@@ -96,6 +99,27 @@ class GetCellRuntimeDataOutput(SuccessResult):
     data: GetCellRuntimeDataData = field(
         default_factory=_default_cell_runtime_data
     )
+
+
+@dataclass
+class CellOutputData:
+    """Visual and console output from a cell execution."""
+
+    visual_output: Optional[str] = None
+    visual_mimetype: Optional[str] = None
+    stdout: list[str] = field(default_factory=list)
+    stderr: list[str] = field(default_factory=list)
+
+
+@dataclass
+class GetCellOutputArgs:
+    session_id: SessionId
+    cell_id: CellId_t
+
+
+@dataclass
+class GetCellOutputOutput(SuccessResult):
+    data: CellOutputData = field(default_factory=CellOutputData)
 
 
 class GetLightweightCellMap(
@@ -397,3 +421,99 @@ class GetCellRuntimeData(
                 cell_variables[var_name] = var_value
 
         return cell_variables
+
+
+class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
+    """Get cell execution output including visual display and console streams.
+
+    Returns comprehensive output data for a single cell:
+    - Visual output (HTML, charts, tables, etc.) with mimetype
+    - Console stdout and stderr messages
+
+    Args:
+        session_id: The session ID of the notebook from get_active_notebooks
+        cell_id: The specific cell ID from get_lightweight_cell_map
+
+    Returns:
+        A success result containing all output data from the cell execution.
+    """
+
+    guidelines = ToolGuidelines(
+        when_to_use=[
+            "When you need to see what a cell displayed or printed to the user",
+            "To review charts, visualizations, markdown, HTML, or console output from a cell",
+        ],
+        prerequisites=[
+            "You must have a valid session id from an active notebook",
+            "You must have a valid cell id from an active notebook",
+        ],
+    )
+
+    def handle(self, args: GetCellOutputArgs) -> GetCellOutputOutput:
+        session = self.context.get_session(args.session_id)
+        session_view = session.session_view
+        cell_id = args.cell_id
+        maybe_cell_op = session_view.cell_operations.get(cell_id)
+
+        visual_output, visual_mimetype = self._get_visual_output(maybe_cell_op)
+        stdout_messages, stderr_messages = self._get_console_outputs(
+            maybe_cell_op
+        )
+
+        return GetCellOutputOutput(
+            data=CellOutputData(
+                visual_output=visual_output,
+                visual_mimetype=visual_mimetype,
+                stdout=stdout_messages,
+                stderr=stderr_messages,
+            ),
+            next_steps=[
+                "Review visual_output to see what was displayed to the user",
+                "Check stdout/stderr for print statements and warnings",
+            ],
+        )
+
+    def _get_visual_output(
+        self, maybe_cell_op: Optional[CellOp]
+    ) -> tuple[Optional[str], Optional[str]]:
+        visual_output = None
+        visual_mimetype = None
+        if maybe_cell_op and maybe_cell_op.output:
+            data = maybe_cell_op.output.data
+            visual_output = self._get_str_output_data(data)
+            visual_mimetype = maybe_cell_op.output.mimetype
+        return visual_output, visual_mimetype
+
+    def _get_str_output_data(
+        self, data: str | list[Error] | dict[str, Any]
+    ) -> str:
+        if isinstance(data, str):
+            return data
+        else:
+            return str(data)
+
+    def _get_console_outputs(
+        self, maybe_cell_op: Optional[CellOp]
+    ) -> tuple[list[str], list[str]]:
+        stdout_messages: list[str] = []
+        stderr_messages: list[str] = []
+        if maybe_cell_op is None or maybe_cell_op.console is None:
+            return stdout_messages, stderr_messages
+
+        console_outputs = (
+            maybe_cell_op.console
+            if isinstance(maybe_cell_op.console, list)
+            else [maybe_cell_op.console]
+        )
+        for output in console_outputs:
+            if output is None:
+                continue
+            elif output.channel == CellChannel.STDOUT:
+                stdout_messages.append(str(output.data))
+            elif output.channel == CellChannel.STDERR:
+                stderr_messages.append(str(output.data))
+
+        cleaned_stdout_messages = clean_output(stdout_messages)
+        cleaned_stderr_messages = clean_output(stderr_messages)
+
+        return cleaned_stdout_messages, cleaned_stderr_messages
