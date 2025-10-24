@@ -363,7 +363,19 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
      */
     private getChildren(): React.ReactNode {
       // We don't sanitize the HTML here because it could be an iframe inside of tabs or accordions
-      return renderHTML({ html: this.innerHTML, alwaysSanitizeHtml: false });
+      // If we have multiple children, we need to render each one separately
+      if (this.children.length === 0) {
+        return null;
+      }
+      if (this.children.length === 1) {
+        return renderHTML({ html: this.innerHTML, alwaysSanitizeHtml: false });
+      }
+      // Multiple children - render each one
+      return Array.from(this.children).map((child, index) => (
+        <React.Fragment key={index}>
+          {renderHTML({ html: child.outerHTML, alwaysSanitizeHtml: false })}
+        </React.Fragment>
+      ));
     }
 
     /**
