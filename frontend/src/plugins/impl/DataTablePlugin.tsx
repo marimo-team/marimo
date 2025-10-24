@@ -57,7 +57,6 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { type CellId, findCellId } from "@/core/cells/ids";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
@@ -85,15 +84,11 @@ import {
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
 
-interface ColumnSummariesArgs {
-  precompute: boolean;
-}
-
 interface ColumnSummaries<T = unknown> {
-  data: TableData<T> | null | undefined;
   stats: Record<ColumnName, ColumnHeaderStats>;
   bin_values: Record<ColumnName, BinValues>;
   value_counts: Record<ColumnName, ValueCounts>;
+  show_charts: boolean;
   is_disabled?: boolean;
 }
 
@@ -198,9 +193,7 @@ interface Data<T> {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type DataTableFunctions = {
   download_as: DownloadAsArgs;
-  get_column_summaries: <T>(
-    opts: ColumnSummariesArgs,
-  ) => Promise<ColumnSummaries<T>>;
+  get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
     sort?: {
       by: string;
@@ -281,19 +274,15 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   )
   .withFunctions<DataTableFunctions>({
     download_as: DownloadAsSchema,
-    get_column_summaries: rpc
-      .input(z.object({ precompute: z.boolean() }))
-      .output(
-        z.object({
-          data: z
-            .union([z.string(), z.array(z.object({}).passthrough())])
-            .nullable(),
-          stats: z.record(z.string(), columnStats),
-          bin_values: z.record(z.string(), binValues),
-          value_counts: z.record(z.string(), valueCounts),
-          is_disabled: z.boolean().optional(),
-        }),
-      ),
+    get_column_summaries: rpc.input(z.looseObject({})).output(
+      z.object({
+        stats: z.record(z.string(), columnStats),
+        bin_values: z.record(z.string(), binValues),
+        value_counts: z.record(z.string(), valueCounts),
+        show_charts: z.boolean(),
+        is_disabled: z.boolean().optional(),
+      }),
+    ),
     search: rpc
       .input(
         z.object({
@@ -598,8 +587,6 @@ export const LoadingDataTableComponent = memo(
       );
     }, [data?.totalRows]);
 
-    const precompute = getFeatureFlag("performant_table_charts");
-
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
       ColumnSummaries<T>
@@ -607,9 +594,14 @@ export const LoadingDataTableComponent = memo(
       // TODO: props.get_column_summaries is always true,
       // so we are unable to detect if the function is registered
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return { data: null, stats: {}, bin_values: {}, value_counts: {} };
+        return {
+          stats: {},
+          bin_values: {},
+          value_counts: {},
+          show_charts: false,
+        };
       }
-      return props.get_column_summaries({ precompute });
+      return props.get_column_summaries({});
     }, [
       props.get_column_summaries,
       props.showColumnSummaries,
@@ -772,14 +764,12 @@ const DataTableComponent = ({
     const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
 
     return new ColumnChartSpecModel(
-      columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,
       columnSummaries.stats,
       columnSummaries.bin_values,
       columnSummaries.value_counts,
       {
-        includeCharts: Boolean(columnSummaries.data),
-        usePreComputedValues: getFeatureFlag("performant_table_charts"),
+        includeCharts: columnSummaries.show_charts,
       },
     );
   }, [fieldTypes, columnSummaries]);

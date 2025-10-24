@@ -511,7 +511,6 @@ class ExperimentalConfig(TypedDict, total=False):
     markdown: bool  # Used in playground (community cloud)
     wasm_layouts: bool  # Used in playground (community cloud)
     rtc_v2: bool
-    performant_table_charts: bool
     chat_modes: bool
 
     # Internal features

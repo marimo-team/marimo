@@ -48,7 +48,7 @@ export const TableColumnSummary = <TData, TValue>({
         <Suspense fallback={skeleton}>
           <LazyVegaLite
             spec={spec}
-            width={70}
+            width={80}
             height={30}
             renderer="svg"
             // @ts-expect-error - Our `loader.load` method is broader than VegaLite's typings but is functionally supported.
