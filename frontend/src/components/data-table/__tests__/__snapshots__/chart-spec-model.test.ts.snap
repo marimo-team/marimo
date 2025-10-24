@@ -286,7 +286,7 @@ exports[`ColumnChartSpecModel > should handle datetime bin values when feat flag
       },
     ],
   },
-  "height": 30,
+  "height": 100,
   "layer": [
     {
       "encoding": {
@@ -374,7 +374,6 @@ exports[`ColumnChartSpecModel > should handle datetime bin values when feat flag
       },
     },
   ],
-  "width": 70,
 }
 `;
 
@@ -873,7 +872,7 @@ exports[`ColumnChartSpecModel > snapshot > url data 1`] = `
     "name": "bin_values",
     "values": undefined,
   },
-  "height": 30,
+  "height": 100,
   "layer": [
     {
       "encoding": {
@@ -959,6 +958,5 @@ exports[`ColumnChartSpecModel > snapshot > url data 1`] = `
       },
     },
   ],
-  "width": 70,
 }
 `;
