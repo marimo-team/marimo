@@ -171,6 +171,51 @@ def _resolve_token(
     return None
 
 
+def _resolve_token_password(
+    token_password: Optional[str],
+    token_password_stdin: bool,
+) -> Optional[str]:
+    """
+    Resolve token password from mutually exclusive sources.
+
+    Args:
+        token_password: Direct password string (legacy)
+        token_password_stdin: Read password from stdin
+
+    Returns:
+        The resolved password string, or None if no password source provided
+
+    Raises:
+        click.UsageError: If multiple password sources are provided
+    """
+    # Enforce mutual exclusivity
+    if token_password is not None and token_password_stdin:
+        raise click.UsageError(
+            "Only one of --token-password or --token-password-stdin may be specified."
+        )
+
+    # Direct password (existing behavior)
+    if token_password:
+        return token_password
+
+    # Read from stdin
+    if token_password_stdin:
+        try:
+            password = sys.stdin.read().strip()
+            if not password:
+                raise click.UsageError(
+                    "No token password provided on stdin"
+                )
+            return password
+        except Exception as e:
+            raise click.UsageError(
+                f"Error reading token password from stdin: {e}"
+            ) from None
+
+    # No password source provided
+    return None
+
+
 main_help_msg = "\n".join(
     [
         "\b",
@@ -378,6 +423,14 @@ edit_help_msg = "\n".join(
     help=token_password_message,
 )
 @click.option(
+    "--token-password-stdin",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Read token password from stdin. Mutually exclusive with --token-password.",
+)
+@click.option(
     "--base-url",
     default="",
     show_default=True,
@@ -496,6 +549,7 @@ def edit(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_stdin: bool,
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
@@ -598,7 +652,9 @@ def edit(
         skew_protection=skew_protection,
         cli_args=parse_args(args),
         argv=list(args),
-        auth_token=_resolve_token(token, token_password),
+        auth_token=_resolve_token(
+            token, _resolve_token_password(token_password, token_password_stdin)
+        ),
         base_url=base_url,
         allow_origins=allow_origins,
         redirect_console_to_browser=True,
@@ -683,6 +739,14 @@ new_help_msg = "\n".join(
     help=token_password_message,
 )
 @click.option(
+    "--token-password-stdin",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Read token password from stdin. Mutually exclusive with --token-password.",
+)
+@click.option(
     "--base-url",
     default="",
     show_default=True,
@@ -722,6 +786,7 @@ def new(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_stdin: bool,
     base_url: str,
     sandbox: Optional[bool],
     skew_protection: bool,
@@ -800,7 +865,9 @@ def new(
         skew_protection=skew_protection,
         cli_args={},
         argv=[],
-        auth_token=_resolve_token(token, token_password),
+        auth_token=_resolve_token(
+            token, _resolve_token_password(token_password, token_password_stdin)
+        ),
         base_url=base_url,
         redirect_console_to_browser=True,
         ttl_seconds=None,
@@ -860,6 +927,14 @@ Example:
     show_default=True,
     type=str,
     help=token_password_message,
+)
+@click.option(
+    "--token-password-stdin",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Read token password from stdin. Mutually exclusive with --token-password.",
 )
 @click.option(
     "--include-code",
@@ -961,6 +1036,7 @@ def run(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_stdin: bool,
     include_code: bool,
     session_ttl: int,
     watch: bool,
@@ -1034,7 +1110,9 @@ def run(
         allow_origins=allow_origins,
         cli_args=parse_args(args),
         argv=list(args),
-        auth_token=_resolve_token(token, token_password),
+        auth_token=_resolve_token(
+            token, _resolve_token_password(token_password, token_password_stdin)
+        ),
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
@@ -1113,6 +1191,14 @@ Recommended sequence:
     help=token_password_message,
 )
 @click.option(
+    "--token-password-stdin",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Read token password from stdin. Mutually exclusive with --token-password.",
+)
+@click.option(
     "--skew-protection/--no-skew-protection",
     is_flag=True,
     default=True,
@@ -1132,6 +1218,7 @@ def tutorial(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_stdin: bool,
     skew_protection: bool,
     name: Tutorial,
 ) -> None:
@@ -1152,7 +1239,9 @@ def tutorial(
         skew_protection=skew_protection,
         cli_args={},
         argv=[],
-        auth_token=_resolve_token(token, token_password),
+        auth_token=_resolve_token(
+            token, _resolve_token_password(token_password, token_password_stdin)
+        ),
         redirect_console_to_browser=False,
         ttl_seconds=None,
     )

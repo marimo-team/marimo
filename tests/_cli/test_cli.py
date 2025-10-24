@@ -309,6 +309,82 @@ def test_cli_edit_token() -> None:
     _check_contents(p, b'"serverToken": ', contents)
 
 
+def test_cli_edit_token_password_stdin() -> None:
+    # Test reading token password from stdin
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "-p",
+            str(port),
+            "--headless",
+            "--token-password-stdin",
+            "--skip-update-check",
+        ],
+        stdin=subprocess.PIPE,
+    )
+    if p.stdin:
+        p.stdin.write(b"secret_from_stdin")
+        p.stdin.close()
+
+    contents = _try_fetch(port, "localhost", "secret_from_stdin")
+    _check_contents(p, b'"mode": "home"', contents)
+    _check_contents(
+        p,
+        f'"version": "{get_version()}"'.encode(),
+        contents,
+    )
+    _check_contents(p, b'"serverToken": ', contents)
+
+
+def test_cli_edit_token_password_mutual_exclusivity() -> None:
+    # Test that --token-password and --token-password-stdin are mutually exclusive
+    result = subprocess.run(
+        [
+            "marimo",
+            "edit",
+            "--headless",
+            "--token-password", "secret1",
+            "--token-password-stdin",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "mutually exclusive" in result.stderr.lower() or "only one of" in result.stderr.lower()
+
+
+def test_cli_run_token_password_stdin() -> None:
+    # Test stdin with run command
+    with _write_temp_notebook(
+        """
+        import marimo
+        app = marimo.App()
+        """
+    ) as tmp_file:
+        port = _get_port()
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "run",
+                tmp_file,
+                "-p",
+                str(port),
+                "--headless",
+                "--token",
+                "--token-password-stdin",
+            ],
+            stdin=subprocess.PIPE,
+        )
+        if p.stdin:
+            p.stdin.write(b"run_secret")
+            p.stdin.close()
+
+        contents = _try_fetch(port, "localhost", "run_secret")
+        _check_contents(p, b'"appConfig":', contents)
+
+
 def test_cli_edit_directory() -> None:
     d = tempfile.TemporaryDirectory()
     port = _get_port()
