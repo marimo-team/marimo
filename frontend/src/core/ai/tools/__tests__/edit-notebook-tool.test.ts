@@ -9,7 +9,6 @@ import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { CellColumnId } from "@/utils/id-tree";
 import { MultiColumn } from "@/utils/id-tree";
 import { cellConfigExtension } from "../../../codemirror/config/extension";
 import { adaptiveLanguageConfiguration } from "../../../codemirror/language/extension";
@@ -250,7 +249,7 @@ describe("EditNotebookTool", () => {
         {
           edit: {
             type: "add_cell",
-            position: "__end__",
+            position: "end",
             code: newCode,
           },
         },
@@ -334,7 +333,6 @@ describe("EditNotebookTool", () => {
       });
       // Create multi-column layout
       notebook.cellIds = MultiColumn.from([[cellId1], [cellId2]]);
-      const columnId = notebook.cellIds.getColumns()[1].id;
       store.set(notebookAtom, notebook);
 
       const newCode = "y = 2";
@@ -342,7 +340,7 @@ describe("EditNotebookTool", () => {
         {
           edit: {
             type: "add_cell",
-            position: { type: "__end__", columnId },
+            position: { type: "end", columnIndex: 1 },
             code: newCode,
           },
         },
@@ -378,7 +376,7 @@ describe("EditNotebookTool", () => {
       ).rejects.toThrow("Cell not found");
     });
 
-    it("should throw error when column ID doesn't exist", async () => {
+    it("should throw error when column index is out of range", async () => {
       const notebook = MockNotebook.notebookState({
         cellData: {
           [cellId1]: { code: "x = 1" },
@@ -392,15 +390,15 @@ describe("EditNotebookTool", () => {
             edit: {
               type: "add_cell",
               position: {
-                type: "__end__",
-                columnId: "nonexistent" as CellColumnId,
+                type: "end",
+                columnIndex: -1,
               },
               code: "y = 2",
             },
           },
           toolContext as never,
         ),
-      ).rejects.toThrow("Column not found");
+      ).rejects.toThrow("Column index is out of range");
     });
   });
 
@@ -542,7 +540,7 @@ describe("EditNotebookTool", () => {
         {
           edit: {
             type: "add_cell",
-            position: "__end__",
+            position: "end",
             code: "y = 2",
           },
         },
