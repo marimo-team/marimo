@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import ast
+import io
 import os
 import re
 import sys
 import textwrap
-import io
 import tokenize
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
@@ -188,18 +188,20 @@ def format_markdown(cell: CellImpl) -> str:
 def construct_markdown_call(markdown: str, quote: str, tag: str) -> str:
     # If quotes are on either side, we need to use the multiline format.
     quote_type = quote[:1]
-    bounded_by_quotes = markdown.startswith(quote_type) or markdown.endswith(quote_type)
+    bounded_by_quotes = markdown.startswith(quote_type) or markdown.endswith(
+        quote_type
+    )
 
     if (len(quote) == 3 and "\n" in markdown) or bounded_by_quotes:
         return "\n".join(
-                [
-                    "mo.md(",
-                    indent_text(f"{tag}{quote}"),
-                    markdown,
-                    f"{quote}",
-                    ")",
-                ]
-            )
+            [
+                "mo.md(",
+                indent_text(f"{tag}{quote}"),
+                markdown,
+                f"{quote}",
+                ")",
+            ]
+        )
     return format_tuple_elements(
         "mo.md(...)",
         (f"{tag}{quote}{markdown}{quote}",),
