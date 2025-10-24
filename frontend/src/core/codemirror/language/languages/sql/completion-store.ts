@@ -134,7 +134,7 @@ class SQLCompletionStore {
     if (!connection) {
       return ModifiedStandardSQL;
     }
-    return guessDialect(connection) ?? ModifiedStandardSQL;
+    return guessDialect(connection);
   }
 
   getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
@@ -152,7 +152,7 @@ class SQLCompletionStore {
     const schema = this.cache.getOrCreate(connection);
 
     return {
-      dialect: guessDialect(connection) ?? ModifiedStandardSQL,
+      dialect: guessDialect(connection),
       schema: schema.shouldAddLocalTables
         ? { ...schema.schema, ...getTablesMap() }
         : schema.schema,

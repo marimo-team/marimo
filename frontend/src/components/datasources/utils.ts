@@ -1,4 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { BigQueryDialect } from "@marimo-team/codemirror-sql/dialects";
+import { isKnownDialect } from "@/core/codemirror/language/languages/sql/utils";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import type { DataTable, DataType } from "@/core/kernel/messages";
@@ -26,28 +29,41 @@ const defaultFormatter: SqlCodeFormatter = {
     `SELECT ${columnName} FROM ${tableName} LIMIT 100`,
 };
 
-const SQL_CODE_FORMATTERS: Record<string, SqlCodeFormatter> = {
-  // BigQuery: Use backticks for identifiers
-  bigquery: {
-    formatTableName: (tableName: string) => `\`${tableName}\``,
-    formatSelectClause: defaultFormatter.formatSelectClause,
-  },
-  // MSSQL: Use TOP instead of LIMIT
-  mssql: {
-    formatTableName: defaultFormatter.formatTableName,
-    formatSelectClause: (columnName: string, tableName: string) =>
-      `SELECT TOP 100 ${columnName} FROM ${tableName}`,
-  },
-  // TimescaleDB: Wrap each part of qualified name with double quotes
-  timescaledb: {
-    formatTableName: (tableName: string) => {
-      const parts = tableName.split(".");
-      return parts.map((part) => `"${part}"`).join(".");
-    },
-    formatSelectClause: defaultFormatter.formatSelectClause,
-  },
-  default: defaultFormatter,
-};
+function getFormatter(dialect: string): SqlCodeFormatter {
+  dialect = dialect.toLowerCase();
+  if (!isKnownDialect(dialect)) {
+    return defaultFormatter;
+  }
+
+  switch (dialect) {
+    case "bigquery": {
+      const quote = BigQueryDialect.spec.identifierQuotes;
+      return {
+        // BigQuery uses backticks for identifiers
+        formatTableName: (tableName: string) => `${quote}${tableName}${quote}`,
+        formatSelectClause: defaultFormatter.formatSelectClause,
+      };
+    }
+    case "mssql":
+    case "sqlserver":
+      return {
+        formatTableName: defaultFormatter.formatTableName,
+        formatSelectClause: (columnName: string, tableName: string) =>
+          `SELECT TOP 100 ${columnName} FROM ${tableName}`,
+      };
+    case "timescaledb":
+      return {
+        // TimescaleDB uses double quotes for identifiers
+        formatTableName: (tableName: string) => {
+          const parts = tableName.split(".");
+          return parts.map((part) => `"${part}"`).join(".");
+        },
+        formatSelectClause: defaultFormatter.formatSelectClause,
+      };
+    default:
+      return defaultFormatter;
+  }
+}
 
 export function sqlCode({
   table,
@@ -85,8 +101,7 @@ export function sqlCode({
       }
     }
 
-    const formatter =
-      SQL_CODE_FORMATTERS[dialect.toLowerCase()] || defaultFormatter;
+    const formatter = getFormatter(dialect);
     const formattedTableName = formatter.formatTableName(tableName);
     const selectClause = formatter.formatSelectClause(
       columnName,
