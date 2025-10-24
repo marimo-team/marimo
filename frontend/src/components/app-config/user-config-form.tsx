@@ -1112,34 +1112,6 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.performant_table_charts"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Performant Table Charts
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="performant-table-charts-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <IsOverridden
-                    userConfig={config}
-                    name="experimental.performant_table_charts"
-                  />
-                  <FormDescription>
-                    Enable experimental table charts which are computed on the
-                    backend.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="experimental.external_agents"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">

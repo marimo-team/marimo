@@ -878,8 +878,7 @@ class table(
         is below the column summary row limit.
 
         Args:
-            args (ColumnSummariesArgs): Arguments specifying whether to precompute
-                the column summaries and bin values.
+            args (ColumnSummariesArgs): Arguments for column summaries.
 
         Returns:
             ColumnSummaries: Object containing column summaries and chart data.
