@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import atexit
 import os
+import platform
 import signal
 import subprocess
 import sys
@@ -259,27 +260,26 @@ def construct_uv_flags(
     if len(additional_deps) > 0:
         uv_flags.extend(["--with", ",".join(additional_deps)])
 
-    # Add refresh
     if uv_needs_refresh:
         uv_flags.append("--refresh")
 
-    # Add Python version if specified
+    # We use the specified Python version (if any), otherwise
+    # the current Python version
     python_version = pyproject.python_version
     if python_version:
         uv_flags.extend(["--python", python_version])
+    else:
+        uv_flags.extend(["--python", platform.python_version()])
 
-    # Add index URL if specified
     index_url = pyproject.index_url
     if index_url:
         uv_flags.extend(["--index-url", index_url])
 
-    # Add extra-index-urls if specified
     extra_index_urls = pyproject.extra_index_urls
     if extra_index_urls:
         for url in extra_index_urls:
             uv_flags.extend(["--extra-index-url", url])
 
-    # Add index configs if specified
     index_configs = pyproject.index_configs
     if index_configs:
         for config in index_configs:
