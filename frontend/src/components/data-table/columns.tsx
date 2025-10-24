@@ -21,6 +21,7 @@ import { Tooltip } from "../ui/tooltip";
 import { DataTableColumnHeader } from "./column-header";
 import type { ColumnChartSpecModel } from "./column-summary/chart-spec-model";
 import { TableColumnSummary } from "./column-summary/column-summary";
+import { COLUMN_WRAPPING_STYLES } from "./column-wrapping/feature";
 import { DatePopover } from "./date-popover";
 import type { FilterType } from "./filters";
 import { getMimeValues, MimeCell } from "./mime-cell";
@@ -315,6 +316,7 @@ const PopoutColumn = ({
   rawStringValue,
   contentClassName,
   buttonText,
+  wrapped,
   children,
 }: {
   cellStyles?: string;
@@ -322,6 +324,7 @@ const PopoutColumn = ({
   rawStringValue: string;
   contentClassName?: string;
   buttonText?: string;
+  wrapped?: boolean;
   children: React.ReactNode;
 }) => {
   return (
@@ -336,7 +339,10 @@ const PopoutColumn = ({
           }}
         >
           <span
-            className="cursor-pointer hover:text-link"
+            className={cn(
+              "cursor-pointer hover:text-link",
+              wrapped && COLUMN_WRAPPING_STYLES,
+            )}
             title={rawStringValue}
           >
             {rawStringValue}
@@ -408,7 +414,7 @@ function getCellStyleClass(
     "truncate",
     justify === "center" && "text-center",
     justify === "right" && "text-right",
-    wrapped && "whitespace-pre-wrap min-w-[200px] break-words",
+    wrapped && `${COLUMN_WRAPPING_STYLES} break-words`,
   );
 }
 
@@ -517,6 +523,7 @@ export function renderCellValue<TData, TValue>({
         rawStringValue={stringValue}
         contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
         buttonText="X"
+        wrapped={column.getColumnWrapping?.() === "wrap"}
       >
         <UrlDetector parts={parts} />
       </PopoutColumn>
@@ -558,6 +565,7 @@ export function renderCellValue<TData, TValue>({
         cellStyles={cellStyles}
         selectCell={selectCell}
         rawStringValue={rawStringValue}
+        wrapped={column.getColumnWrapping?.() === "wrap"}
       >
         <JsonOutput data={value} format="tree" className="max-h-64" />
       </PopoutColumn>
