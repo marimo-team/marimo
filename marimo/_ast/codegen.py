@@ -86,7 +86,7 @@ def format_tuple_elements(
     elems: tuple[str, ...],
     indent: bool = False,
     allowed_naked: bool = False,
-    trail_comma=True,
+    trail_comma: bool = True,
     brace: Literal["(", "["] = "(",
 ) -> str:
     """
@@ -154,7 +154,7 @@ def format_markdown(cell: CellImpl) -> str:
         "prefix": "",
         "suffix": "",
     }
-    key = "prefix"
+    key: Optional[str] = "prefix"
     fstring = False
     for tok in tokens:
         # if string
