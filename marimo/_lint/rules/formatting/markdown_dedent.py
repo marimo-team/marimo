@@ -80,6 +80,7 @@ class MarkdownDedentRule(LintRule):
         # Check each cell in the graph
         for _cell_id, cell in graph.cells.items():
             # Only check markdown cells
+            print(cell.markdown)
             if cell.markdown is None:
                 continue
 

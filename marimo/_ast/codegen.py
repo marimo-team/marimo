@@ -149,9 +149,17 @@ def format_markdown(cell: CellImpl) -> str:
     tokens = tokenize.tokenize(io.BytesIO(cell.code.encode("utf-8")).readline)
     tag = ""
     quote = '"'
+    # Comment capture
+    comments = {
+        "prefix": "",
+        "suffix": "",
+    }
+    key = "prefix"
+    fstring = False
     for tok in tokens:
         # if string
         if tok.type in (tokenize.STRING, tokenize.FSTRING_START):
+            fstring = tok.type == tokenize.FSTRING_START
             tag = ""
             start = tok.string[:5]
             quote = start[2]  # since tag may be present
@@ -161,18 +169,37 @@ def format_markdown(cell: CellImpl) -> str:
                     start = start[1:]
             if start[:3] == quote * 3:
                 quote = start[:3]
-            break
-    if len(quote) == 3 and "\n" in markdown:
-        return "\n".join(
-            [
-                "mo.md(",
-                indent_text(f"{tag}{quote}"),
-                markdown,
-                f"{quote}",
-                ")",
-            ]
-        )
+        elif tok.string == "mo":
+            key = None
+        elif tok.string == ")":
+            key = "suffix"
+        elif key in comments and tok.type != tokenize.ENCODING:
+            comments[key] += tok.string
 
+    if fstring:
+        # We can blanket replace, because cell.markdown is not set
+        # on f-strings with values.
+        markdown = markdown.replace("{", "{{").replace("}", "}}")
+
+    body = construct_markdown_call(markdown, quote, tag)
+    return "".join([comments["prefix"], body, comments["suffix"]])
+
+
+def construct_markdown_call(markdown: str, quote: str, tag: str) -> str:
+    # If quotes are on either side, we need to use the multiline format.
+    quote_type = quote[:1]
+    bounded_by_quotes = markdown.startswith(quote_type) or markdown.endswith(quote_type)
+
+    if (len(quote) == 3 and "\n" in markdown) or bounded_by_quotes:
+        return "\n".join(
+                [
+                    "mo.md(",
+                    indent_text(f"{tag}{quote}"),
+                    markdown,
+                    f"{quote}",
+                    ")",
+                ]
+            )
     return format_tuple_elements(
         "mo.md(...)",
         (f"{tag}{quote}{markdown}{quote}",),
