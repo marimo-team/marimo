@@ -7,6 +7,8 @@ from marimo._ai._tools.tools.cells import (
     GetCellRuntimeDataOutput,
     GetLightweightCellMapArgs,
     GetLightweightCellMapOutput,
+    GetCellOutputArgs,
+    GetCellOutputOutput,
 )
 from marimo._ai._tools.tools.datasource import (
     GetDatabaseTablesArgs,
@@ -23,6 +25,10 @@ from marimo._ai._tools.tools.tables_and_variables import (
     TablesAndVariablesArgs,
     TablesAndVariablesOutput,
 )
+from marimo._ai._tools.tools.lint import (
+    LintNotebookArgs,
+    LintNotebookOutput,
+)
 
 TOOL_IO_CLASSES = [
     GetCellRuntimeDataArgs,
@@ -36,6 +42,10 @@ TOOL_IO_CLASSES = [
     GetNotebookErrorsArgs,
     GetNotebookErrorsOutput,
     GetActiveNotebooksOutput,
+    LintNotebookArgs,
+    LintNotebookOutput,
+    GetCellOutputArgs,
+    GetCellOutputOutput,
 ]
 
 
