@@ -345,14 +345,18 @@ def test_cli_edit_token_password_mutual_exclusivity() -> None:
             "marimo",
             "edit",
             "--headless",
-            "--token-password", "secret1",
+            "--token-password",
+            "secret1",
             "--token-password-stdin",
         ],
         capture_output=True,
         text=True,
     )
     assert result.returncode != 0
-    assert "mutually exclusive" in result.stderr.lower() or "only one of" in result.stderr.lower()
+    assert (
+        "mutually exclusive" in result.stderr.lower()
+        or "only one of" in result.stderr.lower()
+    )
 
 
 def test_cli_run_token_password_stdin() -> None:

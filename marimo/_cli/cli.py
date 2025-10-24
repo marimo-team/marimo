@@ -203,9 +203,7 @@ def _resolve_token_password(
         try:
             password = sys.stdin.read().strip()
             if not password:
-                raise click.UsageError(
-                    "No token password provided on stdin"
-                )
+                raise click.UsageError("No token password provided on stdin")
             return password
         except Exception as e:
             raise click.UsageError(
@@ -653,7 +651,8 @@ def edit(
         cli_args=parse_args(args),
         argv=list(args),
         auth_token=_resolve_token(
-            token, _resolve_token_password(token_password, token_password_stdin)
+            token,
+            _resolve_token_password(token_password, token_password_stdin),
         ),
         base_url=base_url,
         allow_origins=allow_origins,
@@ -866,7 +865,8 @@ def new(
         cli_args={},
         argv=[],
         auth_token=_resolve_token(
-            token, _resolve_token_password(token_password, token_password_stdin)
+            token,
+            _resolve_token_password(token_password, token_password_stdin),
         ),
         base_url=base_url,
         redirect_console_to_browser=True,
@@ -1111,7 +1111,8 @@ def run(
         cli_args=parse_args(args),
         argv=list(args),
         auth_token=_resolve_token(
-            token, _resolve_token_password(token_password, token_password_stdin)
+            token,
+            _resolve_token_password(token_password, token_password_stdin),
         ),
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
@@ -1240,7 +1241,8 @@ def tutorial(
         cli_args={},
         argv=[],
         auth_token=_resolve_token(
-            token, _resolve_token_password(token_password, token_password_stdin)
+            token,
+            _resolve_token_password(token_password, token_password_stdin),
         ),
         redirect_console_to_browser=False,
         ttl_seconds=None,
