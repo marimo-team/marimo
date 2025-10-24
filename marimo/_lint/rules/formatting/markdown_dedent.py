@@ -6,13 +6,12 @@ import tokenize
 from typing import TYPE_CHECKING
 
 from marimo._ast.codegen import format_markdown
-
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import LintRule
 
 if TYPE_CHECKING:
-    from marimo._lint.context import RuleContext
     from marimo._ast.cell import CellImpl
+    from marimo._lint.context import RuleContext
 
 
 class MarkdownDedentRule(LintRule):
