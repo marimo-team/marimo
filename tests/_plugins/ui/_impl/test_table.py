@@ -9,11 +9,11 @@ from unittest.mock import patch
 import pytest
 
 from marimo._data.models import ValueCount
-from marimo._data.preview_column import CHART_MAX_ROWS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import (
+    CHART_MAX_ROWS_STRING_VALUE_COUNTS,
     DEFAULT_MAX_COLUMNS,
     MAX_COLUMNS_NOT_PROVIDED,
     CalculateTopKRowsArgs,
@@ -1049,15 +1049,29 @@ class TestTableGetValueCounts:
     def test_rows_string_value_counts_limit(self) -> None:
         import pandas as pd
 
-        data = pd.DataFrame({"a": [str(i) for i in range(CHART_MAX_ROWS)]})
+        data = pd.DataFrame(
+            {"a": [str(i) for i in range(CHART_MAX_ROWS_STRING_VALUE_COUNTS)]}
+        )
         table = ui.table(data)
         summaries = table._get_column_summaries(ColumnSummariesArgs())
         assert summaries.value_counts == {
-            "a": [ValueCount(value="unique values", count=CHART_MAX_ROWS)]
+            "a": [
+                ValueCount(
+                    value="unique values",
+                    count=CHART_MAX_ROWS_STRING_VALUE_COUNTS,
+                )
+            ]
         }
 
         # If >20k rows, we should not get value_counts
-        data = pd.DataFrame({"a": [str(i) for i in range(CHART_MAX_ROWS + 1)]})
+        data = pd.DataFrame(
+            {
+                "a": [
+                    str(i)
+                    for i in range(CHART_MAX_ROWS_STRING_VALUE_COUNTS + 1)
+                ]
+            }
+        )
         table = ui.table(data)
         summaries = table._get_column_summaries(ColumnSummariesArgs())
         assert summaries.value_counts == {}
