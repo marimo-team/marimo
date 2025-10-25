@@ -94,7 +94,7 @@ export const HTMLCellId = {
  */
 export function findCellId(element: HTMLElement): CellId | null {
   let cellId: CellId | null = null;
-  const cellContainer = HTMLCellId.findElement(element);
+  const cellContainer = HTMLCellId.findElementThroughShadowDOMs(element);
   if (cellContainer) {
     cellId = HTMLCellId.parse(cellContainer.id);
   }
