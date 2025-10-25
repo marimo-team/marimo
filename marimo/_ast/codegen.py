@@ -155,20 +155,27 @@ def format_markdown(cell: CellImpl) -> str:
         "suffix": "",
     }
     key: Optional[str] = "prefix"
+    tokenizes_fstring = sys.version_info >= (3, 12)
+    start_tokens = (
+        (tokenize.STRING, tokenize.FSTRING_START)
+        if tokenizes_fstring
+        else (tokenize.STRING,)
+    )
     fstring = False
     for tok in tokens:
         # if string
-        if tok.type in (tokenize.STRING, tokenize.FSTRING_START):
-            fstring = tok.type == tokenize.FSTRING_START
+        if tok.type in start_tokens:
             tag = ""
+            # rf"""/ f"/ r"/ "more
             start = tok.string[:5]
-            quote = start[2]  # since tag may be present
             for _ in range(2):
-                if start[0] in "rtf":
+                if start[0].lower() in "rtf":
                     tag += start[0]
                     start = start[1:]
+            quote = start[0]
             if start[:3] == quote * 3:
                 quote = start[:3]
+            fstring = "f" in tag.lower()
         elif tok.string == "mo":
             key = None
         elif tok.string == ")":
