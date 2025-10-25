@@ -106,6 +106,45 @@ const replaceSrcScripts = (domNode: DOMNode): JSX.Element | undefined => {
   }
 };
 
+const preserveQueryParamsInAnchorLinks: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+): JSX.Element | undefined => {
+  if (domNode instanceof Element && domNode.name === "a") {
+    const href = domNode.attribs.href;
+    // Only handle anchor links (starting with #)
+    if (href?.startsWith("#") && !href.startsWith("#code/")) {
+      const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault();
+        const currentUrl = new URL(globalThis.location.href);
+        // Preserve existing query parameters and update the hash
+        currentUrl.hash = href;
+        globalThis.history.pushState({}, "", currentUrl.toString());
+
+        // Scroll to the anchor
+        const targetId = href.slice(1);
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      };
+
+      // Get the children from the parsed React node
+      let children: ReactNode = null;
+      if (isValidElement(reactNode) && "props" in reactNode) {
+        const props = reactNode.props as { children?: ReactNode };
+        children = props.children;
+      }
+
+      return (
+        <a {...domNode.attribs} href={href} onClick={handleClick}>
+          {children}
+        </a>
+      );
+    }
+  }
+};
+
 // Add copy button to codehilite blocks
 const addCopyButtonToCodehilite: TransformFn = (
   reactNode: ReactNode,
@@ -198,6 +237,7 @@ function parseHtml({
 
   const transformFunctions: TransformFn[] = [
     addCopyButtonToCodehilite,
+    preserveQueryParamsInAnchorLinks,
     removeWrappingBodyTags,
     removeWrappingHtmlTags,
   ];
