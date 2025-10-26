@@ -75,18 +75,18 @@ In contrast, Jupyter's lack of reactivity makes IPyWidgets difficult to use.
 ````python {.marimo hide_code="true"}
 mo.md(
     r"""
-    ## Shareable as apps
+## Shareable as apps
 
-    marimo notebooks can be shared as read-only web apps: just serve it with
+marimo notebooks can be shared as read-only web apps: just serve it with
 
-    ```marimo run your_notebook.py```
+```marimo run your_notebook.py```
 
-    at the command-line.
+at the command-line.
 
-    Not every marimo notebook needs to be shared as an app, but marimo makes it
-    seamless to do so if you want to. In this way, marimo works as a replacement
-    for both Jupyter and Streamlit.
-    """
+Not every marimo notebook needs to be shared as an app, but marimo makes it
+seamless to do so if you want to. In this way, marimo works as a replacement
+for both Jupyter and Streamlit.
+"""
 )
 ````
 

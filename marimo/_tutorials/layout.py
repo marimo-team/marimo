@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.0"
 app = marimo.App()
 
 
@@ -10,11 +10,11 @@ app = marimo.App()
 def _(mo):
     mo.md(
         """
-        # Layout
+    # Layout
 
-        `marimo` provides functions to help you lay out your output, such as
-        in rows and columns, accordions, tabs, and callouts.
-        """
+    `marimo` provides functions to help you lay out your output, such as
+    in rows and columns, accordions, tabs, and callouts.
+    """
     )
     return
 
@@ -23,10 +23,10 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ## Rows and columns
+    ## Rows and columns
 
-        Arrange objects into rows and columns with `mo.hstack` and `mo.vstack`.
-        """
+    Arrange objects into rows and columns with `mo.hstack` and `mo.vstack`.
+    """
     )
     return
 
@@ -76,10 +76,10 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        **Customization.**
-        The presentation of stacked elements can be customized with some arguments
-        that are best understood by example.
-        """
+    **Customization.**
+    The presentation of stacked elements can be customized with some arguments
+    that are best understood by example.
+    """
     )
     return
 
@@ -158,11 +158,11 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        **Justifying `Html`.** While you can center or right-justify any object
-        using `mo.hstack`, `Html` objects (returned by most marimo
-        functions, and subclassed by most marimo classes) have a shortcut using
-        via their `center`, `right`, and `left` methods.
-        """
+    **Justifying `Html`.** While you can center or right-justify any object
+    using `mo.hstack`, `Html` objects (returned by most marimo
+    functions, and subclassed by most marimo classes) have a shortcut using
+    via their `center`, `right`, and `left` methods.
+    """
     )
     return
 
@@ -201,10 +201,10 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ## Accordion
+    ## Accordion
 
-        Create expandable shelves of content using `mo.accordion`:
-        """
+    Create expandable shelves of content using `mo.accordion`:
+    """
     )
     return
 
@@ -235,10 +235,10 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ## Tabs
+    ## Tabs
 
-        Use `mo.ui.tabs` to display multiple objects in a single tabbed output:
-        """
+    Use `mo.ui.tabs` to display multiple objects in a single tabbed output:
+    """
     )
     return
 
@@ -307,11 +307,11 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ## Callout
+    ## Callout
 
-        Turn any markdown or HTML into an emphasized callout with the `callout`
-        method:
-        """
+    Turn any markdown or HTML into an emphasized callout with the `callout`
+    method:
+    """
     )
     return
 

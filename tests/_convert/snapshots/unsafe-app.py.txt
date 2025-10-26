@@ -12,28 +12,32 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md("""
-        # Code blocks in code blocks
-        Output code for Hello World!
-        ```python
-        print("Hello World")
-        ```
-        Execute print
-        ```python {.marimo}
-        print("Hello World")
-        ```
-    """)
+    mo.md(
+        """
+    # Code blocks in code blocks
+    Output code for Hello World!
+    ```python
+    print("Hello World")
+    ```
+    Execute print
+    ```python {.marimo}
+    print("Hello World")
+    ```
+    """
+    )
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(f"""
-        with f-string too!
-        ```python {{.marimo}}
-        print("Hello World")
-        ```
-    """)
+    mo.md(
+        f"""
+    with f-string too!
+    ```python {{.marimo}}
+    print("Hello World")
+    ```
+    """
+    )
     return
 
 
@@ -72,10 +76,12 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md("""
-        Cross cell injection
-        ```python
-    """)
+    mo.md(
+        """
+    Cross cell injection
+    ```python
+    """
+    )
     return
 
 

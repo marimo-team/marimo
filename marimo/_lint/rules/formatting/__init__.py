@@ -4,6 +4,7 @@ from __future__ import annotations
 from marimo._lint.rules.base import LintRule, UnsafeFixRule
 from marimo._lint.rules.formatting.empty_cells import EmptyCellRule
 from marimo._lint.rules.formatting.general import GeneralFormattingRule
+from marimo._lint.rules.formatting.markdown_dedent import MarkdownDedentRule
 from marimo._lint.rules.formatting.parsing import (
     MiscLogRule,
     SqlParseRule,
@@ -18,6 +19,7 @@ FORMATTING_RULE_CODES: dict[str, type[LintRule]] = {
     "MF004": EmptyCellRule,
     "MF005": SqlParseRule,
     "MF006": MiscLogRule,
+    "MF007": MarkdownDedentRule,
 }
 
 __all__ = [
@@ -28,5 +30,6 @@ __all__ = [
     "EmptyCellRule",
     "SqlParseRule",
     "MiscLogRule",
+    "MarkdownDedentRule",
     "UnsafeFixRule",
 ]

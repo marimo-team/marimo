@@ -1,0 +1,41 @@
+warning[markdown-dedent]: Markdown cell should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:13:1
+  13 | @app.cell
+  14 | def _(mo):
+     |     ^
+  15 |     mo.md(
+
+warning[markdown-dedent]: Markdown cell should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:23:1
+  23 | @app.cell
+  24 | def _(mo):
+     |     ^
+  25 |     # With a comment
+
+warning[markdown-dedent]: Markdown cell should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:51:1
+  51 | @app.cell
+  52 | def _(mo):
+     |     ^
+  53 |     mo.md(
+
+warning[markdown-dedent]: Markdown cell should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:63:1
+  63 | @app.cell
+  64 | def _(mo):
+     |     ^
+  65 |     mo.md(
+
+warning[markdown-dedent]: Markdown cell should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:69:1
+  69 | @app.cell
+  70 | def _(mo):
+     |     ^
+  71 |     mo.md(
+
+warning[markdown-dedent]: Markdown cell should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:75:1
+  75 | @app.cell
+  76 | def _(mo):
+     |     ^
+  77 |     mo.md(fr"siiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiingle line")

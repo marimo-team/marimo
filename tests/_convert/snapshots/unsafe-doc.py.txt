@@ -128,12 +128,14 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""
-      This is a markdown cell with an execution block in it
-      ```python {.marimo}
-      # To ambiguous to convert
-      ```
-      """)
+    mo.md(
+        """
+    This is a markdown cell with an execution block in it
+    ```python {.marimo}
+    # To ambiguous to convert
+    ```
+    """
+    )
     return
 
 

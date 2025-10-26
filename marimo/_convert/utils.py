@@ -13,23 +13,7 @@ def markdown_to_marimo(source: str) -> str:
     # 6 quotes in a row breaks
     if not source:
         source = " "
-
-    # If quotes are on either side, we need to use the multiline format.
-    bounded_by_quotes = source.startswith('"') or source.endswith('"')
-
-    if "\n" not in source and not bounded_by_quotes:
-        return f'mo.md(r"""{source}""")'
-
-    return "\n".join(
-        [
-            "mo.md(",
-            # r-string: a backslash is just a backslash!
-            codegen.indent_text('r"""'),
-            source,
-            '"""',
-            ")",
-        ]
-    )
+    return codegen.construct_markdown_call(source, '"""', "r")
 
 
 def sql_to_marimo(

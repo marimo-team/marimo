@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.0"
 app = marimo.App()
 
 
@@ -10,12 +10,12 @@ app = marimo.App()
 def _(mo):
     mo.md(
         """
-        # UI Elements
+    # UI Elements
 
-        One of marimo's most powerful features is its first-class
-        support for interactive user interface (UI) elements: interacting
-        with a UI element will automatically run cells that reference it.
-        """
+    One of marimo's most powerful features is its first-class
+    support for interactive user interface (UI) elements: interacting
+    with a UI element will automatically run cells that reference it.
+    """
     )
     return
 
@@ -51,16 +51,16 @@ def _(mo, slider):
 def _(mo):
     mo.md(
         """
-        ### How interactions run cells
+    ### How interactions run cells
 
-        Whenever you interact with a UI element, its value is sent back to 
-        Python. When this happens, all cells that reference the global variable 
-        bound to the UI element, but don't define it, will run.
+    Whenever you interact with a UI element, its value is sent back to
+    Python. When this happens, all cells that reference the global variable
+    bound to the UI element, but don't define it, will run.
 
-        This simple rule lets you use UI elements to
-        drive the execution of your program, letting you build
-        interactive notebooks and tools for yourselves and others.
-        """
+    This simple rule lets you use UI elements to
+    drive the execution of your program, letting you build
+    interactive notebooks and tools for yourselves and others.
+    """
     )
     return
 
@@ -102,7 +102,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""marimo has a [large library of simple UI elements](https://docs.marimo.io/api/inputs/index.html). Here are a just few examples:""")
+    mo.md(
+        """marimo has a [large library of simple UI elements](https://docs.marimo.io/api/inputs/index.html). Here are a just few examples:"""
+    )
     return
 
 
@@ -237,15 +239,15 @@ def _(basic_ui_elements, documentation):
 def _(mo):
     mo.md(
         """
-        ### Composite elements
+    ### Composite elements
 
-            Composite elements are advanced elements 
-            let you build UI elements out of other UI elements. 
+        Composite elements are advanced elements
+        let you build UI elements out of other UI elements.
 
-            Use these powerful elements to logically group together related elements, 
-            create a dynamic set of UI elements, or reduce the number of global 
-            variables in your program.
-        """
+        Use these powerful elements to logically group together related elements,
+        create a dynamic set of UI elements, or reduce the number of global
+        variables in your program.
+    """
     )
     return
 
@@ -254,10 +256,10 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        This first example shows how to create an array of UI elements using `mo.ui.array`.
-        When you interact with an element in the array, all cells that reference the
-        array are reactively run. If you instead used a regular Python list, cells referring to the list would _not_ be run.
-        """
+    This first example shows how to create an array of UI elements using `mo.ui.array`.
+    When you interact with an element in the array, all cells that reference the
+    array are reactively run. If you instead used a regular Python list, cells referring to the list would _not_ be run.
+    """
     )
     return
 
@@ -279,7 +281,9 @@ def _(array):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""marimo also comes with `mo.ui.dictionary`, which is analogous to `mo.ui.array`""")
+    mo.md(
+        r"""marimo also comes with `mo.ui.dictionary`, which is analogous to `mo.ui.array`"""
+    )
     return
 
 
@@ -333,13 +337,13 @@ def _(composite_elements, documentation):
 def _(mo):
     mo.md(
         r"""
-        ### Building custom elements
+    ### Building custom elements
 
-        marimo supports third-party UI elements through anywidget — this lets you build
-        your own interactive UI elements, or use widgets built by others in the
-        community. To learn more, [see our
-        docs](https://docs.marimo.io/guides/integrating_with_marimo/custom_ui_plugins.html).
-        """
+    marimo supports third-party UI elements through anywidget — this lets you build
+    your own interactive UI elements, or use widgets built by others in the
+    community. To learn more, [see our
+    docs](https://docs.marimo.io/guides/integrating_with_marimo/custom_ui_plugins.html).
+    """
     )
     return
 
@@ -348,11 +352,11 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ## Appendix
-        The remaining cells are helper data structures and functions.
-        You can look at their code if you're curious how certain parts of this 
-        tutorial were implemented.
-        """
+    ## Appendix
+    The remaining cells are helper data structures and functions.
+    You can look at their code if you're curious how certain parts of this
+    tutorial were implemented.
+    """
     )
     return
 
