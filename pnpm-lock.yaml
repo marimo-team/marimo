@@ -496,6 +496,9 @@ importers:
       vega-loader:
         specifier: ^4.5.3
         version: 4.5.3
+      vega-tooltip:
+        specifier: ^1.1.0
+        version: 1.1.0
       vscode-jsonrpc:
         specifier: ^8.2.1
         version: 8.2.1
@@ -9813,6 +9816,9 @@ packages:
   vega-tooltip@0.22.1:
     resolution: {integrity: sha512-mPmzxwvi6+2ZgbZ/+mNC7XbSu5I6Ckon8zdgUfH9neb+vV7CKlV/FYypMdVN/9iDMFUqGzybYdqNOiSPPIxFEQ==}
 
+  vega-tooltip@1.1.0:
+    resolution: {integrity: sha512-PP4CxC8gX//SBUtlcJkwffmvdZBvzAsqS0EANBKvImJ9PxV/KtJkcs7RCqp+A7nh2cjWdVzyOBWAvqKhXJStTQ==}
+
   vega-transforms@4.12.1:
     resolution: {integrity: sha512-Qxo+xeEEftY1jYyKgzOGc9NuW4/MqGm1YPZ5WrL9eXg2G0410Ne+xL/MFIjHF4hRX+3mgFF4Io2hPpfy/thjLg==}
 
@@ -9827,6 +9833,9 @@ packages:
 
   vega-util@1.17.3:
     resolution: {integrity: sha512-nSNpZLUrRvFo46M5OK4O6x6f08WD1yOcEzHNlqivF+sDLSsVpstaF6fdJYwrbf/debFi2L9Tkp4gZQtssup9iQ==}
+
+  vega-util@2.1.0:
+    resolution: {integrity: sha512-PGfp0m0QCufDmcxKJCWQy4Ov23FoF8DSXmoJwSezi3itQaa2hbxK0+xwsTMP2vy4PR16Pu25HMzgMwXVW1+33w==}
 
   vega-view-transforms@4.6.1:
     resolution: {integrity: sha512-RYlyMJu5kZV4XXjmyTQKADJWDB25SMHsiF+B1rbE1p+pmdQPlp5tGdPl9r5dUJOp3p8mSt/NGI8GPGucmPMxtw==}
@@ -14734,14 +14743,14 @@ snapshots:
       chai: 5.2.1
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.4(msw@2.11.1(@types/node@20.19.21)(typescript@5.9.3))(rolldown-vite@7.1.19(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))':
+  '@vitest/mocker@3.2.4(msw@2.11.1(@types/node@20.19.21)(typescript@5.9.3))(rolldown-vite@7.1.19(@types/node@20.19.21)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))':
     dependencies:
       '@vitest/spy': 3.2.4
       estree-walker: 3.0.3
       magic-string: 0.30.18
     optionalDependencies:
       msw: 2.11.1(@types/node@20.19.21)(typescript@5.9.3)
-      vite: rolldown-vite@7.1.19(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite: rolldown-vite@7.1.19(@types/node@20.19.21)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
 
   '@vitest/mocker@3.2.4(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.19(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))':
     dependencies:
@@ -21483,6 +21492,10 @@ snapshots:
     dependencies:
       vega-util: 1.17.3
 
+  vega-tooltip@1.1.0:
+    dependencies:
+      vega-util: 2.1.0
+
   vega-transforms@4.12.1:
     dependencies:
       d3-array: 3.2.4
@@ -21507,6 +21520,8 @@ snapshots:
   vega-util@1.10.0: {}
 
   vega-util@1.17.3: {}
+
+  vega-util@2.1.0: {}
 
   vega-view-transforms@4.6.1:
     dependencies:
@@ -21661,7 +21676,7 @@ snapshots:
     dependencies:
       '@types/chai': 5.2.2
       '@vitest/expect': 3.2.4
-      '@vitest/mocker': 3.2.4(msw@2.11.1(@types/node@20.19.21)(typescript@5.9.3))(rolldown-vite@7.1.19(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      '@vitest/mocker': 3.2.4(msw@2.11.1(@types/node@20.19.21)(typescript@5.9.3))(rolldown-vite@7.1.19(@types/node@20.19.21)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       '@vitest/pretty-format': 3.2.4
       '@vitest/runner': 3.2.4
       '@vitest/snapshot': 3.2.4
