@@ -52,6 +52,7 @@ import {
 } from "./completion-sources";
 import { SCHEMA_CACHE } from "./completion-store";
 import { getSQLMode, type SQLMode } from "./sql-mode";
+import { isKnownDialect } from "./utils";
 
 const DEFAULT_DIALECT = DuckDBDialect;
 const DEFAULT_PARSER_DIALECT = "DuckDB";
@@ -353,6 +354,11 @@ function connectionNameToParserDialect(
 ): ParserDialects | null {
   const dialect =
     SCHEMA_CACHE.getInternalDialect(connectionName)?.toLowerCase();
+
+  if (!dialect || !isKnownDialect(dialect)) {
+    return null;
+  }
+
   switch (dialect) {
     case "postgresql":
     case "postgres":

@@ -47,6 +47,7 @@ export interface SQLTableContext {
   engine: string;
   database: string;
   schema: string;
+  dialect: string;
   defaultSchema?: string | null;
   defaultDatabase?: string | null;
 }

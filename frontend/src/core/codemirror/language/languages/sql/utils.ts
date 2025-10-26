@@ -18,13 +18,49 @@ import {
 } from "@marimo-team/codemirror-sql/dialects";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 
+const KNOWN_DIALECTS_ARRAY = [
+  "postgresql",
+  "postgres",
+  "db2",
+  "mysql",
+  "sqlite",
+  "mssql",
+  "sqlserver",
+  "duckdb",
+  "mariadb",
+  "cassandra",
+  "noql",
+  "athena",
+  "bigquery",
+  "hive",
+  "redshift",
+  "snowflake",
+  "flink",
+  "mongodb",
+  "oracle",
+  "oracledb",
+  "timescaledb",
+] as const;
+const KNOWN_DIALECTS: ReadonlySet<string> = new Set(KNOWN_DIALECTS_ARRAY);
+type KnownDialect = (typeof KNOWN_DIALECTS_ARRAY)[number];
+
+export function isKnownDialect(dialect: string): dialect is KnownDialect {
+  return KNOWN_DIALECTS.has(dialect);
+}
+
 /**
  * Guess the CodeMirror SQL dialect from the backend connection dialect.
+ * If unknown, return the standard SQL dialect.
  */
 export function guessDialect(
   connection: Pick<DataSourceConnection, "dialect">,
-): SQLDialect | undefined {
-  switch (connection.dialect) {
+): SQLDialect {
+  const dialect = connection.dialect;
+  if (!isKnownDialect(dialect)) {
+    return ModifiedStandardSQL;
+  }
+
+  switch (dialect) {
     case "postgresql":
     case "postgres":
       return PostgreSQL;
@@ -47,7 +83,7 @@ export function guessDialect(
     case "bigquery":
       return BigQueryDialect;
     default:
-      return undefined;
+      return ModifiedStandardSQL;
   }
 }
 
