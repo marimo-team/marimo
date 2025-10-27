@@ -22,7 +22,7 @@ import {
   XIcon,
 } from "lucide-react";
 import React from "react";
-import { mergeToolCalls } from "use-acp";
+import { JsonRpcError, mergeToolCalls } from "use-acp";
 import { ReadonlyDiff } from "@/components/editor/code/readonly-diff";
 import { JsonOutput } from "@/components/editor/output/JsonOutput";
 import { Button } from "@/components/ui/button";
@@ -102,11 +102,19 @@ export const ErrorBlock = (props: {
   onRetry?: () => void;
   onDismiss?: () => void;
 }) => {
-  const { message } = props.data;
+  const error = props.data;
+  let message = props.data.message;
+  const name = props.data.name;
 
   // Don't show WebSocket connection errors
   if (message.includes("WebSocket")) {
     return null;
+  }
+
+  if (error instanceof JsonRpcError) {
+    const dataStr =
+      typeof error.data === "string" ? error.data : JSON.stringify(error.data);
+    message = `${dataStr} (${error.code})`;
   }
 
   return (
