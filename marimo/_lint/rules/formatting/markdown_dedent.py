@@ -71,6 +71,10 @@ class MarkdownDedentRule(LintRule):
 
     async def check(self, ctx: RuleContext) -> None:
         """Check for markdown cells with indented content."""
+        from marimo._lint.linter import (
+            contents_differ_excluding_generated_with,
+        )
+
         graph = ctx.get_graph()
 
         # Check each cell in the graph
@@ -81,7 +85,9 @@ class MarkdownDedentRule(LintRule):
 
             # Check if the markdown string needs dedenting
             # Use tokenize like codegen does to extract quote style
-            needs_dedent = format_markdown(cell) != cell.code
+            needs_dedent = contents_differ_excluding_generated_with(
+                format_markdown(cell), cell.code
+            )
             if needs_dedent:
                 # Find the corresponding notebook cell for position info
                 notebook_cell = None

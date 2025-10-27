@@ -182,6 +182,6 @@ jobs:
           # Fail if there's a git diff
           if [[ -n "$(git status --porcelain marimo/_tutorials)" ]]; then
             echo "marimo check found issues in tutorials."
-            git --no-pager diff
+            git --no-pager diff marimo/_tutorials
             exit 1
           fi

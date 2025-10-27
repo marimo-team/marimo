@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from marimo._lint.rules.base import LintRule
 
 
-def _contents_differ_excluding_generated_with(
+def contents_differ_excluding_generated_with(
     original: str, generated: str
 ) -> bool:
     """Compare file contents while ignoring __generated_with differences.
@@ -351,7 +351,7 @@ class Linter:
         )
 
         # Only write if content changed (excluding __generated_with differences)
-        if _contents_differ_excluding_generated_with(
+        if contents_differ_excluding_generated_with(
             file_status.contents, generated_contents
         ):
             await asyncio.to_thread(

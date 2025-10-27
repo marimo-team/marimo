@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.17.0"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -202,7 +202,7 @@ def _(has_polars_installed):
         import pandas as pd
 
         df = pd.DataFrame(_data)
-    return (df,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -214,7 +214,7 @@ def _(mo):
 
 
 @app.cell
-def _(df, mo):
+def _(mo):
     _df = mo.sql(
         f"""
         -- This SQL cell is special since we can reference existing dataframes in the global scope as a table in the SQL query. For example, we can reference the `df` dataframe in the global scope, which was defined in another cell using Python.
@@ -251,7 +251,7 @@ def _(mo, string):
 
 
 @app.cell
-def _(df, mo, token_prefix):
+def _(mo, token_prefix):
     result = mo.sql(
         f"""
         -- Change the dropdown to see the SQL query filter itself!
@@ -393,7 +393,7 @@ def _(mo):
         SELECT * from cars;
         """
     )
-    return
+    return (cars,)
 
 
 @app.cell(hide_code=True)
@@ -407,7 +407,7 @@ def _(cars, mo):
 
 
 @app.cell
-def _(cars, cylinders_dropdown, mo, origin_dropdown):
+def _(cylinders_dropdown, mo, origin_dropdown):
     filtered_cars = mo.sql(
         f"""
         SELECT * FROM cars
