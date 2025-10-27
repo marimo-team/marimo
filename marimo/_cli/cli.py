@@ -568,7 +568,11 @@ def edit(
     from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
 
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
-    if name is None and (stdin_contents := _get_stdin_contents()) is not None:
+    if (
+        not token_password_stdin
+        and name is None
+        and (stdin_contents := _get_stdin_contents()) is not None
+    ):
         temp_dir = tempfile.TemporaryDirectory()
         path = create_temp_notebook_file(
             "notebook.py", "py", stdin_contents, temp_dir
