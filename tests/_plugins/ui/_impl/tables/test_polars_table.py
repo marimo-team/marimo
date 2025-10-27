@@ -982,3 +982,19 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         )
 
         data.write_json()
+
+    def test_to_json_enum_list_not_supported(self) -> None:
+        # When this is supported, we can remove the casting to string
+        import polars as pl
+
+        data = {"A": [["A", "B", "C"], ["A", "B", "C"], ["A", "B", "C"]]}
+
+        data_enum = pl.DataFrame(
+            data, schema={"A": pl.List(pl.Enum(categories=["A", "B", "C"]))}
+        )
+        with pytest.raises(pl.exceptions.PanicException):
+            data_enum.write_json()
+
+        data_list = pl.DataFrame(data, schema={"A": pl.List(pl.Categorical())})
+        with pytest.raises(pl.exceptions.PanicException):
+            data_list.write_json()
