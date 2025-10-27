@@ -1101,9 +1101,8 @@ packages:
   timestamp: 1727801725384
 - pypi: ./
   name: marimo
-  version: 0.17.0
-  sha256: 5e2b68e9ec635e489b7e57183e46a5199d745621494165518f589a5498327212
-  sha256: d3625b613f4b234debfcde140cb7fa88ab9dd840b427291534c8e08e3194f678
+  version: 0.17.2
+  sha256: d81b66fd7b9230f46e084209d14ea657198fa4a86285c07a2e1956d761d985cd
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
