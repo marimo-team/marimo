@@ -2109,7 +2109,7 @@ describe("cell reducer", () => {
     actions.addSetupCellIfDoesntExist({ code: "# Updated setup code" });
 
     // Check that the same setup cell was updated, not duplicated
-    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Updated setup code");
     expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
     expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
   });
@@ -2139,6 +2139,24 @@ describe("cell reducer", () => {
     expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
     expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
     expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+  });
+
+  it("can delete and then create a new setup cell", () => {
+    // Create the setup cell
+    actions.addSetupCellIfDoesntExist({ code: "# Setup code" });
+
+    // Delete the setup cell
+    actions.deleteCell({ cellId: SETUP_CELL_ID });
+
+    // Create a new setup cell
+    actions.addSetupCellIfDoesntExist({ code: "# New code" });
+
+    // Check that the new setup cell was created
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# New code");
     expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
     expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
   });

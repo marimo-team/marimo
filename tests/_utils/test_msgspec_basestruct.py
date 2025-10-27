@@ -3,6 +3,8 @@ import typing as t
 import msgspec
 
 from marimo._ai._tools.tools.cells import (
+    GetCellOutputArgs,
+    GetCellOutputOutput,
     GetCellRuntimeDataArgs,
     GetCellRuntimeDataOutput,
     GetLightweightCellMapArgs,
@@ -15,6 +17,10 @@ from marimo._ai._tools.tools.datasource import (
 from marimo._ai._tools.tools.errors import (
     GetNotebookErrorsArgs,
     GetNotebookErrorsOutput,
+)
+from marimo._ai._tools.tools.lint import (
+    LintNotebookArgs,
+    LintNotebookOutput,
 )
 from marimo._ai._tools.tools.notebooks import (
     GetActiveNotebooksOutput,
@@ -36,6 +42,10 @@ TOOL_IO_CLASSES = [
     GetNotebookErrorsArgs,
     GetNotebookErrorsOutput,
     GetActiveNotebooksOutput,
+    LintNotebookArgs,
+    LintNotebookOutput,
+    GetCellOutputArgs,
+    GetCellOutputOutput,
 ]
 
 

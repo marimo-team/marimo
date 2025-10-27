@@ -483,3 +483,28 @@ def test_should_run_in_sandbox_dangerous_sandbox(tmp_path: Path) -> None:
             name=str(dir_path),
         )
         assert result
+
+
+def test_construct_uv_cmd_without_python_version(tmp_path: Path) -> None:
+    """Test that current Python version is used when not specified."""
+    import platform
+
+    # Create a script without requires-python
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """
+# /// script
+# dependencies = ["numpy"]
+# ///
+import marimo
+    """
+    )
+    uv_cmd = construct_uv_command(
+        ["edit", str(script_path)],
+        str(script_path),
+        additional_features=[],
+        additional_deps=[],
+    )
+    assert "--python" in uv_cmd
+    python_idx = uv_cmd.index("--python")
+    assert uv_cmd[python_idx + 1] == platform.python_version()

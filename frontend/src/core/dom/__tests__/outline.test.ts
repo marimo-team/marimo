@@ -137,6 +137,49 @@ describe("parseOutline", () => {
     `);
   });
 
+  it("can parse markdown outline", () => {
+    const markdown = `
+    <span class="markdown">
+      <h1 id="introduction">Introduction</h1>
+      <h2 id="getting-started">Getting Started</h2>
+      <h3 id="installation">Installation</h3>
+    </span>
+    `;
+    const outline = parseOutline({
+      mimetype: "text/markdown",
+      timestamp: 0,
+      channel: "output",
+      data: markdown,
+    });
+    expect(outline).toMatchInlineSnapshot(`
+      {
+        "items": [
+          {
+            "by": {
+              "id": "introduction",
+            },
+            "level": 1,
+            "name": "Introduction",
+          },
+          {
+            "by": {
+              "id": "getting-started",
+            },
+            "level": 2,
+            "name": "Getting Started",
+          },
+          {
+            "by": {
+              "id": "installation",
+            },
+            "level": 3,
+            "name": "Installation",
+          },
+        ],
+      }
+    `);
+  });
+
   it("can handle non-html outline", () => {
     const html = "foo";
     const outline = parseOutline({

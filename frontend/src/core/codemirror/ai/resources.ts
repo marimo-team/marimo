@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { acceptCompletion } from "@codemirror/autocomplete";
 import type { Language } from "@codemirror/language";
-import type { Extension } from "@codemirror/state";
-import type { TooltipView } from "@codemirror/view";
+import { type Extension, Prec } from "@codemirror/state";
+import { type EditorView, keymap, type TooltipView } from "@codemirror/view";
 import {
   hoverResource,
   type Resource,
@@ -67,6 +68,16 @@ export function resourceExtension(opts: {
         },
       ),
     }),
+    Prec.high(
+      keymap.of([
+        {
+          key: "Tab",
+          run: (view: EditorView) => {
+            return acceptCompletion(view);
+          },
+        },
+      ]),
+    ),
     contextCallbacks.of({
       addAttachment: (attachment) => onAddFiles?.([attachment]),
     }),

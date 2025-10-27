@@ -284,6 +284,7 @@ nav:
       - Google Cloud Storage: integrations/google_cloud_storage.md
       - Google Sheets: integrations/google_sheets.md
       - MotherDuck: integrations/motherduck.md
+  - Security: security.md
 plugins:
   - search
   - social:

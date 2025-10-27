@@ -239,6 +239,18 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "F2",
   },
+  "cell.copyLineUp": {
+    name: "Copy line(s) up",
+    group: "Editing",
+    key: "Alt-Shift-ArrowUp",
+    editable: false,
+  },
+  "cell.copyLineDown": {
+    name: "Copy line(s) down",
+    group: "Editing",
+    key: "Alt-Shift-ArrowDown",
+    editable: false,
+  },
 
   // Markdown
   "markdown.bold": {

@@ -12,12 +12,14 @@
         {
           "type": "stream",
           "name": "stdout",
-          "text": "stdout message"
+          "text": "stdout message",
+          "mimetype": "text/plain"
         },
         {
           "type": "stream",
           "name": "stderr",
-          "text": "stderr message"
+          "text": "stderr message",
+          "mimetype": "text/plain"
         }
       ]
     }

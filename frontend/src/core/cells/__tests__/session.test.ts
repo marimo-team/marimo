@@ -210,8 +210,18 @@ describe("notebookStateFromSession", () => {
 
     it("handles console outputs in session cell", () => {
       const consoleOutputs = [
-        { type: "stream", name: "stdout", text: "Hello stdout" } as const,
-        { type: "stream", name: "stderr", text: "Hello stderr" } as const,
+        {
+          type: "stream",
+          name: "stdout",
+          text: "Hello stdout",
+          mimetype: "text/plain",
+        } as const,
+        {
+          type: "stream",
+          name: "stderr",
+          text: "Hello stderr",
+          mimetype: "text/plain",
+        } as const,
       ];
       const session = createSession([
         createSessionCell("cell-1", [], consoleOutputs),
@@ -356,7 +366,14 @@ describe("notebookStateFromSession", () => {
         createSessionCell(
           "cell-1",
           [],
-          [{ type: "stream", name: "stdout", text: "output" }],
+          [
+            {
+              type: "stream",
+              name: "stdout",
+              text: "output",
+              mimetype: "text/plain",
+            },
+          ],
         ),
       ]);
       const notebook = createNotebook([

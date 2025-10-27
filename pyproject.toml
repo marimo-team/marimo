@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.17.0"
+version = "0.17.2"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments;we need a very compelling reason for each dependency added.
@@ -96,6 +96,7 @@ recommended = [
     "polars[pyarrow]>=1.9.0",   # SQL output back in Python
     "sqlglot[rs]>=26.2.0",      # SQL cells parsing
     "openai>=1.55.3",           # AI features
+    "google-genai>=1.20.0",      # Google AI features
     "ruff",                     # Formatting
     "nbformat>=5.7.0",          # Export as IPYNB
 ]

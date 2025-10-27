@@ -68,7 +68,7 @@ export function parseOutline(output: OutputMessage | null): Outline | null {
     return null;
   }
 
-  if (output.mimetype !== "text/html") {
+  if (output.mimetype !== "text/html" && output.mimetype !== "text/markdown") {
     return null;
   }
 

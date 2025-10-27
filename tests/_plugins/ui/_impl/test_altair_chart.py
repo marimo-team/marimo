@@ -1069,3 +1069,35 @@ def test_update_vconcat_width() -> None:
     updated_hconcat = _update_vconcat_width(hconcat_chart)
     assert updated_hconcat.hconcat[0].width == "container"
     assert updated_hconcat.hconcat[1].width == "container"
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_chart_with_column_encoding_not_full_width() -> None:
+    import altair as alt
+
+    from marimo._plugins.ui._impl.altair_chart import maybe_make_full_width
+
+    # Create a chart with column encoding (faceted chart)
+    data = pd.DataFrame(
+        {
+            "x": [1, 2, 3, 4],
+            "y": [4, 5, 6, 7],
+            "category": ["A", "B", "A", "B"],
+        }
+    )
+    chart = (
+        alt.Chart(data)
+        .mark_point()
+        .encode(x="x:Q", y="y:Q", column="category:N")
+    )
+
+    # Test that chart with column encoding is NOT made full width
+    result = maybe_make_full_width(chart)
+    assert result.width is alt.Undefined
+
+    # Test that chart without column encoding IS made full width
+    chart_without_column = (
+        alt.Chart(data).mark_point().encode(x="x:Q", y="y:Q")
+    )
+    result_without_column = maybe_make_full_width(chart_without_column)
+    assert result_without_column.width == "container"

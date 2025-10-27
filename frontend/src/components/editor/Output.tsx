@@ -25,6 +25,7 @@ import {
   ChevronsUpDownIcon,
   ExpandIcon,
 } from "lucide-react";
+import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -179,6 +180,7 @@ export const OutputRenderer: React.FC<{
         <Suspense fallback={<ChartLoadingState />}>
           <LazyVegaLite
             spec={parsedJsonData as TopLevelFacetedUnitSpec}
+            tooltip={tooltipHandler.call}
             theme={theme === "dark" ? "dark" : undefined}
           />
         </Suspense>
