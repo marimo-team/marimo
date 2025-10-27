@@ -10,4 +10,4 @@
 
 ::: marimo.app_meta
 
-::: marimo._runtime.app_meta.AppMeta
+::: marimo.AppMeta
