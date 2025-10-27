@@ -6,6 +6,7 @@ import { ListFilterIcon } from "lucide-react";
 import React, { type JSX, useMemo } from "react";
 import { VegaLite } from "react-vega";
 import type { VegaLiteProps } from "react-vega/lib/VegaLite";
+import { tooltipHandler } from "@/components/charts/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -135,6 +136,7 @@ export const DataExplorerComponent = ({
           padding={PADDING}
           actions={ACTIONS}
           spec={makeResponsive(mainPlot.spec)}
+          tooltip={tooltipHandler.call}
           theme={theme === "dark" ? "dark" : undefined}
         />
       </div>
@@ -210,6 +212,7 @@ export const DataExplorerComponent = ({
                 key={idx}
                 actions={false}
                 spec={plot.spec}
+                tooltip={tooltipHandler.call}
                 theme={theme === "dark" ? "dark" : undefined}
               />
             </HorizontalCarouselItem>

@@ -170,6 +170,7 @@
     "use-resize-observer": "^9.1.0",
     "vega-lite": "^5.23.0",
     "vega-loader": "^4.5.3",
+    "vega-tooltip": "^1.1.0",
     "vscode-jsonrpc": "^8.2.1",
     "vscode-languageserver-protocol": "^3.17.5",
     "web-vitals": "^4.2.4",

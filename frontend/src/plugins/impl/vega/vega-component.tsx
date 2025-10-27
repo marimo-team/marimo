@@ -8,6 +8,7 @@ import useEvent from "react-use-event-hook";
 import { type SignalListeners, VegaLite, type View } from "react-vega";
 // @ts-expect-error vega-typings does not include formats
 import { formats } from "vega-loader";
+import { tooltipHandler } from "@/components/charts/tooltip";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -26,7 +27,6 @@ import type { VegaLiteSpec } from "./types";
 
 // register arrow reader under type 'arrow'
 formats("arrow", arrow);
-
 export interface Data {
   spec: VegaLiteSpec;
   chartSelection: boolean | "point" | "interval";
@@ -234,6 +234,7 @@ const LoadedVegaComponent = ({
           signalListeners={signalListeners}
           onError={handleError}
           onNewView={handleNewView}
+          tooltip={tooltipHandler.call}
         />
         {renderHelpContent()}
       </div>
