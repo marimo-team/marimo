@@ -74,6 +74,9 @@ export function arrayToggle<T>(arr: T[], item: T): T[] {
   return result;
 }
 
+/**
+ * Unique by a key function.
+ */
 export function uniqueBy<T>(arr: T[], key: (item: T) => string): T[] {
   const result = [];
   const seen = new Set();
@@ -85,6 +88,19 @@ export function uniqueBy<T>(arr: T[], key: (item: T) => string): T[] {
     }
   }
   return result;
+}
+
+/**
+ * Unique by a key function, taking the last item for each key.
+ */
+export function uniqueByTakeLast<T>(arr: T[], key: (item: T) => string): T[] {
+  // Create a map of keys to items
+  const map = new Map<string, T>();
+  for (const item of arr) {
+    const k = key(item);
+    map.set(k, item);
+  }
+  return Array.from(map.values());
 }
 
 /**
