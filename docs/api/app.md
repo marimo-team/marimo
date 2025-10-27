@@ -9,3 +9,5 @@
 ## AppMeta
 
 ::: marimo.app_meta
+
+::: marimo.AppMeta
