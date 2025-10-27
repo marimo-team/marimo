@@ -1336,7 +1336,7 @@ const {
     }
 
     // First check if setup cell already exists
-    if (SETUP_CELL_ID in state.cellData) {
+    if (SETUP_CELL_ID in state.cellIds) {
       // Just focus on the existing setup cell
       return {
         ...state,

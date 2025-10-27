@@ -3,7 +3,8 @@
   "plugins": [
     "frontend/lint/addEventListenerObject.grit",
     "frontend/lint/removeEventListenerObject.grit",
-    "frontend/lint/preferObjectParams.grit"
+    "frontend/lint/preferObjectParams.grit",
+    "frontend/lint/atomWithStorageArgs.grit"
   ],
   "files": {
     "includes": ["frontend/**/*", "packages/**/*", "!*.json", "!*.jsonc"]

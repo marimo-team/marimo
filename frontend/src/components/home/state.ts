@@ -4,6 +4,7 @@ import { atomWithStorage } from "jotai/utils";
 import React from "react";
 import type { MarimoFile } from "@/core/network/types";
 import { Functions } from "@/utils/functions";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
 
 export type RunningNotebooksMap = Map<string, MarimoFile>;
 
@@ -19,12 +20,12 @@ export const WorkspaceRootContext = React.createContext<string>("");
 export const includeMarkdownAtom = atomWithStorage<boolean>(
   "marimo:home:include-markdown",
   false,
-  undefined,
+  jotaiJsonStorage,
   { getOnInit: true },
 );
 export const expandedFoldersAtom = atomWithStorage<Record<string, boolean>>(
   "marimo:home:expanded-folders",
   {},
-  undefined,
+  jotaiJsonStorage,
   { getOnInit: true },
 );

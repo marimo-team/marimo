@@ -1,19 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { adaptForLocalStorage } from "../storage";
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-};
-
-Object.defineProperty(global, "localStorage", {
-  value: localStorageMock,
-  writable: true,
-});
+// Mock the storage module to return our mock
+// This must be before the import of adaptForLocalStorage
+vi.mock("../storage/storage", () => ({
+  availableStorage: {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+  },
+}));
 
 // Mock Logger
 vi.mock("../Logger", () => ({
@@ -21,6 +18,9 @@ vi.mock("../Logger", () => ({
     warn: vi.fn(),
   },
 }));
+
+import { adaptForLocalStorage } from "../storage/jotai";
+import { availableStorage } from "../storage/storage";
 
 interface TestValue {
   id: string;
@@ -70,18 +70,18 @@ describe("adaptForLocalStorage", () => {
           ["key2", 2],
         ],
       });
-      localStorageMock.getItem.mockReturnValue(serialized);
+      vi.mocked(availableStorage.getItem).mockReturnValue(serialized);
 
       const result = storage.getItem("test-key", initialValue);
 
-      expect(localStorageMock.getItem).toHaveBeenCalledWith("test-key");
+      expect(availableStorage.getItem).toHaveBeenCalledWith("test-key");
       expect(result.id).toBe("test");
       expect(result.data.get("key1")).toBe(1);
       expect(result.data.get("key2")).toBe(2);
     });
 
     it("should return initial value when localStorage returns null", () => {
-      localStorageMock.getItem.mockReturnValue(null);
+      vi.mocked(availableStorage.getItem).mockReturnValue(null);
 
       const result = storage.getItem("test-key", initialValue);
 
@@ -89,7 +89,7 @@ describe("adaptForLocalStorage", () => {
     });
 
     it("should return initial value when localStorage returns empty string", () => {
-      localStorageMock.getItem.mockReturnValue("");
+      vi.mocked(availableStorage.getItem).mockReturnValue("");
 
       const result = storage.getItem("test-key", initialValue);
 
@@ -97,7 +97,7 @@ describe("adaptForLocalStorage", () => {
     });
 
     it("should return initial value and log warning when JSON parsing fails", () => {
-      localStorageMock.getItem.mockReturnValue("invalid-json");
+      vi.mocked(availableStorage.getItem).mockReturnValue("invalid-json");
 
       const result = storage.getItem("test-key", initialValue);
 
@@ -107,7 +107,7 @@ describe("adaptForLocalStorage", () => {
 
     it("should return initial value and log warning when deserialization fails", () => {
       // This JSON is parseable but will cause the Map constructor to throw
-      localStorageMock.getItem.mockReturnValue(
+      vi.mocked(availableStorage.getItem).mockReturnValue(
         '{"id": "test", "data": "not-an-array"}',
       );
 
@@ -121,7 +121,7 @@ describe("adaptForLocalStorage", () => {
     it("should serialize and store value in localStorage", () => {
       storage.setItem("test-key", testValue);
 
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+      expect(availableStorage.setItem).toHaveBeenCalledWith(
         "test-key",
         JSON.stringify({
           id: "test",
@@ -138,7 +138,7 @@ describe("adaptForLocalStorage", () => {
     it("should call localStorage.removeItem with the correct key", () => {
       storage.removeItem("test-key");
 
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith("test-key");
+      expect(availableStorage.removeItem).toHaveBeenCalledWith("test-key");
     });
   });
 });

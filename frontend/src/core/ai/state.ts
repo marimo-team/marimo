@@ -5,7 +5,7 @@ import type { FileUIPart } from "ai";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { uniqueBy } from "@/utils/arrays";
-import { adaptForLocalStorage } from "@/utils/storage";
+import { adaptForLocalStorage, jotaiJsonStorage } from "@/utils/storage/jotai";
 import type { TypedString } from "@/utils/typed";
 import type { CellId } from "../cells/ids";
 
@@ -25,6 +25,7 @@ const INCLUDE_OTHER_CELLS_KEY = "marimo:ai:includeOtherCells";
 export const includeOtherCellsAtom = atomWithStorage<boolean>(
   INCLUDE_OTHER_CELLS_KEY,
   true,
+  jotaiJsonStorage,
 );
 
 export interface Message {

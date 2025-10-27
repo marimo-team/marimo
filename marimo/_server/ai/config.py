@@ -124,11 +124,16 @@ class AnyProviderConfig:
             ai_config, name, fallback_key=fallback_key, require_key=require_key
         )
 
+        # Use SSL_CERT_FILE environment variable as fallback for ca_bundle_path
+        ca_bundle_path = ai_config.get("ca_bundle_path") or cls.os_key(
+            "SSL_CERT_FILE"
+        )
+
         kwargs: dict[str, Any] = {
             "base_url": _get_base_url(ai_config) or fallback_base_url,
             "api_key": key,
             "ssl_verify": ai_config.get("ssl_verify", True),
-            "ca_bundle_path": ai_config.get("ca_bundle_path", None),
+            "ca_bundle_path": ca_bundle_path,
             "client_pem": ai_config.get("client_pem", None),
             "extra_headers": ai_config.get("extra_headers", None),
             "tools": _get_tools(config.get("mode", "manual")),

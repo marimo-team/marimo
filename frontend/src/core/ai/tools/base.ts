@@ -1,6 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { z } from "zod";
+import type { CreateNewCellAction } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import type { RunRequest } from "@/core/network/types";
+import type { JotaiStore } from "@/core/state/jotai";
+import type { Edit } from "../staged-cells";
 import type { CopilotMode } from "./registry";
 
 /**
@@ -53,6 +58,9 @@ export class ToolExecutionError extends Error {
   }
 }
 
+// Can be any input
+export type EmptyToolInput = unknown;
+
 /**
  * Base interface for tool output responses.
  * Mirrors the SuccessResult dataclass from marimo/_ai/_tools/types.py
@@ -92,11 +100,23 @@ export interface ToolDescription {
   additionalInfo?: string;
 }
 
+/** Utility functions for tools to interact with the notebook */
+export interface ToolNotebookContext {
+  store: JotaiStore;
+  addStagedCell: (payload: { cellId: CellId; edit: Edit }) => void;
+  createNewCell: (payload: CreateNewCellAction) => void;
+  prepareForRun: (payload: { cellId: CellId }) => void;
+  sendRun: (request: RunRequest) => Promise<null>;
+}
+
 export interface AiTool<TIn, TOut> {
   name: string;
   description: ToolDescription;
   schema: z.ZodType<TIn>;
   outputSchema: z.ZodType<TOut>;
   mode: CopilotMode[];
-  handler: (args: TIn) => TOut | Promise<TOut>;
+  handler: (
+    args: TIn,
+    toolContext: ToolNotebookContext,
+  ) => TOut | Promise<TOut>;
 }

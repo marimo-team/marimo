@@ -1600,3 +1600,117 @@ def test_calculate_top_k_rows_cache_invalidation(df: Any) -> None:
 
     # Verify the actual results are different
     assert result1 != result2
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+class TestSanitizeTableValue:
+    """Tests for the _sanitize_table_value method."""
+
+    def setUp(self) -> None:
+        import polars as pl
+
+        self.data = pl.DataFrame({"A": [1, 2, 3]})
+        self.manager = NarwhalsTableManager.from_dataframe(self.data)
+
+    def test_sanitize_none(self) -> None:
+        """Test that None values are returned as-is."""
+        manager = self._get_manager()
+        assert manager._sanitize_table_value(None) is None
+
+    def test_sanitize_primitive_values(self) -> None:
+        """Test that primitive values are returned unchanged."""
+        manager = self._get_manager()
+        assert manager._sanitize_table_value(42) == 42
+        assert manager._sanitize_table_value("hello") == "hello"
+        assert manager._sanitize_table_value(3.14) == 3.14
+        assert manager._sanitize_table_value(True) is True
+
+    @pytest.mark.skipif(
+        not DependencyManager.pillow.has(),
+        reason="Pillow not installed",
+    )
+    def test_sanitize_pillow_image(self) -> None:
+        """Test that Pillow images are converted to data URLs."""
+        from PIL import Image
+
+        manager = self._get_manager()
+
+        # Create a simple test image
+        img = Image.new("RGB", (10, 10), color="red")
+
+        result = manager._sanitize_table_value(img)
+
+        # Verify it returns a data URL string
+        assert isinstance(result, str)
+        assert result.startswith("data:image/png;base64,")
+
+    @pytest.mark.skipif(
+        not DependencyManager.matplotlib.has(),
+        reason="Matplotlib not installed",
+    )
+    def test_sanitize_matplotlib_figure(self) -> None:
+        """Test that Matplotlib figures are returned unchanged (no conversion)."""
+        import matplotlib.pyplot as plt
+
+        manager = self._get_manager()
+
+        # Create a simple figure
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3], [1, 2, 3])
+
+        result = manager._sanitize_table_value(fig)
+
+        # Figure is currently returned unchanged because there's no return statement for figures
+        # (only for axes)
+        assert result == fig
+
+        plt.close(fig)
+
+    @pytest.mark.skipif(
+        not DependencyManager.matplotlib.has(),
+        reason="Matplotlib not installed",
+    )
+    def test_sanitize_matplotlib_axes(self) -> None:
+        """Test that Matplotlib axes are converted to HTML."""
+        import matplotlib.pyplot as plt
+
+        manager = self._get_manager()
+
+        # Create a simple axes
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3], [1, 2, 3])
+
+        result = manager._sanitize_table_value(ax)
+
+        # Verify it returns a dict with mimetype and data
+        assert isinstance(result, dict)
+        assert "mimetype" in result
+        assert "data" in result
+
+        plt.close(fig)
+
+    def test_sanitize_unsupported_types(self) -> None:
+        """Test that unsupported types are returned unchanged."""
+        manager = self._get_manager()
+
+        # Test various unsupported types
+        class CustomClass:
+            pass
+
+        obj = CustomClass()
+        assert manager._sanitize_table_value(obj) == obj
+
+        # Test dict
+        d = {"key": "value"}
+        assert manager._sanitize_table_value(d) == d
+
+        # Test list
+        lst = [1, 2, 3]
+        assert manager._sanitize_table_value(lst) == lst
+
+    def _get_manager(self) -> NarwhalsTableManager[Any]:
+        """Helper method to create a manager."""
+        import polars as pl
+
+        data = pl.DataFrame({"A": [1, 2, 3]})
+        return NarwhalsTableManager.from_dataframe(data)

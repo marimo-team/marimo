@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import DOMPurify, { type Config } from "dompurify";
 import { atom, useAtomValue } from "jotai";
 import { hasRunAnyCellAtom } from "@/components/editor/cell/useRunCells";
@@ -26,6 +27,9 @@ const sanitizeHtmlAtom = atom<boolean>((get) => {
   return true;
 });
 
+/**
+ * Whether to sanitize the html.
+ */
 export function useSanitizeHtml() {
   return useAtomValue(sanitizeHtmlAtom);
 }

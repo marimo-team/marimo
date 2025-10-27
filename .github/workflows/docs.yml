@@ -7,6 +7,9 @@ on:
   # Deploy on workflow dispatch
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

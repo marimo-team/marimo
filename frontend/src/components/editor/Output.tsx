@@ -25,9 +25,10 @@ import {
   ChevronsUpDownIcon,
   ExpandIcon,
 } from "lucide-react";
+import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
+import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { renderHTML } from "@/plugins/core/RenderHTML";
-import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { useTheme } from "@/theme/useTheme";
@@ -93,7 +94,14 @@ export const OutputRenderer: React.FC<{
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
-      return <HtmlOutput className={channel} html={data} />;
+      // We don't sanitize HTML in text/html to allow for iframes or rich javascript content.
+      return (
+        <HtmlOutput
+          className={channel}
+          html={data}
+          alwaysSanitizeHtml={false}
+        />
+      );
 
     case "text/plain":
       invariant(
@@ -124,7 +132,7 @@ export const OutputRenderer: React.FC<{
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
-      return renderHTML({ html: data });
+      return renderHTML({ html: data, alwaysSanitizeHtml: true });
 
     case "video/mp4":
     case "video/mpeg":
@@ -164,13 +172,7 @@ export const OutputRenderer: React.FC<{
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
       return (
-        <LazyAnyLanguageCodeMirror
-          theme={theme === "dark" ? "dark" : "light"}
-          value={data}
-          readOnly={true}
-          editable={false}
-          language="markdown"
-        />
+        <HtmlOutput className={channel} html={data} alwaysSanitizeHtml={true} />
       );
     case "application/vnd.vegalite.v5+json":
     case "application/vnd.vega.v5+json":
@@ -178,6 +180,7 @@ export const OutputRenderer: React.FC<{
         <Suspense fallback={<ChartLoadingState />}>
           <LazyVegaLite
             spec={parsedJsonData as TopLevelFacetedUnitSpec}
+            tooltip={tooltipHandler.call}
             theme={theme === "dark" ? "dark" : undefined}
           />
         </Suspense>
@@ -378,6 +381,7 @@ const ExpandableOutput = React.memo(
     const containerRef = useRef<HTMLDivElement>(null);
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
     const [isOverflowing, setIsOverflowing] = useState(false);
+    const { hasFullscreen } = useIframeCapabilities();
 
     // Create resize observer to detect overflow
     useEffect(() => {
@@ -403,20 +407,22 @@ const ExpandableOutput = React.memo(
         <div>
           <div className="relative print:hidden">
             <div className="absolute -right-9 top-1 z-1 flex flex-col gap-1">
-              <Tooltip content="Fullscreen" side="left">
-                <Button
-                  data-testid="fullscreen-output-button"
-                  className="hover-action hover:bg-muted p-1 hover:border-border border border-transparent"
-                  onClick={async () => {
-                    await containerRef.current?.requestFullscreen();
-                  }}
-                  onMouseDown={Events.preventFocus}
-                  size="xs"
-                  variant="text"
-                >
-                  <ExpandIcon className="size-4" strokeWidth={1.25} />
-                </Button>
-              </Tooltip>
+              {hasFullscreen && (
+                <Tooltip content="Fullscreen" side="left">
+                  <Button
+                    data-testid="fullscreen-output-button"
+                    className="hover-action hover:bg-muted p-1 hover:border-border border border-transparent"
+                    onClick={async () => {
+                      await containerRef.current?.requestFullscreen();
+                    }}
+                    onMouseDown={Events.preventFocus}
+                    size="xs"
+                    variant="text"
+                  >
+                    <ExpandIcon className="size-4" strokeWidth={1.25} />
+                  </Button>
+                </Tooltip>
+              )}
               {(isOverflowing || isExpanded) && !forceExpand && (
                 <Button
                   data-testid="expand-output-button"

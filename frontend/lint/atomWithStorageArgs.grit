@@ -1,0 +1,12 @@
+// Enforce atomWithStorage to use at least 3 arguments
+// This ensures the storage parameter is always explicitly provided
+or {
+  `atomWithStorage($arg1, $arg2)`,
+  `atomWithStorage<$_>($arg1, $arg2)`
+} where {
+  register_diagnostic(
+    span=$arg1,
+    message="atomWithStorage requires at least 3 arguments (key, defaultValue, storage). Provide the storage parameter explicitly.",
+    severity="error"
+  )
+}

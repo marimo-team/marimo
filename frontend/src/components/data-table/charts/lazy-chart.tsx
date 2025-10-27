@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { TopLevelSpec } from "vega-lite";
+import { tooltipHandler } from "@/components/charts/tooltip";
 import { useTheme } from "@/theme/useTheme";
 import type { ErrorMessage } from "./chart-spec/spec";
 import { augmentSpecWithData } from "./chart-spec/spec";
@@ -33,6 +34,7 @@ export const LazyChart: React.FC<{
           spec={spec}
           theme={theme === "dark" ? "dark" : undefined}
           height={height}
+          tooltip={tooltipHandler.call}
           actions={{
             export: true,
             source: false,

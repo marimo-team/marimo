@@ -27,7 +27,8 @@
     "overrides": {
       "react": "^19.1.0",
       "react-dom": "^19.1.0",
-      "vite": "npm:rolldown-vite@latest"
+      "vite": "npm:rolldown-vite@latest",
+      "form-data": ">=4.0.0"
     },
     "peerDependencyRules": {
       "allowedVersions": {

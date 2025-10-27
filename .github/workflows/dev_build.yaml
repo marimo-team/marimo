@@ -6,6 +6,9 @@ on:
       - 'Makefile'
       - 'pyproject.toml'
 
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:

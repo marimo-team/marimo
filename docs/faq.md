@@ -434,17 +434,29 @@ You can use any Python package. marimo cells run arbitrary Python code.
 
 Use SSH port-forwarding to run marimo on a remote server
 and connect to it from a browser on your local machine. Make sure
-to pass the `--headless` flag when starting marimo on remote:
+to pass the `--headless` flag when starting marimo on remote; on the remote
+machine, we also recommend using a port other than marimo's default port, such
+as 8080:
+
+_On the remote machine, run:_
 
 ```bash
-marimo edit --headless
+marimo edit --headless --port 8080
 ```
 
-You may also want to set a custom host and port:
+or, if you want to set a custom host:
 
 ```bash
 marimo edit --headless --host 0.0.0.0 --port 8080
 ```
+
+_On local, run:_
+
+```
+ssh -N -L 3718:127.0.0.1:8080 REMOTE_USER@REMOTE_HOST
+```
+
+Then open `localhost:3718` in your browser.
 
 <a name="faq-interfaces"></a>
 

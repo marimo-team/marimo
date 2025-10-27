@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { Figure } from "react-plotly.js";
+import type { Figure, PlotParams } from "react-plotly.js";
 import { z } from "zod";
 import type { IPlugin, IPluginProps, Setter } from "@/plugins/types";
 import { Logger } from "@/utils/Logger";
@@ -71,7 +71,14 @@ interface PlotlyPluginProps extends Data {
   host: HTMLElement;
 }
 
-export const LazyPlot = lazy(() => import("react-plotly.js"));
+// For whatever reason, the version of vite-rolldown that we are one is not exporting this default export correctly.
+export const LazyPlot = lazy(() =>
+  import("react-plotly.js").then((module) => {
+    return module.default as unknown as {
+      default: React.ComponentType<PlotParams>;
+    };
+  }),
+);
 
 function initialLayout(figure: Figure): Partial<Plotly.Layout> {
   // Enable autosize if width is not specified

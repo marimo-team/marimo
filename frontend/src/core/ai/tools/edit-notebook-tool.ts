@@ -4,25 +4,19 @@ import type { EditorView } from "@codemirror/view";
 import { z } from "zod";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
 import {
-  createNotebookActions,
   type CellPosition as NotebookCellPosition,
   type NotebookState,
   notebookAtom,
-  notebookReducer,
 } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
-import type { JotaiStore } from "@/core/state/jotai";
 import type { CellColumnId } from "@/utils/id-tree";
-import {
-  createStagedAICellsActions,
-  stagedAICellsAtom,
-  stagedAICellsReducer,
-} from "../staged-cells";
+import { stagedAICellsAtom } from "../staged-cells";
 import {
   type AiTool,
   type ToolDescription,
   ToolExecutionError,
+  type ToolNotebookContext,
   type ToolOutputBase,
   toolOutputBaseSchema,
 } from "./base";
@@ -30,18 +24,18 @@ import type { CopilotMode } from "./registry";
 
 const description: ToolDescription = {
   baseDescription:
-    "Perform editing operations on the current notebook. Call this tool multiple times to perform multiple edits.",
+    "Perform editing operations on the current notebook. You should prefer to create new cells unless you need to edit existing cells. Call this tool multiple times to perform multiple edits. Separate code into logical individual cells to take advantage of the notebook's reactive execution model.",
   prerequisites: [
-    "Find out the cellIds and columnIds first (call lightweight cell map tool)",
+    "If you are updating existing cells, you need the cellIds. If they are not known, call the lightweight_cell_map_tool to find out.",
   ],
   additionalInfo: `
   Args:
     edit (object): The editing operation to perform. Must be one of:
     - update_cell: Update the code of an existing cell, pass CellId and the new code.
     - add_cell: Add a new cell to the notebook. The position of the new cell is specified by the position argument.
-        Pass "__end__" to add the new cell at the end of the notebook. 
+        Pass "end" to add the new cell at the end of the notebook. 
         Pass { cellId: cellId, before: true } to add the new cell before the specified cell. And before: false if after the specified cell.
-        Pass { type: "__end__", columnId: columnId } to add the new cell at the end of the specified column.
+        Pass { type: "end", columnIndex: number } to add the new cell at the end of a specified column index. The column index is 0-based.
     - delete_cell: Delete an existing cell, pass CellId. For deleting cells, the user needs to accept the deletion to actually delete the cell, so you may still see the cell in the notebook on subsequent edits which is fine.
 
     For adding code, use the following guidelines:
@@ -54,8 +48,8 @@ const description: ToolDescription = {
 
 type CellPosition =
   | { cellId: CellId; before: boolean }
-  | { type: "__end__"; columnId: CellColumnId }
-  | "__end__";
+  | { type: "end"; columnIndex: number }
+  | "end";
 
 const editNotebookSchema = z.object({
   edit: z.discriminatedUnion("type", [
@@ -72,10 +66,10 @@ const editNotebookSchema = z.object({
           before: z.boolean(),
         }),
         z.object({
-          type: z.literal("__end__"),
-          columnId: z.string() as unknown as z.ZodType<CellColumnId>,
+          type: z.literal("end"),
+          columnIndex: z.number(),
         }),
-        z.literal("__end__"),
+        z.literal("end"),
       ]) satisfies z.ZodType<CellPosition>,
       code: z.string(),
     }),
@@ -93,44 +87,41 @@ export type EditType = EditOperation["type"];
 export class EditNotebookTool
   implements AiTool<EditNotebookInput, ToolOutputBase>
 {
-  private readonly store: JotaiStore;
-  private readonly notebookActions: ReturnType<typeof createNotebookActions>;
-  private readonly stagedAICellsActions: ReturnType<
-    typeof createStagedAICellsActions
-  >;
   readonly name = "edit_notebook_tool";
   readonly description = description;
   readonly schema = editNotebookSchema;
   readonly outputSchema = toolOutputBaseSchema;
   readonly mode: CopilotMode[] = ["agent"];
 
-  constructor(store: JotaiStore) {
-    this.store = store;
-    this.notebookActions = createNotebookActions((action) => {
-      this.store.set(notebookAtom, (state) => notebookReducer(state, action));
-    });
-    this.stagedAICellsActions = createStagedAICellsActions((action) => {
-      this.store.set(stagedAICellsAtom, (state) =>
-        stagedAICellsReducer(state, action),
-      );
-    });
-  }
+  handler = async (
+    { edit }: EditNotebookInput,
+    toolContext: ToolNotebookContext,
+  ): Promise<ToolOutputBase> => {
+    const { addStagedCell, createNewCell, store } = toolContext;
 
-  handler = async ({ edit }: EditNotebookInput): Promise<ToolOutputBase> => {
     switch (edit.type) {
       case "update_cell": {
         const { cellId, code } = edit;
 
-        const notebook = this.store.get(notebookAtom);
+        const notebook = store.get(notebookAtom);
         this.validateCellIdExists(cellId, notebook);
         const editorView = this.getCellEditorView(cellId, notebook);
 
         scrollAndHighlightCell(cellId);
 
+        // If previous code exists, we don't want to replace it, it means there is a new edit on top of the previous edit
+        // Keep the original code
+        const stagedCell = store.get(stagedAICellsAtom).get(cellId);
         const currentCellCode = editorView.state.doc.toString();
-        this.stagedAICellsActions.addStagedCell({
+        const previousCode =
+          stagedCell?.type === "update_cell" ||
+          stagedCell?.type === "delete_cell"
+            ? stagedCell.previousCode
+            : currentCellCode;
+
+        addStagedCell({
           cellId,
-          edit: { type: "update_cell", previousCode: currentCellCode },
+          edit: { type: "update_cell", previousCode: previousCode },
         });
 
         updateEditorCodeFromPython(editorView, code);
@@ -146,26 +137,25 @@ export class EditNotebookTool
         const newCellId = CellId.create();
 
         if (typeof position === "object") {
-          const notebook = this.store.get(notebookAtom);
+          const notebook = store.get(notebookAtom);
           if ("cellId" in position) {
             this.validateCellIdExists(position.cellId, notebook);
             notebookPosition = position.cellId;
             before = position.before;
-          } else if ("columnId" in position) {
-            this.validateColumnIdExists(position.columnId, notebook);
-            notebookPosition = { type: "__end__", columnId: position.columnId };
+          } else if ("columnIndex" in position) {
+            const columnId = this.getColumnId(position.columnIndex, notebook);
+            notebookPosition = { type: "__end__", columnId };
           }
         }
 
-        this.notebookActions.createNewCell({
+        createNewCell({
           cellId: notebookPosition,
           before,
           code,
           newCellId,
         });
 
-        // Add to staged AICells
-        this.stagedAICellsActions.addStagedCell({
+        addStagedCell({
           cellId: newCellId,
           edit: { type: "add_cell" },
         });
@@ -178,14 +168,14 @@ export class EditNotebookTool
       case "delete_cell": {
         const { cellId } = edit;
 
-        const notebook = this.store.get(notebookAtom);
+        const notebook = store.get(notebookAtom);
         this.validateCellIdExists(cellId, notebook);
 
         const editorView = this.getCellEditorView(cellId, notebook);
         const currentCellCode = editorView.state.doc.toString();
 
         // Add to staged AICells - don't actually delete the cell yet
-        this.stagedAICellsActions.addStagedCell({
+        addStagedCell({
           cellId,
           edit: { type: "delete_cell", previousCode: currentCellCode },
         });
@@ -212,19 +202,22 @@ export class EditNotebookTool
     }
   }
 
-  private validateColumnIdExists(
-    columnId: CellColumnId,
+  private getColumnId(
+    columnIndex: number,
     notebook: NotebookState,
-  ) {
+  ): CellColumnId {
     const cellIds = notebook.cellIds;
-    if (!cellIds.getColumns().some((column) => column.id === columnId)) {
+    const columns = cellIds.getColumns();
+
+    if (columnIndex < 0 || columnIndex >= columns.length) {
       throw new ToolExecutionError(
-        "Column not found",
-        "COLUMN_NOT_FOUND",
-        false,
-        "Check which columns exist in the notebook",
+        "Column index is out of range",
+        "COLUMN_INDEX_OUT_OF_RANGE",
+        true,
+        "Choose a column index between 0 and the number of columns in the notebook (0-based)",
       );
     }
+    return columns[columnIndex].id;
   }
 
   private getCellEditorView(

@@ -43,8 +43,8 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
 
     // Build shape information
     const shape = [
-      num_rows != null ? `${num_rows} rows` : undefined,
-      num_columns != null ? `${num_columns} columns` : undefined,
+      num_rows == null ? undefined : `${num_rows} rows`,
+      num_columns == null ? undefined : `${num_columns} columns`,
     ]
       .filter(Boolean)
       .join(", ");

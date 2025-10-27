@@ -270,6 +270,7 @@ describe("add table list", () => {
       engine: "conn1" as ConnectionName,
       database: "db1",
       schema: "public",
+      dialect: "sqlite",
     });
 
     const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
@@ -283,6 +284,7 @@ describe("add table list", () => {
       engine: "conn1" as ConnectionName,
       database: "db1",
       schema: "public",
+      dialect: "sqlite",
     };
 
     const tableList: DataTable[] = [
@@ -344,6 +346,7 @@ describe("add table list", () => {
       engine: "conn1" as ConnectionName,
       database: "db1",
       schema: "non_existent",
+      dialect: "sqlite",
     });
 
     const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
@@ -407,6 +410,7 @@ describe("add table", () => {
       engine: "conn1" as ConnectionName,
       database: "db1",
       schema: "public",
+      dialect: "sqlite",
     });
 
     const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
@@ -420,6 +424,7 @@ describe("add table", () => {
       engine: "conn1" as ConnectionName,
       database: "db1",
       schema: "public",
+      dialect: "sqlite",
     };
 
     const table: DataTable = {
@@ -476,6 +481,7 @@ describe("add table", () => {
       engine: "conn1" as ConnectionName,
       database: "db1",
       schema: "non_existent",
+      dialect: "sqlite",
     });
 
     const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);

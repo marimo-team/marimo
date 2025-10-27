@@ -1,0 +1,17 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CellOutputContextProvider > formatContext > should format media output context correctly > media-output-context 1`] = `
+"<cell-output name="cell-1" cellId="cell2" outputType="media" mimetype="image/png">Cell Code:
+import matplotlib.pyplot as plt
+plt.plot([1,2,3])
+
+Media Output: Contains image/png content</cell-output>"
+`;
+
+exports[`CellOutputContextProvider > formatContext > should format text output context correctly > text-output-context 1`] = `
+"<cell-output name="My Cell" cellId="cell1" outputType="text" mimetype="text/plain">Cell Code:
+print('hello world')
+
+Output:
+hello world</cell-output>"
+`;

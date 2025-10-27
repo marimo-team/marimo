@@ -57,6 +57,46 @@ import {
   isUserMessages,
 } from "./utils";
 
+/**
+ * Merges consecutive text blocks into a single text block to prevent
+ * fragmented display when agent messages are streamed in chunks.
+ */
+function mergeConsecutiveTextBlocks(
+  contentBlocks: ContentBlock[],
+): ContentBlock[] {
+  if (contentBlocks.length === 0) {
+    return contentBlocks;
+  }
+
+  const merged: ContentBlock[] = [];
+  let currentTextBlock: string | null = null;
+
+  for (const block of contentBlocks) {
+    if (block.type === "text") {
+      // Accumulate text content
+      if (currentTextBlock === null) {
+        currentTextBlock = block.text;
+      } else {
+        currentTextBlock += block.text;
+      }
+    } else {
+      // If we have accumulated text, flush it before adding non-text block
+      if (currentTextBlock !== null) {
+        merged.push({ type: "text", text: currentTextBlock });
+        currentTextBlock = null;
+      }
+      merged.push(block);
+    }
+  }
+
+  // Flush any remaining text
+  if (currentTextBlock !== null) {
+    merged.push({ type: "text", text: currentTextBlock });
+  }
+
+  return merged;
+}
+
 export const ErrorBlock = (props: {
   data: ErrorNotificationEvent["data"];
   onRetry?: () => void;
@@ -321,9 +361,14 @@ export const UserMessagesBlock = (props: { data: UserNotificationEvent[] }) => {
 export const AgentMessagesBlock = (props: {
   data: AgentNotificationEvent[];
 }) => {
+  // Merge consecutive text chunks to prevent fragmented display
+  const mergedContent = mergeConsecutiveTextBlocks(
+    props.data.map((item) => item.content),
+  );
+
   return (
     <div className="flex flex-col gap-2">
-      <ContentBlocks data={props.data.map((item) => item.content)} />
+      <ContentBlocks data={mergedContent} />
     </div>
   );
 };

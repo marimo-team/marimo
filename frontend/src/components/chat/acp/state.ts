@@ -3,6 +3,8 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { capitalize } from "lodash-es";
+import { isPlatformWindows } from "@/core/hotkeys/shortcuts";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import type { TypedString } from "@/utils/typed";
 import { generateUUID } from "@/utils/uuid";
 import type { ExternalAgentSessionId, SessionSupportType } from "./types";
@@ -40,6 +42,7 @@ export const agentSessionStateAtom = atomWithStorage<AgentSessionState>(
     sessions: [],
     activeTabId: null,
   },
+  jotaiJsonStorage,
 );
 
 export const selectedTabAtom = atom(
@@ -259,5 +262,6 @@ export function getAgentSessionSupport(
 export function getAgentConnectionCommand(agentId: ExternalAgentId): string {
   const port = AGENT_CONFIG[agentId].port;
   const command = AGENT_CONFIG[agentId].command;
-  return `npx stdio-to-ws "${command}" --port ${port}`;
+  const wrappedCommand = isPlatformWindows() ? `cmd /c ${command}` : command;
+  return `npx stdio-to-ws "${wrappedCommand}" --port ${port}`;
 }

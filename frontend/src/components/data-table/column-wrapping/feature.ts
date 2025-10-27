@@ -13,6 +13,8 @@ import type {
   ColumnWrappingTableState,
 } from "./types";
 
+export const COLUMN_WRAPPING_STYLES = "whitespace-pre-wrap min-w-[200px]";
+
 export const ColumnWrappingFeature: TableFeature = {
   getInitialState: (state): ColumnWrappingTableState => {
     return {

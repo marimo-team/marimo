@@ -693,6 +693,48 @@ def test_deserialize_error_with_traceback():
     assert console_output.data == tb
 
 
+def test_deserialize_session_with_console_mimetype():
+    """Test deserialization of a session with console output that has mimetype"""
+    session = NotebookSessionV1(
+        version=1,
+        metadata={"marimo_version": "1.0.0"},
+        cells=[
+            {
+                "id": "cell1",
+                "code_hash": "123",
+                "outputs": [],
+                "console": [
+                    {
+                        "type": "stream",
+                        "name": "stdout",
+                        "text": "stdout message",
+                        "mimetype": "text/html",
+                    },
+                    {
+                        "type": "stream",
+                        "name": "stderr",
+                        "text": "stderr message",
+                        "mimetype": "text/plain",
+                    },
+                ],
+            }
+        ],
+    )
+
+    view = deserialize_session(session)
+    assert "cell1" in view.cell_operations
+    cell = view.cell_operations["cell1"]
+    assert isinstance(cell.console, list)
+    assert len(cell.console) == 2
+    console_outputs = cell.console
+    assert console_outputs[0].channel == CellChannel.STDOUT
+    assert console_outputs[0].data == "stdout message"
+    assert console_outputs[0].mimetype == "text/html"
+    assert console_outputs[1].channel == CellChannel.STDERR
+    assert console_outputs[1].data == "stderr message"
+    assert console_outputs[1].mimetype == "text/plain"
+
+
 def test_serialize_session_with_dict_error():
     """Test serialization of a session with a dictionary error"""
     view = SessionView()

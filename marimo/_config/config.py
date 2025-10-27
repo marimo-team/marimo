@@ -629,7 +629,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
     "runtime": {
-        "auto_instantiate": True,
+        "auto_instantiate": False,
         "auto_reload": "off",
         "reactive_tests": True,
         "on_cell_change": "autorun",
@@ -654,7 +654,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "language_servers": {
         "pylsp": {
-            "enabled": True,
+            "enabled": False,
             "enable_mypy": True,
             "enable_ruff": True,
             "enable_flake8": False,
