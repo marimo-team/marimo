@@ -48,7 +48,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""\nSELECT email FROM users LIMIT 100\n""")',
+        '_df = mo.sql(f"""\nSELECT "email" FROM "users" LIMIT 100\n""")',
       );
     });
 
@@ -68,7 +68,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""\nSELECT email FROM analytics.users LIMIT 100\n""")',
+        '_df = mo.sql(f"""\nSELECT "email" FROM "analytics"."users" LIMIT 100\n""")',
       );
     });
 
@@ -108,7 +108,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""\nSELECT email FROM remote.users LIMIT 100\n""")',
+        '_df = mo.sql(f"""\nSELECT "email" FROM "remote"."users" LIMIT 100\n""")',
       );
     });
 
@@ -127,7 +127,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""\nSELECT email FROM users LIMIT 100\n""")',
+        '_df = mo.sql(f"""\nSELECT "email" FROM "users" LIMIT 100\n""")',
       );
 
       const sqlTableContext2: SQLTableContext = {
@@ -144,7 +144,7 @@ describe("sqlCode", () => {
         sqlTableContext: sqlTableContext2,
       });
       expect(result2).toBe(
-        '_df = mo.sql(f"""\nSELECT email FROM another_db.users LIMIT 100\n""")',
+        '_df = mo.sql(f"""\nSELECT "email" FROM "another_db"."users" LIMIT 100\n""")',
       );
     });
   });
@@ -253,7 +253,7 @@ describe("sqlCode", () => {
     });
   });
 
-  describe("TimescaleDB dialect", () => {
+  describe("TimescaleDB and PostgreSQL dialect", () => {
     it("should wrap table name with double quotes", () => {
       const sqlTableContext: SQLTableContext = {
         engine: "timescaledb",
@@ -270,7 +270,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""\nSELECT email FROM "users" LIMIT 100\n""", engine=timescaledb)',
+        '_df = mo.sql(f"""\nSELECT "email" FROM "users" LIMIT 100\n""", engine=timescaledb)',
       );
     });
 
@@ -290,17 +290,17 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""\nSELECT email FROM "remote"."sales"."users" LIMIT 100\n""", engine=timescaledb)',
+        '_df = mo.sql(f"""\nSELECT "email" FROM "remote"."sales"."users" LIMIT 100\n""", engine=timescaledb)',
       );
     });
 
     it("should handle schemaless database with double quotes", () => {
       const sqlTableContext: SQLTableContext = {
-        engine: "timescaledb",
+        engine: "postgres",
         schema: "",
         defaultDatabase: "mydb",
         database: "remote",
-        dialect: "timescaledb",
+        dialect: "postgres",
       };
 
       const result = sqlCode({
@@ -309,7 +309,27 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""\nSELECT email FROM "remote"."users" LIMIT 100\n""", engine=timescaledb)',
+        '_df = mo.sql(f"""\nSELECT "email" FROM "remote"."users" LIMIT 100\n""", engine=postgres)',
+      );
+    });
+
+    it("should not quote * column name", () => {
+      const sqlTableContext: SQLTableContext = {
+        engine: "postgres",
+        schema: "public",
+        defaultSchema: "public",
+        defaultDatabase: "mydb",
+        database: "mydb",
+        dialect: "postgres",
+      };
+
+      const result = sqlCode({
+        table: mockTable,
+        columnName: "*",
+        sqlTableContext,
+      });
+      expect(result).toBe(
+        '_df = mo.sql(f"""\nSELECT * FROM "users" LIMIT 100\n""", engine=postgres)',
       );
     });
   });

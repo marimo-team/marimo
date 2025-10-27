@@ -53,20 +53,21 @@ function getFormatter(dialect: string): SqlCodeFormatter {
           `SELECT TOP 100 ${columnName} FROM ${tableName}`,
       };
     case "timescaledb":
+    case "postgres":
+    case "postgresql":
+    case "duckdb":
+      // Quote column and table names to avoid raising errors on weird characters
       return {
-        // TimescaleDB uses double quotes for identifiers
         formatTableName: (tableName: string) => {
           const parts = tableName.split(".");
           return parts.map((part) => `"${part}"`).join(".");
         },
-        formatSelectClause: defaultFormatter.formatSelectClause,
+        formatSelectClause: (columnName: string, tableName: string) =>
+          `SELECT ${columnName === "*" ? "*" : `"${columnName}"`} FROM ${tableName} LIMIT 100`,
       };
-    case "postgresql":
-    case "postgres":
     case "db2":
     case "mysql":
     case "sqlite":
-    case "duckdb":
     case "mariadb":
     case "cassandra":
     case "noql":

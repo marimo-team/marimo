@@ -1533,3 +1533,63 @@ def test_sql_table_deleted_in_same_statement(
     expected_defs.add("df")
     assert v.defs == expected_defs, f"Failed for: {description}"
     assert v.refs == expected_refs, f"Failed for: {description}"
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+@pytest.mark.parametrize(
+    (
+        "description",
+        "sql_statement",
+        "expected_refs",
+    ),
+    [
+        (
+            "PIVOT with GROUP BY",
+            "pivot test_duck on function_type using count(*) group by categories",
+            {"mo", "test_duck"},
+        ),
+        (
+            "PIVOT minimal",
+            "pivot test_duck on function_type",
+            {"mo", "test_duck"},
+        ),
+        (
+            "PIVOT with USING",
+            "pivot test_duck on column_name using sum(value)",
+            {"mo", "test_duck"},
+        ),
+        (
+            "UNPIVOT basic",
+            "unpivot test_duck on function_oid into name fld value val",
+            {"mo", "test_duck"},
+        ),
+        (
+            "DESCRIBE table",
+            "describe test_duck",
+            {"mo", "test_duck"},
+        ),
+        (
+            "SUMMARIZE table",
+            "summarize test_duck",
+            {"mo", "test_duck"},
+        ),
+        (
+            "Multiple statements with PIVOT workaround",
+            "from test_duck limit 0; pivot test_duck on function_type",
+            {"mo", "test_duck"},
+        ),
+    ],
+)
+def test_sql_pivot_unpivot_commands(
+    description: str,
+    sql_statement: str,
+    expected_refs: set[str],
+) -> None:
+    """Test PIVOT, UNPIVOT, DESCRIBE, and SUMMARIZE commands (issue #6533)."""
+    code = f"df = mo.sql('{sql_statement}')"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    assert v.defs == {"df"}, f"Failed for: {description}"
+    assert v.refs == expected_refs, f"Failed for: {description}"
