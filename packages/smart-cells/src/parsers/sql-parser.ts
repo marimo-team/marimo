@@ -222,7 +222,8 @@ function parseSQLStatement(code: string): SQLParseInfo | null {
         }
 
         if (!isMoSql) {
-          return null;
+          // Skip non-mo.sql calls (e.g., embedded expressions in f-strings)
+          continue;
         }
 
         // Move to arguments
@@ -260,6 +261,10 @@ function parseSQLStatement(code: string): SQLParseInfo | null {
             break;
           }
         }
+
+        // Break after processing the mo.sql call to avoid processing
+        // embedded expressions in f-strings
+        break;
       }
     }
 

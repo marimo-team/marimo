@@ -102,6 +102,14 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
   private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<CellDocumentUri>();
 
+  /**
+   * Cache of completion items to avoid jitter while typing in the same completion item
+   */
+  private readonly completionItemCache = new LRUCache<
+    string,
+    Promise<LSP.CompletionItem>
+  >(10);
+
   constructor(
     client: ILanguageServerClient,
     initialSettings: Record<string, unknown>,
@@ -428,10 +436,19 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     };
   }
 
-  completionItemResolve(
+  async completionItemResolve(
     params: LSP.CompletionItem,
   ): Promise<LSP.CompletionItem> {
-    return this.client.completionItemResolve(params);
+    // Used cached result to avoid jitter while typing in the same completion item
+    const key = JSON.stringify(params);
+    const cached = this.completionItemCache.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const resolved = this.client.completionItemResolve(params);
+    this.completionItemCache.set(key, resolved);
+    return resolved;
   }
 
   async textDocumentPrepareRename(
