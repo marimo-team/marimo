@@ -36,6 +36,7 @@ import {
 } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import { RuntimeState } from "../kernel/RuntimeState";
+import { initialModeAtom } from "../mode";
 import type { RequestId } from "../network/DeferredRequestRegistry";
 import { requestClientAtom } from "../network/requests";
 import { store } from "../state/jotai";
@@ -57,6 +58,7 @@ import { dismissIslandsLoadingToast, toastIslandsLoading } from "./toast";
 export async function initialize() {
   // Setup networking
   store.set(requestClientAtom, IslandsPyodideBridge.INSTANCE);
+  store.set(initialModeAtom, "read");
 
   // This will display all the static HTML content.
   initializePlugins();
