@@ -104,7 +104,6 @@ export const ErrorBlock = (props: {
 }) => {
   const error = props.data;
   let message = props.data.message;
-  const name = props.data.name;
 
   // Don't show WebSocket connection errors
   if (message.includes("WebSocket")) {
