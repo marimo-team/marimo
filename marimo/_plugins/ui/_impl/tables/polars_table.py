@@ -154,6 +154,15 @@ class PolarsTableManagerFactory(TableManagerFactory):
                                 result, column
                             )
                             converted_columns.append(column.name)
+                        # https://github.com/marimo-team/marimo/issues/5562
+                        elif isinstance(dtype, pl.List) and isinstance(
+                            dtype.inner, (pl.Enum, pl.Categorical)
+                        ):
+                            # Convert each element in the list to a string
+                            result = result.with_columns(
+                                pl.col(column.name).cast(pl.List(pl.String))
+                            )
+                            converted_columns.append(column.name)
 
                     if converted_columns:
                         LOGGER.info(
