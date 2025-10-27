@@ -18,7 +18,14 @@ const sanitizeHtmlAtom = atom<boolean>((get) => {
     return false;
   }
 
-  const isInAppMode = getInitialAppMode() === "read";
+  let isInAppMode = true;
+  try {
+    isInAppMode = getInitialAppMode() === "read";
+  } catch {
+    // If it fails to get the initial app mode, we default to sanitizing.
+    return true;
+  }
+
   // Apps need to run javascript and load external resources.
   if (isInAppMode) {
     return false;
