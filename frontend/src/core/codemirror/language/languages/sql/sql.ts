@@ -38,6 +38,7 @@ import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { ValidateSQLResult } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { resolvedThemeAtom } from "@/theme/useTheme";
+import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
 import { variableCompletionSource } from "../../embedded/embedded-python";
 import { languageMetadataField } from "../../metadata";
@@ -52,6 +53,7 @@ import {
 } from "./completion-sources";
 import { SCHEMA_CACHE } from "./completion-store";
 import { getSQLMode, type SQLMode } from "./sql-mode";
+import { isKnownDialect } from "./utils";
 
 const DEFAULT_DIALECT = DuckDBDialect;
 const DEFAULT_PARSER_DIALECT = "DuckDB";
@@ -353,6 +355,11 @@ function connectionNameToParserDialect(
 ): ParserDialects | null {
   const dialect =
     SCHEMA_CACHE.getInternalDialect(connectionName)?.toLowerCase();
+
+  if (!dialect || !isKnownDialect(dialect)) {
+    return null;
+  }
+
   switch (dialect) {
     case "postgresql":
     case "postgres":
@@ -385,8 +392,15 @@ function connectionNameToParserDialect(
     case "flink":
       return "FlinkSQL";
     case "mongodb":
+    case "noql":
       return "Noql";
+    case "oracle":
+    case "oracledb":
+    case "timescaledb":
+      Logger.debug("Unsupported dialect", { dialect });
+      return null;
     default:
+      logNever(dialect);
       return null;
   }
 }
