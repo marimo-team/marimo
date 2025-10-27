@@ -681,11 +681,35 @@ class ScopedVisitor(ast.NodeVisitor):
                     self.generic_visit(node)
                     return node
 
+                # Try to process each statement individually
+                # For some SQL types (e.g., PIVOT with certain clauses),
+                # DuckDB's statement.query may fail, so we fall back to processing the full SQL
+                statement_queries: list[str] = []
+                use_full_sql = False
                 for statement in statements:
+                    try:
+                        statement_sql = statement.query
+                        # Skip empty statements
+                        if statement_sql.strip():
+                            statement_queries.append(statement_sql)
+                    except (IndexError, BaseException):
+                        # Fallback to full SQL if we can't extract any individual statement
+                        use_full_sql = True
+                        break
+
+                # If we couldn't extract individual statements, process the full SQL once
+                if use_full_sql or not statement_queries:
+                    statement_queries = [sql]
+
+                # Accumulate defined names across all statements in this SQL block
+                # so that later statements don't create refs to tables defined in earlier statements
+                defined_names: set[str] = set()
+
+                for statement_sql in statement_queries:
                     # Parse the refs and defs of each statement
                     # Add all tables/dbs created in the query to the defs
                     try:
-                        sql_defs = find_sql_defs(sql)
+                        sql_defs = find_sql_defs(statement_sql)
                     except duckdb.ProgrammingError:
                         sql_defs = SQLDefs()
                     except BaseException as e:
@@ -695,12 +719,10 @@ class ScopedVisitor(ast.NodeVisitor):
                             exception=e,
                             node=node,
                             rule_code="MF005",
-                            sql_content=sql,
+                            sql_content=statement_sql,
                             context="sql_defs_extraction",
                         )
                         sql_defs = SQLDefs()
-
-                    defined_names = set()
 
                     for _table in sql_defs.tables:
                         self._define(
@@ -730,7 +752,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     sql_refs: set[SQLRef] = set()
                     try:
                         # Take results
-                        sql_refs = find_sql_refs_cached(statement.query)
+                        sql_refs = find_sql_refs_cached(statement_sql)
                     except (
                         duckdb.ProgrammingError,
                         duckdb.IOException,
@@ -744,7 +766,7 @@ class ScopedVisitor(ast.NodeVisitor):
                             exception=e,
                             node=first_arg,
                             rule_code="MF005",
-                            sql_content=statement.query,
+                            sql_content=statement_sql,
                         )
 
                     for ref in sql_refs:
