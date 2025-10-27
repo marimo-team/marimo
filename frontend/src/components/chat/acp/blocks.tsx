@@ -638,7 +638,7 @@ export const DiffBlocks = (props: {
         return (
           <div
             key={item.path}
-            className="border rounded-md overflow-hidden bg-[var(--gray-2)] overflow-y-auto scrollbar-thin"
+            className="border rounded-md overflow-hidden bg-[var(--gray-2)] overflow-y-auto scrollbar-thin max-h-64"
           >
             {/* File path header */}
             <div className="px-2 py-1 bg-[var(--gray-2)] border-b text-xs font-medium text-[var(--gray-11)]">
