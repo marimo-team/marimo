@@ -36,6 +36,14 @@ def _(mo):
 def _(mo):
     # With a comment
     # and another
+    mo.md(f"Double {{braces}}")
+    # Suffix
+    return
+
+@app.cell
+def _(mo):
+    # With a comment
+    # and another
     mo.md(rf"Single line. No issue")
     # Suffix
     return

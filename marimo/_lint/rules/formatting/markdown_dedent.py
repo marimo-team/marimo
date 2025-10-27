@@ -65,7 +65,7 @@ class MarkdownDedentRule(LintRule):
 
     code = "MF007"
     name = "markdown-dedent"
-    description = "Markdown strings in mo.md() should be dedented."
+    description = "Markdown cells in mo.md() should be dedented."
     severity = Severity.FORMATTING
     fixable = True
 
@@ -92,8 +92,8 @@ class MarkdownDedentRule(LintRule):
 
                 if notebook_cell:
                     diagnostic = Diagnostic(
-                        message="Markdown string should be dedented for better readability",
-                        line=notebook_cell.lineno,  # cell start + 1 - 1
+                        message="Markdown cell should be dedented for better readability",
+                        line=notebook_cell.lineno - 1,
                         column=notebook_cell.col_offset + 1,
                     )
                     await ctx.add_diagnostic(diagnostic)
