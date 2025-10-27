@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="full")
 
 
@@ -18,10 +18,10 @@ app = marimo.App(width="full")
 def _(mo):
     mo.md(
         """
-        # Using `Polars` in `marimo`
+    # Using `Polars` in `marimo`
 
-        > Lightning-fast DataFrame library for Rust and Python
-        """
+    > Lightning-fast DataFrame library for Rust and Python
+    """
     )
     return
 

@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="full")
 
 
@@ -18,11 +18,11 @@ app = marimo.App(width="full")
 def _(mo):
     mo.md(
         """
-        # 🤗 Hugging Face dataset search and exploration
+    # 🤗 Hugging Face dataset search and exploration
 
-        This notebook allows you to search and explore the datasets available on Hugging Face.
-        First you can search for a dataset using the filters provided. Then you can select a dataset and explore the parquet files that are available for that dataset. Finally you can use the SQL editor to query the parquet files and the dataframe editor to explore the results of your query.
-        """
+    This notebook allows you to search and explore the datasets available on Hugging Face.
+    First you can search for a dataset using the filters provided. Then you can select a dataset and explore the parquet files that are available for that dataset. Finally you can use the SQL editor to query the parquet files and the dataframe editor to explore the results of your query.
+    """
     )
     return
 

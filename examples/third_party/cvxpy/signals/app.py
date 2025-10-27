@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -14,10 +14,10 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        This app is a hands-on introduction to _signal decomposition_, an
-        age-old problem about breaking down a complex signal, also known as a
-        time series, into the sum of simpler interpretable ones.
-        """
+    This app is a hands-on introduction to _signal decomposition_, an
+    age-old problem about breaking down a complex signal, also known as a
+    time series, into the sum of simpler interpretable ones.
+    """
     )
     return
 
@@ -26,13 +26,13 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        The simpler signals that come out of a decomposition are called
-        _components_. When doing a signal decomposition, we have to specify
-        two things:
+    The simpler signals that come out of a decomposition are called
+    _components_. When doing a signal decomposition, we have to specify
+    two things:
 
-        1. How many components do we want?
-        2. What kinds of components, or "component classes", do we want?
-        """
+    1. How many components do we want?
+    2. What kinds of components, or "component classes", do we want?
+    """
     )
     return
 

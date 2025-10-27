@@ -8,13 +8,15 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Using [simplemind](https://github.com/kennethreitz/simplemind) with `mo.ui.chat()`""")
+    mo.md(
+        r"""## Using [simplemind](https://github.com/kennethreitz/simplemind) with `mo.ui.chat()`"""
+    )
     return
 
 

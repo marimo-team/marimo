@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="full")
 
 
@@ -23,11 +23,11 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        # Selectable scatter map
+    # Selectable scatter map
 
-        This example shows how to overlay a scatter plot on a map using `Plotly`, and make the plot reactive using [`mo.ui.plotly`](https://docs.marimo.io/guides/working_with_data/plotting.html#plotly) — select plots in the scatter
-        plot and get them back in Python!
-        """
+    This example shows how to overlay a scatter plot on a map using `Plotly`, and make the plot reactive using [`mo.ui.plotly`](https://docs.marimo.io/guides/working_with_data/plotting.html#plotly) — select plots in the scatter
+    plot and get them back in Python!
+    """
     )
     return
 

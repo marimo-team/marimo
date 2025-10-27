@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -16,25 +16,25 @@ app = marimo.App()
 def _(mo):
     mo.md(
         """
-        # Embedding 🇺🇸 Counties
+    # Embedding 🇺🇸 Counties
 
-        This notebook accompanies chapter 10 of the monograph
-        [Minimum-Distortion Embedding](https://web.stanford.edu/~boyd/papers/min_dist_emb.html).
+    This notebook accompanies chapter 10 of the monograph
+    [Minimum-Distortion Embedding](https://web.stanford.edu/~boyd/papers/min_dist_emb.html).
 
-        🇺🇸 In this example notebook, we use PyMDE to embed and visualize 3,220 
-        US counties, described by their demographic data (collected between 2013-
-        2017 by an ACS longitudinal survey).
+    🇺🇸 In this example notebook, we use PyMDE to embed and visualize 3,220
+    US counties, described by their demographic data (collected between 2013-
+    2017 by an ACS longitudinal survey).
 
-        🌎 We then color each county by the fraction of voters who voted for a 
-        democratic candidate in the 2016 presidential election. Interestingly, the 
-        embedding vaguely resembles a map of the US, clustered by political party 
-        preference, though no geographic or party preference data were
-        used to compute the embedding!
+    🌎 We then color each county by the fraction of voters who voted for a
+    democratic candidate in the 2016 presidential election. Interestingly, the
+    embedding vaguely resembles a map of the US, clustered by political party
+    preference, though no geographic or party preference data were
+    used to compute the embedding!
 
-        ⚡ We use `mo.ui.altair_chart` to create a reactive and interactive 
-        scatter plot of the embedding: this makes it possible to see where counties
-        land in the embedding!
-        """
+    ⚡ We use `mo.ui.altair_chart` to create a reactive and interactive
+    scatter plot of the embedding: this makes it possible to see where counties
+    land in the embedding!
+    """
     )
     return
 
@@ -55,10 +55,10 @@ def _(pymde):
 def _(mo):
     mo.md(
         """
-        ## The data
+    ## The data
 
-        The data we embed includes demographic information about each county.
-        """
+    The data we embed includes demographic information about each county.
+    """
     )
     return
 
@@ -73,11 +73,11 @@ def _(dataset, mo):
 def _(mo):
     mo.md(
         """
-        ## The embedding
+    ## The embedding
 
-        We now make a neighbor-preserving embedding, to explore the local 
-        relationships in the data.
-        """
+    We now make a neighbor-preserving embedding, to explore the local
+    relationships in the data.
+    """
     )
     return
 
@@ -98,14 +98,14 @@ def _(mde):
 def _(mo):
     mo.md(
         """
-        Finally we visualize the embedding, rotating it so that it vaguely 
-        resembles a map of the US. Note that counties that voted Republican tend 
-        to cluster together, as do counties that voted Democratic, even though
-        our original data had no information about political party preference!
+    Finally we visualize the embedding, rotating it so that it vaguely
+    resembles a map of the US. Note that counties that voted Republican tend
+    to cluster together, as do counties that voted Democratic, even though
+    our original data had no information about political party preference!
 
-        In some real sense, the embedding "discovered" political preference
-        from demographic data.
-        """
+    In some real sense, the embedding "discovered" political preference
+    from demographic data.
+    """
     )
     return
 
@@ -141,11 +141,11 @@ def _(dataset, pd, rotated_embedding):
 def _(mo):
     mo.md(
         """
-        ### Try it! 👆
+    ### Try it! 👆
 
-        Select points in the scatter plot below with your cursor: they're
-        automatically sent back to Python, letting you investigate further!
-        """
+    Select points in the scatter plot below with your cursor: they're
+    automatically sent back to Python, letting you investigate further!
+    """
     )
     return
 

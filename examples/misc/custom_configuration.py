@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -27,14 +27,14 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        This is not auto-run because it has custom marimo configuration in the file header:
+    This is not auto-run because it has custom marimo configuration in the file header:
 
-        ```toml
-        [tool.marimo.runtime]
-        auto_instantiate = false
-        on_cell_change = "lazy"
-        ```
-        """
+    ```toml
+    [tool.marimo.runtime]
+    auto_instantiate = false
+    on_cell_change = "lazy"
+    ```
+    """
     )
     return
 

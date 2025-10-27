@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium", layout_file="layouts/slides.slides.json")
 
 
@@ -18,9 +18,9 @@ app = marimo.App(width="medium", layout_file="layouts/slides.slides.json")
 def _(mo):
     mo.md(
         r"""
-        !!! tip "This notebook is best viewed as an app."
-            Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
-        """
+    !!! tip "This notebook is best viewed as an app."
+        Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
+    """
     )
     return
 
@@ -29,13 +29,13 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        # DuckDB Tricks 🦆
+    # DuckDB Tricks 🦆
 
-        We use a simple example data set to present a few tricks that are useful when using DuckDB.
+    We use a simple example data set to present a few tricks that are useful when using DuckDB.
 
-        >
-        > Turned into slides from <https://duckdb.org/2024/08/19/duckdb-tricks-part-1.html>
-        """
+    >
+    > Turned into slides from <https://duckdb.org/2024/08/19/duckdb-tricks-part-1.html>
+    """
     )
     return
 
@@ -44,12 +44,12 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ## Installation
+    ## Installation
 
-        ```bash
-        uv add duckdb
-        ```
-        """
+    ```bash
+    uv add duckdb
+    ```
+    """
     )
     return
 
@@ -206,10 +206,10 @@ def _(mo, print_and_run, rerun):
 def _(mo):
     mo.md(
         """
-        # Closing thoughts
+    # Closing thoughts
 
-        That’s it for today. The tricks shown in this post are available on [duckdbsnippets.com](https://duckdbsnippets.com).
-        """
+    That’s it for today. The tricks shown in this post are available on [duckdbsnippets.com](https://duckdbsnippets.com).
+    """
     )
     return
 

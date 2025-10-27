@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="columns")
 
 
@@ -98,13 +98,13 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        Here's a PCA **embedding of numerical digits**: each point represents a 
-        digit, with similar digits close to each other. The data is from the UCI 
-        ML handwritten digits dataset.
+    Here's a PCA **embedding of numerical digits**: each point represents a
+    digit, with similar digits close to each other. The data is from the UCI
+    ML handwritten digits dataset.
 
-        This notebook will automatically drill down into points you **select with 
-        your mouse**; try it!
-        """
+    This notebook will automatically drill down into points you **select with
+    your mouse**; try it!
+    """
     )
     return
 

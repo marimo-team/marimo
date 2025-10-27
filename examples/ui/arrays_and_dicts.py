@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -28,13 +28,13 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        Use `mo.ui.array` and `mo.ui.dictionary` to create UI elements that wrap 
-        other elements.
+    Use `mo.ui.array` and `mo.ui.dictionary` to create UI elements that wrap
+    other elements.
 
-        Because UI elements must be assigned to global variables, 
-        these functions are required when the set of elements to create is not
-        known until runtime.
-        """
+    Because UI elements must be assigned to global variables,
+    these functions are required when the set of elements to create is not
+    known until runtime.
+    """
     )
     return
 
@@ -89,10 +89,10 @@ def _(array, dictionary, mo):
 def _(mo):
     mo.md(
         r"""
-        Key difference between marimo dict and standard python dict:
+    Key difference between marimo dict and standard python dict:
 
-        The main reason to use `mo.ui.dictionary` is for reactive execution — when you interact with an element in a `mo.ui.dictionary`, all cells that reference the `mo.ui.dictionary` run automatically, just like all other ui elements. When you use a regular dictionary, you don't get this reactivity.
-        """
+    The main reason to use `mo.ui.dictionary` is for reactive execution — when you interact with an element in a `mo.ui.dictionary`, all cells that reference the `mo.ui.dictionary` run automatically, just like all other ui elements. When you use a regular dictionary, you don't get this reactivity.
+    """
     )
     return
 
@@ -146,7 +146,9 @@ def _(mo, mo_d, py_d):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Notice that when you interact with the UI elements in the marimo dict, the reference of marimo dict updates automatically. However, when you interact with the elements in the python dict, you need to manually re-run the cell to see the updated values.""")
+    mo.md(
+        r"""Notice that when you interact with the UI elements in the marimo dict, the reference of marimo dict updates automatically. However, when you interact with the elements in the python dict, you need to manually re-run the cell to see the updated values."""
+    )
     return
 
 

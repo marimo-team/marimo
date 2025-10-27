@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -27,12 +27,12 @@ def _():
 def _(mo):
     mo.md(
         """
-        # Chatbot code-interpreter with [Dagger](https://dagger.io/)
+    # Chatbot code-interpreter with [Dagger](https://dagger.io/)
 
-        This example shows how to create a code-interpreter that executes code using [Dagger](https://dagger.io/) so the code is run in an isolated container.
+    This example shows how to create a code-interpreter that executes code using [Dagger](https://dagger.io/) so the code is run in an isolated container.
 
-        This example requires Docker running on your computer.
-        """
+    This example requires Docker running on your computer.
+    """
     )
     return
 

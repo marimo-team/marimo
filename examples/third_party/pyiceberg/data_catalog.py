@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -24,10 +24,10 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        # PyIceberg REST Catalog
+    # PyIceberg REST Catalog
 
-        This notebook shows you how to connect to an Apache Iceberg data catalog over REST.
-        """
+    This notebook shows you how to connect to an Apache Iceberg data catalog over REST.
+    """
     )
     return
 
@@ -36,21 +36,21 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        /// details | Create a new catalog with Cloudflare
+    /// details | Create a new catalog with Cloudflare
 
-        1. Create a Cloudflare account
-        2. Go to <https://developers.cloudflare.com/r2/data-catalog/>
+    1. Create a Cloudflare account
+    2. Go to <https://developers.cloudflare.com/r2/data-catalog/>
 
 
-        ///
-        """
+    ///
+    """
     )
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Connect to a data catalog """)
+    mo.md(r"""## Connect to a data catalog""")
     return
 
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(app_title="In Memory Cache")
 
 
@@ -26,13 +26,13 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        Use `mo.cache` to cache the outputs of expensive functions. The first
-        time the function is called with unseen arguments, it will execute and
-        return the computed value. Subsequent calls with the same arguments will
-        return cached results.
+    Use `mo.cache` to cache the outputs of expensive functions. The first
+    time the function is called with unseen arguments, it will execute and
+    return the computed value. Subsequent calls with the same arguments will
+    return cached results.
 
-        Experiment with the invocation below to get a feel for how this works.
-        """
+    Experiment with the invocation below to get a feel for how this works.
+    """
     )
     return
 

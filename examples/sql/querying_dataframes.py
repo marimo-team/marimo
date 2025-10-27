@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -25,12 +25,12 @@ def _():
 def _(mo):
     mo.md(
         """
-        # Querying dataframes
+    # Querying dataframes
 
-        This notebook shows how to use SQL to query Python dataframes.
+    This notebook shows how to use SQL to query Python dataframes.
 
-        First, we create a dataframe called `df`.
-        """
+    First, we create a dataframe called `df`.
+    """
     )
     return
 
@@ -41,7 +41,7 @@ def _():
 
     df = data.iris()
     df.head()
-    return (df,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -62,7 +62,7 @@ def _(mo):
 
 
 @app.cell
-def _(df, mo):
+def _(mo):
     result = mo.sql(
         f"""
         SELECT species, mean(petalLength) as meanPetalLength FROM df GROUP BY species ORDER BY meanPetalLength
@@ -75,12 +75,12 @@ def _(df, mo):
 def _(mo):
     mo.md(
         r"""
-        The query output is returned to Python as a dataframe (Polars if you have it installed, Pandas otherwise).
+    The query output is returned to Python as a dataframe (Polars if you have it installed, Pandas otherwise).
 
-        Choose the dataframe name via the **output variable** input in the bottom-left of the cell. If the name starts with an underscore, it won't be made available to other cells.
+    Choose the dataframe name via the **output variable** input in the bottom-left of the cell. If the name starts with an underscore, it won't be made available to other cells.
 
-        In this case, we've named the output `result`.
-        """
+    In this case, we've named the output `result`.
+    """
     )
     return
 

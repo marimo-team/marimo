@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -20,14 +20,14 @@ app = marimo.App(width="medium")
 def _(mo):
     mo.md(
         r"""
-        # Connect to SQLite
+    # Connect to SQLite
 
-        You can use marimo's SQL cells to read from and write to SQLite databases.
+    You can use marimo's SQL cells to read from and write to SQLite databases.
 
-        The first step is to attach a SQLite database. We attach to a sample database in a read-only mode below.
+    The first step is to attach a SQLite database. We attach to a sample database in a read-only mode below.
 
-        For advanced usage, see [duckdb's documentation](https://duckdb.org/docs/extensions/sqlite).
-        """
+    For advanced usage, see [duckdb's documentation](https://duckdb.org/docs/extensions/sqlite).
+    """
     )
     return
 
@@ -93,7 +93,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Once the database is attached, you can query it with SQL. For example, the next cell computes the average track length of each composer in the chinook database.""")
+    mo.md(
+        r"""Once the database is attached, you can query it with SQL. For example, the next cell computes the average track length of each composer in the chinook database."""
+    )
     return
 
 
