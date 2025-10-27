@@ -5,6 +5,7 @@ import { isKnownDialect } from "@/core/codemirror/language/languages/sql/utils";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import type { DataTable, DataType } from "@/core/kernel/messages";
+import { logNever } from "@/utils/assertNever";
 import type { ColumnHeaderStatsKey } from "../data-table/types";
 
 // Some databases have no schemas, so we don't show it (eg. Clickhouse)
@@ -60,7 +61,26 @@ function getFormatter(dialect: string): SqlCodeFormatter {
         },
         formatSelectClause: defaultFormatter.formatSelectClause,
       };
+    case "postgresql":
+    case "postgres":
+    case "db2":
+    case "mysql":
+    case "sqlite":
+    case "duckdb":
+    case "mariadb":
+    case "cassandra":
+    case "noql":
+    case "athena":
+    case "hive":
+    case "redshift":
+    case "snowflake":
+    case "flink":
+    case "mongodb":
+    case "oracle":
+    case "oracledb":
+      return defaultFormatter;
     default:
+      logNever(dialect);
       return defaultFormatter;
   }
 }
@@ -109,10 +129,10 @@ export function sqlCode({
     );
 
     if (engine === DUCKDB_ENGINE) {
-      return `_df = mo.sql(f"""${selectClause}""")`;
+      return `_df = mo.sql(f"""\n${selectClause}\n""")`;
     }
 
-    return `_df = mo.sql(f"""${selectClause}""", engine=${engine})`;
+    return `_df = mo.sql(f"""\n${selectClause}\n""", engine=${engine})`;
   }
 
   return `_df = mo.sql(f'SELECT "${columnName}" FROM ${table.name} LIMIT 100')`;

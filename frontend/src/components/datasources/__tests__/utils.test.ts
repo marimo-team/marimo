@@ -48,7 +48,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM users LIMIT 100""")',
+        '_df = mo.sql(f"""\nSELECT email FROM users LIMIT 100\n""")',
       );
     });
 
@@ -68,7 +68,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM analytics.users LIMIT 100""")',
+        '_df = mo.sql(f"""\nSELECT email FROM analytics.users LIMIT 100\n""")',
       );
     });
 
@@ -88,7 +88,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM users LIMIT 100""", engine=snowflake)',
+        '_df = mo.sql(f"""\nSELECT email FROM users LIMIT 100\n""", engine=snowflake)',
       );
     });
 
@@ -108,7 +108,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM remote.users LIMIT 100""")',
+        '_df = mo.sql(f"""\nSELECT email FROM remote.users LIMIT 100\n""")',
       );
     });
 
@@ -127,7 +127,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM users LIMIT 100""")',
+        '_df = mo.sql(f"""\nSELECT email FROM users LIMIT 100\n""")',
       );
 
       const sqlTableContext2: SQLTableContext = {
@@ -144,7 +144,7 @@ describe("sqlCode", () => {
         sqlTableContext: sqlTableContext2,
       });
       expect(result2).toBe(
-        '_df = mo.sql(f"""SELECT email FROM another_db.users LIMIT 100""")',
+        '_df = mo.sql(f"""\nSELECT email FROM another_db.users LIMIT 100\n""")',
       );
     });
   });
@@ -166,7 +166,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM `users` LIMIT 100""", engine=bigquery)',
+        '_df = mo.sql(f"""\nSELECT email FROM `users` LIMIT 100\n""", engine=bigquery)',
       );
     });
 
@@ -186,7 +186,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM `remote.sales.users` LIMIT 100""", engine=bigquery)',
+        '_df = mo.sql(f"""\nSELECT email FROM `remote.sales.users` LIMIT 100\n""", engine=bigquery)',
       );
     });
 
@@ -206,7 +206,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM `users` LIMIT 100""", engine=bigquery)',
+        '_df = mo.sql(f"""\nSELECT email FROM `users` LIMIT 100\n""", engine=bigquery)',
       );
     });
   });
@@ -228,7 +228,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT TOP 100 email FROM users""", engine=mssql)',
+        '_df = mo.sql(f"""\nSELECT TOP 100 email FROM users\n""", engine=mssql)',
       );
     });
 
@@ -248,7 +248,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT TOP 100 email FROM analytics.sales.users""", engine=mssql)',
+        '_df = mo.sql(f"""\nSELECT TOP 100 email FROM analytics.sales.users\n""", engine=mssql)',
       );
     });
   });
@@ -270,7 +270,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM "users" LIMIT 100""", engine=timescaledb)',
+        '_df = mo.sql(f"""\nSELECT email FROM "users" LIMIT 100\n""", engine=timescaledb)',
       );
     });
 
@@ -290,7 +290,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM "remote"."sales"."users" LIMIT 100""", engine=timescaledb)',
+        '_df = mo.sql(f"""\nSELECT email FROM "remote"."sales"."users" LIMIT 100\n""", engine=timescaledb)',
       );
     });
 
@@ -309,7 +309,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM "remote"."users" LIMIT 100""", engine=timescaledb)',
+        '_df = mo.sql(f"""\nSELECT email FROM "remote"."users" LIMIT 100\n""", engine=timescaledb)',
       );
     });
   });
@@ -331,7 +331,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM users LIMIT 100""", engine=postgres)',
+        '_df = mo.sql(f"""\nSELECT email FROM users LIMIT 100\n""", engine=postgres)',
       );
     });
 
@@ -351,7 +351,7 @@ describe("sqlCode", () => {
         sqlTableContext,
       });
       expect(result).toBe(
-        '_df = mo.sql(f"""SELECT email FROM users LIMIT 100""", engine=postgres)',
+        '_df = mo.sql(f"""\nSELECT email FROM users LIMIT 100\n""", engine=postgres)',
       );
     });
   });

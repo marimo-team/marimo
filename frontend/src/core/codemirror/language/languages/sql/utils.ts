@@ -17,6 +17,8 @@ import {
   DuckDBDialect,
 } from "@marimo-team/codemirror-sql/dialects";
 import type { DataSourceConnection } from "@/core/kernel/messages";
+import { logNever } from "@/utils/assertNever";
+import { Logger } from "@/utils/Logger";
 
 const KNOWN_DIALECTS_ARRAY = [
   "postgresql",
@@ -82,7 +84,20 @@ export function guessDialect(
       return PLSQL;
     case "bigquery":
       return BigQueryDialect;
+    case "timescaledb":
+      return PostgreSQL; // TimescaleDB is a PostgreSQL dialect
+    case "athena":
+    case "db2":
+    case "hive":
+    case "redshift":
+    case "snowflake":
+    case "flink":
+    case "mongodb":
+    case "noql":
+      Logger.debug("Unsupported dialect", { dialect });
+      return ModifiedStandardSQL;
     default:
+      logNever(dialect);
       return ModifiedStandardSQL;
   }
 }

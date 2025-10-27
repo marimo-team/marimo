@@ -38,6 +38,7 @@ import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { ValidateSQLResult } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { resolvedThemeAtom } from "@/theme/useTheme";
+import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
 import { variableCompletionSource } from "../../embedded/embedded-python";
 import { languageMetadataField } from "../../metadata";
@@ -391,8 +392,15 @@ function connectionNameToParserDialect(
     case "flink":
       return "FlinkSQL";
     case "mongodb":
+    case "noql":
       return "Noql";
+    case "oracle":
+    case "oracledb":
+    case "timescaledb":
+      Logger.debug("Unsupported dialect", { dialect });
+      return null;
     default:
+      logNever(dialect);
       return null;
   }
 }
