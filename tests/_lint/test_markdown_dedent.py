@@ -19,6 +19,44 @@ def test_markdown_dedent_detection():
     assert len(mf007_errors) > 0, "Should detect indented markdown"
 
 
+def test_markdown_dedent_over_indent():
+    """Test that correctly formatted markdown doesn't trigger the rule."""
+    code = """
+import marimo
+
+__generated_with = "0.17.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell
+def _(mo):
+    mo.md(\"\"\"
+# This is overly dedented
+
+and incorrect.
+\"\"\")
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+    notebook = parse_notebook(code)
+    errors = lint_notebook(notebook, code)
+
+    # Should not have MF007 errors for properly dedented markdown
+    mf007_errors = [e for e in errors if e.code == "MF007"]
+    assert len(mf007_errors) == 1, (
+        "Should not flag correctly dedented markdown"
+    )
+
+
 def test_markdown_dedent_no_false_positives():
     """Test that correctly formatted markdown doesn't trigger the rule."""
     code = """
@@ -36,13 +74,11 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        \"\"\"
-# Already dedented
+    mo.md(\"\"\"
+    # Already dedented
 
-This is correct.
-\"\"\"
-    )
+    This is correct.
+    \"\"\")
     return
 
 
@@ -50,7 +86,7 @@ if __name__ == "__main__":
     app.run()
 """
     notebook = parse_notebook(code)
-    errors = lint_notebook(notebook)
+    errors = lint_notebook(notebook, code)
 
     # Should not have MF007 errors for properly dedented markdown
     mf007_errors = [e for e in errors if e.code == "MF007"]
