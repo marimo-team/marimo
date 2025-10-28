@@ -5,6 +5,7 @@ import type { InitializationCommand, NotebookControls, NotebookControlsHandler, 
 export interface NotebookFileStoreControls {
   saveNotebook: (contents: string) => Promise<void>;
   readNotebook: () => Promise<string | null>;
+  saveNotebookPreview: (base64Image: string) => Promise<void>;
 };
 
 export interface NotebookRpcServer extends NotebookControls {
@@ -18,7 +19,7 @@ export interface NotebookRpcServer extends NotebookControls {
 
 export class NotebookRpc extends RpcTarget implements NotebookRpcServer {
   private allowedDomains: string[];
-  private handlers: Record<NotebookControlsKey, NotebookControlsHandler<NotebookControlsKey>>;
+  private handlers: { [K in NotebookControlsKey]?: NotebookControlsHandler<K> };
   private hostControls: NotebookHostControlsStub | undefined;
   private connections: Record<string, MessageChannel>;
   private handleRequestConnectionBound: (event: MessageEvent<any>) => void;
@@ -28,7 +29,7 @@ export class NotebookRpc extends RpcTarget implements NotebookRpcServer {
   constructor(allowedDomains: string[]) {
     super();
     this.allowedDomains = allowedDomains;
-    this.handlers = {} as Record<NotebookControlsKey, NotebookControlsHandler<NotebookControlsKey>>;
+    this.handlers = {};
     this.connections = {};
     this.handleRequestConnectionBound = this.handleRequestConnection.bind(this);
 
@@ -113,20 +114,27 @@ export class NotebookRpc extends RpcTarget implements NotebookRpcServer {
 
   // We allow late registration of handlers so we can use different handlers
   // in the notebook application
-  async createCell(code: string): Promise<void> {
-    if(!this.handlers.createCell) {
-      console.warn("No handler registered for createCell");
-      throw new Error("No handler registered for createCell");
+  private getHandler<K extends NotebookControlsKey>(key: K): NotebookControlsHandler<K> {
+    const handler = this.handlers[key];
+    if (!handler) {
+      throw new Error(`No handler registered for ${key}`);
     }
-    this.handlers.createCell(code);
+    return handler;
+  }
+
+  async createCell(code: string): Promise<void> {
+    const handler = this.getHandler("createCell");
+    handler(code);
   }
 
   async triggerAlert(message: string): Promise<void> {
-    if(!this.handlers.triggerAlert) {
-      console.warn("No handler registered for triggerAlert");
-      throw new Error("No handler registered for triggerAlert");
-    }
-    this.handlers.triggerAlert(message);
+    const handler = this.getHandler("triggerAlert");
+    handler(message);
+  }
+
+  async captureNotebookPreview(): Promise<string | null> {
+    const handler = this.getHandler("captureNotebookPreview");
+    return handler();
   }
 
   registerHandler<K extends NotebookControlsKey>(key: K, handler: NotebookControlsHandler<K>) {
@@ -147,6 +155,10 @@ export class DummyNotebookRpc implements NotebookRpcServer {
   }
   async triggerAlert(message: string): Promise<void> {
     alert(`DummyNotebookRpc: ${message}`);
+  }
+  async captureNotebookPreview(): Promise<string | null> {
+    console.warn("DummyNotebookRpc: captureNotebookPreview called");
+    return null;
   }
   listen(): void {
     console.warn("DummyNotebookRpc: listen called");
@@ -171,6 +183,9 @@ export class DummyNotebookRpc implements NotebookRpcServer {
       readNotebook: async () => {
         console.warn("DummyNotebookRpc: readNotebook called");
         return null;
+      },
+      saveNotebookPreview: async (_base64Image: string) => {
+        console.warn("DummyNotebookRpc: saveNotebookPreview called");
       }
     }
   }

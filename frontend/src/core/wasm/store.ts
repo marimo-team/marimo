@@ -93,6 +93,11 @@ export class CompositeFileStore implements FileStore {
     this.stores.splice(index, 0, store);
   }
 
+  getStore<T extends FileStore>(ctor: new (...args: any[]) => T): T | null {
+    const store = this.stores.find((store) => store instanceof ctor) as T;
+    return store ?? null;
+  }
+
   async saveFile(contents: string) {
     await Promise.all(this.stores.map((store) => store.saveFile(contents)));
   }

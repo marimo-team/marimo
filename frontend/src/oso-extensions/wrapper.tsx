@@ -10,6 +10,9 @@ import { setLatestEngineSelected, useDataSourceActions } from "@/core/datasets/d
 import type { ConnectionName } from "@/core/datasets/engines";
 import type { AddCellWithAIHook } from "@/components/editor/ai/add-cell-with-ai";
 import { useNotebookRpcServer } from "./notebook-rpc";
+import { useCaptureNotebookPreview } from "@/oso-extensions/use-capture-preview";
+import { notebookFileStore } from "@/core/wasm/store";
+import { PostMessageFileStore } from "@/oso-extensions/post-message-filestore";
 
 declare global {
   interface WindowEventMap {
@@ -29,6 +32,7 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
   const actions = useCellActions();
   const dataSourceActions = useDataSourceActions();
   const notebookRpcServer = useNotebookRpcServer();
+  const capturePreview = useCaptureNotebookPreview();
 
   const createCellAtEnd = useCallback(async (code: string) => {
     actions.createNewCell({
@@ -36,9 +40,21 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
       code: code,
       before: false,
     });
-  }, []);
+  }, [actions]);
+
+  useEffect(() => {
+    const filestore = notebookFileStore.getStore(PostMessageFileStore);
+    if (!filestore) {
+      return;
+    }
+    filestore.setCapturePreview(capturePreview);
+    return () => {
+      filestore.setCapturePreview(null);
+    };
+  }, [capturePreview]);
 
   notebookRpcServer.registerHandler("createCell", createCellAtEnd);
+  notebookRpcServer.registerHandler("captureNotebookPreview", capturePreview);
 
   const addCellWithAICallback = useCallback((ev: CustomEvent<AddCellWithAIHook>) => {
     const { setInput } = ev.detail;

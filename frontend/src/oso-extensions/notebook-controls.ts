@@ -5,12 +5,16 @@ export interface NotebookHostControls {
   saveNotebook: (contents: string) => Promise<void>;
   // Read the contents of a notebook via the host
   readNotebook: () => Promise<string | null>;
+  // Save a preview image of the notebook when it changes
+  saveNotebookPreview: (base64Image: string) => Promise<void>;
 }
 
 export interface NotebookControls {
   createCell: (code: string) => Promise<void>;
 
   triggerAlert: (message: string) => Promise<void>;
+
+  captureNotebookPreview: () => Promise<string | null>;
 }
 
 export type NotebookControlsStub = RpcStub<NotebookControls>;
