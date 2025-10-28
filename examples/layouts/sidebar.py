@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="full")
 
 
@@ -17,9 +17,9 @@ app = marimo.App(width="full")
 def _(mo):
     mo.md(
         r"""
-        !!! tip "This notebook is best viewed as an app."
-            Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
-        """
+    !!! tip "This notebook is best viewed as an app."
+        Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
+    """
     )
     return
 

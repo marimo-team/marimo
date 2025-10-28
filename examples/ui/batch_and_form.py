@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -27,9 +27,9 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        Make custom UI elements using `batch()`, and turn any UI element
-        into a form with `form()`.
-        """
+    Make custom UI elements using `batch()`, and turn any UI element
+    into a form with `form()`.
+    """
     )
     return
 

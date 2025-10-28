@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -15,11 +15,11 @@ app = marimo.App()
 def _(mo):
     mo.md(
         """
-        # Sanity-Checking Embeddings
+    # Sanity-Checking Embeddings
 
-        This notebook shows you the basics of sanity-checking an embedding made
-        with the `PyMDE` library. We'll use MNIST as a case study.
-        """
+    This notebook shows you the basics of sanity-checking an embedding made
+    with the `PyMDE` library. We'll use MNIST as a case study.
+    """
     )
     return
 
@@ -28,11 +28,11 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        We'll start by making a simple neighborhood-preserving embedding. This
-        means that we'll try to identify pairs of images that are similar, using
-        a heuristic, and we'll tell PyMDE to place these pairs near each other in
-        the embedding.
-        """
+    We'll start by making a simple neighborhood-preserving embedding. This
+    means that we'll try to identify pairs of images that are similar, using
+    a heuristic, and we'll tell PyMDE to place these pairs near each other in
+    the embedding.
+    """
     )
     return
 

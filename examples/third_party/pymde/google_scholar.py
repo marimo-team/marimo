@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -15,15 +15,15 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Embedding Google Scholar
+    # Embedding Google Scholar
 
-        This notebook shows how to use the function `pymde.preserve_distances` to
-        produce embeddings of networks, in which the goal is to preserve the
-        shortest-path distances in the network.
+    This notebook shows how to use the function `pymde.preserve_distances` to
+    produce embeddings of networks, in which the goal is to preserve the
+    shortest-path distances in the network.
 
-        It uses an academic co-authorship network collected from Google Scholar as 
-        a case study.
-        """
+    It uses an academic co-authorship network collected from Google Scholar as
+    a case study.
+    """
     )
     return
 

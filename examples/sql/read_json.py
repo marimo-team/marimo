@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.0"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -19,10 +19,10 @@ app = marimo.App(width="medium")
 def _(mo):
     mo.md(
         """
-        # Read JSON
+    # Read JSON
 
-        This notebook shows how to read a JSON file from a local file or a URL into an in-memory table.
-        """
+    This notebook shows how to read a JSON file from a local file or a URL into an in-memory table.
+    """
     )
     return
 
@@ -40,14 +40,14 @@ def _():
 def _(mo):
     mo.md(
         """
-        Reading from a JSON file is as easy as
+    Reading from a JSON file is as easy as
 
-        ```sql
-        SELECT * from 'data.json'
-        ```
+    ```sql
+    SELECT * from 'data.json'
+    ```
 
-        where `data.json` is the path or URL to your json file.
-        """
+    where `data.json` is the path or URL to your json file.
+    """
     )
     return
 
@@ -113,10 +113,10 @@ def _(result):
 def _(mo):
     mo.md(
         r"""
-        ## Create an in-memory table from a JSON file
+    ## Create an in-memory table from a JSON file
 
-        You can also create a table from a JSON file, so you can easily query it in subsequent cells. This table will appear in marimo's data sources panel.
-        """
+    You can also create a table from a JSON file, so you can easily query it in subsequent cells. This table will appear in marimo's data sources panel.
+    """
     )
     return
 
@@ -132,7 +132,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, mytable):
+def _(mo):
     _df = mo.sql(
         f"""
         SELECT * FROM myTable
@@ -149,7 +149,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""To customize how your json file is read, use [duckdb's `read_json` function](https://duckdb.org/docs/data/json/overview.html).""")
+    mo.md(
+        r"""To customize how your json file is read, use [duckdb's `read_json` function](https://duckdb.org/docs/data/json/overview.html)."""
+    )
     return
 
 

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -22,10 +22,10 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        ## Use local variables
+    ## Use local variables
 
-        Variables prefixed with an underscore are local to a cell, and can be redefined.
-        """
+    Variables prefixed with an underscore are local to a cell, and can be redefined.
+    """
     )
     return
 
@@ -55,10 +55,10 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        ## Wrap code in functions
+    ## Wrap code in functions
 
-        Wrap cells in functions to minimize the number of temporary globals you introduce.
-        """
+    Wrap cells in functions to minimize the number of temporary globals you introduce.
+    """
     )
     return
 

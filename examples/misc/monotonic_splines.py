@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -37,14 +37,14 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        ## Introduction to monotonic splines
+    ## Introduction to monotonic splines
 
-        > It turns out that you can generate features that can help turn (linear) machine learning models into models that respent monotonicity. While this technique isn't going to be useful for every application out there, it is a nice exercise in feature engineering because it does show off some lesser known and unconventional techniques.
-        >
-        > This document reflects the code discussed in [this probabl livestream](https://www.youtube.com/watch?v=BLsWIJSKcGg) which in turn was heavily insired by [this blogpost](https://matekadlicsko.github.io/posts/monotonic-splines/).
+    > It turns out that you can generate features that can help turn (linear) machine learning models into models that respent monotonicity. While this technique isn't going to be useful for every application out there, it is a nice exercise in feature engineering because it does show off some lesser known and unconventional techniques.
+    >
+    > This document reflects the code discussed in [this probabl livestream](https://www.youtube.com/watch?v=BLsWIJSKcGg) which in turn was heavily insired by [this blogpost](https://matekadlicsko.github.io/posts/monotonic-splines/).
 
-        We are going to dive into feature engineering in this document, but before going there it would help to have a dataset first. So let's draw one! **Draw some points below**, but make sure that you only draw a single class of points here. We're going for a regression dataset here where the x-values need to predict the y-values.
-        """
+    We are going to dive into feature engineering in this document, but before going there it would help to have a dataset first. So let's draw one! **Draw some points below**, but make sure that you only draw a single class of points here. We're going for a regression dataset here where the x-values need to predict the y-values.
+    """
     )
     return
 
@@ -74,12 +74,12 @@ def _(mo, widget):
 def _(mo):
     mo.md(
         """
-        ## General splines
+    ## General splines
 
-        You have probably drawn something that is very much non-linear. So you might expect a linear model to perform quite badly here. However, thanks to non-linear feature-engineering, we might still be able to get a nice fit. After all, getting the right features is 90% of the work towards a good model. 
+    You have probably drawn something that is very much non-linear. So you might expect a linear model to perform quite badly here. However, thanks to non-linear feature-engineering, we might still be able to get a nice fit. After all, getting the right features is 90% of the work towards a good model.
 
-        So let's build a pipeline that uses the [SplineTransformer](https://scikit-learn.org/1.5/modules/generated/sklearn.preprocessing.SplineTransformer.html) from scikit-learn. This featurizer can generate "hills" on our behalf that span the input space of the x-axis.
-        """
+    So let's build a pipeline that uses the [SplineTransformer](https://scikit-learn.org/1.5/modules/generated/sklearn.preprocessing.SplineTransformer.html) from scikit-learn. This featurizer can generate "hills" on our behalf that span the input space of the x-axis.
+    """
     )
     return
 
@@ -99,12 +99,12 @@ def _(X, np, plt, tfm):
 def _(mo):
     mo.md(
         """
-        You can see the x-values that our drawing widget can provide and you can also see all the generated features. Each feature is represented with a different colored line and you should also see how each hill goes up and typically goes back down again. At the edges of the samples that we have we see straight lines in an attempt to also have some features for extrapolation. 
+    You can see the x-values that our drawing widget can provide and you can also see all the generated features. Each feature is represented with a different colored line and you should also see how each hill goes up and typically goes back down again. At the edges of the samples that we have we see straight lines in an attempt to also have some features for extrapolation.
 
-        There are some inputs for this `SplineTransformer` though. We can ask the transformer to add more hills, each hill also has a polynomial degree attached to it that we may alter and we can also tell the component to have the placement of each hill be determined by the quantiles in the dataset. 
+    There are some inputs for this `SplineTransformer` though. We can ask the transformer to add more hills, each hill also has a polynomial degree attached to it that we may alter and we can also tell the component to have the placement of each hill be determined by the quantiles in the dataset.
 
-        Feel free to change the drawing and the parameters at this point to try and get a feeling for this.
-        """
+    Feel free to change the drawing and the parameters at this point to try and get a feeling for this.
+    """
     )
     return
 
@@ -133,7 +133,9 @@ def _(degree, knots, n_knots):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""When you then take these generated features and pass them to a linear model, you should be able to see that we're indeed able to fit a very non-linear curve with a linear model.""")
+    mo.md(
+        r"""When you then take these generated features and pass them to a linear model, you should be able to see that we're indeed able to fit a very non-linear curve with a linear model."""
+    )
     return
 
 
@@ -163,12 +165,12 @@ def _(X_tfm, df, y):
 def _(mo):
     mo.md(
         r"""
-        ## Towards monotonic features
+    ## Towards monotonic features
 
-        But let's now do a trick. We will take the features that we generated and then we will cumsum over each single feature. 
+    But let's now do a trick. We will take the features that we generated and then we will cumsum over each single feature.
 
-        That means that these features ...
-        """
+    That means that these features ...
+    """
     )
     return
 
@@ -187,7 +189,9 @@ def _(plt, x_range, x_range_tfm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Note the correspondence between the lines here. The color in the chart above has a direct correspondence with the line below.""")
+    mo.md(
+        r"""Note the correspondence between the lines here. The color in the chart above has a direct correspondence with the line below."""
+    )
     return
 
 
@@ -195,10 +199,10 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        You could wonder ... what would happen if I use these 'cumsum' features? Would I still be able to get a nice fit?
+    You could wonder ... what would happen if I use these 'cumsum' features? Would I still be able to get a nice fit?
 
-        The chart below shows you the new predictions.
-        """
+    The chart below shows you the new predictions.
+    """
     )
     return
 
@@ -251,14 +255,14 @@ def _(Ridge, X, X_tfm, alt, pd, pltr, show_iso, strictly_positive, y):
 def _(mo):
     mo.md(
         r"""
-        You can choose to compare the results with a prediction made by an [IsotonicRegression](https://scikit-learn.org/1.5/modules/isotonic.html) model. It may help to appreciate the feature generation technique, especially when you force the linear model to only learn strictly positive weights. 
+    You can choose to compare the results with a prediction made by an [IsotonicRegression](https://scikit-learn.org/1.5/modules/isotonic.html) model. It may help to appreciate the feature generation technique, especially when you force the linear model to only learn strictly positive weights.
 
-        There are a few things to notice here: 
+    There are a few things to notice here:
 
-        1. Take the chart with a grain of salt. It does demonstrate the idea, but it does not represent a proper benchmark and we are showing everything being fit on a train set here.
-        2. Notice how the feature approach has a slightly more smooth prediction over here compared to the isotonic regressor.
-        3. Note that this technique is very general. It can be used on whatever estimator that enables you to learn strictly positive weights.
-        """
+    1. Take the chart with a grain of salt. It does demonstrate the idea, but it does not represent a proper benchmark and we are showing everything being fit on a train set here.
+    2. Notice how the feature approach has a slightly more smooth prediction over here compared to the isotonic regressor.
+    3. Note that this technique is very general. It can be used on whatever estimator that enables you to learn strictly positive weights.
+    """
     )
     return
 
