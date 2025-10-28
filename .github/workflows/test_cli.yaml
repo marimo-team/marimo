@@ -166,8 +166,22 @@ jobs:
           uv add pytest pytest-asyncio
           uv pip install marimo*whl
 
-      - name: Check notebook quality with marimo check
+      - name: Check example quality with marimo check
         shell: bash
         run: |
           echo "Checking examples directory..."
           uv run marimo check --ignore-scripts --strict examples/**.py
+
+      - name: Check tutorial quality with marimo check
+        shell: bash
+        run: |
+          echo "Checking tutorials..."
+          uv run marimo check --ignore-scripts --fix \
+            marimo/_tutorials/**.py >> /dev/null \
+            || echo "Errors expected"
+          # Fail if there's a git diff
+          if [[ -n "$(git status --porcelain marimo/_tutorials)" ]]; then
+            echo "marimo check found issues in tutorials."
+            git --no-pager diff marimo/_tutorials
+            exit 1
+          fi
