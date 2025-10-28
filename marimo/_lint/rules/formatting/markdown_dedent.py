@@ -95,17 +95,21 @@ class MarkdownDedentRule(LintRule):
             needs_dedent = contents_differ_excluding_generated_with(
                 format_markdown(cell), cell.code
             )
-            line_count = len(cell.code.splitlines())
-            line_start = notebook_cell.lineno + 1
-            overly_dedented = any(
-                [
-                    line[0] != " "
-                    for line in ctx.contents[
-                        line_start : line_start + line_count
+
+            # Only applicable in python context
+            overly_dedented = False
+            if ctx.notebook.filename and ctx.notebook.filename.endswith(".py"):
+                line_count = len(cell.code.splitlines())
+                line_start = notebook_cell.lineno + 1
+                overly_dedented = any(
+                    [
+                        line[0] != " "
+                        for line in ctx.contents[
+                            line_start : line_start + line_count
+                        ]
+                        if line
                     ]
-                    if line
-                ]
-            )
+                )
 
             if needs_dedent or overly_dedented:
                 # Find the corresponding notebook cell for position info
