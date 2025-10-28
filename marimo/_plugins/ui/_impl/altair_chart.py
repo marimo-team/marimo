@@ -323,7 +323,17 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     ) -> None:
         DependencyManager.altair.require(why="to use `mo.ui.altair_chart`")
 
+        altair_settings = {}
+        if "altair" in sys.modules:
+            altair_settings = altair.renderers.options
+            altair.renderers.enable("default")
+
         import altair as alt
+
+        if altair_settings.get("embed_options"):
+            altair.renderers.set_embed_options(
+                **altair_settings["embed_options"]
+            )
 
         register_transformers()
 
