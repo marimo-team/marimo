@@ -186,7 +186,7 @@ describe("MarkdownLanguageAdapter", () => {
 
     it("should preserve indentation in f-strings", () => {
       const pythonCode =
-        'mo.md(\n    f"""\n```python\n{some_variable}\n```\n"""\n)';
+        'mo.md(f"""\n```python\n{some_variable}\n```\n""")';
       const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("```python\n{some_variable}\n```");
       expect(offset).toBe(15);
@@ -312,12 +312,10 @@ describe("MarkdownLanguageAdapter", () => {
       metadata.quotePrefix = "f";
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
-        "mo.md(
-            f"""
+        "mo.md(f"""
         # Title
         {some_variable}
-        """
-        )"
+        """)"
       `);
       expect(offset).toBe(17);
     });
@@ -327,12 +325,10 @@ describe("MarkdownLanguageAdapter", () => {
       metadata.quotePrefix = "rf";
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
-        "mo.md(
-            rf"""
+        "mo.md(rf"""
         # Title
         {some_variable}
-        """
-        )"
+        """)"
       `);
       expect(offset).toBe(18);
     });
@@ -369,13 +365,11 @@ describe("MarkdownLanguageAdapter", () => {
 
     it("should return true for complex nested markdown", () => {
       const pythonCode = String.raw`
-      mo.md(
-        rf"""
-        \`\`\`python
-        {pathlib.Path(__file__).read_text(encoding="utf-8")}
-        \`\`\`
-        """
-      )
+      mo.md(rf"""
+      \`\`\`python
+      {pathlib.Path(__file__).read_text(encoding="utf-8")}
+      \`\`\`
+      """)
       `;
       expect(adapter.isSupported(pythonCode)).toBe(true);
     });
