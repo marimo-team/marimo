@@ -381,7 +381,12 @@ const PromptArea = memo<PromptAreaProps>(
             </div>
             <div className="flex flex-row">
               <Tooltip content="Add context">
-                <Button variant="text" size="icon" onClick={handleAddContext}>
+                <Button
+                  variant="text"
+                  size="icon"
+                  onClick={handleAddContext}
+                  disabled={isLoading}
+                >
                   <AtSignIcon className="h-3.5 w-3.5" />
                 </Button>
               </Tooltip>
@@ -392,6 +397,7 @@ const PromptArea = memo<PromptAreaProps>(
                   className="cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}
                   title="Attach a file"
+                  disabled={isLoading}
                 >
                   <PaperclipIcon className="h-3.5 w-3.5" />
                 </Button>

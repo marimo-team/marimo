@@ -15,6 +15,10 @@ export const ReadonlyDiff = memo(
         unifiedMergeView({
           original: props.original,
           mergeControls: false,
+          collapseUnchanged: {
+            margin: 3,
+            minSize: 4,
+          },
         }),
       ];
     }, [props.original, props.modified, theme]);

@@ -50,7 +50,10 @@ export const AgentThread = ({
     return true;
   });
 
-  const renderNotification = (group: NotificationEvent[]) => {
+  const renderNotification = (
+    group: NotificationEvent[],
+    isLastBlock: boolean,
+  ) => {
     if (group.length === 0) {
       return null;
     }
@@ -90,6 +93,7 @@ export const AgentThread = ({
           data={data}
           startTimestamp={startTimestamp}
           endTimestamp={endTimestamp}
+          isLastBlock={isLastBlock}
         />
       );
     }
@@ -98,9 +102,12 @@ export const AgentThread = ({
 
   return (
     <div className="flex flex-col gap-4 px-2 pb-10 flex-1">
-      {combinedNotifications.map((notification) => (
+      {combinedNotifications.map((notification, idx) => (
         <React.Fragment key={notification[0].id}>
-          {renderNotification(notification)}
+          {renderNotification(
+            notification,
+            idx === combinedNotifications.length - 1,
+          )}
         </React.Fragment>
       ))}
       {combinedNotifications.length === 0 && <ReadyToChatBlock />}
