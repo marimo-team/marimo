@@ -185,8 +185,7 @@ describe("MarkdownLanguageAdapter", () => {
     });
 
     it("should preserve indentation in f-strings", () => {
-      const pythonCode =
-        'mo.md(f"""\n```python\n{some_variable}\n```\n""")';
+      const pythonCode = 'mo.md(f"""\n```python\n{some_variable}\n```\n""")';
       const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("```python\n{some_variable}\n```");
       expect(offset).toBe(15);
