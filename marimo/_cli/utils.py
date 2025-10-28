@@ -36,6 +36,7 @@ def prompt_to_overwrite(path: Path) -> bool:
 
 def resolve_token(
     token: bool,
+    *,
     token_password: Optional[str],
     token_password_file: Optional[str],
 ) -> Optional[AuthToken]:
@@ -81,6 +82,7 @@ def resolve_token_password(
 
     # Read from file or stdin
     if token_password_file:
+        password: str
         try:
             # Handle stdin special case
             if token_password_file == "-":
