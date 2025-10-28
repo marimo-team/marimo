@@ -47,7 +47,7 @@ and incorrect.
 if __name__ == "__main__":
     app.run()
 """
-    notebook = parse_notebook(code)
+    notebook = parse_notebook(code, filepath="notebook.py")
     errors = lint_notebook(notebook, code)
 
     # Should not have MF007 errors for properly dedented markdown
@@ -85,7 +85,7 @@ def _(mo):
 if __name__ == "__main__":
     app.run()
 """
-    notebook = parse_notebook(code)
+    notebook = parse_notebook(code, filepath="notebook.py")
     errors = lint_notebook(notebook, code)
 
     # Should not have MF007 errors for properly dedented markdown
