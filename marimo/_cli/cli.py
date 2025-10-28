@@ -171,6 +171,73 @@ def _resolve_token(
     return None
 
 
+def _resolve_token_password(
+    token_password: Optional[str],
+    token_password_file: Optional[str],
+) -> Optional[str]:
+    """
+    Resolve token password from mutually exclusive sources.
+
+    Args:
+        token_password: Direct password string (legacy)
+        token_password_file: Path to file containing password, or '-' for stdin
+
+    Returns:
+        The resolved password string, or None if no password source provided
+
+    Raises:
+        click.UsageError: If multiple password sources are provided
+    """
+    # Enforce mutual exclusivity
+    if token_password is not None and token_password_file is not None:
+        raise click.UsageError(
+            "Only one of --token-password or --token-password-file may be specified."
+        )
+
+    # Direct password (existing behavior)
+    if token_password:
+        return token_password
+
+    # Read from file or stdin
+    if token_password_file:
+        try:
+            # Handle stdin special case
+            if token_password_file == "-":
+                password = sys.stdin.read().strip()
+                if not password:
+                    raise click.UsageError(
+                        "No token password provided on stdin"
+                    )
+                return password
+
+            # Read from file
+            with open(token_password_file, encoding="utf-8") as f:
+                password = f.read().strip()
+                if not password:
+                    raise click.UsageError(
+                        f"No token password found in file: {token_password_file}"
+                    )
+                return password
+        except click.UsageError:
+            # Re-raise our own usage errors
+            raise
+        except FileNotFoundError:
+            raise click.UsageError(
+                f"Token password file not found: {token_password_file}"
+            ) from None
+        except PermissionError:
+            raise click.UsageError(
+                f"Permission denied reading token password file: {token_password_file}"
+            ) from None
+        except Exception as e:
+            raise click.UsageError(
+                f"Error reading token password from file: {e}"
+            ) from None
+
+    # No password source provided
+    return None
+
+
 main_help_msg = "\n".join(
     [
         "\b",
@@ -378,6 +445,13 @@ edit_help_msg = "\n".join(
     help=token_password_message,
 )
 @click.option(
+    "--token-password-file",
+    default=None,
+    show_default=True,
+    type=str,
+    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+)
+@click.option(
     "--base-url",
     default="",
     show_default=True,
@@ -496,6 +570,7 @@ def edit(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_file: Optional[str],
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
@@ -515,8 +590,13 @@ def edit(
 ) -> None:
     from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
 
+    pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
-    if name is None and (stdin_contents := _get_stdin_contents()) is not None:
+    if (
+        not pass_on_stdin
+        and name is None
+        and (stdin_contents := _get_stdin_contents()) is not None
+    ):
         temp_dir = tempfile.TemporaryDirectory()
         path = create_temp_notebook_file(
             "notebook.py", "py", stdin_contents, temp_dir
@@ -598,7 +678,9 @@ def edit(
         skew_protection=skew_protection,
         cli_args=parse_args(args),
         argv=list(args),
-        auth_token=_resolve_token(token, token_password),
+        auth_token=_resolve_token(
+            token, _resolve_token_password(token_password, token_password_file)
+        ),
         base_url=base_url,
         allow_origins=allow_origins,
         redirect_console_to_browser=True,
@@ -683,6 +765,13 @@ new_help_msg = "\n".join(
     help=token_password_message,
 )
 @click.option(
+    "--token-password-file",
+    default=None,
+    show_default=True,
+    type=str,
+    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+)
+@click.option(
     "--base-url",
     default="",
     show_default=True,
@@ -722,6 +811,7 @@ def new(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_file: Optional[str],
     base_url: str,
     sandbox: Optional[bool],
     skew_protection: bool,
@@ -800,7 +890,9 @@ def new(
         skew_protection=skew_protection,
         cli_args={},
         argv=[],
-        auth_token=_resolve_token(token, token_password),
+        auth_token=_resolve_token(
+            token, _resolve_token_password(token_password, token_password_file)
+        ),
         base_url=base_url,
         redirect_console_to_browser=True,
         ttl_seconds=None,
@@ -860,6 +952,13 @@ Example:
     show_default=True,
     type=str,
     help=token_password_message,
+)
+@click.option(
+    "--token-password-file",
+    default=None,
+    show_default=True,
+    type=str,
+    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
 )
 @click.option(
     "--include-code",
@@ -961,6 +1060,7 @@ def run(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_file: Optional[str],
     include_code: bool,
     session_ttl: int,
     watch: bool,
@@ -1034,7 +1134,9 @@ def run(
         allow_origins=allow_origins,
         cli_args=parse_args(args),
         argv=list(args),
-        auth_token=_resolve_token(token, token_password),
+        auth_token=_resolve_token(
+            token, _resolve_token_password(token_password, token_password_file)
+        ),
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
@@ -1113,6 +1215,13 @@ Recommended sequence:
     help=token_password_message,
 )
 @click.option(
+    "--token-password-file",
+    default=None,
+    show_default=True,
+    type=str,
+    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+)
+@click.option(
     "--skew-protection/--no-skew-protection",
     is_flag=True,
     default=True,
@@ -1132,6 +1241,7 @@ def tutorial(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_file: Optional[str],
     skew_protection: bool,
     name: Tutorial,
 ) -> None:
@@ -1152,7 +1262,9 @@ def tutorial(
         skew_protection=skew_protection,
         cli_args={},
         argv=[],
-        auth_token=_resolve_token(token, token_password),
+        auth_token=_resolve_token(
+            token, _resolve_token_password(token_password, token_password_file)
+        ),
         redirect_console_to_browser=False,
         ttl_seconds=None,
     )
