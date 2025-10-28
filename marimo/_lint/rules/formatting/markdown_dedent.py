@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class MarkdownDedentRule(LintRule):
-    """MF007: Markdown strings in mo.md() should be dedented.
+    """MF007: Markdown strings in `mo.md()` should be dedented.
 
     This rule detects markdown strings in `mo.md()` calls that have unnecessary
     leading indentation. Dedenting markdown improves readability and produces
