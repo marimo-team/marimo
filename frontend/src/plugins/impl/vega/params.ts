@@ -1,6 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { TopLevelSpec } from "vega-lite";
-import type { LayerSpec, UnitSpec } from "vega-lite/build/src/spec";
+import type {
+  LayerSpec,
+  NonNormalizedSpec,
+  UnitSpec,
+} from "vega-lite/build/src/spec";
 import { Marks } from "./marks";
 import {
   type Field,
@@ -136,7 +140,7 @@ export function getEncodingAxisForMark(
 }
 
 export function getSelectionParamNames(
-  spec: TopLevelSpec | LayerSpec<Field> | UnitSpec<Field>,
+  spec: TopLevelSpec | LayerSpec<Field> | UnitSpec<Field> | NonNormalizedSpec,
 ): string[] {
   if ("params" in spec && spec.params && spec.params.length > 0) {
     const params = spec.params;
@@ -155,6 +159,12 @@ export function getSelectionParamNames(
   }
   if ("layer" in spec) {
     return [...new Set(spec.layer.flatMap(getSelectionParamNames))];
+  }
+  if ("vconcat" in spec) {
+    return [...new Set(spec.vconcat.flatMap(getSelectionParamNames))];
+  }
+  if ("hconcat" in spec) {
+    return [...new Set(spec.hconcat.flatMap(getSelectionParamNames))];
   }
   return [];
 }

@@ -38,7 +38,12 @@ export function makeSelectable<T extends VegaLiteSpec>(
 
   if ("vconcat" in spec) {
     const subSpecs = spec.vconcat.map((subSpec) =>
-      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec,
+      "mark" in subSpec
+        ? makeSelectable(subSpec as VegaLiteUnitSpec, {
+            chartSelection,
+            fieldSelection,
+          })
+        : subSpec,
     );
     // No pan/zoom for vconcat
     return { ...spec, vconcat: subSpecs };
@@ -46,18 +51,59 @@ export function makeSelectable<T extends VegaLiteSpec>(
 
   if ("hconcat" in spec) {
     const subSpecs = spec.hconcat.map((subSpec) =>
-      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec,
+      "mark" in subSpec
+        ? makeSelectable(subSpec as VegaLiteUnitSpec, {
+            chartSelection,
+            fieldSelection,
+          })
+        : subSpec,
     );
     // No pan/zoom for hconcat
     return { ...spec, hconcat: subSpecs };
   }
 
   if ("layer" in spec) {
+    // Check if legend params already exist at the top level
+    const hasTopLevelLegendParam = spec.params?.some(
+      (param) => param.bind === "legend",
+    );
+    const shouldAddLegendSelection =
+      fieldSelection !== false && !hasTopLevelLegendParam;
+
+    // Collect all unique legend fields from all layers to avoid duplicates
+    let legendFields: string[] = [];
+    if (shouldAddLegendSelection) {
+      const allFields = spec.layer.flatMap((subSpec) => {
+        if (!("mark" in subSpec)) {
+          return [];
+        }
+        return findEncodedFields(subSpec as VegaLiteUnitSpec);
+      });
+      legendFields = [...new Set(allFields)]; // Remove duplicates
+
+      // If fieldSelection is an array, filter the fields
+      if (Array.isArray(fieldSelection)) {
+        legendFields = legendFields.filter((field) =>
+          fieldSelection.includes(field),
+        );
+      }
+    }
+
     const subSpecs = spec.layer.map((subSpec, idx) => {
       if (!("mark" in subSpec)) {
         return subSpec;
       }
       let resolvedSpec = subSpec as VegaLiteUnitSpec;
+
+      // Only add legend params to the first layer to avoid duplicates
+      if (idx === 0 && legendFields.length > 0) {
+        const legendParams = legendFields.map((field) => Params.legend(field));
+        resolvedSpec = {
+          ...resolvedSpec,
+          params: [...(resolvedSpec.params || []), ...legendParams],
+        };
+      }
+
       resolvedSpec = makeChartSelectable(resolvedSpec, chartSelection, idx);
       resolvedSpec = makeChartInteractive(resolvedSpec);
       if (idx === 0) {

@@ -1,5 +1,176 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`makeSelectable > should add legend selection to composite charts (issue #6676) 1`] = `
+{
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+                {
+                  "param": "select_point_0",
+                },
+                {
+                  "param": "select_interval_0",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x_value",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "upper",
+          "type": "quantitative",
+        },
+        "y2": {
+          "field": "lower",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "rule",
+      },
+      "params": [
+        {
+          "bind": "legend",
+          "name": "legend_selection_category",
+          "select": {
+            "fields": [
+              "category",
+            ],
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_point_0",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval_0",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+        {
+          "bind": "scales",
+          "name": "pan_zoom",
+          "select": {
+            "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "type": "interval",
+            "zoom": "wheel![event.metaKey]",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "select_point_1",
+                },
+                {
+                  "param": "select_interval_1",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x_value",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "filled": true,
+        "size": 60,
+        "tooltip": true,
+        "type": "point",
+      },
+      "params": [
+        {
+          "name": "select_point_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+  ],
+}
+`;
+
 exports[`makeSelectable > should return correctly if existing legend selection 1`] = `
 {
   "config": {
@@ -774,6 +945,19 @@ exports[`makeSelectable > should work for layered charts, with existing selectio
           },
           "value": "lightgray",
         },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_stage",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
         "x": {
           "field": "Level1",
           "sort": {
@@ -789,10 +973,22 @@ exports[`makeSelectable > should work for layered charts, with existing selectio
         },
       },
       "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
         "type": "bar",
       },
       "name": "view_21",
       "params": [
+        {
+          "bind": "legend",
+          "name": "legend_selection_stage",
+          "select": {
+            "fields": [
+              "stage",
+            ],
+            "type": "point",
+          },
+        },
         {
           "bind": "scales",
           "name": "pan_zoom",

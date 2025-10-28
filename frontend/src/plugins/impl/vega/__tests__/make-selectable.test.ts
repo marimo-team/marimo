@@ -572,4 +572,211 @@ describe("makeSelectable", () => {
       expect(getSelectionParamNames(newSpec)).toEqual([]);
     },
   );
+
+  it("should add legend selection to composite charts (issue #6676)", () => {
+    // Test case from https://github.com/marimo-team/marimo/issues/6676
+    const spec = {
+      layer: [
+        {
+          mark: "rule",
+          encoding: {
+            x: { field: "x_value", type: "quantitative" },
+            y: { field: "upper", type: "quantitative" },
+            y2: { field: "lower" },
+            color: {
+              field: "category",
+              type: "nominal",
+            },
+          },
+        },
+        {
+          mark: { type: "point", filled: true, size: 60 },
+          encoding: {
+            x: { field: "x_value", type: "quantitative" },
+            y: { field: "value", type: "quantitative" },
+            color: {
+              field: "category",
+              type: "nominal",
+            },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {
+      chartSelection: true,
+      fieldSelection: true,
+    });
+
+    expect(newSpec).toMatchSnapshot();
+    const paramNames = getSelectionParamNames(newSpec);
+    // Should have legend selection for category field
+    expect(paramNames).toContain("legend_selection_category");
+    // Should NOT have duplicate legend params
+    expect(
+      paramNames.filter((name) => name === "legend_selection_category"),
+    ).toHaveLength(1);
+  });
+
+  it("should not duplicate legend params when multiple layers have same color field", () => {
+    const spec = {
+      layer: [
+        {
+          mark: "line",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+        {
+          mark: { type: "point", size: 100 },
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+    const paramNames = getSelectionParamNames(newSpec);
+
+    // Should have exactly one legend_selection_category param
+    const legendParams = paramNames.filter((name) =>
+      name.startsWith("legend_selection_category"),
+    );
+    expect(legendParams).toHaveLength(1);
+    expect(legendParams[0]).toBe("legend_selection_category");
+  });
+
+  it("should collect legend fields from multiple layers with different fields", () => {
+    const spec = {
+      layer: [
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            size: { field: "size_field", type: "quantitative" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+    const paramNames = getSelectionParamNames(newSpec);
+
+    // Should have legend params for both fields
+    expect(paramNames).toContain("legend_selection_category");
+    expect(paramNames).toContain("legend_selection_size_field");
+  });
+
+  it("should add legend selection to vconcat specs", () => {
+    const spec = {
+      vconcat: [
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+        {
+          mark: "bar",
+          encoding: {
+            x: { field: "x", type: "nominal" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+    const paramNames = getSelectionParamNames(newSpec);
+
+    // Should have legend selection for category field
+    expect(paramNames).toContain("legend_selection_category");
+  });
+
+  it("should add legend selection to hconcat specs", () => {
+    const spec = {
+      hconcat: [
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "series", type: "nominal" },
+          },
+        },
+        {
+          mark: "line",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "series", type: "nominal" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+    const paramNames = getSelectionParamNames(newSpec);
+
+    // Should have legend selection for series field
+    expect(paramNames).toContain("legend_selection_series");
+  });
+
+  it("should add legend selection to nested vconcat(hconcat(...)) specs", () => {
+    const spec = {
+      vconcat: [
+        {
+          hconcat: [
+            {
+              mark: "point",
+              encoding: {
+                x: { field: "x", type: "quantitative" },
+                y: { field: "y", type: "quantitative" },
+                color: { field: "category", type: "nominal" },
+              },
+            },
+            {
+              mark: "bar",
+              encoding: {
+                x: { field: "x", type: "nominal" },
+                y: { field: "y", type: "quantitative" },
+                color: { field: "category", type: "nominal" },
+              },
+            },
+          ],
+        },
+        {
+          mark: "line",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+    const paramNames = getSelectionParamNames(newSpec);
+
+    // Should have legend selection for category field
+    expect(paramNames).toContain("legend_selection_category");
+  });
 });
