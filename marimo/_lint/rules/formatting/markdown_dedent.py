@@ -12,10 +12,10 @@ if TYPE_CHECKING:
 
 
 class MarkdownDedentRule(LintRule):
-    """MF007: Markdown strings in `mo.md()` should be dedented.
+    """MF007: Markdown strings in `mo.md()` should be properly indented.
 
     This rule detects markdown strings in `mo.md()` calls that have unnecessary
-    leading indentation. Dedenting markdown improves readability and produces
+    leading indentation. Proper markdown indentation improves readability and produces
     cleaner diffs in version control.
 
     ## What it does
@@ -62,8 +62,8 @@ class MarkdownDedentRule(LintRule):
     """
 
     code = "MF007"
-    name = "markdown-dedent"
-    description = "Markdown cells in `mo.md()` should be dedented."
+    name = "markdown-indentation"
+    description = "Markdown cells in `mo.md()` should be properly indented."
     severity = Severity.FORMATTING
     fixable = True
 
