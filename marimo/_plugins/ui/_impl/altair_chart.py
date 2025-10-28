@@ -327,6 +327,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
         register_transformers()
 
+        # Make a copy
+        original_chart = chart
+        chart = chart.copy()
         self._chart = chart
 
         if not isinstance(chart, (alt.TopLevelMixin)):
@@ -345,7 +348,14 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             if chart.autosize is alt.Undefined:
                 chart.autosize = "fit-x"
 
-        vega_spec = _parse_spec(chart)
+        try:
+            vega_spec = _parse_spec(chart)
+        except Exception:
+            # Sometimes the changes to width and autosize (above) can cause `.to_dict()` to throw an error
+            # similarly to the issue described in https://github.com/marimo-team/marimo/issues/6244
+            # so we fallback to the original chart.
+            LOGGER.info("Failed to parse spec, using original chart")
+            vega_spec = _parse_spec(original_chart)
 
         if label:
             vega_spec["title"] = label

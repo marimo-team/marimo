@@ -629,6 +629,23 @@ def test_does_not_modify_original() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_creating_altair_chart_does_not_mutate_original() -> None:
+    import altair as alt
+
+    data = {"values": [1, 2, 3]}
+    original_chart = alt.Chart(data).mark_point().encode(x="values:Q")
+
+    # Store the original spec
+    original_spec = original_chart.to_dict()
+
+    # Create marimo altair_chart wrapper
+    _ = altair_chart(original_chart)
+
+    # Verify the original chart hasn't been mutated
+    assert original_chart.to_dict() == original_spec
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_dataframe() -> None:
     import altair as alt
 
