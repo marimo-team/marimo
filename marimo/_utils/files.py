@@ -6,15 +6,13 @@ from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
 from typing import Union
 
+_SPLIT_NUMBERS = re.compile(r"([0-9]+)").split
+
 
 def natural_sort(filename: str) -> list[Union[int, str]]:
-    def convert(text: str) -> Union[int, str]:
-        return int(text) if text.isdigit() else text.lower()
-
-    def alphanum_key(key: str) -> list[Union[int, str]]:
-        return [convert(c) for c in re.split("([0-9]+)", key)]
-
-    return alphanum_key(filename)
+    return [
+        int(c) if c.isdigit() else c.lower() for c in _SPLIT_NUMBERS(filename)
+    ]
 
 
 def get_files(folder: str) -> Generator[Path, None, None]:
