@@ -12,15 +12,13 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     /// details | Hello, details!
 
     Some additional content.
 
     ///
-    """
-    )
+    """)
     return
 
 
@@ -32,57 +30,49 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     /// details | Info details
         type: info
 
     Some additional content.
     ///
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     /// details | Warning details
         type: warn
 
     This highlights something to watch out for
     ///
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     /// details | Danger details
         type: danger
 
     This indicates a critical warning or dangerous situation
     ///
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     /// details | Success details
         type: success
 
     This indicates a successful outcome or positive note
     ///
-    """
-    )
+    """)
     return
 
 

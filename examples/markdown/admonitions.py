@@ -14,27 +14,23 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     /// admonition | Heads up.
 
     Here's some information.
     ///
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     /// attention | Attention!
 
     This is important.
     ///
-    """
-    )
+    """)
     return
 
 

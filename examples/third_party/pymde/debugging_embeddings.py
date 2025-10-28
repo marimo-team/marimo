@@ -13,27 +13,23 @@ app = marimo.App()
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Sanity-Checking Embeddings
 
     This notebook shows you the basics of sanity-checking an embedding made
     with the `PyMDE` library. We'll use MNIST as a case study.
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     We'll start by making a simple neighborhood-preserving embedding. This
     means that we'll try to identify pairs of images that are similar, using
     a heuristic, and we'll tell PyMDE to place these pairs near each other in
     the embedding.
-    """
-    )
+    """)
     return
 
 

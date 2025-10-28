@@ -17,13 +17,11 @@ app = marimo.App(width="medium")
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Read Parquet
 
     This notebook shows how to read a Parquet file from a local file or a URL into an in-memory table.
-    """
-    )
+    """)
     return
 
 
@@ -102,13 +100,11 @@ def _(result):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Create an in-memory table from a Parquet file
 
     You can also create a table from a Parquet file, so you can easily query it in subsequent cells. This table will appear in marimo's data sources panel.
-    """
-    )
+    """)
     return
 
 

@@ -17,13 +17,11 @@ app = marimo.App(width="medium")
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Read JSON
 
     This notebook shows how to read a JSON file from a local file or a URL into an in-memory table.
-    """
-    )
+    """)
     return
 
 
@@ -38,8 +36,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     Reading from a JSON file is as easy as
 
     ```sql
@@ -47,8 +44,7 @@ def _(mo):
     ```
 
     where `data.json` is the path or URL to your json file.
-    """
-    )
+    """)
     return
 
 
@@ -111,13 +107,11 @@ def _(result):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Create an in-memory table from a JSON file
 
     You can also create a table from a JSON file, so you can easily query it in subsequent cells. This table will appear in marimo's data sources panel.
-    """
-    )
+    """)
     return
 
 

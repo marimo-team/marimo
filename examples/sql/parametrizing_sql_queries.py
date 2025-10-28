@@ -23,15 +23,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Parametrizing SQL Queries
 
     This notebook shows parametrize SQL queries with Python values, using Python f-string interpolation.
 
     First, we create a dataframe called `df`.
-    """
-    )
+    """)
     return
 
 
@@ -59,15 +57,13 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     Next, we **create a SQL cell** that filters the table to the selected species.
 
     Notice that we can reference the Python variable `species_dropdown` in our query
     using **curly braces**. This is because marimo represents SQL queries as Python
     f-strings.
-    """
-    )
+    """)
     return
 
 
@@ -103,8 +99,7 @@ def _(mo, species_dropdown):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     The query output is returned to Python as a dataframe (Polars if you have it installed, Pandas otherwise).
 
     Choose the dataframe name via the **output variable** input in the bottom-left
@@ -112,8 +107,7 @@ def _(mo):
     to other cells. In this case, we've named the output `result`.
 
     Try changing the selected species in the `species_dropdown`, and watch how the query result changes.
-    """
-    )
+    """)
     return
 
 

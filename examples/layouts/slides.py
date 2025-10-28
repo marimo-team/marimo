@@ -16,41 +16,35 @@ app = marimo.App(width="medium", layout_file="layouts/slides.slides.json")
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     !!! tip "This notebook is best viewed as an app."
         Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # DuckDB Tricks 🦆
 
     We use a simple example data set to present a few tricks that are useful when using DuckDB.
 
     >
     > Turned into slides from <https://duckdb.org/2024/08/19/duckdb-tricks-part-1.html>
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Installation
 
     ```bash
     uv add duckdb
     ```
-    """
-    )
+    """)
     return
 
 
@@ -204,13 +198,11 @@ def _(mo, print_and_run, rerun):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Closing thoughts
 
     That’s it for today. The tricks shown in this post are available on [duckdbsnippets.com](https://duckdbsnippets.com).
-    """
-    )
+    """)
     return
 
 

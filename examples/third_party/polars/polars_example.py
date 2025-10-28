@@ -16,13 +16,11 @@ app = marimo.App(width="full")
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Using `Polars` in `marimo`
 
     > Lightning-fast DataFrame library for Rust and Python
-    """
-    )
+    """)
     return
 
 

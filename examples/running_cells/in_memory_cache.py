@@ -24,16 +24,14 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     Use `mo.cache` to cache the outputs of expensive functions. The first
     time the function is called with unseen arguments, it will execute and
     return the computed value. Subsequent calls with the same arguments will
     return cached results.
 
     Experiment with the invocation below to get a feel for how this works.
-    """
-    )
+    """)
     return
 
 

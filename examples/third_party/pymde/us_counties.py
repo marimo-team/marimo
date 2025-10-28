@@ -14,8 +14,7 @@ app = marimo.App()
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Embedding 🇺🇸 Counties
 
     This notebook accompanies chapter 10 of the monograph
@@ -34,8 +33,7 @@ def _(mo):
     ⚡ We use `mo.ui.altair_chart` to create a reactive and interactive
     scatter plot of the embedding: this makes it possible to see where counties
     land in the embedding!
-    """
-    )
+    """)
     return
 
 
@@ -53,13 +51,11 @@ def _(pymde):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## The data
 
     The data we embed includes demographic information about each county.
-    """
-    )
+    """)
     return
 
 
@@ -71,14 +67,12 @@ def _(dataset, mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## The embedding
 
     We now make a neighbor-preserving embedding, to explore the local
     relationships in the data.
-    """
-    )
+    """)
     return
 
 
@@ -96,8 +90,7 @@ def _(mde):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     Finally we visualize the embedding, rotating it so that it vaguely
     resembles a map of the US. Note that counties that voted Republican tend
     to cluster together, as do counties that voted Democratic, even though
@@ -105,8 +98,7 @@ def _(mo):
 
     In some real sense, the embedding "discovered" political preference
     from demographic data.
-    """
-    )
+    """)
     return
 
 
@@ -139,14 +131,12 @@ def _(dataset, pd, rotated_embedding):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ### Try it! 👆
 
     Select points in the scatter plot below with your cursor: they're
     automatically sent back to Python, letting you investigate further!
-    """
-    )
+    """)
     return
 
 

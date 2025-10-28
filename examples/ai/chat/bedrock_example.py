@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -21,8 +21,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # AWS Bedrock Chat Example
 
     This example demonstrates using AWS Bedrock with marimo's chat interface.
@@ -30,8 +29,7 @@ def _(mo):
     AWS Bedrock provides access to foundation models from leading AI companies like Anthropic, Meta, and others.
 
     ⚠️ **Note:** You'll need an AWS account with access to the AWS Bedrock service and the specific model you want to use.
-    """
-    )
+    """)
     return
 
 
@@ -227,8 +225,7 @@ def _(config_form, max_tokens, mo, temperature):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Notes on AWS Bedrock Usage
 
     1. **Model Access**: You need to request access to the specific models you want to use in the AWS Bedrock console.
@@ -243,8 +240,7 @@ def _(mo):
     - That your AWS credentials are configured correctly
     - That you have requested model access in the AWS Bedrock console
     - That you're using a region where the selected model is available
-    """
-    )
+    """)
     return
 
 

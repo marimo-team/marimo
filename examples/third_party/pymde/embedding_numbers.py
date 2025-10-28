@@ -13,8 +13,7 @@ app = marimo.App()
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Embedding MNIST
 
     This app shows how to use the function `pymde.preserve_neighbors`
@@ -25,8 +24,7 @@ def _(mo):
     ## Data
     The data we'll embed are 70,000 28x28 grayscale images of handwritten
     digits:
-    """
-    )
+    """)
     return
 
 

@@ -6,8 +6,7 @@ app = marimo.App()
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     The last expression of a cell is its visual output. This output
     appears above the cell when editing a notebook, with notebook code
     serving as a "caption" for the output. Outputs can be configured
@@ -16,8 +15,7 @@ def _(mo):
     If running
     a notebook as an app, the output is the visual representation
     of the cell (code is hidden by default).
-    """
-    )
+    """)
     return
 
 

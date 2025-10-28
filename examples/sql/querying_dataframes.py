@@ -23,15 +23,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Querying dataframes
 
     This notebook shows how to use SQL to query Python dataframes.
 
     First, we create a dataframe called `df`.
-    """
-    )
+    """)
     return
 
 
@@ -73,15 +71,13 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     The query output is returned to Python as a dataframe (Polars if you have it installed, Pandas otherwise).
 
     Choose the dataframe name via the **output variable** input in the bottom-left of the cell. If the name starts with an underscore, it won't be made available to other cells.
 
     In this case, we've named the output `result`.
-    """
-    )
+    """)
     return
 
 

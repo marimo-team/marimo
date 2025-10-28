@@ -31,12 +31,10 @@ def _(checkbox):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     The next cell does **not** show anything, since an if statement does not
     have a value:
-    """
-    )
+    """)
     return
 
 

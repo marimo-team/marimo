@@ -24,8 +24,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Using MLX with Marimo
 
     ## Chat Example
@@ -39,8 +38,7 @@ def _(mo):
     - [`prompt caching`](https://github.com/ml-explore/mlx-examples/blob/main/llms/README.md#long-prompts-and-generations)
     - completions / notebook mode
     - assistant pre-fill
-    """
-    )
+    """)
     return
 
 

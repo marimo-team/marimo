@@ -25,12 +25,10 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     Make custom UI elements using `batch()`, and turn any UI element
     into a form with `form()`.
-    """
-    )
+    """)
     return
 
 

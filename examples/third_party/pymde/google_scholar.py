@@ -13,8 +13,7 @@ app = marimo.App()
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Embedding Google Scholar
 
     This notebook shows how to use the function `pymde.preserve_distances` to
@@ -23,8 +22,7 @@ def _(mo):
 
     It uses an academic co-authorship network collected from Google Scholar as
     a case study.
-    """
-    )
+    """)
     return
 
 

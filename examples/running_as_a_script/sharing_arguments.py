@@ -18,8 +18,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     This notebook shows how to parametrize a notebook with optional command-line arguments.
 
     Run the notebook with
@@ -47,8 +46,7 @@ def _(mo):
     ```python
     python sharing_arguments.py --help
     ```
-    """
-    )
+    """)
     return
 
 

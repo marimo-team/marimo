@@ -22,20 +22,17 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # PyIceberg REST Catalog
 
     This notebook shows you how to connect to an Apache Iceberg data catalog over REST.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     /// details | Create a new catalog with Cloudflare
 
     1. Create a Cloudflare account
@@ -43,8 +40,7 @@ def _(mo):
 
 
     ///
-    """
-    )
+    """)
     return
 
 

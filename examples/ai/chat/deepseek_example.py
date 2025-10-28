@@ -20,13 +20,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Using DeepSeek
 
     This example shows how to use [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat/?h=mo.ui.chat) to make a chatbot backed by [Deepseek](https://deepseek.com/).
-    """
-    )
+    """)
     return
 
 

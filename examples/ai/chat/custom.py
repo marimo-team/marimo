@@ -19,15 +19,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Custom chatbot
 
     This example shows how to make a custom chatbot: just supply a function that takes two arguments,
     `messages` and `config`, and returns the chatbot's response. This response can be any object; it
     doesn't have to be a string!
-    """
-    )
+    """)
     return
 
 

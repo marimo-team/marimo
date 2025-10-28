@@ -17,8 +17,7 @@ app = marimo.App(width="medium")
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Seam Carving
 
     _Example adapted from work by [Vincent Warmerdam](https://x.com/fishnets88)_.
@@ -39,8 +38,7 @@ def _(mo):
     use [Numba](https://numba.pydata.org/).
 
     Try it out by playing with the slider!
-    """
-    )
+    """)
     return
 
 

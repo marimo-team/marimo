@@ -16,8 +16,7 @@ app = marimo.App()
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Smallest Enclosing Circle
 
     This program computes the circle of smallest radius that encloses a given
@@ -28,8 +27,7 @@ def _(mo):
     solving convex optimization problems.
 
     _Use the slider below to choose the number of circles to sample:_
-    """
-    )
+    """)
     return
 
 
@@ -109,8 +107,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     We can write down a convex optimization problem whose solution gives us
     the smallest circle enclosing the $n$ given circles. Once we do this,
     we can just code up the problem in CVXPY to obtain a solution.
@@ -146,8 +143,7 @@ def _(mo):
         cp.Problem(objective, constraints).solve()
         return (center.value, radius.value)
     ```
-    """
-    )
+    """)
     return
 
 

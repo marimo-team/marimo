@@ -18,13 +18,11 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # SQL Histograms
 
     This notebook shows how to create a histogram of a column using built-in duckdb aggregate functions.
-    """
-    )
+    """)
     return
 
 

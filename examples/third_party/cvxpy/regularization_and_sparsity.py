@@ -22,8 +22,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     This app shows how the choice of regularization in a least squares regression
     problem can affect the sparsity of solutions.
 
@@ -53,8 +52,7 @@ def _(mo):
     \[
     \|x\|_2 = \sqrt{x_1^2 + x_2^2 + \cdots + x_n^2}.
     \]
-    """
-    )
+    """)
     return
 
 
@@ -149,8 +147,7 @@ def _(cdf, plt, x_l1, x_l2):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Sparsity
 
     The $\ell_1$ norm, when used as a regularizer, encourages solutions
@@ -160,8 +157,7 @@ def _(mo):
     are important for making predictions, and which are not: If a component
     of $x$ is $0$, then the corresponding feature or measurement
     must not be important in making predictions.
-    """
-    )
+    """)
     return
 
 

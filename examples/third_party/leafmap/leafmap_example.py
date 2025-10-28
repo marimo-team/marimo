@@ -14,13 +14,11 @@ app = marimo.App()
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Using Leafmap
 
     This example shows how to render a `leafmap.Map` in marimo; just output it like any other object.
-    """
-    )
+    """)
     return
 
 

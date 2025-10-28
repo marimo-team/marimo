@@ -18,8 +18,7 @@ app = marimo.App(width="medium")
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Connect to SQLite
 
     You can use marimo's SQL cells to read from and write to SQLite databases.
@@ -27,8 +26,7 @@ def _(mo):
     The first step is to attach a SQLite database. We attach to a sample database in a read-only mode below.
 
     For advanced usage, see [duckdb's documentation](https://duckdb.org/docs/extensions/sqlite).
-    """
-    )
+    """)
     return
 
 

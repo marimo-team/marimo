@@ -25,8 +25,7 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     This is not auto-run because it has custom marimo configuration in the file header:
 
     ```toml
@@ -34,8 +33,7 @@ def _(mo):
     auto_instantiate = false
     on_cell_change = "lazy"
     ```
-    """
-    )
+    """)
     return
 
 

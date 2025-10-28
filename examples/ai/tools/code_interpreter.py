@@ -23,13 +23,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Creating a code interpreter
 
     This example shows how to create a code-interpreter in a few lines of code.
-    """
-    )
+    """)
     return
 
 

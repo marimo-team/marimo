@@ -32,8 +32,7 @@ def _(data):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     marimo has a rich dataframe viewer built-in:
 
     - built-in global search
@@ -41,8 +40,7 @@ def _(mo):
     - per-column histograms
     - download filtered views
     - paginate through the whole dataframe
-    """
-    )
+    """)
     return
 
 

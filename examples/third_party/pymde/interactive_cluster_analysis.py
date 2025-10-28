@@ -20,12 +20,10 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     Here's an **embedding of MNIST**: each point represents a digit,
     with similar digits close to each other.
-    """
-    )
+    """)
     return
 
 
