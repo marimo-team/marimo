@@ -189,7 +189,7 @@ describe("MarkdownLanguageAdapter", () => {
         'mo.md(f"""\n```python\n{some_variable}\n```\n""")';
       const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("```python\n{some_variable}\n```");
-      expect(offset).toBe(15);
+      expect(offset).toBe(10);
       expect(metadata.quotePrefix).toBe("f");
 
       // Transform out
@@ -198,7 +198,7 @@ describe("MarkdownLanguageAdapter", () => {
         metadata,
       );
       expect(outerCode).toMatch(pythonCode);
-      expect(outerOffset).toBe(17);
+      expect(outerOffset).toBe(12);
     });
 
     it("should handle f-strings", () => {
@@ -252,41 +252,35 @@ describe("MarkdownLanguageAdapter", () => {
       const code = '"Hello" world';
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
-        "mo.md(
-            """
+        "mo.md("""
         "Hello" world
-        """
-        )"
+        """)"
       `);
-      expect(offset).toBe(16);
+      expect(offset).toBe(11);
     });
 
     it("ends with quote", () => {
       const code = 'Hello "world"';
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
-        "mo.md(
-            """
+        "mo.md("""
         Hello "world"
-        """
-        )"
+        """)"
       `);
-      expect(offset).toBe(16);
+      expect(offset).toBe(11);
     });
 
     it("should wrap Markdown code with triple double-quoted string format", () => {
       const code = "# Markdown Title\n\nSome content here.";
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
-        "mo.md(
-            """
+        "mo.md("""
         # Markdown Title
 
         Some content here.
-        """
-        )"
+        """)"
       `);
-      expect(offset).toBe(16);
+      expect(offset).toBe(11);
     });
 
     it("should escape triple quotes in the Markdown code", () => {
@@ -317,7 +311,7 @@ describe("MarkdownLanguageAdapter", () => {
         {some_variable}
         """)"
       `);
-      expect(offset).toBe(17);
+      expect(offset).toBe(12);
     });
 
     it("should handle rf-strings in transformOut", () => {
@@ -330,7 +324,7 @@ describe("MarkdownLanguageAdapter", () => {
         {some_variable}
         """)"
       `);
-      expect(offset).toBe(18);
+      expect(offset).toBe(13);
     });
   });
 
