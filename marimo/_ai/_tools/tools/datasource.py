@@ -42,15 +42,13 @@ class GetDatabaseTables(
     ToolBase[GetDatabaseTablesArgs, GetDatabaseTablesOutput]
 ):
     """
-    Get information about tables in a database. Use the query parameter to search by name. Use regex for complex searches.
+    Get information about tables in a database. Use the query parameter to search by name. You can use regex.
 
     Args:
         session_id: The session id.
         query (optional): The query to match the database, schemas, and tables.
 
-    If a query is provided, it will fuzzy match the query to the database, schemas, and tables available. If no query is provided, all tables are returned. Don't provide a query if you need to see the entire schema view.
-
-    The tables returned contain information about the database, schema and connection name to use in forming SQL queries.
+    If a query is provided, it will fuzzy match the query to the database, schemas, and tables available. If no query is provided, all tables are returned.
     """
 
     guidelines = ToolGuidelines(
@@ -62,8 +60,10 @@ class GetDatabaseTables(
             "You must have a valid session id from an active notebook",
         ],
         avoid_if=[
-            "the user is asking about in-memory DataFrames, use the get_tables_and_variables tool instead",
+            "You have already been given the schema view, you can refer to the given information",
+            "The user is asking about in-memory DataFrames, use the get_tables_and_variables tool instead",
         ],
+        additional_info="For best results, don't provide a query since you may miss some tables. Alternatively, provide loose queries using regex that can match uppercase/lowercase and plural or singular forms.",
     )
 
     def handle(self, args: GetDatabaseTablesArgs) -> GetDatabaseTablesOutput:

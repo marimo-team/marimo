@@ -3,13 +3,13 @@
 import type { Completion } from "@codemirror/autocomplete";
 import type { FileUIPart } from "ai";
 import { toPng } from "html-to-image";
+import { processOutput } from "@/components/editor/output/ConsoleOutput";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { JotaiStore } from "@/core/state/jotai";
-import { parseHtmlContent } from "@/utils/dom";
 import { Logger } from "@/utils/Logger";
 import { type AIContextItem, AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
@@ -320,15 +320,9 @@ function getBaseOutput(output: OutputMessage): BaseOutput | null {
   const isMedia = isMediaMimetype(mimetype, String(output.data));
   const outputType = isMedia ? "media" : "text";
 
-  let processedContent: string | undefined;
+  const processedContent = processOutput(output);
   let imageUrl: string | undefined;
   let shouldDownloadImage = false;
-
-  // Process text content
-  if (outputType === "text" && typeof output.data === "string") {
-    processedContent =
-      mimetype === "text/html" ? parseHtmlContent(output.data) : output.data;
-  }
 
   // Process media content - for now, we'll just note that it's media
   if (outputType === "media") {

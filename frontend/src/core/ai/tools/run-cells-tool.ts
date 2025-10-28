@@ -23,9 +23,7 @@ import type { CopilotMode } from "./registry";
 
 interface CellOutput {
   consoleOutput?: string;
-  // consoleAttachments?: FileUIPart[];
   cellOutput?: string;
-  // cellAttachments?: FileUIPart[];
 }
 
 // Must use Record instead of Map because Map serializes to JSON as {}
@@ -105,6 +103,7 @@ export class RunStaleCellsTool
 
     const cellsToOutput = new Map<CellId, CellOutput | null>();
     let resultMessage = "";
+    let outputHasErrors = false;
 
     for (const cellId of staleCells) {
       const cellContextData = getCellContextData(cellId, updatedNotebook, {
@@ -112,9 +111,7 @@ export class RunStaleCellsTool
       });
 
       let cellOutputString: string | undefined;
-      // let cellAttachments: FileUIPart[] | undefined;
       let consoleOutputString: string | undefined;
-      // let consoleAttachments: FileUIPart[] | undefined;
 
       const cellOutput = cellContextData.cellOutput;
       const consoleOutputs = cellContextData.consoleOutputs;
@@ -126,31 +123,26 @@ export class RunStaleCellsTool
 
       if (cellOutput) {
         cellOutputString = this.formatOutputString(cellOutput);
-        // cellAttachments = await getAttachmentsForOutputs(
-        //   [cellOutput],
-        //   cellId,
-        //   cellContextData.cellName,
-        // );
+        if (this.outputHasErrors(cellOutput)) {
+          outputHasErrors = true;
+        }
       }
 
       if (consoleOutputs) {
-        // consoleAttachments = await getAttachmentsForOutputs(
-        //   consoleOutputs,
-        //   cellId,
-        //   cellContextData.cellName,
-        // );
         consoleOutputString = consoleOutputs
           .map((output) => this.formatOutputString(output))
           .join("\n");
         resultMessage +=
           "Console output represents the stdout or stderr of the cell (eg. print statements).";
+
+        if (consoleOutputs.some((output) => this.outputHasErrors(output))) {
+          outputHasErrors = true;
+        }
       }
 
       cellsToOutput.set(cellId, {
         cellOutput: cellOutputString,
         consoleOutput: consoleOutputString,
-        // cellAttachments: cellAttachments,
-        // consoleAttachments: consoleAttachments,
       });
     }
 
@@ -161,15 +153,31 @@ export class RunStaleCellsTool
       };
     }
 
+    const nextSteps = [
+      "Review the output of the cells. The CellId is the key of the result object.",
+      outputHasErrors
+        ? "There are errors in the cells. Please fix them by using the edit notebook tool and the given CellIds."
+        : "You may edit the notebook further with the given CellIds.",
+    ];
+
     return {
       status: "success",
       cellsToOutput: Object.fromEntries(cellsToOutput),
       message: resultMessage === "" ? undefined : resultMessage,
-      next_steps: [
-        "Review the output of the cells, if you need to make any changes, you can run this tool again, the CellId is the key of the result object if you want to edit the cell.",
-      ],
+      next_steps: nextSteps,
     };
   };
+
+  private outputHasErrors(cellOutput: BaseOutput): boolean {
+    const { output } = cellOutput;
+    if (
+      output.mimetype === "application/vnd.marimo+error" ||
+      output.mimetype === "application/vnd.marimo+traceback"
+    ) {
+      return true;
+    }
+    return false;
+  }
 
   private formatOutputString(cellOutput: BaseOutput): string {
     let outputString = "";
