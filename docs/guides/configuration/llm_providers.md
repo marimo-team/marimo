@@ -133,7 +133,7 @@ region_name = "us-east-1" # AWS region where Bedrock is available
 profile_name = "my-profile"
 ```
 
-Use `profile_name` for a non-default named profile, or rely on env vars/standard AWS resolution.
+Use `profile_name` for a non-default named profile, or rely on env vars/standard AWS resolution. For regional inference models, specify the inference profile ID (e.g., `bedrock/eu.anthropic.claude-sonnet-4-20250514-v1:0`) and corresponding region.
 
 ??? tip "Required AWS Bedrock permissions"
     Ensure your IAM policy allows `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream` for the models you plan to use.
