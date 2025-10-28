@@ -939,6 +939,7 @@ class table(
         DEFAULT_VALUE_COUNTS_SIZE = 15
 
         bin_aggregation_failed = False
+        cols_to_drop = []
 
         for column in self._manager.get_column_names():
             statistic = None
@@ -962,14 +963,14 @@ class table(
                 )
                 # For boolean columns, we can drop the column since we use stats
                 if column_type == "boolean" or column_type == "unknown":
-                    data = data.drop_columns([column])
+                    cols_to_drop.append(column)
 
                 # Handle columns with all nulls first
                 # These get empty bins regardless of type
                 if statistic and statistic.nulls == total_rows:
                     try:
                         bin_values[column] = []
-                        data = data.drop_columns([column])
+                        cols_to_drop.append(column)
                         continue
                     except BaseException as e:
                         LOGGER.warning(
@@ -993,7 +994,7 @@ class table(
                         )
                         if len(val_counts) > 0:
                             value_counts[column] = val_counts
-                            data = data.drop_columns([column])
+                            cols_to_drop.append(column)
                         continue
                     except BaseException as e:
                         LOGGER.warning(
@@ -1018,7 +1019,7 @@ class table(
                     bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
                     bin_values[column] = bins
                     if len(bins) > 0:
-                        data = data.drop_columns([column])
+                        cols_to_drop.append(column)
                     continue
                 except BaseException as e:
                     bin_aggregation_failed = True
@@ -1029,6 +1030,7 @@ class table(
         should_fallback = show_charts and bin_aggregation_failed
         if should_fallback:
             LOGGER.debug("Bin aggregation failed, falling back to chart data")
+            data = data.drop_columns(cols_to_drop)
             chart_data, _ = self._to_chart_data_url(data)
 
         return ColumnSummaries(
