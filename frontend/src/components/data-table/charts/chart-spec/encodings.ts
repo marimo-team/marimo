@@ -19,6 +19,7 @@ import {
 } from "../types";
 import { isFieldSet } from "./spec";
 import { convertDataTypeToVega } from "./types";
+import { escapeFieldName } from "./utils";
 
 export function getBinEncoding(
   chartType: ChartType,
@@ -123,7 +124,7 @@ export function getColorEncoding(
   const aggregate = colorByColumn?.aggregate;
 
   return {
-    field: colorByColumn.field,
+    field: escapeFieldName(colorByColumn.field),
     type: convertDataTypeToVega(selectedDataType),
     scale: getColorInScale(formValues),
     aggregate: getAggregate(aggregate, selectedDataType),
@@ -143,7 +144,7 @@ export function getOffsetEncoding(
   ) {
     return undefined;
   }
-  return { field: formValues.general?.colorByColumn?.field };
+  return { field: escapeFieldName(formValues.general?.colorByColumn?.field) };
 }
 
 export function getAggregate(

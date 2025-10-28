@@ -2,6 +2,7 @@
 
 import type { PositionDef } from "vega-lite/build/src/channeldef";
 import { describe, expect, it } from "vitest";
+import { invariant } from "@/utils/invariant";
 import {
   getAggregate,
   getBinEncoding,
@@ -993,5 +994,138 @@ describe("getBinEncoding", () => {
       });
       expect(result).toEqual({ step: 10 });
     }
+  });
+});
+
+describe("Special character escaping in specs", () => {
+  it("should escape dots in field names", () => {
+    const result = getAxisEncoding(
+      {
+        field: "value.data",
+        selectedDataType: "number",
+        aggregate: "sum",
+        timeUnit: undefined,
+      },
+      undefined,
+      "Value",
+      false,
+      ChartType.BAR,
+    );
+
+    invariant("field" in result, "field should be defined");
+    expect(result.field).toBe("value\\.data");
+  });
+
+  it("should escape brackets in field names", () => {
+    const result = getAxisEncoding(
+      {
+        field: "data[0]",
+        selectedDataType: "number",
+        aggregate: "mean",
+        timeUnit: undefined,
+      },
+      undefined,
+      "Data",
+      false,
+      ChartType.BAR,
+    );
+
+    invariant("field" in result, "field should be defined");
+    expect(result.field).toBe("data\\[0\\]");
+  });
+
+  it("should escape colons in field names", () => {
+    const result = getAxisEncoding(
+      {
+        field: "time:stamp",
+        selectedDataType: "temporal",
+        aggregate: NONE_VALUE,
+        timeUnit: "yearmonth",
+      },
+      undefined,
+      "Timestamp",
+      false,
+      ChartType.LINE,
+    );
+
+    invariant("field" in result, "field should be defined");
+    expect(result.field).toBe("time\\:stamp");
+  });
+
+  it("should escape multiple special characters in field names", () => {
+    const result = getAxisEncoding(
+      {
+        field: "data[0].value:result",
+        selectedDataType: "number",
+        aggregate: "sum",
+        timeUnit: undefined,
+      },
+      undefined,
+      "Result",
+      false,
+      ChartType.BAR,
+    );
+
+    invariant("field" in result, "field should be defined");
+    expect(result.field).toBe("data\\[0\\]\\.value\\:result");
+  });
+
+  it("should escape special characters in color encoding", () => {
+    const formValues: ChartSchemaType = {
+      general: {
+        colorByColumn: {
+          field: "group.name",
+          selectedDataType: "string",
+          aggregate: NONE_VALUE,
+        },
+      },
+    };
+
+    const result = getColorEncoding(ChartType.BAR, formValues);
+
+    invariant(result && "field" in result, "field should be defined");
+    expect(result?.field).toBe("group\\.name");
+  });
+
+  it("should escape special characters in tooltip field names", () => {
+    const formValues: ChartSchemaType = {
+      general: {
+        xColumn: {
+          field: "category",
+          selectedDataType: "string",
+          aggregate: NONE_VALUE,
+        },
+        yColumn: {
+          field: "value.data",
+          selectedDataType: "number",
+          aggregate: "sum",
+        },
+      },
+      tooltips: {
+        auto: true,
+        fields: [],
+      },
+    };
+
+    const xEncoding: PositionDef<string> = {
+      field: "category\\.escaped",
+      type: "nominal",
+    };
+
+    const yEncoding: PositionDef<string> = {
+      field: "value\\.data",
+      type: "quantitative",
+      aggregate: "sum",
+    };
+
+    const result = getTooltips({
+      formValues,
+      xEncoding,
+      yEncoding,
+    });
+
+    expect(result).toBeDefined();
+    expect(result?.[0]?.field).toBe("category\\.escaped");
+    expect(result?.[1]?.field).toBe("value\\.data");
   });
 });
