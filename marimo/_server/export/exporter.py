@@ -248,7 +248,6 @@ class Exporter:
         filename: Optional[str],
         previous: Path | None = None,
     ) -> tuple[str, str]:
-        from marimo._ast import codegen
         from marimo._ast.app_config import _AppConfig
         from marimo._ast.compiler import compile_cell
         from marimo._convert.markdown.markdown import (
@@ -361,6 +360,10 @@ class Exporter:
                         previous_was_markdown = True
                         document.append(markdown)
                         continue
+                    # In which case we need to format it like our python blocks.
+                    elif cell_impl.markdown:
+                        code = codegen.format_markdown(cell_impl)
+
                 attributes["language"] = language
                 # Definitely a code cell, but need to determine if it can be
                 # formatted as non-python.
