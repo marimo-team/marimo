@@ -195,7 +195,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       "notify is not a method on the client",
     );
     await this.client.initialize();
-    await this.client.notify("workspace/didChangeConfiguration", {
+    this.client.notify("workspace/didChangeConfiguration", {
       settings: this.initialSettings,
     });
 
