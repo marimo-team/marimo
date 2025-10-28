@@ -21,6 +21,9 @@ import {
 } from "./base";
 import type { CopilotMode } from "./registry";
 
+const POST_EXECUTION_DELAY = 200;
+const WAIT_FOR_CELLS_TIMEOUT = 30_000;
+
 interface CellOutput {
   consoleOutput?: string;
   cellOutput?: string;
@@ -65,6 +68,12 @@ export class RunStaleCellsTool
   }) satisfies z.ZodType<RunStaleCellsOutput>;
   readonly mode: CopilotMode[] = ["agent"];
 
+  private readonly postExecutionDelay: number;
+
+  constructor(opts?: { postExecutionDelay?: number }) {
+    this.postExecutionDelay = opts?.postExecutionDelay ?? POST_EXECUTION_DELAY;
+  }
+
   handler = async (
     _args: EmptyToolInput,
     toolContext: ToolNotebookContext,
@@ -89,7 +98,12 @@ export class RunStaleCellsTool
     });
 
     // Wait for all cells to finish executing
-    const allCellsFinished = await this.waitForCellsToFinish(store, staleCells);
+    const allCellsFinished = await this.waitForCellsToFinish(
+      store,
+      staleCells,
+      WAIT_FOR_CELLS_TIMEOUT,
+      this.postExecutionDelay,
+    );
     if (!allCellsFinished) {
       return {
         status: "success",
@@ -115,7 +129,9 @@ export class RunStaleCellsTool
 
       const cellOutput = cellContextData.cellOutput;
       const consoleOutputs = cellContextData.consoleOutputs;
-      if (!cellOutput && !consoleOutputs) {
+      const hasConsoleOutput = consoleOutputs && consoleOutputs.length > 0;
+
+      if (!cellOutput && !hasConsoleOutput) {
         // Set null to show no output
         cellsToOutput.set(cellId, null);
         continue;
@@ -128,7 +144,7 @@ export class RunStaleCellsTool
         }
       }
 
-      if (consoleOutputs) {
+      if (hasConsoleOutput) {
         consoleOutputString = consoleOutputs
           .map((output) => this.formatOutputString(output))
           .join("\n");
@@ -207,7 +223,8 @@ export class RunStaleCellsTool
   private async waitForCellsToFinish(
     store: JotaiStore,
     cellIds: CellId[],
-    timeout = 30_000,
+    timeout: number,
+    postExecutionDelay: number,
   ): Promise<boolean> {
     const checkAllFinished = (
       notebook: ReturnType<typeof notebookAtom.read>,
@@ -220,9 +237,18 @@ export class RunStaleCellsTool
       });
     };
 
-    // If already finished, return immediately
-    if (checkAllFinished(store.get(notebookAtom))) {
+    // Add a small delay after cells finish to allow console outputs to arrive
+    // Console outputs are streamed and might still be in-flight
+    const delayForConsoleOutputs = async () => {
+      if (postExecutionDelay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, postExecutionDelay));
+      }
       return true;
+    };
+
+    // Return immediately if all cells are finished
+    if (checkAllFinished(store.get(notebookAtom))) {
+      return await delayForConsoleOutputs();
     }
 
     // Wait for notebook state changes with timeout
@@ -233,7 +259,7 @@ export class RunStaleCellsTool
           setTimeout(() => reject(new Error("timeout")), timeout),
         ),
       ]);
-      return true;
+      return await delayForConsoleOutputs();
     } catch {
       return false;
     }

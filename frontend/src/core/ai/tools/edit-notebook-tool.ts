@@ -190,7 +190,11 @@ export class EditNotebookTool
     }
     return {
       status: "success",
-      next_steps: ["If you need to perform more edits, call this tool again."],
+      next_steps: [
+        "If you need to perform more edits, call this tool again.",
+        "You should use the lint notebook tool to check for errors and lint issues. Fix them by editing the notebook.",
+        "You should use the run stale cells tool to run the cells that have been edited or newly added. This allows you to see the output of the cells and fix any errors.",
+      ],
     };
   };
 
