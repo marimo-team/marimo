@@ -94,6 +94,9 @@ class ColumnSummariesArgs: ...
 
 @dataclass
 class ColumnSummaries:
+    # If precomputed aggregations fail, we fallback to chart data
+    # Bin values is still an unstable API: https://narwhals-dev.github.io/narwhals/api-reference/series/#narwhals.series.Series.hist
+    data: Union[JSONType, str]
     stats: dict[ColumnName, ColumnStats]
     bin_values: dict[ColumnName, list[BinValue]]
     value_counts: dict[ColumnName, list[ValueCount]]
@@ -892,6 +895,7 @@ class table(
 
         if not show_column_summaries:
             return ColumnSummaries(
+                data=None,
                 stats={},
                 bin_values={},
                 value_counts={},
@@ -907,6 +911,7 @@ class table(
         # if we are above the limit, we hide the column summaries
         if total_rows > self._column_summary_row_limit:
             return ColumnSummaries(
+                data=None,
                 stats={},
                 bin_values={},
                 value_counts={},
@@ -926,6 +931,7 @@ class table(
         should_get_stats = show_column_summaries != "chart"
         stats: dict[ColumnName, ColumnStats] = {}
 
+        chart_data = None
         bin_values: dict[ColumnName, list[BinValue]] = {}
         value_counts: dict[ColumnName, list[ValueCount]] = {}
         data = self._searched_manager
@@ -950,16 +956,19 @@ class table(
                         "Unable to compute stats for column, may not be computed correctly"
                     )
 
-                # For boolean columns, we can drop the column since we use stats
                 (column_type, external_type) = self._manager.get_field_type(
                     column
                 )
+                # For boolean columns, we can drop the column since we use stats
+                if column_type == "boolean" or column_type == "unknown":
+                    data = data.drop_columns([column])
 
                 # Handle columns with all nulls first
                 # These get empty bins regardless of type
                 if statistic and statistic.nulls == total_rows:
                     try:
                         bin_values[column] = []
+                        data = data.drop_columns([column])
                         continue
                     except BaseException as e:
                         LOGGER.warning(
@@ -983,6 +992,7 @@ class table(
                         )
                         if len(val_counts) > 0:
                             value_counts[column] = val_counts
+                            data = data.drop_columns([column])
                         continue
                     except BaseException as e:
                         LOGGER.warning(
@@ -1004,13 +1014,24 @@ class table(
                 try:
                     bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
                     bin_values[column] = bins
+                    if len(bins) > 0:
+                        data = data.drop_columns([column])
                     continue
                 except BaseException as e:
                     LOGGER.warning(
                         "Failed to get bin values for column %s: %s", column, e
                     )
 
+        should_fallback = show_charts and data.get_num_columns() > 0
+        if should_fallback:
+            # Fallback to chart data if the precomputed aggregations fail
+            LOGGER.debug(
+                "Precomputed aggregations failed to cover all columns, falling back to chart data"
+            )
+            chart_data, _ = self._to_chart_data_url(data)
+
         return ColumnSummaries(
+            data=chart_data,
             stats=stats,
             bin_values=bin_values,
             value_counts=value_counts,

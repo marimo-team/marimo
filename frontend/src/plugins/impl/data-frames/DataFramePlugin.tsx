@@ -312,6 +312,7 @@ DataFrameComponent.displayName = "DataFrameComponent";
 
 function getColumnSummaries() {
   return Promise.resolve({
+    data: null,
     stats: {},
     bin_values: {},
     value_counts: {},

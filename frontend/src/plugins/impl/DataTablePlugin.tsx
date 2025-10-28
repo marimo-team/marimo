@@ -85,6 +85,7 @@ type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
 
 interface ColumnSummaries<T = unknown> {
+  data: TableData<T> | null | undefined;
   stats: Record<ColumnName, ColumnHeaderStats>;
   bin_values: Record<ColumnName, BinValues>;
   value_counts: Record<ColumnName, ValueCounts>;
@@ -276,6 +277,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     download_as: DownloadAsSchema,
     get_column_summaries: rpc.input(z.looseObject({})).output(
       z.object({
+        data: z.union([z.string(), z.array(z.looseObject({}))]).nullable(),
         stats: z.record(z.string(), columnStats),
         bin_values: z.record(z.string(), binValues),
         value_counts: z.record(z.string(), valueCounts),
@@ -595,6 +597,7 @@ export const LoadingDataTableComponent = memo(
       // so we are unable to detect if the function is registered
       if (props.totalRows === 0 || !props.showColumnSummaries) {
         return {
+          data: null,
           stats: {},
           bin_values: {},
           value_counts: {},
@@ -764,6 +767,7 @@ const DataTableComponent = ({
     const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
 
     return new ColumnChartSpecModel(
+      columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,
       columnSummaries.stats,
       columnSummaries.bin_values,

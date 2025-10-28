@@ -12,7 +12,13 @@ import type {
   FieldTypes,
   ValueCounts,
 } from "../types";
-import { getLegacyBooleanSpec } from "./legacy-chart-spec";
+import {
+  getDataSpecAndSourceName,
+  getLegacyBooleanSpec,
+  getLegacyNumericSpec,
+  getLegacyTemporalSpec,
+  getScale,
+} from "./legacy-chart-spec";
 import { calculateBinStep, getPartialTimeTooltip } from "./utils";
 
 // We rely on vega's built-in binning to determine bar widths.
@@ -33,6 +39,7 @@ export class ColumnChartSpecModel<T> {
   private columnValueCounts = new Map<ColumnName, ValueCounts>();
 
   public static readonly EMPTY = new ColumnChartSpecModel(
+    [],
     {},
     {},
     {},
@@ -44,6 +51,10 @@ export class ColumnChartSpecModel<T> {
 
   private dataSpec: TopLevelSpec["data"];
 
+  // Legacy data spec for fallback
+  private legacyDataSpec: TopLevelSpec["data"];
+  private legacySourceName: "data_0" | "source_0";
+
   private readonly fieldTypes: FieldTypes;
   readonly stats: Record<ColumnName, Partial<ColumnHeaderStats>>;
   readonly binValues: Record<ColumnName, BinValues>;
@@ -53,6 +64,7 @@ export class ColumnChartSpecModel<T> {
   };
 
   constructor(
+    data: T[] | string,
     fieldTypes: FieldTypes,
     stats: Record<ColumnName, Partial<ColumnHeaderStats>>,
     binValues: Record<ColumnName, BinValues>,
@@ -70,6 +82,11 @@ export class ColumnChartSpecModel<T> {
     this.columnBinValues = new Map(Object.entries(binValues));
     this.columnValueCounts = new Map(Object.entries(valueCounts));
     this.columnStats = new Map(Object.entries(stats));
+
+    const { dataSpec, sourceName } = getDataSpecAndSourceName(data);
+    this.dataSpec = dataSpec;
+    this.legacyDataSpec = dataSpec;
+    this.legacySourceName = sourceName;
   }
 
   public getColumnStats(column: string) {
@@ -82,6 +99,22 @@ export class ColumnChartSpecModel<T> {
       type: this.fieldTypes[column],
       spec: this.opts.includeCharts ? this.getVegaSpec(column) : undefined,
     };
+  }
+
+  private createBase(data: TopLevelSpec["data"]): TopLevelFacetedUnitSpec {
+    return {
+      background: "transparent",
+      data,
+      config: {
+        view: {
+          stroke: "transparent",
+        },
+        axis: {
+          domain: false,
+        },
+      },
+      height: 100,
+    } as TopLevelFacetedUnitSpec;
   }
 
   private getVegaSpec(column: string): TopLevelFacetedUnitSpec | null {
@@ -106,20 +139,7 @@ export class ColumnChartSpecModel<T> {
       data = { values: binValues, name: "bin_values" };
     }
 
-    const base: TopLevelFacetedUnitSpec = {
-      background: "transparent",
-      data,
-      config: {
-        view: {
-          stroke: "transparent",
-        },
-        axis: {
-          domain: false,
-        },
-      },
-      height: 100,
-    } as TopLevelFacetedUnitSpec;
-
+    const base = this.createBase(data);
     const type = this.fieldTypes[column];
 
     // https://github.com/vega/altair/blob/32990a597af7c09586904f40b3f5e6787f752fa5/doc/user_guide/encodings/index.rst#escaping-special-characters-in-column-names
@@ -134,6 +154,12 @@ export class ColumnChartSpecModel<T> {
       case "date":
       case "datetime":
       case "time": {
+        if (!binValues) {
+          const legacyBase = this.createBase(this.legacyDataSpec);
+          const scale = getScale(this.legacySourceName);
+          return getLegacyTemporalSpec(column, type, legacyBase, scale);
+        }
+
         const tooltip = getPartialTimeTooltip(binValues || []);
         const singleValue = binValues?.length === 1;
 
@@ -272,6 +298,12 @@ export class ColumnChartSpecModel<T> {
       case "number": {
         // Create a histogram spec that properly handles null values
         const format = type === "integer" ? ",d" : ".2f";
+
+        if (!binValues) {
+          const legacyBase = this.createBase(this.legacyDataSpec);
+          return getLegacyNumericSpec(column, format, legacyBase);
+        }
+
         const binStep = calculateBinStep(binValues || []);
 
         const histogram: TopLevelFacetedUnitSpec = {
