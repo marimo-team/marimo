@@ -115,7 +115,7 @@ export const ErrorBlock = (props: {
   if (error instanceof JsonRpcError) {
     const dataStr =
       typeof error.data === "string" ? error.data : JSON.stringify(error.data);
-    message = `${dataStr} (${error.code})`;
+    message = `${dataStr} (code: ${error.code})`;
   }
 
   return (
