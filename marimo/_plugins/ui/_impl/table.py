@@ -95,7 +95,6 @@ class ColumnSummariesArgs: ...
 @dataclass
 class ColumnSummaries:
     # If precomputed aggregations fail, we fallback to chart data
-    # Bin values is still an unstable API: https://narwhals-dev.github.io/narwhals/api-reference/series/#narwhals.series.Series.hist
     data: Union[JSONType, str]
     stats: dict[ColumnName, ColumnStats]
     bin_values: dict[ColumnName, list[BinValue]]
@@ -1029,10 +1028,7 @@ class table(
 
         should_fallback = show_charts and bin_aggregation_failed
         if should_fallback:
-            # Fallback to chart data if the precomputed aggregations fail
-            LOGGER.debug(
-                "Precomputed aggregations failed to cover all columns, falling back to chart data"
-            )
+            LOGGER.debug("Bin aggregation failed, falling back to chart data")
             chart_data, _ = self._to_chart_data_url(data)
 
         return ColumnSummaries(
