@@ -939,6 +939,8 @@ class table(
         DEFAULT_BIN_SIZE = 9
         DEFAULT_VALUE_COUNTS_SIZE = 15
 
+        bin_aggregation_failed = False
+
         for column in self._manager.get_column_names():
             statistic = None
             if should_get_stats:
@@ -1012,17 +1014,20 @@ class table(
                     continue
 
                 try:
+                    # get_bin_values is marked unstable
+                    # https://narwhals-dev.github.io/narwhals/api-reference/series/#narwhals.series.Series.hist
                     bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
                     bin_values[column] = bins
                     if len(bins) > 0:
                         data = data.drop_columns([column])
                     continue
                 except BaseException as e:
+                    bin_aggregation_failed = True
                     LOGGER.warning(
                         "Failed to get bin values for column %s: %s", column, e
                     )
 
-        should_fallback = show_charts and data.get_num_columns() > 0
+        should_fallback = show_charts and bin_aggregation_failed
         if should_fallback:
             # Fallback to chart data if the precomputed aggregations fail
             LOGGER.debug(
