@@ -81,12 +81,33 @@ class MarkdownDedentRule(LintRule):
             if cell.markdown is None:
                 continue
 
+            notebook_cell = None
+            for nb_cell in ctx.notebook.cells:
+                if nb_cell.code.strip() == cell.code.strip():
+                    notebook_cell = nb_cell
+                    break
+
+            if not notebook_cell:
+                return
+
             # Check if the markdown string needs dedenting
             # Use tokenize like codegen does to extract quote style
             needs_dedent = contents_differ_excluding_generated_with(
                 format_markdown(cell), cell.code
             )
-            if needs_dedent:
+            line_count = len(cell.code.splitlines())
+            line_start = notebook_cell.lineno + 1
+            overly_dedented = any(
+                [
+                    line[0] != " "
+                    for line in ctx.contents[
+                        line_start : line_start + line_count
+                    ]
+                    if line
+                ]
+            )
+
+            if needs_dedent or overly_dedented:
                 # Find the corresponding notebook cell for position info
                 notebook_cell = None
                 for nb_cell in ctx.notebook.cells:

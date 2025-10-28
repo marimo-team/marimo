@@ -183,6 +183,7 @@ class Linter:
                 file_status.diagnostics = (
                     await self.rule_engine.check_notebook(
                         load_result.notebook,
+                        load_result.contents or "",
                         # Add parsing rule if there's captured output
                         stdout=stdout.getvalue().strip(),
                         stderr=stderr.getvalue().strip(),
