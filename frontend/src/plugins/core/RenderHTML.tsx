@@ -13,6 +13,7 @@ import React, {
   useRef,
 } from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import { QueryParamPreservingLink } from "@/components/ui/query-param-preserving-link";
 import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
 
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
@@ -114,21 +115,6 @@ const preserveQueryParamsInAnchorLinks: TransformFn = (
     const href = domNode.attribs.href;
     // Only handle anchor links (starting with #)
     if (href?.startsWith("#") && !href.startsWith("#code/")) {
-      const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        e.preventDefault();
-        const currentUrl = new URL(globalThis.location.href);
-        // Preserve existing query parameters and update the hash
-        currentUrl.hash = href;
-        globalThis.history.pushState({}, "", currentUrl.toString());
-
-        // Scroll to the anchor
-        const targetId = href.slice(1);
-        const targetElement = document.getElementById(targetId);
-        if (targetElement) {
-          targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      };
-
       // Get the children from the parsed React node
       let children: ReactNode = null;
       if (isValidElement(reactNode) && "props" in reactNode) {
@@ -137,9 +123,9 @@ const preserveQueryParamsInAnchorLinks: TransformFn = (
       }
 
       return (
-        <a {...domNode.attribs} href={href} onClick={handleClick}>
+        <QueryParamPreservingLink href={href} {...domNode.attribs}>
           {children}
-        </a>
+        </QueryParamPreservingLink>
       );
     }
   }
