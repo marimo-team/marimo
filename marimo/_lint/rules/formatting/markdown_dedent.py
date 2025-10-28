@@ -46,13 +46,11 @@ class MarkdownDedentRule(LintRule):
 
     **Solution:**
     ```python
-    mo.md(
-        r\"\"\"
+    mo.md(r\"\"\"
     # Title
 
     Some content here.
-    \"\"\"
-    )
+    \"\"\")
     ```
 
     **Note:** This fix is automatically applied with `marimo check --fix`.
@@ -65,7 +63,7 @@ class MarkdownDedentRule(LintRule):
 
     code = "MF007"
     name = "markdown-dedent"
-    description = "Markdown cells in mo.md() should be dedented."
+    description = "Markdown cells in `mo.md()` should be dedented."
     severity = Severity.FORMATTING
     fixable = True
 

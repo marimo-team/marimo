@@ -53,7 +53,7 @@ These are style and formatting issues.
 | [MF004](rules/empty_cells.md) | empty-cells | Empty cells that can be safely removed. | ⚠️ |
 | [MF005](rules/sql_parse_error.md) | sql-parse-error | SQL parsing errors during dependency analysis | ❌ |
 | [MF006](rules/misc_log_capture.md) | misc-log-capture | Miscellaneous log messages during processing | ❌ |
-| [MF007](rules/markdown_dedent.md) | markdown-dedent | Markdown strings in mo.md() should be dedented. | 🛠️ |
+| [MF007](rules/markdown_dedent.md) | markdown-dedent | Markdown cells in `mo.md()` should be dedented. | 🛠️ |
 
 ## Legend
 

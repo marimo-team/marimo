@@ -2,9 +2,7 @@
 
 ✨ **Formatting** 🛠️ Fixable
 
-MF007: Markdown strings in mo.
-
-md() should be dedented.
+MF007: Markdown strings in `mo.md()` should be dedented.
 
 ## What it does
 
@@ -34,13 +32,11 @@ mo.md(
 
 **Solution:**
 ```python
-mo.md(
-    r"""
+mo.md(r"""
 # Title
 
 Some content here.
-"""
-)
+""")
 ```
 
 **Note:** This fix is automatically applied with `marimo check --fix`.
