@@ -757,7 +757,13 @@ class App:
         return await app_kernel_runner.function_call(request)
 
     @mddoc
-    async def embed(self) -> AppEmbedResult:
+    async def embed(
+        self,
+        *,
+        expose: Mapping[str, Any] | None = None,
+        namespace: str | None = "parent",
+        readonly: bool = True,
+    ) -> AppEmbedResult:
         """Embed a notebook into another notebook.
 
         The `embed` method lets you embed the output of a notebook
@@ -776,6 +782,17 @@ class App:
         Multiple levels of nesting are supported: it's possible to embed a
         notebook that in turn embeds another notebook, and marimo will do the
         right thing.
+
+         Notes on parent->child exposure:
+        - If running in a notebook, `expose` installs a **read-only** namespace that
+          is called `parent` by default inside the child kernel. The child must make a
+          **static reference** to that name (e.g., `parent` or `from parent import ...`)
+          for the analyzer to mark dependencies and enable targeted re-runs.
+        - If `namespace=None`, exposed names are injected flat into child globals. This
+          is advanced, may be shadowed by child definitions, and should be avoided
+          unless that behavior is desired.
+        - In script mode, exposure is a one-time snapshot without reactivity. The namespace
+          is still read-only to prevent accidental mutation.
 
         Example:
             ```python
@@ -814,6 +831,71 @@ class App:
             two = app.clone()
             r2 = await two.embed()
 
+        To embed with exposure:
+        Parent:
+            ```python
+            from child import app as child_app
+            ```
+
+            ```python
+            x_slider = mo.ui.slider(
+                0, 20, 1, label="parent.x", full_width=True, show_value=True
+            )
+            ```
+
+            ```python
+            x = x_slider.value
+            ```
+
+            ```python
+            embed_result = await child_app.embed(
+                expose={"x": x}, namespace="parent", readonly=True
+            )
+            ```
+
+            ```python
+            mo.vstack([
+                mo.md("### Parent),
+                x_slider,
+                mo.md(f"I see **child_1.v** = {embed_result.defs['v']}"),
+                embed_result
+            ])
+            ```
+
+        Child:
+            ```python
+            try:
+                _parent = parent
+            except NameError:
+                _parent = None
+            x_from_parent = getattr(_parent, "x", "〈not provided〉")
+            ```
+
+            ```python
+            slider = mo.ui.slider(0, 20, 1, label="**child_1.v**")
+            ```
+
+            ```python
+            v = slider.value
+            ```
+
+            ```python
+            msg = mo.md(f'''
+            - I see **parent.x = {x_from_parent}
+            - My v = {v}
+            ''')
+            ```
+
+            ```python
+            mo.vstack(
+                [
+                    mo.md("### Child"),
+                    msg,
+                    slider,
+                ]
+            )
+            ```
+
         Returns:
             An object `result` with two attributes: `result.output` (visual
             output of the notebook) and `result.defs` (a dictionary mapping
@@ -829,6 +911,17 @@ class App:
             # TODO(akshayka): raise a RuntimeError if called in the cell
             # that defined the name bound to this App, if any
             app_kernel_runner = self._get_kernel_runner()
+
+            # Register parent->child exposures beore the first run so that:
+            # the child can read `namespace.<name>` during execution and
+            # future parent updates can be diffed and trigger targeted child
+            # re-runs.
+            if expose:
+                app_kernel_runner.register_exposed_bindings(
+                    expose=expose,
+                    namespace=namespace,
+                    readonly=readonly,
+                )
 
             outputs: dict[CellId_t, Any]
             glbls: dict[str, Any]
@@ -852,10 +945,41 @@ class App:
                 defs=self._globals_to_defs(glbls),
             )
         else:
-            flat_outputs, defs = self.run()
+            # Script mode: single snapshot injection without reactivity. The child
+            # reacts to whatever `expose` provided at embed time, no updates are
+            # propagated.
+            glbls: dict[str, Any] = {}
+            if expose and namespace:
+                # Best effort 'read-only' namespace in script mode;
+                # runtime runner enforces read-only in notebook mode
+                class _ReadOnlyNS:
+                    """
+                    Minimal read-only proxy that is used only in script mode. In notebook
+                    mode, the child runner installs a proxy that can be updated behind
+                    the scenes as the parent changes.
+                    """
+
+                    __slots__ = ("data",)
+
+                    def __init__(self, data: dict[str, Any]) -> None:
+                        object.__setattr__(self, "data", dict(data))
+
+                    def __getattr__(self, k: str) -> Any:
+                        return self._data[k]
+
+                    def __setattr__(self, k: str, v: Any) -> None:
+                        raise AttributeError("read-only namespace")
+
+                glbls[namespace] = _ReadOnlyNS(dict(expose))
+
+            output, glbls = AppScriptRunner(
+                InternalApp(self), filename=self._filename, glbls=glbls
+            ).run()
             return AppEmbedResult(
-                output=vstack([o for o in flat_outputs if o is not None]),
-                defs=defs,
+                output=vstack(
+                    [o for o in self._flatten_outputs(output) if o is not None]
+                ),
+                defs=self._globals_to_defs(glbls),
             )
 
 
@@ -905,6 +1029,41 @@ class InternalApp:
     def runner(self) -> dataflow.Runner:
         self._app._maybe_initialize()
         return self._app._runner
+
+    # Parent->child propagation: schedule updates and minimal re-runs in child
+    def _schedule_exposed_binding_updates(
+        self, updates: dict[str, Any]
+    ) -> None:
+        """
+        Push parent values into a child app and schedule a minimal re-run.
+
+        This is called from the parent's post-execution hook. It is intentionally non-blocking.
+        The affected child cells are computed and re-execution is scheduled on the event loop.
+        If no subscribed names changed, we do nothing.
+        """
+        import asyncio
+
+        app_kernel_runner = self._app._get_kernel_runner()
+        changed = app_kernel_runner.apply_exposed_binding_updates(updates)
+        if not changed:
+            return
+        # Compute minimal rerun set:
+        # - If namespaced, referring child cells depend on the namespace symbol itself
+        #   (e.g., `parent`), re-run those cells.
+        # - If flat, referring cells directly depend on the individual names.
+        names_for_ref = (
+            {app_kernel_runner.exposed_namespace}
+            if app_kernel_runner.exposed_namespace is not None
+            else set(changed)
+        )
+        cell_ids: set[CellId_t] = set()
+        for name in names_for_ref:
+            for cid in app_kernel_runner._kernel.graph.get_referring_cells(
+                name, language="python"
+            ):
+                cell_ids.add(cid)
+        if cell_ids:
+            asyncio.create_task(app_kernel_runner.run(cell_ids))
 
     def update_config(self, updates: dict[str, Any]) -> _AppConfig:
         return self.config.update(updates)

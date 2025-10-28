@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Callable
+from typing import Any, Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -434,6 +434,44 @@ def _is_edit_mode() -> bool:
     )
 
 
+@kernel_tracer.start_as_current_span("_propagate_exposed_bindings_to_children")
+def _propagate_exposed_bindings_to_children(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    # Only in edit mode and only when we have new defs. We collect defs produced
+    # by this cell and fan them out to child apps that registered exposures.
+    #
+    # IMPORTANT: Child cells must make a **static** reference to the injected
+    # namespace (e.g., `parent`) or the flat names to be considered "referring"
+    # by the analyzer. Dynamic lookups (e.g., `globals().get("parent")`) will
+    # not crate dependency edges, so those cells will not re-run.
+    if not _is_edit_mode():
+        return
+    del run_result
+    ctx = get_context()
+    if not ctx.children:
+        return
+    # Collect updates from this cell's defs
+    updates: dict[str, Any] = {}
+    for name in cell.defs:
+        if name in runner.glbls:
+            updates[name] = runner.glbls[name]
+    if not updates:
+        return
+    # Fan-out to children: each child filters to the names it subscribed to and
+    # schedules a minimal re-run if any of those names actually changed.
+    for child in list(ctx.children):
+        try:
+            child.app._schedule_exposed_binding_updates(updates)
+        except Exception:
+            # Don't break parent execution if a child misbehaves
+            LOGGER.exception(
+                f"Failed to propagate exposed bindings to child '{child}'"
+            )
+
+
 POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _set_imported_defs,
     _set_run_result_status,
@@ -441,6 +479,9 @@ POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _store_state_reference,
     _issue_exception_side_effect,
     _broadcast_variables,
+    # Parent->child activity: push updated defs to children *before* heavy
+    # rendering hooks so child outputs can be refreshed promptly.
+    _propagate_exposed_bindings_to_children,
     _broadcast_datasets,
     _broadcast_data_source_connection,
     _broadcast_duckdb_datasource,
