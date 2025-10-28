@@ -8,16 +8,12 @@ def __():
     file_button = mo.ui.file(kind="button")
     file_area = mo.ui.file(kind="area")
     return file_area, file_button
-```
 
-```python
 @app.cell
 def _(file_area, file_button, mo):
     mo.vstack([file_button, file_area])
     return
-```
 
-```python
 @app.cell
 def _(file_area, file_button, mo):
     # Access uploaded files
