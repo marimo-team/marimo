@@ -38,6 +38,10 @@ marimo edit notebook.py --mcp --no-token
 
 marimo can expose its [AI tools](tools.md) through an MCP server endpoint, allowing external AI applications to interact with your notebooks.
 
+<video autoplay loop muted playsinline width="100%" height="100%" align="center">
+  <source src="/_static/docs-mcp-server.mp4" type="video/mp4">
+</video>
+
 ### Available tools
 
 When connected to marimo's MCP server, external applications can access all [AI tools](tools.md).
