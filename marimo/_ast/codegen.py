@@ -202,11 +202,9 @@ def construct_markdown_call(markdown: str, quote: str, tag: str) -> str:
     if (len(quote) == 3 and "\n" in markdown) or bounded_by_quotes:
         return "\n".join(
             [
-                "mo.md(",
-                indent_text(f"{tag}{quote}"),
+                f"mo.md({tag}{quote}",
                 markdown,
-                f"{quote}",
-                ")",
+                f"{quote})",
             ]
         )
     return format_tuple_elements(
