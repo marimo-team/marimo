@@ -12,8 +12,7 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Code blocks in code blocks
     Output code for Hello World!
     ```python
@@ -23,21 +22,18 @@ def _(mo):
     ```python {.marimo}
     print("Hello World")
     ```
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        f"""
+    mo.md(f"""
     with f-string too!
     ```python {{.marimo}}
     print("Hello World")
     ```
-    """
-    )
+    """)
     return
 
 
@@ -54,15 +50,13 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Nested fence
     ````text
     The guards are
     ```python {.marimo}
     ````
-    """
-    )
+    """)
     return
 
 
@@ -76,12 +70,10 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     Cross cell injection
     ```python
-    """
-    )
+    """)
     return
 
 

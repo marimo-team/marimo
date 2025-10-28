@@ -8,8 +8,7 @@ import marimo as mo
 ```
 
 ````python {.marimo}
-mo.md(
-    """
+mo.md("""
 # Code blocks in code blocks
 Output code for Hello World!
 ```python
@@ -19,19 +18,16 @@ Execute print
 ```python {.marimo}
 print("Hello World")
 ```
-"""
-)
+""")
 ````
 
 ````python {.marimo}
-mo.md(
-    f"""
+mo.md(f"""
 with f-string too!
 ```python {{.marimo}}
 print("Hello World")
 ```
-"""
-)
+""")
 ````
 
 ````python {.marimo}
@@ -56,12 +52,10 @@ The guards are
 ````
 
 ````python {.marimo}
-mo.md(
-    """
+mo.md("""
 Cross cell injection
 ```python
-"""
-)
+""")
 ````
 
 ```python {.marimo}

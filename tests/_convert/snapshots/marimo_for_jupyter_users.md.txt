@@ -73,8 +73,7 @@ cells that refer to them.
 In contrast, Jupyter's lack of reactivity makes IPyWidgets difficult to use.
 
 ````python {.marimo hide_code="true"}
-mo.md(
-    r"""
+mo.md(r"""
 ## Shareable as apps
 
 marimo notebooks can be shared as read-only web apps: just serve it with
@@ -86,8 +85,7 @@ at the command-line.
 Not every marimo notebook needs to be shared as an app, but marimo makes it
 seamless to do so if you want to. In this way, marimo works as a replacement
 for both Jupyter and Streamlit.
-"""
-)
+""")
 ````
 
 ## Cell order
