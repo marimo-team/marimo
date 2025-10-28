@@ -20,6 +20,7 @@ from marimo._plugins.ui._impl.altair_chart import (
     _has_binning,
     _has_geoshape,
     _has_legend_param,
+    _has_no_nested_hconcat,
     _has_selection_param,
     _parse_spec,
     _update_vconcat_width,
@@ -1101,3 +1102,89 @@ def test_chart_with_column_encoding_not_full_width() -> None:
     )
     result_without_column = maybe_make_full_width(chart_without_column)
     assert result_without_column.width == "container"
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_has_no_nested_hconcat() -> None:
+    import altair as alt
+
+    # Create simple charts
+    chart1 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_point()
+    chart2 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_line()
+
+    # Simple chart has no hconcat
+    assert _has_no_nested_hconcat(chart1) is True
+
+    # HConcatChart should return False
+    hconcat_chart = alt.hconcat(chart1, chart2)
+    assert _has_no_nested_hconcat(hconcat_chart) is False
+
+    # VConcatChart with no nested hconcat should return True
+    vconcat_chart = alt.vconcat(chart1, chart2)
+    assert _has_no_nested_hconcat(vconcat_chart) is True
+
+    # LayerChart with no nested hconcat should return True
+    layer_chart = alt.layer(chart1, chart2)
+    assert _has_no_nested_hconcat(layer_chart) is True
+
+    # VConcatChart with nested HConcatChart should return False
+    nested_vconcat_with_hconcat = alt.vconcat(hconcat_chart, chart1)
+    assert _has_no_nested_hconcat(nested_vconcat_with_hconcat) is False
+
+    # VConcatChart with nested VConcatChart (no hconcat) should return True
+    nested_vconcat = alt.vconcat(
+        alt.vconcat(chart1, chart2), alt.vconcat(chart1, chart2)
+    )
+    assert _has_no_nested_hconcat(nested_vconcat) is True
+
+    # LayerChart with simple charts (no hconcat) should return True
+    layer_simple = alt.layer(chart1, chart2)
+    assert _has_no_nested_hconcat(layer_simple) is True
+
+    # VConcatChart with nested layers (no hconcat) should return True
+    vconcat_with_layer = alt.vconcat(chart1, alt.layer(chart1, chart2))
+    assert _has_no_nested_hconcat(vconcat_with_layer) is True
+
+    # Deeply nested VConcat with HConcat should return False
+    deeply_nested = alt.vconcat(alt.vconcat(chart1, hconcat_chart), chart2)
+    assert _has_no_nested_hconcat(deeply_nested) is False
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_autosize_not_applied_with_nested_hconcat() -> None:
+    import altair as alt
+
+    # Create simple charts
+    data = pd.DataFrame({"x": [1, 2], "y": [3, 4]})
+    chart1 = alt.Chart(data).mark_point().encode(x="x", y="y")
+    chart2 = alt.Chart(data).mark_line().encode(x="x", y="y")
+
+    # Test 1: VConcatChart with nested HConcatChart should NOT have autosize applied
+    hconcat_chart = alt.hconcat(chart1, chart2)
+    vconcat_with_hconcat = alt.vconcat(hconcat_chart, chart1)
+
+    marimo_chart = altair_chart(vconcat_with_hconcat)
+    # The autosize should remain Undefined (not set to "fit-x")
+    assert marimo_chart._chart.autosize is alt.Undefined
+
+    # Test 2: Simple VConcatChart (no nested hconcat) SHOULD have autosize applied
+    simple_vconcat = alt.vconcat(chart1, chart2)
+    marimo_chart_simple = altair_chart(simple_vconcat)
+    # The autosize should be set to "fit-x"
+    assert marimo_chart_simple._chart.autosize == "fit-x"
+
+    # Test 3: VConcatChart with nested vconcat containing hconcat should NOT have autosize
+    nested_with_hconcat = alt.vconcat(
+        alt.vconcat(chart1, hconcat_chart), chart2
+    )
+
+    marimo_chart_complex = altair_chart(nested_with_hconcat)
+    assert marimo_chart_complex._chart.autosize is alt.Undefined
+
+    # Test 4: VConcatChart with explicit autosize should not be overridden
+    vconcat_with_autosize = alt.vconcat(chart1, chart2).properties(
+        autosize="none"
+    )
+    marimo_chart_explicit = altair_chart(vconcat_with_autosize)
+    # Should keep the explicit autosize value
+    assert marimo_chart_explicit._chart.autosize == "none"
