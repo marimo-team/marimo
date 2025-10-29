@@ -4,7 +4,7 @@ spend some time, understand how a user might feel,
 sometimes it's totally fine to reinvent the wheel.
 
 take a step back, give yourself some time and space. 
-once a mistake goes in, it's harder to erase.
+because once a mistake goes in, it's hard to erase.
 if you want velocity, remember to grow slow. 
 the antidote to a distraction is the word "no". 
 
