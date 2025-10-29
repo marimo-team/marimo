@@ -4,7 +4,7 @@
 
 import { mint, orange, slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";
-import type { Scale } from "vega-lite/build/src/scale";
+import type { Scale } from "vega-lite/types_unstable/scale.js";
 // @ts-expect-error vega-typings does not include formats
 import { formats } from "vega-loader";
 import { asRemoteURL } from "@/core/runtime/config";

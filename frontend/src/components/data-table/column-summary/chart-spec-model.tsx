@@ -2,7 +2,7 @@
 
 import { mint, orange, slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";
-import type { StringFieldDef } from "vega-lite/build/src/channeldef";
+import type { StringFieldDef } from "vega-lite/types_unstable/channeldef.js";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { logNever } from "@/utils/assertNever";
 import type {

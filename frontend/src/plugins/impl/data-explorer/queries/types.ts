@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Query } from "compassql/build/src/query";
-import type { VisualizationSpec } from "react-vega";
-import type { NamedData } from "vega-lite/build/src/data";
-import type { FacetedUnitSpec, TopLevel } from "vega-lite/build/src/spec";
+import type { NONPOSITION_SCALE_CHANNELS as NONPOSITION_SCALE_CHANNELS_VEGA } from "vega-lite/types_unstable/channel.js";
+import type { NamedData } from "vega-lite/types_unstable/data.js";
+import type { TopLevel } from "vega-lite/types_unstable/spec/toplevel.js";
+import type { FacetedUnitSpec } from "vega-lite/types_unstable/spec/unit.js";
 import type { EncodingChannel, FieldDefinition } from "../encoding";
 
 export interface PlotFieldInfo {
@@ -16,7 +17,7 @@ export interface ResultPlot {
   /**
    * Spec to be used for rendering.
    */
-  spec: VisualizationSpec;
+  spec: TopLevelFacetedUnitSpec;
 }
 
 export interface Result {
@@ -27,7 +28,7 @@ export interface Result {
   limit: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-redundant-type-constituents
 export type TopLevelFacetedUnitSpec = TopLevel<FacetedUnitSpec<any, any>> & {
   data: NamedData;
 };
@@ -52,3 +53,20 @@ export interface QueryCreator {
 
   createQuery(query: Query): Query;
 }
+
+// Define our own because vega-lite types_unstable import path fails in Vite (module resolution issue)
+export const NONPOSITION_SCALE_CHANNELS: typeof NONPOSITION_SCALE_CHANNELS_VEGA =
+  [
+    "color",
+    "fill",
+    "stroke",
+    "opacity",
+    "fillOpacity",
+    "strokeOpacity",
+    "strokeWidth",
+    "size",
+    "shape",
+    "strokeDash",
+    "angle",
+    "time",
+  ] as const;

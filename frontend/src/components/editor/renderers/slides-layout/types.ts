@@ -5,7 +5,7 @@
  * The serialized form of a slides layout.
  * This must be backwards-compatible as it is stored on the user's disk.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type SerializedSlidesLayout = {};
 
 export interface SlidesLayout extends SerializedSlidesLayout {

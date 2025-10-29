@@ -4,15 +4,15 @@ import * as cql from "compassql/build/src";
 import { createStore, Provider, useAtomValue } from "jotai";
 import { ListFilterIcon } from "lucide-react";
 import React, { type JSX, useMemo } from "react";
-import { VegaLite } from "react-vega";
-import type { VegaLiteProps } from "react-vega/lib/VegaLite";
+import { VegaEmbed, type VegaEmbedProps } from "react-vega";
 import { tooltipHandler } from "@/components/charts/tooltip";
+import { augmentSpecWithData } from "@/components/data-table/charts/chart-spec/spec";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useOnMount } from "@/hooks/useLifecycle";
-import { useTheme } from "@/theme/useTheme";
+import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { Objects } from "@/utils/objects";
 import { ErrorBanner } from "../common/error-banner";
 import { vegaLoadData } from "../vega/loader";
@@ -70,14 +70,19 @@ interface DataTableProps extends DataExplorerData {
   setValue: (value: DataExplorerState) => void;
 }
 
-const ACTIONS: VegaLiteProps["actions"] = {
-  export: { svg: true, png: true },
-  source: false,
-  compiled: false,
-  editor: false,
-};
-
-const PADDING = { left: 20, right: 20, top: 20, bottom: 20 };
+function chartOptions(theme: ResolvedTheme): VegaEmbedProps["options"] {
+  return {
+    padding: { left: 20, right: 20, top: 20, bottom: 20 },
+    actions: {
+      export: { svg: true, png: true },
+      source: false,
+      compiled: false,
+      editor: false,
+    },
+    theme: theme === "dark" ? "dark" : undefined,
+    tooltip: tooltipHandler.call,
+  };
+}
 
 export default ConnectedDataExplorerComponent;
 
@@ -129,16 +134,14 @@ export const DataExplorerComponent = ({
       return <ColumnSummary schema={schema} />;
     }
 
+    const spec = mainPlot.spec;
+    const responsiveSpec = makeResponsive(spec);
+    // TODO: We can optimize by updating the data dynamically. https://github.com/vega/react-vega?tab=readme-ov-file#recipes
+    const augmentedSpec = augmentSpecWithData(responsiveSpec, chartData);
+
     return (
       <div className="flex overflow-y-auto justify-center items-center flex-1 w-[90%]">
-        <VegaLite
-          data={{ source: chartData }}
-          padding={PADDING}
-          actions={ACTIONS}
-          spec={makeResponsive(mainPlot.spec)}
-          tooltip={tooltipHandler.call}
-          theme={theme === "dark" ? "dark" : undefined}
-        />
+        <VegaEmbed spec={augmentedSpec} options={chartOptions(theme)} />
       </div>
     );
   };
@@ -207,13 +210,10 @@ export const DataExplorerComponent = ({
                 </Tooltip>
               }
             >
-              <VegaLite
-                data={{ source: chartData }}
+              <VegaEmbed
+                options={chartOptions(theme)}
                 key={idx}
-                actions={false}
                 spec={plot.spec}
-                tooltip={tooltipHandler.call}
-                theme={theme === "dark" ? "dark" : undefined}
               />
             </HorizontalCarouselItem>
           ))}

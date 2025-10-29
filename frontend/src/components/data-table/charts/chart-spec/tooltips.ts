@@ -4,7 +4,7 @@ import type {
   ColorDef,
   PositionDef,
   StringFieldDef,
-} from "vega-lite/build/src/channeldef";
+} from "vega-lite/types_unstable/channeldef.js";
 import type { DataType } from "@/core/kernel/messages";
 import type { ChartSchemaType } from "../schemas";
 import { isFieldSet } from "./spec";
