@@ -338,7 +338,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         chart = maybe_make_full_width(chart)
 
         # Fix the sizing for vconcat charts
-        if isinstance(chart, alt.VConcatChart):
+        if isinstance(chart, alt.VConcatChart) and _has_no_nested_hconcat(
+            chart
+        ):
             chart = _update_vconcat_width(chart)
 
             # without autosize, vconcat will overflow
@@ -699,3 +701,18 @@ def _update_vconcat_width(chart: AltairChartType) -> AltairChartType:
 
     # Not handled
     return chart
+
+
+def _has_no_nested_hconcat(chart: AltairChartType) -> bool:
+    import altair as alt
+
+    if isinstance(chart, alt.HConcatChart):
+        return False
+    if isinstance(chart, alt.VConcatChart):
+        return all(
+            _has_no_nested_hconcat(subchart) for subchart in chart.vconcat
+        )
+    if isinstance(chart, alt.LayerChart):
+        return all(_has_no_nested_hconcat(layer) for layer in chart.layer)
+
+    return True
