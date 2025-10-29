@@ -41,6 +41,7 @@ import {
   convertChartTypeToMark,
   convertDataTypeToVega,
 } from "./types";
+import { escapeFieldName } from "./utils";
 
 /**
  * Convert marimo chart configuration to Vega-Lite specification.
@@ -178,7 +179,7 @@ export function getAxisEncoding(
   }
 
   return {
-    field: column.field,
+    field: escapeFieldName(column.field),
     type: convertDataTypeToVega(column.selectedDataType || "unknown"),
     bin: getBinEncoding(chartType, selectedDataType, binValues),
     title: label,
@@ -211,7 +212,7 @@ export function getFacetEncoding(
   );
 
   return {
-    field: facet.field,
+    field: escapeFieldName(facet.field),
     sort: facet.sort,
     timeUnit: getFacetTimeUnit(facet),
     type: convertDataTypeToVega(facet.selectedDataType || "unknown"),
@@ -244,7 +245,7 @@ function getPieChartSpec(
   );
 
   const colorEncoding: ColorDef<string> = {
-    field: colorByColumn.field,
+    field: escapeFieldName(colorByColumn.field),
     type: convertDataTypeToVega(colorByColumn.selectedDataType || "unknown"),
     scale: getColorInScale(formValues),
     title: getFieldLabel(formValues.yAxis?.label),

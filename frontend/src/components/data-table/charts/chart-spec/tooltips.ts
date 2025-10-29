@@ -8,6 +8,7 @@ import type {
 import type { DataType } from "@/core/kernel/messages";
 import type { ChartSchemaType } from "../schemas";
 import { isFieldSet } from "./spec";
+import { escapeFieldName } from "./utils";
 
 function getTooltipFormat(dataType: DataType): string | undefined {
   switch (dataType) {
@@ -60,7 +61,7 @@ export function getTooltips(
       }
 
       const tooltip: StringFieldDef<string> = {
-        field: encoding.field,
+        field: encoding.field, // Already escaped in the encoding
         aggregate: encoding.aggregate,
         timeUnit: encoding.timeUnit,
         format: getTooltipFormat(type),
@@ -159,7 +160,7 @@ export function getTooltips(
     }
 
     const otherTooltip: StringFieldDef<string> = {
-      field: tooltip.field,
+      field: escapeFieldName(tooltip.field),
     };
     tooltips.push(otherTooltip);
   }

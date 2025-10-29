@@ -422,4 +422,166 @@ describe("generateAltairChart", () => {
       )"
     `);
   });
+
+  it("should escape dots in field names", () => {
+    const spec = createSpec({
+      mark: "bar",
+      encoding: {
+        x: { field: "name.field" },
+        y: { field: "value.data" },
+      },
+    });
+    const datasource = "df";
+
+    const result = generateAltairChart(spec, datasource).toCode();
+
+    expect(result).toMatchInlineSnapshot(`
+      "alt.Chart(df)
+      .mark_bar()
+      .encode(
+          x=alt.X(field='name\\.field'),
+          y=alt.Y(field='value\\.data')
+      )"
+    `);
+  });
+
+  it("should escape brackets in field names", () => {
+    const spec = createSpec({
+      mark: "bar",
+      encoding: {
+        x: { field: "data[0]" },
+        y: { field: "values[key]" },
+      },
+    });
+    const datasource = "df";
+
+    const result = generateAltairChart(spec, datasource).toCode();
+
+    expect(result).toMatchInlineSnapshot(`
+      "alt.Chart(df)
+      .mark_bar()
+      .encode(
+          x=alt.X(field='data\\[0\\]'),
+          y=alt.Y(field='values\\[key\\]')
+      )"
+    `);
+  });
+
+  it("should escape colons in field names", () => {
+    const spec = createSpec({
+      mark: "bar",
+      encoding: {
+        x: { field: "time:stamp" },
+        y: { field: "value" },
+      },
+    });
+    const datasource = "df";
+
+    const result = generateAltairChart(spec, datasource).toCode();
+
+    expect(result).toMatchInlineSnapshot(`
+      "alt.Chart(df)
+      .mark_bar()
+      .encode(
+          x=alt.X(field='time\\:stamp'),
+          y=alt.Y(field='value')
+      )"
+    `);
+  });
+
+  it("should escape multiple special characters in field names", () => {
+    const spec = createSpec({
+      mark: "bar",
+      encoding: {
+        x: { field: "data[0].name:value" },
+        y: { field: "result" },
+      },
+    });
+    const datasource = "df";
+
+    const result = generateAltairChart(spec, datasource).toCode();
+
+    expect(result).toMatchInlineSnapshot(`
+      "alt.Chart(df)
+      .mark_bar()
+      .encode(
+          x=alt.X(field='data\\[0\\]\\.name\\:value'),
+          y=alt.Y(field='result')
+      )"
+    `);
+  });
+
+  it("should escape special characters in color encoding", () => {
+    const spec = createSpec({
+      mark: "bar",
+      encoding: {
+        x: { field: "category" },
+        y: { field: "value" },
+        color: { field: "group.name" },
+      },
+    });
+    const datasource = "df";
+
+    const result = generateAltairChart(spec, datasource).toCode();
+
+    expect(result).toMatchInlineSnapshot(`
+      "alt.Chart(df)
+      .mark_bar()
+      .encode(
+          x=alt.X(field='category'),
+          y=alt.Y(field='value'),
+          color=alt.Color(field='group\\.name')
+      )"
+    `);
+  });
+
+  it("should escape special characters in tooltip", () => {
+    const spec = createSpec({
+      mark: "bar",
+      encoding: {
+        x: { field: "category" },
+        y: { field: "value" },
+        tooltip: { field: "info.details" },
+      },
+    });
+    const datasource = "df";
+
+    const result = generateAltairChart(spec, datasource).toCode();
+
+    expect(result).toMatchInlineSnapshot(`
+      "alt.Chart(df)
+      .mark_bar()
+      .encode(
+          x=alt.X(field='category'),
+          y=alt.Y(field='value'),
+          tooltip=alt.Tooltip(field='info\\.details')
+      )"
+    `);
+  });
+
+  it("should escape special characters in facet encodings", () => {
+    const spec = createSpec({
+      mark: "bar",
+      encoding: {
+        x: { field: "category" },
+        y: { field: "value" },
+        row: { field: "row.label" },
+        column: { field: "col[0]" },
+      },
+    });
+    const datasource = "df";
+
+    const result = generateAltairChart(spec, datasource).toCode();
+
+    expect(result).toMatchInlineSnapshot(`
+      "alt.Chart(df)
+      .mark_bar()
+      .encode(
+          x=alt.X(field='category'),
+          y=alt.Y(field='value'),
+          row=alt.Row(field='row\\.label'),
+          column=alt.Column(field='col\\[0\\]')
+      )"
+    `);
+  });
 });
