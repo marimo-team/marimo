@@ -347,7 +347,7 @@ Separate logic into multiple cells to keep the code organized and readable.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
 ## Rules for sql:
-1. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
+1. SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines. You should always write queries inline as the code snippet above, do not use variables to store queries.
 2. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
 3. The SQL must use the syntax of the database engine specified in the `engine` variable. If no engine, then use duckdb syntax.
 

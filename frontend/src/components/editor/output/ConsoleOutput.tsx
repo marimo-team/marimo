@@ -115,17 +115,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const getOutputString = (): string => {
     const text = consoleOutputs
       .filter((output) => output.channel !== "pdb")
-      .map((output) => {
-        if (
-          output.mimetype.startsWith("application/vnd.marimo") ||
-          output.mimetype === "text/html"
-        ) {
-          return parseHtmlContent(Strings.asString(output.data));
-        }
-
-        // Convert ANSI to HTML, then parse as HTML
-        return ansiToPlainText(Strings.asString(output.data));
-      })
+      .map((output) => processOutput(output))
       .join("\n");
     return text;
   };
@@ -281,4 +271,17 @@ const renderText = (text: string | null) => {
   return (
     <span dangerouslySetInnerHTML={{ __html: ansiUp.ansi_to_html(text) }} />
   );
+};
+
+/** Convert cell or console output to a string, while handling html and ansi codes */
+export const processOutput = (output: OutputMessage): string => {
+  if (
+    output.mimetype.startsWith("application/vnd.marimo") ||
+    output.mimetype === "text/html"
+  ) {
+    return parseHtmlContent(Strings.asString(output.data));
+  }
+
+  // Convert ANSI to HTML, then parse as HTML
+  return ansiToPlainText(Strings.asString(output.data));
 };

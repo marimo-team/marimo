@@ -44,7 +44,7 @@ describe("RunStaleCellsTool", () => {
       store,
     };
 
-    tool = new RunStaleCellsTool();
+    tool = new RunStaleCellsTool({ postExecutionDelay: 0 });
 
     cellId1 = "cell-1" as CellId;
     cellId2 = "cell-2" as CellId;
