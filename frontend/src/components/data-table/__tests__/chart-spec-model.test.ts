@@ -21,6 +21,7 @@ vi.mock("@/core/runtime/config", () => ({
 }));
 
 describe("ColumnChartSpecModel", () => {
+  const mockData = "http://example.com/data.json";
   const mockFieldTypes: FieldTypes = {
     date: "date",
     number: "number",
@@ -60,6 +61,7 @@ describe("ColumnChartSpecModel", () => {
 
   it("should create an instance", () => {
     const model = new ColumnChartSpecModel(
+      [],
       mockFieldTypes,
       mockStats,
       mockBinValues,
@@ -76,6 +78,7 @@ describe("ColumnChartSpecModel", () => {
 
   it("should return header summary with spec when includeCharts is true", () => {
     const model = new ColumnChartSpecModel(
+      [],
       mockFieldTypes,
       mockStats,
       mockBinValues,
@@ -90,6 +93,7 @@ describe("ColumnChartSpecModel", () => {
 
   it("should return header summary without spec when includeCharts is false", () => {
     const model = new ColumnChartSpecModel(
+      [],
       mockFieldTypes,
       mockStats,
       mockBinValues,
@@ -104,6 +108,7 @@ describe("ColumnChartSpecModel", () => {
 
   it("should return null spec for unknown types", () => {
     const model = new ColumnChartSpecModel(
+      [],
       mockFieldTypes,
       mockStats,
       mockBinValues,
@@ -121,10 +126,18 @@ describe("ColumnChartSpecModel", () => {
     const specialStats: Record<ColumnName, Partial<ColumnHeaderStats>> = {
       "column.with[special:chars]": { min: "2023-01-01", max: "2023-12-31" },
     };
+    const specialBinValues: Record<ColumnName, BinValues> = {
+      ...mockBinValues,
+      "column.with[special:chars]": [
+        { bin_start: "2023-01-01", bin_end: "2023-06-01", count: 10 },
+        { bin_start: "2023-06-01", bin_end: "2023-12-31", count: 20 },
+      ],
+    };
     const model = new ColumnChartSpecModel(
+      [],
       specialFieldTypes,
       specialStats,
-      mockBinValues,
+      specialBinValues,
       mockValueCounts,
       { includeCharts: true },
     );
@@ -136,8 +149,9 @@ describe("ColumnChartSpecModel", () => {
     ).toBe("bin_start");
   });
 
-  it("should expect bin values to be used for number and integer columns when feat flag is true", () => {
+  it("should expect bin values to be used for number and integer columns", () => {
     const model = new ColumnChartSpecModel(
+      [],
       mockFieldTypes,
       mockStats,
       mockBinValues,
@@ -164,8 +178,9 @@ describe("ColumnChartSpecModel", () => {
     expect(summary2.spec?.data?.values).toEqual(mockBinValues.integer);
   });
 
-  it("should handle datetime bin values when feat flag is true", () => {
+  it("should handle datetime bin values", () => {
     const model = new ColumnChartSpecModel(
+      [],
       mockFieldTypes,
       mockStats,
       mockBinValues,
@@ -186,6 +201,7 @@ describe("ColumnChartSpecModel", () => {
       datetime: { min: "2023-01-01", max: "2023-12-31" },
     };
     const model2 = new ColumnChartSpecModel(
+      [],
       mockFieldTypes,
       mockStats2,
       mockBinValues,
@@ -200,8 +216,9 @@ describe("ColumnChartSpecModel", () => {
     expect(summary2.spec?.hconcat).toBeUndefined();
   });
 
-  it("should handle boolean stats when feat flag is true", () => {
+  it("should handle boolean stats", () => {
     const model = new ColumnChartSpecModel(
+      [],
       mockFieldTypes,
       mockStats,
       mockBinValues,
@@ -221,8 +238,9 @@ describe("ColumnChartSpecModel", () => {
     expect(summary.spec).toMatchSnapshot();
   });
 
-  it("should handle string value counts when feat flag is true", () => {
+  it("should handle string value counts", () => {
     const model = new ColumnChartSpecModel(
+      [],
       mockFieldTypes,
       mockStats,
       mockBinValues,
@@ -248,7 +266,7 @@ describe("ColumnChartSpecModel", () => {
     expect(summary.spec).toMatchSnapshot();
   });
 
-  describe("snapshot", () => {
+  describe("snapshot with legacy data spec", () => {
     const fieldTypes: FieldTypes = {
       ...mockFieldTypes,
       a: "number",
@@ -256,6 +274,7 @@ describe("ColumnChartSpecModel", () => {
 
     it("url data", () => {
       const model = new ColumnChartSpecModel(
+        mockData,
         fieldTypes,
         mockStats,
         mockBinValues,
@@ -267,6 +286,7 @@ describe("ColumnChartSpecModel", () => {
 
     it("csv data", () => {
       const model = new ColumnChartSpecModel(
+        `data:text/csv;base64,${btoa("a,b,c\n1,2,3\n4,5,6")}`,
         fieldTypes,
         mockStats,
         mockBinValues,
@@ -278,6 +298,7 @@ describe("ColumnChartSpecModel", () => {
 
     it("csv string", () => {
       const model = new ColumnChartSpecModel(
+        "a,b,c\n1,2,3\n4,5,6",
         fieldTypes,
         mockStats,
         mockBinValues,
@@ -289,6 +310,7 @@ describe("ColumnChartSpecModel", () => {
 
     it("array", () => {
       const model = new ColumnChartSpecModel(
+        ["a", "b", "c"],
         fieldTypes,
         mockStats,
         mockBinValues,
@@ -296,6 +318,129 @@ describe("ColumnChartSpecModel", () => {
         { includeCharts: true },
       );
       expect(model.getHeaderSummary("a").spec).toMatchSnapshot();
+    });
+  });
+
+  describe("file URL handling", () => {
+    it("should handle marimo file URLs with ./@file prefix", () => {
+      const model = new ColumnChartSpecModel(
+        "./@file/data.csv",
+        mockFieldTypes,
+        mockStats,
+        mockBinValues,
+        mockValueCounts,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.url).toBe("http://localhost:8080/@file/data.csv");
+    });
+
+    it("should handle marimo file URLs with /@file prefix", () => {
+      const model = new ColumnChartSpecModel(
+        "/@file/data.csv",
+        mockFieldTypes,
+        mockStats,
+        mockBinValues,
+        mockValueCounts,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.url).toBe("http://localhost:8080/@file/data.csv");
+    });
+
+    it("should handle absolute HTTP URLs", () => {
+      const model = new ColumnChartSpecModel(
+        "https://external.com/data.csv",
+        mockFieldTypes,
+        mockStats,
+        mockBinValues,
+        mockValueCounts,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.url).toBeUndefined();
+    });
+
+    it("should handle data URLs", () => {
+      const dataUrl = "data:text/csv;base64,YSxiLGMKMSwyLDMKNCw1LDY=";
+      const model = new ColumnChartSpecModel(
+        dataUrl,
+        mockFieldTypes,
+        mockStats,
+        mockBinValues,
+        mockValueCounts,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // Data URLs should be handled by parseCsvData, not as URL
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.values).toBeDefined();
+    });
+
+    it("should handle CSV string data", () => {
+      const csvString = "a,b,c\n1,2,3\n4,5,6";
+      const model = new ColumnChartSpecModel(
+        csvString,
+        mockFieldTypes,
+        mockStats,
+        mockBinValues,
+        mockValueCounts,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // CSV strings should be parsed, not treated as URLs
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.values).toBeDefined();
+    });
+
+    it("should handle arrow data", () => {
+      const arrowData = "ARROW1\n";
+      const model = new ColumnChartSpecModel(
+        `data:text/plain;base64,${btoa(arrowData)}`,
+        mockFieldTypes,
+        mockStats,
+        mockBinValues,
+        mockValueCounts,
+        { includeCharts: true },
+      );
+      const spec = model.getHeaderSummary("date").spec;
+      expect(spec).toMatchSnapshot();
+      expect(spec?.data?.format?.type).toBe("arrow");
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.values).toBeDefined();
+    });
+
+    it("should handle array data", () => {
+      const arrayData = [
+        { a: 1, b: 2, c: 3 },
+        { a: 4, b: 5, c: 6 },
+      ];
+      const model = new ColumnChartSpecModel(
+        arrayData,
+        mockFieldTypes,
+        mockStats,
+        mockBinValues,
+        mockValueCounts,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.values).toEqual(arrayData);
     });
   });
 });

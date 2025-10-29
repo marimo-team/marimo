@@ -883,6 +883,7 @@ def test_with_too_many_rows_column_charts_disabled() -> None:
     )
     charts_enabled = table._get_column_summaries(ColumnSummariesArgs())
     assert charts_enabled.show_charts is True
+    assert charts_enabled.data is None
     assert charts_enabled.is_disabled is False
 
 
@@ -1062,6 +1063,7 @@ class TestTableGetValueCounts:
                 )
             ]
         }
+        assert summaries.data is None
 
         # If >20k rows, we should not get value_counts
         data = pd.DataFrame(
@@ -1074,6 +1076,7 @@ class TestTableGetValueCounts:
         )
         table = ui.table(data)
         summaries = table._get_column_summaries(ColumnSummariesArgs())
+        assert summaries.data is None
         assert summaries.value_counts == {}
 
     def test_with_smaller_limit(self, table: ui.table) -> None:
@@ -1187,6 +1190,37 @@ def test_show_column_summaries_disabled():
     summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert len(summaries.stats) == 0
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_column_summaries_fallback(monkeypatch):
+    import polars as pl
+
+    data = pl.DataFrame(
+        {
+            "a": [1, 2, 3] * 200,
+            "b": [4, 5, 6] * 200,
+            "c": [7, 8, 9] * 200,
+        }
+    )
+    table = ui.table(data)
+
+    def always_fail_get_bin_values(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("Intentional bin failure")
+
+    monkeypatch.setattr(
+        table._manager, "get_bin_values", always_fail_get_bin_values
+    )
+
+    summaries = table._get_column_summaries(ColumnSummariesArgs())
+    assert summaries.is_disabled is False
+    assert summaries.bin_values == {}
+    assert summaries.value_counts == {}
+    assert summaries.show_charts is True
+    # Should have chart data
+    assert summaries.data is not None
 
 
 @pytest.mark.parametrize(
