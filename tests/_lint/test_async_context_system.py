@@ -344,7 +344,7 @@ def _():
 """
 
         notebook = parse_notebook(code)
-        diagnostics = lint_notebook(notebook)
+        diagnostics = lint_notebook(notebook, code)
 
         # Should find diagnostics
         assert len(diagnostics) > 0

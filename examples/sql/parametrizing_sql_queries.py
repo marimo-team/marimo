@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -23,15 +23,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        # Parametrizing SQL Queries
+    mo.md("""
+    # Parametrizing SQL Queries
 
-        This notebook shows parametrize SQL queries with Python values, using Python f-string interpolation.
+    This notebook shows parametrize SQL queries with Python values, using Python f-string interpolation.
 
-        First, we create a dataframe called `df`.
-        """
-    )
+    First, we create a dataframe called `df`.
+    """)
     return
 
 
@@ -41,7 +39,7 @@ def _():
 
     df = data.iris()
     df
-    return (df,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -59,15 +57,13 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        Next, we **create a SQL cell** that filters the table to the selected species.
+    mo.md("""
+    Next, we **create a SQL cell** that filters the table to the selected species.
 
-        Notice that we can reference the Python variable `species_dropdown` in our query
-        using **curly braces**. This is because marimo represents SQL queries as Python
-        f-strings. 
-        """
-    )
+    Notice that we can reference the Python variable `species_dropdown` in our query
+    using **curly braces**. This is because marimo represents SQL queries as Python
+    f-strings.
+    """)
     return
 
 
@@ -92,7 +88,7 @@ def _(mo):
 
 
 @app.cell
-def _(df, mo, species_dropdown):
+def _(mo, species_dropdown):
     result = mo.sql(
         f"""
         SELECT * FROM df where species == '{species_dropdown.value}'
@@ -103,17 +99,15 @@ def _(df, mo, species_dropdown):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        The query output is returned to Python as a dataframe (Polars if you have it installed, Pandas otherwise).
+    mo.md(r"""
+    The query output is returned to Python as a dataframe (Polars if you have it installed, Pandas otherwise).
 
-        Choose the dataframe name via the **output variable** input in the bottom-left
-        of the cell. If the name starts with an underscore, it won't be made available
-        to other cells. In this case, we've named the output `result`.
+    Choose the dataframe name via the **output variable** input in the bottom-left
+    of the cell. If the name starts with an underscore, it won't be made available
+    to other cells. In this case, we've named the output `result`.
 
-        Try changing the selected species in the `species_dropdown`, and watch how the query result changes.
-        """
-    )
+    Try changing the selected species in the `species_dropdown`, and watch how the query result changes.
+    """)
     return
 
 

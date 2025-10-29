@@ -362,20 +362,7 @@ def generate_rule_page(rule_details: dict[str, Any]) -> str:
 """
 
     # Add the first line of the docstring as main description
-    if rule['full_description'] and rule['full_description'] != rule['description']:
-        # Split the first line from the rest
-        desc_lines = rule['full_description'].split('.')
-        if len(desc_lines) > 1:
-            main_desc = desc_lines[0] + '.'
-            rest_desc = '.'.join(desc_lines[1:]).strip()
-            if rest_desc:
-                content += f"{main_desc}\n\n{rest_desc}\n\n"
-            else:
-                content += f"{main_desc}\n\n"
-        else:
-            content += f"{rule['full_description']}\n\n"
-    else:
-        content += f"{rule['description']}\n\n"
+    content += f"{rule['full_description']}\n\n"
 
     # Add structured sections from docstring
     sections = rule.get('sections', {})

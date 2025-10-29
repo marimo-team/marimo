@@ -7,19 +7,17 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # Inputs
+    mo.md(r"""
+    # Inputs
 
-        There are many way that a user can input with your notebook, such as text boxes, sliders, dates, and more.
-        """
-    )
+    There are many way that a user can input with your notebook, such as text boxes, sliders, dates, and more.
+    """)
     return
 
 

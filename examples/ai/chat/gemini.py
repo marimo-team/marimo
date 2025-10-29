@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -19,13 +19,11 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        # Using Gemini
+    mo.md(r"""
+    # Using Gemini
 
-        This example shows how to use [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat) to make a chatbot backed by Gemini.
-        """
-    )
+    This example shows how to use [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat) to make a chatbot backed by Gemini.
+    """)
     return
 
 
@@ -70,7 +68,9 @@ def _(key, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Access the chatbot's historical messages with [`chatbot.value`](https://docs.marimo.io/api/inputs/chat.html#accessing-chat-history).""")
+    mo.md(
+        """Access the chatbot's historical messages with [`chatbot.value`](https://docs.marimo.io/api/inputs/chat.html#accessing-chat-history)."""
+    )
     return
 
 

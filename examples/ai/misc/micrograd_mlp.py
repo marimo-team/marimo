@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -23,18 +23,16 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        This marimo notebook trains a tiny **neural network** using
-        Andrej Karpathy's [micrograd
-        library](https://github.com/karpathy/micrograd).
-        Micrograd is an implementation of PyTorch-like automatic
-        differentiation using only Python scalar operations. This notebook was
-        adapted from a [demo
-        notebook](https://github.com/karpathy/micrograd/blob/master/demo.ipynb) by
-        Andrej.
-        """
-    )
+    mo.md("""
+    This marimo notebook trains a tiny **neural network** using
+    Andrej Karpathy's [micrograd
+    library](https://github.com/karpathy/micrograd).
+    Micrograd is an implementation of PyTorch-like automatic
+    differentiation using only Python scalar operations. This notebook was
+    adapted from a [demo
+    notebook](https://github.com/karpathy/micrograd/blob/master/demo.ipynb) by
+    Andrej.
+    """)
     return
 
 
@@ -58,13 +56,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        We start by generating a synthetic dataset of points labeled +1 or -1.
-        Our goal is to train a network that can classify these points according
-        to their labels, learning a decision boundary that separates them.
-        """
-    )
+    mo.md("""
+    We start by generating a synthetic dataset of points labeled +1 or -1.
+    Our goal is to train a network that can classify these points according
+    to their labels, learning a decision boundary that separates them.
+    """)
     return
 
 
@@ -86,28 +82,24 @@ def _(X, mo, plt, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        Note that the decision boundary must be **nonlinear**, which can be readily
-        learned by neural networks. This could also be achieved by "shallow" or
-        classical machine learning methods with the appropriate featurization or
-        [kernelization](https://scikit-learn.org/stable/modules/svm.html).
-        """
-    )
+    mo.md("""
+    Note that the decision boundary must be **nonlinear**, which can be readily
+    learned by neural networks. This could also be achieved by "shallow" or
+    classical machine learning methods with the appropriate featurization or
+    [kernelization](https://scikit-learn.org/stable/modules/svm.html).
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        **Try it!** Train a neural network by hitting the "Train" button. The
-            learned decision boundary will be plotted below.
+    mo.md("""
+    **Try it!** Train a neural network by hitting the "Train" button. The
+        learned decision boundary will be plotted below.
 
-            _Try experimenting with the parameters. What happens if you change
-            the number of layers and their sizes?_
-        """
-    )
+        _Try experimenting with the parameters. What happens if you change
+        the number of layers and their sizes?_
+    """)
     return
 
 

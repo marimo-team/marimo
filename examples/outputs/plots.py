@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -43,12 +43,10 @@ def _(plt):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        Calling `show()` methods displays the plot in the console area, which can be
-        helpful for debugging because console outputs do not show up in the "app" preview.
-        """
-    )
+    mo.md("""
+    Calling `show()` methods displays the plot in the console area, which can be
+    helpful for debugging because console outputs do not show up in the "app" preview.
+    """)
     return
 
 

@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="full")
 
 
@@ -28,13 +28,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Database explorer
 
     This notebook lets you explore the contents of a database. Start by providing a database URL.
-    """
-    )
+    """)
     return
 
 
