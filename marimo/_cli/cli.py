@@ -14,8 +14,6 @@ import click
 import marimo._cli.cli_validators as validators
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.load import get_notebook_status
-from marimo._ast.parse import MarimoFileError
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
@@ -23,17 +21,21 @@ from marimo._cli.envinfo import get_system_info
 from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
 from marimo._cli.parse_args import parse_args
-from marimo._cli.print import bold, green, red
+from marimo._cli.print import red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
 from marimo._cli.upgrade import check_for_updates, print_latest_version
+from marimo._cli.utils import (
+    check_app_correctness,
+    check_app_correctness_or_convert,
+    resolve_token,
+)
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._lint import run_check
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.start import start
-from marimo._server.tokens import AuthToken
 from marimo._tutorials import (
     Tutorial,
     create_temp_tutorial_file,
@@ -58,84 +60,6 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
         click.echo(self.ctx.get_help(), file=file, color=color)
 
 
-def check_app_correctness(filename: str, noninteractive: bool = True) -> None:
-    try:
-        status = get_notebook_status(filename).status
-    except (SyntaxError, MarimoFileError):
-        # Exit early if we can
-        if not noninteractive:
-            raise
-
-        # This prints a more readable error message, without internal details
-        # e.g.
-        # Error:   File "/my/bad/file.py", line 17
-        #     x.
-        #     ^
-        # SyntaxError: invalid syntax
-        from marimo._lint import collect_messages
-
-        _, message = collect_messages(filename)
-        raise click.ClickException(message.strip()) from None
-
-    if status == "invalid" and filename.endswith(".py"):
-        # fail for python scripts, almost certainly do not want to override contents
-        import os
-
-        stem = os.path.splitext(os.path.basename(filename))[0]
-        raise click.ClickException(
-            f"Python script not recognized as a marimo notebook.\n\n"
-            f"  {green('Tip:')} Try converting with"
-            "\n\n"
-            f"    marimo convert {filename} -o {stem}_nb.py\n\n"
-            f"  then open with marimo edit {stem}_nb.py"
-        ) from None
-
-    # Only show the tip if we're in an interactive terminal
-    interactive = sys.stdin.isatty() and not noninteractive
-    if status == "invalid" and interactive:
-        click.echo(
-            green("tip")
-            + ": Use `"
-            + bold("marimo convert")
-            + "` to convert existing scripts.",
-            err=True,
-        )
-        click.confirm(
-            (
-                "The file is not detected as a marimo notebook, opening it may "
-                "overwrite its contents.\nDo you want to open it anyway?"
-            ),
-            default=False,
-            abort=True,
-        )
-
-    if status == "has_errors":
-        # Provide a warning, but allow the user to open the notebook
-        _loggers.marimo_logger().warning(
-            "This notebook has errors, saving may lose data. Continuing anyway."
-        )
-
-
-def check_app_correctness_or_convert(filename: str) -> None:
-    from marimo._convert.converters import MarimoConvert
-
-    file = Path(filename)
-    code = file.read_text(encoding="utf-8")
-    try:
-        return check_app_correctness(filename, noninteractive=True)
-    except (click.ClickException, MarimoFileError):
-        # A click exception is raised if a python script could not be converted
-        code = MarimoConvert.from_non_marimo_python_script(
-            source=code, aggressive=True
-        ).to_py()
-    except SyntaxError:
-        # The file could not even be read as python
-        code = MarimoConvert.from_plain_text(source=code).to_py()
-        file.write_text(code, encoding="utf-8")
-
-    file.write_text(code, encoding="utf-8")
-
-
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
 
 
@@ -157,18 +81,6 @@ def _key_value_bullets(items: list[tuple[str, str]]) -> str:
             + desc
         )
     return "\n".join(lines)
-
-
-def _resolve_token(
-    token: bool, token_password: Optional[str]
-) -> Optional[AuthToken]:
-    if token_password:
-        return AuthToken(token_password)
-    elif token is False:
-        # Empty means no auth
-        return AuthToken("")
-    # None means use the default (generated) token
-    return None
 
 
 main_help_msg = "\n".join(
@@ -378,6 +290,13 @@ edit_help_msg = "\n".join(
     help=token_password_message,
 )
 @click.option(
+    "--token-password-file",
+    default=None,
+    show_default=True,
+    type=str,
+    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+)
+@click.option(
     "--base-url",
     default="",
     show_default=True,
@@ -496,6 +415,7 @@ def edit(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_file: Optional[str],
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
@@ -515,8 +435,13 @@ def edit(
 ) -> None:
     from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
 
+    pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
-    if name is None and (stdin_contents := _get_stdin_contents()) is not None:
+    if (
+        not pass_on_stdin
+        and name is None
+        and (stdin_contents := _get_stdin_contents()) is not None
+    ):
         temp_dir = tempfile.TemporaryDirectory()
         path = create_temp_notebook_file(
             "notebook.py", "py", stdin_contents, temp_dir
@@ -598,7 +523,11 @@ def edit(
         skew_protection=skew_protection,
         cli_args=parse_args(args),
         argv=list(args),
-        auth_token=_resolve_token(token, token_password),
+        auth_token=resolve_token(
+            token,
+            token_password=token_password,
+            token_password_file=token_password_file,
+        ),
         base_url=base_url,
         allow_origins=allow_origins,
         redirect_console_to_browser=True,
@@ -683,6 +612,13 @@ new_help_msg = "\n".join(
     help=token_password_message,
 )
 @click.option(
+    "--token-password-file",
+    default=None,
+    show_default=True,
+    type=str,
+    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+)
+@click.option(
     "--base-url",
     default="",
     show_default=True,
@@ -722,6 +658,7 @@ def new(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_file: Optional[str],
     base_url: str,
     sandbox: Optional[bool],
     skew_protection: bool,
@@ -800,7 +737,11 @@ def new(
         skew_protection=skew_protection,
         cli_args={},
         argv=[],
-        auth_token=_resolve_token(token, token_password),
+        auth_token=resolve_token(
+            token,
+            token_password=token_password,
+            token_password_file=token_password_file,
+        ),
         base_url=base_url,
         redirect_console_to_browser=True,
         ttl_seconds=None,
@@ -860,6 +801,13 @@ Example:
     show_default=True,
     type=str,
     help=token_password_message,
+)
+@click.option(
+    "--token-password-file",
+    default=None,
+    show_default=True,
+    type=str,
+    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
 )
 @click.option(
     "--include-code",
@@ -961,6 +909,7 @@ def run(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_file: Optional[str],
     include_code: bool,
     session_ttl: int,
     watch: bool,
@@ -1034,7 +983,11 @@ def run(
         allow_origins=allow_origins,
         cli_args=parse_args(args),
         argv=list(args),
-        auth_token=_resolve_token(token, token_password),
+        auth_token=resolve_token(
+            token,
+            token_password=token_password,
+            token_password_file=token_password_file,
+        ),
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
@@ -1113,6 +1066,13 @@ Recommended sequence:
     help=token_password_message,
 )
 @click.option(
+    "--token-password-file",
+    default=None,
+    show_default=True,
+    type=str,
+    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+)
+@click.option(
     "--skew-protection/--no-skew-protection",
     is_flag=True,
     default=True,
@@ -1132,6 +1092,7 @@ def tutorial(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    token_password_file: Optional[str],
     skew_protection: bool,
     name: Tutorial,
 ) -> None:
@@ -1152,7 +1113,11 @@ def tutorial(
         skew_protection=skew_protection,
         cli_args={},
         argv=[],
-        auth_token=_resolve_token(token, token_password),
+        auth_token=resolve_token(
+            token,
+            token_password=token_password,
+            token_password_file=token_password_file,
+        ),
         redirect_console_to_browser=False,
         ttl_seconds=None,
     )
