@@ -185,59 +185,84 @@ def _filter_dataframe(
             dtype = schema[field]
             resolved_values = _resolve_values(values, dtype)
 
-            if is_point_selection and not is_binned:
-                df = df.filter(nw.col(field).is_in(resolved_values))
-            elif len(resolved_values) == 1:
-                df = df.filter(nw.col(field) == resolved_values[0])
-            # Range selection
-            elif len(resolved_values) == 2 and _is_numeric_or_date(
-                resolved_values[0]
+            # Validate that resolved values have compatible types
+            # If coercion failed, the values will still be strings when they should be dates/numbers
+            if nw.Date == dtype or (
+                nw.Datetime == dtype and isinstance(dtype, nw.Datetime)
             ):
-                left_value, right_value = resolved_values
-
-                # For binned fields, we need to check if this is the last bin
-                # by comparing the right boundary to the maximum value in the dataset.
-                # If they're equal (or right boundary >= max), use inclusive right boundary.
-                if is_binned:
-                    # Get the maximum value in the dataset for this field
-                    max_value_df = df.select(nw.col(field).max())
-                    max_value_collected = (
-                        max_value_df.collect()
-                        if is_narwhals_lazyframe(max_value_df)
-                        else max_value_df
+                # Check if any values are still strings (indicating failed coercion)
+                if any(isinstance(v, str) for v in resolved_values):
+                    LOGGER.error(
+                        f"Type mismatch for field '{field}': Column has {dtype} type, "
+                        f"but values {resolved_values} could not be properly coerced. "
+                        "Skipping this filter condition."
                     )
-                    max_value = max_value_collected[field][0]
+                    continue
 
-                    # If right boundary >= max value, this is the last bin
-                    is_last_bin = right_value >= max_value
+            try:
+                if is_point_selection and not is_binned:
+                    df = df.filter(nw.col(field).is_in(resolved_values))
+                elif len(resolved_values) == 1:
+                    df = df.filter(nw.col(field) == resolved_values[0])
+                # Range selection
+                elif len(resolved_values) == 2 and _is_numeric_or_date(
+                    resolved_values[0]
+                ):
+                    left_value, right_value = resolved_values
 
-                    if is_last_bin:
-                        # Last bin: use inclusive right boundary
+                    # For binned fields, we need to check if this is the last bin
+                    # by comparing the right boundary to the maximum value in the dataset.
+                    # If they're equal (or right boundary >= max), use inclusive right boundary.
+                    if is_binned:
+                        # Get the maximum value in the dataset for this field
+                        max_value_df = df.select(nw.col(field).max())
+                        max_value_collected = (
+                            max_value_df.collect()
+                            if is_narwhals_lazyframe(max_value_df)
+                            else max_value_df
+                        )
+                        max_value = max_value_collected[field][0]
+
+                        # If right boundary >= max value, this is the last bin
+                        is_last_bin = right_value >= max_value
+
+                        if is_last_bin:
+                            # Last bin: use inclusive right boundary
+                            df = df.filter(
+                                (nw.col(field) >= left_value)
+                                & (nw.col(field) <= right_value)
+                            )
+                        else:
+                            # Not last bin: use exclusive right boundary
+                            df = df.filter(
+                                (nw.col(field) >= left_value)
+                                & (nw.col(field) < right_value)
+                            )
+                    else:
+                        # Non-binned fields: use inclusive right boundary
                         df = df.filter(
                             (nw.col(field) >= left_value)
                             & (nw.col(field) <= right_value)
                         )
-                    else:
-                        # Not last bin: use exclusive right boundary
-                        df = df.filter(
-                            (nw.col(field) >= left_value)
-                            & (nw.col(field) < right_value)
-                        )
+                # Multi-selection via range
+                # This can happen when you use an interval selection
+                # on categorical data
+                elif len(resolved_values) > 1:
+                    df = df.filter(nw.col(field).is_in(resolved_values))
                 else:
-                    # Non-binned fields: use inclusive right boundary
-                    df = df.filter(
-                        (nw.col(field) >= left_value)
-                        & (nw.col(field) <= right_value)
+                    raise ValueError(
+                        f"Invalid selection: {field}={resolved_values}"
                     )
-            # Multi-selection via range
-            # This can happen when you use an interval selection
-            # on categorical data
-            elif len(resolved_values) > 1:
-                df = df.filter(nw.col(field).is_in(resolved_values))
-            else:
-                raise ValueError(
-                    f"Invalid selection: {field}={resolved_values}"
+            except (TypeError, ValueError, Exception) as e:
+                # Handle type comparison errors and other database errors gracefully
+                # (e.g., DuckDB BinderException, Polars errors, etc.)
+                LOGGER.error(
+                    f"Error during filter comparison for field '{field}': {e}. "
+                    f"Attempted to compare {dtype} column with values {resolved_values}. "
+                    "Skipping this filter condition."
                 )
+                # Continue without this filter - don't break the entire operation
+                continue
 
     if not is_lazy and is_narwhals_lazyframe(df):
         # Undo the lazy
@@ -250,30 +275,51 @@ def _resolve_values(values: Any, dtype: Any) -> list[Any]:
     def _coerce_value(value: Any, dtype: Any) -> Any:
         import zoneinfo
 
-        if nw.Date == dtype:
-            if isinstance(value, str):
-                return datetime.date.fromisoformat(value)
-            # Value is milliseconds since epoch
-            # so we convert to seconds since epoch
-            return datetime.date.fromtimestamp(value / 1000)
-        if nw.Datetime == dtype and isinstance(dtype, nw.Datetime):
-            if isinstance(value, str):
-                res = datetime.datetime.fromisoformat(value)
-                # If dtype has no timezone, but value has timezone, remove timezone without shifting
-                if dtype.time_zone is None and res.tzinfo is not None:
-                    return res.replace(tzinfo=None)
-                return res
+        try:
+            if nw.Date == dtype:
+                if isinstance(value, str):
+                    return datetime.date.fromisoformat(value)
+                # Value is milliseconds since epoch
+                # so we convert to seconds since epoch
+                if isinstance(value, (int, float)):
+                    return datetime.date.fromtimestamp(value / 1000)
+                # If value is already a date or datetime, return as-is
+                if isinstance(value, datetime.date):
+                    return value
+                # Otherwise, try to convert to string then parse
+                return datetime.date.fromisoformat(str(value))
+            if nw.Datetime == dtype and isinstance(dtype, nw.Datetime):
+                if isinstance(value, str):
+                    res = datetime.datetime.fromisoformat(value)
+                    # If dtype has no timezone, but value has timezone, remove timezone without shifting
+                    if dtype.time_zone is None and res.tzinfo is not None:
+                        return res.replace(tzinfo=None)
+                    return res
 
-            # Value is milliseconds since epoch
-            # so we convert to seconds since epoch
-            return datetime.datetime.fromtimestamp(
-                value / 1000,
-                tz=(
-                    zoneinfo.ZoneInfo(dtype.time_zone)
-                    if dtype.time_zone
-                    else None
-                ),
+                # Value is milliseconds since epoch
+                # so we convert to seconds since epoch
+                if isinstance(value, (int, float)):
+                    return datetime.datetime.fromtimestamp(
+                        value / 1000,
+                        tz=(
+                            zoneinfo.ZoneInfo(dtype.time_zone)
+                            if dtype.time_zone
+                            else None
+                        ),
+                    )
+                # If value is already a datetime, return as-is
+                if isinstance(value, datetime.datetime):
+                    return value
+                # Otherwise, try to convert to string then parse
+                return datetime.datetime.fromisoformat(str(value))
+        except (ValueError, TypeError, OSError) as e:
+            # Log the error but return the original value
+            # to avoid breaking the filter entirely
+            LOGGER.warning(
+                f"Failed to coerce value {value!r} to {dtype}: {e}. "
+                "Using original value."
             )
+            return value
         return value
 
     if isinstance(values, list):
