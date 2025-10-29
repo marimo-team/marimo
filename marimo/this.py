@@ -10,7 +10,7 @@ the antidote to a distraction is the word "no".
 
 working with good people goes a long way,
 progress will happen and folks will stay.
-without enthousiasm there's no great story to tell. 
+without enthusiasm there's no great story to tell. 
 perfection is in the many little things done well.
 
 the best details are hidden without any kind of flair,
