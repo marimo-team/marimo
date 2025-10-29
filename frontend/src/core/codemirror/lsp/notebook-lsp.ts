@@ -99,7 +99,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     CellId,
     EditorView | null | undefined
   >;
-
+  private readonly initialSettings: Record<string, unknown>;
   private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<CellDocumentUri>();
 
   /**
@@ -120,7 +120,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   ) {
     this.documentUri = getLSPDocument();
     this.getNotebookEditors = getNotebookEditors;
-
+    this.initialSettings = initialSettings;
     this.client = client;
     this.patchProcessNotification();
 
@@ -183,6 +183,37 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
   close(): void {
     this.client.close();
+  }
+
+  /**
+   * Re-synchronize all open documents with the LSP server.
+   * This is called after a WebSocket reconnection to restore document state.
+   */
+  public async resyncAllDocuments(): Promise<void> {
+    invariant(
+      isClientWithNotify(this.client),
+      "notify is not a method on the client",
+    );
+    await this.client.initialize();
+    this.client.notify("workspace/didChangeConfiguration", {
+      settings: this.initialSettings,
+    });
+
+    // Get the current document state
+    const { lens, version } = this.snapshotter.snapshot();
+
+    // Re-open the merged document with the LSP server
+    // This sends a textDocument/didOpen for the entire notebook
+    await this.client.textDocumentDidOpen({
+      textDocument: {
+        languageId: "python", // Default to Python for marimo notebooks
+        text: lens.mergedText,
+        uri: this.documentUri,
+        version: version,
+      },
+    });
+
+    Logger.log("[lsp] Document re-synchronization complete");
   }
 
   private getNotebookCode() {

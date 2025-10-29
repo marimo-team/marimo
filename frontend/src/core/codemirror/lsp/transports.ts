@@ -10,10 +10,12 @@ import { getRuntimeManager } from "../../runtime/config";
  * before connecting to the LSP server.
  *
  * @param serverName - The name of the LSP server.
+ * @param onReconnect - Optional callback to call after reconnection (e.g., to resync documents).
  * @returns The transport.
  */
 export function createTransport(
   serverName: "pylsp" | "basedpyright" | "copilot" | "ty",
+  onReconnect?: () => Promise<void>,
 ) {
   const runtimeManager = getRuntimeManager();
   return new ReconnectingWebSocketTransport({
@@ -21,5 +23,6 @@ export function createTransport(
     waitForConnection: async () => {
       await waitForConnectionOpen();
     },
+    onReconnect,
   });
 }

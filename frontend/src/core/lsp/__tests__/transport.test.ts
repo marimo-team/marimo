@@ -230,4 +230,61 @@ describe("ReconnectingWebSocketTransport", () => {
 
     expect(WebSocketTransport).toHaveBeenCalledTimes(1);
   });
+
+  it("should call onReconnect callback after reconnection", async () => {
+    const getWsUrl = vi.fn(() => mockWsUrl);
+    const onReconnect = vi.fn().mockResolvedValue(undefined);
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl,
+      onReconnect,
+    });
+
+    // First connection - callback should not be called
+    await transport.connect();
+    expect(onReconnect).not.toHaveBeenCalled();
+
+    // Simulate connection loss
+    mockConnection.readyState = WebSocket.CLOSED;
+
+    // Reconnect - callback should be called this time
+    const data: any = { method: "test", params: [] };
+    await transport.sendData(data, 5000);
+
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("should not call onReconnect callback on first connection", async () => {
+    const getWsUrl = vi.fn(() => mockWsUrl);
+    const onReconnect = vi.fn().mockResolvedValue(undefined);
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl,
+      onReconnect,
+    });
+
+    await transport.connect();
+
+    expect(onReconnect).not.toHaveBeenCalled();
+  });
+
+  it("should handle onReconnect callback errors gracefully", async () => {
+    const getWsUrl = vi.fn(() => mockWsUrl);
+    const reconnectError = new Error("Reconnect callback failed");
+    const onReconnect = vi.fn().mockRejectedValue(reconnectError);
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl,
+      onReconnect,
+    });
+
+    // First connection
+    await transport.connect();
+
+    // Simulate connection loss
+    mockConnection.readyState = WebSocket.CLOSED;
+
+    // Reconnect - should propagate the error from onReconnect
+    const data: any = { method: "test", params: [] };
+    await expect(transport.sendData(data, 5000)).rejects.toThrow(
+      "Reconnect callback failed",
+    );
+  });
 });

@@ -100,7 +100,7 @@ export function uniqueByTakeLast<T>(arr: T[], key: (item: T) => string): T[] {
     const k = key(item);
     map.set(k, item);
   }
-  return Array.from(map.values());
+  return [...map.values()];
 }
 
 /**
