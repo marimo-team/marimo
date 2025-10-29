@@ -75,7 +75,7 @@ function hoistParamsAndApplyOpacity<T extends VegaLiteSpec>(spec: T): T {
   // Remove only common params from nested specs
   const commonParamNames = new Set(commonParams.map((p) => p.name));
   const specWithoutCommonParams = removeSpecificParamsFromNestedSpecs(
-    spec as any,
+    spec,
     commonParamNames,
   );
 
