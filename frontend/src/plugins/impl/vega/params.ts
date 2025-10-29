@@ -22,6 +22,14 @@ export const ParamNames = {
   legendSelection(field: string) {
     return `legend_selection_${field}`;
   },
+  /**
+   * Special param for binned charts that controls opacity/coloring.
+   * This param is used for visual feedback only and does NOT send signals to the backend.
+   * The actual selection param (point/interval) handles backend filtering.
+   */
+  binColoring(layerNum: number | undefined) {
+    return layerNum == null ? "bin_coloring" : `bin_coloring_${layerNum}`;
+  },
   HIGHLIGHT: "highlight",
   PAN_ZOOM: "pan_zoom",
   hasPoint(names: string[]) {
@@ -35,6 +43,9 @@ export const ParamNames = {
   },
   hasPanZoom(names: string[]) {
     return names.some((name) => name.startsWith("pan_zoom"));
+  },
+  isBinColoring(name: string) {
+    return name.startsWith("bin_coloring");
   },
 };
 
@@ -76,6 +87,20 @@ export const Params = {
       select: {
         type: "point",
         encodings: getEncodingAxisForMark(spec),
+        on: "click[!event.metaKey]",
+      },
+    };
+  },
+  /**
+   * Creates a param for binned charts that controls opacity/coloring only.
+   * This param does NOT send signals to the backend - it's purely for visual feedback.
+   * The regular selection param (point/interval) handles backend filtering.
+   */
+  binColoring(layerNum: number | undefined): SelectionParameter<"point"> {
+    return {
+      name: ParamNames.binColoring(layerNum),
+      select: {
+        type: "point",
         on: "click[!event.metaKey]",
       },
     };
@@ -197,4 +222,32 @@ export function getDirectionOfBar(
   }
 
   return undefined;
+}
+
+/**
+ * Returns the binned field names from the spec.
+ * For binned charts, selections need to use fields instead of encodings.
+ */
+export function getBinnedFields(spec: VegaLiteUnitSpec): string[] {
+  if (!spec.encoding) {
+    return [];
+  }
+
+  const fields: string[] = [];
+
+  for (const channel of Object.values(spec.encoding)) {
+    if (channel && typeof channel === "object") {
+      // Check for binning
+      if (
+        "bin" in channel &&
+        channel.bin &&
+        "field" in channel &&
+        typeof channel.field === "string"
+      ) {
+        fields.push(channel.field);
+      }
+    }
+  }
+
+  return fields;
 }

@@ -651,6 +651,109 @@ describe("makeSelectable", () => {
     expect(legendParams[0]).toBe("legend_selection_category");
   });
 
+  it("should add bin_coloring param for binned charts", () => {
+    const spec = {
+      mark: "bar",
+      encoding: {
+        x: { field: "x", bin: true, type: "quantitative" },
+        y: { aggregate: "count", type: "quantitative" },
+      },
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, { chartSelection: true });
+    expect(newSpec).toMatchSnapshot();
+    const paramNames = getSelectionParamNames(newSpec);
+
+    // Should have point selection and bin_coloring param
+    expect(paramNames).toContain("select_point");
+    expect(paramNames).toContain("bin_coloring");
+    // Should NOT have interval selection for binned charts
+    expect(paramNames).not.toContain("select_interval");
+  });
+
+  it("should add bin_coloring param for 2D binned histogram", () => {
+    const spec = {
+      mark: "rect",
+      encoding: {
+        x: { field: "x", bin: true, type: "quantitative" },
+        y: { field: "y", bin: true, type: "quantitative" },
+        color: { aggregate: "count", type: "quantitative" },
+      },
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, { chartSelection: true });
+    expect(newSpec).toMatchSnapshot();
+    const paramNames = getSelectionParamNames(newSpec);
+
+    // Should have point selection and bin_coloring param
+    expect(paramNames).toContain("select_point");
+    expect(paramNames).toContain("bin_coloring");
+  });
+
+  it("should add bin_coloring param for layered binned charts", () => {
+    const spec = {
+      layer: [
+        {
+          mark: "bar",
+          encoding: {
+            x: { field: "x", bin: true, type: "quantitative" },
+            y: { aggregate: "count", type: "quantitative" },
+          },
+        },
+        {
+          mark: "rule",
+          encoding: {
+            x: { aggregate: "mean", field: "x", type: "quantitative" },
+            color: { value: "red" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, { chartSelection: true });
+    expect(newSpec).toMatchSnapshot();
+    const paramNames = getSelectionParamNames(newSpec);
+
+    // First layer should have point selection and bin_coloring
+    expect(paramNames).toContain("select_point_0");
+    expect(paramNames).toContain("bin_coloring_0");
+  });
+
+  it("should prefer point selection for binned charts even when chartSelection is true", () => {
+    const spec = {
+      mark: "bar",
+      encoding: {
+        x: { field: "x", bin: { maxbins: 20 }, type: "quantitative" },
+        y: { aggregate: "count", type: "quantitative" },
+      },
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, { chartSelection: true });
+    const paramNames = getSelectionParamNames(newSpec);
+
+    // Should only have point selection for binned charts (not interval)
+    expect(paramNames).toContain("select_point");
+    expect(paramNames).not.toContain("select_interval");
+    expect(paramNames).toContain("bin_coloring");
+  });
+
+  it("should not add bin_coloring when chartSelection is false", () => {
+    const spec = {
+      mark: "bar",
+      encoding: {
+        x: { field: "x", bin: true, type: "quantitative" },
+        y: { aggregate: "count", type: "quantitative" },
+      },
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, { chartSelection: false });
+    const paramNames = getSelectionParamNames(newSpec);
+
+    // Should not have any chart selection params
+    expect(paramNames).not.toContain("select_point");
+    expect(paramNames).not.toContain("bin_coloring");
+  });
+
   it("should collect legend fields from multiple layers with different fields", () => {
     const spec = {
       layer: [

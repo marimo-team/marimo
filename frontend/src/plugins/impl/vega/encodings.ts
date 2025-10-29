@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Marks } from "./marks";
+import { ParamNames } from "./params";
 import type {
   AnyMark,
   Encodings,
@@ -84,8 +85,21 @@ export function makeEncodingInteractive(
   paramNames: string[],
   mark: AnyMark | undefined,
 ): SharedCompositeEncoding<Field> {
+  // For binned charts, we only use the bin_coloring param for opacity.
+  // The regular selection params (point/interval) are used for backend filtering only.
+  // This separation allows us to control which params trigger visual feedback vs data filtering.
+  // NOTE: Bin + interval selection does not change the opacity at all.
+  const opacityParams = paramNames.filter((paramName) =>
+    ParamNames.isBinColoring(paramName),
+  );
+
+  // If we have bin_coloring params, use only those for opacity.
+  // Otherwise, use all params (non-binned chart behavior).
+  const relevantParams = opacityParams.length > 0 ? opacityParams : paramNames;
+
+  // Use AND so all conditions must be met
   const test = {
-    and: paramNames.map((paramName) => ({
+    and: relevantParams.map((paramName) => ({
       param: paramName,
     })),
   };

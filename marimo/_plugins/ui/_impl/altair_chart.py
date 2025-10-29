@@ -74,6 +74,26 @@ def _has_binning(spec: VegaSpec) -> bool:
     return False
 
 
+def _get_binned_fields(spec: VegaSpec) -> dict[str, Any]:
+    """Return a dictionary of field names that have binning enabled.
+
+    Returns:
+        dict mapping field name to bin configuration
+    """
+    binned_fields: dict[str, Any] = {}
+    if "encoding" not in spec:
+        return binned_fields
+
+    for encoding in spec["encoding"].values():
+        if "bin" in encoding and encoding["bin"]:
+            # Get the field name
+            field = encoding.get("field")
+            if field:
+                binned_fields[field] = encoding["bin"]
+
+    return binned_fields
+
+
 def _has_geoshape(spec: altair.TopLevelMixin) -> bool:
     """Return True if the spec has geoshape."""
     try:
@@ -100,7 +120,10 @@ def _using_vegafusion() -> bool:
 
 
 def _filter_dataframe(
-    native_df: Union[IntoDataFrame, IntoLazyFrame], selection: ChartSelection
+    native_df: Union[IntoDataFrame, IntoLazyFrame],
+    *,
+    selection: ChartSelection,
+    binned_fields: Optional[dict[str, Any]] = None,
 ) -> Union[IntoDataFrame, IntoLazyFrame]:
     # Use lazy evaluation for efficient chained filtering
     base = nw.from_native(native_df)
@@ -109,6 +132,9 @@ def _filter_dataframe(
 
     if not isinstance(selection, dict):
         raise TypeError("Input 'selection' must be a dictionary")
+
+    if binned_fields is None:
+        binned_fields = {}
 
     for channel, fields in selection.items():
         if not isinstance(channel, str) or not isinstance(fields, dict):
@@ -148,6 +174,9 @@ def _filter_dataframe(
             if field in ("vlPoint", "_vgsid_"):
                 continue
 
+            # If the field is binned, we treat it as a range selection
+            is_binned = field in binned_fields
+
             # Need to collect schema to check columns and dtypes
             schema = df.collect_schema()
             if field not in schema.names():
@@ -155,7 +184,8 @@ def _filter_dataframe(
 
             dtype = schema[field]
             resolved_values = _resolve_values(values, dtype)
-            if is_point_selection:
+
+            if is_point_selection and not is_binned:
                 df = df.filter(nw.col(field).is_in(resolved_values))
             elif len(resolved_values) == 1:
                 df = df.filter(nw.col(field) == resolved_values[0])
@@ -164,10 +194,41 @@ def _filter_dataframe(
                 resolved_values[0]
             ):
                 left_value, right_value = resolved_values
-                df = df.filter(
-                    (nw.col(field) >= left_value)
-                    & (nw.col(field) <= right_value)
-                )
+
+                # For binned fields, we need to check if this is the last bin
+                # by comparing the right boundary to the maximum value in the dataset.
+                # If they're equal (or right boundary >= max), use inclusive right boundary.
+                if is_binned:
+                    # Get the maximum value in the dataset for this field
+                    max_value_df = df.select(nw.col(field).max())
+                    max_value_collected = (
+                        max_value_df.collect()
+                        if is_narwhals_lazyframe(max_value_df)
+                        else max_value_df
+                    )
+                    max_value = max_value_collected[field][0]
+
+                    # If right boundary >= max value, this is the last bin
+                    is_last_bin = right_value >= max_value
+
+                    if is_last_bin:
+                        # Last bin: use inclusive right boundary
+                        df = df.filter(
+                            (nw.col(field) >= left_value)
+                            & (nw.col(field) <= right_value)
+                        )
+                    else:
+                        # Not last bin: use exclusive right boundary
+                        df = df.filter(
+                            (nw.col(field) >= left_value)
+                            & (nw.col(field) < right_value)
+                        )
+                else:
+                    # Non-binned fields: use inclusive right boundary
+                    df = df.filter(
+                        (nw.col(field) >= left_value)
+                        & (nw.col(field) <= right_value)
+                    )
             # Multi-selection via range
             # This can happen when you use an interval selection
             # on categorical data
@@ -394,21 +455,14 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                 )
             legend_selection = False
 
-        # Selection for binned charts is not yet implemented
         has_chart_selection = chart_selection is not False
         has_legend_selection = legend_selection is not False
-        if _has_binning(vega_spec) and (
-            has_chart_selection or has_legend_selection
-        ):
+        if _has_binning(vega_spec) and chart_selection == "interval":
             sys.stderr.write(
-                "Binning + selection is not yet supported in "
-                "marimo.ui.chart.\n"
-                "If you'd like this feature, please file an issue: "
-                "https://github.com/marimo-team/marimo/issues\n"
+                "Binning + interval selection does not highlight the bins. "
+                "You can use point selection instead."
             )
-            chart_selection = False
-            legend_selection = False
-        if _has_geoshape(chart) and (has_chart_selection):
+        if _has_geoshape(chart) and has_chart_selection:
             sys.stderr.write(
                 "Geoshapes + chart selection is not yet supported in "
                 "marimo.ui.chart.\n"
@@ -433,6 +487,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         )
 
         self._spec = vega_spec
+        self._binned_fields = _get_binned_fields(vega_spec)
 
         super().__init__(
             component_name="marimo-vega",
@@ -509,7 +564,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         if _has_transforms(self._spec):
             try:
                 df: Any = self._chart.transformed_data()
-                return _filter_dataframe(df, value)
+                return _filter_dataframe(
+                    df, selection=value, binned_fields=self._binned_fields
+                )
             except ImportError as e:
                 sys.stderr.write(
                     "Failed to filter dataframe that includes a transform. "
@@ -517,9 +574,15 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                     + e.msg
                 )
                 # Fall back to the untransformed dataframe
-                return _filter_dataframe(self.dataframe, value)
+                return _filter_dataframe(
+                    self.dataframe,
+                    selection=value,
+                    binned_fields=self._binned_fields,
+                )
 
-        return _filter_dataframe(self.dataframe, value)
+        return _filter_dataframe(
+            self.dataframe, selection=value, binned_fields=self._binned_fields
+        )
 
     def apply_selection(self, df: ChartDataType) -> ChartDataType:
         """Apply the selection to a DataFrame.
@@ -559,7 +622,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             ```
         """
         assert assert_can_narwhalify(df)
-        return _filter_dataframe(df, self.selections)
+        return _filter_dataframe(
+            df, selection=self.selections, binned_fields=self._binned_fields
+        )
 
     # Proxy all of altair's attributes
     def __getattr__(self, name: str) -> Any:

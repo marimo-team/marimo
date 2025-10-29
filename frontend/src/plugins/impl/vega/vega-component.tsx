@@ -145,6 +145,13 @@ const LoadedVegaComponent = ({
           return acc;
         }
 
+        // bin_coloring params are used ONLY for opacity/visual feedback.
+        // They should NOT send signals to the backend for filtering.
+        // The regular selection params (point/interval) handle backend filtering.
+        if (ParamNames.isBinColoring(name)) {
+          return acc;
+        }
+
         acc.push({
           signalName: name,
           handler: (signalName, signalValue) =>

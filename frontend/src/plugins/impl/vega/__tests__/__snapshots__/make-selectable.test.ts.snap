@@ -1,5 +1,268 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`makeSelectable > should add bin_coloring param for 2D binned histogram 1`] = `
+{
+  "encoding": {
+    "color": {
+      "aggregate": "count",
+      "type": "quantitative",
+    },
+    "opacity": {
+      "condition": {
+        "test": {
+          "and": [
+            {
+              "param": "bin_coloring",
+            },
+          ],
+        },
+        "value": 1,
+      },
+      "value": 0.2,
+    },
+    "x": {
+      "bin": true,
+      "field": "x",
+      "type": "quantitative",
+    },
+    "y": {
+      "bin": true,
+      "field": "y",
+      "type": "quantitative",
+    },
+  },
+  "mark": {
+    "cursor": "pointer",
+    "tooltip": true,
+    "type": "rect",
+  },
+  "params": [
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "on": "click[!event.metaKey]",
+        "type": "point",
+      },
+    },
+    {
+      "name": "bin_coloring",
+      "select": {
+        "on": "click[!event.metaKey]",
+        "type": "point",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should add bin_coloring param for binned charts 1`] = `
+{
+  "encoding": {
+    "opacity": {
+      "condition": {
+        "test": {
+          "and": [
+            {
+              "param": "bin_coloring",
+            },
+          ],
+        },
+        "value": 1,
+      },
+      "value": 0.2,
+    },
+    "x": {
+      "bin": true,
+      "field": "x",
+      "type": "quantitative",
+    },
+    "y": {
+      "aggregate": "count",
+      "type": "quantitative",
+    },
+  },
+  "mark": {
+    "cursor": "pointer",
+    "tooltip": true,
+    "type": "bar",
+  },
+  "params": [
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+        ],
+        "on": "click[!event.metaKey]",
+        "type": "point",
+      },
+    },
+    {
+      "name": "bin_coloring",
+      "select": {
+        "on": "click[!event.metaKey]",
+        "type": "point",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should add bin_coloring param for layered binned charts 1`] = `
+{
+  "layer": [
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "bin_coloring_0",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "bin": true,
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "count",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "bar",
+      },
+      "params": [
+        {
+          "name": "select_point_0",
+          "select": {
+            "encodings": [
+              "x",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "bin_coloring_0",
+          "select": {
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "bind": "scales",
+          "name": "pan_zoom",
+          "select": {
+            "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "type": "interval",
+            "zoom": "wheel![event.metaKey]",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "value": "red",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "select_point_1",
+                },
+                {
+                  "param": "select_interval_1",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "aggregate": "mean",
+          "field": "x",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "rule",
+      },
+      "params": [
+        {
+          "name": "select_point_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+  ],
+}
+`;
+
 exports[`makeSelectable > should add legend selection to composite charts (issue #6676) 1`] = `
 {
   "layer": [

@@ -2,7 +2,7 @@
 
 import { findEncodedFields, makeEncodingInteractive } from "./encodings";
 import { Marks } from "./marks";
-import { Params } from "./params";
+import { getBinnedFields, Params } from "./params";
 import type {
   GenericVegaSpec,
   Mark,
@@ -193,10 +193,19 @@ function makeChartSelectable(
     return spec;
   }
 
-  const resolvedChartSelection =
-    chartSelection === true ? getBestSelectionForMark(mark) : [chartSelection];
+  const binnedFields = getBinnedFields(spec);
 
-  if (!resolvedChartSelection) {
+  // If chartSelection is true, we use the best selection for based on the spec
+  // For binned charts, we use point selection
+  // Otherwise, we use the best selection for the mark
+  const resolvedChartSelection: SelectionType[] | undefined =
+    chartSelection === true
+      ? binnedFields.length > 0
+        ? ["point"]
+        : getBestSelectionForMark(mark)
+      : [chartSelection];
+
+  if (!resolvedChartSelection || resolvedChartSelection.length === 0) {
     return spec;
   }
 
@@ -207,6 +216,16 @@ function makeChartSelectable(
   );
 
   const nextParams = [...(spec.params || []), ...params];
+
+  // For binned charts, we need TWO params:
+  // 1. The regular selection param (point/interval) - sends signals to backend for filtering
+  // 2. The bin_coloring param - controls opacity/coloring, NO signal listener
+  // This separation allows us to filter on binned ranges while providing visual feedback
+  if (binnedFields.length > 0) {
+    if (resolvedChartSelection.includes("point")) {
+      nextParams.push(Params.binColoring(layerNum));
+    }
+  }
 
   return {
     ...spec,
