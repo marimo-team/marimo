@@ -54,13 +54,6 @@ class GetLightweightCellMapOutput(SuccessResult):
 
 
 @dataclass
-class ErrorDetail:
-    type: str
-    message: str
-    traceback: list[str]
-
-
-@dataclass
 class CellRuntimeMetadata:
     # String form of the runtime state (see marimo._ast.cell.RuntimeStateType);
     # keep as str for py39/Pydantic compatibility and to avoid Literal/Enum
