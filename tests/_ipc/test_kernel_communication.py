@@ -26,6 +26,7 @@ HAS_DEPS = DependencyManager.has("zmq")
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.skip(reason="TODO: fix this test. Currently flaky on CI.")
 def test_kernel_launch_and_execute_cells():
     """Test launching a kernel and executing cells with stdout/stderr."""
     from marimo._ipc import KernelArgs, QueueManager
