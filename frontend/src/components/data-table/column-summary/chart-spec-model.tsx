@@ -349,7 +349,6 @@ export class ColumnChartSpecModel<T> {
                 type: "bar",
                 opacity: 0,
               },
-              // Add hover here to prevent flickering when hovering over bars
               params: [
                 {
                   name: "hover",
@@ -357,7 +356,7 @@ export class ColumnChartSpecModel<T> {
                     type: "point",
                     on: "mouseover",
                     clear: "mouseout",
-                    nearest: true,
+                    nearest: true, // Nearest avoids flickering when hovering over bars, but it's not perfect
                   },
                 },
               ],
