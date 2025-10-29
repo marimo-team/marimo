@@ -88,7 +88,7 @@ class MarkdownDedentRule(LintRule):
                     break
 
             if not notebook_cell:
-                return
+                continue
 
             # Check if the markdown string needs dedenting
             # Use tokenize like codegen does to extract quote style
