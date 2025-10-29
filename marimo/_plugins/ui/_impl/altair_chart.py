@@ -330,7 +330,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         # Make a copy
         original_chart = chart
         chart = chart.copy()
-        self._chart = chart
+        self._chart = original_chart
 
         if not isinstance(chart, (alt.TopLevelMixin)):
             raise ValueError(

@@ -625,7 +625,7 @@ def test_does_not_modify_original() -> None:
     combined1 = alt1 | alt2
     combined2 = altair_chart(alt1) | altair_chart(alt2)
 
-    assert combined1 == combined2._chart
+    assert combined1.to_dict() == combined2._chart.to_dict()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
