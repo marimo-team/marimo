@@ -30,7 +30,6 @@ export const LazyChart: React.FC<{
       <React.Suspense fallback={<LoadingChart />}>
         <LazyVegaEmbed
           spec={spec}
-          tooltip={tooltipHandler.call}
           options={{
             theme: theme === "dark" ? "dark" : undefined,
             height: height,
@@ -41,6 +40,7 @@ export const LazyChart: React.FC<{
               editor: true,
             },
             mode: "vega",
+            tooltip: tooltipHandler.call,
           }}
         />
       </React.Suspense>

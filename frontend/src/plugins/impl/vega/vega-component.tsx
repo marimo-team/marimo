@@ -234,8 +234,8 @@ const LoadedVegaComponent = ({
       theme: theme === "dark" ? "dark" : undefined,
       actions: actions,
       mode: "vega-lite",
+      tooltip: tooltipHandler.call,
     },
-    tooltip: tooltipHandler.call,
     onError: handleError,
     onEmbed: handleNewView,
   });

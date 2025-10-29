@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { type AggregateOp, isString } from "vega";
+import { isString } from "lodash-es";
 import type {
   ArgmaxDef,
   ArgminDef,
 } from "vega-lite/types_unstable/aggregate.d.ts";
 import type { isAggregateOp as isAggregateOpVega } from "vega-lite/types_unstable/aggregate.js";
+import type { AggregateOp } from "vega-typings";
 
 // Vega doesn't expose the constant, so we define all here
 const AGGREGATE_OPS: readonly AggregateOp[] = [

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { TopLevelSpec } from "vega-lite";
-import type { NonNormalizedSpec } from "vega-lite/build/src/spec";
+import type { NonNormalizedSpec } from "vega-lite/types_unstable/spec/index.js";
 import { Marks } from "./marks";
 import {
   type Field,

@@ -80,6 +80,7 @@ function chartOptions(theme: ResolvedTheme): VegaEmbedProps["options"] {
       editor: false,
     },
     theme: theme === "dark" ? "dark" : undefined,
+    tooltip: tooltipHandler.call,
   };
 }
 
@@ -140,11 +141,7 @@ export const DataExplorerComponent = ({
 
     return (
       <div className="flex overflow-y-auto justify-center items-center flex-1 w-[90%]">
-        <VegaEmbed
-          spec={augmentedSpec}
-          options={chartOptions(theme)}
-          tooltip={tooltipHandler.call}
-        />
+        <VegaEmbed spec={augmentedSpec} options={chartOptions(theme)} />
       </div>
     );
   };
@@ -217,7 +214,6 @@ export const DataExplorerComponent = ({
                 options={chartOptions(theme)}
                 key={idx}
                 spec={plot.spec}
-                tooltip={tooltipHandler.call}
               />
             </HorizontalCarouselItem>
           ))}

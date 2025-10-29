@@ -1,11 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { Scale } from "vega-lite/types_unstable/scale.js";
 
-/**
- * Valid string-based color scheme options from
- * Vega-Lite `Scale["scheme"]` (aka `vega.ColorScheme`).
- */
-export type ColorScheme = NonNullable<Scale["scheme"] & string>;
+import type { AggregateOp } from "vega-typings";
 
 /**
  * Similar to VegaLite's ScaleType, https://vega.github.io/vega-lite/docs/scale.html#type
@@ -74,7 +69,7 @@ export const BIN_AGGREGATION = "bin"; // We use this not to aggregate, but to bi
 /**
  * Subset of VegaLite's AggregateOp, https://vega.github.io/vega-lite/docs/aggregate.html#op
  */
-export const VALID_AGGREGATION_FNS = [
+export const VALID_AGGREGATION_FNS: AggregateOp[] = [
   "count",
   "sum",
   "mean",
@@ -99,12 +94,10 @@ export type ValidAggregationFn = (typeof VALID_AGGREGATION_FNS)[number];
 /*
  * Subset of AGGREGATION_FNS that are valid for string data types
  */
-export const STRING_AGGREGATION_FNS: ValidAggregationFn[] = [
-  "none",
-  "count",
-  "distinct",
-  "valid",
-];
+export const STRING_AGGREGATION_FNS: (
+  | ValidAggregationFn
+  | typeof NONE_VALUE
+)[] = [NONE_VALUE, "count", "distinct", "valid"];
 
 /**
  * Subset of VegaLite's MarkType, https://vega.github.io/vega-lite/docs/mark.html#types
@@ -121,4 +114,3 @@ export type ChartType = (typeof ChartType)[keyof typeof ChartType];
 export const CHART_TYPES = Object.values(ChartType);
 
 export const COLOR_BY_FIELDS = ["X", "Y", "Color", NONE_VALUE] as const;
-export type ColorByField = (typeof COLOR_BY_FIELDS)[number];

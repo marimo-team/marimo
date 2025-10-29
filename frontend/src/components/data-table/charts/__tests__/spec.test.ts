@@ -14,6 +14,7 @@ import { COUNT_FIELD, EMPTY_VALUE } from "../constants";
 import type { ChartSchemaType } from "../schemas";
 import {
   AGGREGATION_FNS,
+  BIN_AGGREGATION,
   ChartType,
   NONE_VALUE,
   STRING_AGGREGATION_FNS,
@@ -169,7 +170,11 @@ describe("getAxisEncoding", () => {
       const expectedAggregate = (result as { aggregate?: string }).aggregate;
 
       // For aggregations that are not valid for string data types, we should return undefined
-      if (agg === NONE_VALUE || !STRING_AGGREGATION_FNS.includes(agg)) {
+      if (
+        agg === NONE_VALUE ||
+        agg === BIN_AGGREGATION ||
+        !STRING_AGGREGATION_FNS.includes(agg)
+      ) {
         expect(expectedAggregate).toBeUndefined();
       } else if (STRING_AGGREGATION_FNS.includes(agg)) {
         expect(expectedAggregate).toEqual(agg);
@@ -246,7 +251,7 @@ describe("getTooltips", () => {
     const formValues: ChartSchemaType = {
       general: {
         xColumn: {
-          type: "string",
+          type: "string" as const,
           aggregate: NONE_VALUE,
         },
         yColumn: {
@@ -262,13 +267,13 @@ describe("getTooltips", () => {
       xAxis: { label: "X Axis" },
     };
 
-    const xEncoding = {
+    const xEncoding: PositionDef<string> = {
       field: "x",
       type: "nominal",
       timeUnit: "year",
       aggregate: "sum",
       bin: { step: 10 },
-    } as PositionDef<string>;
+    };
 
     const result = getTooltips({
       formValues,
@@ -345,7 +350,7 @@ describe("getTooltips", () => {
   });
 
   it("should enhance tooltips with encoding parameters when field name matches encoding field", () => {
-    const formValues = {
+    const formValues: ChartSchemaType = {
       general: {
         xColumn: { type: "string" as const, aggregate: NONE_VALUE },
         yColumn: { type: "number" as const, aggregate: NONE_VALUE },
@@ -410,7 +415,7 @@ describe("getTooltips", () => {
   });
 
   it("should handle count aggregate with no field set", () => {
-    const formValues = {
+    const formValues: ChartSchemaType = {
       general: {
         xColumn: {
           field: "category",

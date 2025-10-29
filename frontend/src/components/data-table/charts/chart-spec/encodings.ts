@@ -7,6 +7,7 @@ import type {
   OffsetDef,
 } from "vega-lite/types_unstable/channeldef.js";
 import type { Scale } from "vega-lite/types_unstable/scale.js";
+import type { ColorScheme } from "vega-typings";
 import type { z } from "zod";
 import { COUNT_FIELD, DEFAULT_COLOR_SCHEME } from "../constants";
 import type { AxisSchema, BinSchema, ChartSchemaType } from "../schemas";
@@ -14,7 +15,6 @@ import {
   type AggregationFn,
   BIN_AGGREGATION,
   ChartType,
-  type ColorScheme,
   NONE_VALUE,
   type SelectableDataType,
   STRING_AGGREGATION_FNS,

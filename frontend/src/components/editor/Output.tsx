@@ -180,8 +180,8 @@ export const OutputRenderer: React.FC<{
             options={{
               theme: theme === "dark" ? "dark" : "vox",
               mode: "vega-lite",
+              tooltip: tooltipHandler.call,
             }}
-            tooltip={tooltipHandler.call}
           />
         </Suspense>
       );

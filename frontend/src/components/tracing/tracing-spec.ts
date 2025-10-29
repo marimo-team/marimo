@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { TopLevelSpec } from "vega-lite";
-import type { TimeUnit } from "vega-lite/types_unstable/timeunit.js";
+import type { TimeUnit } from "vega-typings";
 import type { CellId } from "@/core/cells/ids";
 import type { CellRun } from "@/core/cells/runs";
 import type { ResolvedTheme } from "@/theme/useTheme";
