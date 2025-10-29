@@ -1,4 +1,4 @@
-# MF007: markdown-dedent
+# MF007: markdown-indentation
 
 ✨ **Formatting** 🛠️ Fixable
 
@@ -12,6 +12,7 @@ content has unnecessary leading whitespace that should be removed.
 ## Why is this bad?
 
 Indented markdown strings:
+
 - Are harder to read when viewing the source code
 - Produce larger diffs when making changes
 - Don't match the standard marimo formatting style
@@ -20,6 +21,7 @@ Indented markdown strings:
 ## Examples
 
 **Problematic:**
+
 ```python
 mo.md(
     r"""
@@ -31,6 +33,7 @@ mo.md(
 ```
 
 **Solution:**
+
 ```python
 mo.md(r"""
 # Title
@@ -45,4 +48,3 @@ Some content here.
 
 - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
 - [Best Practices](https://docs.marimo.io/guides/best_practices/)
-
