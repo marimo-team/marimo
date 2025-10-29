@@ -1,0 +1,28 @@
+# Reactive embedding with parent→child exposure of variables
+
+This example shows how to embed children notebooks in a parent notebook and expose parent variables
+read-only and reactively to the children.
+
+> [!TIP]
+> New to marimo? Run `marimo tutorial intro` and `marimo tutorial dataflow`
+> at the command line first!
+
+_Looking for examples on making chatbots? Check out the [`ai/chat`](../ai/chat)
+examples folder_.
+
+## Running examples
+
+The requirements of each notebook are serialized in them as a top-level
+comment. Here are the steps to open an example notebook:
+
+1. [Install `uv`](https://github.com/astral-sh/uv/?tab=readme-ov-file#installation)
+2. Open an example with `uvx marimo edit --sandbox <notebook-url>`
+
+> [!TIP]
+> The [`--sandbox` flag](https://docs.marimo.io/guides/editor_features/package_management.html) opens the notebook in an isolated virtual environment,
+> automatically installing the notebook's dependencies 📦
+
+You can also open notebooks without `uv`, in which case you'll need to
+manually [install marimo](https://docs.marimo.io/getting_started/index.html#installation)
+first. Then run `marimo edit <notebook-url>`; however, you'll also need to
+install the requirements yourself.
