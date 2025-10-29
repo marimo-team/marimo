@@ -6,7 +6,11 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ai._tools.base import ToolBase
-from marimo._ai._tools.types import SuccessResult, ToolGuidelines
+from marimo._ai._tools.types import (
+    MarimoErrorDetail,
+    SuccessResult,
+    ToolGuidelines,
+)
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ai._tools.utils.output_cleaning import clean_output
 from marimo._ast.models import CellData
@@ -57,12 +61,6 @@ class ErrorDetail:
 
 
 @dataclass
-class CellErrors:
-    has_errors: bool
-    error_details: Optional[list[ErrorDetail]]
-
-
-@dataclass
 class CellRuntimeMetadata:
     # String form of the runtime state (see marimo._ast.cell.RuntimeStateType);
     # keep as str for py39/Pydantic compatibility and to avoid Literal/Enum
@@ -79,7 +77,7 @@ class GetCellRuntimeDataData:
     session_id: str
     cell_id: str
     code: Optional[str] = None
-    errors: Optional[CellErrors] = None
+    errors: Optional[list[MarimoErrorDetail]] = None
     metadata: Optional[CellRuntimeMetadata] = None
     variables: Optional[CellVariables] = None
 
@@ -267,7 +265,9 @@ class GetCellRuntimeData(
         cell_code = cell_data.code
 
         # Get cell errors from session view with actual error details
-        cell_errors = self._get_cell_errors(session, cell_id)
+        cell_errors = context.get_cell_errors(
+            session_id, cell_id, include_stderr=True
+        )
 
         # Get cell runtime metadata
         cell_metadata = self._get_cell_metadata(session, cell_id)
@@ -306,79 +306,6 @@ class GetCellRuntimeData(
                 suggested_fix="Use get_lightweight_cell_map to find valid cell IDs",
             )
         return cell_data
-
-    def _get_cell_errors(
-        self, session: Session, cell_id: CellId_t
-    ) -> CellErrors:
-        """Get cell errors from session view with actual error details."""
-        from marimo._messaging.cell_output import CellChannel
-
-        # Get cell operation from session view
-        session_view = session.session_view
-        cell_op = session_view.cell_operations.get(cell_id)
-
-        if cell_op is None:
-            # No operations recorded for this cell
-            return CellErrors(has_errors=False, error_details=None)
-
-        # Check for actual error details in the output
-        has_errors = False
-        error_details = []
-        if (
-            cell_op.output
-            and cell_op.output.channel == CellChannel.MARIMO_ERROR
-        ):
-            has_errors = True
-            # Extract actual error objects
-            errors = cell_op.output.data
-            if isinstance(errors, list):
-                for error in errors:
-                    if hasattr(error, "type") and hasattr(error, "describe"):
-                        # Rich Error object
-                        error_detail = ErrorDetail(
-                            type=error.type,
-                            message=error.describe(),
-                            traceback=getattr(error, "traceback", []),
-                        )
-                        error_details.append(error_detail)
-                    elif isinstance(error, dict):
-                        # Dict-based error
-                        dict_error_detail = ErrorDetail(
-                            type=error.get("type", "UnknownError"),
-                            message=error.get("msg", str(error)),
-                            traceback=error.get("traceback", []),
-                        )
-                        error_details.append(dict_error_detail)
-                    else:
-                        # Fallback for other error types
-                        fallback_error_detail = ErrorDetail(
-                            type=type(error).__name__,
-                            message=str(error),
-                            traceback=[],
-                        )
-                        error_details.append(fallback_error_detail)
-
-        # Check console outputs for STDERR (includes print statements to stderr, warnings, etc.)
-        if cell_op.console:
-            console_outputs = (
-                cell_op.console
-                if isinstance(cell_op.console, list)
-                else [cell_op.console]
-            )
-            for console_output in console_outputs:
-                if console_output.channel == CellChannel.STDERR:
-                    has_errors = True
-                    stderr_error_detail = ErrorDetail(
-                        type="STDERR",
-                        message=str(console_output.data),
-                        traceback=[],
-                    )
-                    error_details.append(stderr_error_detail)
-
-        return CellErrors(
-            has_errors=has_errors,
-            error_details=error_details if error_details else None,
-        )
 
     def _get_cell_metadata(
         self, session: Session, cell_id: CellId_t

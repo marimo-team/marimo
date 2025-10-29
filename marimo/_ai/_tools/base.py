@@ -17,9 +17,17 @@ from typing import (
 )
 
 from marimo import _loggers
-from marimo._ai._tools.types import MarimoNotebookInfo, ToolGuidelines
+from marimo._ai._tools.types import (
+    MarimoCellErrors,
+    MarimoErrorDetail,
+    MarimoNotebookInfo,
+    ToolGuidelines,
+)
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
+from marimo._ai._tools.utils.output_cleaning import clean_output
 from marimo._config.config import CopilotMode
+from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.ops import CellOp
 from marimo._server.ai.tools.types import (
     FunctionArgs,
     ToolDefinition,
@@ -28,7 +36,7 @@ from marimo._server.ai.tools.types import (
 from marimo._server.api.deps import AppStateBase
 from marimo._server.model import ConnectionState
 from marimo._server.sessions import Session, SessionManager
-from marimo._types.ids import SessionId
+from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.case import to_snake_case
 from marimo._utils.dataclass_to_openapi import PythonTypeToOpenAPI
 from marimo._utils.parse_dataclass import parse_raw
@@ -81,6 +89,18 @@ class ToolContext:
             )
         return session_manager.sessions[session_id]
 
+    def get_cell_ops(self, session_id: SessionId, cell_id: CellId_t) -> CellOp:
+        session_view = self.get_session(session_id).session_view
+        if cell_id not in session_view.cell_operations:
+            raise ToolExecutionError(
+                f"Cell operation not found for cell {cell_id}",
+                code="CELL_OPERATION_NOT_FOUND",
+                is_retryable=False,
+                suggested_fix="Try again with a valid cell ID.",
+                meta={"cell_id": cell_id},
+            )
+        return session_view.cell_operations[cell_id]
+
     def get_active_sessions_internal(self) -> list[MarimoNotebookInfo]:
         """
         Get active sessions from the app state.
@@ -112,6 +132,132 @@ class ToolContext:
                 )
         # Return most recent notebooks first (reverse chronological order)
         return files[::-1]
+
+    def get_notebook_errors(
+        self, session_id: SessionId, include_stderr: bool = False
+    ) -> list[MarimoCellErrors]:
+        """
+        Get all errors in the current notebook session, organized by cell.
+
+        Args:
+            session_id: The session ID of the notebook.
+            include_stderr: Whether to include stderr errors.
+
+        Returns:
+            A list of MarimoCellErrors in the order of the cells in the notebook.
+        """
+        session = self.get_session(session_id)
+        session_view = session.session_view
+        cell_errors_map: dict[CellId_t, list[MarimoErrorDetail]] = {}
+        notebook_errors: list[MarimoCellErrors] = []
+
+        for cell_id, cell_op in session_view.cell_operations.items():
+            errors = self.get_cell_errors(
+                session_id,
+                cell_id,
+                maybe_cell_op=cell_op,
+                include_stderr=include_stderr,
+            )
+            if len(errors) > 0:
+                cell_errors_map[cell_id] = errors
+
+        # Use cell_manager to get cells in the correct notebook order
+        cell_manager = session.app_file_manager.app.cell_manager
+        for cell_data in cell_manager.cell_data():
+            cell_id = cell_data.cell_id
+            if cell_id in cell_errors_map:
+                notebook_errors.append(
+                    MarimoCellErrors(
+                        cell_id=cell_id,
+                        errors=cell_errors_map[cell_id],
+                    )
+                )
+
+        return notebook_errors
+
+    def get_cell_errors(
+        self,
+        session_id: SessionId,
+        cell_id: CellId_t,
+        maybe_cell_op: Optional[CellOp] = None,
+        include_stderr: bool = False,
+    ) -> list[MarimoErrorDetail]:
+        """
+        Get all errors for a given cell.
+
+        Args:
+            session_id: The session ID of the notebook.
+            cell_id: The ID of the cell.
+            maybe_cell_op: The cell operation.
+            include_stderr: Whether to include stderr errors.
+
+        Returns:
+            A list of MarimoErrorDetails for the cell with STDERR errors if include_stderr is True.
+        """
+        errors: list[MarimoErrorDetail] = []
+        cell_op = maybe_cell_op or self.get_cell_ops(session_id, cell_id)
+
+        if (
+            cell_op.output
+            and cell_op.output.channel == CellChannel.MARIMO_ERROR
+        ):
+            items = cell_op.output.data
+
+            if not isinstance(items, list):
+                # no errors
+                return errors
+
+            for err in items:
+                # TODO: filter out noisy useless errors
+                # like "An ancestor raised an exception..."
+                if isinstance(err, dict):
+                    errors.append(
+                        MarimoErrorDetail(
+                            type=err.get("type", "UnknownError"),
+                            message=err.get("msg", str(err)),
+                            traceback=err.get("traceback", []),
+                        )
+                    )
+                else:
+                    # Fallback for rich error objects
+                    err_type: str = getattr(err, "type", type(err).__name__)
+                    describe_fn: Optional[Any] = getattr(err, "describe", None)
+                    message_val = (
+                        describe_fn() if callable(describe_fn) else str(err)
+                    )
+                    message: str = str(message_val)
+                    tb: list[str] = getattr(err, "traceback", []) or []
+                    errors.append(
+                        MarimoErrorDetail(
+                            type=err_type,
+                            message=message,
+                            traceback=tb,
+                        )
+                    )
+
+        if cell_op.console and include_stderr:
+            console_outputs = (
+                cell_op.console
+                if isinstance(cell_op.console, list)
+                else [cell_op.console]
+            )
+            stderr_messages: list[str] = []
+            for console in console_outputs:
+                if console.channel == CellChannel.STDERR:
+                    stderr_messages.append(str(console.data))
+            cleaned_stderr_messages = clean_output(stderr_messages)
+            errors.extend(
+                [
+                    MarimoErrorDetail(
+                        type="STDERR",
+                        message=message,
+                        traceback=[],
+                    )
+                    for message in cleaned_stderr_messages
+                ]
+            )
+
+        return errors
 
 
 class ToolBase(Generic[ArgsT, OutT], ABC):
