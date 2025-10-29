@@ -3083,19 +3083,6 @@ exports[`makeSelectable > should work for layered charts, with existing selectio
           },
           "value": "lightgray",
         },
-        "opacity": {
-          "condition": {
-            "test": {
-              "and": [
-                {
-                  "param": "legend_selection_stage",
-                },
-              ],
-            },
-            "value": 1,
-          },
-          "value": 0.2,
-        },
         "x": {
           "field": "Level1",
           "sort": {
@@ -3111,22 +3098,10 @@ exports[`makeSelectable > should work for layered charts, with existing selectio
         },
       },
       "mark": {
-        "cursor": "pointer",
-        "tooltip": true,
         "type": "bar",
       },
       "name": "view_21",
       "params": [
-        {
-          "bind": "legend",
-          "name": "legend_selection_stage",
-          "select": {
-            "fields": [
-              "stage",
-            ],
-            "type": "point",
-          },
-        },
         {
           "bind": "scales",
           "name": "pan_zoom",

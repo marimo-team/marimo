@@ -1,4 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+// @ts-expect-error - vega-parser is not typed
+import { parse } from "vega-parser";
 import { describe, expect, it } from "vitest";
 import { invariant } from "@/utils/invariant";
 import { makeSelectable } from "../make-selectable";
@@ -33,6 +36,7 @@ describe("makeSelectable", () => {
     expect(newSpec).toEqual(spec);
     expect(getSelectionParamNames(newSpec)).toEqual([]);
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 
   it("should return the same spec for not-defined and true", () => {
@@ -92,6 +96,7 @@ describe("makeSelectable", () => {
       fieldSelection: true,
     });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([
       "legend_selection_Origin",
       "select_point",
@@ -132,6 +137,7 @@ describe("makeSelectable", () => {
       fieldSelection: false,
     });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([
       "select_point",
       "select_interval",
@@ -163,6 +169,7 @@ describe("makeSelectable", () => {
 
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([
       "legend_selection_colorField",
       "legend_selection_sizeField",
@@ -217,6 +224,7 @@ describe("makeSelectable", () => {
     } as VegaLiteSpec;
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([
       "param_1",
       "select_point",
@@ -292,6 +300,7 @@ describe("makeSelectable", () => {
       chartSelection: true,
     });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
 
     expect(getSelectionParamNames(newSpec)).toEqual([
       "pan_zoom",
@@ -354,6 +363,7 @@ describe("makeSelectable", () => {
     });
 
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([
       "select_point_0",
       "select_interval_0",
@@ -385,6 +395,7 @@ describe("makeSelectable", () => {
     } as VegaLiteSpec;
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([]);
   });
 
@@ -469,6 +480,7 @@ describe("makeSelectable", () => {
     } as VegaLiteSpec;
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toMatchInlineSnapshot(`
       [
         "param_22",
@@ -558,6 +570,7 @@ describe("makeSelectable", () => {
     } as VegaLiteSpec;
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toMatchInlineSnapshot(`
       [
         "param_22",
@@ -575,6 +588,7 @@ describe("makeSelectable", () => {
       expect(newSpec).toEqual(spec);
       expect(getSelectionParamNames(newSpec)).toEqual([]);
       expect(newSpec).toMatchSnapshot();
+      expect(parse(newSpec)).toBeDefined();
     },
   );
 
@@ -614,6 +628,7 @@ describe("makeSelectable", () => {
     });
 
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     const paramNames = getSelectionParamNames(newSpec);
     // Should have legend selection for category field
     expect(paramNames).toContain("legend_selection_category");
@@ -655,6 +670,7 @@ describe("makeSelectable", () => {
     expect(legendParams).toHaveLength(1);
     expect(legendParams[0]).toBe("legend_selection_category");
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 
   it("should add bin_coloring param for binned charts", () => {
@@ -668,6 +684,7 @@ describe("makeSelectable", () => {
 
     const newSpec = makeSelectable(spec, { chartSelection: true });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     const paramNames = getSelectionParamNames(newSpec);
 
     // Should have point selection and bin_coloring param
@@ -689,6 +706,7 @@ describe("makeSelectable", () => {
 
     const newSpec = makeSelectable(spec, { chartSelection: true });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     const paramNames = getSelectionParamNames(newSpec);
 
     // Should have point selection and bin_coloring param
@@ -718,6 +736,7 @@ describe("makeSelectable", () => {
 
     const newSpec = makeSelectable(spec, { chartSelection: true });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     const paramNames = getSelectionParamNames(newSpec);
 
     // First layer should have point selection and bin_coloring
@@ -738,6 +757,7 @@ describe("makeSelectable", () => {
     const paramNames = getSelectionParamNames(newSpec);
 
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
 
     // Should only have point selection for binned charts (not interval)
     expect(paramNames).toContain("select_point");
@@ -758,6 +778,7 @@ describe("makeSelectable", () => {
     const paramNames = getSelectionParamNames(newSpec);
 
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
 
     // Should not have any chart selection params
     expect(paramNames).not.toContain("select_point");
@@ -790,6 +811,7 @@ describe("makeSelectable", () => {
     const paramNames = getSelectionParamNames(newSpec);
 
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
 
     // Should have legend params for both fields
     expect(paramNames).toContain("legend_selection_category");
@@ -822,6 +844,7 @@ describe("makeSelectable", () => {
     const paramNames = getSelectionParamNames(newSpec);
 
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
 
     // Should have legend selection for category field
     expect(paramNames).toContain("legend_selection_category");
@@ -853,6 +876,7 @@ describe("makeSelectable", () => {
     const paramNames = getSelectionParamNames(newSpec);
 
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
 
     // Should have legend selection for series field
     expect(paramNames).toContain("legend_selection_series");
@@ -896,6 +920,7 @@ describe("makeSelectable", () => {
     const paramNames = getSelectionParamNames(newSpec);
 
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
 
     // Should have legend selection for category field
     expect(paramNames).toContain("legend_selection_category");
@@ -968,6 +993,7 @@ describe("makeSelectable", () => {
       }
     }
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 
   it("should only hoist common params with same select.type and select.encodings", () => {
@@ -1013,6 +1039,7 @@ describe("makeSelectable", () => {
       }
     }
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 
   it("should not hoist params when specs have different selection types", () => {
@@ -1053,6 +1080,7 @@ describe("makeSelectable", () => {
       expect(subspecParams.length).toBeGreaterThan(0);
     }
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 
   it("should not hoist params when specs have different encodings", () => {
@@ -1088,6 +1116,7 @@ describe("makeSelectable", () => {
       expect(subspecParams.length).toBeGreaterThan(0);
     }
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 
   it("should hoist only common legend params when chart selections differ", () => {
@@ -1128,6 +1157,7 @@ describe("makeSelectable", () => {
       expect(subspecParams.length).toBeGreaterThan(0);
     }
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 
   it("should handle empty concat specs gracefully", () => {
@@ -1138,6 +1168,7 @@ describe("makeSelectable", () => {
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toEqual(spec);
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 
   it("should handle concat with only one subspec", () => {
@@ -1160,5 +1191,6 @@ describe("makeSelectable", () => {
     const topLevelParamNames = getSelectionParamNames(newSpec);
     expect(topLevelParamNames.length).toBeGreaterThan(0);
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 });

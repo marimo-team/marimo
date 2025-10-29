@@ -330,12 +330,11 @@ export function makeSelectable<T extends VegaLiteSpec>(
   }
 
   if ("layer" in spec) {
-    // Check if legend params already exist at the top level
-    const hasTopLevelLegendParam = spec.params?.some(
-      (param) => param.bind === "legend",
-    );
+    // Check if has top-level params already (not just legend). If so, we don't add any more as it
+    // will cause conflicts.
+    const hasTopLevelParams = spec.params && spec.params.length > 0;
     const shouldAddLegendSelection =
-      fieldSelection !== false && !hasTopLevelLegendParam;
+      fieldSelection !== false && !hasTopLevelParams;
 
     // Collect all unique legend fields from all layers to avoid duplicates
     let legendFields: string[] = [];
@@ -362,7 +361,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
       }
       let resolvedSpec = subSpec as VegaLiteUnitSpec;
 
-      // Only add legend params to the first layer to avoid duplicates
+      // Only add legend params to first
       if (idx === 0 && legendFields.length > 0) {
         const legendParams = legendFields.map((field) => Params.legend(field));
         resolvedSpec = {
