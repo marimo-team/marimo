@@ -181,6 +181,7 @@ export const OutputRenderer: React.FC<{
               theme: theme === "dark" ? "dark" : "vox",
               mode: "vega-lite",
               tooltip: tooltipHandler.call,
+              renderer: "canvas",
             }}
           />
         </Suspense>

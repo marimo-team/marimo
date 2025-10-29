@@ -40,6 +40,7 @@ export const LazyChart: React.FC<{
               editor: true,
             },
             mode: "vega",
+            renderer: "canvas",
             tooltip: tooltipHandler.call,
           }}
         />

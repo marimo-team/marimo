@@ -230,6 +230,7 @@ export function renderChart(chartSpec: string, theme: Theme) {
           height: 100,
           width: "container" as unknown as number,
           actions: false,
+          renderer: "canvas",
         }}
       />
     </Suspense>
