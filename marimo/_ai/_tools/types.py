@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal, Optional
 
+from marimo._types.ids import SessionId
+
 # helper classes
 StatusValue = Literal["success", "error", "warning"]
 
@@ -32,3 +34,10 @@ class ToolGuidelines:
     prerequisites: Optional[list[str]] = None
     side_effects: Optional[list[str]] = None
     additional_info: Optional[str] = None
+
+
+@dataclass
+class MarimoNotebookInfo:
+    name: str
+    path: str
+    session_id: SessionId

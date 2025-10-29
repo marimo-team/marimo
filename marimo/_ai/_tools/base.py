@@ -17,7 +17,7 @@ from typing import (
 )
 
 from marimo import _loggers
-from marimo._ai._tools.types import ToolGuidelines
+from marimo._ai._tools.types import MarimoNotebookInfo, ToolGuidelines
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._config.config import CopilotMode
 from marimo._server.ai.tools.types import (
@@ -26,6 +26,7 @@ from marimo._server.ai.tools.types import (
     ValidationFunction,
 )
 from marimo._server.api.deps import AppStateBase
+from marimo._server.model import ConnectionState
 from marimo._server.sessions import Session, SessionManager
 from marimo._types.ids import SessionId
 from marimo._utils.case import to_snake_case
@@ -79,6 +80,38 @@ class ToolContext:
                 meta={"session_id": session_id},
             )
         return session_manager.sessions[session_id]
+
+    def get_active_sessions_internal(self) -> list[MarimoNotebookInfo]:
+        """
+        Get active sessions from the app state.
+
+        This follows the logic from marimo/_server/api/endpoints/home.py
+        """
+        import os
+
+        UNSAVED_NOTEBOOK_MESSAGE = (
+            "(unsaved notebook - save to disk to get file path)"
+        )
+        files: list[MarimoNotebookInfo] = []
+        for session_id, session in self.session_manager.sessions.items():
+            state = session.connection_state()
+            if (
+                state == ConnectionState.OPEN
+                or state == ConnectionState.ORPHANED
+            ):
+                full_file_path = session.app_file_manager.path
+                filename = session.app_file_manager.filename
+                basename = os.path.basename(filename) if filename else None
+                files.append(
+                    MarimoNotebookInfo(
+                        name=(basename or "new notebook"),
+                        # file path should be absolute path for agent-based edit tools
+                        path=(full_file_path or UNSAVED_NOTEBOOK_MESSAGE),
+                        session_id=session_id,
+                    )
+                )
+        # Return most recent notebooks first (reverse chronological order)
+        return files[::-1]
 
 
 class ToolBase(Generic[ArgsT, OutT], ABC):
