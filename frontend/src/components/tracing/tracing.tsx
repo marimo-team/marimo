@@ -213,6 +213,7 @@ const TraceBlockBody: React.FC<{
       actions: false,
       // Using vega instead of vegaLite as some parts of the spec get interpreted as vega & will throw warnings
       mode: "vega",
+      renderer: "canvas",
     },
   });
 

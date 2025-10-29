@@ -81,6 +81,7 @@ function chartOptions(theme: ResolvedTheme): VegaEmbedProps["options"] {
     },
     theme: theme === "dark" ? "dark" : undefined,
     tooltip: tooltipHandler.call,
+    renderer: "canvas",
   };
 }
 

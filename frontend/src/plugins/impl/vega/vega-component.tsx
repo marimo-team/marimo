@@ -235,6 +235,7 @@ const LoadedVegaComponent = ({
       actions: actions,
       mode: "vega-lite",
       tooltip: tooltipHandler.call,
+      renderer: "canvas",
     },
     onError: handleError,
     onEmbed: handleNewView,
