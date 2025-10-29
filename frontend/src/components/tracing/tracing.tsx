@@ -110,8 +110,6 @@ export const Tracing: React.FC = () => {
   );
 };
 
-// Using vega instead of vegaLite as some parts of the spec get interpreted as vega & will throw warnings
-
 interface VegaHoverCellSignal {
   cell: string[];
   vlPoint: unknown;
@@ -213,6 +211,8 @@ const TraceBlockBody: React.FC<{
       width: width - 50,
       height: chartPosition === "above" ? 120 : 100,
       actions: false,
+      // Using vega instead of vegaLite as some parts of the spec get interpreted as vega & will throw warnings
+      mode: "vega",
     },
   });
 

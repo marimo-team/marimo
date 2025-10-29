@@ -230,7 +230,7 @@ export function renderChart(chartSpec: string, theme: Theme) {
           height: 100,
           width: "container" as unknown as number,
           actions: false,
-          mode: "vega",
+          mode: "vega-lite",
         }}
       />
     </Suspense>

@@ -92,7 +92,7 @@ sql = [
 # This includes the `sql` deps
 recommended = [
     "duckdb>=1.0.0",            # SQL cells
-    "altair>=5.5.0",            # Plotting in datasource viewer
+    "altair>=5.4.0",            # Plotting in datasource viewer
     "polars[pyarrow]>=1.9.0",   # SQL output back in Python
     "sqlglot[rs]>=26.2.0",      # SQL cells parsing
     "openai>=1.55.3",           # AI features
@@ -154,7 +154,7 @@ installer = "uv"
 dependencies = [
     "mypy~=1.15.0",
     # Types for mypy
-    "altair>=5.5.0",
+    "altair>=5.4.0",
     "leafmap~=0.39.2",
     "panel~=1.5.3",
     "polars~=1.9.0",
@@ -245,7 +245,7 @@ extra-dependencies = [
     "vegafusion",
     "pyarrow>=19.0.1",
     "pyarrow_hotfix",
-    "altair>=5.5.0",
+    "altair>=5.4.0",
     "plotly>=5.14.0",
     "polars>=1.32.2",
     "sqlglot[rs]>=26.2.0",

@@ -251,7 +251,7 @@ describe("getTooltips", () => {
     const formValues: ChartSchemaType = {
       general: {
         xColumn: {
-          type: "string" as const,
+          type: "string",
           aggregate: NONE_VALUE,
         },
         yColumn: {
