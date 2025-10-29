@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { uniq } from "lodash-es";
 import type { TopLevelSpec } from "vega-lite";
 import type { NonNormalizedSpec } from "vega-lite/types_unstable/spec/index.js";
 import { Marks } from "./marks";
@@ -167,27 +169,26 @@ export function getSelectionParamNames(
 ): string[] {
   if ("params" in spec && spec.params && spec.params.length > 0) {
     const params = spec.params;
-    return (
-      params
+    const paramNames = params
+      // @ts-expect-error TS doesn't know that `param` is an object
+      .filter((param) => {
+        if (param == null) {
+          return false;
+        }
         // @ts-expect-error TS doesn't know that `param` is an object
-        .filter((param) => {
-          if (param == null) {
-            return false;
-          }
-          // @ts-expect-error TS doesn't know that `param` is an object
-          return "select" in param && param.select !== undefined;
-        })
-        .map((param) => param.name)
-    );
+        return "select" in param && param.select !== undefined;
+      })
+      .map((param) => param.name);
+    return uniq(paramNames);
   }
   if ("layer" in spec) {
-    return [...new Set(spec.layer.flatMap(getSelectionParamNames))];
+    return uniq(spec.layer.flatMap(getSelectionParamNames));
   }
   if ("vconcat" in spec) {
-    return [...new Set(spec.vconcat.flatMap(getSelectionParamNames))];
+    return uniq(spec.vconcat.flatMap(getSelectionParamNames));
   }
   if ("hconcat" in spec) {
-    return [...new Set(spec.hconcat.flatMap(getSelectionParamNames))];
+    return uniq(spec.hconcat.flatMap(getSelectionParamNames));
   }
   return [];
 }

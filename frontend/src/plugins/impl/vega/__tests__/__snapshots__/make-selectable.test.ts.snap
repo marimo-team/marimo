@@ -434,6 +434,1719 @@ exports[`makeSelectable > should add legend selection to composite charts (issue
 }
 `;
 
+exports[`makeSelectable > should add legend selection to hconcat specs 1`] = `
+{
+  "hconcat": [
+    {
+      "encoding": {
+        "color": {
+          "field": "series",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_series",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "point",
+      },
+      "params": [
+        {
+          "name": "select_point",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "field": "series",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_series",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "line",
+      },
+    },
+  ],
+  "params": [
+    {
+      "bind": "legend",
+      "name": "legend_selection_series",
+      "select": {
+        "fields": [
+          "series",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should add legend selection to nested vconcat(hconcat(...)) specs 1`] = `
+{
+  "params": [
+    {
+      "bind": "legend",
+      "name": "legend_selection_category",
+      "select": {
+        "fields": [
+          "category",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+  "vconcat": [
+    {
+      "hconcat": [
+        {
+          "encoding": {
+            "color": {
+              "field": "category",
+              "type": "nominal",
+            },
+            "opacity": {
+              "condition": {
+                "test": {
+                  "and": [
+                    {
+                      "param": "legend_selection_category",
+                    },
+                    {
+                      "param": "pan_zoom",
+                    },
+                  ],
+                },
+                "value": 1,
+              },
+              "value": 0.2,
+            },
+            "x": {
+              "field": "x",
+              "type": "quantitative",
+            },
+            "y": {
+              "field": "y",
+              "type": "quantitative",
+            },
+          },
+          "mark": {
+            "cursor": "pointer",
+            "tooltip": true,
+            "type": "point",
+          },
+        },
+        {
+          "encoding": {
+            "color": {
+              "field": "category",
+              "type": "nominal",
+            },
+            "opacity": {
+              "condition": {
+                "test": {
+                  "and": [
+                    {
+                      "param": "legend_selection_category",
+                    },
+                    {
+                      "param": "pan_zoom",
+                    },
+                  ],
+                },
+                "value": 1,
+              },
+              "value": 0.2,
+            },
+            "x": {
+              "field": "x",
+              "type": "nominal",
+            },
+            "y": {
+              "field": "y",
+              "type": "quantitative",
+            },
+          },
+          "mark": {
+            "cursor": "pointer",
+            "tooltip": true,
+            "type": "bar",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "line",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should add legend selection to vconcat specs 1`] = `
+{
+  "params": [
+    {
+      "bind": "legend",
+      "name": "legend_selection_category",
+      "select": {
+        "fields": [
+          "category",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+  "vconcat": [
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "point",
+      },
+      "params": [
+        {
+          "name": "select_point",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "nominal",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "bar",
+      },
+      "params": [
+        {
+          "name": "select_point",
+          "select": {
+            "encodings": [
+              "x",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval",
+          "select": {
+            "encodings": [
+              "x",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should collect legend fields from multiple layers with different fields 1`] = `
+{
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+                {
+                  "param": "legend_selection_size_field",
+                },
+                {
+                  "param": "select_point_0",
+                },
+                {
+                  "param": "select_interval_0",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "point",
+      },
+      "params": [
+        {
+          "bind": "legend",
+          "name": "legend_selection_category",
+          "select": {
+            "fields": [
+              "category",
+            ],
+            "type": "point",
+          },
+        },
+        {
+          "bind": "legend",
+          "name": "legend_selection_size_field",
+          "select": {
+            "fields": [
+              "size_field",
+            ],
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_point_0",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval_0",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+        {
+          "bind": "scales",
+          "name": "pan_zoom",
+          "select": {
+            "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "type": "interval",
+            "zoom": "wheel![event.metaKey]",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "select_point_1",
+                },
+                {
+                  "param": "select_interval_1",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "size": {
+          "field": "size_field",
+          "type": "quantitative",
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "point",
+      },
+      "params": [
+        {
+          "name": "select_point_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should handle concat with only one subspec 1`] = `
+{
+  "hconcat": [
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "select_point",
+                },
+                {
+                  "param": "select_interval",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "point",
+      },
+    },
+  ],
+  "params": [
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "on": "click[!event.metaKey]",
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_interval",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "mark": {
+          "fill": "#669EFF",
+          "fillOpacity": 0.07,
+          "stroke": "#669EFF",
+          "strokeOpacity": 0.4,
+        },
+        "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "type": "interval",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should handle empty concat specs gracefully 1`] = `
+{
+  "hconcat": [],
+}
+`;
+
+exports[`makeSelectable > should hoist only common legend params when chart selections differ 1`] = `
+{
+  "hconcat": [
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "point",
+      },
+      "params": [
+        {
+          "name": "select_point",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "nominal",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "bar",
+      },
+      "params": [
+        {
+          "name": "select_point",
+          "select": {
+            "encodings": [
+              "x",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval",
+          "select": {
+            "encodings": [
+              "x",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+  ],
+  "params": [
+    {
+      "bind": "legend",
+      "name": "legend_selection_category",
+      "select": {
+        "fields": [
+          "category",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should hoist params to top level in hconcat(vconcat(...)) and apply opacity to nested specs 1`] = `
+{
+  "hconcat": [
+    {
+      "vconcat": [
+        {
+          "encoding": {
+            "color": {
+              "field": "Origin",
+              "type": "nominal",
+            },
+            "opacity": {
+              "condition": {
+                "test": {
+                  "and": [
+                    {
+                      "param": "legend_selection_Origin",
+                    },
+                    {
+                      "param": "select_point",
+                    },
+                    {
+                      "param": "select_interval",
+                    },
+                    {
+                      "param": "pan_zoom",
+                    },
+                  ],
+                },
+                "value": 1,
+              },
+              "value": 0.2,
+            },
+            "x": {
+              "field": "Horsepower",
+              "type": "quantitative",
+            },
+            "y": {
+              "field": "Miles_per_Gallon",
+              "type": "quantitative",
+            },
+          },
+          "height": 100,
+          "mark": {
+            "cursor": "pointer",
+            "tooltip": true,
+            "type": "point",
+          },
+        },
+        {
+          "encoding": {
+            "color": {
+              "field": "Origin",
+              "type": "nominal",
+            },
+            "opacity": {
+              "condition": {
+                "test": {
+                  "and": [
+                    {
+                      "param": "legend_selection_Origin",
+                    },
+                    {
+                      "param": "select_point",
+                    },
+                    {
+                      "param": "select_interval",
+                    },
+                    {
+                      "param": "pan_zoom",
+                    },
+                  ],
+                },
+                "value": 1,
+              },
+              "value": 0.2,
+            },
+            "x": {
+              "field": "Horsepower",
+              "type": "quantitative",
+            },
+            "y": {
+              "field": "Miles_per_Gallon",
+              "type": "quantitative",
+            },
+          },
+          "height": 100,
+          "mark": {
+            "cursor": "pointer",
+            "tooltip": true,
+            "type": "point",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "field": "Origin",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_Origin",
+                },
+                {
+                  "param": "select_point",
+                },
+                {
+                  "param": "select_interval",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "Horsepower",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "Miles_per_Gallon",
+          "type": "quantitative",
+        },
+      },
+      "height": 100,
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "point",
+      },
+    },
+  ],
+  "params": [
+    {
+      "bind": "legend",
+      "name": "legend_selection_Origin",
+      "select": {
+        "fields": [
+          "Origin",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "on": "click[!event.metaKey]",
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_interval",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "mark": {
+          "fill": "#669EFF",
+          "fillOpacity": 0.07,
+          "stroke": "#669EFF",
+          "strokeOpacity": 0.4,
+        },
+        "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "type": "interval",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should not add bin_coloring when chartSelection is false 1`] = `
+{
+  "encoding": {
+    "x": {
+      "bin": true,
+      "field": "x",
+      "type": "quantitative",
+    },
+    "y": {
+      "aggregate": "count",
+      "type": "quantitative",
+    },
+  },
+  "mark": "bar",
+  "params": [
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should not duplicate legend params when multiple layers have same color field 1`] = `
+{
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "line",
+      },
+      "params": [
+        {
+          "bind": "legend",
+          "name": "legend_selection_category",
+          "select": {
+            "fields": [
+              "category",
+            ],
+            "type": "point",
+          },
+        },
+        {
+          "bind": "scales",
+          "name": "pan_zoom",
+          "select": {
+            "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "type": "interval",
+            "zoom": "wheel![event.metaKey]",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "select_point_1",
+                },
+                {
+                  "param": "select_interval_1",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "size": 100,
+        "tooltip": true,
+        "type": "point",
+      },
+      "params": [
+        {
+          "name": "select_point_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should not hoist params when specs have different encodings 1`] = `
+{
+  "hconcat": [
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "point",
+      },
+      "params": [
+        {
+          "name": "select_point",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "theta": {
+          "field": "value",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "arc",
+      },
+      "params": [
+        {
+          "bind": "legend",
+          "name": "legend_selection_category",
+          "select": {
+            "fields": [
+              "category",
+            ],
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_point",
+          "select": {
+            "encodings": [
+              "color",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+      ],
+    },
+  ],
+  "params": [
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should not hoist params when specs have different selection types 1`] = `
+{
+  "hconcat": [
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "nominal",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "bar",
+      },
+      "params": [
+        {
+          "name": "select_point",
+          "select": {
+            "encodings": [
+              "x",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval",
+          "select": {
+            "encodings": [
+              "x",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "area",
+      },
+      "params": [
+        {
+          "name": "select_point",
+          "select": {
+            "encodings": [
+              "color",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+      ],
+    },
+  ],
+  "params": [
+    {
+      "bind": "legend",
+      "name": "legend_selection_category",
+      "select": {
+        "fields": [
+          "category",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should only hoist common params with same select.type and select.encodings 1`] = `
+{
+  "hconcat": [
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+                {
+                  "param": "select_point",
+                },
+                {
+                  "param": "select_interval",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "point",
+      },
+    },
+    {
+      "encoding": {
+        "color": {
+          "field": "category",
+          "type": "nominal",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "legend_selection_category",
+                },
+                {
+                  "param": "select_point",
+                },
+                {
+                  "param": "select_interval",
+                },
+                {
+                  "param": "pan_zoom",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "point",
+      },
+    },
+  ],
+  "params": [
+    {
+      "bind": "legend",
+      "name": "legend_selection_category",
+      "select": {
+        "fields": [
+          "category",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "on": "click[!event.metaKey]",
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_interval",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "mark": {
+          "fill": "#669EFF",
+          "fillOpacity": 0.07,
+          "stroke": "#669EFF",
+          "strokeOpacity": 0.4,
+        },
+        "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "type": "interval",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should prefer point selection for binned charts even when chartSelection is true 1`] = `
+{
+  "encoding": {
+    "opacity": {
+      "condition": {
+        "test": {
+          "and": [
+            {
+              "param": "bin_coloring",
+            },
+          ],
+        },
+        "value": 1,
+      },
+      "value": 0.2,
+    },
+    "x": {
+      "bin": {
+        "maxbins": 20,
+      },
+      "field": "x",
+      "type": "quantitative",
+    },
+    "y": {
+      "aggregate": "count",
+      "type": "quantitative",
+    },
+  },
+  "mark": {
+    "cursor": "pointer",
+    "tooltip": true,
+    "type": "bar",
+  },
+  "params": [
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+        ],
+        "on": "click[!event.metaKey]",
+        "type": "point",
+      },
+    },
+    {
+      "name": "bin_coloring",
+      "select": {
+        "on": "click[!event.metaKey]",
+        "type": "point",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
 exports[`makeSelectable > should return correctly if existing legend selection 1`] = `
 {
   "config": {
@@ -866,6 +2579,168 @@ exports[`makeSelectable > should return correctly with multiple encodings 1`] = 
       },
     },
   ],
+}
+`;
+
+exports[`makeSelectable > should return the same spec for not-defined and true 1`] = `
+{
+  "encoding": {
+    "opacity": {
+      "condition": {
+        "test": {
+          "and": [
+            {
+              "param": "select_point",
+            },
+            {
+              "param": "select_interval",
+            },
+          ],
+        },
+        "value": 1,
+      },
+      "value": 0.2,
+    },
+  },
+  "mark": {
+    "cursor": "pointer",
+    "tooltip": true,
+    "type": "point",
+  },
+  "params": [
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "on": "click[!event.metaKey]",
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_interval",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "mark": {
+          "fill": "#669EFF",
+          "fillOpacity": 0.07,
+          "stroke": "#669EFF",
+          "strokeOpacity": 0.4,
+        },
+        "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "type": "interval",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should return the same spec if mark is boxplot 1`] = `
+{
+  "mark": "boxplot",
+}
+`;
+
+exports[`makeSelectable > should return the same spec if mark is errorband 1`] = `
+{
+  "mark": "errorband",
+}
+`;
+
+exports[`makeSelectable > should return the same spec if mark is errorbar 1`] = `
+{
+  "mark": "errorbar",
+}
+`;
+
+exports[`makeSelectable > should return the same spec if mark is not in spec 1`] = `
+{
+  "encoding": {
+    "opacity": {
+      "condition": {
+        "test": {
+          "and": [
+            {
+              "param": "select_point",
+            },
+            {
+              "param": "select_interval",
+            },
+          ],
+        },
+        "value": 1,
+      },
+      "value": 0.2,
+    },
+  },
+  "mark": {
+    "cursor": "pointer",
+    "tooltip": true,
+    "type": "point",
+  },
+  "params": [
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "on": "click[!event.metaKey]",
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_interval",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "mark": {
+          "fill": "#669EFF",
+          "fillOpacity": 0.07,
+          "stroke": "#669EFF",
+          "strokeOpacity": 0.4,
+        },
+        "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "type": "interval",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should return the same spec if selection is false 1`] = `
+{
+  "mark": "point",
 }
 `;
 

@@ -1,15 +1,279 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { TopLevelSpec } from "vega-lite";
+import type { NonNormalizedSpec } from "vega-lite/types_unstable/spec/index.js";
+import type { TopLevelParameter } from "vega-lite/types_unstable/spec/toplevel.js";
+
 import { findEncodedFields, makeEncodingInteractive } from "./encodings";
 import { Marks } from "./marks";
 import { getBinnedFields, Params } from "./params";
 import type {
+  Field,
   GenericVegaSpec,
+  LayerSpec,
   Mark,
+  SelectionParameter,
   SelectionType,
+  UnitSpec,
   VegaLiteSpec,
   VegaLiteUnitSpec,
 } from "./types";
+
+/**
+ * Creates a unique signature for a param based on its select properties.
+ * Params with the same signature are considered "common" candidates for hoisting.
+ */
+function getParamSignature(param: TParams): string {
+  // For non-selection params, use the whole param as signature
+  if (!("select" in param) || !param.select) {
+    return JSON.stringify(param);
+  }
+
+  const select = param.select;
+
+  // Handle string selections (type shortcuts)
+  if (typeof select === "string") {
+    return JSON.stringify({ type: select, bind: param.bind });
+  }
+
+  const signature = {
+    type: select.type,
+    encodings:
+      "encodings" in select && select.encodings
+        ? [...select.encodings].sort()
+        : undefined,
+    fields:
+      "fields" in select && select.fields
+        ? [...select.fields].sort()
+        : undefined,
+    bind: param.bind,
+  };
+
+  return JSON.stringify(signature);
+}
+
+/**
+ * Recursively collects all params from nested specs and hoists ONLY common params to the top level.
+ * Common params are those with the same select.type, select.encodings, select.fields, and bind
+ * that appear in ALL unit specs.
+ */
+function hoistParamsAndApplyOpacity<T extends VegaLiteSpec>(spec: T): T {
+  // Collect params from all unit specs
+  const allUnitSpecParams = collectAllUnitSpecParams(spec);
+
+  if (allUnitSpecParams.length === 0) {
+    return spec;
+  }
+
+  // Find common params (params with same signature that appear in all unit specs)
+  const commonParams = findCommonParams(allUnitSpecParams);
+
+  if (commonParams.length === 0) {
+    return spec;
+  }
+
+  // Remove only common params from nested specs
+  const commonParamNames = new Set(commonParams.map((p) => p.name));
+  const specWithoutCommonParams = removeSpecificParamsFromNestedSpecs(
+    spec as any,
+    commonParamNames,
+  );
+
+  // Apply opacity to all nested unit specs based on hoisted params
+  const specWithOpacity = applyOpacityToNestedSpecs(
+    specWithoutCommonParams,
+    commonParams.map((p) => p.name),
+  );
+
+  // Add common params to top level
+  return {
+    ...specWithOpacity,
+    params: [...(spec.params || []), ...commonParams],
+  } as T;
+}
+
+type SpecWithParams =
+  | TopLevelSpec
+  | LayerSpec<Field>
+  | UnitSpec<Field>
+  | NonNormalizedSpec;
+
+type TParams = SelectionParameter | TopLevelParameter;
+
+/**
+ * Collects params from all unit specs (not concat specs).
+ * Returns array of { params } for each unit spec.
+ */
+function collectAllUnitSpecParams(spec: SpecWithParams): Array<{
+  params: TParams[];
+}> {
+  const results: Array<{ params: TParams[] }> = [];
+
+  if ("vconcat" in spec && Array.isArray(spec.vconcat)) {
+    for (const subSpec of spec.vconcat) {
+      results.push(...collectAllUnitSpecParams(subSpec));
+    }
+  } else if ("hconcat" in spec && Array.isArray(spec.hconcat)) {
+    for (const subSpec of spec.hconcat) {
+      results.push(...collectAllUnitSpecParams(subSpec));
+    }
+  } else if ("layer" in spec) {
+    // Don't collect from layers, as they handle their own params
+    return [];
+  } else if ("mark" in spec) {
+    // This is a unit spec
+    if ("params" in spec && spec.params && spec.params.length > 0) {
+      results.push({ params: spec.params });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Finds params that are common across all unit specs.
+ * A param is common if it has the same signature and appears in all unit specs.
+ */
+function findCommonParams(
+  allUnitSpecParams: Array<{ params: TParams[] }>,
+): TParams[] {
+  if (allUnitSpecParams.length === 0) {
+    return [];
+  }
+
+  // Count occurrences of each param signature
+  const signatureCounts = new Map<string, { count: number; param: TParams }>();
+  const totalUnitSpecs = allUnitSpecParams.length;
+
+  for (const { params } of allUnitSpecParams) {
+    const seenSignatures = new Set<string>();
+
+    for (const param of params) {
+      const signature = getParamSignature(param);
+
+      // Only count once per unit spec (avoid duplicates within same spec)
+      if (!seenSignatures.has(signature)) {
+        seenSignatures.add(signature);
+
+        if (!signatureCounts.has(signature)) {
+          signatureCounts.set(signature, { count: 0, param });
+        }
+        signatureCounts.get(signature)!.count++;
+      }
+    }
+  }
+
+  // Return params that appear in ALL unit specs
+  const commonParams: TParams[] = [];
+  for (const [, { count, param }] of signatureCounts) {
+    if (count === totalUnitSpecs) {
+      commonParams.push(param);
+    }
+  }
+
+  return commonParams;
+}
+
+/**
+ * Recursively removes specific params (by name) from nested specs.
+ */
+function removeSpecificParamsFromNestedSpecs(
+  spec: SpecWithParams,
+  paramNamesToRemove: Set<string>,
+): SpecWithParams {
+  if ("vconcat" in spec && Array.isArray(spec.vconcat)) {
+    return {
+      ...spec,
+      vconcat: spec.vconcat.map((subSpec) =>
+        removeSpecificParamsFromNestedSpecs(subSpec, paramNamesToRemove),
+      ) as any,
+    } as SpecWithParams;
+  }
+
+  if ("hconcat" in spec && Array.isArray(spec.hconcat)) {
+    return {
+      ...spec,
+      hconcat: spec.hconcat.map((subSpec) =>
+        removeSpecificParamsFromNestedSpecs(subSpec, paramNamesToRemove),
+      ),
+    } as SpecWithParams;
+  }
+
+  if ("mark" in spec && "params" in spec && spec.params) {
+    // This is a unit spec, filter out params that should be hoisted
+    const currentParams = spec.params;
+    const filteredParams: TParams[] = [];
+
+    for (const param of currentParams) {
+      if (!param || typeof param !== "object" || !("name" in param)) {
+        filteredParams.push(param);
+        continue;
+      }
+      if (!paramNamesToRemove.has(param.name)) {
+        filteredParams.push(param);
+      }
+    }
+
+    if (filteredParams.length === 0) {
+      const { params, ...rest } = spec;
+      return rest as SpecWithParams;
+    }
+
+    return {
+      ...spec,
+      params: filteredParams,
+    } as SpecWithParams;
+  }
+
+  return spec;
+}
+
+/**
+ * Recursively applies opacity encoding to all unit specs based on param names.
+ */
+function applyOpacityToNestedSpecs<T extends SpecWithParams>(
+  spec: T,
+  paramNames: string[],
+): T {
+  if ("vconcat" in spec && Array.isArray(spec.vconcat)) {
+    return {
+      ...spec,
+      vconcat: spec.vconcat.map((subSpec: any) =>
+        applyOpacityToNestedSpecs(subSpec, paramNames),
+      ),
+    };
+  }
+
+  if ("hconcat" in spec && Array.isArray(spec.hconcat)) {
+    return {
+      ...spec,
+      hconcat: spec.hconcat.map((subSpec: any) =>
+        applyOpacityToNestedSpecs(subSpec, paramNames),
+      ),
+    };
+  }
+
+  if ("layer" in spec) {
+    // Don't apply to layers, they handle their own opacity
+    return spec;
+  }
+
+  if ("mark" in spec && Marks.isInteractive(spec.mark)) {
+    // This is a unit spec, apply opacity
+    return {
+      ...spec,
+      mark: Marks.makeClickable(spec.mark),
+      encoding: makeEncodingInteractive(
+        "opacity",
+        spec.encoding || {},
+        paramNames,
+        spec.mark,
+      ),
+    };
+  }
+
+  return spec;
+}
 
 export function makeSelectable<T extends VegaLiteSpec>(
   spec: T,
@@ -45,8 +309,8 @@ export function makeSelectable<T extends VegaLiteSpec>(
           })
         : subSpec,
     );
-    // No pan/zoom for vconcat
-    return { ...spec, vconcat: subSpecs };
+    // Hoist params to top level and apply opacity to all nested specs
+    return hoistParamsAndApplyOpacity({ ...spec, vconcat: subSpecs });
   }
 
   if ("hconcat" in spec) {
@@ -58,8 +322,8 @@ export function makeSelectable<T extends VegaLiteSpec>(
           })
         : subSpec,
     );
-    // No pan/zoom for hconcat
-    return { ...spec, hconcat: subSpecs };
+    // Hoist params to top level and apply opacity to all nested specs
+    return hoistParamsAndApplyOpacity({ ...spec, hconcat: subSpecs });
   }
 
   if ("layer" in spec) {
