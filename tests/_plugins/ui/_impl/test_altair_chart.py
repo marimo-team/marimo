@@ -245,6 +245,47 @@ class TestAltairChart:
         assert str(second) == "value2"
 
     @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {
+                "field": ["value1", "value2", "value3"],
+                "date_column": [
+                    datetime.date(2020, 1, 1),
+                    datetime.date(2020, 1, 8),
+                    datetime.date(2020, 1, 10),
+                ],
+            },
+        ),
+    )
+    def test_filter_dataframe_with_dates_graceful_error(
+        df: ChartDataType,
+    ) -> None:
+        """Test that invalid date comparisons are handled gracefully."""
+        # Try with invalid date strings that can't be parsed
+        interval_selection: ChartSelection = {
+            "signal_channel": {"date_column": ["invalid_date", "also_invalid"]}
+        }
+        # Should not raise an error, but skip the filter condition
+        # and return the original dataframe
+        filtered_df = _filter_dataframe(df, selection=interval_selection)
+        # Since the filter failed gracefully, we should get the full dataframe
+        assert get_len(filtered_df) == 3
+
+        # Try with mixed valid/invalid values - the coercion should handle it
+        interval_selection = {
+            "signal_channel": {
+                "date_column": [
+                    datetime.date(2020, 1, 1).isoformat(),
+                    "not_a_valid_date",
+                ]
+            }
+        }
+        # The filter should be skipped due to type error
+        filtered_df = _filter_dataframe(df, selection=interval_selection)
+        assert get_len(filtered_df) == 3
+
+    @staticmethod
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
