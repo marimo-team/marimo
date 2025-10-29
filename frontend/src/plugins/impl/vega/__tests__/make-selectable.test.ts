@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import { invariant } from "@/utils/invariant";
 import { makeSelectable } from "../make-selectable";
 import { getSelectionParamNames } from "../params";
 import type { VegaLiteSpec } from "../types";
@@ -949,10 +950,11 @@ describe("makeSelectable", () => {
 
     // Nested specs should NOT have params (they should be hoisted)
     if ("hconcat" in newSpec) {
-      for (const subSpec of newSpec.hconcat as any[]) {
+      for (const subSpec of newSpec.hconcat) {
         if ("vconcat" in subSpec) {
+          invariant("vconcat" in subSpec, "subSpec should have vconcat");
           for (const innerSpec of subSpec.vconcat) {
-            expect(innerSpec.params).toBeUndefined();
+            expect("params" in innerSpec).toBe(false);
             // But should have opacity encoding
             if ("mark" in innerSpec) {
               expect(innerSpec.encoding?.opacity).toBeDefined();
@@ -1006,8 +1008,8 @@ describe("makeSelectable", () => {
 
     // Nested specs should not have params
     if ("hconcat" in newSpec) {
-      for (const subSpec of newSpec.hconcat as any[]) {
-        expect(subSpec.params).toBeUndefined();
+      for (const subSpec of newSpec.hconcat) {
+        expect("params" in subSpec).toBe(false);
       }
     }
     expect(newSpec).toMatchSnapshot();
@@ -1045,8 +1047,8 @@ describe("makeSelectable", () => {
     // But chart selection params should NOT be hoisted (different types)
     // Bar gets point+interval with x encoding, area gets point with color encoding
     if ("hconcat" in newSpec) {
-      const subspecParams = newSpec.hconcat.flatMap(
-        (subSpec: any) => subSpec.params || [],
+      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+        "params" in subSpec ? subSpec.params : [],
       );
       expect(subspecParams.length).toBeGreaterThan(0);
     }
@@ -1079,8 +1081,8 @@ describe("makeSelectable", () => {
     // Chart selection params should NOT be hoisted (different encodings)
     // Point chart uses x,y encodings, arc chart uses color encoding
     if ("hconcat" in newSpec) {
-      const subspecParams = newSpec.hconcat.flatMap(
-        (subSpec: any) => subSpec.params || [],
+      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+        "params" in subSpec ? subSpec.params : [],
       );
       // Both subspecs should have their own params
       expect(subspecParams.length).toBeGreaterThan(0);
@@ -1119,8 +1121,8 @@ describe("makeSelectable", () => {
     // But chart-specific params may or may not be hoisted depending on if they match
     // The point chart has x,y encodings, bar has x encoding - these differ
     if ("hconcat" in newSpec) {
-      const subspecParams = newSpec.hconcat.flatMap(
-        (subSpec: any) => subSpec.params || [],
+      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+        "params" in subSpec ? subSpec.params : [],
       );
       // Each subspec should have its own chart selection params
       expect(subspecParams.length).toBeGreaterThan(0);

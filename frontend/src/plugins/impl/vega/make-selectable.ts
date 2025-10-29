@@ -104,10 +104,10 @@ type TParams = SelectionParameter | TopLevelParameter;
  * Collects params from all unit specs (not concat specs).
  * Returns array of { params } for each unit spec.
  */
-function collectAllUnitSpecParams(spec: SpecWithParams): Array<{
+function collectAllUnitSpecParams(spec: SpecWithParams): {
   params: TParams[];
-}> {
-  const results: Array<{ params: TParams[] }> = [];
+}[] {
+  const results: { params: TParams[] }[] = [];
 
   if ("vconcat" in spec && Array.isArray(spec.vconcat)) {
     for (const subSpec of spec.vconcat) {
@@ -120,11 +120,13 @@ function collectAllUnitSpecParams(spec: SpecWithParams): Array<{
   } else if ("layer" in spec) {
     // Don't collect from layers, as they handle their own params
     return [];
-  } else if ("mark" in spec) {
-    // This is a unit spec
-    if ("params" in spec && spec.params && spec.params.length > 0) {
-      results.push({ params: spec.params });
-    }
+  } else if (
+    "mark" in spec && // This is a unit spec
+    "params" in spec &&
+    spec.params &&
+    spec.params.length > 0
+  ) {
+    results.push({ params: spec.params });
   }
 
   return results;
@@ -135,7 +137,7 @@ function collectAllUnitSpecParams(spec: SpecWithParams): Array<{
  * A param is common if it has the same signature and appears in all unit specs.
  */
 function findCommonParams(
-  allUnitSpecParams: Array<{ params: TParams[] }>,
+  allUnitSpecParams: { params: TParams[] }[],
 ): TParams[] {
   if (allUnitSpecParams.length === 0) {
     return [];
@@ -158,6 +160,7 @@ function findCommonParams(
         if (!signatureCounts.has(signature)) {
           signatureCounts.set(signature, { count: 0, param });
         }
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         signatureCounts.get(signature)!.count++;
       }
     }
@@ -186,7 +189,7 @@ function removeSpecificParamsFromNestedSpecs(
       ...spec,
       vconcat: spec.vconcat.map((subSpec) =>
         removeSpecificParamsFromNestedSpecs(subSpec, paramNamesToRemove),
-      ) as any,
+      ),
     } as SpecWithParams;
   }
 
@@ -238,7 +241,7 @@ function applyOpacityToNestedSpecs<T extends SpecWithParams>(
   if ("vconcat" in spec && Array.isArray(spec.vconcat)) {
     return {
       ...spec,
-      vconcat: spec.vconcat.map((subSpec: any) =>
+      vconcat: spec.vconcat.map((subSpec) =>
         applyOpacityToNestedSpecs(subSpec, paramNames),
       ),
     };
@@ -247,7 +250,7 @@ function applyOpacityToNestedSpecs<T extends SpecWithParams>(
   if ("hconcat" in spec && Array.isArray(spec.hconcat)) {
     return {
       ...spec,
-      hconcat: spec.hconcat.map((subSpec: any) =>
+      hconcat: spec.hconcat.map((subSpec) =>
         applyOpacityToNestedSpecs(subSpec, paramNames),
       ),
     };
@@ -485,10 +488,8 @@ function makeChartSelectable(
   // 1. The regular selection param (point/interval) - sends signals to backend for filtering
   // 2. The bin_coloring param - controls opacity/coloring, NO signal listener
   // This separation allows us to filter on binned ranges while providing visual feedback
-  if (binnedFields.length > 0) {
-    if (resolvedChartSelection.includes("point")) {
-      nextParams.push(Params.binColoring(layerNum));
-    }
+  if (binnedFields.length > 0 && resolvedChartSelection.includes("point")) {
+    nextParams.push(Params.binColoring(layerNum));
   }
 
   return {

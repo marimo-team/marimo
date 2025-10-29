@@ -237,16 +237,16 @@ export function getBinnedFields(spec: VegaLiteUnitSpec): string[] {
   const fields: string[] = [];
 
   for (const channel of Object.values(spec.encoding)) {
-    if (channel && typeof channel === "object") {
-      // Check for binning
-      if (
-        "bin" in channel &&
-        channel.bin &&
-        "field" in channel &&
-        typeof channel.field === "string"
-      ) {
-        fields.push(channel.field);
-      }
+    // Check for binning
+    if (
+      channel &&
+      typeof channel === "object" &&
+      "bin" in channel &&
+      channel.bin &&
+      "field" in channel &&
+      typeof channel.field === "string"
+    ) {
+      fields.push(channel.field);
     }
   }
 
