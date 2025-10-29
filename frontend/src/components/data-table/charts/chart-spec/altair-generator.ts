@@ -156,11 +156,10 @@ function makeKwargs<T extends Record<string, any>>(obj: T) {
   for (const [key, value] of Object.entries(obj)) {
     if (value !== undefined) {
       // Escape special characters in field names
-      if (key === "field" && typeof value === "string") {
-        result[key] = new Literal(escapeFieldName(value));
-      } else {
-        result[key] = new Literal(value);
-      }
+      result[key] =
+        key === "field" && typeof value === "string"
+          ? new Literal(escapeFieldName(value))
+          : new Literal(value);
     }
   }
 

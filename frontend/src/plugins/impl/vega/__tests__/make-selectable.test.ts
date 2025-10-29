@@ -1,5 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+// @ts-expect-error - vega-parser is not typed
+import { parse } from "vega-parser";
 import { describe, expect, it } from "vitest";
+import { invariant } from "@/utils/invariant";
 import { makeSelectable } from "../make-selectable";
 import { getSelectionParamNames } from "../params";
 import type { VegaLiteSpec } from "../types";
@@ -31,6 +35,8 @@ describe("makeSelectable", () => {
     });
     expect(newSpec).toEqual(spec);
     expect(getSelectionParamNames(newSpec)).toEqual([]);
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 
   it("should return the same spec for not-defined and true", () => {
@@ -43,6 +49,7 @@ describe("makeSelectable", () => {
         fieldSelection: true,
       }),
     ).toEqual(makeSelectable(spec, {}));
+    expect(makeSelectable(spec, {})).toMatchSnapshot();
   });
 
   it("should return the same spec if mark is not in spec", () => {
@@ -55,6 +62,7 @@ describe("makeSelectable", () => {
       },
     } as VegaLiteSpec;
     expect(makeSelectable(spec1, {})).toEqual(makeSelectable(spec2, {}));
+    expect(makeSelectable(spec1, {})).toMatchSnapshot();
   });
 
   it("should return correctly if overlapping encodings", () => {
@@ -88,6 +96,7 @@ describe("makeSelectable", () => {
       fieldSelection: true,
     });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([
       "legend_selection_Origin",
       "select_point",
@@ -128,6 +137,7 @@ describe("makeSelectable", () => {
       fieldSelection: false,
     });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([
       "select_point",
       "select_interval",
@@ -159,6 +169,7 @@ describe("makeSelectable", () => {
 
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([
       "legend_selection_colorField",
       "legend_selection_sizeField",
@@ -213,6 +224,7 @@ describe("makeSelectable", () => {
     } as VegaLiteSpec;
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([
       "param_1",
       "select_point",
@@ -288,6 +300,7 @@ describe("makeSelectable", () => {
       chartSelection: true,
     });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
 
     expect(getSelectionParamNames(newSpec)).toEqual([
       "pan_zoom",
@@ -350,6 +363,7 @@ describe("makeSelectable", () => {
     });
 
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([
       "select_point_0",
       "select_interval_0",
@@ -381,6 +395,7 @@ describe("makeSelectable", () => {
     } as VegaLiteSpec;
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toEqual([]);
   });
 
@@ -465,6 +480,7 @@ describe("makeSelectable", () => {
     } as VegaLiteSpec;
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toMatchInlineSnapshot(`
       [
         "param_22",
@@ -554,6 +570,7 @@ describe("makeSelectable", () => {
     } as VegaLiteSpec;
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     expect(getSelectionParamNames(newSpec)).toMatchInlineSnapshot(`
       [
         "param_22",
@@ -570,6 +587,8 @@ describe("makeSelectable", () => {
       const newSpec = makeSelectable(spec, {});
       expect(newSpec).toEqual(spec);
       expect(getSelectionParamNames(newSpec)).toEqual([]);
+      expect(newSpec).toMatchSnapshot();
+      expect(parse(newSpec)).toBeDefined();
     },
   );
 
@@ -609,6 +628,7 @@ describe("makeSelectable", () => {
     });
 
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     const paramNames = getSelectionParamNames(newSpec);
     // Should have legend selection for category field
     expect(paramNames).toContain("legend_selection_category");
@@ -649,6 +669,8 @@ describe("makeSelectable", () => {
     );
     expect(legendParams).toHaveLength(1);
     expect(legendParams[0]).toBe("legend_selection_category");
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 
   it("should add bin_coloring param for binned charts", () => {
@@ -662,6 +684,7 @@ describe("makeSelectable", () => {
 
     const newSpec = makeSelectable(spec, { chartSelection: true });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     const paramNames = getSelectionParamNames(newSpec);
 
     // Should have point selection and bin_coloring param
@@ -683,6 +706,7 @@ describe("makeSelectable", () => {
 
     const newSpec = makeSelectable(spec, { chartSelection: true });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     const paramNames = getSelectionParamNames(newSpec);
 
     // Should have point selection and bin_coloring param
@@ -712,6 +736,7 @@ describe("makeSelectable", () => {
 
     const newSpec = makeSelectable(spec, { chartSelection: true });
     expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
     const paramNames = getSelectionParamNames(newSpec);
 
     // First layer should have point selection and bin_coloring
@@ -731,6 +756,9 @@ describe("makeSelectable", () => {
     const newSpec = makeSelectable(spec, { chartSelection: true });
     const paramNames = getSelectionParamNames(newSpec);
 
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
+
     // Should only have point selection for binned charts (not interval)
     expect(paramNames).toContain("select_point");
     expect(paramNames).not.toContain("select_interval");
@@ -748,6 +776,9 @@ describe("makeSelectable", () => {
 
     const newSpec = makeSelectable(spec, { chartSelection: false });
     const paramNames = getSelectionParamNames(newSpec);
+
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
 
     // Should not have any chart selection params
     expect(paramNames).not.toContain("select_point");
@@ -779,6 +810,9 @@ describe("makeSelectable", () => {
     const newSpec = makeSelectable(spec, {});
     const paramNames = getSelectionParamNames(newSpec);
 
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
+
     // Should have legend params for both fields
     expect(paramNames).toContain("legend_selection_category");
     expect(paramNames).toContain("legend_selection_size_field");
@@ -809,6 +843,9 @@ describe("makeSelectable", () => {
     const newSpec = makeSelectable(spec, {});
     const paramNames = getSelectionParamNames(newSpec);
 
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
+
     // Should have legend selection for category field
     expect(paramNames).toContain("legend_selection_category");
   });
@@ -837,6 +874,9 @@ describe("makeSelectable", () => {
 
     const newSpec = makeSelectable(spec, {});
     const paramNames = getSelectionParamNames(newSpec);
+
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
 
     // Should have legend selection for series field
     expect(paramNames).toContain("legend_selection_series");
@@ -879,7 +919,278 @@ describe("makeSelectable", () => {
     const newSpec = makeSelectable(spec, {});
     const paramNames = getSelectionParamNames(newSpec);
 
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
+
     // Should have legend selection for category field
     expect(paramNames).toContain("legend_selection_category");
+  });
+
+  it("should hoist params to top level in hconcat(vconcat(...)) and apply opacity to nested specs", () => {
+    const spec = {
+      hconcat: [
+        {
+          vconcat: [
+            {
+              mark: "point",
+              encoding: {
+                x: { field: "Horsepower", type: "quantitative" },
+                y: { field: "Miles_per_Gallon", type: "quantitative" },
+                color: { field: "Origin", type: "nominal" },
+              },
+              height: 100,
+            },
+            {
+              mark: "point",
+              encoding: {
+                x: { field: "Horsepower", type: "quantitative" },
+                y: { field: "Miles_per_Gallon", type: "quantitative" },
+                color: { field: "Origin", type: "nominal" },
+              },
+              height: 100,
+            },
+          ],
+        },
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "Horsepower", type: "quantitative" },
+            y: { field: "Miles_per_Gallon", type: "quantitative" },
+            color: { field: "Origin", type: "nominal" },
+          },
+          height: 100,
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+
+    // Params should be hoisted to top level
+    expect(newSpec.params).toBeDefined();
+    expect(newSpec.params!.length).toBeGreaterThan(0);
+
+    // Should have legend selection for Origin field
+    const paramNames = getSelectionParamNames(newSpec);
+    expect(paramNames).toContain("legend_selection_Origin");
+
+    // Nested specs should NOT have params (they should be hoisted)
+    if ("hconcat" in newSpec) {
+      for (const subSpec of newSpec.hconcat) {
+        if ("vconcat" in subSpec) {
+          invariant("vconcat" in subSpec, "subSpec should have vconcat");
+          for (const innerSpec of subSpec.vconcat) {
+            expect("params" in innerSpec).toBe(false);
+            // But should have opacity encoding
+            if ("mark" in innerSpec) {
+              expect(innerSpec.encoding?.opacity).toBeDefined();
+            }
+          }
+        } else if ("mark" in subSpec) {
+          expect(subSpec.params).toBeUndefined();
+          // But should have opacity encoding
+          expect(subSpec.encoding?.opacity).toBeDefined();
+        }
+      }
+    }
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
+  });
+
+  it("should only hoist common params with same select.type and select.encodings", () => {
+    // All point charts with x,y encodings - should hoist point/interval params
+    const spec = {
+      hconcat: [
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+
+    // Common params should be hoisted
+    expect(newSpec.params).toBeDefined();
+    const topLevelParamNames = getSelectionParamNames(newSpec);
+
+    // Legend param should be hoisted (common across all)
+    expect(topLevelParamNames).toContain("legend_selection_category");
+
+    // Point and interval params should be hoisted (same type and encodings)
+    expect(topLevelParamNames).toContain("select_point");
+    expect(topLevelParamNames).toContain("select_interval");
+
+    // Nested specs should not have params
+    if ("hconcat" in newSpec) {
+      for (const subSpec of newSpec.hconcat) {
+        expect("params" in subSpec).toBe(false);
+      }
+    }
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
+  });
+
+  it("should not hoist params when specs have different selection types", () => {
+    // One bar chart (point+interval) and one area chart (point only) - different selection strategies
+    const spec = {
+      hconcat: [
+        {
+          mark: "bar",
+          encoding: {
+            x: { field: "x", type: "nominal" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+        {
+          mark: "area",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+
+    // Legend param should be hoisted (common across all)
+    const topLevelParamNames = getSelectionParamNames(newSpec);
+    expect(topLevelParamNames).toContain("legend_selection_category");
+
+    // But chart selection params should NOT be hoisted (different types)
+    // Bar gets point+interval with x encoding, area gets point with color encoding
+    if ("hconcat" in newSpec) {
+      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+        "params" in subSpec ? subSpec.params : [],
+      );
+      expect(subspecParams.length).toBeGreaterThan(0);
+    }
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
+  });
+
+  it("should not hoist params when specs have different encodings", () => {
+    // One chart with x,y selection and one with color selection
+    const spec = {
+      hconcat: [
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+          },
+        },
+        {
+          mark: "arc",
+          encoding: {
+            theta: { field: "value", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+
+    // Chart selection params should NOT be hoisted (different encodings)
+    // Point chart uses x,y encodings, arc chart uses color encoding
+    if ("hconcat" in newSpec) {
+      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+        "params" in subSpec ? subSpec.params : [],
+      );
+      // Both subspecs should have their own params
+      expect(subspecParams.length).toBeGreaterThan(0);
+    }
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
+  });
+
+  it("should hoist only common legend params when chart selections differ", () => {
+    const spec = {
+      hconcat: [
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+        {
+          mark: "bar",
+          encoding: {
+            x: { field: "x", type: "nominal" },
+            y: { field: "y", type: "quantitative" },
+            color: { field: "category", type: "nominal" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+
+    // Common legend param should be hoisted
+    const topLevelParamNames = getSelectionParamNames(newSpec);
+    expect(topLevelParamNames).toContain("legend_selection_category");
+
+    // But chart-specific params may or may not be hoisted depending on if they match
+    // The point chart has x,y encodings, bar has x encoding - these differ
+    if ("hconcat" in newSpec) {
+      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+        "params" in subSpec ? subSpec.params : [],
+      );
+      // Each subspec should have its own chart selection params
+      expect(subspecParams.length).toBeGreaterThan(0);
+    }
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
+  });
+
+  it("should handle empty concat specs gracefully", () => {
+    const spec = {
+      hconcat: [],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+    expect(newSpec).toEqual(spec);
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
+  });
+
+  it("should handle concat with only one subspec", () => {
+    const spec = {
+      hconcat: [
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+
+    // Should hoist params even with single subspec
+    expect(newSpec.params).toBeDefined();
+    const topLevelParamNames = getSelectionParamNames(newSpec);
+    expect(topLevelParamNames.length).toBeGreaterThan(0);
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
   });
 });

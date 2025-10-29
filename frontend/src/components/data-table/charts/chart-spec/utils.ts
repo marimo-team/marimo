@@ -16,8 +16,8 @@ export function escapeFieldName(field: string | undefined): string | undefined {
     return field;
   }
   return field
-    .replace(/\./g, "\\.")
-    .replace(/\[/g, "\\[")
-    .replace(/\]/g, "\\]")
-    .replace(/:/g, "\\:");
+    .replaceAll(".", "\\.")
+    .replaceAll("[", "\\[")
+    .replaceAll("]", "\\]")
+    .replaceAll(":", "\\:");
 }
