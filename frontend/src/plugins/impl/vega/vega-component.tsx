@@ -9,8 +9,8 @@ import { useVegaEmbed } from "react-vega";
 import type { View } from "vega";
 // @ts-expect-error vega-typings does not include formats
 import { formats } from "vega-loader";
-import type { SignalListener } from "@/components/charts/types";
 import { tooltipHandler } from "@/components/charts/tooltip";
+import type { SignalListener } from "@/components/charts/types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAsyncData } from "@/hooks/useAsyncData";
