@@ -1176,19 +1176,22 @@ def test_autosize_not_applied_with_nested_hconcat() -> None:
     chart1 = alt.Chart(data).mark_point().encode(x="x", y="y")
     chart2 = alt.Chart(data).mark_line().encode(x="x", y="y")
 
+    def get_autosize(chart: dict[str, Any]) -> str | None:
+        return chart.get("autosize")
+
     # Test 1: VConcatChart with nested HConcatChart should NOT have autosize applied
     hconcat_chart = alt.hconcat(chart1, chart2)
     vconcat_with_hconcat = alt.vconcat(hconcat_chart, chart1)
 
     marimo_chart = altair_chart(vconcat_with_hconcat)
     # The autosize should remain Undefined (not set to "fit-x")
-    assert marimo_chart._chart.autosize is alt.Undefined
+    assert get_autosize(marimo_chart._spec) is None
 
     # Test 2: Simple VConcatChart (no nested hconcat) SHOULD have autosize applied
     simple_vconcat = alt.vconcat(chart1, chart2)
     marimo_chart_simple = altair_chart(simple_vconcat)
     # The autosize should be set to "fit-x"
-    assert marimo_chart_simple._chart.autosize == "fit-x"
+    assert get_autosize(marimo_chart_simple._spec) == "fit-x"
 
     # Test 3: VConcatChart with nested vconcat containing hconcat should NOT have autosize
     nested_with_hconcat = alt.vconcat(
@@ -1196,7 +1199,7 @@ def test_autosize_not_applied_with_nested_hconcat() -> None:
     )
 
     marimo_chart_complex = altair_chart(nested_with_hconcat)
-    assert marimo_chart_complex._chart.autosize is alt.Undefined
+    assert get_autosize(marimo_chart_complex._spec) is None
 
     # Test 4: VConcatChart with explicit autosize should not be overridden
     vconcat_with_autosize = alt.vconcat(chart1, chart2).properties(
@@ -1204,4 +1207,4 @@ def test_autosize_not_applied_with_nested_hconcat() -> None:
     )
     marimo_chart_explicit = altair_chart(vconcat_with_autosize)
     # Should keep the explicit autosize value
-    assert marimo_chart_explicit._chart.autosize == "none"
+    assert get_autosize(marimo_chart_explicit._spec) == "none"
