@@ -169,4 +169,97 @@ describe("makeEncodingInteractive", () => {
       ),
     ).toEqual(expected);
   });
+
+  it("should use only bin_coloring param when present", () => {
+    const encodings: Encodings = {
+      color: {
+        field: "someField",
+        type: "quantitative",
+      },
+    };
+
+    const expected = {
+      ...encodings,
+      opacity: {
+        condition: {
+          test: {
+            and: [{ param: "bin_coloring" }],
+          },
+          value: 1,
+        },
+        value: 0.2,
+      },
+    };
+
+    expect(
+      makeEncodingInteractive(
+        "opacity",
+        encodings,
+        ["select_point", "bin_coloring"],
+        "point",
+      ),
+    ).toEqual(expected);
+  });
+
+  it("should use only bin_coloring params when multiple are present", () => {
+    const encodings: Encodings = {
+      color: {
+        field: "someField",
+        type: "quantitative",
+      },
+    };
+
+    const expected = {
+      ...encodings,
+      opacity: {
+        condition: {
+          test: {
+            and: [{ param: "bin_coloring_0" }, { param: "bin_coloring_1" }],
+          },
+          value: 1,
+        },
+        value: 0.2,
+      },
+    };
+
+    expect(
+      makeEncodingInteractive(
+        "opacity",
+        encodings,
+        ["select_point", "bin_coloring_0", "select_interval", "bin_coloring_1"],
+        "point",
+      ),
+    ).toEqual(expected);
+  });
+
+  it("should fall back to all params when no bin_coloring params present", () => {
+    const encodings: Encodings = {
+      color: {
+        field: "someField",
+        type: "quantitative",
+      },
+    };
+
+    const expected = {
+      ...encodings,
+      opacity: {
+        condition: {
+          test: {
+            and: [{ param: "select_point" }, { param: "select_interval" }],
+          },
+          value: 1,
+        },
+        value: 0.2,
+      },
+    };
+
+    expect(
+      makeEncodingInteractive(
+        "opacity",
+        encodings,
+        ["select_point", "select_interval"],
+        "point",
+      ),
+    ).toEqual(expected);
+  });
 });
