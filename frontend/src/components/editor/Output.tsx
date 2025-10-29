@@ -178,7 +178,7 @@ export const OutputRenderer: React.FC<{
           <LazyVegaEmbed
             spec={parsedJsonData as TopLevelFacetedUnitSpec}
             options={{
-              theme: theme === "dark" ? "dark" : "vox",
+              theme: theme === "dark" ? "dark" : undefined,
               mode: "vega-lite",
               tooltip: tooltipHandler.call,
               renderer: "canvas",
