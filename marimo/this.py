@@ -8,7 +8,7 @@ because once a mistake goes in, it's hard to erase.
 if you want velocity, remember to grow slow. 
 the antidote to a distraction is the word "no". 
 
-the best details are often hidden without any kind of flair,
+the best details are hidden without any kind of flair,
 you can lead ai to software, but you cannot make it care.
 some things are certain, others remain a bet.
 the future of programming hasn't been invented yet.
