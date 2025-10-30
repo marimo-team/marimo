@@ -59,7 +59,7 @@ const AnyLanguageCodeMirror: React.FC<
         <CopyClipboardIcon
           tooltip={false}
           buttonClassName="absolute top-2 right-2 z-10 hover-action"
-          className="h-3.5 w-3.5 text-muted-foreground"
+          className="h-4 w-4 text-muted-foreground"
           value={props.value || ""}
           toastTitle="Copied to clipboard"
         />
