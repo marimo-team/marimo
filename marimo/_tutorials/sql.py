@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -130,7 +130,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Querying dataframes with SQL""")
+    mo.md("""
+    ## Querying dataframes with SQL
+    """)
     return
 
 
@@ -148,9 +150,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Let's take a look at a SQL cell. The next cell generates a dataframe called `df`."""
-    )
+    mo.md(r"""
+    Let's take a look at a SQL cell. The next cell generates a dataframe called `df`.
+    """)
     return
 
 
@@ -199,9 +201,9 @@ def _(has_polars_installed):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Next, we create a SQL query, referencing the Python dataframe `df` directly."""
-    )
+    mo.md(r"""
+    Next, we create a SQL query, referencing the Python dataframe `df` directly.
+    """)
     return
 
 
@@ -221,15 +223,17 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## From Python to SQL and back""")
+    mo.md("""
+    ## From Python to SQL and back
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You can create SQL statements that depend on Python values, such as UI elements:"""
-    )
+    mo.md(r"""
+    You can create SQL statements that depend on Python values, such as UI elements:
+    """)
     return
 
 
@@ -344,7 +348,9 @@ def _(mo, result, token_prefix):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## CSVs, Parquet, Postgres, and more ...""")
+    mo.md(r"""
+    ## CSVs, Parquet, Postgres, and more ...
+    """)
     return
 
 

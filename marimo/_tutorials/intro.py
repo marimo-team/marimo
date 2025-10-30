@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -195,7 +195,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""**🌊 Some UI elements.** Try interacting with the below elements.""")
+    mo.md("""
+    **🌊 Some UI elements.** Try interacting with the below elements.
+    """)
     return
 
 
@@ -333,7 +335,9 @@ def _(mo, tips):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Finally, a fun fact""")
+    mo.md("""
+    ## Finally, a fun fact
+    """)
     return
 
 
