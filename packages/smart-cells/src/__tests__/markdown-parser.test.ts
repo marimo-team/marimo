@@ -119,15 +119,13 @@ Count: {str(data["items"][0]["count"])}`.trim(),
         quotePrefix: "",
       });
       expect(pythonCode).toMatchInlineSnapshot(`
-        "mo.md(
-            """
+        "mo.md("""
         # Markdown Title
 
         Some content here.
-        """
-        )"
+        """)"
       `);
-      expect(offset).toBe(16);
+      expect(offset).toBe(11);
     });
 
     it("should preserve r-string prefix", () => {
@@ -146,12 +144,10 @@ Count: {str(data["items"][0]["count"])}`.trim(),
         quotePrefix: "f",
       });
       expect(pythonCode).toMatchInlineSnapshot(`
-        "mo.md(
-            f"""
+        "mo.md(f"""
         # Title
         {some_variable}
-        """
-        )"
+        """)"
       `);
     });
 
