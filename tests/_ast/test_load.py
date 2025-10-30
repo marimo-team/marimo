@@ -307,31 +307,56 @@ class TestGetCodes:
 
 class TestGetStatus:
     @staticmethod
-    def test_get_status_valid() -> None:
+    @pytest.mark.parametrize(
+        ("filename", "expected_status"),
+        [
+            # Valid marimo apps
+            ("test_main", "valid"),
+            ("test_generate_filecontents", "valid"),
+            ("test_generate_filecontents_async", "valid"),
+            ("test_generate_filecontents_async_long_signature", "valid"),
+            ("test_generate_filecontents_single_cell", "valid"),
+            ("test_generate_filecontents_toplevel", "valid"),
+            ("test_generate_filecontents_toplevel_pytest", "valid"),
+            ("test_decorators", "valid"),
+            ("test_get_alias_import", "valid"),
+            ("test_get_codes_multiline_string", "valid"),
+            ("test_get_codes_messy", "valid"),
+            ("test_get_codes_single_line_fn", "valid"),
+            ("test_get_codes_multiline_fndef", "valid"),
+            ("test_get_codes_comment_after_sig", "valid"),
+            ("test_get_codes_empty", "valid"),
+            ("test_get_codes_non_marimo_python_script", "valid"),
+            ("test_get_header_comments", "valid"),
+            ("test_get_app_kwargs", "valid"),
+            ("test_get_setup", "valid"),
+            ("test_get_setup_blank", "valid"),
+            ("test_generate_filecontents_empty_with_config", "valid"),
+            ("test_generate_filecontents_shadowed_builtin", "valid"),
+            ("test_generate_filecontents_unshadowed_builtin", "valid"),
+            ("test_app_with_annotation_typing", "valid"),
+            ("test_long_line_in_main", "valid"),
+            # Empty files
+            ("test_empty", "empty"),
+            ("test_generate_filecontents_empty", "empty"),
+            ("test_app_with_no_cells", "empty"),
+            ("test_app_with_only_comments", "empty"),
+            # Invalid (not marimo apps)
+            ("test_invalid", "invalid"),
+            ("test_non_marimo", "invalid"),
+            # Has errors
+            ("test_get_codes_messy_toplevel", "has_errors"),
+            ("test_syntax_errors", "has_errors"),
+            ("test_with_bad_decorator", "has_errors"),
+            ("test_get_codes_with_incorrect_args_rets", "has_errors"),
+            ("test_get_codes_with_name_error", "has_errors"),
+            ("test_generate_filecontents_with_syntax_error", "has_errors"),
+            ("test_get_header_comments_invalid", "has_errors"),
+            ("test_get_bad_kwargs", "has_errors"),
+        ],
+    )
+    def test_get_status(filename: str, expected_status: str) -> None:
         assert (
-            load.get_notebook_status(get_filepath("test_main")).status
-            == "valid"
-        )
-
-    @staticmethod
-    def test_get_status_empty() -> None:
-        assert (
-            load.get_notebook_status(get_filepath("test_empty")).status
-            == "empty"
-        )
-
-    @staticmethod
-    def test_get_status_invalid() -> None:
-        assert (
-            load.get_notebook_status(get_filepath("test_invalid")).status
-            == "invalid"
-        )
-
-    @staticmethod
-    def test_get_status_warn() -> None:
-        assert (
-            load.get_notebook_status(
-                get_filepath("test_get_codes_messy_toplevel")
-            ).status
-            == "has_errors"
+            load.get_notebook_status(get_filepath(filename)).status
+            == expected_status
         )
