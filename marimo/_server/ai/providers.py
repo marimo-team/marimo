@@ -439,7 +439,39 @@ class OpenAIProvider(
     DEFAULT_REASONING_EFFORT = "medium"
 
     def _is_reasoning_model(self, model: str) -> bool:
-        return model.startswith("o") or model.startswith("gpt-5")
+        """
+        Check if reasoning_effort should be added to the request.
+        Only add for actual OpenAI reasoning models, not for OpenAI-compatible APIs.
+
+        OpenAI-compatible APIs (identified by custom base_url) may not support
+        the reasoning_effort parameter even if the model name suggests it's a
+        reasoning model.
+        """
+        import re
+
+        # Check for reasoning model patterns: o{digit} or gpt-5, with optional openai/ prefix
+        reasoning_patterns = [
+            r"^openai/o\d",  # openai/o1, openai/o3, etc.
+            r"^o\d",  # o1, o3, etc.
+            r"^openai/gpt-5",  # openai/gpt-5*
+            r"^gpt-5",  # gpt-5*
+        ]
+
+        is_reasoning_model_name = any(
+            re.match(pattern, model) for pattern in reasoning_patterns
+        )
+
+        if not is_reasoning_model_name:
+            return False
+
+        # If using a custom base_url that's not OpenAI, don't assume reasoning is supported
+        if (
+            self.config.base_url
+            and "api.openai.com" not in self.config.base_url
+        ):
+            return False
+
+        return True
 
     def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         DependencyManager.openai.require(why="for AI assistance with OpenAI")
