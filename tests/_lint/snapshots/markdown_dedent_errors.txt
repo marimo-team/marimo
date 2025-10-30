@@ -13,6 +13,20 @@ warning[markdown-indentation]: Markdown cell should be dedented for better reada
   25 |     # With a comment
 
 warning[markdown-indentation]: Markdown cell should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:35:1
+  35 | @app.cell
+  36 | def _(mo):
+     |     ^
+  37 |     # With a comment
+
+warning[markdown-indentation]: Markdown cell should be dedented for better readability
+ --> tests/_lint/test_files/markdown_dedent.py:43:1
+  43 | @app.cell
+  44 | def _(mo):
+     |     ^
+  45 |     # With a comment
+
+warning[markdown-indentation]: Markdown cell should be dedented for better readability
  --> tests/_lint/test_files/markdown_dedent.py:51:1
   51 | @app.cell
   52 | def _(mo):
