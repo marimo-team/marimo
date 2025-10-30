@@ -1,10 +1,10 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, Optional
 
-from marimo._types.ids import SessionId
+from marimo._types.ids import CellId_t, SessionId
 
 # helper classes
 StatusValue = Literal["success", "error", "warning"]
@@ -41,3 +41,23 @@ class MarimoNotebookInfo:
     name: str
     path: str
     session_id: SessionId
+
+
+@dataclass
+class MarimoCellErrors:
+    cell_id: CellId_t
+    errors: list[MarimoErrorDetail] = field(default_factory=list)
+    stderr: list[str] = field(default_factory=list)
+
+
+@dataclass
+class MarimoErrorDetail:
+    type: str
+    message: str
+    traceback: list[str]
+
+
+@dataclass
+class MarimoCellConsoleOutputs:
+    stdout: list[str] = field(default_factory=list)
+    stderr: list[str] = field(default_factory=list)

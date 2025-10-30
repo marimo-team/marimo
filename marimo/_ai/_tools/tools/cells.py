@@ -6,11 +6,14 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ai._tools.base import ToolBase
-from marimo._ai._tools.types import SuccessResult, ToolGuidelines
+from marimo._ai._tools.types import (
+    MarimoCellConsoleOutputs,
+    MarimoErrorDetail,
+    SuccessResult,
+    ToolGuidelines,
+)
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
-from marimo._ai._tools.utils.output_cleaning import clean_output
 from marimo._ast.models import CellData
-from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import Error
 from marimo._messaging.ops import CellOp, VariableValue
 from marimo._types.ids import CellId_t, SessionId
@@ -50,19 +53,6 @@ class GetLightweightCellMapOutput(SuccessResult):
 
 
 @dataclass
-class ErrorDetail:
-    type: str
-    message: str
-    traceback: list[str]
-
-
-@dataclass
-class CellErrors:
-    has_errors: bool
-    error_details: Optional[list[ErrorDetail]]
-
-
-@dataclass
 class CellRuntimeMetadata:
     # String form of the runtime state (see marimo._ast.cell.RuntimeStateType);
     # keep as str for py39/Pydantic compatibility and to avoid Literal/Enum
@@ -79,7 +69,7 @@ class GetCellRuntimeDataData:
     session_id: str
     cell_id: str
     code: Optional[str] = None
-    errors: Optional[CellErrors] = None
+    errors: Optional[list[MarimoErrorDetail]] = None
     metadata: Optional[CellRuntimeMetadata] = None
     variables: Optional[CellVariables] = None
 
@@ -102,13 +92,11 @@ class GetCellRuntimeDataOutput(SuccessResult):
 
 
 @dataclass
-class CellOutputData:
-    """Visual and console output from a cell execution."""
+class CellVisualOutput:
+    """Visual from a cell execution."""
 
     visual_output: Optional[str] = None
     visual_mimetype: Optional[str] = None
-    stdout: list[str] = field(default_factory=list)
-    stderr: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -119,7 +107,10 @@ class GetCellOutputArgs:
 
 @dataclass
 class GetCellOutputOutput(SuccessResult):
-    data: CellOutputData = field(default_factory=CellOutputData)
+    visual_output: CellVisualOutput = field(default_factory=CellVisualOutput)
+    console_outputs: MarimoCellConsoleOutputs = field(
+        default_factory=MarimoCellConsoleOutputs
+    )
 
 
 class GetLightweightCellMap(
@@ -267,7 +258,7 @@ class GetCellRuntimeData(
         cell_code = cell_data.code
 
         # Get cell errors from session view with actual error details
-        cell_errors = self._get_cell_errors(session, cell_id)
+        cell_errors = context.get_cell_errors(session_id, cell_id)
 
         # Get cell runtime metadata
         cell_metadata = self._get_cell_metadata(session, cell_id)
@@ -306,79 +297,6 @@ class GetCellRuntimeData(
                 suggested_fix="Use get_lightweight_cell_map to find valid cell IDs",
             )
         return cell_data
-
-    def _get_cell_errors(
-        self, session: Session, cell_id: CellId_t
-    ) -> CellErrors:
-        """Get cell errors from session view with actual error details."""
-        from marimo._messaging.cell_output import CellChannel
-
-        # Get cell operation from session view
-        session_view = session.session_view
-        cell_op = session_view.cell_operations.get(cell_id)
-
-        if cell_op is None:
-            # No operations recorded for this cell
-            return CellErrors(has_errors=False, error_details=None)
-
-        # Check for actual error details in the output
-        has_errors = False
-        error_details = []
-        if (
-            cell_op.output
-            and cell_op.output.channel == CellChannel.MARIMO_ERROR
-        ):
-            has_errors = True
-            # Extract actual error objects
-            errors = cell_op.output.data
-            if isinstance(errors, list):
-                for error in errors:
-                    if hasattr(error, "type") and hasattr(error, "describe"):
-                        # Rich Error object
-                        error_detail = ErrorDetail(
-                            type=error.type,
-                            message=error.describe(),
-                            traceback=getattr(error, "traceback", []),
-                        )
-                        error_details.append(error_detail)
-                    elif isinstance(error, dict):
-                        # Dict-based error
-                        dict_error_detail = ErrorDetail(
-                            type=error.get("type", "UnknownError"),
-                            message=error.get("msg", str(error)),
-                            traceback=error.get("traceback", []),
-                        )
-                        error_details.append(dict_error_detail)
-                    else:
-                        # Fallback for other error types
-                        fallback_error_detail = ErrorDetail(
-                            type=type(error).__name__,
-                            message=str(error),
-                            traceback=[],
-                        )
-                        error_details.append(fallback_error_detail)
-
-        # Check console outputs for STDERR (includes print statements to stderr, warnings, etc.)
-        if cell_op.console:
-            console_outputs = (
-                cell_op.console
-                if isinstance(cell_op.console, list)
-                else [cell_op.console]
-            )
-            for console_output in console_outputs:
-                if console_output.channel == CellChannel.STDERR:
-                    has_errors = True
-                    stderr_error_detail = ErrorDetail(
-                        type="STDERR",
-                        message=str(console_output.data),
-                        traceback=[],
-                    )
-                    error_details.append(stderr_error_detail)
-
-        return CellErrors(
-            has_errors=has_errors,
-            error_details=error_details if error_details else None,
-        )
 
     def _get_cell_metadata(
         self, session: Session, cell_id: CellId_t
@@ -426,16 +344,12 @@ class GetCellRuntimeData(
 class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
     """Get cell execution output including visual display and console streams.
 
-    Returns comprehensive output data for a single cell:
-    - Visual output (HTML, charts, tables, etc.) with mimetype
-    - Console stdout and stderr messages
-
     Args:
         session_id: The session ID of the notebook from get_active_notebooks
         cell_id: The specific cell ID from get_lightweight_cell_map
 
     Returns:
-        A success result containing all output data from the cell execution.
+        Visual output (HTML, charts, tables, etc.) with mimetype and console streams (stdout/stderr).
     """
 
     guidelines = ToolGuidelines(
@@ -450,23 +364,29 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
     )
 
     def handle(self, args: GetCellOutputArgs) -> GetCellOutputOutput:
-        session = self.context.get_session(args.session_id)
+        context = self.context
+        session = context.get_session(args.session_id)
         session_view = session.session_view
         cell_id = args.cell_id
-        maybe_cell_op = session_view.cell_operations.get(cell_id)
+        cell_op = session_view.cell_operations.get(cell_id)
 
-        visual_output, visual_mimetype = self._get_visual_output(maybe_cell_op)
-        stdout_messages, stderr_messages = self._get_console_outputs(
-            maybe_cell_op
-        )
+        if cell_op is None:
+            raise ToolExecutionError(
+                f"Cell {cell_id} not found in session {args.session_id}",
+                code="CELL_NOT_FOUND",
+                is_retryable=False,
+                suggested_fix="Use get_lightweight_cell_map to find valid cell IDs",
+            )
+
+        visual_output, visual_mimetype = self._get_visual_output(cell_op)
+        console_outputs = context.get_cell_console_outputs(cell_op)
 
         return GetCellOutputOutput(
-            data=CellOutputData(
+            visual_output=CellVisualOutput(
                 visual_output=visual_output,
                 visual_mimetype=visual_mimetype,
-                stdout=stdout_messages,
-                stderr=stderr_messages,
             ),
+            console_outputs=console_outputs,
             next_steps=[
                 "Review visual_output to see what was displayed to the user",
                 "Check stdout/stderr for print statements and warnings",
@@ -474,14 +394,14 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
         )
 
     def _get_visual_output(
-        self, maybe_cell_op: Optional[CellOp]
+        self, cell_op: CellOp
     ) -> tuple[Optional[str], Optional[str]]:
         visual_output = None
         visual_mimetype = None
-        if maybe_cell_op and maybe_cell_op.output:
-            data = maybe_cell_op.output.data
+        if cell_op.output:
+            data = cell_op.output.data
             visual_output = self._get_str_output_data(data)
-            visual_mimetype = maybe_cell_op.output.mimetype
+            visual_mimetype = cell_op.output.mimetype
         return visual_output, visual_mimetype
 
     def _get_str_output_data(
@@ -491,29 +411,3 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
             return data
         else:
             return str(data)
-
-    def _get_console_outputs(
-        self, maybe_cell_op: Optional[CellOp]
-    ) -> tuple[list[str], list[str]]:
-        stdout_messages: list[str] = []
-        stderr_messages: list[str] = []
-        if maybe_cell_op is None or maybe_cell_op.console is None:
-            return stdout_messages, stderr_messages
-
-        console_outputs = (
-            maybe_cell_op.console
-            if isinstance(maybe_cell_op.console, list)
-            else [maybe_cell_op.console]
-        )
-        for output in console_outputs:
-            if output is None:
-                continue
-            elif output.channel == CellChannel.STDOUT:
-                stdout_messages.append(str(output.data))
-            elif output.channel == CellChannel.STDERR:
-                stderr_messages.append(str(output.data))
-
-        cleaned_stdout_messages = clean_output(stdout_messages)
-        cleaned_stderr_messages = clean_output(stderr_messages)
-
-        return cleaned_stdout_messages, cleaned_stderr_messages
