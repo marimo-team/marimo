@@ -916,7 +916,7 @@ class App:
             # the child can read `namespace.<name>` during execution and
             # future parent updates can be diffed and trigger targeted child
             # re-runs.
-            if expose:
+            if expose is not None:
                 app_kernel_runner.register_exposed_bindings(
                     expose=expose,
                     namespace=namespace,
