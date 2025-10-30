@@ -13,7 +13,6 @@ from marimo._ai._tools.tools.cells import (
     GetCellRuntimeData,
     GetLightweightCellMap,
 )
-from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.ops import VariableValue
 from marimo._server.sessions import Session
 from marimo._types.ids import CellId_t, SessionId

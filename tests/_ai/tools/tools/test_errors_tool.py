@@ -145,7 +145,7 @@ def test_get_notebook_errors_multiple_cells(mock_context: Mock) -> None:
                     type="ValueError",
                     message="error in c2",
                     traceback=[],
-                )
+                ),
             ],
             stderr=[],
         ),

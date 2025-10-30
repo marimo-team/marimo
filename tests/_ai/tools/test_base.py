@@ -8,7 +8,6 @@ import pytest
 
 from marimo._ai._tools.base import ToolBase, ToolContext
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
-from marimo._messaging import msgspec_encoder
 
 
 @dataclass
@@ -127,23 +126,26 @@ def test_as_backend_tool() -> None:
     assert is_valid is False
     assert "Invalid arguments" in msg
 
+
 # test ToolContext methods
+
 
 def test_get_notebook_errors_orders_by_cell_manager():
     """Test errors follow cell_manager order, not alphabetical."""
     from unittest.mock import Mock
+
     from marimo._messaging.cell_output import CellChannel
     from marimo._types.ids import CellId_t, SessionId
 
     context = ToolContext()
-    
+
     # Mock error cell_op
     error_op = Mock()
     error_op.output = Mock()
     error_op.output.channel = CellChannel.MARIMO_ERROR
     error_op.output.data = [{"type": "Error", "msg": "test", "traceback": []}]
     error_op.console = None
-    
+
     # Mock session with cells c1, c2, c3
     session = Mock()
     session.session_view.cell_operations = {
@@ -151,15 +153,23 @@ def test_get_notebook_errors_orders_by_cell_manager():
         CellId_t("c2"): error_op,
         CellId_t("c3"): error_op,
     }
-    
+
     # Cell manager returns in order: c3, c2, c1 (not alphabetical)
-    cell_data = [Mock(cell_id=CellId_t("c3")), Mock(cell_id=CellId_t("c2")), Mock(cell_id=CellId_t("c1"))]
-    session.app_file_manager.app.cell_manager.cell_data.return_value = cell_data
-    
+    cell_data = [
+        Mock(cell_id=CellId_t("c3")),
+        Mock(cell_id=CellId_t("c2")),
+        Mock(cell_id=CellId_t("c1")),
+    ]
+    session.app_file_manager.app.cell_manager.cell_data.return_value = (
+        cell_data
+    )
+
     context.get_session = Mock(return_value=session)
-    
-    errors = context.get_notebook_errors(SessionId("test"), include_stderr=False)
-    
+
+    errors = context.get_notebook_errors(
+        SessionId("test"), include_stderr=False
+    )
+
     # Should be c3, c2, c1 (not c1, c2, c3)
     assert errors[0].cell_id == CellId_t("c3")
     assert errors[1].cell_id == CellId_t("c2")
@@ -169,11 +179,12 @@ def test_get_notebook_errors_orders_by_cell_manager():
 def test_get_cell_errors_extracts_from_output():
     """Test get_cell_errors extracts error details from cell output."""
     from unittest.mock import Mock
+
     from marimo._messaging.cell_output import CellChannel
     from marimo._types.ids import CellId_t, SessionId
-    
+
     context = ToolContext()
-    
+
     # Mock cell_op with error
     cell_op = Mock()
     cell_op.output = Mock()
@@ -181,9 +192,11 @@ def test_get_cell_errors_extracts_from_output():
     cell_op.output.data = [
         {"type": "ValueError", "msg": "bad value", "traceback": ["line 1"]}
     ]
-    
-    errors = context.get_cell_errors(SessionId("test"), CellId_t("c1"), maybe_cell_op=cell_op)
-    
+
+    errors = context.get_cell_errors(
+        SessionId("test"), CellId_t("c1"), maybe_cell_op=cell_op
+    )
+
     assert len(errors) == 1
     assert errors[0].type == "ValueError"
     assert errors[0].message == "bad value"
@@ -193,26 +206,26 @@ def test_get_cell_errors_extracts_from_output():
 def test_get_cell_console_outputs_separates_stdout_stderr():
     """Test get_cell_console_outputs separates stdout and stderr."""
     from unittest.mock import Mock
+
     from marimo._messaging.cell_output import CellChannel
-    
+
     context = ToolContext()
-    
+
     # Mock cell_op with stdout and stderr
     stdout_output = Mock()
     stdout_output.channel = CellChannel.STDOUT
     stdout_output.data = "hello"
-    
+
     stderr_output = Mock()
     stderr_output.channel = CellChannel.STDERR
     stderr_output.data = "warning"
-    
+
     cell_op = Mock()
     cell_op.console = [stdout_output, stderr_output]
-    
+
     result = context.get_cell_console_outputs(cell_op)
-    
+
     assert len(result.stdout) == 1
     assert "hello" in result.stdout[0]
     assert len(result.stderr) == 1
     assert "warning" in result.stderr[0]
-
