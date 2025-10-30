@@ -114,10 +114,18 @@ export class MarkdownParser implements LanguageParser<MarkdownMetadata> {
     // If it's one line and not bounded by quotes, write it as single line
     const isOneLine = !code.includes("\n");
     const boundedByQuote = code.startsWith('"') || code.endsWith('"');
+    const startQuote = `${quotePrefix}"""`;
     if (isOneLine && !boundedByQuote) {
-      const start = `mo.md(${quotePrefix}"""`;
-      const end = `""")`;
-      return { code: start + escapedCode + end, offset: start.length };
+      const markdown = `${startQuote}${escapedCode}"""`;
+      const prefix = "mo.md(";
+      if (markdown.length >= 80 - prefix.length) {
+        // Single lines are broken up if they exceed line length
+        const start = `${prefix}\n    ${startQuote}`;
+        return {
+          code: `${start}${escapedCode}"""\n)`,
+          offset: start.length,
+        };
+      }
     }
 
     // Multiline code
