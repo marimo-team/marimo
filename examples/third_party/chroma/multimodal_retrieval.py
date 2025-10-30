@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -167,9 +167,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We create a collection with the embedding function and data loader."""
-    )
+    mo.md(r"""
+    We create a collection with the embedding function and data loader.
+    """)
     return
 
 
@@ -283,9 +283,9 @@ def _(mo, results, selected):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""This example was adapted from [multimodal_retrieval.ipynb](https://github.com/chroma-core/chroma/blob/main/examples/multimodal/multimodal_retrieval.ipynb), using `marimo convert`."""
-    )
+    mo.md(r"""
+    This example was adapted from [multimodal_retrieval.ipynb](https://github.com/chroma-core/chroma/blob/main/examples/multimodal/multimodal_retrieval.ipynb), using `marimo convert`.
+    """)
     return
 
 

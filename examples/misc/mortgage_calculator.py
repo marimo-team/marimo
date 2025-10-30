@@ -10,19 +10,23 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Mortgage Calculator""")
+    mo.md("""
+    # Mortgage Calculator
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Income""")
+    mo.md("""
+    ## Income
+    """)
     return
 
 
@@ -217,7 +221,9 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md("""## Monthly Expenses""")
+    mo.md("""
+    ## Monthly Expenses
+    """)
     return
 
 

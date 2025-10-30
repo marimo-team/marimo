@@ -1,12 +1,14 @@
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
-    mo.md("# Signal Decomposition")
+    mo.md("""
+    # Signal Decomposition
+    """)
     return
 
 
@@ -335,7 +337,9 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md("## Part 2: More Decompositions")
+    mo.md("""
+    ## Part 2: More Decompositions
+    """)
     return
 
 

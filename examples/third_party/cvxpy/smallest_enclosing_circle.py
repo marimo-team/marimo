@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -101,7 +101,9 @@ def _(plt):
 
 @app.cell
 def _(mo):
-    mo.md("""## The solution method""")
+    mo.md("""
+    ## The solution method
+    """)
     return
 
 

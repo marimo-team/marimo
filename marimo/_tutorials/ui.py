@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -20,7 +20,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## marimo.ui""")
+    mo.md("""
+    ## marimo.ui
+    """)
     return
 
 
@@ -92,15 +94,17 @@ def _(mo, slider):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### Simple elements""")
+    mo.md("""
+    ### Simple elements
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """marimo has a [large library of simple UI elements](https://docs.marimo.io/api/inputs/index.html). Here are a just few examples:"""
-    )
+    mo.md("""
+    marimo has a [large library of simple UI elements](https://docs.marimo.io/api/inputs/index.html). Here are a just few examples:
+    """)
     return
 
 
@@ -273,9 +277,9 @@ def _(array):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""marimo also comes with `mo.ui.dictionary`, which is analogous to `mo.ui.array`"""
-    )
+    mo.md(r"""
+    marimo also comes with `mo.ui.dictionary`, which is analogous to `mo.ui.array`
+    """)
     return
 
 
