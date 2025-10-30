@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import json
 from functools import partial
 from inspect import cleandoc
@@ -720,6 +721,24 @@ class TestToFunctionDef:
         fndef = codegen.to_top_functiondef(cell)
         expected = "@app.function(disabled=True, hide_code=True)\n" + code
         assert fndef == expected
+
+
+def test_markdown_invalid() -> None:
+    expected = wrap_generate_filecontents(
+        ['mo.md("Unclosed string)', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+    expected = wrap_generate_filecontents(
+        ['mo.md("Unclosed call"', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+
+def test_markdown_with_alt_strings() -> None:
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'has """\')', "import marimo as mo"], ["a", "b"]
+    )
+    assert ast.parse(expected) == 2  # should not raise
 
 
 def test_recover(tmp_path: Path) -> None:

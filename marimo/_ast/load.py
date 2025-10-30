@@ -35,7 +35,7 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclass
 class LoadResult:
-    """ Result of attempting to load a marimo notebook.
+    """Result of attempting to load a marimo notebook.
 
     status can be one of:
      - empty: No content, or only comments / a doc string
