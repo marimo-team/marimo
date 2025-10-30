@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -77,7 +77,9 @@ def _(mo, origin_filter, top_n, year_range):
 
 @app.cell
 def _(mo):
-    mo.md("""### Breakdown by Origin""")
+    mo.md("""
+    ### Breakdown by Origin
+    """)
     return
 
 

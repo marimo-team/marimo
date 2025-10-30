@@ -7,13 +7,15 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Model Comparison""")
+    mo.md("""
+    # Model Comparison
+    """)
     return
 
 
@@ -61,7 +63,9 @@ def _(NUMBER_OF_EXAMPLES, get_index, mo, set_index):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(f"_Models A and B both predict spans. Which do you prefer?_")
+    mo.md(f"""
+    _Models A and B both predict spans. Which do you prefer?_
+    """)
     return
 
 

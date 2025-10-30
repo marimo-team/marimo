@@ -8,19 +8,23 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Using <https://llm.datasette.io> with `mo.ui.chat()`""")
+    mo.md(r"""
+    ## Using <https://llm.datasette.io> with `mo.ui.chat()`
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""To set a key, run: `llm keys set openai` in your terminal""")
+    mo.md("""
+    To set a key, run: `llm keys set openai` in your terminal
+    """)
     return
 
 

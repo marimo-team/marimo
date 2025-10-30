@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -19,7 +19,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md("""# Batch and Form""")
+    mo.md("""
+    # Batch and Form
+    """)
     return
 
 

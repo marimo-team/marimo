@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -161,7 +161,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""This markdown is left-justified.""")
+    mo.md("""
+    This markdown is left-justified.
+    """)
     return
 
 
@@ -201,7 +203,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""An accordion can contain multiple items:""")
+    mo.md("""
+    An accordion can contain multiple items:
+    """)
     return
 
 

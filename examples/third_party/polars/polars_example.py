@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="full")
 
 
@@ -73,7 +73,9 @@ def _(df, pl, type_1_filter, type_2_filter):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Select points on the chart 👇""")
+    mo.md(r"""
+    Select points on the chart 👇
+    """)
     return
 
 

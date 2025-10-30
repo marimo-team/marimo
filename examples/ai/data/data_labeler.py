@@ -1,12 +1,14 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
-    mo.md("# Data Labeler")
+    mo.md("""
+    # Data Labeler
+    """)
     return
 
 
@@ -36,7 +38,9 @@ def _(decrement_index, increment_index, mo):
 
 @app.cell
 def _(mo):
-    mo.md(f"**Choose an example to label.**")
+    mo.md(f"""
+    **Choose an example to label.**
+    """)
     return
 
 

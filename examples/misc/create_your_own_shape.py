@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -23,7 +23,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Text boxes""")
+    mo.md(r"""
+    ## Text boxes
+    """)
     return
 
 
@@ -63,7 +65,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Sliders""")
+    mo.md(r"""
+    ## Sliders
+    """)
     return
 
 
@@ -85,7 +89,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Checkboxes and Radios""")
+    mo.md(r"""
+    ## Checkboxes and Radios
+    """)
     return
 
 
@@ -156,7 +162,9 @@ def _(COLORS, colors, mo, shape):
 
 @app.cell
 def _(mo):
-    mo.md("""## Dates""")
+    mo.md("""
+    ## Dates
+    """)
     return
 
 
@@ -190,7 +198,9 @@ def _(end_date, mo, start_date):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Dropdowns""")
+    mo.md("""
+    ## Dropdowns
+    """)
     return
 
 

@@ -10,13 +10,15 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Plotting""")
+    mo.md("""
+    # Plotting
+    """)
     return
 
 
@@ -40,7 +42,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Matplotlib""")
+    mo.md("""
+    ## Matplotlib
+    """)
     return
 
 
@@ -200,7 +204,9 @@ def _(exponent, mo, plot_power):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Other libraries""")
+    mo.md("""
+    ## Other libraries
+    """)
     return
 
 

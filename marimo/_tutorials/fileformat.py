@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 with app.setup:
@@ -328,7 +328,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Standalone classes are also exposed:""")
+    mo.md(r"""
+    Standalone classes are also exposed:
+    """)
     return
 
 

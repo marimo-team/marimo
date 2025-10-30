@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -91,9 +91,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Once the database is attached, you can query it with SQL. For example, the next cell computes the average track length of each composer in the chinook database."""
-    )
+    mo.md(r"""
+    Once the database is attached, you can query it with SQL. For example, the next cell computes the average track length of each composer in the chinook database.
+    """)
     return
 
 

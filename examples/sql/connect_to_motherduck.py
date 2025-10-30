@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -57,7 +57,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Let's attach a remote MotherDuck database using `md:`""")
+    mo.md("""
+    Let's attach a remote MotherDuck database using `md:`
+    """)
     return
 
 
@@ -85,7 +87,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Let's make some queries 🦆""")
+    mo.md(r"""
+    ## Let's make some queries 🦆
+    """)
     return
 
 
@@ -298,7 +302,9 @@ def _(alt, hn_type_select, most_monthly_voted):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Additional Reactivity ⚡⚡""")
+    mo.md("""
+    ## Additional Reactivity ⚡⚡
+    """)
     return
 
 

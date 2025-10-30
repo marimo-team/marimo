@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -44,7 +44,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Next, we create a dropdown that selects the iris species.""")
+    mo.md(r"""
+    Next, we create a dropdown that selects the iris species.
+    """)
     return
 
 

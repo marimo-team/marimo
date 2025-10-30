@@ -10,13 +10,15 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Data Explorer""")
+    mo.md("""
+    # Data Explorer
+    """)
     return
 
 

@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -127,15 +127,17 @@ def _(degree, knots, n_knots):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""When you then take these generated features and pass them to a linear model, you should be able to see that we're indeed able to fit a very non-linear curve with a linear model."""
-    )
+    mo.md(r"""
+    When you then take these generated features and pass them to a linear model, you should be able to see that we're indeed able to fit a very non-linear curve with a linear model.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""... turn into these features:""")
+    mo.md(r"""
+    ... turn into these features:
+    """)
     return
 
 
@@ -181,9 +183,9 @@ def _(plt, x_range, x_range_tfm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Note the correspondence between the lines here. The color in the chart above has a direct correspondence with the line below."""
-    )
+    mo.md(r"""
+    Note the correspondence between the lines here. The color in the chart above has a direct correspondence with the line below.
+    """)
     return
 
 

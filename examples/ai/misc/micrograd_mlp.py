@@ -11,13 +11,15 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Neural Networks with Micrograd""")
+    mo.md("""
+    # Neural Networks with Micrograd
+    """)
     return
 
 

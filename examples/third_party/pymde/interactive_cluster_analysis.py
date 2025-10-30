@@ -8,13 +8,15 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Cluster analysis""")
+    mo.md("""
+    # Cluster analysis
+    """)
     return
 
 
