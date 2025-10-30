@@ -109,26 +109,9 @@ export class MarkdownParser implements LanguageParser<MarkdownMetadata> {
 
     // We always transform back with triple quotes, as to avoid needing to
     // escape single quotes.
-    const escapedCode = code.replaceAll('"""', String.raw`\"""`);
+    // We escape only 2 because 4 quotes in a row would end the string.
+    const escapedCode = code.replaceAll('""', String.raw`\""`);
 
-    // If it's one line and not bounded by quotes, write it as single line
-    const isOneLine = !code.includes("\n");
-    const boundedByQuote = code.startsWith('"') || code.endsWith('"');
-    const startQuote = `${quotePrefix}"""`;
-    if (isOneLine && !boundedByQuote) {
-      const markdown = `${startQuote}${escapedCode}"""`;
-      const prefix = "mo.md(";
-      if (markdown.length >= 80 - prefix.length) {
-        // Single lines are broken up if they exceed line length
-        const start = `${prefix}\n    ${startQuote}`;
-        return {
-          code: `${start}${escapedCode}"""\n)`,
-          offset: start.length,
-        };
-      }
-    }
-
-    // Multiline code
     const start = `mo.md(${quotePrefix}"""\n`;
     const end = `\n""")`;
     return { code: start + escapedCode + end, offset: start.length + 1 };
