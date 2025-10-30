@@ -110,7 +110,9 @@ export class MarkdownParser implements LanguageParser<MarkdownMetadata> {
     // We always transform back with triple quotes, as to avoid needing to
     // escape single quotes.
     // We escape only 2 because 4 quotes in a row would end the string.
-    const escapedCode = code.replaceAll('""', String.raw`\""`);
+    // We escape the second quote to avoid leading backslashes escaping the
+    // first quote.
+    const escapedCode = code.replaceAll('""', String.raw`"\"`);
 
     const start = `mo.md(${quotePrefix}"""\n`;
     const end = `\n""")`;

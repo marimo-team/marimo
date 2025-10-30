@@ -295,7 +295,18 @@ Hello world
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toBe(
         `mo.md("""
-Markdown with an escaped \\"""quote\\""\\""!!
+Markdown with an escaped "\\""quote"\\""\\"!!
+""")`,
+      );
+      expect(offset).toBe(11);
+    });
+
+    it("should escape triple quotes in the Markdown code with backslash", () => {
+      const code = 'Markdown with an escaped \\"""quote\\""""!!';
+      const [wrappedCode, offset] = adapter.transformOut(code, metadata);
+      expect(wrappedCode).toBe(
+        `mo.md("""
+Markdown with an escaped \\"\\""quote\\"\\""\\"!!
 """)`,
       );
       expect(offset).toBe(11);
