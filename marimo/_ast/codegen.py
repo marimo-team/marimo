@@ -183,6 +183,7 @@ def format_markdown(cell: CellImpl) -> str:
         # We can blanket replace, because cell.markdown is not set
         # on f-strings with values.
         markdown = markdown.replace("{", "{{").replace("}", "}}")
+    markdown = markdown.replace('""', '"\\"')
 
     # We always use """ as per front end.
     body = construct_markdown_call(markdown, '"""', tag)
