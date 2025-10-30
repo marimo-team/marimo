@@ -860,13 +860,6 @@ def test_markdown_with_alt_strings() -> None:
     )
     ast.parse(expected)  # should not raise
 
-    # Triple quotes with single quotes
-    expected = wrap_generate_filecontents(
-        ["mo.md('Text with \"\"\" and \\'single\\'')", "import marimo as mo"],
-        ["a", "b"],
-    )
-    ast.parse(expected)  # should not raise
-
     # Four consecutive quotes
     expected = wrap_generate_filecontents(
         ['mo.md(\'Text with """"more\')', "import marimo as mo"], ["a", "b"]
@@ -898,23 +891,6 @@ def test_markdown_with_alt_strings() -> None:
     )
     ast.parse(expected)  # should not raise
 
-    # Triple quotes with newlines
-    expected = wrap_generate_filecontents(
-        ['mo.md(\'\\nline1 with """\\nline2\\n\')', "import marimo as mo"],
-        ["a", "b"],
-    )
-    ast.parse(expected)  # should not raise
-
-    # Markdown with code blocks containing quotes
-    expected = wrap_generate_filecontents(
-        [
-            'mo.md(\'```python\\nprint(""" hello """)\\n```\')',
-            "import marimo as mo",
-        ],
-        ["a", "b"],
-    )
-    ast.parse(expected)  # should not raise
-
     # Inline code with triple quotes
     expected = wrap_generate_filecontents(
         ['mo.md(\'Use `"""` for docstrings\')', "import marimo as mo"],
@@ -928,36 +904,9 @@ def test_markdown_with_alt_strings() -> None:
     )
     ast.parse(expected)  # should not raise
 
-    # Docstring examples in markdown
-    expected = wrap_generate_filecontents(
-        [
-            'mo.md(\'Python docstrings use triple quotes:\\n"""\\nThis is a docstring\\n"""\')',
-            "import marimo as mo",
-        ],
-        ["a", "b"],
-    )
-    ast.parse(expected)  # should not raise
-
     # JSON with many quotes
     expected = wrap_generate_filecontents(
         ['mo.md(\'{"key": """value"""}\')', "import marimo as mo"], ["a", "b"]
-    )
-    ast.parse(expected)  # should not raise
-
-    # Shell commands with quotes
-    expected = wrap_generate_filecontents(
-        ['mo.md(\'Run: echo """hello"""\\\'\')', "import marimo as mo"],
-        ["a", "b"],
-    )
-    ast.parse(expected)  # should not raise
-
-    # Quote blocks with triple quotes
-    expected = wrap_generate_filecontents(
-        [
-            'mo.md(\'> Quote with """\\n> More content\')',
-            "import marimo as mo",
-        ],
-        ["a", "b"],
     )
     ast.parse(expected)  # should not raise
 
@@ -976,13 +925,6 @@ def test_markdown_with_alt_strings() -> None:
     # With bold/italic
     expected = wrap_generate_filecontents(
         ['mo.md(\'**bold """ text**\')', "import marimo as mo"], ["a", "b"]
-    )
-    ast.parse(expected)  # should not raise
-
-    # With lists
-    expected = wrap_generate_filecontents(
-        ['mo.md(\'- item with """\\n- another item\')', "import marimo as mo"],
-        ["a", "b"],
     )
     ast.parse(expected)  # should not raise
 
@@ -1041,20 +983,6 @@ def test_markdown_with_alt_strings() -> None:
     )
     ast.parse(expected)  # should not raise
 
-    # Using double quotes with escaped triple quotes
-    expected = wrap_generate_filecontents(
-        ['mo.md("text with \\"\\"\\" here")', "import marimo as mo"],
-        ["a", "b"],
-    )
-    ast.parse(expected)  # should not raise
-
-    # Using triple quotes with escaped triple quotes inside
-    expected = wrap_generate_filecontents(
-        ['mo.md("""content with \\"\\"\\" inside""")', "import marimo as mo"],
-        ["a", "b"],
-    )
-    ast.parse(expected)  # should not raise
-
     # Using f-string single quotes with triple quotes
     expected = wrap_generate_filecontents(
         ['mo.md(f\'value {x} with """\')', "import marimo as mo", "x = 1"],
@@ -1084,18 +1012,6 @@ def test_markdown_with_alt_strings() -> None:
     )
     ast.parse(expected)  # should not raise
 
-    # Double quotes with triple quotes at start
-    expected = wrap_generate_filecontents(
-        ['mo.md("\\"\\"\\" at start")', "import marimo as mo"], ["a", "b"]
-    )
-    ast.parse(expected)  # should not raise
-
-    # Triple quotes with triple quotes at end
-    expected = wrap_generate_filecontents(
-        ['mo.md("""at end \\"\\"\\"""")', "import marimo as mo"], ["a", "b"]
-    )
-    ast.parse(expected)  # should not raise
-
     # f-string with multiple interpolations and triple quotes
     expected = wrap_generate_filecontents(
         [
@@ -1115,6 +1031,94 @@ def test_markdown_with_alt_strings() -> None:
             "c = 4",
         ],
         ["a", "b", "c"],
+    )
+    ast.parse(expected)  # should not raise
+
+
+def test_previous_problematic_cases() -> None:
+    # All of these cases fail under 0.17.3 but should parse correctly now.
+    # Bug resulting from mixed quote types.
+
+    # Using double quotes with escaped triple quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md("text with \\"\\"\\" here")', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Using triple quotes with escaped triple quotes inside
+    expected = wrap_generate_filecontents(
+        ['mo.md("""content with \\"\\"\\" inside""")', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # With lists
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'- item with """\\n- another item\')', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Shell commands with quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'Run: echo """hello"""\\\'\')', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Quote blocks with triple quotes
+    expected = wrap_generate_filecontents(
+        [
+            'mo.md(\'> Quote with """\\n> More content\')',
+            "import marimo as mo",
+        ],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+    # Docstring examples in markdown
+    expected = wrap_generate_filecontents(
+        [
+            'mo.md(\'Python docstrings use triple quotes:\\n"""\\nThis is a docstring\\n"""\')',
+            "import marimo as mo",
+        ],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Markdown with code blocks containing quotes
+    expected = wrap_generate_filecontents(
+        [
+            'mo.md(\'```python\\nprint(""" hello """)\\n```\')',
+            "import marimo as mo",
+        ],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Triple quotes with newlines
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'\\nline1 with """\\nline2\\n\')', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Triple quotes with single quotes
+    expected = wrap_generate_filecontents(
+        ["mo.md('Text with \"\"\" and \\'single\\'')", "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Double quotes with triple quotes at start
+    expected = wrap_generate_filecontents(
+        ['mo.md("\\"\\"\\" at start")', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Triple quotes with triple quotes at end
+    expected = wrap_generate_filecontents(
+        ['mo.md("""at end \\"\\"\\"""")', "import marimo as mo"], ["a", "b"]
     )
     ast.parse(expected)  # should not raise
 
