@@ -139,6 +139,8 @@ class ToolContext:
     ) -> list[MarimoCellErrors]:
         """
         Get all errors in the current notebook session, organized by cell.
+
+        Optionally include stderr messages foreach cell.
         """
         session = self.get_session(session_id)
         session_view = session.session_view
