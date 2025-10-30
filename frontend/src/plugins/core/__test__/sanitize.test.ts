@@ -462,4 +462,31 @@ describe("sanitizeHtml", () => {
       `"<details><summary>Click me</summary><p>Hidden content</p></details>"`,
     );
   });
+
+  test("preserves iconify-icon custom element", () => {
+    const html = '<iconify-icon icon="lucide:leaf"></iconify-icon>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<iconify-icon icon="lucide:leaf"></iconify-icon>"`,
+    );
+  });
+
+  test("preserves iconify-icon with all attributes", () => {
+    const html =
+      '<iconify-icon icon="lucide:rocket" width="24px" height="24px" inline="" flip="horizontal" rotate="90deg" style="color: blue;"></iconify-icon>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<iconify-icon icon="lucide:rocket" width="24px" height="24px" inline="" flip="horizontal" rotate="90deg" style="color: blue;"></iconify-icon>"`,
+    );
+  });
+
+  test("preserves self-closing iconify-icon", () => {
+    const html = '<iconify-icon icon="lucide:star" />';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<iconify-icon icon="lucide:star"></iconify-icon>"`,
+    );
+  });
+
+  test("still removes other non-marimo/non-iconify custom elements", () => {
+    const html = "<some-custom-element>Content</some-custom-element>";
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(`"Content"`);
+  });
 });
