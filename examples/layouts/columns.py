@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="columns")
 
 
@@ -90,7 +90,9 @@ def _(raw_digits):
 
 @app.cell(column=1, hide_code=True)
 def _(mo):
-    mo.md("""# Embedding Visualizer""")
+    mo.md("""
+    # Embedding Visualizer
+    """)
     return
 
 

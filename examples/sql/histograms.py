@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -83,9 +83,9 @@ def _(column, mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""Now we will take the histogram result and plot it using [Altair](https://altair-viz.github.io/)."""
-    )
+    mo.md(r"""
+    Now we will take the histogram result and plot it using [Altair](https://altair-viz.github.io/).
+    """)
     return
 
 

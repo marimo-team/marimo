@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -160,7 +160,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## AWS Bedrock Chat""")
+    mo.md(r"""
+    ## AWS Bedrock Chat
+    """)
     return
 
 

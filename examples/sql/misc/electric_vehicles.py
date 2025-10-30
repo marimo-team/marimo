@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -104,7 +104,9 @@ def _(chart1, chart2, mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Appendix""")
+    mo.md(r"""
+    ## Appendix
+    """)
     return
 
 

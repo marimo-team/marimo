@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -20,7 +20,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Arrays and Dictionaries""")
+    mo.md("""
+    # Arrays and Dictionaries
+    """)
     return
 
 
@@ -51,7 +53,9 @@ def _(create):
 
 @app.cell
 def _(mo):
-    mo.md("""UI Elements ...""")
+    mo.md("""
+    UI Elements ...
+    """)
     return
 
 
@@ -73,7 +77,9 @@ def _(create, mo, random):
 
 @app.cell
 def _(mo):
-    mo.md("""... and their values""")
+    mo.md("""
+    ... and their values
+    """)
     return
 
 
@@ -142,9 +148,9 @@ def _(mo, mo_d, py_d):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Notice that when you interact with the UI elements in the marimo dict, the reference of marimo dict updates automatically. However, when you interact with the elements in the python dict, you need to manually re-run the cell to see the updated values."""
-    )
+    mo.md(r"""
+    Notice that when you interact with the UI elements in the marimo dict, the reference of marimo dict updates automatically. However, when you interact with the elements in the python dict, you need to manually re-run the cell to see the updated values.
+    """)
     return
 
 

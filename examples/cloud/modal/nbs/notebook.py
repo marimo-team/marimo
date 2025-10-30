@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -15,7 +15,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Hello, from inside Modal!""")
+    mo.md("""
+    # Hello, from inside Modal!
+    """)
     return
 
 
@@ -47,7 +49,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Runtime information""")
+    mo.md("""
+    ## Runtime information
+    """)
     return
 
 
