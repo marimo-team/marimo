@@ -75,7 +75,7 @@ export function sanitizeHtml(html: string) {
     // glue elements like style, script or others to document.body and prevent unintuitive browser behavior in several edge-cases
     FORCE_BODY: true,
     CUSTOM_ELEMENT_HANDLING: {
-      tagNameCheck: /^marimo-[A-Za-z][\w-]*$/,
+      tagNameCheck: /^(marimo-[A-Za-z][\w-]*|iconify-icon)$/,
       attributeNameCheck: /^[A-Za-z][\w-]*$/,
     },
   };
