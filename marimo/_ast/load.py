@@ -43,6 +43,7 @@ class LoadResult:
      - invalid: Could not be parsed as a marimo notebook (**cannot load**)
      - valid: Parsed and valid marimo notebook
     """
+
     status: Literal["empty", "has_errors", "invalid", "valid"] = "empty"
     notebook: Optional[NotebookSerialization] = None
     contents: Optional[str] = None
