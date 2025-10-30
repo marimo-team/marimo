@@ -363,8 +363,8 @@ class TestGetStatus:
             ("test_app_with_no_cells", "has_errors"),  # No body is an error
 
             # Syntax errors in code
-            ("test_not_parsable", "broken"),
-            ("test_parse_error_in_notebook", "broken"),
+            ("_test_not_parsable", "broken"),
+            ("_test_parse_error_in_notebook", "broken"),
             # A script that is not a marimo notebook, but uses marimo is
             # indeterminant, so throws an exception.
             ("test_non_marimo", "broken"),

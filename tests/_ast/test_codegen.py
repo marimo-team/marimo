@@ -738,7 +738,7 @@ def test_markdown_with_alt_strings() -> None:
     expected = wrap_generate_filecontents(
         ['mo.md(\'has """\')', "import marimo as mo"], ["a", "b"]
     )
-    assert ast.parse(expected) == 2  # should not raise
+    ast.parse(expected)  # should not raise
 
 
 def test_recover(tmp_path: Path) -> None:
