@@ -47,6 +47,7 @@ class MarimoNotebookInfo:
 class MarimoCellErrors:
     cell_id: CellId_t
     errors: list[MarimoErrorDetail] = field(default_factory=list)
+    stderr: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -54,3 +55,8 @@ class MarimoErrorDetail:
     type: str
     message: str
     traceback: list[str]
+
+@dataclass
+class MarimoCellConsoleOutputs:
+    stdout: list[str] = field(default_factory=list)
+    stderr: list[str] = field(default_factory=list)

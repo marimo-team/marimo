@@ -40,7 +40,7 @@ class ErrorsSummary(PromptBase):
 
         for notebook in notebooks:
             session_id = notebook.session_id
-            notebook_errors = context.get_notebook_errors(session_id)
+            notebook_errors = context.get_notebook_errors(session_id, include_stderr=False)
 
             if len(notebook_errors) == 0:
                 continue
