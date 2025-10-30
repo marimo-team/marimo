@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -20,12 +20,10 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        Here's an **embedding of MNIST**: each point represents a digit,
-        with similar digits close to each other.
-        """
-    )
+    mo.md("""
+    Here's an **embedding of MNIST**: each point represents a digit,
+    with similar digits close to each other.
+    """)
     return
 
 

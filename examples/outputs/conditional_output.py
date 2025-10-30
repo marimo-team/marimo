@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -31,12 +31,10 @@ def _(checkbox):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        The next cell does **not** show anything, since an if statement does not
-        have a value:
-        """
-    )
+    mo.md("""
+    The next cell does **not** show anything, since an if statement does not
+    have a value:
+    """)
     return
 
 

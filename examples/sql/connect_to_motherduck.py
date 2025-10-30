@@ -11,21 +11,19 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # MotherDuck 🧡 marimo
+    mo.md(r"""
+    # MotherDuck 🧡 marimo
 
-        Throughout this notebook, we will explore using [MotherDuck](https://motherduck.com) inside marimo. If you’re new to marimo, check out our [GitHub](https://github.com/marimo-team/marimo) repo: marimo is free and open source.
+    Throughout this notebook, we will explore using [MotherDuck](https://motherduck.com) inside marimo. If you’re new to marimo, check out our [GitHub](https://github.com/marimo-team/marimo) repo: marimo is free and open source.
 
-        _You can expand the code of any cells to see how the output are being created._
-        """
-    )
+    _You can expand the code of any cells to see how the output are being created._
+    """)
     return
 
 
@@ -78,12 +76,10 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        !!! tip "Explore data sources"
-            If you open the "Explore data sources" panel on the left side bar (3rd icon), you will see all your tables including any news ones we will create below
-        """
-    )
+    mo.md("""
+    !!! tip "Explore data sources"
+        If you open the "Explore data sources" panel on the left side bar (3rd icon), you will see all your tables including any news ones we will create below
+    """)
     return
 
 
@@ -157,13 +153,11 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Let's make some charts 📈
+    mo.md(r"""
+    ## Let's make some charts 📈
 
-        Now that we have made some queries and named the results, we can chart those resulting dataframes in Python, using our favorite charting libraries (e.g [altair](https://altair-viz.github.io/), [matplotlib](https://matplotlib.org/), or [plotly](https://plotly.com/)).
-        """
-    )
+    Now that we have made some queries and named the results, we can chart those resulting dataframes in Python, using our favorite charting libraries (e.g [altair](https://altair-viz.github.io/), [matplotlib](https://matplotlib.org/), or [plotly](https://plotly.com/)).
+    """)
     return
 
 
@@ -190,13 +184,11 @@ def _(most_shared_websites):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Adding reactivity ⚡
+    mo.md(r"""
+    ## Adding reactivity ⚡
 
-        We can also parameterize our SQL using marimo UI elements. This not only makes our SQL reactive, but also any downstream logic, including our charts.
-        """
-    )
+    We can also parameterize our SQL using marimo UI elements. This not only makes our SQL reactive, but also any downstream logic, including our charts.
+    """)
     return
 
 

@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -223,13 +223,11 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        In addition to paying for your home, you'll have monthly expenses on
-        necessities and entertainment. Let's estimate these to see how much
-        you'll save per month, after all expenses.
-        """
-    )
+    mo.md("""
+    In addition to paying for your home, you'll have monthly expenses on
+    necessities and entertainment. Let's estimate these to see how much
+    you'll save per month, after all expenses.
+    """)
     return
 
 

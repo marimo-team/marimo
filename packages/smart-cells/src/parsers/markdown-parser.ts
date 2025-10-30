@@ -121,8 +121,8 @@ export class MarkdownParser implements LanguageParser<MarkdownMetadata> {
     }
 
     // Multiline code
-    const start = `mo.md(\n    ${quotePrefix}"""\n`;
-    const end = `\n"""\n)`;
+    const start = `mo.md(${quotePrefix}"""\n`;
+    const end = `\n""")`;
     return { code: start + escapedCode + end, offset: start.length + 1 };
   }
 

@@ -1,6 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
 
-from marimo._lint.linter import _contents_differ_excluding_generated_with
+from marimo._lint.linter import contents_differ_excluding_generated_with
 
 
 def test_contents_differ_excluding_generated_with():
@@ -34,7 +34,7 @@ if __name__ == "__main__":
 """
 
     # Should return False (no meaningful differences)
-    assert not _contents_differ_excluding_generated_with(original, generated)
+    assert not contents_differ_excluding_generated_with(original, generated)
 
 
 def test_contents_differ_with_real_changes():
@@ -69,7 +69,7 @@ if __name__ == "__main__":
 """
 
     # Should return True (real differences exist)
-    assert _contents_differ_excluding_generated_with(original, generated)
+    assert contents_differ_excluding_generated_with(original, generated)
 
 
 def test_contents_no_generated_with():
@@ -94,7 +94,7 @@ def test():
 """
 
     # Should return False (identical content)
-    assert not _contents_differ_excluding_generated_with(original, generated)
+    assert not contents_differ_excluding_generated_with(original, generated)
 
 
 def test_contents_mixed_generated_with():
@@ -120,4 +120,4 @@ def test():
 """
 
     # Should return True (one has __generated_with, one doesn't)
-    assert _contents_differ_excluding_generated_with(original, generated)
+    assert contents_differ_excluding_generated_with(original, generated)

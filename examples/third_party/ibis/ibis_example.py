@@ -9,19 +9,17 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        f"""
+    mo.md(f"""
     # Using `Ibis` in `marimo`
 
     > Ibis is a Python data analysis library that allows for expressive, efficient, and scalable data manipulation and query processing.
-    """
-    )
+    """)
     return
 
 

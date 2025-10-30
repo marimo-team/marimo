@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -19,7 +19,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Use `mo.hstack` and `mo.vstack` to layout outputs in rows and columns.""")
+    mo.md(
+        """Use `mo.hstack` and `mo.vstack` to layout outputs in rows and columns."""
+    )
     return
 
 

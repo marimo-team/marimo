@@ -6,16 +6,14 @@ app = marimo.App(app_title="Casually malicious md")
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     What happens if I just leave a \"\"\"
     " ' ! @ # $ % ^ & * ( ) + = - _ [ ] { } | \ /
 
     # Notebook
     <!--
     \
-    """
-    )
+    """)
     return
 
 
@@ -27,13 +25,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     -->
 
     ```marimo run convert document.md```
-    """
-    )
+    """)
     return
 
 
@@ -47,15 +43,13 @@ app._unparsable_cell(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <!-- Actually markdown -->
     ```{python} `
       print("Hello, World!")
 
     <!-- Disabled code block -->
-    """
-    )
+    """)
     return
 
 
@@ -106,8 +100,7 @@ app._unparsable_cell(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     \"\"\"
     ```
 
@@ -121,19 +114,18 @@ def _(mo):
     -->
 
     <!-- from the notebook, should remain unchanged -->
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
     mo.md("""
-      This is a markdown cell with an execution block in it
-      ```{python}
-      # To ambiguous to convert
-      ```
-      """)
+    This is a markdown cell with an execution block in it
+    ```{python}
+    # To ambiguous to convert
+    ```
+    """)
     return
 
 

@@ -409,14 +409,14 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
       <div className="flex flex-row items-center gap-2">
         {isLoading ? (
           <Loader2Icon
-            className="animate-spin text-blue-600 mb-[1px]"
+            className="animate-spin text-blue-600 mb-px"
             size={15}
             strokeWidth={2}
             aria-label="Generating fix"
           />
         ) : (
           <CircleCheckIcon
-            className="text-green-600 mb-[1px]"
+            className="text-green-600 mb-px"
             size={15}
             strokeWidth={2}
             aria-label="Fix generated"

@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.16.2"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -69,8 +69,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## 1. Reactive execution
 
     A marimo notebook is made up of small blocks of Python code called
@@ -83,8 +82,7 @@ def _(mo):
     Reactivity keeps your program state and outputs in sync with your code,
     making for a dynamic programming environment that prevents bugs before they
     happen.
-    """
-    )
+    """)
     return
 
 
@@ -141,13 +139,11 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     **Global names must be unique.** To enable reactivity, marimo imposes a
     constraint on how names appear in cells: no two cells may define the same
     variable.
-    """
-    )
+    """)
     return
 
 
@@ -183,8 +179,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## 2. UI elements
 
     Cells can output interactive UI elements. Interacting with a UI
@@ -194,8 +189,7 @@ def _(mo):
 
     marimo provides a library of UI elements to choose from under
     `marimo.ui`.
-    """
-    )
+    """)
     return
 
 
@@ -231,8 +225,7 @@ def _(icon, mo, repetitions):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## 3. marimo is just Python
 
     marimo cells parse Python (and only Python), and marimo notebooks are
@@ -247,15 +240,13 @@ def _(mo):
     - usable as Python  scripts, with UI  elements taking their default
     values, and
     - importable by other modules (more on that in the future).
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## 4. Running notebooks as apps
 
     marimo notebooks can double as apps. Click the app window icon in the
@@ -264,15 +255,13 @@ def _(mo):
     Serve a notebook as an app with `marimo run` at the command-line.
     Of course, you can use marimo just to level-up your
     notebooking, without ever making apps.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## 5. The `marimo` command-line tool
 
     **Creating and editing notebooks.** Use
@@ -322,20 +311,17 @@ def _(mo):
 
     In addition to tutorials, we have examples in our
     [our GitHub repo](https://www.github.com/marimo-team/marimo/tree/main/examples).
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## 6. The marimo editor
 
     Here are some tips to help you get started with the marimo editor.
-    """
-    )
+    """)
     return
 
 
@@ -353,14 +339,12 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     The name "marimo" is a reference to a type of algae that, under
     the right conditions, clumps together to form a small sphere
     called a "marimo moss ball". Made of just strands of algae, these
     beloved assemblages are greater than the sum of their parts.
-    """
-    )
+    """)
     return
 
 

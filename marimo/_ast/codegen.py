@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import ast
+import io
 import os
 import re
 import sys
 import textwrap
+import tokenize
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from marimo import _loggers
@@ -84,6 +86,7 @@ def format_tuple_elements(
     elems: tuple[str, ...],
     indent: bool = False,
     allowed_naked: bool = False,
+    trail_comma: bool = True,
     brace: Literal["(", "["] = "(",
 ) -> str:
     """
@@ -92,6 +95,7 @@ def format_tuple_elements(
     """
     left, right = BRACES[brace]
     maybe_indent = indent_text if indent else (lambda x: x)
+    suffix = "," if trail_comma else ""
     if not elems:
         if allowed_naked:
             return maybe_indent(code.replace("(...)", "").rstrip())
@@ -99,7 +103,7 @@ def format_tuple_elements(
 
     if allowed_naked and len(elems) == 1:
         allowed_naked = False
-        elems = (f"{elems[0]},",)
+        elems = (f"{elems[0]}{suffix}",)
 
     tuple_str = ", ".join(elems)
     if allowed_naked:
@@ -116,7 +120,7 @@ def format_tuple_elements(
         elems = (elems[0].strip(","),)
 
     multiline_tuple = "\n".join(
-        [left, indent_text(",\n".join(elems)) + ",", right]
+        [left, indent_text(",\n".join(elems)) + suffix, right]
     )
     return maybe_indent(code.replace("(...)", multiline_tuple))
 
@@ -135,6 +139,78 @@ def to_decorator(
             f"{key}={value}"
             for key, value in config.asdict_without_defaults().items()
         ),
+    )
+
+
+def format_markdown(cell: CellImpl) -> str:
+    markdown = cell.markdown or ""
+    # AST does not preserve string quote types or types, so directly use
+    # tokenize.
+    tokens = tokenize.tokenize(io.BytesIO(cell.code.encode("utf-8")).readline)
+    tag = ""
+    quote = '"'
+    # Comment capture
+    comments = {
+        "prefix": "",
+        "suffix": "",
+    }
+    key: Optional[str] = "prefix"
+    tokenizes_fstring = sys.version_info >= (3, 12)
+    start_tokens = (
+        (tokenize.STRING, tokenize.FSTRING_START)
+        if tokenizes_fstring
+        else (tokenize.STRING,)
+    )
+    fstring = False
+    for tok in tokens:
+        # if string
+        if tok.type in start_tokens:
+            tag = ""
+            # rf"""/ f"/ r"/ "more
+            start = tok.string[:5]
+            for _ in range(2):
+                if start[0].lower() in "rtf":
+                    tag += start[0]
+                    start = start[1:]
+            quote = start[0]
+            if start[:3] == quote * 3:
+                quote = start[:3]
+            fstring = "f" in tag.lower()
+        elif tok.string == "mo":
+            key = None
+        elif tok.string == ")":
+            key = "suffix"
+        elif key in comments and tok.type != tokenize.ENCODING:
+            comments[key] += tok.string
+
+    if fstring:
+        # We can blanket replace, because cell.markdown is not set
+        # on f-strings with values.
+        markdown = markdown.replace("{", "{{").replace("}", "}}")
+
+    body = construct_markdown_call(markdown, quote, tag)
+    return "".join([comments["prefix"], body, comments["suffix"]])
+
+
+def construct_markdown_call(markdown: str, quote: str, tag: str) -> str:
+    # If quotes are on either side, we need to use the multiline format.
+    quote_type = quote[:1]
+    bounded_by_quotes = markdown.startswith(quote_type) or markdown.endswith(
+        quote_type
+    )
+
+    if (len(quote) == 3 and "\n" in markdown) or bounded_by_quotes:
+        return "\n".join(
+            [
+                f"mo.md({tag}{quote}",
+                markdown,
+                f"{quote})",
+            ]
+        )
+    return format_tuple_elements(
+        "mo.md(...)",
+        (f"{tag}{quote}{markdown}{quote}",),
+        trail_comma=False,
     )
 
 
@@ -260,7 +336,10 @@ def to_functiondef(
     signature = format_tuple_elements(f"{prefix}def {name}(...):", refs)
 
     definition_body = [decorator, signature]
-    if body := indent_text(cell.code):
+    # Handle markdown cells with formatting
+    if cell.markdown:
+        definition_body.append(indent_text(format_markdown(cell)))
+    elif body := indent_text(cell.code):
         definition_body.append(body)
 
     returns = format_tuple_elements(

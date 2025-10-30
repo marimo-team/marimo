@@ -12,23 +12,19 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Introduction
     This is a documentation file.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Usage
     Here's how to use this module.
-    """
-    )
+    """)
     return
 
 

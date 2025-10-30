@@ -123,7 +123,7 @@ exports[`ColumnChartSpecModel > file URL handling > should handle arrow data 1`]
 }
 `;
 
-exports[`ColumnChartSpecModel > should expect bin values to be used for number and integer columns when feat flag is true 1`] = `
+exports[`ColumnChartSpecModel > should expect bin values to be used for number and integer columns 1`] = `
 {
   "background": "transparent",
   "config": {
@@ -153,13 +153,14 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
   "layer": [
     {
       "encoding": {
-        "strokeWidth": {
-          "condition": {
-            "empty": false,
-            "param": "hover",
-            "value": 0.5,
-          },
-          "value": 0,
+        "opacity": {
+          "condition": [
+            {
+              "param": "hover",
+              "value": 1,
+            },
+          ],
+          "value": 0.6,
         },
         "x": {
           "bin": {
@@ -181,20 +182,8 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
       },
       "mark": {
         "color": "#027864",
-        "stroke": "#027864",
-        "strokeWidth": 0,
         "type": "bar",
       },
-      "params": [
-        {
-          "name": "hover",
-          "select": {
-            "clear": "mouseout",
-            "on": "mouseover",
-            "type": "point",
-          },
-        },
-      ],
     },
     {
       "encoding": {
@@ -242,6 +231,17 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
         "opacity": 0,
         "type": "bar",
       },
+      "params": [
+        {
+          "name": "hover",
+          "select": {
+            "clear": "mouseout",
+            "nearest": true,
+            "on": "mouseover",
+            "type": "point",
+          },
+        },
+      ],
       "transform": [
         {
           "as": "bin_range",
@@ -254,7 +254,7 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
 }
 `;
 
-exports[`ColumnChartSpecModel > should handle boolean stats when feat flag is true 1`] = `
+exports[`ColumnChartSpecModel > should handle boolean stats 1`] = `
 {
   "background": "transparent",
   "config": {
@@ -378,15 +378,12 @@ exports[`ColumnChartSpecModel > should handle boolean stats when feat flag is tr
 }
 `;
 
-exports[`ColumnChartSpecModel > should handle datetime bin values when feat flag is true 1`] = `
+exports[`ColumnChartSpecModel > should handle datetime bin values 1`] = `
 {
   "background": "transparent",
   "config": {
     "axis": {
       "domain": false,
-    },
-    "concat": {
-      "spacing": 0,
     },
     "view": {
       "stroke": "transparent",
@@ -412,177 +409,98 @@ exports[`ColumnChartSpecModel > should handle datetime bin values when feat flag
       },
     ],
   },
-  "hconcat": [
+  "height": 100,
+  "layer": [
     {
-      "height": 30,
-      "layer": [
-        {
-          "encoding": {
-            "x": {
-              "axis": null,
-              "field": "bin_start",
-              "type": "nominal",
-            },
-            "y": {
-              "axis": null,
-              "field": "count",
-              "type": "quantitative",
-            },
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum['bin_start'] === null && datum['bin_end'] === null",
+            "value": "#cc4e00",
           },
-          "mark": {
-            "color": "#cc4e00",
-            "type": "bar",
-          },
+          "value": "#027864",
         },
-        {
-          "encoding": {
-            "tooltip": [
-              {
-                "field": "count",
-                "format": ",d",
-                "title": "nulls",
-                "type": "quantitative",
-              },
-            ],
-            "x": {
-              "axis": null,
-              "field": "bin_start",
-              "type": "nominal",
-            },
-            "y": {
-              "aggregate": "max",
-              "axis": null,
-              "type": "quantitative",
-            },
-          },
-          "mark": {
-            "opacity": 0,
-            "type": "bar",
-          },
-        },
-      ],
-      "transform": [
-        {
-          "filter": "datum['bin_start'] === null && datum['bin_end'] === null",
-        },
-      ],
-      "width": 5,
-    },
-    {
-      "height": 30,
-      "layer": [
-        {
-          "encoding": {
-            "strokeWidth": {
-              "condition": {
-                "empty": false,
-                "param": "hover",
-                "value": 0.5,
-              },
-              "value": 0,
-            },
-            "x": {
-              "axis": null,
-              "bin": {
-                "binned": true,
-                "step": 86400000,
-              },
-              "field": "bin_start",
-              "type": "temporal",
-            },
-            "x2": {
-              "axis": null,
-              "field": "bin_end",
-              "type": "temporal",
-            },
-            "y": {
-              "axis": null,
-              "field": "count",
-              "type": "quantitative",
-            },
-          },
-          "mark": {
-            "color": "#027864",
-            "stroke": "#027864",
-            "strokeWidth": 0,
-            "type": "bar",
-          },
-          "params": [
+        "opacity": {
+          "condition": [
             {
-              "name": "hover",
-              "select": {
-                "clear": "mouseout",
-                "on": "mouseover",
-                "type": "point",
-              },
+              "param": "hover",
+              "value": 1,
             },
           ],
+          "value": 0.6,
         },
+        "x": {
+          "axis": null,
+          "field": "bin_start",
+          "type": "ordinal",
+        },
+        "y": {
+          "axis": null,
+          "field": "count",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+      "params": [
         {
-          "encoding": {
-            "tooltip": [
-              {
-                "field": "bin_start",
-                "timeUnit": "yearmonthdate",
-                "title": "datetime (start)",
-                "type": "temporal",
-              },
-              {
-                "field": "bin_end",
-                "timeUnit": "yearmonthdate",
-                "title": "datetime (end)",
-                "type": "temporal",
-              },
-              {
-                "field": "count",
-                "format": ",d",
-                "title": "Count",
-                "type": "quantitative",
-              },
-            ],
-            "x": {
-              "axis": null,
-              "bin": {
-                "binned": true,
-                "step": 86400000,
-              },
-              "field": "bin_start",
-              "type": "temporal",
-            },
-            "x2": {
-              "axis": null,
-              "bin": {
-                "binned": true,
-                "step": 86400000,
-              },
-              "field": "bin_end",
-              "type": "temporal",
-            },
-            "y": {
-              "aggregate": "max",
-              "axis": null,
-              "type": "quantitative",
-            },
-          },
-          "mark": {
-            "opacity": 0,
-            "type": "bar",
+          "name": "hover",
+          "select": {
+            "clear": "mouseout",
+            "on": "mouseover",
+            "type": "point",
           },
         },
       ],
-      "width": 70,
+    },
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "field": "bin_start",
+            "timeUnit": "yearmonthdate",
+            "title": "datetime (start)",
+            "type": "temporal",
+          },
+          {
+            "field": "bin_end",
+            "timeUnit": "yearmonthdate",
+            "title": "datetime (end)",
+            "type": "temporal",
+          },
+          {
+            "field": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": null,
+          "field": "bin_start",
+          "type": "ordinal",
+        },
+        "y": {
+          "aggregate": "max",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "opacity": 0,
+        "type": "bar",
+        "width": {
+          "band": 1.2,
+        },
+      },
     },
   ],
-  "height": 100,
-  "resolve": {
-    "scale": {
-      "y": "shared",
-    },
-  },
 }
 `;
 
-exports[`ColumnChartSpecModel > should handle string value counts when feat flag is true 1`] = `
+exports[`ColumnChartSpecModel > should handle string value counts 1`] = `
 {
   "background": "transparent",
   "config": {
@@ -619,18 +537,20 @@ exports[`ColumnChartSpecModel > should handle string value counts when feat flag
     {
       "encoding": {
         "color": {
+          "condition": {
+            "test": "datum.value == "None" || datum.value == "null"",
+            "value": "#cc4e00",
+          },
+          "value": "#027864",
+        },
+        "opacity": {
           "condition": [
             {
               "param": "hover_bar",
-              "value": "#027864",
-            },
-            {
-              "test": "datum.value == "None" || datum.value == "null"",
-              "value": "#cc4e00",
+              "value": 1,
             },
           ],
-          "legend": null,
-          "value": "#4cbba5",
+          "value": 0.6,
         },
         "tooltip": [
           {
@@ -967,6 +887,375 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
 `;
 
 exports[`ColumnChartSpecModel > snapshot > url data 1`] = `
+{
+  "background": "transparent",
+  "config": {
+    "axis": {
+      "domain": false,
+    },
+    "view": {
+      "stroke": "transparent",
+    },
+  },
+  "data": {
+    "values": [],
+  },
+  "height": 100,
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum["bin_maxbins_10_date_range"] === "null"",
+            "value": "#cc4e00",
+          },
+          "value": "#027864",
+        },
+        "x": {
+          "axis": null,
+          "bin": true,
+          "field": "date",
+          "scale": {
+            "align": 0,
+            "paddingInner": 0,
+            "paddingOuter": {
+              "expr": "length(data('data_0')) == 2 ? 1 : length(data('data_0')) == 3 ? 0.5 : length(data('data_0')) == 4 ? 0 : 0",
+            },
+          },
+          "type": "temporal",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+    },
+    {
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum["bin_maxbins_10_date_range"] === "null"",
+            "value": "#cc4e00",
+          },
+          "value": "#027864",
+        },
+        "tooltip": [
+          {
+            "bin": {
+              "binned": true,
+            },
+            "field": "bin_maxbins_10_date",
+            "format": "%Y-%m-%d",
+            "title": "date (start)",
+            "type": "temporal",
+          },
+          {
+            "bin": {
+              "binned": true,
+            },
+            "field": "bin_maxbins_10_date_end",
+            "format": "%Y-%m-%d",
+            "title": "date (end)",
+            "type": "temporal",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": null,
+          "bin": true,
+          "field": "date",
+          "scale": {
+            "align": 0,
+            "paddingInner": 0,
+            "paddingOuter": {
+              "expr": "length(data('data_0')) == 2 ? 1 : length(data('data_0')) == 3 ? 0.5 : length(data('data_0')) == 4 ? 0 : 0",
+            },
+          },
+          "type": "temporal",
+        },
+        "y": {
+          "aggregate": "max",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "opacity": 0,
+        "type": "bar",
+      },
+    },
+  ],
+}
+`;
+
+exports[`ColumnChartSpecModel > snapshot with legacy data spec > array 1`] = `
+{
+  "background": "transparent",
+  "config": {
+    "axis": {
+      "domain": false,
+    },
+    "view": {
+      "stroke": "transparent",
+    },
+  },
+  "data": {
+    "values": [
+      "a",
+      "b",
+      "c",
+    ],
+  },
+  "height": 100,
+  "layer": [
+    {
+      "encoding": {
+        "x": {
+          "bin": true,
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+    },
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "bin": true,
+            "field": "a",
+            "format": ".2f",
+            "title": "a",
+            "type": "quantitative",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": {
+            "labelExpr": "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : format(datum.value, '.2~f')",
+            "labelFontSize": 8.5,
+            "labelOpacity": 0.5,
+            "title": null,
+          },
+          "bin": true,
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "max",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "opacity": 0,
+        "type": "bar",
+      },
+    },
+  ],
+}
+`;
+
+exports[`ColumnChartSpecModel > snapshot with legacy data spec > csv data 1`] = `
+{
+  "background": "transparent",
+  "config": {
+    "axis": {
+      "domain": false,
+    },
+    "view": {
+      "stroke": "transparent",
+    },
+  },
+  "data": {
+    "values": [
+      {
+        "a": 1,
+        "b": 2,
+        "c": 3,
+      },
+      {
+        "a": 4,
+        "b": 5,
+        "c": 6,
+      },
+    ],
+  },
+  "height": 100,
+  "layer": [
+    {
+      "encoding": {
+        "x": {
+          "bin": true,
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+    },
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "bin": true,
+            "field": "a",
+            "format": ".2f",
+            "title": "a",
+            "type": "quantitative",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": {
+            "labelExpr": "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : format(datum.value, '.2~f')",
+            "labelFontSize": 8.5,
+            "labelOpacity": 0.5,
+            "title": null,
+          },
+          "bin": true,
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "max",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "opacity": 0,
+        "type": "bar",
+      },
+    },
+  ],
+}
+`;
+
+exports[`ColumnChartSpecModel > snapshot with legacy data spec > csv string 1`] = `
+{
+  "background": "transparent",
+  "config": {
+    "axis": {
+      "domain": false,
+    },
+    "view": {
+      "stroke": "transparent",
+    },
+  },
+  "data": {
+    "values": [
+      {
+        "a": 1,
+        "b": 2,
+        "c": 3,
+      },
+      {
+        "a": 4,
+        "b": 5,
+        "c": 6,
+      },
+    ],
+  },
+  "height": 100,
+  "layer": [
+    {
+      "encoding": {
+        "x": {
+          "bin": true,
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+    },
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "bin": true,
+            "field": "a",
+            "format": ".2f",
+            "title": "a",
+            "type": "quantitative",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": {
+            "labelExpr": "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : format(datum.value, '.2~f')",
+            "labelFontSize": 8.5,
+            "labelOpacity": 0.5,
+            "title": null,
+          },
+          "bin": true,
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "max",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "opacity": 0,
+        "type": "bar",
+      },
+    },
+  ],
+}
+`;
+
+exports[`ColumnChartSpecModel > snapshot with legacy data spec > url data 1`] = `
 {
   "background": "transparent",
   "config": {

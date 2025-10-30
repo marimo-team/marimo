@@ -78,8 +78,14 @@ a .markdown iconify-icon:first-child {
   margin-inline-end: 0.4em;
 }
 
+iconify-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
 /* align icons with buttons better */
 button .markdown .paragraph {
+  display: inline-flex;
   align-items: baseline;
   gap: 0.4em;
 

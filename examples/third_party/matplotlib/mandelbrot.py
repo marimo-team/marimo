@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -21,27 +21,25 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        This program computes uses an iterative algorithm to visualize the
-        [_Mandelbrot set_](https://mathworld.wolfram.com/MandelbrotSet.html),
-        the set of complex numbers $c$ for which the sequence defined by the
-        iteration
+    mo.md(r"""
+    This program computes uses an iterative algorithm to visualize the
+    [_Mandelbrot set_](https://mathworld.wolfram.com/MandelbrotSet.html),
+    the set of complex numbers $c$ for which the sequence defined by the
+    iteration
 
-        \[
-        z_n = z_{n-1}^2 + c, \quad z_0 = 0
-        \]
+    \[
+    z_n = z_{n-1}^2 + c, \quad z_0 = 0
+    \]
 
-        is bounded in absolute value.
+    is bounded in absolute value.
 
 
-        In the visualization, every point not in the set is colored by the
-        number of iterations the algorithm required to disprove its membership in
-        the set. In any iteration, points in the darkest region may
-        be in the computed set; once the number of iterations is very high, we
-        can be confident that the dark region is the desired Mandelbrot set.
-        """
-    )
+    In the visualization, every point not in the set is colored by the
+    number of iterations the algorithm required to disprove its membership in
+    the set. In any iteration, points in the darkest region may
+    be in the computed set; once the number of iterations is very high, we
+    can be confident that the dark region is the desired Mandelbrot set.
+    """)
     return
 
 

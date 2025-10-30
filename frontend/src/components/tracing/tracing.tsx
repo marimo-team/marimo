@@ -10,8 +10,8 @@ import {
   CirclePlayIcon,
   CircleX,
 } from "lucide-react";
-import React, { type JSX, Suspense, useRef, useState } from "react";
-import type { SignalListeners, VisualizationSpec } from "react-vega";
+import React, { type JSX, Suspense, useEffect, useRef, useState } from "react";
+import { useVegaEmbed } from "react-vega";
 import useResizeObserver from "use-resize-observer";
 import { compile } from "vega-lite";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -28,6 +28,7 @@ import {
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { ClearButton } from "../buttons/clear-button";
+import type { SignalListener } from "../charts/types";
 import { ElapsedTime, formatElapsedTime } from "../editor/cell/CellStatus";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CellLink } from "../editor/links/cell-link";
@@ -37,6 +38,7 @@ import {
   createGanttBaseSpec,
   VEGA_HOVER_SIGNAL,
 } from "./tracing-spec";
+import { formatChartTime } from "./utils";
 
 const expandedRunsAtom = atom<Map<RunId, boolean>>(new Map<RunId, boolean>());
 
@@ -101,38 +103,9 @@ export const Tracing: React.FC = () => {
               />
             );
           }
+          return null;
         })}
       </div>
-    </div>
-  );
-};
-
-// Using vega instead of vegaLite as some parts of the spec get interpreted as vega & will throw warnings
-const LazyVega = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.Vega })),
-);
-interface ChartProps {
-  className?: string;
-  height: number;
-  vegaSpec: VisualizationSpec;
-  signalListeners: SignalListeners;
-  theme: ResolvedTheme;
-}
-
-const Chart: React.FC<ChartProps> = (props: ChartProps) => {
-  const { ref, width = 300 } = useResizeObserver<HTMLDivElement>();
-  return (
-    <div className={props.className} ref={ref}>
-      <Suspense>
-        <LazyVega
-          spec={props.vegaSpec}
-          theme={props.theme === "dark" ? "dark" : undefined}
-          width={width - 50}
-          height={props.height}
-          signalListeners={props.signalListeners}
-          actions={false}
-        />
-      </Suspense>
     </div>
   );
 };
@@ -201,14 +174,8 @@ const TraceBlockBody: React.FC<{
   title: React.ReactNode;
 }> = ({ run, chartPosition, theme, title }) => {
   const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
-
-  const handleVegaSignal = {
-    [VEGA_HOVER_SIGNAL]: (_name: string, value: unknown) => {
-      const signalValue = value as VegaHoverCellSignal;
-      const hoveredCell = signalValue.cell?.[0] as CellId | undefined;
-      setHoveredCellId(hoveredCell ?? null);
-    },
-  };
+  const vegaRef = useRef<HTMLDivElement>(null);
+  const { ref, width = 300 } = useResizeObserver<HTMLDivElement>();
 
   const cellIds = useCellIds();
 
@@ -236,6 +203,43 @@ const TraceBlockBody: React.FC<{
     ),
   ).spec;
 
+  const embed = useVegaEmbed({
+    ref: vegaRef,
+    spec: vegaSpec,
+    options: {
+      theme: theme === "dark" ? "dark" : undefined,
+      width: width - 50,
+      height: chartPosition === "above" ? 120 : 100,
+      actions: false,
+      // Using vega instead of vegaLite as some parts of the spec get interpreted as vega & will throw warnings
+      mode: "vega",
+      renderer: "canvas",
+    },
+  });
+
+  useEffect(() => {
+    const signalListeners: SignalListener[] = [
+      {
+        signalName: VEGA_HOVER_SIGNAL,
+        handler: (_name: string, value: unknown) => {
+          const signalValue = value as VegaHoverCellSignal;
+          const hoveredCell = signalValue.cell?.[0] as CellId | undefined;
+          setHoveredCellId(hoveredCell ?? null);
+        },
+      },
+    ];
+
+    signalListeners.forEach(({ signalName, handler }) => {
+      embed?.view.addSignalListener(signalName, handler);
+    });
+
+    return () => {
+      signalListeners.forEach(({ signalName, handler }) => {
+        embed?.view.removeSignalListener(signalName, handler);
+      });
+    };
+  }, [embed]);
+
   const traceRows = (
     <TraceRows
       run={run}
@@ -244,17 +248,23 @@ const TraceBlockBody: React.FC<{
     />
   );
 
+  const chartElement = (
+    <div
+      className={chartPosition === "sideBySide" ? "-mt-0.5 flex-1" : ""}
+      ref={ref}
+    >
+      <Suspense>
+        <div ref={vegaRef} />
+      </Suspense>
+    </div>
+  );
+
   if (chartPosition === "above") {
     return (
       <div key={run.runId} className="flex flex-col">
         <pre className="font-mono font-semibold">
           {title}
-          <Chart
-            vegaSpec={vegaSpec}
-            height={120}
-            signalListeners={handleVegaSignal}
-            theme={theme}
-          />
+          {chartElement}
           {traceRows}
         </pre>
       </div>
@@ -267,13 +277,7 @@ const TraceBlockBody: React.FC<{
         {title}
         {traceRows}
       </pre>
-      <Chart
-        className="-mt-0.5 flex-1"
-        vegaSpec={vegaSpec}
-        height={100}
-        signalListeners={handleVegaSignal}
-        theme={theme}
-      />
+      {chartElement}
     </div>
   );
 };
@@ -387,24 +391,3 @@ const TraceRow: React.FC<TraceRowProps> = ({
     </div>
   );
 };
-
-export function formatChartTime(timestamp: number): string {
-  try {
-    // Multiply by 1000 to convert seconds to milliseconds
-    const date = new Date(timestamp * 1000);
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0"); // getMonth() is 0-indexed
-    const day = String(date.getDate()).padStart(2, "0");
-
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const seconds = String(date.getSeconds()).padStart(2, "0");
-
-    const milliseconds = String(date.getMilliseconds()).padStart(3, "0");
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
-  } catch {
-    return "";
-  }
-}

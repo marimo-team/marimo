@@ -10,19 +10,17 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        # Using `Polars` in `marimo`
+    mo.md("""
+    # Using `Polars` in `marimo`
 
-        > Lightning-fast DataFrame library for Rust and Python
-        """
-    )
+    > Lightning-fast DataFrame library for Rust and Python
+    """)
     return
 
 

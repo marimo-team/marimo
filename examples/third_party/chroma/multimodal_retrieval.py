@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -25,29 +25,25 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # Multimodal Retrieval
+    mo.md(r"""
+    # Multimodal Retrieval
 
-        Chroma supports multimodal collections, i.e. collections which contain, and can be queried by, multiple modalities of data.
+    Chroma supports multimodal collections, i.e. collections which contain, and can be queried by, multiple modalities of data.
 
-        This notebook shows an example of how to create and query a collection with both text and images, using Chroma's built-in features.
-        """
-    )
+    This notebook shows an example of how to create and query a collection with both text and images, using Chroma's built-in features.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Dataset
+    mo.md(r"""
+    ## Dataset
 
-        We us a small subset of the [coco object detection dataset](https://huggingface.co/datasets/detection-datasets/coco), hosted on HuggingFace.
+    We us a small subset of the [coco object detection dataset](https://huggingface.co/datasets/detection-datasets/coco), hosted on HuggingFace.
 
-        We download a small fraction of all the images in the dataset locally, and use it to create a multimodal collection.
-        """
-    )
+    We download a small fraction of all the images in the dataset locally, and use it to create a multimodal collection.
+    """)
     return
 
 
@@ -120,28 +116,24 @@ def _(all_images, img_width, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Ingesting multimodal data
+    mo.md(r"""
+    ## Ingesting multimodal data
 
-        Chroma supports multimodal collections by referencing external URIs for data types other than text.
-        All you have to do is specify a data loader when creating the collection, and then provide the URI for each entry.
+    Chroma supports multimodal collections by referencing external URIs for data types other than text.
+    All you have to do is specify a data loader when creating the collection, and then provide the URI for each entry.
 
-        For this example, we are only adding images, though you can also add text.
-        """
-    )
+    For this example, we are only adding images, though you can also add text.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ### Creating a multi-modal collection
+    mo.md(r"""
+    ### Creating a multi-modal collection
 
-        First we create the default Chroma client.
-        """
-    )
+    First we create the default Chroma client.
+    """)
     return
 
 
@@ -155,13 +147,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        Next we specify an embedding function and a data loader.
+    mo.md(r"""
+    Next we specify an embedding function and a data loader.
 
-        The built-in `OpenCLIPEmbeddingFunction` works with both text and image data. The `ImageLoader` is a simple data loader that loads images from a local directory.
-        """
-    )
+    The built-in `OpenCLIPEmbeddingFunction` works with both text and image data. The `ImageLoader` is a simple data loader that loads images from a local directory.
+    """)
     return
 
 
@@ -177,7 +167,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We create a collection with the embedding function and data loader.""")
+    mo.md(
+        r"""We create a collection with the embedding function and data loader."""
+    )
     return
 
 
@@ -205,25 +197,21 @@ def _(IMAGE_FOLDER, client, embedding_function, image_loader, os):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ### Adding multi-modal data
+    mo.md(r"""
+    ### Adding multi-modal data
 
-        We add image data to the collection using the image URIs. The data loader and embedding functions we specified earlier will ingest data from the provided URIs automatically.
-        """
-    )
+    We add image data to the collection using the image URIs. The data loader and embedding functions we specified earlier will ingest data from the provided URIs automatically.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Querying a multi-modal collection
+    mo.md(r"""
+    ## Querying a multi-modal collection
 
-        We can query the collection using text as normal, since the `OpenCLIPEmbeddingFunction` works with both text and images.
-        """
-    )
+    We can query the collection using text as normal, since the `OpenCLIPEmbeddingFunction` works with both text and images.
+    """)
     return
 
 
@@ -249,13 +237,11 @@ def _(collection, mo, query):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        /// admonition | One more thing!
-        We can also query by images directly, by using the `query_images` field in the `collection.query` method.
-        ///
-        """
-    )
+    mo.md(r"""
+    /// admonition | One more thing!
+    We can also query by images directly, by using the `query_images` field in the `collection.query` method.
+    ///
+    """)
     return
 
 
@@ -297,7 +283,9 @@ def _(mo, results, selected):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""This example was adapted from [multimodal_retrieval.ipynb](https://github.com/chroma-core/chroma/blob/main/examples/multimodal/multimodal_retrieval.ipynb), using `marimo convert`.""")
+    mo.md(
+        r"""This example was adapted from [multimodal_retrieval.ipynb](https://github.com/chroma-core/chroma/blob/main/examples/multimodal/multimodal_retrieval.ipynb), using `marimo convert`."""
+    )
     return
 
 

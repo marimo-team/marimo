@@ -11,19 +11,17 @@
 
 import marimo
 
-__generated_with = "0.17.0"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        # Read Parquet
+    mo.md("""
+    # Read Parquet
 
-        This notebook shows how to read a Parquet file from a local file or a URL into an in-memory table.
-        """
-    )
+    This notebook shows how to read a Parquet file from a local file or a URL into an in-memory table.
+    """)
     return
 
 
@@ -38,7 +36,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Reading from a Parquet file is as easy as `SELECT * from "data.parquet"`, where `data.parquet` is the path or URL to your parquet file.""")
+    mo.md(
+        """Reading from a Parquet file is as easy as `SELECT * from "data.parquet"`, where `data.parquet` is the path or URL to your parquet file."""
+    )
     return
 
 
@@ -100,13 +100,11 @@ def _(result):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Create an in-memory table from a Parquet file
+    mo.md(r"""
+    ## Create an in-memory table from a Parquet file
 
-        You can also create a table from a Parquet file, so you can easily query it in subsequent cells. This table will appear in marimo's data sources panel.
-        """
-    )
+    You can also create a table from a Parquet file, so you can easily query it in subsequent cells. This table will appear in marimo's data sources panel.
+    """)
     return
 
 
@@ -121,7 +119,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, mytable):
+def _(mo):
     _df = mo.sql(
         f"""
         SELECT * FROM myTable
@@ -138,7 +136,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""To customize how your parquet file is read, use [duckdb's `read_parquet` function](https://duckdb.org/docs/data/parquet/overview.html).""")
+    mo.md(
+        r"""To customize how your parquet file is read, use [duckdb's `read_parquet` function](https://duckdb.org/docs/data/parquet/overview.html)."""
+    )
     return
 
 

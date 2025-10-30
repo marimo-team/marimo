@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -21,15 +21,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # Finding $\pi$ in colliding blocks
+    mo.md(r"""
+    # Finding $\pi$ in colliding blocks
 
-        One of the remarkable things about mathematical constants like $\pi$ is how frequently they arise in nature, in the most surprising of places.
+    One of the remarkable things about mathematical constants like $\pi$ is how frequently they arise in nature, in the most surprising of places.
 
-        Inspired by 3Blue1Brown, this [marimo notebook](https://github.com/marimo-team/marimo) shows how the number of collisions incurred in a particular system involving two blocks converges to the digits in $\pi$.
-        """
-    )
+    Inspired by 3Blue1Brown, this [marimo notebook](https://github.com/marimo-team/marimo) shows how the number of collisions incurred in a particular system involving two blocks converges to the digits in $\pi$.
+    """)
     return
 
 
@@ -86,13 +84,11 @@ def _(ani, mo, run_button):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## The 3Blue1Brown video
+    mo.md(r"""
+    ## The 3Blue1Brown video
 
-        If you haven't seen it, definitely check out the video that inspired this notebook:
-        """
-    )
+    If you haven't seen it, definitely check out the video that inspired this notebook:
+    """)
     return
 
 

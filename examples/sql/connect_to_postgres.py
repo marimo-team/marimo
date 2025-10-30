@@ -11,23 +11,21 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        # Connect to Postgres
+    mo.md(r"""
+    # Connect to Postgres
 
-        You can use marimo's SQL cells to read from and write to Postgres databases.
+    You can use marimo's SQL cells to read from and write to Postgres databases.
 
-        The first step is to attach a Postgres database, which we do below.
+    The first step is to attach a Postgres database, which we do below.
 
-        For advanced usage, see [duckdb's documentation](https://duckdb.org/docs/extensions/postgres).
-        """
-    )
+    For advanced usage, see [duckdb's documentation](https://duckdb.org/docs/extensions/postgres).
+    """)
     return
 
 
@@ -104,12 +102,10 @@ def _(PASSWORD, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        Once the database is attached, you can query it with SQL. Note that this involves copying data from Postgres SQL and
-        executing it in duckdb. See later sections of this example on how to execute queries directly in Postgres.
-        """
-    )
+    mo.md(r"""
+    Once the database is attached, you can query it with SQL. Note that this involves copying data from Postgres SQL and
+    executing it in duckdb. See later sections of this example on how to execute queries directly in Postgres.
+    """)
     return
 
 
@@ -137,13 +133,11 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Copy data from Postgres to duckdb
+    mo.md(r"""
+    ## Copy data from Postgres to duckdb
 
-        To prevent duckdb from continuously re-reading tables from PostgresSQL, you can copy the PostgresSQL databases into DuckDB. Note that this will consume your system's RAM.
-        """
-    )
+    To prevent duckdb from continuously re-reading tables from PostgresSQL, you can copy the PostgresSQL databases into DuckDB. Note that this will consume your system's RAM.
+    """)
     return
 
 
@@ -161,13 +155,11 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Execute queries directly in PostgresSQL
+    mo.md(r"""
+    ## Execute queries directly in PostgresSQL
 
-        Run queries directly in PostgresSQL using duckdb's `postgres_query` function. In some cases this may be faster than executing queries in duckdb.
-        """
-    )
+    Run queries directly in PostgresSQL using duckdb's `postgres_query` function. In some cases this may be faster than executing queries in duckdb.
+    """)
     return
 
 

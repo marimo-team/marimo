@@ -33,7 +33,7 @@ importers:
         version: 2.5.6
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)
 
   frontend:
     dependencies:
@@ -45,10 +45,10 @@ importers:
         version: 0.2.0
       '@codemirror/autocomplete':
         specifier: ^6.19.0
-        version: 6.19.0
+        version: 6.19.1
       '@codemirror/commands':
         specifier: ^6.9.0
-        version: 6.9.0
+        version: 6.10.0
       '@codemirror/lang-markdown':
         specifier: ^6.4.0
         version: 6.4.0
@@ -69,7 +69,7 @@ importers:
         version: 6.5.2
       '@codemirror/lint':
         specifier: ^6.9.0
-        version: 6.9.0
+        version: 6.9.1
       '@codemirror/merge':
         specifier: ^6.11.0
         version: 6.11.0
@@ -123,7 +123,7 @@ importers:
         version: 3.10.0
       '@lezer/common':
         specifier: ^1.2.3
-        version: 1.2.3
+        version: 1.3.0
       '@lezer/highlight':
         specifier: ^1.2.1
         version: 1.2.1
@@ -144,7 +144,7 @@ importers:
         version: 1.16.0(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)
       '@marimo-team/codemirror-mcp':
         specifier: ^0.1.5
-        version: 0.1.5(@codemirror/autocomplete@6.19.0)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@modelcontextprotocol/sdk@1.17.2)
+        version: 0.1.5(@codemirror/autocomplete@6.19.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@modelcontextprotocol/sdk@1.17.2)
       '@marimo-team/codemirror-sql':
         specifier: ^0.2.3
         version: 0.2.3(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)
@@ -249,7 +249,7 @@ importers:
         version: 1.2.2(@types/react@19.1.12)(react@19.1.1)
       '@replit/codemirror-vim':
         specifier: ^6.3.0
-        version: 6.3.0(@codemirror/commands@6.9.0)(@codemirror/language@6.11.3)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)
+        version: 6.3.0(@codemirror/commands@6.10.0)(@codemirror/language@6.11.3)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)
       '@tailwindcss/postcss':
         specifier: ^4.1.12
         version: 4.1.13
@@ -279,16 +279,16 @@ importers:
         version: 2.4.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@uiw/codemirror-extensions-langs':
         specifier: ^4.25.2
-        version: 4.25.2(@codemirror/autocomplete@6.19.0)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.9)(@codemirror/lang-javascript@6.2.4)(@codemirror/language-data@6.5.1)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.2.3)(@lezer/highlight@1.2.1)(@lezer/javascript@1.5.1)(@lezer/lr@1.4.2)
+        version: 4.25.2(@codemirror/autocomplete@6.19.1)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.9)(@codemirror/lang-javascript@6.2.4)(@codemirror/language-data@6.5.1)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.3.0)(@lezer/highlight@1.2.1)(@lezer/javascript@1.5.1)(@lezer/lr@1.4.2)
       '@uiw/react-codemirror':
         specifier: 4.25.1
-        version: 4.25.1(@babel/runtime@7.27.6)(@codemirror/autocomplete@6.19.0)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.0)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.38.6)(codemirror@6.0.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        version: 4.25.1(@babel/runtime@7.27.6)(@codemirror/autocomplete@6.19.1)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.1)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.38.6)(codemirror@6.0.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@uwdata/flechette':
         specifier: ^1.1.2
         version: 1.1.2
       '@valtown/codemirror-codeium':
         specifier: ^1.1.1
-        version: 1.1.1(@codemirror/autocomplete@6.19.0)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)
+        version: 1.1.1(@codemirror/autocomplete@6.19.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)
       '@xterm/addon-attach':
         specifier: ^0.11.0
         version: 0.11.0(@xterm/xterm@5.5.0)
@@ -330,7 +330,7 @@ importers:
         version: 1.1.1(@types/react-dom@19.1.9(@types/react@19.1.12))(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       compassql:
         specifier: ^0.21.2
-        version: 0.21.2(vega@5.33.0)
+        version: 0.21.2(vega@6.2.0)
       cssnano:
         specifier: ^7.1.1
         version: 7.1.1(postcss@8.5.6)
@@ -408,7 +408,7 @@ importers:
         version: 0.27.7
       react-arborist:
         specifier: ^3.4.3
-        version: 3.4.3(@types/node@24.9.1)(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        version: 3.4.3(@types/node@24.9.2)(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       react-aria:
         specifier: ^3.44.0
         version: 3.44.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -417,7 +417,7 @@ importers:
         version: 1.13.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       react-codemirror-merge:
         specifier: 4.25.1
-        version: 4.25.1(@babel/runtime@7.27.6)(@codemirror/autocomplete@6.19.0)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.0)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.38.6)(codemirror@6.0.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        version: 4.25.1(@babel/runtime@7.27.6)(@codemirror/autocomplete@6.19.1)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.1)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.38.6)(codemirror@6.0.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       react-dropzone:
         specifier: ^14.3.8
         version: 14.3.8(react@19.1.1)
@@ -443,8 +443,8 @@ importers:
         specifier: ^0.9.6
         version: 0.9.6(react@19.1.1)
       react-vega:
-        specifier: ^7.7.1
-        version: 7.7.1(react@19.1.1)(vega-lite@5.23.0(vega@5.33.0))(vega@5.33.0)
+        specifier: ^8.0.0
+        version: 8.0.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(vega-embed@7.1.0(vega-lite@6.4.1(vega@6.2.0))(vega@6.2.0))
       react-virtuoso:
         specifier: ^4.14.0
         version: 4.14.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -491,11 +491,14 @@ importers:
         specifier: ^9.1.0
         version: 9.1.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       vega-lite:
-        specifier: ^5.23.0
-        version: 5.23.0(vega@5.33.0)
+        specifier: ^6.4.1
+        version: 6.4.1(vega@6.2.0)
       vega-loader:
-        specifier: ^4.5.3
-        version: 4.5.3
+        specifier: ^5.1.0
+        version: 5.1.0
+      vega-parser:
+        specifier: ^7.1.0
+        version: 7.1.0
       vega-tooltip:
         specifier: ^1.1.0
         version: 1.1.0
@@ -523,7 +526,7 @@ importers:
         version: 2.2.2
       '@codecov/vite-plugin':
         specifier: ^1.9.1
-        version: 1.9.1(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+        version: 1.9.1(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       '@csstools/postcss-light-dark-function':
         specifier: ^2.0.10
         version: 2.0.10(postcss@8.5.6)
@@ -532,13 +535,13 @@ importers:
         version: 1.56.1
       '@storybook/addon-docs':
         specifier: ^9.1.14
-        version: 9.1.15(@types/react@19.1.12)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
+        version: 9.1.15(@types/react@19.1.12)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
       '@storybook/addon-links':
         specifier: ^9.1.14
-        version: 9.1.15(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
+        version: 9.1.15(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
       '@storybook/react-vite':
         specifier: ^9.1.14
-        version: 9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(rollup@4.50.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3)
+        version: 9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(rollup@4.50.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3)
       '@swc-jotai/react-refresh':
         specifier: ^0.3.0
         version: 0.3.0
@@ -559,7 +562,7 @@ importers:
         version: 4.17.12
       '@types/node':
         specifier: ^24.3.0
-        version: 24.9.1
+        version: 24.9.2
       '@types/react':
         specifier: ^19.1.12
         version: 19.1.12
@@ -580,7 +583,7 @@ importers:
         version: 7.18.0(eslint@8.57.1)(typescript@5.9.3)
       '@vitejs/plugin-react':
         specifier: ^5.0.4
-        version: 5.0.4(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+        version: 5.0.4(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       babel-plugin-react-compiler:
         specifier: 19.1.0-rc.3
         version: 19.1.0-rc.3
@@ -610,19 +613,19 @@ importers:
         version: 1.3.0(eslint@8.57.1)
       eslint-plugin-storybook:
         specifier: ^9.0.14
-        version: 9.0.17(eslint@8.57.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3)
+        version: 9.0.17(eslint@8.57.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3)
       eslint-plugin-unicorn:
         specifier: ^54.0.0
         version: 54.0.0(eslint@8.57.1)
       eslint-plugin-vitest:
         specifier: ^0.4.1
-        version: 0.4.1(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1))
+        version: 0.4.1(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1))
       jsdom:
         specifier: ^24.1.3
         version: 24.1.3
       msw:
         specifier: ^2.11.1
-        version: 2.11.1(@types/node@24.9.1)(typescript@5.9.3)
+        version: 2.11.1(@types/node@24.9.2)(typescript@5.9.3)
       npm-run-all2:
         specifier: ^6.2.6
         version: 6.2.6
@@ -643,7 +646,7 @@ importers:
         version: 19.1.1(react@19.1.1)
       storybook:
         specifier: ^9.1.14
-        version: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+        version: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       stylelint:
         specifier: ^16.23.1
         version: 16.23.1(typescript@5.9.3)
@@ -653,18 +656,21 @@ importers:
       tailwindcss:
         specifier: ^4.1.15
         version: 4.1.15
+      vega-typings:
+        specifier: ^2.1.0
+        version: 2.1.0
       vite:
         specifier: npm:rolldown-vite@latest
-        version: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+        version: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
       vite-plugin-top-level-await:
         specifier: ^1.6.0
-        version: 1.6.0(@swc/helpers@0.5.17)(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(rollup@4.50.1)
+        version: 1.6.0(@swc/helpers@0.5.17)(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(rollup@4.50.1)
       vite-plugin-wasm:
         specifier: ^3.5.0
-        version: 3.5.0(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+        version: 3.5.0(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)
 
   packages/llm-info:
     devDependencies:
@@ -673,7 +679,7 @@ importers:
         version: link:../ts-config
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)
       yaml:
         specifier: ^2.8.1
         version: 2.8.1
@@ -695,7 +701,7 @@ importers:
         version: 1.2.5
       '@types/node':
         specifier: ^24.3.0
-        version: 24.9.1
+        version: 24.9.2
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
@@ -716,7 +722,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)
       vscode-ws-jsonrpc:
         specifier: ^3.5.0
         version: 3.5.0
@@ -741,7 +747,7 @@ importers:
         version: 6.2.1
       '@lezer/common':
         specifier: ^1.2.1
-        version: 1.2.3
+        version: 1.3.0
       '@lezer/python':
         specifier: ^1.1.14
         version: 1.1.18
@@ -1086,11 +1092,11 @@ packages:
     peerDependencies:
       vite: 4.x || 5.x || 6.x
 
-  '@codemirror/autocomplete@6.19.0':
-    resolution: {integrity: sha512-61Hfv3cF07XvUxNeC3E7jhG8XNi1Yom1G0lRC936oLnlF+jrbrv8rc/J98XlYzcsAoTVupfsf5fLej1aI8kyIg==}
+  '@codemirror/autocomplete@6.19.1':
+    resolution: {integrity: sha512-q6NenYkEy2fn9+JyjIxMWcNjzTL/IhwqfzOut1/G3PrIFkrbl4AL7Wkse5tLrQUUyqGoAKU5+Pi5jnnXxH5HGw==}
 
-  '@codemirror/commands@6.9.0':
-    resolution: {integrity: sha512-454TVgjhO6cMufsyyGN70rGIfJxJEjcqjBG2x2Y03Y/+Fm99d3O/Kv1QDYWuG6hvxsgmjXmBuATikIIYvERX+w==}
+  '@codemirror/commands@6.10.0':
+    resolution: {integrity: sha512-2xUIc5mHXQzT16JnyOFkh8PvfeXuIut3pslWGfsGOhxP/lpgRm9HOl/mpzLErgt5mXDovqA0d11P21gofRLb9w==}
 
   '@codemirror/lang-angular@0.1.4':
     resolution: {integrity: sha512-oap+gsltb/fzdlTQWD6BFF4bSLKcDnlxDsLdePiJpCVNKWXSTAbiiQeYI3UmES+BLAdkmIC1WjyztC1pi/bX4g==}
@@ -1161,8 +1167,8 @@ packages:
   '@codemirror/legacy-modes@6.5.2':
     resolution: {integrity: sha512-/jJbwSTazlQEDOQw2FJ8LEEKVS72pU0lx6oM54kGpL8t/NJ2Jda3CZ4pcltiKTdqYSRk3ug1B3pil1gsjA6+8Q==}
 
-  '@codemirror/lint@6.9.0':
-    resolution: {integrity: sha512-wZxW+9XDytH3SKvS8cQzMyQCaaazH8XL1EMHleHe00wVzsv7NBQKVW2yzEHrRhmM7ZOhVdItPbvlRBvMp9ej7A==}
+  '@codemirror/lint@6.9.1':
+    resolution: {integrity: sha512-te7To1EQHePBQQzasDKWmK2xKINIXpk+xAiSYr9ZN+VB4KaT+/Hi2PEkeErTk5BV3PTz1TLyQL4MtJfPkKZ9sw==}
 
   '@codemirror/merge@6.11.0':
     resolution: {integrity: sha512-Wu5Camx8u0jKA4yV3IxcWGMIoXUxuptsbWW9kTje8d/NInnnALeyQaxcVssJznp9FRnu4As3qsBhacERyB9p6w==}
@@ -1719,8 +1725,8 @@ packages:
   '@keyv/serialize@1.1.0':
     resolution: {integrity: sha512-RlDgexML7Z63Q8BSaqhXdCYNBy/JQnqYIwxofUrNLGCblOMHp+xux2Q8nLMLlPpgHQPoU0Do8Z6btCpRBEqZ8g==}
 
-  '@lezer/common@1.2.3':
-    resolution: {integrity: sha512-w7ojc8ejBqr2REPsWxJjrMFsA/ysDCFICn8zEOR9mrqzOu2amhITYuLD8ag6XZf0CFXDrhKqw7+tW8cX66NaDA==}
+  '@lezer/common@1.3.0':
+    resolution: {integrity: sha512-L9X8uHCYU310o99L3/MpJKYxPzXPOS7S0NmBaM7UO/x2Kb2WbmMLSkfvdr1KxRIFYOpbY0Jhn7CfLSUDzL8arQ==}
 
   '@lezer/cpp@1.1.3':
     resolution: {integrity: sha512-ykYvuFQKGsRi6IcE+/hCSGUhb/I4WPjd3ELhEblm2wS2cOznDFzO+ubK2c+ioysOnlZ3EduV+MVQFCPzAIoY3w==}
@@ -4014,9 +4020,6 @@ packages:
   '@types/geojson@7946.0.16':
     resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
 
-  '@types/geojson@7946.0.4':
-    resolution: {integrity: sha512-MHmwBtCb7OCv1DSivz2UNJXPGU/1btAWRKlqJ2saEhVJkpkvqHMMaOpKg0v4sAbDWSQekHGvPVMM8nQ+Jen03Q==}
-
   '@types/har-format@1.2.16':
     resolution: {integrity: sha512-fluxdy7ryD3MV6h8pTfTYpy/xQzCFC7m89nOH9y94cNqJ1mDIDPut7MnRHI3F6qRmh/cT2fUjG1MLdCNb4hE9A==}
 
@@ -4065,8 +4068,8 @@ packages:
   '@types/node@20.19.21':
     resolution: {integrity: sha512-CsGG2P3I5y48RPMfprQGfy4JPRZ6csfC3ltBZSRItG3ngggmNY/qs2uZKp4p9VbrpqNNSMzUZNFZKzgOGnd/VA==}
 
-  '@types/node@24.9.1':
-    resolution: {integrity: sha512-QoiaXANRkSXK6p0Duvt56W208du4P9Uye9hWLWgGMDTEoKPhuenzNcC4vGUmrNkiOKTlIrBoyNQYNpSwfEZXSg==}
+  '@types/node@24.9.2':
+    resolution: {integrity: sha512-uWN8YqxXxqFMX2RqGOrumsKeti4LlmIMIyV0lgut4jx7KQBcBiW6vkDtIBvHnHIquwNfJhk8v2OtmO8zXWHfPA==}
 
   '@types/normalize-package-data@2.4.4':
     resolution: {integrity: sha512-37i+OaWTh9qeK4LSHPsyRC7NahnGotNuZvjLSgcPzblpHB3rrCJxAOgI5gCdKm7coonsaX1Of0ILiTcnZjbfxA==}
@@ -4537,8 +4540,8 @@ packages:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
     engines: {node: '>=8'}
 
-  ansi-regex@6.1.0:
-    resolution: {integrity: sha512-7HSX4QQb4CspciLpVFwyRe79O3xsIZDDLER21kERQ71oaPodF8jL725AgJMFAYbooIqolJoRLuM81SpeUkpkvA==}
+  ansi-regex@6.2.2:
+    resolution: {integrity: sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg==}
     engines: {node: '>=12'}
 
   ansi-styles@3.2.1:
@@ -4553,8 +4556,8 @@ packages:
     resolution: {integrity: sha512-Cxwpt2SfTzTtXcfOlzGEee8O+c+MmUgGrNiBcXnuWxuFJHe6a5Hz7qwhwe5OgaSYI0IJvkLqWX1ASG+cJOkEiA==}
     engines: {node: '>=10'}
 
-  ansi-styles@6.2.1:
-    resolution: {integrity: sha512-bN798gFfQX+viw3R7yrGWRqnrN2oRkEkUjjl4JNn4E8GxxbjtG3FbrEIIY3l8/hrwUwIeCZvi4QuOTP4MErVug==}
+  ansi-styles@6.2.3:
+    resolution: {integrity: sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==}
     engines: {node: '>=12'}
 
   ansi_up@6.0.6:
@@ -4918,6 +4921,10 @@ packages:
   cliui@8.0.1:
     resolution: {integrity: sha512-BSeNnyus75C4//NQ9gQt1/csTXyo/8Sb+afLAkzAptFuMsod9HFokGNudZpi/oQV73hnVK+sR+5PVRMd+Dr7YQ==}
     engines: {node: '>=12'}
+
+  cliui@9.0.1:
+    resolution: {integrity: sha512-k7ndgKhwoQveBL+/1tqGJYNz097I7WOvwbmmU2AR5+magtbjPWQTS1C5vzGkBC8Ym8UWRzfKUzUUqFLypY4Q+w==}
+    engines: {node: '>=20'}
 
   clone@2.1.2:
     resolution: {integrity: sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w==}
@@ -5642,6 +5649,9 @@ packages:
   elementary-circuits-directed-graph@1.3.1:
     resolution: {integrity: sha512-ZEiB5qkn2adYmpXGnJKkxT8uJHlW/mxmBpmeqawEHzPxh9HkLD4/1mFYX5l0On+f6rcPIt8/EWlRU2Vo3fX6dQ==}
 
+  emoji-regex@10.6.0:
+    resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
+
   emoji-regex@7.0.3:
     resolution: {integrity: sha512-CwBLREIQ7LvYFB0WyRvwhq5N5qPhc6PMjD6bYggFlI5YyDgl+0vxq5VHbMOFqLg7hfWzmu8T5Z1QofhmTIhItA==}
 
@@ -6141,6 +6151,10 @@ packages:
 
   get-canvas-context@1.0.2:
     resolution: {integrity: sha512-LnpfLf/TNzr9zVOGiIY6aKCz8EKuXmlYNV7CM2pUjBa/B+c2I15tS7KLySep75+FuerJdmArvJLcsAXWEy2H0A==}
+
+  get-east-asian-width@1.4.0:
+    resolution: {integrity: sha512-QZjmEOC+IT1uk6Rx0sX22V6uHWVwbdbxf1faPqJ1QhLdGgsRGCZoyaQBm/piRdJy/D2um6hM1UP7ZEeQ4EkP+Q==}
+    engines: {node: '>=18'}
 
   get-func-name@2.0.2:
     resolution: {integrity: sha512-8vXOvuE167CtIc3OyItco7N/dpRtBbYOsPsXCz7X/PMnlGjYjSGuZJgM1Y7mmew7BKf9BqvLX2tnOVy1BBUsxQ==}
@@ -8495,12 +8509,12 @@ packages:
     peerDependencies:
       react: ^19.1.0
 
-  react-vega@7.7.1:
-    resolution: {integrity: sha512-Dj7n1LkfJEkY/FdwQfOZqIQ+wGUcJNwlTuWhYcuQtbBpTgvtI4wwqOvJ0QWBE19nXMU7t9HmP8sqQO5v6soOlg==}
+  react-vega@8.0.0:
+    resolution: {integrity: sha512-euye4Gec2ScnUK1zbSA2tzZXUwBmbba8bfbzaRVhdEJTGQfaD78bSgqrccrl9b2fKZS1TZXR0NADEHVe6nxvBg==}
     peerDependencies:
       react: ^19.1.0
-      vega: '*'
-      vega-lite: '*'
+      react-dom: ^19.1.0
+      vega-embed: ^7
 
   react-virtuoso@4.14.0:
     resolution: {integrity: sha512-fR+eiCvirSNIRvvCD7ueJPRsacGQvUbjkwgWzBZXVq+yWypoH7mRUvWJzGHIdoRaCZCT+6mMMMwIG2S1BW3uwA==}
@@ -8812,8 +8826,8 @@ packages:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
     hasBin: true
 
-  semver@7.7.2:
-    resolution: {integrity: sha512-RF0Fw+rO5AMf9MAyaRXI4AV0Ulj5lMHqVxxdSgiVbixSCXoEmmX/jk0CuJw4+3SqroYO9VoUh+HcuJivvtJemA==}
+  semver@7.7.3:
+    resolution: {integrity: sha512-SdsKMrI9TdgjdweUSR9MweHA4EJ8YxHn8DFaDisvhVlUOe4BF1tLD7GAj0lIqWVl+dPb/rExr0Btby5loQm20Q==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -9028,6 +9042,10 @@ packages:
     resolution: {integrity: sha512-HnLOCR3vjcY8beoNLtcjZ5/nxn2afmME6lhrDrebokqMap+XbeW8n9TXpPDOqdGK5qcI3oT0GKTW6wC7EMiVqA==}
     engines: {node: '>=12'}
 
+  string-width@7.2.0:
+    resolution: {integrity: sha512-tsaTIkKW9b4N+AEj+SVA+WhJzV7/zMhcSu78mLKWSk7cXMOSHsBKFWUs0fWwq8QyK3MgJBQRX6Gbi4kYbdvGkQ==}
+    engines: {node: '>=18'}
+
   string.prototype.matchall@4.0.12:
     resolution: {integrity: sha512-6CC9uyBL+/48dYizRf7H7VAYCMCNTBeM78x/VTUe9bFEaxBepPJDa1Ow99LqI/1yF7kuy7Q3cQsYMrcjGUcskA==}
     engines: {node: '>= 0.4'}
@@ -9068,8 +9086,8 @@ packages:
     resolution: {integrity: sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A==}
     engines: {node: '>=8'}
 
-  strip-ansi@7.1.0:
-    resolution: {integrity: sha512-iq6eVVI64nQQTRYq2KtEg2d2uU7LElhTJwsH4YzIHZshxlgZms/wIc4VoDQTlG/IvVIrBKG06CrZnp0qv7hkcQ==}
+  strip-ansi@7.1.2:
+    resolution: {integrity: sha512-gmBGslpoQJtgnMAvOVqGZpEz9dyoKTCzy2nfz/n8aIFhN/jCE/rCmcxabB6jOOHV+0WNnylOxaxBQPSvcWklhA==}
     engines: {node: '>=12'}
 
   strip-bom@2.0.0:
@@ -9713,56 +9731,56 @@ packages:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
 
-  vega-canvas@1.2.7:
-    resolution: {integrity: sha512-OkJ9CACVcN9R5Pi9uF6MZBF06pO6qFpDYHWSKBJsdHP5o724KrsgR6UvbnXFH82FdsiTOff/HqjuaG8C7FL+9Q==}
+  vega-canvas@2.0.0:
+    resolution: {integrity: sha512-9x+4TTw/USYST5nx4yN272sy9WcqSRjAR0tkQYZJ4cQIeon7uVsnohvoPQK1JZu7K1QXGUqzj08z0u/UegBVMA==}
 
-  vega-crossfilter@4.1.3:
-    resolution: {integrity: sha512-nyPJAXAUABc3EocUXvAL1J/IWotZVsApIcvOeZaUdEQEtZ7bt8VtP2nj3CLbHBA8FZZVV+K6SmdwvCOaAD4wFQ==}
+  vega-crossfilter@5.1.0:
+    resolution: {integrity: sha512-EmVhfP3p6AM7o/lPan/QAoqjblI19BxWUlvl2TSs0xjQd8KbaYYbS4Ixt3cmEvl0QjRdBMF6CdJJ/cy9DTS4Fw==}
 
-  vega-dataflow@5.7.7:
-    resolution: {integrity: sha512-R2NX2HvgXL+u4E6u+L5lKvvRiCtnE6N6l+umgojfi53suhhkFP+zB+2UAQo4syxuZ4763H1csfkKc4xpqLzKnw==}
+  vega-dataflow@6.1.0:
+    resolution: {integrity: sha512-JxumGlODtFbzoQ4c/jQK8Tb/68ih0lrexlCozcMfTAwQ12XhTqCvlafh7MAKKTMBizjOfaQTHm4Jkyb1H5CfyQ==}
 
-  vega-embed@6.5.1:
-    resolution: {integrity: sha512-yz/L1bN3+fLOpgXVb/8sCRv4GlZpD2/ngeKJAFRiHTIRm5zK6W0KuqZZvyGaO7E4s7RuYjW1TWhRIOqh5rS5hA==}
+  vega-embed@7.1.0:
+    resolution: {integrity: sha512-ZmEIn5XJrQt7fSh2lwtSdXG/9uf3yIqZnvXFEwBJRppiBgrEWZcZbj6VK3xn8sNTFQ+sQDXW5sl/6kmbAW3s5A==}
     peerDependencies:
-      vega: ^5.8.0
+      vega: '*'
       vega-lite: '*'
 
-  vega-encode@4.10.2:
-    resolution: {integrity: sha512-fsjEY1VaBAmqwt7Jlpz0dpPtfQFiBdP9igEefvumSpy7XUxOJmDQcRDnT3Qh9ctkv3itfPfI9g8FSnGcv2b4jQ==}
+  vega-encode@5.1.0:
+    resolution: {integrity: sha512-q26oI7B+MBQYcTQcr5/c1AMsX3FvjZLQOBi7yI0vV+GEn93fElDgvhQiYrgeYSD4Exi/jBPeUXuN6p4bLz16kA==}
 
   vega-event-selector@2.0.6:
     resolution: {integrity: sha512-UwCu50Sqd8kNZ1X/XgiAY+QAyQUmGFAwyDu7y0T5fs6/TPQnDo/Bo346NgSgINBEhEKOAMY1Nd/rPOk4UEm/ew==}
 
-  vega-event-selector@3.0.1:
-    resolution: {integrity: sha512-K5zd7s5tjr1LiOOkjGpcVls8GsH/f2CWCrWcpKy74gTCp+llCdwz0Enqo013ZlGaRNjfgD/o1caJRt3GSaec4A==}
+  vega-event-selector@4.0.0:
+    resolution: {integrity: sha512-CcWF4m4KL/al1Oa5qSzZ5R776q8lRxCj3IafCHs5xipoEHrkgu1BWa7F/IH5HrDNXeIDnqOpSV1pFsAWRak4gQ==}
 
   vega-expression@2.6.6:
     resolution: {integrity: sha512-zxPzXO33FawU3WQHRmHJaRreyJlyMaNMn1uuCFSouJttPkBBWB5gCrha2f5+pF3t4NMFWTnSrgCkR6mcaubnng==}
 
-  vega-expression@5.1.2:
-    resolution: {integrity: sha512-fFeDTh4UtOxlZWL54jf1ZqJHinyerWq/ROiqrQxqLkNJRJ86RmxYTgXwt65UoZ/l4VUv9eAd2qoJeDEf610Umw==}
+  vega-expression@6.1.0:
+    resolution: {integrity: sha512-hHgNx/fQ1Vn1u6vHSamH7lRMsOa/yQeHGGcWVmh8fZafLdwdhCM91kZD9p7+AleNpgwiwzfGogtpATFaMmDFYg==}
 
-  vega-expression@5.2.0:
-    resolution: {integrity: sha512-WRMa4ny3iZIVAzDlBh3ipY2QUuLk2hnJJbfbncPgvTF7BUgbIbKq947z+JicWksYbokl8n1JHXJoqi3XvpG0Zw==}
+  vega-force@5.1.0:
+    resolution: {integrity: sha512-wdnchOSeXpF9Xx8Yp0s6Do9F7YkFeOn/E/nENtsI7NOcyHpICJ5+UkgjUo9QaQ/Yu+dIDU+sP/4NXsUtq6SMaQ==}
 
-  vega-force@4.2.2:
-    resolution: {integrity: sha512-cHZVaY2VNNIG2RyihhSiWniPd2W9R9kJq0znxzV602CgUVgxEfTKtx/lxnVCn8nNrdKAYrGiqIsBzIeKG1GWHw==}
+  vega-format@2.1.0:
+    resolution: {integrity: sha512-i9Ht33IgqG36+S1gFDpAiKvXCPz+q+1vDhDGKK8YsgMxGOG4PzinKakI66xd7SdV4q97FgpR7odAXqtDN2wKqw==}
 
-  vega-format@1.1.3:
-    resolution: {integrity: sha512-wQhw7KR46wKJAip28FF/CicW+oiJaPAwMKdrxlnTA0Nv8Bf7bloRlc+O3kON4b4H1iALLr9KgRcYTOeXNs2MOA==}
+  vega-functions@6.1.0:
+    resolution: {integrity: sha512-yooEbWt0FWMBNoohwLsl25lEh08WsWabTXbbS+q0IXZzWSpX4Cyi45+q7IFyy/2L4oaIfGIIV14dgn3srQQcGA==}
 
-  vega-functions@5.18.0:
-    resolution: {integrity: sha512-+D+ey4bDAhZA2CChh7bRZrcqRUDevv05kd2z8xH+il7PbYQLrhi6g1zwvf8z3KpgGInFf5O13WuFK5DQGkz5lQ==}
+  vega-geo@5.1.0:
+    resolution: {integrity: sha512-H8aBBHfthc3rzDbz/Th18+Nvp00J73q3uXGAPDQqizioDm/CoXCK8cX4pMePydBY9S6ikBiGJrLKFDa80wI20g==}
 
-  vega-geo@4.4.3:
-    resolution: {integrity: sha512-+WnnzEPKIU1/xTFUK3EMu2htN35gp9usNZcC0ZFg2up1/Vqu6JyZsX0PIO51oXSIeXn9bwk6VgzlOmJUcx92tA==}
+  vega-hierarchy@5.1.0:
+    resolution: {integrity: sha512-rZlU8QJNETlB6o73lGCPybZtw2fBBsRIRuFE77aCLFHdGsh6wIifhplVarqE9icBqjUHRRUOmcEYfzwVIPr65g==}
 
-  vega-hierarchy@4.1.3:
-    resolution: {integrity: sha512-0Z+TYKRgOEo8XYXnJc2HWg1EGpcbNAhJ9Wpi9ubIbEyEHqIgjCIyFVN8d4nSfsJOcWDzsSmRqohBztxAhOCSaw==}
+  vega-interpreter@2.2.1:
+    resolution: {integrity: sha512-o+4ZEme2mdFLewlpF76dwPWW2VkZ3TAF3DMcq75/NzA5KPvnN4wnlCM8At2FVawbaHRyGdVkJSS5ROF5KwpHPQ==}
 
-  vega-label@1.3.1:
-    resolution: {integrity: sha512-Emx4b5s7pvuRj3fBkAJ/E2snCoZACfKAwxVId7f/4kYVlAYLb5Swq6W8KZHrH4M9Qds1XJRUYW9/Y3cceqzEFA==}
+  vega-label@2.1.0:
+    resolution: {integrity: sha512-/hgf+zoA3FViDBehrQT42Lta3t8In6YwtMnwjYlh72zNn1p3c7E3YUBwqmAqTM1x+tudgzMRGLYig+bX1ewZxQ==}
 
   vega-lite@3.4.0:
     resolution: {integrity: sha512-RJg9uBNh5g0hA8xTzAcALUfNx0cEq7E7xx+vxPEGSMgI8z+A5KlE9u4jUx6nKu7Mjg1qZO8WOyWCmBS1kdFWPg==}
@@ -9770,90 +9788,90 @@ packages:
     peerDependencies:
       vega: ^5.4.0
 
-  vega-lite@5.23.0:
-    resolution: {integrity: sha512-l4J6+AWE3DIjvovEoHl2LdtCUkfm4zs8Xxx7INwZEAv+XVb6kR6vIN1gt3t2gN2gs/y4DYTs/RPoTeYAuEg6mA==}
+  vega-lite@6.4.1:
+    resolution: {integrity: sha512-KO3ybHNouRK4A0al/+2fN9UqgTEfxrd/ntGLY933Hg5UOYotDVQdshR3zn7OfXwQ7uj0W96Vfa5R+QxO8am3IQ==}
     engines: {node: '>=18'}
     hasBin: true
     peerDependencies:
-      vega: ^5.24.0
+      vega: ^6.0.0
 
-  vega-loader@4.5.3:
-    resolution: {integrity: sha512-dUfIpxTLF2magoMaur+jXGvwMxjtdlDZaIS8lFj6N7IhUST6nIvBzuUlRM+zLYepI5GHtCLOnqdKU4XV0NggCA==}
+  vega-loader@5.1.0:
+    resolution: {integrity: sha512-GaY3BdSPbPNdtrBz8SYUBNmNd8mdPc3mtdZfdkFazQ0RD9m+Toz5oR8fKnTamNSk9fRTJX0Lp3uEqxrAlQVreg==}
 
-  vega-parser@6.6.0:
-    resolution: {integrity: sha512-jltyrwCTtWeidi/6VotLCybhIl+ehwnzvFWYOdWNUP0z/EskdB64YmawNwjCjzTBMemeiQtY6sJPPbewYqe3Vg==}
+  vega-parser@7.1.0:
+    resolution: {integrity: sha512-g0lrYxtmYVW8G6yXpIS4J3Uxt9OUSkc0bLu5afoYDo4rZmoOOdll3x3ebActp5LHPW+usZIE+p5nukRS2vEc7Q==}
 
-  vega-projection@1.6.2:
-    resolution: {integrity: sha512-3pcVaQL9R3Zfk6PzopLX6awzrQUeYOXJzlfLGP2Xd93mqUepBa6m/reVrTUoSFXA3v9lfK4W/PS2AcVzD/MIcQ==}
+  vega-projection@2.1.0:
+    resolution: {integrity: sha512-EjRjVSoMR5ibrU7q8LaOQKP327NcOAM1+eZ+NO4ANvvAutwmbNVTmfA1VpPH+AD0AlBYc39ND/wnRk7SieDiXA==}
 
-  vega-regression@1.3.1:
-    resolution: {integrity: sha512-AmccF++Z9uw4HNZC/gmkQGe6JsRxTG/R4QpbcSepyMvQN1Rj5KtVqMcmVFP1r3ivM4dYGFuPlzMWvuqp0iKMkQ==}
+  vega-regression@2.1.0:
+    resolution: {integrity: sha512-HzC7MuoEwG1rIxRaNTqgcaYF03z/ZxYkQR2D5BN0N45kLnHY1HJXiEcZkcffTsqXdspLjn47yLi44UoCwF5fxQ==}
 
-  vega-runtime@6.2.1:
-    resolution: {integrity: sha512-b4eot3tWKCk++INWqot+6sLn3wDTj/HE+tRSbiaf8aecuniPMlwJEK7wWuhVGeW2Ae5n8fI/8TeTViaC94bNHA==}
+  vega-runtime@7.1.0:
+    resolution: {integrity: sha512-mItI+WHimyEcZlZrQ/zYR3LwHVeyHCWwp7MKaBjkU8EwkSxEEGVceyGUY9X2YuJLiOgkLz/6juYDbMv60pfwYA==}
 
-  vega-scale@7.4.2:
-    resolution: {integrity: sha512-o6Hl76aU1jlCK7Q8DPYZ8OGsp4PtzLdzI6nGpLt8rxoE78QuB3GBGEwGAQJitp4IF7Lb2rL5oAXEl3ZP6xf9jg==}
+  vega-scale@8.1.0:
+    resolution: {integrity: sha512-VEgDuEcOec8+C8+FzLcnAmcXrv2gAJKqQifCdQhkgnsLa978vYUgVfCut/mBSMMHbH8wlUV1D0fKZTjRukA1+A==}
 
-  vega-scenegraph@4.13.1:
-    resolution: {integrity: sha512-LFY9+sLIxRfdDI9ZTKjLoijMkIAzPLBWHpPkwv4NPYgdyx+0qFmv+puBpAUGUY9VZqAZ736Uj5NJY9zw+/M3yQ==}
+  vega-scenegraph@5.1.0:
+    resolution: {integrity: sha512-4gA89CFIxkZX+4Nvl8SZF2MBOqnlj9J5zgdPh/HPx+JOwtzSlUqIhxFpFj7GWYfwzr/PyZnguBLPihPw1Og/cA==}
 
-  vega-schema-url-parser@1.1.0:
-    resolution: {integrity: sha512-Tc85J2ofMZZOsxiqDM9sbvfsa+Vdo3GwNLjEEsPOsCDeYqsUHKAlc1IpbbhPLZ6jusyM9Lk0e1izF64GGklFDg==}
+  vega-schema-url-parser@3.0.2:
+    resolution: {integrity: sha512-xAnR7KAvNPYewI3O0l5QGdT8Tv0+GCZQjqfP39cW/hbe/b3aYMAQ39vm8O2wfXUHzm04xTe7nolcsx8WQNVLRQ==}
 
-  vega-selections@5.6.0:
-    resolution: {integrity: sha512-UE2w78rUUbaV3Ph+vQbQDwh8eywIJYRxBiZdxEG/Tr/KtFMLdy2BDgNZuuDO1Nv8jImPJwONmqjNhNDYwM0VJQ==}
+  vega-selections@6.1.0:
+    resolution: {integrity: sha512-WaHM7D7ghHceEfMsgFeaZnDToWL0mgCFtStVOobNh/OJLh0CL7yNKeKQBqRXJv2Lx74dPNf6nj08+52ytWfW7g==}
 
-  vega-statistics@1.9.0:
-    resolution: {integrity: sha512-GAqS7mkatpXcMCQKWtFu1eMUKLUymjInU0O8kXshWaQrVWjPIO2lllZ1VNhdgE0qGj4oOIRRS11kzuijLshGXQ==}
+  vega-statistics@2.0.0:
+    resolution: {integrity: sha512-dGPfDXnBlgXbZF3oxtkb8JfeRXd5TYHx25Z/tIoaa9jWua4Vf/AoW2wwh8J1qmMy8J03/29aowkp1yk4DOPazQ==}
 
-  vega-themes@2.15.0:
-    resolution: {integrity: sha512-DicRAKG9z+23A+rH/3w3QjJvKnlGhSbbUXGjBvYGseZ1lvj9KQ0BXZ2NS/+MKns59LNpFNHGi9us/wMlci4TOA==}
+  vega-themes@3.0.0:
+    resolution: {integrity: sha512-1iFiI3BNmW9FrsLnDLx0ZKEddsCitRY3XmUAwp6qmp+p+IXyJYc9pfjlVj9E6KXBPfm4cQyU++s0smKNiWzO4g==}
     peerDependencies:
       vega: '*'
       vega-lite: '*'
 
-  vega-time@2.1.3:
-    resolution: {integrity: sha512-hFcWPdTV844IiY0m97+WUoMLADCp+8yUQR1NStWhzBzwDDA7QEGGwYGxALhdMOaDTwkyoNj3V/nox2rQAJD/vQ==}
+  vega-time@3.1.0:
+    resolution: {integrity: sha512-G93mWzPwNa6UYQRkr8Ujur9uqxbBDjDT/WpXjbDY0yygdSkRT+zXF+Sb4gjhW0nPaqdiwkn0R6kZcSPMj1bMNA==}
 
-  vega-tooltip@0.22.1:
-    resolution: {integrity: sha512-mPmzxwvi6+2ZgbZ/+mNC7XbSu5I6Ckon8zdgUfH9neb+vV7CKlV/FYypMdVN/9iDMFUqGzybYdqNOiSPPIxFEQ==}
+  vega-tooltip@1.0.0:
+    resolution: {integrity: sha512-P1R0JP29v0qnTuwzCQ0SPJlkjAzr6qeyj+H4VgUFSykHmHc1OBxda//XBaFDl/bZgIscEMvjKSjZpXd84x3aZQ==}
 
   vega-tooltip@1.1.0:
     resolution: {integrity: sha512-PP4CxC8gX//SBUtlcJkwffmvdZBvzAsqS0EANBKvImJ9PxV/KtJkcs7RCqp+A7nh2cjWdVzyOBWAvqKhXJStTQ==}
 
-  vega-transforms@4.12.1:
-    resolution: {integrity: sha512-Qxo+xeEEftY1jYyKgzOGc9NuW4/MqGm1YPZ5WrL9eXg2G0410Ne+xL/MFIjHF4hRX+3mgFF4Io2hPpfy/thjLg==}
+  vega-transforms@5.1.0:
+    resolution: {integrity: sha512-mj/sO2tSuzzpiXX8JSl4DDlhEmVwM/46MTAzTNQUQzJPMI/n4ChCjr/SdEbfEyzlD4DPm1bjohZGjLc010yuMg==}
 
   vega-typings@0.7.2:
     resolution: {integrity: sha512-BReB2qRERA/Ke+QoxKDQ7fES25A9Q3qKRm1CJxwvpLGhAl4k5cGDORx6yW+J3rFHMzpJlmdRM+kb489EuphxZQ==}
 
-  vega-typings@1.5.0:
-    resolution: {integrity: sha512-tcZ2HwmiQEOXIGyBMP8sdCnoFoVqHn4KQ4H0MQiHwzFU1hb1EXURhfc+Uamthewk4h/9BICtAM3AFQMjBGpjQA==}
+  vega-typings@2.1.0:
+    resolution: {integrity: sha512-zdis4Fg4gv37yEvTTSZEVMNhp8hwyEl7GZ4X4HHddRVRKxWFsbyKvZx/YW5Z9Ox4sjxVA2qHzEbod4Fdx+SEJA==}
 
   vega-util@1.10.0:
     resolution: {integrity: sha512-fTGnTG7FhtTG9tiYDL3k5s8YHqB71Ml5+aC9B7eaBygeB8GKXBrcbTXLOzoCRxT3Jr5cRhr99PMBu0AkqmhBog==}
 
-  vega-util@1.17.3:
-    resolution: {integrity: sha512-nSNpZLUrRvFo46M5OK4O6x6f08WD1yOcEzHNlqivF+sDLSsVpstaF6fdJYwrbf/debFi2L9Tkp4gZQtssup9iQ==}
+  vega-util@1.17.4:
+    resolution: {integrity: sha512-+y3ZW7dEqM8Ck+KRsd+jkMfxfE7MrQxUyIpNjkfhIpGEreym+aTn7XUw1DKXqclr8mqTQvbilPo16B3lnBr0wA==}
 
   vega-util@2.1.0:
     resolution: {integrity: sha512-PGfp0m0QCufDmcxKJCWQy4Ov23FoF8DSXmoJwSezi3itQaa2hbxK0+xwsTMP2vy4PR16Pu25HMzgMwXVW1+33w==}
 
-  vega-view-transforms@4.6.1:
-    resolution: {integrity: sha512-RYlyMJu5kZV4XXjmyTQKADJWDB25SMHsiF+B1rbE1p+pmdQPlp5tGdPl9r5dUJOp3p8mSt/NGI8GPGucmPMxtw==}
+  vega-view-transforms@5.1.0:
+    resolution: {integrity: sha512-fpigh/xn/32t+An1ShoY3MLeGzNdlbAp2+HvFKzPpmpMTZqJEWkk/J/wHU7Swyc28Ta7W1z3fO+8dZkOYO5TWQ==}
 
-  vega-view@5.16.0:
-    resolution: {integrity: sha512-Nxp1MEAY+8bphIm+7BeGFzWPoJnX9+hgvze6wqCAPoM69YiyVR0o0VK8M2EESIL+22+Owr0Fdy94hWHnmon5tQ==}
+  vega-view@6.1.0:
+    resolution: {integrity: sha512-hmHDm/zC65lb23mb9Tr9Gx0wkxP0TMS31LpMPYxIZpvInxvUn7TYitkOtz1elr63k2YZrgmF7ztdGyQ4iCQ5fQ==}
 
-  vega-voronoi@4.2.4:
-    resolution: {integrity: sha512-lWNimgJAXGeRFu2Pz8axOUqVf1moYhD+5yhBzDSmckE9I5jLOyZc/XvgFTXwFnsVkMd1QW1vxJa+y9yfUblzYw==}
+  vega-voronoi@5.1.0:
+    resolution: {integrity: sha512-uKdsoR9x60mz7eYtVG+NhlkdQXeVdMr6jHNAHxs+W+i6kawkUp5S9jp1xf1FmW/uZvtO1eqinHQNwATcDRsiUg==}
 
-  vega-wordcloud@4.1.6:
-    resolution: {integrity: sha512-lFmF3u9/ozU0P+WqPjeThQfZm0PigdbXDwpIUCxczrCXKYJLYFmZuZLZR7cxtmpZ0/yuvRvAJ4g123LXbSZF8A==}
+  vega-wordcloud@5.1.0:
+    resolution: {integrity: sha512-sSdNmT8y2D7xXhM2h76dKyaYn3PA4eV49WUUkfYfqHz/vpcu10GSAoFxLhQQTkbZXR+q5ZB63tFUow9W2IFo6g==}
 
-  vega@5.33.0:
-    resolution: {integrity: sha512-jNAGa7TxLojOpMMMrKMXXBos4K6AaLJbCgGDOw1YEkLRjUkh12pcf65J2lMSdEHjcEK47XXjKiOUVZ8L+MniBA==}
+  vega@6.2.0:
+    resolution: {integrity: sha512-BIwalIcEGysJdQDjeVUmMWB3e50jPDNAMfLJscjEvpunU9bSt7X1OYnQxkg3uBwuRRI4nWfFZO9uIW910nLeGw==}
 
   verror@1.10.0:
     resolution: {integrity: sha512-ZZKSmDAEFOijERBLkmYfJ+vmk3w+7hOLYDNkRCuRuMJGEmqYNCNLyBBFwWKVMhfwaEF3WOd0Zlw86U/WC/+nYw==}
@@ -10097,6 +10115,10 @@ packages:
     resolution: {integrity: sha512-si7QWI6zUMq56bESFvagtmzMdGOtoxfR+Sez11Mobfc7tm+VkUckk9bW2UeffTGVUbOksxmSw0AA2gs8g71NCQ==}
     engines: {node: '>=12'}
 
+  wrap-ansi@9.0.2:
+    resolution: {integrity: sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==}
+    engines: {node: '>=18'}
+
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
@@ -10190,6 +10212,10 @@ packages:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
     engines: {node: '>=12'}
 
+  yargs-parser@22.0.0:
+    resolution: {integrity: sha512-rwu/ClNdSMpkSrUb+d6BRsSkLUq1fmfsY6TOpYzTwvwkg1/NRG85KBy3kq++A8LKQwX6lsu+aWad+2khvuXrqw==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=23}
+
   yargs-parser@4.2.1:
     resolution: {integrity: sha512-+QQWqC2xeL0N5/TE+TY6OGEqyNRM+g2/r712PDNYgiCdXYCApXf1vzfmDSLBxfGRwV+moTq/V8FnMI24JCm2Yg==}
 
@@ -10199,6 +10225,10 @@ packages:
   yargs@17.7.2:
     resolution: {integrity: sha512-7dSzzRQ++CKnNI/krKnYRV7JKKPUXMEh61soaHKg9mrWEhzFWhFnxPxGl+69cD1Ou63C13NUPCnmIcrvqCuM6w==}
     engines: {node: '>=12'}
+
+  yargs@18.0.0:
+    resolution: {integrity: sha512-4UEqdc2RYGHZc7Doyqkrqiln3p9X2DZVxaGbwhn2pi7MrRagKaOcIKe8L3OxYcbhXLgLFUS3zAYuQjKBQgmuNg==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=23}
 
   yargs@6.6.0:
     resolution: {integrity: sha512-6/QWTdisjnu5UHUzQGst+UOEuEVwIzFVGBjq3jMTFNs5WJQsH/X6nMURSaScIdF5txylr1Ao9bvbWiKi2yXbwA==}
@@ -10641,36 +10671,36 @@ snapshots:
       '@actions/core': 1.11.1
       '@actions/github': 6.0.1
       chalk: 4.1.2
-      semver: 7.7.2
+      semver: 7.7.3
       unplugin: 1.16.1
       zod: 3.25.76
 
-  '@codecov/vite-plugin@1.9.1(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))':
+  '@codecov/vite-plugin@1.9.1(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))':
     dependencies:
       '@codecov/bundler-plugin-core': 1.9.1
       unplugin: 1.16.1
-      vite: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
 
-  '@codemirror/autocomplete@6.19.0':
+  '@codemirror/autocomplete@6.19.1':
     dependencies:
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
 
-  '@codemirror/commands@6.9.0':
+  '@codemirror/commands@6.10.0':
     dependencies:
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
 
   '@codemirror/lang-angular@0.1.4':
     dependencies:
       '@codemirror/lang-html': 6.4.9
       '@codemirror/lang-javascript': 6.2.4
       '@codemirror/language': 6.11.3
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
@@ -10681,29 +10711,29 @@ snapshots:
 
   '@codemirror/lang-css@6.3.1':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/css': 1.3.0
 
   '@codemirror/lang-go@6.0.1':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/go': 1.0.1
 
   '@codemirror/lang-html@6.4.9':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/lang-css': 6.3.1
       '@codemirror/lang-javascript': 6.2.4
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/css': 1.3.0
       '@lezer/html': 1.3.10
 
@@ -10714,12 +10744,12 @@ snapshots:
 
   '@codemirror/lang-javascript@6.2.4':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/language': 6.11.3
-      '@codemirror/lint': 6.9.0
+      '@codemirror/lint': 6.9.1
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/javascript': 1.5.1
 
   '@codemirror/lang-json@6.0.2':
@@ -10731,29 +10761,29 @@ snapshots:
     dependencies:
       '@codemirror/lang-css': 6.3.1
       '@codemirror/language': 6.11.3
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@codemirror/lang-liquid@6.2.3':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/lang-html': 6.4.9
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@codemirror/lang-markdown@6.4.0':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/lang-html': 6.4.9
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/markdown': 1.4.3
 
   '@codemirror/lang-php@6.0.2':
@@ -10761,15 +10791,15 @@ snapshots:
       '@codemirror/lang-html': 6.4.9
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/php': 1.0.3
 
   '@codemirror/lang-python@6.2.1':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/python': 1.1.18
 
   '@codemirror/lang-rust@6.0.2':
@@ -10782,15 +10812,15 @@ snapshots:
       '@codemirror/lang-css': 6.3.1
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/sass': 1.1.0
 
   '@codemirror/lang-sql@6.10.0':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
@@ -10799,32 +10829,32 @@ snapshots:
       '@codemirror/lang-html': 6.4.9
       '@codemirror/lang-javascript': 6.2.4
       '@codemirror/language': 6.11.3
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@codemirror/lang-wast@6.0.2':
     dependencies:
       '@codemirror/language': 6.11.3
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@codemirror/lang-xml@6.1.0':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/xml': 1.0.6
 
   '@codemirror/lang-yaml@6.1.2':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
       '@lezer/yaml': 1.0.3
@@ -10858,7 +10888,7 @@ snapshots:
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
       style-mod: 4.1.3
@@ -10867,7 +10897,7 @@ snapshots:
     dependencies:
       '@codemirror/language': 6.11.3
 
-  '@codemirror/lint@6.9.0':
+  '@codemirror/lint@6.9.1':
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
@@ -11343,12 +11373,12 @@ snapshots:
       '@types/node': 20.19.21
     optional: true
 
-  '@inquirer/confirm@5.1.13(@types/node@24.9.1)':
+  '@inquirer/confirm@5.1.13(@types/node@24.9.2)':
     dependencies:
-      '@inquirer/core': 10.1.14(@types/node@24.9.1)
-      '@inquirer/type': 3.0.7(@types/node@24.9.1)
+      '@inquirer/core': 10.1.14(@types/node@24.9.2)
+      '@inquirer/type': 3.0.7(@types/node@24.9.2)
     optionalDependencies:
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
 
   '@inquirer/core@10.1.14(@types/node@20.19.21)':
     dependencies:
@@ -11364,10 +11394,10 @@ snapshots:
       '@types/node': 20.19.21
     optional: true
 
-  '@inquirer/core@10.1.14(@types/node@24.9.1)':
+  '@inquirer/core@10.1.14(@types/node@24.9.2)':
     dependencies:
       '@inquirer/figures': 1.0.12
-      '@inquirer/type': 3.0.7(@types/node@24.9.1)
+      '@inquirer/type': 3.0.7(@types/node@24.9.2)
       ansi-escapes: 4.3.2
       cli-width: 4.1.0
       mute-stream: 2.0.0
@@ -11375,7 +11405,7 @@ snapshots:
       wrap-ansi: 6.2.0
       yoctocolors-cjs: 2.1.2
     optionalDependencies:
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
 
   '@inquirer/figures@1.0.12': {}
 
@@ -11384,9 +11414,9 @@ snapshots:
       '@types/node': 20.19.21
     optional: true
 
-  '@inquirer/type@3.0.7(@types/node@24.9.1)':
+  '@inquirer/type@3.0.7(@types/node@24.9.2)':
     optionalDependencies:
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
 
   '@internationalized/date@3.10.0':
     dependencies:
@@ -11409,7 +11439,7 @@ snapshots:
     dependencies:
       string-width: 5.1.2
       string-width-cjs: string-width@4.2.3
-      strip-ansi: 7.1.0
+      strip-ansi: 7.1.2
       strip-ansi-cjs: strip-ansi@6.0.1
       wrap-ansi: 8.1.0
       wrap-ansi-cjs: wrap-ansi@7.0.0
@@ -11422,12 +11452,12 @@ snapshots:
     dependencies:
       '@sinclair/typebox': 0.27.8
 
-  '@joshwooding/vite-plugin-react-docgen-typescript@0.6.1(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(typescript@5.9.3)':
+  '@joshwooding/vite-plugin-react-docgen-typescript@0.6.1(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(typescript@5.9.3)':
     dependencies:
       glob: 10.4.5
       magic-string: 0.30.18
       react-docgen-typescript: 2.4.0(typescript@5.9.3)
-      vite: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
     optionalDependencies:
       typescript: 5.9.3
 
@@ -11459,96 +11489,96 @@ snapshots:
 
   '@keyv/serialize@1.1.0': {}
 
-  '@lezer/common@1.2.3': {}
+  '@lezer/common@1.3.0': {}
 
   '@lezer/cpp@1.1.3':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/css@1.3.0':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/go@1.0.1':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/highlight@1.2.1':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
 
   '@lezer/html@1.3.10':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/java@1.1.3':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/javascript@1.5.1':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/json@1.0.3':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/lr@1.4.2':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
 
   '@lezer/markdown@1.4.3':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
 
   '@lezer/php@1.0.3':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/python@1.1.18':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/rust@1.0.2':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/sass@1.1.0':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/xml@1.0.6':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
   '@lezer/yaml@1.0.3':
     dependencies:
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
@@ -11621,8 +11651,8 @@ snapshots:
 
   '@marimo-team/codemirror-languageserver@1.16.0(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
-      '@codemirror/lint': 6.9.0
+      '@codemirror/autocomplete': 6.19.1
+      '@codemirror/lint': 6.9.1
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
       '@open-rpc/client-js': 1.8.1
@@ -11633,17 +11663,17 @@ snapshots:
       - encoding
       - utf-8-validate
 
-  '@marimo-team/codemirror-mcp@0.1.5(@codemirror/autocomplete@6.19.0)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@modelcontextprotocol/sdk@1.17.2)':
+  '@marimo-team/codemirror-mcp@0.1.5(@codemirror/autocomplete@6.19.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@modelcontextprotocol/sdk@1.17.2)':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
       '@modelcontextprotocol/sdk': 1.17.2
 
   '@marimo-team/codemirror-sql@0.2.3(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
-      '@codemirror/lint': 6.9.0
+      '@codemirror/autocomplete': 6.19.1
+      '@codemirror/lint': 6.9.1
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
       node-sql-parser: 5.3.12
@@ -13680,13 +13710,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@replit/codemirror-lang-nix@6.0.1(@codemirror/autocomplete@6.19.0)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.2.3)(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)':
+  '@replit/codemirror-lang-nix@6.0.1(@codemirror/autocomplete@6.19.1)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.3.0)(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
@@ -13695,23 +13725,23 @@ snapshots:
       '@codemirror/language': 6.11.3
       '@lezer/highlight': 1.2.1
 
-  '@replit/codemirror-lang-svelte@6.0.0(@codemirror/autocomplete@6.19.0)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.9)(@codemirror/lang-javascript@6.2.4)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.2.3)(@lezer/highlight@1.2.1)(@lezer/javascript@1.5.1)(@lezer/lr@1.4.2)':
+  '@replit/codemirror-lang-svelte@6.0.0(@codemirror/autocomplete@6.19.1)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.9)(@codemirror/lang-javascript@6.2.4)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.3.0)(@lezer/highlight@1.2.1)(@lezer/javascript@1.5.1)(@lezer/lr@1.4.2)':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/lang-css': 6.3.1
       '@codemirror/lang-html': 6.4.9
       '@codemirror/lang-javascript': 6.2.4
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
-      '@lezer/common': 1.2.3
+      '@lezer/common': 1.3.0
       '@lezer/highlight': 1.2.1
       '@lezer/javascript': 1.5.1
       '@lezer/lr': 1.4.2
 
-  '@replit/codemirror-vim@6.3.0(@codemirror/commands@6.9.0)(@codemirror/language@6.11.3)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)':
+  '@replit/codemirror-vim@6.3.0(@codemirror/commands@6.10.0)(@codemirror/language@6.11.3)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)':
     dependencies:
-      '@codemirror/commands': 6.9.0
+      '@codemirror/commands': 6.10.0
       '@codemirror/language': 6.11.3
       '@codemirror/search': 6.5.11
       '@codemirror/state': 6.5.2
@@ -13883,36 +13913,36 @@ snapshots:
 
   '@standard-schema/utils@0.3.0': {}
 
-  '@storybook/addon-docs@9.1.15(@types/react@19.1.12)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))':
+  '@storybook/addon-docs@9.1.15(@types/react@19.1.12)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))':
     dependencies:
       '@mdx-js/react': 3.1.0(@types/react@19.1.12)(react@19.1.1)
-      '@storybook/csf-plugin': 9.1.15(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
+      '@storybook/csf-plugin': 9.1.15(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
       '@storybook/icons': 1.4.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      '@storybook/react-dom-shim': 9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
+      '@storybook/react-dom-shim': 9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
-      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       ts-dedent: 2.2.0
     transitivePeerDependencies:
       - '@types/react'
 
-  '@storybook/addon-links@9.1.15(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))':
+  '@storybook/addon-links@9.1.15(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))':
     dependencies:
       '@storybook/global': 5.0.0
-      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
     optionalDependencies:
       react: 19.1.1
 
-  '@storybook/builder-vite@9.1.15(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))':
+  '@storybook/builder-vite@9.1.15(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))':
     dependencies:
-      '@storybook/csf-plugin': 9.1.15(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
-      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      '@storybook/csf-plugin': 9.1.15(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
+      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       ts-dedent: 2.2.0
-      vite: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
 
-  '@storybook/csf-plugin@9.1.15(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))':
+  '@storybook/csf-plugin@9.1.15(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))':
     dependencies:
-      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       unplugin: 1.16.1
 
   '@storybook/global@5.0.0': {}
@@ -13922,39 +13952,39 @@ snapshots:
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
 
-  '@storybook/react-dom-shim@9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))':
+  '@storybook/react-dom-shim@9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))':
     dependencies:
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
-      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
 
-  '@storybook/react-vite@9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(rollup@4.50.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3)':
+  '@storybook/react-vite@9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(rollup@4.50.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3)':
     dependencies:
-      '@joshwooding/vite-plugin-react-docgen-typescript': 0.6.1(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(typescript@5.9.3)
+      '@joshwooding/vite-plugin-react-docgen-typescript': 0.6.1(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(typescript@5.9.3)
       '@rollup/pluginutils': 5.2.0(rollup@4.50.1)
-      '@storybook/builder-vite': 9.1.15(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
-      '@storybook/react': 9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3)
+      '@storybook/builder-vite': 9.1.15(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
+      '@storybook/react': 9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3)
       find-up: 7.0.0
       magic-string: 0.30.18
       react: 19.1.1
       react-docgen: 8.0.0
       react-dom: 19.1.1(react@19.1.1)
       resolve: 1.22.10
-      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       tsconfig-paths: 4.2.0
-      vite: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
     transitivePeerDependencies:
       - rollup
       - supports-color
       - typescript
 
-  '@storybook/react@9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3)':
+  '@storybook/react@9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3)':
     dependencies:
       '@storybook/global': 5.0.0
-      '@storybook/react-dom-shim': 9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
+      '@storybook/react-dom-shim': 9.1.15(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
-      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
     optionalDependencies:
       typescript: 5.9.3
 
@@ -14383,8 +14413,6 @@ snapshots:
 
   '@types/geojson@7946.0.16': {}
 
-  '@types/geojson@7946.0.4': {}
-
   '@types/har-format@1.2.16': {}
 
   '@types/hast@3.0.4':
@@ -14397,7 +14425,7 @@ snapshots:
 
   '@types/jsdom@21.1.7':
     dependencies:
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
       '@types/tough-cookie': 4.0.5
       parse5: 7.3.0
 
@@ -14433,7 +14461,7 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@24.9.1':
+  '@types/node@24.9.2':
     dependencies:
       undici-types: 7.16.0
 
@@ -14493,7 +14521,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
 
   '@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)':
     dependencies:
@@ -14573,7 +14601,7 @@ snapshots:
       globby: 11.1.0
       is-glob: 4.0.3
       minimatch: 9.0.5
-      semver: 7.7.2
+      semver: 7.7.3
       ts-api-utils: 1.4.3(typescript@5.9.3)
     optionalDependencies:
       typescript: 5.9.3
@@ -14590,7 +14618,7 @@ snapshots:
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
-      semver: 7.7.2
+      semver: 7.7.3
       ts-api-utils: 2.1.0(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -14664,23 +14692,23 @@ snapshots:
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
 
-  '@uiw/codemirror-extensions-basic-setup@4.25.1(@codemirror/autocomplete@6.19.0)(@codemirror/commands@6.9.0)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.0)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)':
+  '@uiw/codemirror-extensions-basic-setup@4.25.1(@codemirror/autocomplete@6.19.1)(@codemirror/commands@6.10.0)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.1)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)':
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
-      '@codemirror/commands': 6.9.0
+      '@codemirror/autocomplete': 6.19.1
+      '@codemirror/commands': 6.10.0
       '@codemirror/language': 6.11.3
-      '@codemirror/lint': 6.9.0
+      '@codemirror/lint': 6.9.1
       '@codemirror/search': 6.5.11
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
 
-  '@uiw/codemirror-extensions-langs@4.25.2(@codemirror/autocomplete@6.19.0)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.9)(@codemirror/lang-javascript@6.2.4)(@codemirror/language-data@6.5.1)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.2.3)(@lezer/highlight@1.2.1)(@lezer/javascript@1.5.1)(@lezer/lr@1.4.2)':
+  '@uiw/codemirror-extensions-langs@4.25.2(@codemirror/autocomplete@6.19.1)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.9)(@codemirror/lang-javascript@6.2.4)(@codemirror/language-data@6.5.1)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.3.0)(@lezer/highlight@1.2.1)(@lezer/javascript@1.5.1)(@lezer/lr@1.4.2)':
     dependencies:
       '@codemirror/language': 6.11.3
       '@codemirror/language-data': 6.5.1
-      '@replit/codemirror-lang-nix': 6.0.1(@codemirror/autocomplete@6.19.0)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.2.3)(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)
+      '@replit/codemirror-lang-nix': 6.0.1(@codemirror/autocomplete@6.19.1)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.3.0)(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)
       '@replit/codemirror-lang-solidity': 6.0.2(@codemirror/language@6.11.3)
-      '@replit/codemirror-lang-svelte': 6.0.0(@codemirror/autocomplete@6.19.0)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.9)(@codemirror/lang-javascript@6.2.4)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.2.3)(@lezer/highlight@1.2.1)(@lezer/javascript@1.5.1)(@lezer/lr@1.4.2)
+      '@replit/codemirror-lang-svelte': 6.0.0(@codemirror/autocomplete@6.19.1)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.9)(@codemirror/lang-javascript@6.2.4)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)(@lezer/common@1.3.0)(@lezer/highlight@1.2.1)(@lezer/javascript@1.5.1)(@lezer/lr@1.4.2)
       codemirror-lang-mermaid: 0.5.0
     transitivePeerDependencies:
       - '@codemirror/autocomplete'
@@ -14694,14 +14722,14 @@ snapshots:
       - '@lezer/javascript'
       - '@lezer/lr'
 
-  '@uiw/react-codemirror@4.25.1(@babel/runtime@7.27.6)(@codemirror/autocomplete@6.19.0)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.0)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.38.6)(codemirror@6.0.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@uiw/react-codemirror@4.25.1(@babel/runtime@7.27.6)(@codemirror/autocomplete@6.19.1)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.1)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.38.6)(codemirror@6.0.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
     dependencies:
       '@babel/runtime': 7.27.6
-      '@codemirror/commands': 6.9.0
+      '@codemirror/commands': 6.10.0
       '@codemirror/state': 6.5.2
       '@codemirror/theme-one-dark': 6.1.3
       '@codemirror/view': 6.38.6
-      '@uiw/codemirror-extensions-basic-setup': 4.25.1(@codemirror/autocomplete@6.19.0)(@codemirror/commands@6.9.0)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.0)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)
+      '@uiw/codemirror-extensions-basic-setup': 4.25.1(@codemirror/autocomplete@6.19.1)(@codemirror/commands@6.10.0)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.1)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)
       codemirror: 6.0.2
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
@@ -14715,16 +14743,16 @@ snapshots:
 
   '@uwdata/flechette@1.1.2': {}
 
-  '@valtown/codemirror-codeium@1.1.1(@codemirror/autocomplete@6.19.0)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)':
+  '@valtown/codemirror-codeium@1.1.1(@codemirror/autocomplete@6.19.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.6)':
     dependencies:
       '@bufbuild/protobuf': 1.10.1
-      '@codemirror/autocomplete': 6.19.0
+      '@codemirror/autocomplete': 6.19.1
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
       '@connectrpc/connect': 1.6.1(@bufbuild/protobuf@1.10.1)
       '@connectrpc/connect-web': 1.6.1(@bufbuild/protobuf@1.10.1)(@connectrpc/connect@1.6.1(@bufbuild/protobuf@1.10.1))
 
-  '@vitejs/plugin-react@5.0.4(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))':
+  '@vitejs/plugin-react@5.0.4(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))':
     dependencies:
       '@babel/core': 7.28.4
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.28.4)
@@ -14732,7 +14760,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.38
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
-      vite: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -14750,23 +14778,23 @@ snapshots:
       chai: 5.2.1
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.4(msw@2.11.1(@types/node@20.19.21)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))':
+  '@vitest/mocker@3.2.4(msw@2.11.1(@types/node@20.19.21)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))':
     dependencies:
       '@vitest/spy': 3.2.4
       estree-walker: 3.0.3
       magic-string: 0.30.18
     optionalDependencies:
       msw: 2.11.1(@types/node@20.19.21)(typescript@5.9.3)
-      vite: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
 
-  '@vitest/mocker@3.2.4(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))':
+  '@vitest/mocker@3.2.4(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))':
     dependencies:
       '@vitest/spy': 3.2.4
       estree-walker: 3.0.3
       magic-string: 0.30.18
     optionalDependencies:
-      msw: 2.11.1(@types/node@24.9.1)(typescript@5.9.3)
-      vite: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      msw: 2.11.1(@types/node@24.9.2)(typescript@5.9.3)
+      vite: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
 
   '@vitest/pretty-format@3.2.4':
     dependencies:
@@ -14996,7 +15024,7 @@ snapshots:
 
   ansi-regex@5.0.1: {}
 
-  ansi-regex@6.1.0: {}
+  ansi-regex@6.2.2: {}
 
   ansi-styles@3.2.1:
     dependencies:
@@ -15008,7 +15036,7 @@ snapshots:
 
   ansi-styles@5.2.0: {}
 
-  ansi-styles@6.2.1: {}
+  ansi-styles@6.2.3: {}
 
   ansi_up@6.0.6: {}
 
@@ -15390,6 +15418,12 @@ snapshots:
       strip-ansi: 6.0.1
       wrap-ansi: 7.0.0
 
+  cliui@9.0.1:
+    dependencies:
+      string-width: 7.2.0
+      strip-ansi: 7.1.2
+      wrap-ansi: 9.0.2
+
   clone@2.1.2: {}
 
   clsx@2.1.1: {}
@@ -15416,10 +15450,10 @@ snapshots:
 
   codemirror@6.0.2:
     dependencies:
-      '@codemirror/autocomplete': 6.19.0
-      '@codemirror/commands': 6.9.0
+      '@codemirror/autocomplete': 6.19.1
+      '@codemirror/commands': 6.10.0
       '@codemirror/language': 6.11.3
-      '@codemirror/lint': 6.9.0
+      '@codemirror/lint': 6.9.1
       '@codemirror/search': 6.5.11
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.6
@@ -15489,11 +15523,11 @@ snapshots:
 
   commander@8.3.0: {}
 
-  compassql@0.21.2(vega@5.33.0):
+  compassql@0.21.2(vega@6.2.0):
     dependencies:
       datalib: 1.7.3
       typescript-json-schema: 0.9.2
-      vega-lite: 3.4.0(vega@5.33.0)
+      vega-lite: 3.4.0(vega@6.2.0)
       yargs: 13.3.2
     transitivePeerDependencies:
       - vega
@@ -15620,7 +15654,7 @@ snapshots:
       postcss-modules-scope: 3.2.1(postcss@8.5.6)
       postcss-modules-values: 4.0.0(postcss@8.5.6)
       postcss-value-parser: 4.2.0
-      semver: 7.7.2
+      semver: 7.7.3
     optionalDependencies:
       webpack: 5.100.2(esbuild@0.25.9)
 
@@ -16171,6 +16205,8 @@ snapshots:
     dependencies:
       strongly-connected-components: 1.0.1
 
+  emoji-regex@10.6.0: {}
+
   emoji-regex@7.0.3: {}
 
   emoji-regex@8.0.0: {}
@@ -16442,11 +16478,11 @@ snapshots:
       eslint: 8.57.1
       globals: 13.24.0
 
-  eslint-plugin-storybook@9.0.17(eslint@8.57.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3):
+  eslint-plugin-storybook@9.0.17(eslint@8.57.1)(storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)))(typescript@5.9.3):
     dependencies:
       '@typescript-eslint/utils': 8.37.0(eslint@8.57.1)(typescript@5.9.3)
       eslint: 8.57.1
-      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      storybook: 9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -16468,18 +16504,18 @@ snapshots:
       read-pkg-up: 7.0.1
       regexp-tree: 0.1.27
       regjsparser: 0.10.0
-      semver: 7.7.2
+      semver: 7.7.3
       strip-indent: 3.0.0
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-vitest@0.4.1(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)):
+  eslint-plugin-vitest@0.4.1(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)):
     dependencies:
       '@typescript-eslint/utils': 7.18.0(eslint@8.57.1)(typescript@5.9.3)
       eslint: 8.57.1
     optionalDependencies:
       '@typescript-eslint/eslint-plugin': 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
-      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)
+      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1)
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -16847,6 +16883,8 @@ snapshots:
   get-caller-file@2.0.5: {}
 
   get-canvas-context@1.0.2: {}
+
+  get-east-asian-width@1.4.0: {}
 
   get-func-name@2.0.2: {}
 
@@ -17634,7 +17672,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
@@ -18581,11 +18619,11 @@ snapshots:
       - '@types/node'
     optional: true
 
-  msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3):
+  msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3):
     dependencies:
       '@bundled-es-modules/cookie': 2.0.1
       '@bundled-es-modules/statuses': 1.0.1
-      '@inquirer/confirm': 5.1.13(@types/node@24.9.1)
+      '@inquirer/confirm': 5.1.13(@types/node@24.9.2)
       '@mswjs/interceptors': 0.39.2
       '@open-draft/deferred-promise': 2.2.0
       '@open-draft/until': 2.1.0
@@ -18677,7 +18715,7 @@ snapshots:
 
   npm-run-all2@6.2.6:
     dependencies:
-      ansi-styles: 6.2.1
+      ansi-styles: 6.2.3
       cross-spawn: 7.0.6
       memorystream: 0.3.1
       minimatch: 9.0.5
@@ -19389,10 +19427,10 @@ snapshots:
       iconv-lite: 0.7.0
       unpipe: 1.0.0
 
-  react-arborist@3.4.3(@types/node@24.9.1)(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+  react-arborist@3.4.3(@types/node@24.9.2)(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       react: 19.1.1
-      react-dnd: 14.0.5(@types/node@24.9.1)(@types/react@19.1.12)(react@19.1.1)
+      react-dnd: 14.0.5(@types/node@24.9.2)(@types/react@19.1.12)(react@19.1.1)
       react-dnd-html5-backend: 14.1.0
       react-dom: 19.1.1(react@19.1.1)
       react-window: 1.8.11(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -19484,14 +19522,14 @@ snapshots:
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
 
-  react-codemirror-merge@4.25.1(@babel/runtime@7.27.6)(@codemirror/autocomplete@6.19.0)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.0)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.38.6)(codemirror@6.0.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+  react-codemirror-merge@4.25.1(@babel/runtime@7.27.6)(@codemirror/autocomplete@6.19.1)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.1)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.38.6)(codemirror@6.0.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       '@babel/runtime': 7.27.6
       '@codemirror/merge': 6.11.0
       '@codemirror/state': 6.5.2
       '@codemirror/theme-one-dark': 6.1.3
       '@codemirror/view': 6.38.6
-      '@uiw/react-codemirror': 4.25.1(@babel/runtime@7.27.6)(@codemirror/autocomplete@6.19.0)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.0)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.38.6)(codemirror@6.0.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      '@uiw/react-codemirror': 4.25.1(@babel/runtime@7.27.6)(@codemirror/autocomplete@6.19.1)(@codemirror/language@6.11.3)(@codemirror/lint@6.9.1)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.38.6)(codemirror@6.0.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       codemirror: 6.0.2
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
@@ -19509,7 +19547,7 @@ snapshots:
     dependencies:
       dnd-core: 14.0.1
 
-  react-dnd@14.0.5(@types/node@24.9.1)(@types/react@19.1.12)(react@19.1.1):
+  react-dnd@14.0.5(@types/node@24.9.2)(@types/react@19.1.12)(react@19.1.1):
     dependencies:
       '@react-dnd/invariant': 2.0.0
       '@react-dnd/shallowequal': 2.0.0
@@ -19518,7 +19556,7 @@ snapshots:
       hoist-non-react-statics: 3.3.2
       react: 19.1.1
     optionalDependencies:
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
       '@types/react': 19.1.12
 
   react-docgen-typescript@2.4.0(typescript@5.9.3):
@@ -19735,15 +19773,12 @@ snapshots:
     dependencies:
       react: 19.1.1
 
-  react-vega@7.7.1(react@19.1.1)(vega-lite@5.23.0(vega@5.33.0))(vega@5.33.0):
+  react-vega@8.0.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(vega-embed@7.1.0(vega-lite@6.4.1(vega@6.2.0))(vega@6.2.0)):
     dependencies:
-      '@types/react': 19.1.12
       fast-deep-equal: 3.1.3
-      prop-types: 15.8.1
       react: 19.1.1
-      vega: 5.33.0
-      vega-embed: 6.5.1(vega-lite@5.23.0(vega@5.33.0))(vega@5.33.0)
-      vega-lite: 5.23.0(vega@5.33.0)
+      react-dom: 19.1.1(react@19.1.1)
+      vega-embed: 7.1.0(vega-lite@6.4.1(vega@6.2.0))(vega@6.2.0)
 
   react-virtuoso@4.14.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
@@ -20076,7 +20111,7 @@ snapshots:
       terser: 5.44.0
       yaml: 2.8.1
 
-  rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1):
+  rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1):
     dependencies:
       '@oxc-project/runtime': 0.95.0
       fdir: 6.5.0(picomatch@4.0.3)
@@ -20086,7 +20121,7 @@ snapshots:
       rolldown: 1.0.0-beta.45
       tinyglobby: 0.2.15
     optionalDependencies:
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
       esbuild: 0.25.9
       fsevents: 2.3.3
       jiti: 2.5.1
@@ -20215,7 +20250,7 @@ snapshots:
 
   semver@6.3.1: {}
 
-  semver@7.7.2: {}
+  semver@7.7.3: {}
 
   send@1.2.0:
     dependencies:
@@ -20432,19 +20467,19 @@ snapshots:
       es-errors: 1.3.0
       internal-slot: 1.1.0
 
-  storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)):
+  storybook@9.1.15(@testing-library/dom@10.4.0)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)):
     dependencies:
       '@storybook/global': 5.0.0
       '@testing-library/jest-dom': 6.9.1
       '@testing-library/user-event': 14.6.1(@testing-library/dom@10.4.0)
       '@vitest/expect': 3.2.4
-      '@vitest/mocker': 3.2.4(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      '@vitest/mocker': 3.2.4(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       '@vitest/spy': 3.2.4
       better-opn: 3.0.2
       esbuild: 0.25.9
       esbuild-register: 3.6.0(esbuild@0.25.9)
       recast: 0.23.11
-      semver: 7.7.2
+      semver: 7.7.3
       ws: 8.18.3
     transitivePeerDependencies:
       - '@testing-library/dom'
@@ -20514,7 +20549,13 @@ snapshots:
     dependencies:
       eastasianwidth: 0.2.0
       emoji-regex: 9.2.2
-      strip-ansi: 7.1.0
+      strip-ansi: 7.1.2
+
+  string-width@7.2.0:
+    dependencies:
+      emoji-regex: 10.6.0
+      get-east-asian-width: 1.4.0
+      strip-ansi: 7.1.2
 
   string.prototype.matchall@4.0.12:
     dependencies:
@@ -20583,9 +20624,9 @@ snapshots:
     dependencies:
       ansi-regex: 5.0.1
 
-  strip-ansi@7.1.0:
+  strip-ansi@7.1.2:
     dependencies:
-      ansi-regex: 6.1.0
+      ansi-regex: 6.2.2
 
   strip-bom@2.0.0:
     dependencies:
@@ -21265,126 +21306,111 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vega-canvas@1.2.7: {}
+  vega-canvas@2.0.0: {}
 
-  vega-crossfilter@4.1.3:
+  vega-crossfilter@5.1.0:
     dependencies:
       d3-array: 3.2.4
-      vega-dataflow: 5.7.7
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-util: 2.1.0
 
-  vega-dataflow@5.7.7:
+  vega-dataflow@6.1.0:
     dependencies:
-      vega-format: 1.1.3
-      vega-loader: 4.5.3
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-format: 2.1.0
+      vega-loader: 5.1.0
+      vega-util: 2.1.0
 
-  vega-embed@6.5.1(vega-lite@5.23.0(vega@5.33.0))(vega@5.33.0):
+  vega-embed@7.1.0(vega-lite@6.4.1(vega@6.2.0))(vega@6.2.0):
     dependencies:
       fast-json-patch: 3.1.1
-      json-stringify-pretty-compact: 2.0.0
-      semver: 7.7.2
-      vega: 5.33.0
-      vega-lite: 5.23.0(vega@5.33.0)
-      vega-schema-url-parser: 1.1.0
-      vega-themes: 2.15.0(vega-lite@5.23.0(vega@5.33.0))(vega@5.33.0)
-      vega-tooltip: 0.22.1
+      json-stringify-pretty-compact: 4.0.0
+      semver: 7.7.3
+      tslib: 2.8.1
+      vega: 6.2.0
+      vega-interpreter: 2.2.1
+      vega-lite: 6.4.1(vega@6.2.0)
+      vega-schema-url-parser: 3.0.2
+      vega-themes: 3.0.0(vega-lite@6.4.1(vega@6.2.0))(vega@6.2.0)
+      vega-tooltip: 1.0.0
 
-  vega-encode@4.10.2:
+  vega-encode@5.1.0:
     dependencies:
       d3-array: 3.2.4
       d3-interpolate: 3.0.1
-      vega-dataflow: 5.7.7
-      vega-scale: 7.4.2
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-scale: 8.1.0
+      vega-util: 2.1.0
 
   vega-event-selector@2.0.6: {}
 
-  vega-event-selector@3.0.1: {}
+  vega-event-selector@4.0.0: {}
 
   vega-expression@2.6.6:
     dependencies:
-      vega-util: 1.17.3
+      vega-util: 1.17.4
 
-  vega-expression@5.1.2:
+  vega-expression@6.1.0:
     dependencies:
       '@types/estree': 1.0.8
-      vega-util: 1.17.3
+      vega-util: 2.1.0
 
-  vega-expression@5.2.0:
-    dependencies:
-      '@types/estree': 1.0.8
-      vega-util: 1.17.3
-
-  vega-force@4.2.2:
+  vega-force@5.1.0:
     dependencies:
       d3-force: 3.0.0
-      vega-dataflow: 5.7.7
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-util: 2.1.0
 
-  vega-format@1.1.3:
+  vega-format@2.1.0:
     dependencies:
       d3-array: 3.2.4
       d3-format: 3.1.0
       d3-time-format: 4.1.0
-      vega-time: 2.1.3
-      vega-util: 1.17.3
+      vega-time: 3.1.0
+      vega-util: 2.1.0
 
-  vega-functions@5.18.0:
+  vega-functions@6.1.0:
     dependencies:
       d3-array: 3.2.4
       d3-color: 3.1.0
       d3-geo: 3.1.1
-      vega-dataflow: 5.7.7
-      vega-expression: 5.2.0
-      vega-scale: 7.4.2
-      vega-scenegraph: 4.13.1
-      vega-selections: 5.6.0
-      vega-statistics: 1.9.0
-      vega-time: 2.1.3
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-expression: 6.1.0
+      vega-scale: 8.1.0
+      vega-scenegraph: 5.1.0
+      vega-selections: 6.1.0
+      vega-statistics: 2.0.0
+      vega-time: 3.1.0
+      vega-util: 2.1.0
 
-  vega-geo@4.4.3:
+  vega-geo@5.1.0:
     dependencies:
       d3-array: 3.2.4
       d3-color: 3.1.0
       d3-geo: 3.1.1
-      vega-canvas: 1.2.7
-      vega-dataflow: 5.7.7
-      vega-projection: 1.6.2
-      vega-statistics: 1.9.0
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-canvas: 2.0.0
+      vega-dataflow: 6.1.0
+      vega-projection: 2.1.0
+      vega-statistics: 2.0.0
+      vega-util: 2.1.0
 
-  vega-hierarchy@4.1.3:
+  vega-hierarchy@5.1.0:
     dependencies:
       d3-hierarchy: 3.1.2
-      vega-dataflow: 5.7.7
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-util: 2.1.0
 
-  vega-label@1.3.1:
+  vega-interpreter@2.2.1:
     dependencies:
-      vega-canvas: 1.2.7
-      vega-dataflow: 5.7.7
-      vega-scenegraph: 4.13.1
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-util: 2.1.0
 
-  vega-lite@3.4.0(vega@5.33.0):
+  vega-label@2.1.0:
+    dependencies:
+      vega-canvas: 2.0.0
+      vega-dataflow: 6.1.0
+      vega-scenegraph: 5.1.0
+      vega-util: 2.1.0
+
+  vega-lite@3.4.0(vega@6.2.0):
     dependencies:
       '@types/clone': 0.1.30
       '@types/fast-json-stable-stringify': 2.1.2
@@ -21393,213 +21419,190 @@ snapshots:
       fast-json-stable-stringify: 2.0.0
       json-stringify-pretty-compact: 2.0.0
       tslib: 1.10.0
-      vega: 5.33.0
+      vega: 6.2.0
       vega-event-selector: 2.0.6
       vega-expression: 2.6.6
       vega-typings: 0.7.2
       vega-util: 1.10.0
       yargs: 13.3.2
 
-  vega-lite@5.23.0(vega@5.33.0):
+  vega-lite@6.4.1(vega@6.2.0):
     dependencies:
       json-stringify-pretty-compact: 4.0.0
       tslib: 2.8.1
-      vega: 5.33.0
-      vega-event-selector: 3.0.1
-      vega-expression: 5.1.2
-      vega-util: 1.17.3
-      yargs: 17.7.2
+      vega: 6.2.0
+      vega-event-selector: 4.0.0
+      vega-expression: 6.1.0
+      vega-util: 2.1.0
+      yargs: 18.0.0
 
-  vega-loader@4.5.3:
+  vega-loader@5.1.0:
     dependencies:
       d3-dsv: 3.0.1
-      node-fetch: 2.7.0
       topojson-client: 3.1.0
-      vega-format: 1.1.3
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-format: 2.1.0
+      vega-util: 2.1.0
 
-  vega-parser@6.6.0:
+  vega-parser@7.1.0:
     dependencies:
-      vega-dataflow: 5.7.7
-      vega-event-selector: 3.0.1
-      vega-functions: 5.18.0
-      vega-scale: 7.4.2
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-event-selector: 4.0.0
+      vega-functions: 6.1.0
+      vega-scale: 8.1.0
+      vega-util: 2.1.0
 
-  vega-projection@1.6.2:
+  vega-projection@2.1.0:
     dependencies:
       d3-geo: 3.1.1
       d3-geo-projection: 4.0.0
-      vega-scale: 7.4.2
+      vega-scale: 8.1.0
 
-  vega-regression@1.3.1:
+  vega-regression@2.1.0:
     dependencies:
       d3-array: 3.2.4
-      vega-dataflow: 5.7.7
-      vega-statistics: 1.9.0
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-statistics: 2.0.0
+      vega-util: 2.1.0
 
-  vega-runtime@6.2.1:
+  vega-runtime@7.1.0:
     dependencies:
-      vega-dataflow: 5.7.7
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-util: 2.1.0
 
-  vega-scale@7.4.2:
+  vega-scale@8.1.0:
     dependencies:
       d3-array: 3.2.4
       d3-interpolate: 3.0.1
       d3-scale: 4.0.2
       d3-scale-chromatic: 3.1.0
-      vega-time: 2.1.3
-      vega-util: 1.17.3
+      vega-time: 3.1.0
+      vega-util: 2.1.0
 
-  vega-scenegraph@4.13.1:
+  vega-scenegraph@5.1.0:
     dependencies:
       d3-path: 3.1.0
       d3-shape: 3.2.0
-      vega-canvas: 1.2.7
-      vega-loader: 4.5.3
-      vega-scale: 7.4.2
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-canvas: 2.0.0
+      vega-loader: 5.1.0
+      vega-scale: 8.1.0
+      vega-util: 2.1.0
 
-  vega-schema-url-parser@1.1.0: {}
+  vega-schema-url-parser@3.0.2: {}
 
-  vega-selections@5.6.0:
+  vega-selections@6.1.0:
     dependencies:
       d3-array: 3.2.4
-      vega-expression: 5.2.0
-      vega-util: 1.17.3
+      vega-expression: 6.1.0
+      vega-util: 2.1.0
 
-  vega-statistics@1.9.0:
+  vega-statistics@2.0.0:
     dependencies:
       d3-array: 3.2.4
 
-  vega-themes@2.15.0(vega-lite@5.23.0(vega@5.33.0))(vega@5.33.0):
+  vega-themes@3.0.0(vega-lite@6.4.1(vega@6.2.0))(vega@6.2.0):
     dependencies:
-      vega: 5.33.0
-      vega-lite: 5.23.0(vega@5.33.0)
+      vega: 6.2.0
+      vega-lite: 6.4.1(vega@6.2.0)
 
-  vega-time@2.1.3:
+  vega-time@3.1.0:
     dependencies:
       d3-array: 3.2.4
       d3-time: 3.1.0
-      vega-util: 1.17.3
+      vega-util: 2.1.0
 
-  vega-tooltip@0.22.1:
+  vega-tooltip@1.0.0:
     dependencies:
-      vega-util: 1.17.3
+      vega-util: 2.1.0
 
   vega-tooltip@1.1.0:
     dependencies:
       vega-util: 2.1.0
 
-  vega-transforms@4.12.1:
+  vega-transforms@5.1.0:
     dependencies:
       d3-array: 3.2.4
-      vega-dataflow: 5.7.7
-      vega-statistics: 1.9.0
-      vega-time: 2.1.3
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-statistics: 2.0.0
+      vega-time: 3.1.0
+      vega-util: 2.1.0
 
   vega-typings@0.7.2:
     dependencies:
-      vega-util: 1.17.3
+      vega-util: 1.17.4
 
-  vega-typings@1.5.0:
+  vega-typings@2.1.0:
     dependencies:
-      '@types/geojson': 7946.0.4
-      vega-event-selector: 3.0.1
-      vega-expression: 5.2.0
-      vega-util: 1.17.3
+      '@types/geojson': 7946.0.16
+      vega-event-selector: 4.0.0
+      vega-expression: 6.1.0
+      vega-util: 2.1.0
 
   vega-util@1.10.0: {}
 
-  vega-util@1.17.3: {}
+  vega-util@1.17.4: {}
 
   vega-util@2.1.0: {}
 
-  vega-view-transforms@4.6.1:
+  vega-view-transforms@5.1.0:
     dependencies:
-      vega-dataflow: 5.7.7
-      vega-scenegraph: 4.13.1
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-scenegraph: 5.1.0
+      vega-util: 2.1.0
 
-  vega-view@5.16.0:
+  vega-view@6.1.0:
     dependencies:
       d3-array: 3.2.4
       d3-timer: 3.0.1
-      vega-dataflow: 5.7.7
-      vega-format: 1.1.3
-      vega-functions: 5.18.0
-      vega-runtime: 6.2.1
-      vega-scenegraph: 4.13.1
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-format: 2.1.0
+      vega-functions: 6.1.0
+      vega-runtime: 7.1.0
+      vega-scenegraph: 5.1.0
+      vega-util: 2.1.0
 
-  vega-voronoi@4.2.4:
+  vega-voronoi@5.1.0:
     dependencies:
       d3-delaunay: 6.0.4
-      vega-dataflow: 5.7.7
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-dataflow: 6.1.0
+      vega-util: 2.1.0
 
-  vega-wordcloud@4.1.6:
+  vega-wordcloud@5.1.0:
     dependencies:
-      vega-canvas: 1.2.7
-      vega-dataflow: 5.7.7
-      vega-scale: 7.4.2
-      vega-statistics: 1.9.0
-      vega-util: 1.17.3
-    transitivePeerDependencies:
-      - encoding
+      vega-canvas: 2.0.0
+      vega-dataflow: 6.1.0
+      vega-scale: 8.1.0
+      vega-statistics: 2.0.0
+      vega-util: 2.1.0
 
-  vega@5.33.0:
+  vega@6.2.0:
     dependencies:
-      vega-crossfilter: 4.1.3
-      vega-dataflow: 5.7.7
-      vega-encode: 4.10.2
-      vega-event-selector: 3.0.1
-      vega-expression: 5.2.0
-      vega-force: 4.2.2
-      vega-format: 1.1.3
-      vega-functions: 5.18.0
-      vega-geo: 4.4.3
-      vega-hierarchy: 4.1.3
-      vega-label: 1.3.1
-      vega-loader: 4.5.3
-      vega-parser: 6.6.0
-      vega-projection: 1.6.2
-      vega-regression: 1.3.1
-      vega-runtime: 6.2.1
-      vega-scale: 7.4.2
-      vega-scenegraph: 4.13.1
-      vega-statistics: 1.9.0
-      vega-time: 2.1.3
-      vega-transforms: 4.12.1
-      vega-typings: 1.5.0
-      vega-util: 1.17.3
-      vega-view: 5.16.0
-      vega-view-transforms: 4.6.1
-      vega-voronoi: 4.2.4
-      vega-wordcloud: 4.1.6
-    transitivePeerDependencies:
-      - encoding
+      vega-crossfilter: 5.1.0
+      vega-dataflow: 6.1.0
+      vega-encode: 5.1.0
+      vega-event-selector: 4.0.0
+      vega-expression: 6.1.0
+      vega-force: 5.1.0
+      vega-format: 2.1.0
+      vega-functions: 6.1.0
+      vega-geo: 5.1.0
+      vega-hierarchy: 5.1.0
+      vega-label: 2.1.0
+      vega-loader: 5.1.0
+      vega-parser: 7.1.0
+      vega-projection: 2.1.0
+      vega-regression: 2.1.0
+      vega-runtime: 7.1.0
+      vega-scale: 8.1.0
+      vega-scenegraph: 5.1.0
+      vega-statistics: 2.0.0
+      vega-time: 3.1.0
+      vega-transforms: 5.1.0
+      vega-typings: 2.1.0
+      vega-util: 2.1.0
+      vega-view: 6.1.0
+      vega-view-transforms: 5.1.0
+      vega-voronoi: 5.1.0
+      vega-wordcloud: 5.1.0
 
   verror@1.10.0:
     dependencies:
@@ -21643,13 +21646,13 @@ snapshots:
       - tsx
       - yaml
 
-  vite-node@3.2.4(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1):
+  vite-node@3.2.4(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3(supports-color@10.0.0)
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
     transitivePeerDependencies:
       - '@types/node'
       - esbuild
@@ -21664,26 +21667,26 @@ snapshots:
       - tsx
       - yaml
 
-  vite-plugin-top-level-await@1.6.0(@swc/helpers@0.5.17)(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(rollup@4.50.1):
+  vite-plugin-top-level-await@1.6.0(@swc/helpers@0.5.17)(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))(rollup@4.50.1):
     dependencies:
       '@rollup/plugin-virtual': 3.0.2(rollup@4.50.1)
       '@swc/core': 1.12.14(@swc/helpers@0.5.17)
       '@swc/wasm': 1.13.2
       uuid: 10.0.0
-      vite: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
     transitivePeerDependencies:
       - '@swc/helpers'
       - rollup
 
-  vite-plugin-wasm@3.5.0(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)):
+  vite-plugin-wasm@3.5.0(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)):
     dependencies:
-      vite: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
 
   vitest@3.2.4(@types/debug@4.1.12)(@types/node@20.19.21)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@20.19.21)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1):
     dependencies:
       '@types/chai': 5.2.2
       '@vitest/expect': 3.2.4
-      '@vitest/mocker': 3.2.4(msw@2.11.1(@types/node@20.19.21)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      '@vitest/mocker': 3.2.4(msw@2.11.1(@types/node@20.19.21)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       '@vitest/pretty-format': 3.2.4
       '@vitest/runner': 3.2.4
       '@vitest/snapshot': 3.2.4
@@ -21722,11 +21725,11 @@ snapshots:
       - tsx
       - yaml
 
-  vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1):
+  vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(jsdom@24.1.3)(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.1):
     dependencies:
       '@types/chai': 5.2.2
       '@vitest/expect': 3.2.4
-      '@vitest/mocker': 3.2.4(msw@2.11.1(@types/node@24.9.1)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
+      '@vitest/mocker': 3.2.4(msw@2.11.1(@types/node@24.9.2)(typescript@5.9.3))(rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1))
       '@vitest/pretty-format': 3.2.4
       '@vitest/runner': 3.2.4
       '@vitest/snapshot': 3.2.4
@@ -21744,12 +21747,12 @@ snapshots:
       tinyglobby: 0.2.15
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: rolldown-vite@7.1.20(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
-      vite-node: 3.2.4(@types/node@24.9.1)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite: rolldown-vite@7.1.20(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
+      vite-node: 3.2.4(@types/node@24.9.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.44.0)(yaml@2.8.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/debug': 4.1.12
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
       jsdom: 24.1.3
     transitivePeerDependencies:
       - esbuild
@@ -21984,9 +21987,15 @@ snapshots:
 
   wrap-ansi@8.1.0:
     dependencies:
-      ansi-styles: 6.2.1
+      ansi-styles: 6.2.3
       string-width: 5.1.2
-      strip-ansi: 7.1.0
+      strip-ansi: 7.1.2
+
+  wrap-ansi@9.0.2:
+    dependencies:
+      ansi-styles: 6.2.3
+      string-width: 7.2.0
+      strip-ansi: 7.1.2
 
   wrappy@1.0.2: {}
 
@@ -22034,6 +22043,8 @@ snapshots:
 
   yargs-parser@21.1.1: {}
 
+  yargs-parser@22.0.0: {}
+
   yargs-parser@4.2.1:
     dependencies:
       camelcase: 3.0.0
@@ -22060,6 +22071,15 @@ snapshots:
       string-width: 4.2.3
       y18n: 5.0.8
       yargs-parser: 21.1.1
+
+  yargs@18.0.0:
+    dependencies:
+      cliui: 9.0.1
+      escalade: 3.2.0
+      get-caller-file: 2.0.5
+      string-width: 7.2.0
+      y18n: 5.0.8
+      yargs-parser: 22.0.0
 
   yargs@6.6.0:
     dependencies:

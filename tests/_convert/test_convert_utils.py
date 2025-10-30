@@ -10,16 +10,14 @@ from marimo._convert import utils
 
 def test_markdown_to_marimo():
     markdown = "# Hello, World!\nThis is a test."
-    expected = 'mo.md(\n    r"""\n# Hello, World!\nThis is a test.\n"""\n)'  # noqa: E501
+    expected = 'mo.md(r"""\n# Hello, World!\nThis is a test.\n""")'  # noqa: E501
     assert utils.markdown_to_marimo(markdown) == expected
 
     markdown = 'Here are some quotes: """'
     expected = r'''
-mo.md(
-    r"""
+mo.md(r"""
 Here are some quotes: \"\"\"
-"""
-)'''.strip()
+""")'''.strip()
 
     assert utils.markdown_to_marimo(markdown) == expected
 
@@ -32,11 +30,9 @@ def test_markdown_to_marimo_with_quotes():
     markdown = '"this is markdown"'
     expected = (
         '''\
-mo.md(
-    r"""
+mo.md(r"""
 "this is markdown"
-"""
-)'''
+""")'''
     ).strip()
     assert utils.markdown_to_marimo(markdown) == expected
 

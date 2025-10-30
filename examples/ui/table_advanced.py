@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -19,14 +19,12 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        # Tables
+    mo.md("""
+    # Tables
 
-        > “Sometimes I’ll start a sentence and I don’t even know where it’s going. I just hope I find it along the way.”
-        — Michael Scott
-        """
-    )
+    > “Sometimes I’ll start a sentence and I don’t even know where it’s going. I just hope I find it along the way.”
+    — Michael Scott
+    """)
     return
 
 

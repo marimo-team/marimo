@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -24,23 +24,21 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # Using MLX with Marimo
+    mo.md(r"""
+    # Using MLX with Marimo
 
-        ## Chat Example
-        This example shows how to use [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat) to make a chatbot backed by Apple's MLX, using the `mlx_lm` library and marimo.
-        [`mlx_lm`](https://github.com/ml-explore/mlx-examples/tree/main/llm) is a library for running large language models on Apple Silicon.
-        [`mlx`](https://github.com/ml-explore/mlx) is a framework for running machine learning models on Apple Silicon.
+    ## Chat Example
+    This example shows how to use [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat) to make a chatbot backed by Apple's MLX, using the `mlx_lm` library and marimo.
+    [`mlx_lm`](https://github.com/ml-explore/mlx-examples/tree/main/llm) is a library for running large language models on Apple Silicon.
+    [`mlx`](https://github.com/ml-explore/mlx) is a framework for running machine learning models on Apple Silicon.
 
-        Convert your own models to MLX, or find community-converted ones at various quantizations [here](https://huggingface.co/mlx-community).
+    Convert your own models to MLX, or find community-converted ones at various quantizations [here](https://huggingface.co/mlx-community).
 
-        ### Things you can do to improve this example:
-        - [`prompt caching`](https://github.com/ml-explore/mlx-examples/blob/main/llms/README.md#long-prompts-and-generations)
-        - completions / notebook mode
-        - assistant pre-fill
-        """
-    )
+    ### Things you can do to improve this example:
+    - [`prompt caching`](https://github.com/ml-explore/mlx-examples/blob/main/llms/README.md#long-prompts-and-generations)
+    - completions / notebook mode
+    - assistant pre-fill
+    """)
     return
 
 
