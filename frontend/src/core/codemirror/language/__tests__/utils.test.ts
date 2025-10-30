@@ -146,8 +146,12 @@ describe("splitEditor", () => {
       selection: { anchor: "Hello,".length },
     });
     const result = splitEditor(mockEditor);
-    expect(result.beforeCursorCode).toEqual('mo.md("""Hello,""")');
-    expect(result.afterCursorCode).toEqual('mo.md(""" World!""")');
+    expect(result.beforeCursorCode).toEqual(`mo.md("""
+Hello,
+""")`);
+    expect(result.afterCursorCode).toEqual(`mo.md("""
+ World!
+""")`);
   });
 
   // f-strings not currently supported
