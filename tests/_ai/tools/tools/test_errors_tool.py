@@ -119,65 +119,6 @@ def test_get_notebook_errors_marimo_error_only(mock_context: Mock) -> None:
     assert "get_cell_runtime_data" in result.next_steps[0]
 
 
-def test_get_notebook_errors_stderr_only(mock_context: Mock) -> None:
-    """Test get_notebook_errors with STDERR only."""
-    stderr_errors = [
-        MarimoCellErrors(
-            cell_id=CellId_t("c2"),
-            errors=[
-                MarimoErrorDetail(
-                    type="STDERR",
-                    message="warning message",
-                    traceback=[],
-                )
-            ],
-        )
-    ]
-    mock_context.get_notebook_errors.return_value = stderr_errors
-
-    tool = GetNotebookErrors(ToolContext())
-    tool.context = mock_context
-
-    result = tool.handle(GetNotebookErrorsArgs(session_id=SessionId("s1")))
-
-    assert result.has_errors is False
-    assert result.total_errors == 0
-    assert result.total_cells_with_errors == 1
-    assert result.cells[0].errors[0].type == "STDERR"
-
-
-def test_get_notebook_errors_mixed_errors(mock_context: Mock) -> None:
-    """Test get_notebook_errors with both MARIMO_ERROR and STDERR."""
-    mixed_errors = [
-        MarimoCellErrors(
-            cell_id=CellId_t("c1"),
-            errors=[
-                MarimoErrorDetail(
-                    type="ValueError",
-                    message="bad value",
-                    traceback=["line 1"],
-                ),
-                MarimoErrorDetail(
-                    type="STDERR",
-                    message="warn",
-                    traceback=[],
-                ),
-            ],
-        )
-    ]
-    mock_context.get_notebook_errors.return_value = mixed_errors
-
-    tool = GetNotebookErrors(ToolContext())
-    tool.context = mock_context
-
-    result = tool.handle(GetNotebookErrorsArgs(session_id=SessionId("s1")))
-
-    assert result.has_errors is True
-    assert result.total_errors == 1
-    assert result.total_cells_with_errors == 1
-    assert len(result.cells[0].errors) == 2
-
-
 def test_get_notebook_errors_multiple_cells(mock_context: Mock) -> None:
     """Test get_notebook_errors with errors in multiple cells."""
     multiple_errors = [
@@ -190,6 +131,7 @@ def test_get_notebook_errors_multiple_cells(mock_context: Mock) -> None:
                     traceback=[],
                 )
             ],
+            stderr=[],
         ),
         MarimoCellErrors(
             cell_id=CellId_t("c2"),
@@ -198,18 +140,14 @@ def test_get_notebook_errors_multiple_cells(mock_context: Mock) -> None:
                     type="TypeError",
                     message="error in c2",
                     traceback=[],
-                )
-            ],
-        ),
-        MarimoCellErrors(
-            cell_id=CellId_t("c3"),
-            errors=[
+                ),
                 MarimoErrorDetail(
-                    type="STDERR",
-                    message="stderr in c3",
+                    type="ValueError",
+                    message="error in c2",
                     traceback=[],
                 )
             ],
+            stderr=[],
         ),
     ]
     mock_context.get_notebook_errors.return_value = multiple_errors
@@ -220,9 +158,9 @@ def test_get_notebook_errors_multiple_cells(mock_context: Mock) -> None:
     result = tool.handle(GetNotebookErrorsArgs(session_id=SessionId("s1")))
 
     assert result.has_errors is True
-    assert result.total_errors == 2
-    assert result.total_cells_with_errors == 3
-    assert len(result.cells) == 3
+    assert result.total_errors == 3
+    assert result.total_cells_with_errors == 2
+    assert len(result.cells) == 2
 
 
 def test_get_notebook_errors_respects_session_id(mock_context: Mock) -> None:

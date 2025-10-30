@@ -190,25 +190,3 @@ def test_get_visual_output_no_output():
     visual_output, mimetype = tool._get_visual_output(cell_op)  # type: ignore[arg-type]
     assert visual_output is None
     assert mimetype is None
-
-
-def test_get_console_outputs_with_stdout_stderr():
-    tool = GetCellOutputs(ToolContext())
-    console = [
-        MockConsoleOutput(CellChannel.STDOUT, "hello"),
-        MockConsoleOutput(CellChannel.STDERR, "warning"),
-    ]
-    cell_op = MockCellOp(console=console)
-
-    stdout, stderr = tool._get_console_outputs(cell_op)  # type: ignore[arg-type]
-    assert stdout == ["hello"]
-    assert stderr == ["warning"]
-
-
-def test_get_console_outputs_no_console():
-    tool = GetCellOutputs(ToolContext())
-    cell_op = MockCellOp(console=None)
-
-    stdout, stderr = tool._get_console_outputs(cell_op)  # type: ignore[arg-type]
-    assert stdout == []
-    assert stderr == []
