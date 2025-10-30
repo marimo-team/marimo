@@ -347,8 +347,6 @@ class TestGetStatus:
             ("test_app_with_only_comments", "invalid"),
             # Invalid (not marimo apps)
             ("test_invalid", "invalid"),
-            ("test_non_marimo", "invalid"),
-            ("test_parse_error_in_notebook", "invalid"),
             # Has errors
             ("test_get_codes_messy_toplevel", "has_errors"),
             ("test_get_header_comments_invalid", "has_errors"),
@@ -364,9 +362,20 @@ class TestGetStatus:
             ("test_generate_filecontents_empty", "has_errors"), # no body
             ("test_app_with_no_cells", "has_errors"), # No body is an error
 
+            # Syntax errors in code
+            ("test_not_parsable", "broken"),
+            ("test_parse_error_in_notebook", "broken"),
+            # A script that is not a marimo notebook, but uses marimo is
+            # indeterminant, so throws an exception.
+            ("test_non_marimo", "broken"),
         ],
     )
     def test_get_status(filename: str, expected_status: str) -> None:
+        if expected_status == "broken":
+            with pytest.raises((MarimoFileError, SyntaxError)):
+                load.get_notebook_status(get_filepath(filename))
+            return
+
         assert (
             load.get_notebook_status(get_filepath(filename)).status
             == expected_status
