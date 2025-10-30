@@ -291,8 +291,8 @@ class TestGetCodes:
         assert "kwarg_that_doesnt_exist" in caplog.text
 
     @staticmethod
-    def test_get_app_with_bad_decorator(static_load) -> None:
-        app = static_load(get_filepath("test_with_bad_decorator"))
+    def test_get_app_with_decorator(static_load) -> None:
+        app = static_load(get_filepath("test_with_decorator"))
         assert app is not None
         assert app._cell_manager.get_cell_data_by_name("wrap").cell.defs == {
             "wrap"
@@ -300,7 +300,7 @@ class TestGetCodes:
         assert app._cell_manager.get_cell_data_by_name(
             "hundred"
         ).cell.defs == {"hundred"}
-        from codegen_data.test_with_bad_decorator import hundred
+        from codegen_data.test_with_decorator import hundred
 
         assert hundred == 100
 
@@ -319,40 +319,51 @@ class TestGetStatus:
             ("test_generate_filecontents_toplevel", "valid"),
             ("test_generate_filecontents_toplevel_pytest", "valid"),
             ("test_decorators", "valid"),
-            ("test_get_alias_import", "valid"),
             ("test_get_codes_multiline_string", "valid"),
             ("test_get_codes_messy", "valid"),
             ("test_get_codes_single_line_fn", "valid"),
             ("test_get_codes_multiline_fndef", "valid"),
             ("test_get_codes_comment_after_sig", "valid"),
             ("test_get_codes_empty", "valid"),
-            ("test_get_codes_non_marimo_python_script", "valid"),
             ("test_get_header_comments", "valid"),
-            ("test_get_app_kwargs", "valid"),
             ("test_get_setup", "valid"),
             ("test_get_setup_blank", "valid"),
-            ("test_generate_filecontents_empty_with_config", "valid"),
             ("test_generate_filecontents_shadowed_builtin", "valid"),
             ("test_generate_filecontents_unshadowed_builtin", "valid"),
             ("test_app_with_annotation_typing", "valid"),
             ("test_long_line_in_main", "valid"),
+            ("test_with_decorator", "valid"),
+            # Potentially confusing but valid
+            ("test_get_codes_with_name_error", "valid"), # runtime error
+            ("test_syntax_errors", "valid"), # runtime syntax errors
+            # Broken signature, but fine otherwise
+            ("test_get_codes_with_incorrect_args_rets", "valid"),
+            # unparse cells
+            ("test_generate_filecontents_with_syntax_error", "valid"),
+
             # Empty files
             ("test_empty", "empty"),
-            ("test_generate_filecontents_empty", "empty"),
-            ("test_app_with_no_cells", "empty"),
-            ("test_app_with_only_comments", "empty"),
+            # No cells
+            ("test_app_with_only_comments", "invalid"),
             # Invalid (not marimo apps)
             ("test_invalid", "invalid"),
             ("test_non_marimo", "invalid"),
+            ("test_parse_error_in_notebook", "invalid"),
             # Has errors
             ("test_get_codes_messy_toplevel", "has_errors"),
-            ("test_syntax_errors", "has_errors"),
-            ("test_with_bad_decorator", "has_errors"),
-            ("test_get_codes_with_incorrect_args_rets", "has_errors"),
-            ("test_get_codes_with_name_error", "has_errors"),
-            ("test_generate_filecontents_with_syntax_error", "has_errors"),
             ("test_get_header_comments_invalid", "has_errors"),
             ("test_get_bad_kwargs", "has_errors"),
+            # Unparsable
+            ("test_get_codes_non_marimo_python_script", "invalid"), # not marimo
+
+            # Potentially confusing and has_errors
+            ("test_get_alias_import", "has_errors"), # not official format
+            ("test_get_app_kwargs", "has_errors"), # Intentionally bad kwargs
+            # Empty files can still be opened.
+            ("test_generate_filecontents_empty_with_config", "has_errors"), # no body
+            ("test_generate_filecontents_empty", "has_errors"), # no body
+            ("test_app_with_no_cells", "has_errors"), # No body is an error
+
         ],
     )
     def test_get_status(filename: str, expected_status: str) -> None:

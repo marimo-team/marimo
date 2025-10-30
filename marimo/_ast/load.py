@@ -35,6 +35,14 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclass
 class LoadResult:
+    """ Result of attempting to load a marimo notebook.
+
+    status can be one of:
+     - empty: No content, or only comments / a doc string
+     - has_errors: Parsed, but has marimo-specific errors (**can load!!**)
+     - invalid: Could not be parsed as a marimo notebook (**cannot load**)
+     - valid: Parsed and valid marimo notebook
+    """
     status: Literal["empty", "has_errors", "invalid", "valid"] = "empty"
     notebook: Optional[NotebookSerialization] = None
     contents: Optional[str] = None
