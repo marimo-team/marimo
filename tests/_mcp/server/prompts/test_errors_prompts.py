@@ -64,4 +64,3 @@ def test_errors_summary_includes_essential_data():
     assert "invalid value" in text
     assert "TypeError" in text
     assert "wrong type" in text
-

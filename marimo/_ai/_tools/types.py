@@ -56,6 +56,7 @@ class MarimoErrorDetail:
     message: str
     traceback: list[str]
 
+
 @dataclass
 class MarimoCellConsoleOutputs:
     stdout: list[str] = field(default_factory=list)

@@ -18,10 +18,10 @@ from typing import (
 
 from marimo import _loggers
 from marimo._ai._tools.types import (
+    MarimoCellConsoleOutputs,
     MarimoCellErrors,
     MarimoErrorDetail,
     MarimoNotebookInfo,
-    MarimoCellConsoleOutputs,
     ToolGuidelines,
 )
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
@@ -168,9 +168,7 @@ class ToolContext:
         for cell_data in cell_manager.cell_data():
             cell_id = cell_data.cell_id
             if cell_id in cell_errors_map:
-                notebook_errors.append(
-                    cell_errors_map[cell_id]
-                )
+                notebook_errors.append(cell_errors_map[cell_id])
 
         return notebook_errors
 
@@ -186,7 +184,10 @@ class ToolContext:
         errors: list[MarimoErrorDetail] = []
         cell_op = maybe_cell_op or self.get_cell_ops(session_id, cell_id)
 
-        if not cell_op.output or cell_op.output.channel != CellChannel.MARIMO_ERROR:
+        if (
+            not cell_op.output
+            or cell_op.output.channel != CellChannel.MARIMO_ERROR
+        ):
             return errors
 
         items = cell_op.output.data
@@ -233,7 +234,7 @@ class ToolContext:
         """
         stdout_messages: list[str] = []
         stderr_messages: list[str] = []
-        
+
         if cell_op.console is None:
             return MarimoCellConsoleOutputs(stdout=[], stderr=[])
 
@@ -254,8 +255,7 @@ class ToolContext:
         cleaned_stderr_messages = clean_output(stderr_messages)
 
         return MarimoCellConsoleOutputs(
-            stdout=cleaned_stdout_messages,
-            stderr=cleaned_stderr_messages
+            stdout=cleaned_stdout_messages, stderr=cleaned_stderr_messages
         )
 
 

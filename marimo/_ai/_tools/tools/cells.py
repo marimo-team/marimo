@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import (
+    MarimoCellConsoleOutputs,
     MarimoErrorDetail,
     SuccessResult,
     ToolGuidelines,
-    MarimoCellConsoleOutputs,
 )
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ast.models import CellData
@@ -108,7 +108,9 @@ class GetCellOutputArgs:
 @dataclass
 class GetCellOutputOutput(SuccessResult):
     visual_output: CellVisualOutput = field(default_factory=CellVisualOutput)
-    console_outputs: MarimoCellConsoleOutputs = field(default_factory=MarimoCellConsoleOutputs)
+    console_outputs: MarimoCellConsoleOutputs = field(
+        default_factory=MarimoCellConsoleOutputs
+    )
 
 
 class GetLightweightCellMap(
@@ -256,9 +258,7 @@ class GetCellRuntimeData(
         cell_code = cell_data.code
 
         # Get cell errors from session view with actual error details
-        cell_errors = context.get_cell_errors(
-            session_id, cell_id
-        )
+        cell_errors = context.get_cell_errors(session_id, cell_id)
 
         # Get cell runtime metadata
         cell_metadata = self._get_cell_metadata(session, cell_id)
