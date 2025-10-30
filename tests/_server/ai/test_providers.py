@@ -320,3 +320,183 @@ def test_anthropic_extract_content_tool_call_id_mapping() -> None:
     tool_data, _ = result[0]
     assert isinstance(tool_data, dict)
     assert tool_data["toolCallId"] == "toolu_123"
+
+
+@pytest.mark.parametrize(
+    ("model_name", "base_url", "expected"),
+    [
+        pytest.param(
+            "o1-mini",
+            None,
+            True,
+            id="o1_mini_no_base_url",
+        ),
+        pytest.param(
+            "o1-preview",
+            None,
+            True,
+            id="o1_preview_no_base_url",
+        ),
+        pytest.param(
+            "o1",
+            None,
+            True,
+            id="o1_no_base_url",
+        ),
+        pytest.param(
+            "o1-2024-12-17",
+            "https://api.openai.com/v1",
+            True,
+            id="o1_dated_openai_base_url",
+        ),
+        pytest.param(
+            "o3-mini",
+            None,
+            True,
+            id="o3_mini_no_base_url",
+        ),
+        pytest.param(
+            "gpt-5-turbo",
+            None,
+            True,
+            id="gpt5_turbo_no_base_url",
+        ),
+        pytest.param(
+            "gpt-5-preview",
+            None,
+            True,
+            id="gpt5_preview_no_base_url",
+        ),
+        pytest.param(
+            "openai/o1-mini",
+            None,
+            True,
+            id="openai_prefix_o1_mini_no_base_url",
+        ),
+        pytest.param(
+            "openai/o1-preview",
+            None,
+            True,
+            id="openai_prefix_o1_preview_no_base_url",
+        ),
+        pytest.param(
+            "openai/gpt-5-turbo",
+            None,
+            True,
+            id="openai_prefix_gpt5_no_base_url",
+        ),
+        pytest.param(
+            "o1-mini",
+            "https://custom.api.com/v1",
+            False,
+            id="o1_custom_base_url",
+        ),
+        pytest.param(
+            "o1-preview",
+            "https://litellm.proxy.com/api/v1",
+            False,
+            id="o1_litellm_proxy",
+        ),
+        pytest.param(
+            "gpt-4",
+            None,
+            False,
+            id="gpt4_no_base_url",
+        ),
+        pytest.param(
+            "gpt-4o",
+            None,
+            False,
+            id="gpt4o_no_base_url",
+        ),
+        pytest.param(
+            "gpt-4",
+            "https://custom.api.com/v1",
+            False,
+            id="gpt4_custom_base_url",
+        ),
+        pytest.param(
+            "olive-model",
+            None,
+            False,
+            id="model_starting_with_o_but_not_reasoning",
+        ),
+        pytest.param(
+            "openrouter/o1-mini",
+            None,
+            False,
+            id="openrouter_prefix_not_openai",
+        ),
+    ],
+)
+def test_is_reasoning_model(
+    model_name: str, base_url: str | None, expected: bool
+) -> None:
+    """Test that _is_reasoning_model correctly identifies reasoning models."""
+    config = AnyProviderConfig(api_key="test-key", base_url=base_url)
+    provider = OpenAIProvider(model_name, config)
+    assert provider._is_reasoning_model(model_name) == expected
+
+
+@pytest.mark.parametrize(
+    ("model_name", "base_url", "expected_params"),
+    [
+        pytest.param(
+            "o1-mini",
+            "https://custom-openai-compatible.com/v1",
+            {"max_tokens": 1000},
+            id="reasoning_model_name_custom_api_no_reasoning",
+        ),
+        pytest.param(
+            "o1-preview",
+            "https://litellm.proxy.com/api/v1",
+            {"max_tokens": 1000},
+            id="o1_preview_litellm_proxy_no_reasoning",
+        ),
+        pytest.param(
+            "o3-mini",
+            "https://corporate-llm.internal/api",
+            {"max_tokens": 1000},
+            id="o3_mini_corporate_proxy_no_reasoning",
+        ),
+    ],
+)
+@patch("openai.AsyncOpenAI")
+async def test_openai_compatible_api_no_reasoning_effort(
+    mock_openai_class, model_name: str, base_url: str, expected_params: dict
+) -> None:
+    """Test that OpenAI-compatible APIs don't get reasoning_effort even with reasoning model names."""
+    # Setup mock
+    mock_client = AsyncMock()
+    mock_openai_class.return_value = mock_client
+    mock_stream = AsyncMock()
+    mock_client.chat.completions.create.return_value = mock_stream
+
+    # Create provider with custom base_url (simulating OpenAI-compatible API)
+    config = AnyProviderConfig(api_key="test-key", base_url=base_url)
+    provider = OpenAIProvider(model_name, config)
+
+    # Call stream_completion
+    messages = [ChatMessage(role="user", content="test message")]
+    await provider.stream_completion(messages, "system prompt", 1000, [])
+
+    # Verify the correct parameters were passed
+    mock_client.chat.completions.create.assert_called_once()
+    call_kwargs = mock_client.chat.completions.create.call_args[1]
+
+    # Check that reasoning_effort is NOT present
+    assert "reasoning_effort" not in call_kwargs, (
+        "reasoning_effort should not be present for OpenAI-compatible APIs"
+    )
+
+    # Check that the expected parameters are present
+    for param_name, param_value in expected_params.items():
+        assert param_name in call_kwargs, (
+            f"Expected parameter {param_name} not found"
+        )
+        assert call_kwargs[param_name] == param_value
+
+    # Ensure max_completion_tokens is not present when reasoning_effort is not used
+    assert "max_completion_tokens" not in call_kwargs, (
+        "max_completion_tokens should not be present when reasoning_effort is not used"
+    )
