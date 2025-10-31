@@ -27,7 +27,7 @@
     "@codemirror/language": "^6.11.3",
     "@codemirror/language-data": "^6.5.1",
     "@codemirror/legacy-modes": "^6.5.2",
-    "@codemirror/lint": "^6.9.0",
+    "@codemirror/lint": "^6.9.1",
     "@codemirror/merge": "^6.11.0",
     "@codemirror/search": "^6.5.11",
     "@codemirror/state": "^6.5.2",
