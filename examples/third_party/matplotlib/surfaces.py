@@ -9,13 +9,15 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Surfaces""")
+    mo.md("""
+    # Surfaces
+    """)
     return
 
 
@@ -153,7 +155,9 @@ def _(plt):
 
 @app.cell
 def _(mo):
-    mo.md("""### Controls""")
+    mo.md("""
+    ### Controls
+    """)
     return
 
 

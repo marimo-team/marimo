@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -39,7 +39,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Simulate!""")
+    mo.md("""
+    ## Simulate!
+    """)
     return
 
 

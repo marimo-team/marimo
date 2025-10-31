@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -45,7 +45,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Setup""")
+    mo.md(r"""
+    ## Setup
+    """)
     return
 
 
@@ -104,7 +106,9 @@ def _(data, dataset_dropdown, pl):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Defining tools""")
+    mo.md(r"""
+    ## Defining tools
+    """)
     return
 
 

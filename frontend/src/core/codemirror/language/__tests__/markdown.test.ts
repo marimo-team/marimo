@@ -27,8 +27,10 @@ describe("MarkdownLanguageAdapter", () => {
       const out = adapter.transformOut(innerCode, metadata);
       expect(out).toMatchInlineSnapshot(`
         [
-          "mo.md(r""" """)",
-          10,
+          "mo.md(r"""
+         
+        """)",
+          12,
         ]
       `);
     });
@@ -227,8 +229,10 @@ describe("MarkdownLanguageAdapter", () => {
     it("empty string", () => {
       const code = "";
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
-      expect(wrappedCode).toBe(`mo.md(""" """)`);
-      expect(offset).toBe(9);
+      expect(wrappedCode).toBe(`mo.md("""
+ 
+""")`);
+      expect(offset).toBe(11);
     });
 
     it("defaults to r-string when there is no last quote prefix", () => {
@@ -236,15 +240,19 @@ describe("MarkdownLanguageAdapter", () => {
       const code = "Hello world";
       metadata.quotePrefix = "r";
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
-      expect(wrappedCode).toBe(`mo.md(r"""Hello world""")`);
-      expect(offset).toBe(10);
+      expect(wrappedCode).toBe(`mo.md(r"""
+Hello world
+""")`);
+      expect(offset).toBe(12);
     });
 
     it("single line", () => {
       const code = "Hello world";
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
-      expect(wrappedCode).toBe(`mo.md("""Hello world""")`);
-      expect(offset).toBe(9);
+      expect(wrappedCode).toBe(`mo.md("""
+Hello world
+""")`);
+      expect(offset).toBe(11);
     });
 
     it("starts with quote", () => {
@@ -283,21 +291,36 @@ describe("MarkdownLanguageAdapter", () => {
     });
 
     it("should escape triple quotes in the Markdown code", () => {
-      const code = 'Markdown with an escaped """quote"""!!';
+      const code = 'Markdown with an escaped """quote""""!!';
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toBe(
-        `mo.md("""Markdown with an escaped \\"""quote\\"""!!""")`,
+        `mo.md("""
+Markdown with an escaped "\\""quote"\\""\\"!!
+""")`,
       );
-      expect(offset).toBe(9);
+      expect(offset).toBe(11);
+    });
+
+    it("should escape triple quotes in the Markdown code with backslash", () => {
+      const code = 'Markdown with an escaped \\"""quote\\""""!!';
+      const [wrappedCode, offset] = adapter.transformOut(code, metadata);
+      expect(wrappedCode).toBe(
+        `mo.md("""
+Markdown with an escaped \\"\\""quote\\"\\""\\"!!
+""")`,
+      );
+      expect(offset).toBe(11);
     });
 
     it("should preserve r strings", () => {
       const code = String.raw`$\nu = \mathllap{}\cdot\mathllap{\alpha}$`;
       metadata.quotePrefix = "r";
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
-      const pythonCode = `mo.md(r"""$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$""")`;
+      const pythonCode = `mo.md(r"""
+$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$
+""")`;
       expect(wrappedCode).toBe(pythonCode);
-      expect(offset).toBe(10);
+      expect(offset).toBe(12);
     });
 
     it("should handle f-strings in transformOut", () => {

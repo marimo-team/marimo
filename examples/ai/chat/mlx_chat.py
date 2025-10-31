@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -192,7 +192,9 @@ def _(generate, max_tokens, mo, model, system_message, temp_slider, tokenizer):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Access the chatbot's historical messages with `chatbot.value`.""")
+    mo.md("""
+    Access the chatbot's historical messages with `chatbot.value`.
+    """)
     return
 
 

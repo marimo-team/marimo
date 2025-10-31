@@ -9,19 +9,23 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
-    mo.md("""# PDF Q&A""")
+    mo.md("""
+    # PDF Q&A
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""This app lets you upload a PDF and ask questions about it.""")
+    mo.md("""
+    This app lets you upload a PDF and ask questions about it.
+    """)
     return
 
 

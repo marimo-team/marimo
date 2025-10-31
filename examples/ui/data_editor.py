@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -38,9 +38,9 @@ def _(DATA_FILE, mo, os):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """The following cell writes the updated dataframe to disk when the submit button is clicked."""
-    )
+    mo.md("""
+    The following cell writes the updated dataframe to disk when the submit button is clicked.
+    """)
     return
 
 

@@ -9,13 +9,15 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Using `databcricks_connect`""")
+    mo.md(r"""
+    # Using `databcricks_connect`
+    """)
     return
 
 

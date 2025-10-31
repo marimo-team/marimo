@@ -7,21 +7,23 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Stacks""")
+    mo.md("""
+    # Stacks
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """Use `mo.hstack` and `mo.vstack` to layout outputs in rows and columns."""
-    )
+    mo.md("""
+    Use `mo.hstack` and `mo.vstack` to layout outputs in rows and columns.
+    """)
     return
 
 
@@ -52,7 +54,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""## Horizontal Stack: `hstack`""")
+    mo.md("""
+    ## Horizontal Stack: `hstack`
+    """)
     return
 
 
@@ -70,7 +74,9 @@ def _(align, boxes, gap, justify, mo, wrap):
 
 @app.cell
 def _(mo):
-    mo.md("""## Vertical Stack: `vstack`""")
+    mo.md("""
+    ## Vertical Stack: `vstack`
+    """)
     return
 
 

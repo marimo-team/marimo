@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -36,9 +36,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """Reading from a Parquet file is as easy as `SELECT * from "data.parquet"`, where `data.parquet` is the path or URL to your parquet file."""
-    )
+    mo.md("""
+    Reading from a Parquet file is as easy as `SELECT * from "data.parquet"`, where `data.parquet` is the path or URL to your parquet file.
+    """)
     return
 
 
@@ -130,15 +130,17 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Advanced usage""")
+    mo.md(r"""
+    ## Advanced usage
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""To customize how your parquet file is read, use [duckdb's `read_parquet` function](https://duckdb.org/docs/data/parquet/overview.html)."""
-    )
+    mo.md(r"""
+    To customize how your parquet file is read, use [duckdb's `read_parquet` function](https://duckdb.org/docs/data/parquet/overview.html).
+    """)
     return
 
 

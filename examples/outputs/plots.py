@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -27,7 +27,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Output a plot object, such as an axis or figure, to see the plot.""")
+    mo.md("""
+    Output a plot object, such as an axis or figure, to see the plot.
+    """)
     return
 
 

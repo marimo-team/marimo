@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium", layout_file="layouts/slides.slides.json")
 
 
@@ -50,7 +50,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Creating the example data set""")
+    mo.md(r"""
+    # Creating the example data set
+    """)
     return
 
 
@@ -89,7 +91,9 @@ def _(duckdb, mo, print_and_run):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Pretty-printing floating-point numbers""")
+    mo.md(r"""
+    # Pretty-printing floating-point numbers
+    """)
     return
 
 
@@ -123,7 +127,9 @@ def _(mo, print_and_run):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Copying the schema of a table""")
+    mo.md(r"""
+    # Copying the schema of a table
+    """)
     return
 
 
@@ -159,7 +165,9 @@ def _(mo, print_and_run):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Shuffling data""")
+    mo.md(r"""
+    # Shuffling data
+    """)
     return
 
 

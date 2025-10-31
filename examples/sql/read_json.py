@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -137,15 +137,17 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Advanced usage""")
+    mo.md(r"""
+    ## Advanced usage
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""To customize how your json file is read, use [duckdb's `read_json` function](https://duckdb.org/docs/data/json/overview.html)."""
-    )
+    mo.md(r"""
+    To customize how your json file is read, use [duckdb's `read_json` function](https://duckdb.org/docs/data/json/overview.html).
+    """)
     return
 
 

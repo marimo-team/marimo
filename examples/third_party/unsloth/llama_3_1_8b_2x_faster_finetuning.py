@@ -14,7 +14,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="full")
 
 
@@ -72,13 +72,17 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("### Load the model")
+    mo.md("""
+    ### Load the model
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Start by choosing a couple of parameters:""")
+    mo.md("""
+    Start by choosing a couple of parameters:
+    """)
     return
 
 
@@ -102,9 +106,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We now add LoRA adapters so we only need to update 1 to 10% of all parameters!"""
-    )
+    mo.md(r"""
+    We now add LoRA adapters so we only need to update 1 to 10% of all parameters!
+    """)
     return
 
 

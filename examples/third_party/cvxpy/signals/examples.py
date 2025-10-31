@@ -1,24 +1,30 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
-    mo.md("# Examples")
+    mo.md("""
+    # Examples
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("## Real Data")
+    mo.md("""
+    ## Real Data
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("### NOAA CO2")
+    mo.md("""
+    ### NOAA CO2
+    """)
     return
 
 
@@ -56,7 +62,9 @@ def _(co2_df, co2_problem, mo, plt):
 
 @app.cell
 def _(mo):
-    mo.md("### Solar power generation")
+    mo.md("""
+    ### Solar power generation
+    """)
     return
 
 
@@ -88,13 +96,17 @@ def _(mo, pv_df, solutions):
 
 @app.cell
 def _(mo):
-    mo.md("## Synthetic Data")
+    mo.md("""
+    ## Synthetic Data
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("### Basic changepoint detection")
+    mo.md("""
+    ### Basic changepoint detection
+    """)
     return
 
 
@@ -111,7 +123,9 @@ def _(dataloaders, mo, plt):
 
 @app.cell
 def _(mo):
-    mo.md("**Exact, nonconvex version**")
+    mo.md("""
+    **Exact, nonconvex version**
+    """)
     return
 
 
@@ -132,7 +146,9 @@ def _(bcd_X_real, bcd_y, mo, solutions):
 
 @app.cell
 def _(mo):
-    mo.md("**Heuristic, convex version**")
+    mo.md("""
+    **Heuristic, convex version**
+    """)
     return
 
 
@@ -149,7 +165,9 @@ def _(bcd_X_real, bcd_y, mo, solutions):
 
 @app.cell
 def _(mo):
-    mo.md("### Harder changepoint detection")
+    mo.md("""
+    ### Harder changepoint detection
+    """)
     return
 
 
@@ -180,7 +198,9 @@ def _(hcd_X_real, hcd_y, mo, solutions):
 
 @app.cell
 def _(mo):
-    mo.md("### Synthetic soiling data")
+    mo.md("""
+    ### Synthetic soiling data
+    """)
     return
 
 

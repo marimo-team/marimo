@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -36,9 +36,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """Reading from a local CSV is as easy as `SELECT * from "data.csv"`, where `data.csv` is the path to your local file (or a URL to a CSV file)."""
-    )
+    mo.md("""
+    Reading from a local CSV is as easy as `SELECT * from "data.csv"`, where `data.csv` is the path to your local file (or a URL to a CSV file).
+    """)
     return
 
 
@@ -131,15 +131,17 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Advanced usage""")
+    mo.md(r"""
+    ## Advanced usage
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""To customize how your CSV is read, including specifying the delimiter type, use [duckdb's `read_csv` function](https://duckdb.org/docs/data/csv/overview.html)."""
-    )
+    mo.md(r"""
+    To customize how your CSV is read, including specifying the delimiter type, use [duckdb's `read_csv` function](https://duckdb.org/docs/data/csv/overview.html).
+    """)
     return
 
 

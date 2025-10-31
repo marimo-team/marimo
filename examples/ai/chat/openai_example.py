@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -73,9 +73,9 @@ def _(mo, openai_key):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """Access the chatbot's historical messages with [`chatbot.value`](https://docs.marimo.io/api/inputs/chat.html#accessing-chat-history)."""
-    )
+    mo.md("""
+    Access the chatbot's historical messages with [`chatbot.value`](https://docs.marimo.io/api/inputs/chat.html#accessing-chat-history).
+    """)
     return
 
 

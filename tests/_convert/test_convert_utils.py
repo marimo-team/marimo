@@ -22,7 +22,10 @@ Here are some quotes: \"\"\"
     assert utils.markdown_to_marimo(markdown) == expected
 
     markdown = r"This has a backslash: \\"
-    expected = 'mo.md(r"""This has a backslash: \\\\""")'  # noqa: E501
+    expected = '''
+mo.md(r"""
+This has a backslash: \\\\
+""")'''.strip()  # noqa: E501
     assert utils.markdown_to_marimo(markdown) == expected
 
 
