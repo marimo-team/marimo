@@ -421,6 +421,25 @@ def serialize_cell(
         raise ValueError("Unknown cell status, please report this issue.")
 
 
+def safe_serialize_cell(
+    extraction: TopLevelExtraction, status: TopLevelStatus
+) -> str:
+    """Additional defensive layer- we should _never_ generate invalid code."""
+    code = serialize_cell(extraction, status)
+    try:
+        ast_parse(code)
+    except SyntaxError as e:
+        LOGGER.warning(
+            f"Generated code for cell {status.name} is invalid, "
+            "falling back to unparsable cell. Please report this error. "
+            f"Error: {e}"
+        )
+        return generate_unparsable_cell(
+            code=status.code, config=status.cell_config, name=status.name
+        )
+    return code
+
+
 def generate_app_constructor(config: Optional[_AppConfig]) -> str:
     updates = {}
     # only include a config setting if it's not a default setting, to
@@ -463,7 +482,9 @@ def generate_filecontents(
     if setup_cell:
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
-    cell_blocks = [serialize_cell(extraction, status) for status in extraction]
+    cell_blocks = [
+        safe_serialize_cell(extraction, status) for status in extraction
+    ]
 
     filecontents = []
     if header_comments is not None:
