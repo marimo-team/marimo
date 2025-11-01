@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { EditorView } from "@codemirror/view";
-import { type JSX, useMemo, useState } from "react";
+import { type JSX, useEffect, useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -64,11 +64,11 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
   const maxHeight = props.maxHeight ? `${props.maxHeight}px` : undefined;
 
   const [localValue, setLocalValue] = useState(props.value);
-
-  // Reset local value when a new value is provided by the user
-  if (localValue !== props.value) {
+  // This is to sync the value from Python whenever the cell is updated
+  // as useState doesn't reinitialize on re-renders
+  useEffect(() => {
     setLocalValue(props.value);
-  }
+  }, [props.value]);
 
   const { onChange: setValueDebounced } = useDebounceControlledState<string>({
     initialValue: props.value,
