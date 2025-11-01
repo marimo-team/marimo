@@ -449,6 +449,29 @@ class TestGeneration:
         )
         assert fndef == expected
 
+    def test_quote_nested_edge_cases(self) -> None:
+        """Test edge cases for quote standardization in type annotations."""
+        # Test mixed quotes where double quotes are preserved
+        referring = 'x: tuple[tuple[Literal["foo", \'bar\']]] = "((foo,),)"'
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(
+            cell, "foo", allowed_refs={"tuple"}, variable_data=ref_vars
+        )
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "tuple[tuple[Literal[\'foo\', \'bar\']]]"):',
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+
+
     @staticmethod
     def test_generate_app_constructor_with_auto_download() -> None:
         config = _AppConfig(
