@@ -463,14 +463,31 @@ class TestGeneration:
         expected = "\n".join(
             [
                 "@app.cell",
-                'def foo(x: "tuple[tuple[Literal[\'foo\', \'bar\']]]"):',
+                "def foo(x: \"tuple[tuple[Literal['foo', 'bar']]]\"):",
                 "    z = x",
                 "    return (z,)",
             ]
         )
         assert fndef == expected
 
+    def test_quote_nested_esscaped_edge_cases(self) -> None:
+        referring = "x: Literal['say \"hello\"'] = 'say \"hello\"'"
+        ref_vars = compile_cell(referring).init_variable_data
 
+        code = "z = x"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(
+            cell, "foo", allowed_refs=set(), variable_data=ref_vars
+        )
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "Literal[\'say \\"hello\\"\']"):',
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
 
     @staticmethod
     def test_generate_app_constructor_with_auto_download() -> None:
