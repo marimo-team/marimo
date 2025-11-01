@@ -463,7 +463,7 @@ class TestGeneration:
         expected = "\n".join(
             [
                 "@app.cell",
-                "def foo(x: \"tuple[tuple[Literal['foo', 'bar']]]\"):",
+                'def foo(x: "tuple[tuple[Literal[\\"foo\\", \\"bar\\"]]]"):',
                 "    z = x",
                 "    return (z,)",
             ]

@@ -246,7 +246,9 @@ def to_annotated_string(
             annotation = variable.annotation_data
             if annotation:
                 if annotation.refs - allowed_refs:
-                    response[name] = f'"{annotation.repr}"'
+                    # replace unescaped quotes with escaped quotes
+                    safe_repr = re.sub(r'(?<!\\)"', r'\\"', annotation.repr)
+                    response[name] = f'"{safe_repr}"'
                 else:
                     response[name] = annotation.repr
     return response
