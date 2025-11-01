@@ -64,12 +64,6 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
   const maxHeight = props.maxHeight ? `${props.maxHeight}px` : undefined;
 
   const [localValue, setLocalValue] = useState(props.value);
-  // This is to sync the value from Python whenever the cell is updated
-  // as useState doesn't reinitialize on re-renders
-  useEffect(() => {
-    setLocalValue(props.value);
-  }, [props.value]);
-
   const { onChange: setValueDebounced } = useDebounceControlledState<string>({
     initialValue: props.value,
     delay: Number.isFinite(props.debounce) ? (props.debounce as number) : 0,
@@ -85,6 +79,11 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
       props.setValue(newValue);
     }
   });
+  // This is to sync the value from Python whenever the cell is updated
+  // as useState doesn't reinitialize on re-renders
+  useEffect(() => {
+    setLocalValue(props.value);
+  }, [props.value]);
 
   const onBlur = useEvent(() => {
     props.setValue(localValue);
