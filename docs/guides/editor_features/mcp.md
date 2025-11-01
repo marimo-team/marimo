@@ -46,6 +46,15 @@ marimo can expose its [AI tools](tools.md) through an MCP server endpoint, allow
 
 When connected to marimo's MCP server, external applications can access all [AI tools](tools.md).
 
+### Available prompts
+
+When connected to marimo's MCP server, external applications can access the following prompts:
+
+| Prompt | Description |
+|--------|-------------|
+| **active_notebooks** | Get current active notebooks and their session IDs and file paths. Returns session IDs and file paths for all active marimo notebook sessions, along with guidance on using these IDs with marimo MCP tools. |
+| **errors_summary** | Get error summaries for all active notebooks. Returns a summary of all errors across active notebooks organized by notebook and cell, including error types, messages, and affected cell IDs. |
+
 ### Connecting external applications
 
 marimo's MCP server works with any MCP-compatible application. Below are setup instructions for some commonly used applications:
