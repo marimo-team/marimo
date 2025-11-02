@@ -24,6 +24,7 @@ import { COLUMN_WRAPPING_STYLES } from "./column-wrapping/feature";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
+import { Filter } from "./filters";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -114,6 +115,18 @@ export const DataTableBody = <TData,>({
     });
   }
 
+  const handleCellDoubleClick = (cell: Cell<TData, unknown>) => {
+    const column = cell.column;
+    // Only filter if the column supports filtering
+    if (!column.getCanFilter() || !column.columnDef.meta?.filterType) {
+      return;
+    }
+    // Use the select filter with the cell's value
+    column.setFilterValue(
+      Filter.select({ options: [cell.getValue()], operator: "in" }),
+    );
+  };
+
   const renderCells = (cells: Cell<TData, unknown>[]) => {
     return cells.map((cell) => {
       const { className, style: pinningstyle } = getPinningStyles(cell.column);
@@ -141,6 +154,7 @@ export const DataTableBody = <TData,>({
           onMouseDown={(e) => handleCellMouseDown(e, cell)}
           onMouseUp={handleCellMouseUp}
           onMouseOver={(e) => handleCellMouseOver(e, cell)}
+          onDoubleClick={() => handleCellDoubleClick(cell)}
         >
           <CellRangeSelectionIndicator cellId={cell.id} />
           <div className="relative">
