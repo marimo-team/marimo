@@ -8,6 +8,7 @@ from inspect import cleandoc
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Optional
+from unittest.mock import patch
 
 import codegen_data.test_main as mod
 import pytest
@@ -488,6 +489,45 @@ class TestGeneration:
             ]
         )
         assert fndef == expected
+
+    def test_safe_serialize_cell_handles_syntax_error(self) -> None:
+        """Test that safe_serialize_cell falls back when ast_parse fails.
+
+        This test mocks ast_parse to fail, exercising the except block in
+        safe_serialize_cell that falls back to generate_unparsable_cell.
+        Goes through the full codegen path via generate_filecontents.
+        """
+        # Create a simple cell that would normally serialize fine
+        code = "x = 1"
+        name = "test_cell"
+
+        # Mock ast_parse to raise SyntaxError and mock the logger
+        with (
+            patch("marimo._ast.codegen.ast_parse") as mock_ast_parse,
+            patch("marimo._ast.codegen.LOGGER.warning") as mock_warning,
+        ):
+            mock_ast_parse.side_effect = SyntaxError("Mock syntax error")
+
+            # Go through the full codegen path
+            result = wrap_generate_filecontents([code], [name])
+
+            # Verify ast_parse was called
+            assert mock_ast_parse.called
+
+            # Verify the result contains an unparsable cell format
+            # (it should contain the original code)
+            assert "x = 1" in result
+            # Unparsable cells use app._unparsable_cell wrapper
+            assert "app._unparsable_cell" in result
+            # Verify it has the cell name
+            assert name in result
+
+            # Verify warning was logged with the correct message
+            assert mock_warning.called
+            warning_message = mock_warning.call_args[0][0]
+            assert "falling back to unparsable cell" in warning_message
+            assert name in warning_message
+            assert "Mock syntax error" in warning_message
 
     @staticmethod
     def test_generate_app_constructor_with_auto_download() -> None:
