@@ -485,6 +485,104 @@ SQL_CASES = [
         expected_defs={"0": ["my_db"], "1": ["my_table"], "2": [], "3": []},
     ),
     GraphTestCase(
+        name="create table with the same name from a different schema",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE TABLE my_table AS SELECT * FROM schema_one.my_table')",
+            "1": "_ = mo.sql(f'SELECT * FROM my_table')",
+        },
+        expected_parents={"0": [], "1": ["0"]},
+        expected_children={"0": ["1"], "1": []},
+        expected_refs={
+            "0": ["mo", "schema_one.my_table"],
+            "1": ["mo", "my_table"],
+        },
+        expected_defs={"0": ["my_table"], "1": []},
+    ),
+    GraphTestCase(
+        name="create table with the same name from catalog.schema hierarchy",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE TABLE my_table AS SELECT * FROM catalog_one.schema_one.my_table')",
+            "1": "_ = mo.sql(f'SELECT * FROM my_table')",
+        },
+        expected_parents={"0": [], "1": ["0"]},
+        expected_children={"0": ["1"], "1": []},
+        expected_refs={
+            "0": ["mo", "catalog_one.schema_one.my_table"],
+            "1": ["mo", "my_table"],
+        },
+        expected_defs={"0": ["my_table"], "1": []},
+    ),
+    GraphTestCase(
+        name="create schema with the same name from a different catalog",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE SCHEMA my_schema')",
+            "1": "_ = mo.sql(f'CREATE TABLE my_schema.my_table AS SELECT * FROM catalog_one.my_schema.my_table')",
+            "2": "_ = mo.sql(f'SELECT * FROM my_schema.my_table')",
+        },
+        expected_parents={"0": [], "1": [], "2": ["1"]},
+        expected_children={"0": [], "1": ["2"], "2": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo", "catalog_one.my_schema.my_table"],
+            "2": ["mo", "my_schema.my_table"],
+        },
+        expected_defs={"0": ["my_schema"], "1": ["my_table"], "2": []},
+    ),
+    GraphTestCase(
+        name="create table that references itself in join prevents self-loop",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE TABLE users AS SELECT 1 as id')",
+            "1": "_ = mo.sql(f'CREATE TABLE orders AS SELECT u.id FROM schema_one.users u JOIN schema_two.orders o ON u.id = o.user_id')",
+            "2": "_ = mo.sql(f'SELECT * FROM orders')",
+        },
+        expected_parents={"0": [], "1": ["0"], "2": ["1"]},
+        expected_children={"0": ["1"], "1": ["2"], "2": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo", "schema_one.users", "schema_two.orders"],
+            "2": ["mo", "orders"],
+        },
+        expected_defs={"0": ["users"], "1": ["orders"], "2": []},
+    ),
+    GraphTestCase(
+        name="multiple tables with hierarchical self-reference patterns",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE TABLE table_a AS SELECT * FROM db1.table_a')",
+            "1": "_ = mo.sql(f'CREATE TABLE table_b AS SELECT * FROM db2.table_b')",
+            "2": "_ = mo.sql(f'SELECT * FROM table_a UNION ALL SELECT * FROM table_b')",
+        },
+        expected_parents={"0": [], "1": [], "2": ["0", "1"]},
+        expected_children={"0": ["2"], "1": ["2"], "2": []},
+        expected_refs={
+            "0": ["mo", "db1.table_a"],
+            "1": ["mo", "db2.table_b"],
+            "2": ["mo", "table_a", "table_b"],
+        },
+        expected_defs={"0": ["table_a"], "1": ["table_b"], "2": []},
+    ),
+    GraphTestCase(
+        name="create table from hierarchical ref then reference it hierarchically",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE SCHEMA my_schema')",
+            "1": "_ = mo.sql(f'CREATE TABLE my_schema.data AS SELECT * FROM external.my_schema.data')",
+            "2": "_ = mo.sql(f'SELECT * FROM my_schema.data')",
+        },
+        expected_parents={"0": [], "1": [], "2": ["1"]},
+        expected_children={"0": [], "1": ["2"], "2": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo", "external.my_schema.data"],
+            "2": ["mo", "my_schema.data"],
+        },
+        expected_defs={"0": ["my_schema"], "1": ["data"], "2": []},
+    ),
+    GraphTestCase(
         name="sql table multiple definitions, different order",
         enabled=HAS_DUCKDB,
         code={

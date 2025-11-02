@@ -331,11 +331,19 @@ class DirectedGraph:
                 if sql_ref:
                     sql_matches = self._find_sql_hierarchical_matches(sql_ref)
                     for matching_cell_ids, _ in sql_matches:
+                        if cell_id in matching_cell_ids:
+                            LOGGER.debug(
+                                "Cell %s is referencing itself", cell_id
+                            )
+                            continue
                         other_ids_defining_name.update(matching_cell_ids)
 
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).
                 for other_id in other_ids_defining_name:
+                    if other_id == cell_id:
+                        LOGGER.error("Cell %s is referencing itself", cell_id)
+                        continue
                     if not self._is_valid_cell_reference(
                         other_id, variable_name
                     ):
