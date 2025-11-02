@@ -171,7 +171,7 @@ overview.
 
     ---
 
-    <a href=outputs/progress_bar"><img src="/_static/example-thumbs/progress_bar.png" /></a>
+    <a href="outputs/progress_bar"><img src="/_static/example-thumbs/progress_bar.png" /></a>
 
 -   🌀 [**Loading spinner**](outputs/spinner.md)
 
