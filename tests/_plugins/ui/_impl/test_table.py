@@ -1088,6 +1088,18 @@ class TestTableGetValueCounts:
             ValueCount(value="others", count=3),
         ]
 
+    def test_with_search(self, table: ui.table) -> None:
+        result = table._search(
+            SearchTableArgs(query="1", page_size=10, page_number=0)
+        )
+        rows = table._searched_manager.get_num_rows(force=True)
+        assert rows is not None
+        assert result.total_rows == 2
+        value_counts = table._get_value_counts(
+            column="repeat", size=2, total_rows=rows
+        )
+        assert value_counts == [ValueCount(value="1", count=2)]
+
 
 def test_table_with_frozen_columns() -> None:
     data = {
