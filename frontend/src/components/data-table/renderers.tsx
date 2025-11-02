@@ -21,10 +21,10 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
 import { COLUMN_WRAPPING_STYLES } from "./column-wrapping/feature";
+import { Filter } from "./filters";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
-import { Filter } from "./filters";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
