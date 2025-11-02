@@ -1060,7 +1060,7 @@ class table(
             LOGGER.warning("Total rows and size is not valid")
             return []
 
-        top_k_rows = self._manager.calculate_top_k_rows(column, size)
+        top_k_rows = self._searched_manager.calculate_top_k_rows(column, size)
         if len(top_k_rows) == 0:
             return []
 
