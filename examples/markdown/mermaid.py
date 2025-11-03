@@ -41,7 +41,7 @@ def _(mo):
         Alice->>John: Hello John, how are you?
         John-->>Alice: Great!
         Alice-)John: See you later!""",
-        language="mermaid",
+        language="md",
         label="Mermaid editor",
     )
     graph
