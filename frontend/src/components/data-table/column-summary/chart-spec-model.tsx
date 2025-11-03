@@ -198,6 +198,8 @@ export class ColumnChartSpecModel<T> {
         }
 
         const histogram: TopLevelFacetedUnitSpec = {
+          width: CONCAT_CHART_WIDTH + CONCAT_NULL_BAR_WIDTH,
+          height: CONCAT_CHART_HEIGHT,
           // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [
             {
