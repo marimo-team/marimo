@@ -106,7 +106,6 @@ class ColumnSummaries:
 
 
 ShowColumnSummaries = Union[bool, Literal["stats", "chart"]]
-CHART_MAX_ROWS_STRING_VALUE_COUNTS = 20_000
 
 DEFAULT_MAX_COLUMNS = 50
 
@@ -978,15 +977,10 @@ class table(
                         )
                         continue
 
-                # For now, we only compute value counts for categorical columns and small tables
+                # We only compute value counts for categorical columns for visual clarity
                 external_type = external_type.lower()
-                if (
-                    column_type == "string"
-                    and ("cat" in external_type or "enum" in external_type)
-                    or (
-                        column_type == "string"
-                        and total_rows <= CHART_MAX_ROWS_STRING_VALUE_COUNTS
-                    )
+                if column_type == "string" and (
+                    "cat" in external_type or "enum" in external_type
                 ):
                     try:
                         val_counts = self._get_value_counts(

@@ -1055,29 +1055,8 @@ class TestTableGetValueCounts:
         )
         table = ui.table(data)
         summaries = table._get_column_summaries(ColumnSummariesArgs())
-        assert summaries.value_counts == {
-            "a": [
-                ValueCount(
-                    value="unique values",
-                    count=CHART_MAX_ROWS_STRING_VALUE_COUNTS,
-                )
-            ]
-        }
+        assert summaries.value_counts == {}  # too many unique values
         assert summaries.data is None
-
-        # If >20k rows, we should not get value_counts
-        data = pd.DataFrame(
-            {
-                "a": [
-                    str(i)
-                    for i in range(CHART_MAX_ROWS_STRING_VALUE_COUNTS + 1)
-                ]
-            }
-        )
-        table = ui.table(data)
-        summaries = table._get_column_summaries(ColumnSummariesArgs())
-        assert summaries.data is None
-        assert summaries.value_counts == {}
 
     def test_with_smaller_limit(self, table: ui.table) -> None:
         value_counts = table._get_value_counts(
@@ -1099,6 +1078,81 @@ class TestTableGetValueCounts:
             column="repeat", size=2, total_rows=rows
         )
         assert value_counts == [ValueCount(value="1", count=2)]
+
+    @pytest.mark.skipif(
+        not DependencyManager.pandas.has(), reason="Pandas not installed"
+    )
+    def test_value_counts_with_few_unique_values(self) -> None:
+        """Test that value_counts are shown when column has <5 unique values and >=20 rows."""
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {
+                "category": ["A"] * 10
+                + ["B"] * 10
+                + ["C"] * 5,  # 3 unique values, 25 rows
+                "numbers": list(range(25)),
+            }
+        )
+
+        table = ui.table(data)
+        summaries = table._get_column_summaries(ColumnSummariesArgs())
+
+        assert "category" in summaries.value_counts, (
+            "value_counts should include 'category' column with 3 unique values. "
+        )
+        assert len(summaries.value_counts["category"]) == 3
+        # Verify the actual counts
+        assert summaries.value_counts["category"][0].value == "A"
+        assert summaries.value_counts["category"][0].count == 10
+
+    @pytest.mark.skipif(
+        not DependencyManager.pandas.has(), reason="Pandas not installed"
+    )
+    def test_value_counts_with_many_unique_values(self) -> None:
+        """Test that value_counts are NOT shown when column has >5 unique values."""
+        import pandas as pd
+
+        # 10 unique values
+        data = pd.DataFrame(
+            {
+                "category": [
+                    f"cat_{i % 10}" for i in range(50)
+                ],  # 10 unique values
+                "numbers": list(range(50)),
+            }
+        )
+
+        table = ui.table(data)
+        summaries = table._get_column_summaries(ColumnSummariesArgs())
+
+        assert "category" not in summaries.value_counts, (
+            "value_counts should not include 'category' when unique values > 5"
+        )
+
+    @pytest.mark.skipif(
+        not DependencyManager.pandas.has(), reason="Pandas not installed"
+    )
+    def test_value_counts_with_too_many_rows(self) -> None:
+        import pandas as pd
+
+        num_rows = CHART_MAX_ROWS_STRING_VALUE_COUNTS + 100
+        categories = (["A", "B", "C"] * ((num_rows // 3) + 1))[:num_rows]
+        numbers = list(range(num_rows))
+
+        data = pd.DataFrame(
+            {
+                "category": categories,  # 3 unique values, >20k rows
+                "numbers": numbers,
+            }
+        )
+
+        table = ui.table(data)
+        summaries = table._get_column_summaries(ColumnSummariesArgs())
+
+        assert "category" not in summaries.value_counts, (
+            f"value_counts should NOT include 'category' when rows ({num_rows}) > {CHART_MAX_ROWS_STRING_VALUE_COUNTS} rows "
+        )
 
 
 def test_table_with_frozen_columns() -> None:
