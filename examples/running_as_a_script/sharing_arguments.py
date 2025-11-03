@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -18,37 +18,35 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        This notebook shows how to parametrize a notebook with optional command-line arguments.
+    mo.md("""
+    This notebook shows how to parametrize a notebook with optional command-line arguments.
 
-        Run the notebook with
+    Run the notebook with
 
-        ```bash
-        marimo edit sharing_arguments.py
-        ```
+    ```bash
+    marimo edit sharing_arguments.py
+    ```
 
-        or
+    or
 
-        ```bash
-        marimo edit sharing_arguments.py -- -learning_rate=1e-3
-        ```
+    ```bash
+    marimo edit sharing_arguments.py -- -learning_rate=1e-3
+    ```
 
-        (Note the `--` separating the filename from the arguments.)
+    (Note the `--` separating the filename from the arguments.)
 
-        or
+    or
 
-        ```bash
-        python sharing_arguments.py -learning_rate=1e-3
-        ```
+    ```bash
+    python sharing_arguments.py -learning_rate=1e-3
+    ```
 
-        See help for the notebook's arguments with
+    See help for the notebook's arguments with
 
-        ```python
-        python sharing_arguments.py --help
-        ```
-        """
-    )
+    ```python
+    python sharing_arguments.py --help
+    ```
+    """)
     return
 
 

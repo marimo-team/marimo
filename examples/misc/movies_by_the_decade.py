@@ -10,19 +10,17 @@
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        !!! tip "This notebook is best viewed as an app."
-            If you're editing this notebook and see code cells, hit `Cmd/Ctrl+.` or
-            click the "app view" button in the bottom right.
-        """
-    )
+    mo.md(r"""
+    !!! tip "This notebook is best viewed as an app."
+        If you're editing this notebook and see code cells, hit `Cmd/Ctrl+.` or
+        click the "app view" button in the bottom right.
+    """)
     return
 
 

@@ -18,10 +18,10 @@ import {
   SquareFunctionIcon,
   TableIcon,
 } from "lucide-react";
+import type { ColorScheme } from "vega-typings";
 import type {
   AggregationFn,
   ChartType,
-  ColorScheme,
   SelectableDataType,
   TimeUnit,
   ValidAggregationFn,
@@ -45,7 +45,9 @@ export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
 };
 
 export const DEFAULT_AGGREGATION: ValidAggregationFn = "mean"; // For y-axis, we default to mean
-export const AGGREGATION_TYPE_ICON: Record<AggregationFn, React.ElementType> = {
+export const AGGREGATION_TYPE_ICON: Partial<
+  Record<AggregationFn, React.ElementType>
+> = {
   none: SquareFunctionIcon,
   count: HashIcon,
   sum: SigmaIcon,
@@ -62,7 +64,9 @@ export const AGGREGATION_TYPE_ICON: Record<AggregationFn, React.ElementType> = {
   bin: RulerDimensionLine,
 };
 
-export const AGGREGATION_TYPE_DESCRIPTIONS: Record<AggregationFn, string> = {
+export const AGGREGATION_TYPE_DESCRIPTIONS: Partial<
+  Record<AggregationFn, string>
+> = {
   none: "No aggregation",
   count: "Count of records",
   sum: "Sum of values",

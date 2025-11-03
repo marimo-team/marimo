@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -19,15 +19,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        # Custom chatbot
+    mo.md("""
+    # Custom chatbot
 
-        This example shows how to make a custom chatbot: just supply a function that takes two arguments,
-        `messages` and `config`, and returns the chatbot's response. This response can be any object; it
-        doesn't have to be a string!
-        """
-    )
+    This example shows how to make a custom chatbot: just supply a function that takes two arguments,
+    `messages` and `config`, and returns the chatbot's response. This response can be any object; it
+    doesn't have to be a string!
+    """)
     return
 
 
@@ -53,7 +51,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""Access the chatbot's historical messages with `chatbot.value`.""")
+    mo.md("""
+    Access the chatbot's historical messages with `chatbot.value`.
+    """)
     return
 
 

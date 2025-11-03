@@ -22,7 +22,8 @@ import {
   XIcon,
 } from "lucide-react";
 import React from "react";
-import { mergeToolCalls } from "use-acp";
+import { JsonRpcError, mergeToolCalls } from "use-acp";
+import { z } from "zod";
 import { ReadonlyDiff } from "@/components/editor/code/readonly-diff";
 import { JsonOutput } from "@/components/editor/output/JsonOutput";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { uniqueByTakeLast } from "@/utils/arrays";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { Strings } from "@/utils/strings";
@@ -102,11 +104,18 @@ export const ErrorBlock = (props: {
   onRetry?: () => void;
   onDismiss?: () => void;
 }) => {
-  const { message } = props.data;
+  const error = props.data;
+  let message = props.data.message;
 
   // Don't show WebSocket connection errors
   if (message.includes("WebSocket")) {
     return null;
+  }
+
+  if (error instanceof JsonRpcError) {
+    const dataStr =
+      typeof error.data === "string" ? error.data : JSON.stringify(error.data);
+    message = `${dataStr} (code: ${error.code})`;
   }
 
   return (
@@ -307,7 +316,9 @@ export const AgentThoughtsBlock = (props: {
 };
 
 export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
-  const plans = props.data.flatMap((item) => item.entries);
+  // Dedupe plans by text, take the last one which may have a status update
+  let plans = props.data.flatMap((item) => item.entries);
+  plans = uniqueByTakeLast(plans, (item) => item.content);
 
   return (
     <div className="rounded-lg border bg-background p-2 text-xs">
@@ -529,6 +540,7 @@ export const SessionNotificationsBlock = <
   data: T[];
   startTimestamp: number;
   endTimestamp: number;
+  isLastBlock: boolean;
 }) => {
   if (props.data.length === 0) {
     return null;
@@ -537,7 +549,9 @@ export const SessionNotificationsBlock = <
 
   const renderItems = (items: T[]) => {
     if (isToolCalls(items)) {
-      return <ToolNotificationsBlock data={items} />;
+      return (
+        <ToolNotificationsBlock data={items} isLastBlock={props.isLastBlock} />
+      );
     }
     if (isAgentThoughts(items)) {
       return (
@@ -591,6 +605,7 @@ export const CurrentModeBlock = (props: {
 
 export const ToolNotificationsBlock = (props: {
   data: (ToolCallNotificationEvent | ToolCallUpdateNotificationEvent)[];
+  isLastBlock: boolean;
 }) => {
   const toolCalls = mergeToolCalls(props.data);
 
@@ -604,7 +619,9 @@ export const ToolNotificationsBlock = (props: {
               ? "success"
               : item.status === "failed"
                 ? "error"
-                : item.status === "in_progress" || item.status === "pending"
+                : (item.status === "in_progress" ||
+                      item.status === "pending") &&
+                    !props.isLastBlock
                   ? "loading"
                   : undefined
           }
@@ -631,7 +648,7 @@ export const DiffBlocks = (props: {
         return (
           <div
             key={item.path}
-            className="border rounded-md overflow-hidden bg-[var(--gray-2)] overflow-y-auto scrollbar-thin"
+            className="border rounded-md overflow-hidden bg-[var(--gray-2)] overflow-y-auto scrollbar-thin max-h-64"
           >
             {/* File path header */}
             <div className="px-2 py-1 bg-[var(--gray-2)] border-b text-xs font-medium text-[var(--gray-11)]">
@@ -651,8 +668,12 @@ export const DiffBlocks = (props: {
 function toolTitle(
   item: Pick<ToolCallUpdateNotificationEvent, "title" | "kind" | "locations">,
 ) {
-  const prefix =
-    item.title || Strings.startCase(item.kind || "") || "Tool call";
+  let title = item.title;
+  // Hack: sometimes title comes back: "undefined", so lets undo that
+  if (title === '"undefined"') {
+    title = undefined;
+  }
+  const prefix = title || Strings.startCase(item.kind || "") || "Tool call";
   const firstLocation = item.locations?.[0];
   // Add the first location if it is not in the title already
   if (firstLocation && !prefix.includes(firstLocation.path)) {
@@ -699,6 +720,22 @@ export const ToolBodyBlock = (props: {
 
   // Completely empty
   if (!content && !hasLocations && rawInput) {
+    // HACK: if the raw input is `abs_path`, `old_string`, `new_string` then handle it as if it is a diff
+    const rawDiff = rawDiffSchema.safeParse(rawInput);
+    if (rawDiff.success) {
+      return (
+        <DiffBlocks
+          data={[
+            {
+              type: "diff",
+              oldText: rawDiff.data.old_string,
+              newText: rawDiff.data.new_string,
+              path: rawDiff.data.abs_path,
+            },
+          ]}
+        />
+      );
+    }
     // Show rawInput
     return (
       <pre className="bg-[var(--slate-2)] p-1 text-muted-foreground border border-[var(--slate-4)] rounded text-xs overflow-auto scrollbar-thin max-h-64">
@@ -728,3 +765,9 @@ export const ToolBodyBlock = (props: {
     </div>
   );
 };
+
+const rawDiffSchema = z.object({
+  abs_path: z.string(),
+  old_string: z.string(),
+  new_string: z.string(),
+});

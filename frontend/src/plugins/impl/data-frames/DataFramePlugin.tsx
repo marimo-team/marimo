@@ -312,9 +312,10 @@ DataFrameComponent.displayName = "DataFrameComponent";
 
 function getColumnSummaries() {
   return Promise.resolve({
-    stats: {},
     data: null,
+    stats: {},
     bin_values: {},
     value_counts: {},
+    show_charts: false,
   });
 }

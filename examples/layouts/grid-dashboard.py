@@ -15,7 +15,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App(
     width="medium",
     layout_file="layouts/grid-dashboard.grid.json",
@@ -24,7 +24,9 @@ app = marimo.App(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Gapminder Dashboard""")
+    mo.md(r"""
+    # Gapminder Dashboard
+    """)
     return
 
 
@@ -47,19 +49,19 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     If you would like to see _how_ this application is made, continue down.
 
     This application is adapted from <https://examples.holoviz.org/gallery/gapminders/gapminders.html>
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Getting the data""")
+    mo.md(r"""
+    # Getting the data
+    """)
     return
 
 
@@ -114,7 +116,9 @@ def _(dataset):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Charting the data""")
+    mo.md(r"""
+    # Charting the data
+    """)
     return
 
 
@@ -294,13 +298,17 @@ def _(HEIGHT, altair_view, hvplot_view, mo, mpl_view, plotly_view):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Building a dashboard""")
+    mo.md(r"""
+    # Building a dashboard
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Creating widgets""")
+    mo.md("""
+    ## Creating widgets
+    """)
     return
 
 
@@ -356,7 +364,9 @@ def _(YEARS, autoplay, set_year):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Creating the charts, reactive to the widgets""")
+    mo.md(r"""
+    ## Creating the charts, reactive to the widgets
+    """)
     return
 
 
@@ -386,13 +396,11 @@ def _(hvplot_view, show_legend, year):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## Add any extra flair
 
     Next we will toggle to "App view" (hit `Cmd/Ctrl+.` or click the "app view") in order to layout our dashboard with the grid layout editor.
-    """
-    )
+    """)
     return
 
 
@@ -404,15 +412,13 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## 🎓 Info
 
     Here you can try out four different plotting libraries controlled by a couple of widgets, for Hans Rosling's [gapminder](https://demo.bokeh.org/gapminder) example.
 
     This application is inspired by [Panel](https://examples.holoviz.org/gallery/gapminders/gapminders.html).
-    """
-    )
+    """)
     return
 
 

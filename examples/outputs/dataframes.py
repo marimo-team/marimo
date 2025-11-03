@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -32,17 +32,15 @@ def _(data):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        marimo has a rich dataframe viewer built-in:
+    mo.md("""
+    marimo has a rich dataframe viewer built-in:
 
-        - built-in global search
-        - per-column sorting and filtering
-        - per-column histograms
-        - download filtered views
-        - paginate through the whole dataframe
-        """
-    )
+    - built-in global search
+    - per-column sorting and filtering
+    - per-column histograms
+    - download filtered views
+    - paginate through the whole dataframe
+    """)
     return
 
 

@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -23,13 +23,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        # Creating a code interpreter
+    mo.md("""
+    # Creating a code interpreter
 
-        This example shows how to create a code-interpreter in a few lines of code.
-        """
-    )
+    This example shows how to create a code-interpreter in a few lines of code.
+    """)
     return
 
 

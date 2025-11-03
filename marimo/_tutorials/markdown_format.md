@@ -155,6 +155,8 @@ values, just use a Python cell:
 mo.md(f"""Like so: {"🍃" * 7}""")
 ```
 
+`````python {.marimo hide_code="true"}
+mo.md(r"""
 ### Limitations on conversion
 
 Whenever you try to implement a cell block like this:
@@ -167,16 +169,16 @@ mo.md("This is a markdown cell")
 
 The markdown format will know to automatically keep this as markdown. However,
 some ambiguous cases can't be converted to markdown like this:
+""")
+`````
 
 ````python {.marimo}
-mo.md(
-    """
-    This is a markdown cell with an execution block in it
-    ```python {.marimo}
-    # Too ambiguous to convert
-    ```
-    """
-)
+mo.md("""
+This is a markdown cell with an execution block in it
+```python {.marimo}
+# Too ambiguous to convert
+```
+""")
 ````
 
 It's not likely that you'll run into this issue, but rest assured that marimo

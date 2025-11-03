@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App(width="full")
 
 
@@ -25,7 +25,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""#Example: Image with range selection""")
+    mo.md("""
+    #Example: Image with range selection
+    """)
     return
 
 
@@ -58,7 +60,9 @@ def _(mo, plot):
 
 @app.cell
 def _(mo):
-    mo.md("""#Example: Image with overlaid trace""")
+    mo.md("""
+    #Example: Image with overlaid trace
+    """)
     return
 
 

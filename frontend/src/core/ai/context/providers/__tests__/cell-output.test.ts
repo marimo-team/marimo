@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 
 // Mock the external dependencies
@@ -320,8 +320,12 @@ describe("Cell output utility functions", () => {
   describe("HTML content parsing", () => {
     let provider: CellOutputContextProvider;
     let mockStore: JotaiStore;
+    let originalCreateElement: typeof document.createElement;
 
     beforeEach(() => {
+      // Save original createElement
+      originalCreateElement = document.createElement;
+
       // Mock DOM methods for HTML parsing
       const mockDiv = {
         innerHTML: "",
@@ -341,6 +345,13 @@ describe("Cell output utility functions", () => {
 
       mockStore = createMockStore(mockNotebook);
       provider = new CellOutputContextProvider(mockStore);
+    });
+
+    afterEach(() => {
+      // Restore original createElement to prevent mock pollution
+      if (originalCreateElement) {
+        document.createElement = originalCreateElement;
+      }
     });
 
     it("should extract text content from HTML", () => {

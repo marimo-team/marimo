@@ -728,11 +728,11 @@ export const AggregationSelect = ({
                   {availableAggregations.map((agg) => {
                     const Icon = AGGREGATION_TYPE_ICON[agg];
                     const subtitle = renderSubtitle(
-                      AGGREGATION_TYPE_DESCRIPTIONS[agg],
+                      AGGREGATION_TYPE_DESCRIPTIONS[agg] ?? "Other",
                     );
                     const selectItem = renderSelectItem({
                       value: agg,
-                      Icon,
+                      Icon: Icon ?? SquareFunctionIcon,
                       subtitle,
                     });
                     if (agg === BIN_AGGREGATION) {

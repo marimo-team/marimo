@@ -13,6 +13,7 @@ import React, {
   useRef,
 } from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import { QueryParamPreservingLink } from "@/components/ui/query-param-preserving-link";
 import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
 
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
@@ -103,6 +104,30 @@ const replaceSrcScripts = (domNode: DOMNode): JSX.Element | undefined => {
     }
     // biome-ignore lint/complexity/noUselessFragments: this is intentional
     return <></>;
+  }
+};
+
+const preserveQueryParamsInAnchorLinks: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+): JSX.Element | undefined => {
+  if (domNode instanceof Element && domNode.name === "a") {
+    const href = domNode.attribs.href;
+    // Only handle anchor links (starting with #)
+    if (href?.startsWith("#") && !href.startsWith("#code/")) {
+      // Get the children from the parsed React node
+      let children: ReactNode = null;
+      if (isValidElement(reactNode) && "props" in reactNode) {
+        const props = reactNode.props as { children?: ReactNode };
+        children = props.children;
+      }
+
+      return (
+        <QueryParamPreservingLink href={href} {...domNode.attribs}>
+          {children}
+        </QueryParamPreservingLink>
+      );
+    }
   }
 };
 
@@ -198,6 +223,7 @@ function parseHtml({
 
   const transformFunctions: TransformFn[] = [
     addCopyButtonToCodehilite,
+    preserveQueryParamsInAnchorLinks,
     removeWrappingBodyTags,
     removeWrappingHtmlTags,
   ];

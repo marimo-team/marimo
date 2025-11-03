@@ -6,10 +6,10 @@ import type {
   Field,
   PolarDef,
   PositionDef,
-} from "vega-lite/build/src/channeldef";
-import type { Encoding } from "vega-lite/build/src/encoding";
-import type { Resolve } from "vega-lite/build/src/resolve";
-import type { FacetFieldDef } from "vega-lite/build/src/spec/facet";
+} from "vega-lite/types_unstable/channeldef.js";
+import type { Encoding } from "vega-lite/types_unstable/encoding.js";
+import type { Resolve } from "vega-lite/types_unstable/resolve.js";
+import type { FacetFieldDef } from "vega-lite/types_unstable/spec/facet.js";
 import type { z } from "zod";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { TypedString } from "@/utils/typed";
@@ -41,6 +41,7 @@ import {
   convertChartTypeToMark,
   convertDataTypeToVega,
 } from "./types";
+import { escapeFieldName } from "./utils";
 
 /**
  * Convert marimo chart configuration to Vega-Lite specification.
@@ -178,7 +179,7 @@ export function getAxisEncoding(
   }
 
   return {
-    field: column.field,
+    field: escapeFieldName(column.field),
     type: convertDataTypeToVega(column.selectedDataType || "unknown"),
     bin: getBinEncoding(chartType, selectedDataType, binValues),
     title: label,
@@ -211,7 +212,7 @@ export function getFacetEncoding(
   );
 
   return {
-    field: facet.field,
+    field: escapeFieldName(facet.field),
     sort: facet.sort,
     timeUnit: getFacetTimeUnit(facet),
     type: convertDataTypeToVega(facet.selectedDataType || "unknown"),
@@ -244,7 +245,7 @@ function getPieChartSpec(
   );
 
   const colorEncoding: ColorDef<string> = {
-    field: colorByColumn.field,
+    field: escapeFieldName(colorByColumn.field),
     type: convertDataTypeToVega(colorByColumn.selectedDataType || "unknown"),
     scale: getColorInScale(formValues),
     title: getFieldLabel(formValues.yAxis?.label),
@@ -284,7 +285,7 @@ function getBaseSpec(
   }
 
   return {
-    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+    $schema: "https://vega.github.io/schema/vega-lite/v6.json",
     background: theme === "dark" ? "dark" : "white",
     title: title,
     data: { values: [] },

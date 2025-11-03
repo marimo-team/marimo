@@ -70,6 +70,26 @@ def _has_binning(spec: VegaSpec) -> bool:
     return False
 
 
+def _get_binned_fields(spec: VegaSpec) -> dict[str, Any]:
+    """Return a dictionary of field names that have binning enabled.
+
+    Returns:
+        dict mapping field name to bin configuration
+    """
+    binned_fields: dict[str, Any] = {}
+    if "encoding" not in spec:
+        return binned_fields
+
+    for encoding in spec["encoding"].values():
+        if "bin" in encoding and encoding["bin"]:
+            # Get the field name
+            field = encoding.get("field")
+            if field:
+                binned_fields[field] = encoding["bin"]
+
+    return binned_fields
+
+
 def _has_geoshape(spec: altair.TopLevelMixin) -> bool:
     """Return True if the spec has geoshape."""
     try:
@@ -96,7 +116,10 @@ def _using_vegafusion() -> bool:
 
 
 def _filter_dataframe(
-    native_df: Union[IntoDataFrame, IntoLazyFrame], selection: ChartSelection
+    native_df: Union[IntoDataFrame, IntoLazyFrame],
+    *,
+    selection: ChartSelection,
+    binned_fields: Optional[dict[str, Any]] = None,
 ) -> Union[IntoDataFrame, IntoLazyFrame]:
     # Use lazy evaluation for efficient chained filtering
     base = nw.from_native(native_df)
@@ -105,6 +128,9 @@ def _filter_dataframe(
 
     if not isinstance(selection, dict):
         raise TypeError("Input 'selection' must be a dictionary")
+
+    if binned_fields is None:
+        binned_fields = {}
 
     for channel, fields in selection.items():
         if not isinstance(channel, str) or not isinstance(fields, dict):
@@ -144,6 +170,9 @@ def _filter_dataframe(
             if field in ("vlPoint", "_vgsid_"):
                 continue
 
+            # If the field is binned, we treat it as a range selection
+            is_binned = field in binned_fields
+
             # Need to collect schema to check columns and dtypes
             schema = df.collect_schema()
             if field not in schema.names():
@@ -151,28 +180,85 @@ def _filter_dataframe(
 
             dtype = schema[field]
             resolved_values = _resolve_values(values, dtype)
-            if is_point_selection:
-                df = df.filter(nw.col(field).is_in(resolved_values))
-            elif len(resolved_values) == 1:
-                df = df.filter(nw.col(field) == resolved_values[0])
-            # Range selection
-            elif len(resolved_values) == 2 and _is_numeric_or_date(
-                resolved_values[0]
+
+            # Validate that resolved values have compatible types
+            # If coercion failed, the values will still be strings when they should be dates/numbers
+            if nw.Date == dtype or (
+                nw.Datetime == dtype and isinstance(dtype, nw.Datetime)
             ):
-                left_value, right_value = resolved_values
-                df = df.filter(
-                    (nw.col(field) >= left_value)
-                    & (nw.col(field) <= right_value)
+                # Check if any values are still strings (indicating failed coercion)
+                if any(isinstance(v, str) for v in resolved_values):
+                    LOGGER.error(
+                        f"Type mismatch for field '{field}': Column has {dtype} type, "
+                        f"but values {resolved_values} could not be properly coerced. "
+                        "Skipping this filter condition."
+                    )
+                    continue
+
+            try:
+                if is_point_selection and not is_binned:
+                    df = df.filter(nw.col(field).is_in(resolved_values))
+                elif len(resolved_values) == 1:
+                    df = df.filter(nw.col(field) == resolved_values[0])
+                # Range selection
+                elif len(resolved_values) == 2 and _is_numeric_or_date(
+                    resolved_values[0]
+                ):
+                    left_value, right_value = resolved_values
+
+                    # For binned fields, we need to check if this is the last bin
+                    # by comparing the right boundary to the maximum value in the dataset.
+                    # If they're equal (or right boundary >= max), use inclusive right boundary.
+                    if is_binned:
+                        # Get the maximum value in the dataset for this field
+                        max_value_df = df.select(nw.col(field).max())
+                        max_value_collected = (
+                            max_value_df.collect()
+                            if is_narwhals_lazyframe(max_value_df)
+                            else max_value_df
+                        )
+                        max_value = max_value_collected[field][0]
+
+                        # If right boundary >= max value, this is the last bin
+                        is_last_bin = right_value >= max_value
+
+                        if is_last_bin:
+                            # Last bin: use inclusive right boundary
+                            df = df.filter(
+                                (nw.col(field) >= left_value)
+                                & (nw.col(field) <= right_value)
+                            )
+                        else:
+                            # Not last bin: use exclusive right boundary
+                            df = df.filter(
+                                (nw.col(field) >= left_value)
+                                & (nw.col(field) < right_value)
+                            )
+                    else:
+                        # Non-binned fields: use inclusive right boundary
+                        df = df.filter(
+                            (nw.col(field) >= left_value)
+                            & (nw.col(field) <= right_value)
+                        )
+                # Multi-selection via range
+                # This can happen when you use an interval selection
+                # on categorical data
+                elif len(resolved_values) > 1:
+                    df = df.filter(nw.col(field).is_in(resolved_values))
+                else:
+                    raise ValueError(
+                        f"Invalid selection: {field}={resolved_values}"
+                    )
+            except (TypeError, ValueError, Exception) as e:
+                # Handle type comparison errors and other database errors gracefully
+                # (e.g., DuckDB BinderException, Polars errors, etc.)
+                LOGGER.error(
+                    f"Error during filter comparison for field '{field}': {e}. "
+                    f"Attempted to compare {dtype} column with values {resolved_values}. "
+                    "Skipping this filter condition."
                 )
-            # Multi-selection via range
-            # This can happen when you use an interval selection
-            # on categorical data
-            elif len(resolved_values) > 1:
-                df = df.filter(nw.col(field).is_in(resolved_values))
-            else:
-                raise ValueError(
-                    f"Invalid selection: {field}={resolved_values}"
-                )
+                # Continue without this filter - don't break the entire operation
+                continue
 
     if not is_lazy and is_narwhals_lazyframe(df):
         # Undo the lazy
@@ -185,30 +271,51 @@ def _resolve_values(values: Any, dtype: Any) -> list[Any]:
     def _coerce_value(value: Any, dtype: Any) -> Any:
         import zoneinfo
 
-        if nw.Date == dtype:
-            if isinstance(value, str):
-                return datetime.date.fromisoformat(value)
-            # Value is milliseconds since epoch
-            # so we convert to seconds since epoch
-            return datetime.date.fromtimestamp(value / 1000)
-        if nw.Datetime == dtype and isinstance(dtype, nw.Datetime):
-            if isinstance(value, str):
-                res = datetime.datetime.fromisoformat(value)
-                # If dtype has no timezone, but value has timezone, remove timezone without shifting
-                if dtype.time_zone is None and res.tzinfo is not None:
-                    return res.replace(tzinfo=None)
-                return res
+        try:
+            if nw.Date == dtype:
+                if isinstance(value, str):
+                    return datetime.date.fromisoformat(value)
+                # Value is milliseconds since epoch
+                # so we convert to seconds since epoch
+                if isinstance(value, (int, float)):
+                    return datetime.date.fromtimestamp(value / 1000)
+                # If value is already a date or datetime, return as-is
+                if isinstance(value, datetime.date):
+                    return value
+                # Otherwise, try to convert to string then parse
+                return datetime.date.fromisoformat(str(value))
+            if nw.Datetime == dtype and isinstance(dtype, nw.Datetime):
+                if isinstance(value, str):
+                    res = datetime.datetime.fromisoformat(value)
+                    # If dtype has no timezone, but value has timezone, remove timezone without shifting
+                    if dtype.time_zone is None and res.tzinfo is not None:
+                        return res.replace(tzinfo=None)
+                    return res
 
-            # Value is milliseconds since epoch
-            # so we convert to seconds since epoch
-            return datetime.datetime.fromtimestamp(
-                value / 1000,
-                tz=(
-                    zoneinfo.ZoneInfo(dtype.time_zone)
-                    if dtype.time_zone
-                    else None
-                ),
+                # Value is milliseconds since epoch
+                # so we convert to seconds since epoch
+                if isinstance(value, (int, float)):
+                    return datetime.datetime.fromtimestamp(
+                        value / 1000,
+                        tz=(
+                            zoneinfo.ZoneInfo(dtype.time_zone)
+                            if dtype.time_zone
+                            else None
+                        ),
+                    )
+                # If value is already a datetime, return as-is
+                if isinstance(value, datetime.datetime):
+                    return value
+                # Otherwise, try to convert to string then parse
+                return datetime.datetime.fromisoformat(str(value))
+        except (ValueError, TypeError, OSError) as e:
+            # Log the error but return the original value
+            # to avoid breaking the filter entirely
+            LOGGER.warning(
+                f"Failed to coerce value {value!r} to {dtype}: {e}. "
+                "Using original value."
             )
+            return value
         return value
 
     if isinstance(values, list):
@@ -323,7 +430,10 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
         register_transformers()
 
-        self._chart = chart
+        # Make a copy
+        original_chart = chart
+        chart = chart.copy()
+        self._chart = original_chart
 
         if not isinstance(chart, (alt.TopLevelMixin)):
             raise ValueError(
@@ -334,14 +444,23 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         chart = maybe_make_full_width(chart)
 
         # Fix the sizing for vconcat charts
-        if isinstance(chart, alt.VConcatChart):
+        if isinstance(chart, alt.VConcatChart) and _has_no_nested_hconcat(
+            chart
+        ):
             chart = _update_vconcat_width(chart)
 
             # without autosize, vconcat will overflow
             if chart.autosize is alt.Undefined:
                 chart.autosize = "fit-x"
 
-        vega_spec = _parse_spec(chart)
+        try:
+            vega_spec = _parse_spec(chart)
+        except Exception:
+            # Sometimes the changes to width and autosize (above) can cause `.to_dict()` to throw an error
+            # similarly to the issue described in https://github.com/marimo-team/marimo/issues/6244
+            # so we fallback to the original chart.
+            LOGGER.info("Failed to parse spec, using original chart")
+            vega_spec = _parse_spec(original_chart)
 
         if label:
             vega_spec["title"] = label
@@ -378,21 +497,14 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                 )
             legend_selection = False
 
-        # Selection for binned charts is not yet implemented
         has_chart_selection = chart_selection is not False
         has_legend_selection = legend_selection is not False
-        if _has_binning(vega_spec) and (
-            has_chart_selection or has_legend_selection
-        ):
+        if _has_binning(vega_spec) and chart_selection == "interval":
             sys.stderr.write(
-                "Binning + selection is not yet supported in "
-                "marimo.ui.chart.\n"
-                "If you'd like this feature, please file an issue: "
-                "https://github.com/marimo-team/marimo/issues\n"
+                "Binning + interval selection does not highlight the bins. "
+                "You can use point selection instead."
             )
-            chart_selection = False
-            legend_selection = False
-        if _has_geoshape(chart) and (has_chart_selection):
+        if _has_geoshape(chart) and has_chart_selection:
             sys.stderr.write(
                 "Geoshapes + chart selection is not yet supported in "
                 "marimo.ui.chart.\n"
@@ -417,6 +529,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         )
 
         self._spec = vega_spec
+        self._binned_fields = _get_binned_fields(vega_spec)
 
         super().__init__(
             component_name="marimo-vega",
@@ -493,7 +606,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         if _has_transforms(self._spec):
             try:
                 df: Any = self._chart.transformed_data()
-                return _filter_dataframe(df, value)
+                return _filter_dataframe(
+                    df, selection=value, binned_fields=self._binned_fields
+                )
             except ImportError as e:
                 sys.stderr.write(
                     "Failed to filter dataframe that includes a transform. "
@@ -501,9 +616,15 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                     + e.msg
                 )
                 # Fall back to the untransformed dataframe
-                return _filter_dataframe(self.dataframe, value)
+                return _filter_dataframe(
+                    self.dataframe,
+                    selection=value,
+                    binned_fields=self._binned_fields,
+                )
 
-        return _filter_dataframe(self.dataframe, value)
+        return _filter_dataframe(
+            self.dataframe, selection=value, binned_fields=self._binned_fields
+        )
 
     def apply_selection(self, df: ChartDataType) -> ChartDataType:
         """Apply the selection to a DataFrame.
@@ -543,7 +664,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             ```
         """
         assert assert_can_narwhalify(df)
-        return _filter_dataframe(df, self.selections)
+        return _filter_dataframe(
+            df, selection=self.selections, binned_fields=self._binned_fields
+        )
 
     # Proxy all of altair's attributes
     def __getattr__(self, name: str) -> Any:
@@ -695,3 +818,18 @@ def _update_vconcat_width(chart: AltairChartType) -> AltairChartType:
 
     # Not handled
     return chart
+
+
+def _has_no_nested_hconcat(chart: AltairChartType) -> bool:
+    import altair as alt
+
+    if isinstance(chart, alt.HConcatChart):
+        return False
+    if isinstance(chart, alt.VConcatChart):
+        return all(
+            _has_no_nested_hconcat(subchart) for subchart in chart.vconcat
+        )
+    if isinstance(chart, alt.LayerChart):
+        return all(_has_no_nested_hconcat(layer) for layer in chart.layer)
+
+    return True

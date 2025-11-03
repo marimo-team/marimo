@@ -15,6 +15,12 @@ export interface ReconnectingWebSocketTransportOptions {
    * This is useful for ensuring dependencies (like the runtime) are ready.
    */
   waitForConnection?: () => Promise<void>;
+
+  /**
+   * Optional callback that is called after a successful reconnection.
+   * This allows the LSP client to re-synchronize state (e.g., re-send document open notifications).
+   */
+  onReconnect?: () => Promise<void>;
 }
 
 /**
@@ -26,6 +32,7 @@ export class ReconnectingWebSocketTransport extends Transport {
   private readonly options: ReconnectingWebSocketTransportOptions;
   private connectionPromise: Promise<void> | undefined;
   private isClosed = false;
+  private hasConnectedBefore = false;
 
   constructor(options: ReconnectingWebSocketTransportOptions) {
     super();
@@ -98,6 +105,15 @@ export class ReconnectingWebSocketTransport extends Transport {
         // Connect the delegate
         await delegate.connect();
         Logger.log("WebSocket transport connected successfully");
+
+        // If this is a reconnection, call the onReconnect callback
+        const isReconnection = this.hasConnectedBefore;
+        this.hasConnectedBefore = true;
+
+        if (isReconnection && this.options.onReconnect) {
+          Logger.log("Calling onReconnect callback to re-synchronize state");
+          await this.options.onReconnect();
+        }
       } catch (error) {
         Logger.error("WebSocket transport connection failed", error);
         // Clear the delegate on failure so we create a new one on retry

@@ -1,10 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-// New spec is under a feature flag, we keep this until full migration
+// Fallback spec
 
 import { mint, orange, slate } from "@radix-ui/colors";
-import type { Scale } from "vega-lite/build/src/scale";
+import type { TopLevelSpec } from "vega-lite";
+import type { Scale } from "vega-lite/types_unstable/scale.js";
+// @ts-expect-error vega-typings does not include formats
+import { formats } from "vega-loader";
+import { asRemoteURL } from "@/core/runtime/config";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
+import { arrow } from "@/plugins/impl/vega/formats";
+import { parseCsvData } from "@/plugins/impl/vega/loader";
+import {
+  byteStringToBinary,
+  extractBase64FromDataURL,
+  isDataURLString,
+  typedAtob,
+} from "@/utils/json/base64";
 
 export function getLegacyNumericSpec(
   column: string,
@@ -239,4 +251,68 @@ export function getLegacyBooleanSpec(
       },
     ],
   } as TopLevelFacetedUnitSpec; // "layer" not in TopLevelFacetedUnitSpec
+}
+
+// Arrow formats have a magic number at the beginning of the file.
+const ARROW_MAGIC_NUMBER = "ARROW1";
+
+// register arrow reader under type 'arrow'
+formats("arrow", arrow);
+
+export function getDataSpecAndSourceName<T>(data: string | T[]): {
+  dataSpec: TopLevelSpec["data"];
+  sourceName: "data_0" | "source_0";
+} {
+  let dataSpec: TopLevelSpec["data"];
+  let sourceName: "data_0" | "source_0";
+
+  // Data may come in from a few different sources:
+  // - A URL
+  // - A CSV data URI (e.g. "data:text/csv;base64,...")
+  // - A CSV string (e.g. "a,b,c\n1,2,3\n4,5,6")
+  // - An array of objects
+  // For each case, we need to set up the data spec and source name appropriately.
+  // If its a file, the source name will be "source_0", otherwise it will be "data_0".
+  // We have a few snapshot tests to ensure that the spec is correct for each case.
+  if (typeof data === "string") {
+    if (data.startsWith("./@file") || data.startsWith("/@file")) {
+      dataSpec = { url: asRemoteURL(data).href };
+      sourceName = "source_0";
+    } else if (isDataURLString(data)) {
+      sourceName = "data_0";
+      const base64 = extractBase64FromDataURL(data);
+      const decoded = typedAtob(base64);
+
+      // eslint-disable-next-line unicorn/prefer-ternary
+      if (decoded.startsWith(ARROW_MAGIC_NUMBER)) {
+        dataSpec = {
+          values: byteStringToBinary(decoded),
+          // @ts-expect-error vega-typings does not include arrow format
+          format: { type: "arrow" },
+        };
+      } else {
+        // Assume it's a CSV string
+        dataSpec = { values: parseCsvData(decoded) };
+      }
+    } else {
+      // Assume it's a CSV string
+      dataSpec = { values: parseCsvData(data) };
+      sourceName = "data_0";
+    }
+  } else {
+    dataSpec = { values: data };
+    sourceName = "source_0";
+  }
+
+  return { dataSpec, sourceName };
+}
+
+export function getScale(sourceName: string): Scale {
+  return {
+    align: 0,
+    paddingInner: 0,
+    paddingOuter: {
+      expr: `length(data('${sourceName}')) == 2 ? 1 : length(data('${sourceName}')) == 3 ? 0.5 : length(data('${sourceName}')) == 4 ? 0 : 0`,
+    },
+  };
 }

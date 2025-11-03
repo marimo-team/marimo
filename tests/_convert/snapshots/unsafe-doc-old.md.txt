@@ -15,13 +15,11 @@ print("Hello, World!")
 ```
 
 ````python {.marimo hide_code="true"}
-mo.md(
-    r"""
+mo.md(r"""
 -->
 
 ```marimo run convert document.md```
-"""
-)
+""")
 ````
 
 ```python {.marimo unparsable="true"}
@@ -29,15 +27,13 @@ it's an unparsable cell
 ```
 
 ````python {.marimo hide_code="true"}
-mo.md(
-    r"""
+mo.md(r"""
 <!-- Actually markdown -->
 ```{python} `
   print("Hello, World!")
 
 <!-- Disabled code block -->
-"""
-)
+""")
 ````
 
 ```python {.marimo disabled="true"}
@@ -80,9 +76,9 @@ print("Hello, World!")
 
 ````python {.marimo}
 mo.md("""
-  This is a markdown cell with an execution block in it
-  ```{python}
-  # To ambiguous to convert
-  ```
-  """)
+This is a markdown cell with an execution block in it
+```{python}
+# To ambiguous to convert
+```
+""")
 ````

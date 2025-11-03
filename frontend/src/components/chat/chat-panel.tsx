@@ -372,7 +372,12 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
           </div>
           <div className="flex flex-row">
             <Tooltip content="Add context">
-              <Button variant="text" size="icon" onClick={onAddContext}>
+              <Button
+                variant="text"
+                size="icon"
+                onClick={onAddContext}
+                disabled={isLoading}
+              >
                 <AtSignIcon className="h-3.5 w-3.5" />
               </Button>
             </Tooltip>
@@ -385,6 +390,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
                     className="cursor-pointer"
                     onClick={() => fileInputRef.current?.click()}
                     title="Attach a file"
+                    disabled={isLoading}
                   >
                     <PaperclipIcon className="h-3.5 w-3.5" />
                   </Button>

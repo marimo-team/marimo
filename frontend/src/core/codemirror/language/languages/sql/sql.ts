@@ -168,7 +168,8 @@ export class SQLLanguageAdapter
       }),
     ];
 
-    const sqlLinterEnabled = lspConfig?.diagnostics?.sql_linter ?? false;
+    // TODO: Issue with frontend being stuck
+    const sqlLinterEnabled = false;
 
     if (sqlLinterEnabled) {
       const theme = store.get(resolvedThemeAtom);

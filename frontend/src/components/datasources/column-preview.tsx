@@ -21,6 +21,7 @@ import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queri
 import { type Theme, useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
+import { LazyVegaEmbed } from "../charts/lazy";
 import type { ColumnHeaderStatsKey } from "../data-table/types";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Spinner } from "../icons/spinner";
@@ -29,10 +30,6 @@ import { Tooltip } from "../ui/tooltip";
 import { ColumnPreviewContainer } from "./components";
 import { InstallPackageButton } from "./install-package-button";
 import { convertStatsName, sqlCode } from "./utils";
-
-const LazyVegaLite = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.VegaLite })),
-);
 
 export const DatasetColumnPreview: React.FC<{
   table: DataTable;
@@ -226,12 +223,15 @@ export function renderChart(chartSpec: string, theme: Theme) {
 
   return (
     <Suspense fallback={LoadingChart}>
-      <LazyVegaLite
+      <LazyVegaEmbed
         spec={updateSpec(JSON.parse(chartSpec) as TopLevelFacetedUnitSpec)}
-        width={"container" as unknown as number}
-        height={100}
-        actions={false}
-        theme={theme === "dark" ? "dark" : "vox"}
+        options={{
+          theme: theme === "dark" ? "dark" : "vox",
+          height: 100,
+          width: "container" as unknown as number,
+          actions: false,
+          renderer: "canvas",
+        }}
       />
     </Suspense>
   );

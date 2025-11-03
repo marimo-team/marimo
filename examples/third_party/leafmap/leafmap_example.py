@@ -8,19 +8,17 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        # Using Leafmap
+    mo.md("""
+    # Using Leafmap
 
-        This example shows how to render a `leafmap.Map` in marimo; just output it like any other object.
-        """
-    )
+    This example shows how to render a `leafmap.Map` in marimo; just output it like any other object.
+    """)
     return
 
 

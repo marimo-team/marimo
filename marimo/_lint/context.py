@@ -33,11 +33,13 @@ class LintContext:
     def __init__(
         self,
         notebook: NotebookSerialization,
+        contents: str = "",
         stderr: str = "",
         stdout: str = "",
         logs: list[logging.LogRecord] | None = None,
     ):
         self.notebook = notebook
+        self.contents = contents.splitlines()
         self._diagnostics: list[tuple[int, int, Diagnostic]] = []
         self._graph: DirectedGraph | None = None
         self._graph_lock = threading.Lock()
@@ -268,6 +270,11 @@ class RuleContext:
     def get_graph(self) -> DirectedGraph:
         """Access to the dependency graph."""
         return self.global_context.get_graph()
+
+    @property
+    def contents(self) -> list[str]:
+        """Access to file contents being linted."""
+        return self.global_context.contents
 
     @property
     def notebook(self) -> NotebookSerialization:

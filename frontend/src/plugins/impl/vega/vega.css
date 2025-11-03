@@ -3,6 +3,7 @@
 .vega-embed {
   width: 100%;
   flex: 1;
+  display: inline-block;
 
   @media (min-width: 500px) {
     min-width: 300px;

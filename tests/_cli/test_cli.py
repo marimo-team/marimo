@@ -309,6 +309,167 @@ def test_cli_edit_token() -> None:
     _check_contents(p, b'"serverToken": ', contents)
 
 
+def test_cli_edit_token_password_file_stdin() -> None:
+    # Test reading token password from stdin using --token-password-file -
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "-p",
+            str(port),
+            "--headless",
+            "--token-password-file",
+            "-",
+            "--skip-update-check",
+        ],
+        stdin=subprocess.PIPE,
+    )
+    if p.stdin:
+        p.stdin.write(b"secret_from_stdin")
+        p.stdin.close()
+
+    contents = _try_fetch(port, "localhost", "secret_from_stdin")
+    _check_contents(p, b'"mode": "home"', contents)
+    _check_contents(
+        p,
+        f'"version": "{get_version()}"'.encode(),
+        contents,
+    )
+    _check_contents(p, b'"serverToken": ', contents)
+
+
+def test_cli_edit_token_password_mutual_exclusivity() -> None:
+    # Test that --token-password and --token-password-file are mutually exclusive
+    result = subprocess.run(
+        [
+            "marimo",
+            "edit",
+            "--headless",
+            "--token-password",
+            "secret1",
+            "--token-password-file",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert (
+        "mutually exclusive" in result.stderr.lower()
+        or "only one of" in result.stderr.lower()
+    )
+
+
+def test_cli_run_token_password_file_stdin() -> None:
+    # Test stdin with run command using --token-password-file -
+    with _write_temp_notebook(
+        """
+        import marimo
+        app = marimo.App()
+        """
+    ) as tmp_file:
+        port = _get_port()
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "run",
+                tmp_file,
+                "-p",
+                str(port),
+                "--headless",
+                "--token",
+                "--token-password-file",
+                "-",
+            ],
+            stdin=subprocess.PIPE,
+        )
+        if p.stdin:
+            p.stdin.write(b"run_secret")
+            p.stdin.close()
+
+        contents = _try_fetch(port, "localhost", "run_secret")
+        _check_contents(p, b'"appConfig":', contents)
+
+
+def test_cli_edit_token_password_file_path() -> None:
+    # Test reading token password from a file path
+    with tempfile.NamedTemporaryFile(
+        mode="w", delete=False, suffix=".txt"
+    ) as password_file:
+        password_file.write("file_secret")
+        password_file_path = password_file.name
+
+    try:
+        port = _get_port()
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "edit",
+                "-p",
+                str(port),
+                "--headless",
+                "--token-password-file",
+                password_file_path,
+                "--skip-update-check",
+            ],
+        )
+
+        contents = _try_fetch(port, "localhost", "file_secret")
+        _check_contents(p, b'"mode": "home"', contents)
+        _check_contents(
+            p,
+            f'"version": "{get_version()}"'.encode(),
+            contents,
+        )
+        _check_contents(p, b'"serverToken": ', contents)
+    finally:
+        os.unlink(password_file_path)
+
+
+def test_cli_edit_token_password_file_not_found() -> None:
+    # Test that a non-existent file raises an error
+    result = subprocess.run(
+        [
+            "marimo",
+            "edit",
+            "--headless",
+            "--token-password-file",
+            "/nonexistent/path/to/password.txt",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "not found" in result.stderr.lower()
+
+
+def test_cli_edit_token_password_file_empty() -> None:
+    # Test that an empty file raises an error
+    with tempfile.NamedTemporaryFile(
+        mode="w", delete=False, suffix=".txt"
+    ) as password_file:
+        # Write nothing to the file
+        password_file_path = password_file.name
+
+    try:
+        result = subprocess.run(
+            [
+                "marimo",
+                "edit",
+                "--headless",
+                "--token-password-file",
+                password_file_path,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode != 0
+        assert "no token password" in result.stderr.lower()
+    finally:
+        os.unlink(password_file_path)
+
+
 def test_cli_edit_directory() -> None:
     d = tempfile.TemporaryDirectory()
     port = _get_port()

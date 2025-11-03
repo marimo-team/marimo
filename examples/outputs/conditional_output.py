@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -19,7 +19,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Use inline if expressions to conditionally show a value""")
+    mo.md("""
+    Use inline if expressions to conditionally show a value
+    """)
     return
 
 
@@ -31,12 +33,10 @@ def _(checkbox):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        The next cell does **not** show anything, since an if statement does not
-        have a value:
-        """
-    )
+    mo.md("""
+    The next cell does **not** show anything, since an if statement does not
+    have a value:
+    """)
     return
 
 
@@ -51,7 +51,9 @@ def _(checkbox, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""A value of `None` produces the empty output:""")
+    mo.md("""
+    A value of `None` produces the empty output:
+    """)
     return
 
 

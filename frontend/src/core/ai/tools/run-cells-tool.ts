@@ -21,11 +21,12 @@ import {
 } from "./base";
 import type { CopilotMode } from "./registry";
 
+const POST_EXECUTION_DELAY = 200;
+const WAIT_FOR_CELLS_TIMEOUT = 30_000;
+
 interface CellOutput {
   consoleOutput?: string;
-  // consoleAttachments?: FileUIPart[];
   cellOutput?: string;
-  // cellAttachments?: FileUIPart[];
 }
 
 // Must use Record instead of Map because Map serializes to JSON as {}
@@ -67,6 +68,12 @@ export class RunStaleCellsTool
   }) satisfies z.ZodType<RunStaleCellsOutput>;
   readonly mode: CopilotMode[] = ["agent"];
 
+  private readonly postExecutionDelay: number;
+
+  constructor(opts?: { postExecutionDelay?: number }) {
+    this.postExecutionDelay = opts?.postExecutionDelay ?? POST_EXECUTION_DELAY;
+  }
+
   handler = async (
     _args: EmptyToolInput,
     toolContext: ToolNotebookContext,
@@ -91,7 +98,12 @@ export class RunStaleCellsTool
     });
 
     // Wait for all cells to finish executing
-    const allCellsFinished = await this.waitForCellsToFinish(store, staleCells);
+    const allCellsFinished = await this.waitForCellsToFinish(
+      store,
+      staleCells,
+      WAIT_FOR_CELLS_TIMEOUT,
+      this.postExecutionDelay,
+    );
     if (!allCellsFinished) {
       return {
         status: "success",
@@ -105,6 +117,7 @@ export class RunStaleCellsTool
 
     const cellsToOutput = new Map<CellId, CellOutput | null>();
     let resultMessage = "";
+    let outputHasErrors = false;
 
     for (const cellId of staleCells) {
       const cellContextData = getCellContextData(cellId, updatedNotebook, {
@@ -112,13 +125,13 @@ export class RunStaleCellsTool
       });
 
       let cellOutputString: string | undefined;
-      // let cellAttachments: FileUIPart[] | undefined;
       let consoleOutputString: string | undefined;
-      // let consoleAttachments: FileUIPart[] | undefined;
 
       const cellOutput = cellContextData.cellOutput;
       const consoleOutputs = cellContextData.consoleOutputs;
-      if (!cellOutput && !consoleOutputs) {
+      const hasConsoleOutput = consoleOutputs && consoleOutputs.length > 0;
+
+      if (!cellOutput && !hasConsoleOutput) {
         // Set null to show no output
         cellsToOutput.set(cellId, null);
         continue;
@@ -126,31 +139,26 @@ export class RunStaleCellsTool
 
       if (cellOutput) {
         cellOutputString = this.formatOutputString(cellOutput);
-        // cellAttachments = await getAttachmentsForOutputs(
-        //   [cellOutput],
-        //   cellId,
-        //   cellContextData.cellName,
-        // );
+        if (this.outputHasErrors(cellOutput)) {
+          outputHasErrors = true;
+        }
       }
 
-      if (consoleOutputs) {
-        // consoleAttachments = await getAttachmentsForOutputs(
-        //   consoleOutputs,
-        //   cellId,
-        //   cellContextData.cellName,
-        // );
+      if (hasConsoleOutput) {
         consoleOutputString = consoleOutputs
           .map((output) => this.formatOutputString(output))
           .join("\n");
         resultMessage +=
           "Console output represents the stdout or stderr of the cell (eg. print statements).";
+
+        if (consoleOutputs.some((output) => this.outputHasErrors(output))) {
+          outputHasErrors = true;
+        }
       }
 
       cellsToOutput.set(cellId, {
         cellOutput: cellOutputString,
         consoleOutput: consoleOutputString,
-        // cellAttachments: cellAttachments,
-        // consoleAttachments: consoleAttachments,
       });
     }
 
@@ -161,15 +169,31 @@ export class RunStaleCellsTool
       };
     }
 
+    const nextSteps = [
+      "Review the output of the cells. The CellId is the key of the result object.",
+      outputHasErrors
+        ? "There are errors in the cells. Please fix them by using the edit notebook tool and the given CellIds."
+        : "You may edit the notebook further with the given CellIds.",
+    ];
+
     return {
       status: "success",
       cellsToOutput: Object.fromEntries(cellsToOutput),
       message: resultMessage === "" ? undefined : resultMessage,
-      next_steps: [
-        "Review the output of the cells, if you need to make any changes, you can run this tool again, the CellId is the key of the result object if you want to edit the cell.",
-      ],
+      next_steps: nextSteps,
     };
   };
+
+  private outputHasErrors(cellOutput: BaseOutput): boolean {
+    const { output } = cellOutput;
+    if (
+      output.mimetype === "application/vnd.marimo+error" ||
+      output.mimetype === "application/vnd.marimo+traceback"
+    ) {
+      return true;
+    }
+    return false;
+  }
 
   private formatOutputString(cellOutput: BaseOutput): string {
     let outputString = "";
@@ -199,7 +223,8 @@ export class RunStaleCellsTool
   private async waitForCellsToFinish(
     store: JotaiStore,
     cellIds: CellId[],
-    timeout = 30_000,
+    timeout: number,
+    postExecutionDelay: number,
   ): Promise<boolean> {
     const checkAllFinished = (
       notebook: ReturnType<typeof notebookAtom.read>,
@@ -212,9 +237,18 @@ export class RunStaleCellsTool
       });
     };
 
-    // If already finished, return immediately
-    if (checkAllFinished(store.get(notebookAtom))) {
+    // Add a small delay after cells finish to allow console outputs to arrive
+    // Console outputs are streamed and might still be in-flight
+    const delayForConsoleOutputs = async () => {
+      if (postExecutionDelay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, postExecutionDelay));
+      }
       return true;
+    };
+
+    // Return immediately if all cells are finished
+    if (checkAllFinished(store.get(notebookAtom))) {
+      return await delayForConsoleOutputs();
     }
 
     // Wait for notebook state changes with timeout
@@ -225,7 +259,7 @@ export class RunStaleCellsTool
           setTimeout(() => reject(new Error("timeout")), timeout),
         ),
       ]);
-      return true;
+      return await delayForConsoleOutputs();
     } catch {
       return false;
     }

@@ -130,6 +130,21 @@ describe("sanitizeHtml", () => {
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(`"Content"`);
   });
 
+  test("preserves marimo elements with simple data attribute", () => {
+    const html = '<marimo-test data-value="simple">Test</marimo-test>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<marimo-test data-value="simple">Test</marimo-test>"`,
+    );
+  });
+
+  test("preserves marimo-mermaid with data-diagram attribute", () => {
+    const html =
+      "<marimo-mermaid data-diagram='&quot;sequenceDiagram&#92;n    Alice-&gt;&gt;John&#92;n    John--&gt;&gt;Alice&#92;n    &quot;'></marimo-mermaid>";
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<marimo-mermaid></marimo-mermaid>"`,
+    );
+  });
+
   test("keeps style tags with FORCE_BODY", () => {
     const html = "<style>body { color: red; }</style><p>Text</p>";
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(
@@ -461,5 +476,32 @@ describe("sanitizeHtml", () => {
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(
       `"<details><summary>Click me</summary><p>Hidden content</p></details>"`,
     );
+  });
+
+  test("preserves iconify-icon custom element", () => {
+    const html = '<iconify-icon icon="lucide:leaf"></iconify-icon>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<iconify-icon icon="lucide:leaf"></iconify-icon>"`,
+    );
+  });
+
+  test("preserves iconify-icon with all attributes", () => {
+    const html =
+      '<iconify-icon icon="lucide:rocket" width="24px" height="24px" inline="" flip="horizontal" rotate="90deg" style="color: blue;"></iconify-icon>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<iconify-icon icon="lucide:rocket" width="24px" height="24px" inline="" flip="horizontal" rotate="90deg" style="color: blue;"></iconify-icon>"`,
+    );
+  });
+
+  test("preserves self-closing iconify-icon", () => {
+    const html = '<iconify-icon icon="lucide:star" />';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<iconify-icon icon="lucide:star"></iconify-icon>"`,
+    );
+  });
+
+  test("still removes other non-marimo/non-iconify custom elements", () => {
+    const html = "<some-custom-element>Content</some-custom-element>";
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(`"Content"`);
   });
 });

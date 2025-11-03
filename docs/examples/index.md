@@ -171,13 +171,13 @@ overview.
 
     ---
 
-    <a href=outputs/progress_bar"><img src="/_static/example-thumbs/progress_bar.png" /></a>
+    <a href="outputs/progress_bar"><img src="/_static/example-thumbs/progress_bar.png" /></a>
 
 -   🌀 [**Loading spinner**](outputs/spinner.md)
 
     ---
 
-    <a href=outputs/spinner"><img src="/_static/example-thumbs/spinner.png" /></a>
+    <a href="outputs/spinner"><img src="/_static/example-thumbs/spinner.png" /></a>
 
 </div>
 
@@ -190,7 +190,7 @@ overview.
 
     ---
 
-    <a href=outputs/stacks.md"><img src="/_static/example-thumbs/stacks.png" /></a>
+    <a href="outputs/stacks.md"><img src="/_static/example-thumbs/stacks.png" /></a>
 
 -   📁 [**Accordion toggle**](../api/layouts/accordion.md)
 

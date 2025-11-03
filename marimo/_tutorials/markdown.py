@@ -11,14 +11,13 @@
 
 import marimo
 
-__generated_with = "0.16.2"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Hello, Markdown!
 
     Use marimo's "`md`" function to write markdown. This function compiles Markdown into HTML that marimo can display.
@@ -37,15 +36,13 @@ def _(mo):
         '''
     )
     ```
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     **Tip: toggling between the Markdown and Python editor**
 
     Although markdown is written with `mo.md`, marimo provides a markdown editor
@@ -59,15 +56,13 @@ def _(mo):
     **Tip:** To interpolate Python values into markdown strings, you'll need to use
     a Python f-string; do this by checking the `f` box in the bottom-right corner of the
     markdown editor, or with `mo.md(f"...")` in the Python view.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## LaTeX
     You can embed LaTeX in Markdown.
 
@@ -94,8 +89,7 @@ def _(mo):
     \[
     f: \mathbf{R} \to \mathbf{R}.
     \]
-    """
-    )
+    """)
     return
 
 
@@ -131,8 +125,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## Interpolating Python values
 
     You can interpolate Python values into markdown using
@@ -140,8 +133,7 @@ def _(mo):
     markdown whose contents depend on data that changes at runtime.
 
     Here are some examples.
-    """
-    )
+    """)
     return
 
 
@@ -261,15 +253,13 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## Putting it all together
 
     Here's a more interesting example that puts together
     everything we've learned: rendering markdown with LaTeX that depends on
     the values of Python objects.
-    """
-    )
+    """)
     return
 
 

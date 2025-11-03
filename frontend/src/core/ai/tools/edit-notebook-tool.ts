@@ -109,15 +109,19 @@ export class EditNotebookTool
 
         scrollAndHighlightCell(cellId);
 
-        // If previous code exists, we don't want to replace it, it means there is a new edit on top of the previous edit
+        const existingStagedCell = store.get(stagedAICellsAtom).get(cellId);
+
+        // If previous edit was from a new cell, just replace editor code with the new code
+        if (existingStagedCell?.type === "add_cell") {
+          updateEditorCodeFromPython(editorView, code);
+          break;
+        }
+
+        // If previous code exists, we don't want to replace it, it means there is a new edit on top of the previous update
         // Keep the original code
-        const stagedCell = store.get(stagedAICellsAtom).get(cellId);
         const currentCellCode = editorView.state.doc.toString();
         const previousCode =
-          stagedCell?.type === "update_cell" ||
-          stagedCell?.type === "delete_cell"
-            ? stagedCell.previousCode
-            : currentCellCode;
+          existingStagedCell?.previousCode ?? currentCellCode;
 
         addStagedCell({
           cellId,
@@ -186,7 +190,11 @@ export class EditNotebookTool
     }
     return {
       status: "success",
-      next_steps: ["If you need to perform more edits, call this tool again."],
+      next_steps: [
+        "If you need to perform more edits, call this tool again.",
+        "You should use the lint notebook tool to check for errors and lint issues. Fix them by editing the notebook.",
+        "You should use the run stale cells tool to run the cells that have been edited or newly added. This allows you to see the output of the cells and fix any errors.",
+      ],
     };
   };
 

@@ -22,12 +22,10 @@ class ActiveNotebooks(PromptBase):
         """
         from mcp.types import PromptMessage, TextContent
 
-        session_manager = self.context.session_manager
+        context = self.context
+        notebooks = context.get_active_sessions_internal()
 
-        # Get all active sessions
-        sessions = session_manager.sessions
-
-        if not sessions:
+        if len(notebooks) == 0:
             return [
                 PromptMessage(
                     role="user",
@@ -38,34 +36,36 @@ class ActiveNotebooks(PromptBase):
                 )
             ]
 
-        # Create a message for each session
-        messages: list[PromptMessage] = []
-        for session_id, session in sessions.items():
-            # Get file path if available
-            maybe_file_path = session.app_file_manager.filename
+        session_messages: list[PromptMessage] = []
+        for active_file in notebooks:
+            session_message = (
+                f"Notebook session ID: {active_file.session_id}\n"
+                f"Notebook file path: {active_file.path}\n\n"
+            )
 
-            # Create actionable message for this session
-            if maybe_file_path:
-                message = (
-                    f"Notebook session ID: {session_id}\n"
-                    f"Notebook file path: {maybe_file_path}\n\n"
-                    f"Use this session_id when calling MCP tools that require it. "
-                    f"You can also edit the notebook directly by modifying the file at the path above."
-                )
-            else:
-                message = (
-                    f"Notebook session ID: {session_id}\n\n"
-                    f"Use this session_id when calling MCP tools that require it."
-                )
-
-            messages.append(
+            session_messages.append(
                 PromptMessage(
                     role="user",
                     content=TextContent(
                         type="text",
-                        text=message,
+                        text=session_message,
                     ),
                 )
             )
 
-        return messages
+        action_message = (
+            f"Use {'this session_id' if len(notebooks) == 1 else 'these session_ids'} when calling marimo MCP tools that require it."
+            f"You can also edit {'this notebook' if len(notebooks) == 1 else 'these notebooks'} directly by modifying the files at the paths above."
+        )
+
+        session_messages.append(
+            PromptMessage(
+                role="user",
+                content=TextContent(
+                    type="text",
+                    text=action_message,
+                ),
+            )
+        )
+
+        return session_messages

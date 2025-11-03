@@ -7,13 +7,15 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App(width="full")
 
 
 @app.cell
 def _(mo):
-    mo.md("# Rotational Invariance of Embeddings")
+    mo.md("""
+    # Rotational Invariance of Embeddings
+    """)
     return
 
 

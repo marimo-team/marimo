@@ -9,7 +9,6 @@ import {
   type ExternalAgentId,
   getAgentConnectionCommand,
   getAgentDisplayName,
-  getAllAgentIds,
   getSessionsByAgent,
   removeSession,
   type TabId,
@@ -629,18 +628,6 @@ describe("state utility functions", () => {
     it("should return empty array for empty sessions list", () => {
       const result = getSessionsByAgent([], "claude");
       expect(result).toMatchInlineSnapshot("[]");
-    });
-  });
-
-  describe("getAllAgentIds", () => {
-    it("should return all available agent IDs", () => {
-      const agentIds = getAllAgentIds();
-      expect(agentIds).toMatchInlineSnapshot(`
-        [
-          "claude",
-          "gemini",
-        ]
-      `);
     });
   });
 
