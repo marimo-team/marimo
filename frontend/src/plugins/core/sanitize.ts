@@ -78,6 +78,7 @@ export function sanitizeHtml(html: string) {
       tagNameCheck: /^(marimo-[A-Za-z][\w-]*|iconify-icon)$/,
       attributeNameCheck: /^[A-Za-z][\w-]*$/,
     },
+    SAFE_FOR_XML: html.includes("marimo-mermaid"),
   };
   return DOMPurify.sanitize(html, sanitizationOptions);
 }
