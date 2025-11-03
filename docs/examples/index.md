@@ -177,7 +177,7 @@ overview.
 
     ---
 
-    <a href=outputs/spinner"><img src="/_static/example-thumbs/spinner.png" /></a>
+    <a href="outputs/spinner"><img src="/_static/example-thumbs/spinner.png" /></a>
 
 </div>
 
@@ -190,7 +190,7 @@ overview.
 
     ---
 
-    <a href=outputs/stacks.md"><img src="/_static/example-thumbs/stacks.png" /></a>
+    <a href="outputs/stacks.md"><img src="/_static/example-thumbs/stacks.png" /></a>
 
 -   📁 [**Accordion toggle**](../api/layouts/accordion.md)
 
