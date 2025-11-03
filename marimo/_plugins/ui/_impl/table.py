@@ -982,18 +982,10 @@ class table(
 
                 # For now, we only compute value counts for categorical columns and small tables
                 external_type = external_type.lower()
-                unique_values = statistic.unique if statistic else None
                 categorical_type = (
                     "cat" in external_type or "enum" in external_type
                 )
-                if column_type == "string" and (
-                    categorical_type
-                    or (
-                        total_rows <= CHART_MAX_ROWS_STRING_VALUE_COUNTS
-                        and unique_values is not None
-                        and 0 < unique_values <= MAX_UNIQUE_VALUES_TO_SHOW
-                    )
-                ):
+                if column_type == "string" and categorical_type:
                     try:
                         val_counts = self._get_value_counts(
                             column, DEFAULT_VALUE_COUNTS_SIZE, total_rows
