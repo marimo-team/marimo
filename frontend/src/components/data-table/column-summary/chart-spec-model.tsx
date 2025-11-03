@@ -628,7 +628,34 @@ export class ColumnChartSpecModel<T> {
         const xMidField = "xMid";
         const yField = "value";
 
-        // Calculate xStart and xEnd for each value count
+        // Adjust bar widths to ensure minimum width
+        const MIN_BAR_WIDTH_PERCENT = 0.02; // 2% minimum width
+        let totalAdjustment = 0;
+        let totalLargeBarProportion = 0;
+        const proportions: number[] = [];
+
+        for (const vc of valueCounts) {
+          const prop = vc.count / total;
+          proportions.push(prop);
+
+          if (prop < MIN_BAR_WIDTH_PERCENT) {
+            totalAdjustment += MIN_BAR_WIDTH_PERCENT - prop;
+          } else {
+            totalLargeBarProportion += prop;
+          }
+        }
+
+        const adjustedProportions = proportions.map((prop) => {
+          if (prop < MIN_BAR_WIDTH_PERCENT) {
+            return MIN_BAR_WIDTH_PERCENT;
+          }
+          if (totalAdjustment > 0 && totalLargeBarProportion > 0) {
+            // Proportionally reduce large bars to make room for small bars
+            return prop - (prop / totalLargeBarProportion) * totalAdjustment;
+          }
+          return prop;
+        });
+
         const newValueCounts: {
           count: number;
           value: string;
@@ -637,11 +664,12 @@ export class ColumnChartSpecModel<T> {
           xMid: number;
           proportion: number;
         }[] = [];
+
         let xStart = 0;
-        for (const valueCount of valueCounts) {
-          const xEnd = xStart + valueCount.count;
+        for (const [i, valueCount] of valueCounts.entries()) {
+          const barWidth = adjustedProportions[i] * total;
+          const xEnd = xStart + barWidth;
           const xMid = (xStart + xEnd) / 2;
-          const proportion = (xEnd - xStart) / total;
 
           newValueCounts.push({
             count: valueCount.count,
@@ -649,7 +677,7 @@ export class ColumnChartSpecModel<T> {
             xStart,
             xEnd,
             xMid,
-            proportion,
+            proportion: adjustedProportions[i],
           });
           xStart = xEnd;
         }

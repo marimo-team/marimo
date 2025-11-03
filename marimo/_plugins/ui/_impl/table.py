@@ -990,7 +990,10 @@ class table(
                 ):
                     try:
                         val_counts = self._get_value_counts(
-                            column, DEFAULT_VALUE_COUNTS_SIZE, total_rows
+                            column=column,
+                            size=DEFAULT_VALUE_COUNTS_SIZE,
+                            total_rows=total_rows,
+                            others_threshold=1,
                         )
                         if len(val_counts) > 0:
                             value_counts[column] = val_counts
@@ -1043,7 +1046,12 @@ class table(
         )
 
     def _get_value_counts(
-        self, column: ColumnName, size: int, total_rows: int
+        self,
+        *,
+        column: ColumnName,
+        size: int,
+        total_rows: int,
+        others_threshold: int | None = None,
     ) -> list[ValueCount]:
         """Get value counts for a column. The last item will be 'others' with the count of remaining
         unique values. If there are only unique values, we return 'unique values' instead.
@@ -1052,6 +1060,8 @@ class table(
             column (ColumnName): The column to get value counts for.
             size (int): The number of value counts to return.
             total_rows (int): The total number of rows in the table.
+            others_threshold (int | None): The threshold for values to be considered 'others'.
+                If a value has a count less than or equal to this threshold, it will be considered 'others'.
 
         Returns:
             list[ValueCount]: The value counts.
@@ -1076,6 +1086,9 @@ class table(
 
         sum_count = 0
         for value, count in top_k_rows:
+            if others_threshold is not None and count <= others_threshold:
+                break
+
             sum_count += count
             value = str(value) if value is not None else "null"
             value_counts.append(ValueCount(value=value, count=count))

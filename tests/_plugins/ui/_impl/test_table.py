@@ -1100,6 +1100,28 @@ class TestTableGetValueCounts:
         )
         assert value_counts == [ValueCount(value="1", count=2)]
 
+    def test_with_others_threshold(self, table: ui.table) -> None:
+        value_counts = table._get_value_counts(
+            column="repeat",
+            size=2,
+            total_rows=self.total_rows,
+            others_threshold=1,
+        )
+        assert value_counts == [
+            ValueCount(value="1", count=2),
+            ValueCount(value="others", count=3),
+        ]
+
+        value_counts = table._get_value_counts(
+            column="repeat",
+            size=2,
+            total_rows=self.total_rows,
+            others_threshold=2,
+        )
+        assert value_counts == [
+            ValueCount(value="others", count=5),
+        ]
+
 
 def test_table_with_frozen_columns() -> None:
     data = {
