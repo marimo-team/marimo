@@ -1689,40 +1689,51 @@ export function createUntouchedCellAtom(cellId: CellId): Atom<boolean> {
 export function createTracebackInfoAtom(
   cellId: CellId,
 ): Atom<TracebackInfo[] | undefined> {
-  // We create an intermediate atom that just computes the string
-  // so it prevents downstream recomputations.
-  const tracebackStringAtom = atom<string | undefined>((get) => {
+  // Single flat atom - proper reactivity
+  return atom((get: any) => {
     const notebook = get(notebookAtom);
     const data = notebook.cellRuntime[cellId];
+
     if (!data) {
       return undefined;
     }
-    // Must be errored and idle
-    if (data.status !== "idle") {
+
+    if (data.status === "queued" || data.status === "running") {
       return undefined;
     }
+
+    const tracebackInfo: TracebackInfo[] = [];
+
+    // Runtime errors (ZeroDivisionError, etc.)
     const outputs = data.consoleOutputs;
-    // console.warn(notebook);
-    if (!outputs || outputs.length === 0) {
-      return undefined;
+    if (outputs && outputs.length > 0) {
+      const firstTraceback = outputs.find(
+        (output: any) => output.mimetype === "application/vnd.marimo+traceback",
+      );
+      if (firstTraceback) {
+        const traceback = firstTraceback.data as string;
+        tracebackInfo.push(...extractAllTracebackInfo(traceback));
+      }
     }
 
-    const firstTraceback = outputs.find(
-      (output) => output.mimetype === "application/vnd.marimo+traceback",
-    );
-    if (!firstTraceback) {
-      return undefined;
+    // Syntax errors
+    const output = data.output;
+    if (output?.mimetype === "application/vnd.marimo+error") {
+      const errors = output.data;
+      if (Array.isArray(errors)) {
+        for (const error of errors) {
+          if (error.type === "syntax" && error.lineno) {
+            tracebackInfo.push({
+              kind: "cell",
+              cellId: cellId,
+              lineNumber: error.lineno,
+            });
+          }
+        }
+      }
     }
-    const traceback = firstTraceback.data;
-    return traceback as string;
-  });
 
-  return atom((get) => {
-    const traceback = get(tracebackStringAtom);
-    if (!traceback) {
-      return undefined;
-    }
-    return extractAllTracebackInfo(traceback);
+    return tracebackInfo.length > 0 ? tracebackInfo : undefined;
   });
 }
 

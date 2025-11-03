@@ -72,6 +72,7 @@ class MarimoExceptionRaisedError(msgspec.Struct, tag="exception"):
 
 class MarimoSyntaxError(msgspec.Struct, tag="syntax"):
     msg: str
+    lineno: Optional[int] = None
 
     def describe(self) -> str:
         return self.msg
