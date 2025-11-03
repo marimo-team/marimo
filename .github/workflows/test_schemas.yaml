@@ -67,36 +67,34 @@ jobs:
         run: |
           curl -sSL https://raw.githubusercontent.com/tufin/oasdiff/master/install.sh | sh
 
-      # Skipping for now since oasdiff breaks on certain newlines in the schemas
-      # And the fix is not obvious
-      # - name: Compare ${{ matrix.schema.display_name }}
-      #   if: ${{ matrix.schema.condition }}
-      #   id: compare
-      #   run: |
-      #     BREAKING_CHANGES=$(oasdiff breaking main/${{ matrix.schema.path }} current/${{ matrix.schema.path }})
-      #     if [ -n "$BREAKING_CHANGES" ]; then
-      #       echo "breaking_changes<<EOF" >> $GITHUB_OUTPUT
-      #       echo "$BREAKING_CHANGES" >> $GITHUB_OUTPUT
-      #       echo "EOF" >> $GITHUB_OUTPUT
-      #       echo "Breaking changes detected:"
-      #       echo "$BREAKING_CHANGES"
-      #       exit 1
-      #     else
-      #       echo "No breaking changes detected"
-      #     fi
+      - name: Compare ${{ matrix.schema.display_name }}
+        if: ${{ matrix.schema.condition }}
+        id: compare
+        run: |
+          BREAKING_CHANGES=$(oasdiff breaking main/${{ matrix.schema.path }} current/${{ matrix.schema.path }})
+          if [ -n "$BREAKING_CHANGES" ]; then
+            echo "breaking_changes<<EOF" >> $GITHUB_OUTPUT
+            echo "$BREAKING_CHANGES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "Breaking changes detected:"
+            echo "$BREAKING_CHANGES"
+            exit 1
+          else
+            echo "No breaking changes detected"
+          fi
 
-      # - name: Comment on PR
-      #   if: ${{ failure() && matrix.schema.condition }}
-      #   uses: actions/github-script@v7
-      #   with:
-      #     script: |
-      #       const output = `Breaking changes detected in the ${{ matrix.schema.display_name }}!
+      - name: Comment on PR
+        if: ${{ failure() && matrix.schema.condition }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `Breaking changes detected in the ${{ matrix.schema.display_name }}!
 
-      #       ${{ steps.compare.outputs.breaking_changes }}`
+            ${{ steps.compare.outputs.breaking_changes }}`
 
-      #       github.rest.issues.createComment({
-      #         issue_number: context.issue.number,
-      #         owner: context.repo.owner,
-      #         repo: context.repo.repo,
-      #         body: output
-      #       })
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
