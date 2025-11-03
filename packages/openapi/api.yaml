@@ -797,7 +797,6 @@ components:
           - type: 'null'
           default: null
         column_name:
-          default: ''
           type: string
         error:
           anyOf:
@@ -820,10 +819,11 @@ components:
           - $ref: '#/components/schemas/ColumnStats'
           default: null
         table_name:
-          default: ''
           type: string
       required:
       - op
+      - table_name
+      - column_name
       title: DataColumnPreview
       type: object
     DataSourceConnection:
@@ -3714,7 +3714,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.16.5
+  version: 0.17.6
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

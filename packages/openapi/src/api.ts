@@ -3231,8 +3231,7 @@ export interface components {
       chart_code?: string | null;
       /** @default null */
       chart_spec?: string | null;
-      /** @default  */
-      column_name?: string;
+      column_name: string;
       /** @default null */
       error?: string | null;
       /** @default null */
@@ -3241,8 +3240,7 @@ export interface components {
       op: "data-column-preview";
       /** @default null */
       stats?: null | components["schemas"]["ColumnStats"];
-      /** @default  */
-      table_name?: string;
+      table_name: string;
     };
     /**
      * DataSourceConnection

@@ -1056,52 +1056,49 @@ class ScopedVisitor(ast.NodeVisitor):
             )
         return node
 
-    if sys.version_info >= (3, 10):
-        # Match statements were introduced in Python 3.10
-        #
-        # Top-level match statements are awkward in marimo --- at parse-time,
-        # we have to register all names in every case/pattern as globals (since
-        # we don't know the value of the match subject), even though only a
-        # subset of the names will be bound at runtime. For this reason, in
-        # marimo, match statements should really only be used in local scopes.
-        def visit_MatchAs(self, node: ast.MatchAs) -> ast.MatchAs:
-            if node.name is not None:
-                node.name = self._if_local_then_mangle(node.name)
-                self._define(
-                    node,
-                    node.name,
-                    VariableData(kind="variable"),
-                )
-            if node.pattern is not None:
-                # pattern may contain additional MatchAs statements in it
-                self.visit(node.pattern)
-            return node
+    # Match statements were introduced in Python 3.10
+    #
+    # Top-level match statements are awkward in marimo --- at parse-time,
+    # we have to register all names in every case/pattern as globals (since
+    # we don't know the value of the match subject), even though only a
+    # subset of the names will be bound at runtime. For this reason, in
+    # marimo, match statements should really only be used in local scopes.
+    def visit_MatchAs(self, node: ast.MatchAs) -> ast.MatchAs:
+        if node.name is not None:
+            node.name = self._if_local_then_mangle(node.name)
+            self._define(
+                node,
+                node.name,
+                VariableData(kind="variable"),
+            )
+        if node.pattern is not None:
+            # pattern may contain additional MatchAs statements in it
+            self.visit(node.pattern)
+        return node
 
-        def visit_MatchMapping(
-            self, node: ast.MatchMapping
-        ) -> ast.MatchMapping:
-            if node.rest is not None:
-                node.rest = self._if_local_then_mangle(node.rest)
-                self._define(
-                    node,
-                    node.rest,
-                    VariableData(kind="variable"),
-                )
-            for key in node.keys:
-                self.visit(key)
-            for pattern in node.patterns:
-                self.visit(pattern)
-            return node
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> ast.MatchMapping:
+        if node.rest is not None:
+            node.rest = self._if_local_then_mangle(node.rest)
+            self._define(
+                node,
+                node.rest,
+                VariableData(kind="variable"),
+            )
+        for key in node.keys:
+            self.visit(key)
+        for pattern in node.patterns:
+            self.visit(pattern)
+        return node
 
-        def visit_MatchStar(self, node: ast.MatchStar) -> ast.MatchStar:
-            if node.name is not None:
-                node.name = self._if_local_then_mangle(node.name)
-                self._define(
-                    node,
-                    node.name,
-                    VariableData(kind="variable"),
-                )
-            return node
+    def visit_MatchStar(self, node: ast.MatchStar) -> ast.MatchStar:
+        if node.name is not None:
+            node.name = self._if_local_then_mangle(node.name)
+            self._define(
+                node,
+                node.name,
+                VariableData(kind="variable"),
+            )
+        return node
 
     if sys.version_info >= (3, 12):
 
