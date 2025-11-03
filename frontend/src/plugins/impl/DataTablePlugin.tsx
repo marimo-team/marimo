@@ -854,10 +854,8 @@ const DataTableComponent = ({
     setViewedRowIdx(rowIdx);
 
     const outOfBounds =
-      rowIdx < 0 ||
-      (typeof totalRows === "number" && rowIdx >= totalRows) ||
-      totalRows === TOO_MANY_ROWS;
-    if (outOfBounds) {
+      rowIdx < 0 || (typeof totalRows === "number" && rowIdx >= totalRows);
+    if (outOfBounds || totalRows === TOO_MANY_ROWS) {
       return;
     }
 
