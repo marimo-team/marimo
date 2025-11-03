@@ -145,12 +145,11 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
     }
 
     if (rows.length !== 1) {
+      const message = tooManyRows
+        ? "LazyFrame, no data available."
+        : `Expected 1 row, got ${rows.length} rows. Please report the issue.`;
       return (
-        <SimpleBanner
-          kind="warn"
-          Icon={AlertTriangle}
-          message={`Expected 1 row, got ${rows.length} rows. Please report the issue.`}
-        />
+        <SimpleBanner kind="warn" Icon={AlertTriangle} message={message} />
       );
     }
 
