@@ -764,6 +764,62 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         </AccordionFormItem>
 
         <AccordionFormItem
+          title="Weights & Biases"
+          provider="wandb"
+          isConfigured={hasValue("ai.wandb.api_key")}
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.wandb.api_key"
+            placeholder="your-wandb-api-key"
+            testId="ai-wandb-api-key-input"
+            description={
+              <>
+                Your Weights & Biases API key from{" "}
+                <ExternalLink href="https://wandb.ai/authorize">
+                  wandb.ai
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.wandb.base_url"
+            placeholder="https://api.inference.wandb.ai/v1/"
+            testId="ai-wandb-base-url-input"
+          />
+          <FormField
+            control={form.control}
+            name="ai.wandb.project"
+            render={({ field }) => (
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>Project</FormLabel>
+                  <FormControl>
+                    <Input
+                      data-testid="ai-wandb-project-input"
+                      rootClassName="flex-1"
+                      className="m-0 inline-flex h-7"
+                      placeholder="my-project"
+                      {...field}
+                      value={asStringOrUndefined(field.value)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <IsOverridden userConfig={config} name="ai.wandb.project" />
+                </FormItem>
+                <FormDescription>
+                  Optional: Specify a project for tracking.
+                </FormDescription>
+              </div>
+            )}
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
           title="Azure"
           provider="azure"
           isConfigured={

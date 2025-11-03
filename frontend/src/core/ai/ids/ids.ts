@@ -12,6 +12,7 @@ export const PROVIDERS = [
   "azure",
   "github",
   "openrouter",
+  "wandb",
   "marimo",
 ] as const;
 export type ProviderId = (typeof PROVIDERS)[number];

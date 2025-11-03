@@ -419,3 +419,61 @@
   roles: [chat]
   thinking: false
 
+# Weights & Biases Models
+
+- name: Meta Llama 3.1 8B (W&B)
+  model: wandb/meta-llama/Llama-3.1-8B-Instruct
+  description: Efficient conversational model optimized for responsive multilingual chatbot interactions
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: false
+
+- name: OpenAI GPT OSS 120B
+  model: wandb/openai/gpt-oss-120b
+  description: Efficient Mixture-of-Experts model designed for high-reasoning, agentic and general-purpose use cases
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
+- name: OpenAI GPT OSS 20B
+  model: wandb/openai/gpt-oss-20b
+  description: Lower latency Mixture-of-Experts model trained on OpenAI's Harmony response format with reasoning capabilities
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
+- name: DeepSeek V3-0324
+  model: wandb/deepseek-ai/DeepSeek-V3-0324
+  description: Robust Mixture-of-Experts model tailored for high-complexity language processing and comprehensive document analysis
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Meta Llama 3.3 70B (W&B)
+  model: wandb/meta-llama/Llama-3.3-70B-Instruct
+  description: Multilingual model excelling in conversational tasks, detailed instruction-following, and coding
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: false
+
+- name: DeepSeek R1-0528
+  model: wandb/deepseek-ai/DeepSeek-R1-0528
+  description: Optimized for precise reasoning tasks including complex coding, math, and structured document analysis
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
+- name: MoonshotAI Kimi K2
+  model: wandb/moonshotai/Kimi-K2-Instruct
+  description: Mixture-of-Experts model optimized for complex tool use, reasoning, and code synthesis
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Z.AI GLM 4.5
+  model: wandb/zai-org/GLM-4.5
+  description: Mixture-of-Experts model with user-controllable thinking/non-thinking modes for strong reasoning, code generation, and agent alignment
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
