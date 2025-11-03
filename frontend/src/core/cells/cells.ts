@@ -1689,10 +1689,11 @@ export function createUntouchedCellAtom(cellId: CellId): Atom<boolean> {
 export function createTracebackInfoAtom(
   cellId: CellId,
 ): Atom<TracebackInfo[] | undefined> {
-  // Single flat atom - proper reactivity
-  return atom((get: any) => {
-    const notebook = get(notebookAtom);
-    const data = notebook.cellRuntime[cellId];
+  //use existing cellRuntimeAtom for intermediate computation
+  const cellRuntime = cellRuntimeAtom(cellId);
+
+  return atom((get) => {
+    const data = get(cellRuntime);
 
     if (!data) {
       return undefined;
@@ -1708,7 +1709,7 @@ export function createTracebackInfoAtom(
     const outputs = data.consoleOutputs;
     if (outputs && outputs.length > 0) {
       const firstTraceback = outputs.find(
-        (output: any) => output.mimetype === "application/vnd.marimo+traceback",
+        (output) => output.mimetype === "application/vnd.marimo+traceback",
       );
       if (firstTraceback) {
         const traceback = firstTraceback.data as string;

@@ -104,6 +104,15 @@ class TestErrorClasses:
         assert error.exception_type == "ValueError"
 
     def test_marimo_syntax_error(self) -> None:
+        error = MarimoSyntaxError(msg="Invalid syntax", lineno=5)
+
+        # Test properties
+        serialized = msgspec.to_builtins(error)
+        assert serialized["type"] == "syntax"
+        assert error.describe() == "Invalid syntax"
+        assert error.lineno == 5
+
+    def test_marimo_syntax_error_without_lineno(self) -> None:
         error = MarimoSyntaxError(msg="Invalid syntax")
 
         # Test properties

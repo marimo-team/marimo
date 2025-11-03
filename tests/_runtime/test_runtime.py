@@ -865,6 +865,8 @@ except NameError:
         )
         assert set(k.errors.keys()) == {"1"}
         assert isinstance(k.errors["1"][0], MarimoSyntaxError)
+        assert k.errors["1"][0].lineno is not None
+        assert k.errors["1"][0].lineno == 1
         assert not cell.stale
 
     async def test_child_of_errored_cell_with_error_not_stale(
