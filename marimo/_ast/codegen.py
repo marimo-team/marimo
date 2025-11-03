@@ -5,6 +5,7 @@ import ast
 import io
 import os
 import re
+import sys
 import textwrap
 import tokenize
 from typing import TYPE_CHECKING, Any, Literal, Optional
