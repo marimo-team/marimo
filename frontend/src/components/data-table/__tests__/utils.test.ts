@@ -58,6 +58,9 @@ describe("getPageIndexForRow", () => {
 
     // Last row of current page
     expect(getPageIndexForRow(19, 1, 10)).toBeNull();
+
+    // Last row of last page
+    expect(getPageIndexForRow(99, 9, 10)).toBeNull();
   });
 
   it("should handle edge case of row 0", () => {

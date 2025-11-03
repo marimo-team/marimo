@@ -852,6 +852,15 @@ const DataTableComponent = ({
 
   const setViewedRow = useEvent((rowIdx: number) => {
     setViewedRowIdx(rowIdx);
+
+    const outOfBounds =
+      rowIdx < 0 ||
+      (typeof totalRows === "number" && rowIdx >= totalRows) ||
+      totalRows === TOO_MANY_ROWS;
+    if (outOfBounds) {
+      return;
+    }
+
     // If the rowIdx moves to the next / previous page, update the pagination state
     const newPageIndex = getPageIndexForRow(
       rowIdx,
