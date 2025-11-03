@@ -2821,22 +2821,22 @@ export interface components {
      * AiConfig
      * @description Configuration options for AI.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `rules`: custom rules to include in all AI completion prompts
-     *     - `max_tokens`: the maximum number of tokens to use in AI completions
-     *     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
-     *     - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
-     *     - `models`: the models to use for AI completions
-     *     - `open_ai`: the OpenAI config
-     *     - `anthropic`: the Anthropic config
-     *     - `google`: the Google AI config
-     *     - `bedrock`: the Bedrock config
-     *     - `azure`: the Azure config
-     *     - `ollama`: the Ollama config
-     *     - `github`: the GitHub config
-     *     - `openrouter`: the OpenRouter config
-     *     - `open_ai_compatible`: the OpenAI-compatible config
+     *         - `rules`: custom rules to include in all AI completion prompts
+     *         - `max_tokens`: the maximum number of tokens to use in AI completions
+     *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+     *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
+     *         - `models`: the models to use for AI completions
+     *         - `open_ai`: the OpenAI config
+     *         - `anthropic`: the Anthropic config
+     *         - `google`: the Google AI config
+     *         - `bedrock`: the Bedrock config
+     *         - `azure`: the Azure config
+     *         - `ollama`: the Ollama config
+     *         - `github`: the GitHub config
+     *         - `openrouter`: the OpenRouter config
+     *         - `open_ai_compatible`: the OpenAI-compatible config
      */
     AiConfig: {
       anthropic?: components["schemas"]["AnthropicConfig"];
@@ -2869,13 +2869,13 @@ export interface components {
      * AiModelConfig
      * @description Configuration options for an AI model.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `chat_model`: the model to use for chat completions
-     *     - `edit_model`: the model to use for edit completions
-     *     - `autocomplete_model`: the model to use for code completion/autocomplete
-     *     - `displayed_models`: a list of models to display in the UI
-     *     - `custom_models`: a list of custom models to use that are not from the default list
+     *         - `chat_model`: the model to use for chat completions
+     *         - `edit_model`: the model to use for edit completions
+     *         - `autocomplete_model`: the model to use for code completion/autocomplete
+     *         - `displayed_models`: a list of models to display in the UI
+     *         - `custom_models`: a list of custom models to use that are not from the default list
      */
     AiModelConfig: {
       autocomplete_model?: string;
@@ -2897,9 +2897,9 @@ export interface components {
      * AnthropicConfig
      * @description Configuration options for Anthropic.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `api_key`: the Anthropic API key
+     *         - `api_key`: the Anthropic API key
      */
     AnthropicConfig: {
       api_key?: string;
@@ -2933,12 +2933,12 @@ export interface components {
      * BedrockConfig
      * @description Configuration options for Bedrock.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `profile_name`: the AWS profile to use
-     *     - `region_name`: the AWS region to use
-     *     - `aws_access_key_id`: the AWS access key ID
-     *     - `aws_secret_access_key`: the AWS secret access key
+     *         - `profile_name`: the AWS profile to use
+     *         - `region_name`: the AWS region to use
+     *         - `aws_access_key_id`: the AWS access key ID
+     *         - `aws_secret_access_key`: the AWS secret access key
      */
     BedrockConfig: {
       aws_access_key_id?: string;
@@ -2998,21 +2998,21 @@ export interface components {
      * CellOp
      * @description Op to transition a cell.
      *
-     *     A CellOp's data has some optional fields:
+     *         A CellOp's data has some optional fields:
      *
-     *     output        - a CellOutput
-     *     console       - a CellOutput (console msg to append), or a list of
-     *                     CellOutputs
-     *     status        - execution status
-     *     stale_inputs  - whether the cell has stale inputs (variables, modules, ...)
-     *     run_id        - the run associated with this cell.
-     *     serialization - the serialization status of the cell
+     *         output        - a CellOutput
+     *         console       - a CellOutput (console msg to append), or a list of
+     *                         CellOutputs
+     *         status        - execution status
+     *         stale_inputs  - whether the cell has stale inputs (variables, modules, ...)
+     *         run_id        - the run associated with this cell.
+     *         serialization - the serialization status of the cell
      *
-     *     Omitting a field means that its value should be unchanged!
+     *         Omitting a field means that its value should be unchanged!
      *
-     *     And one required field:
+     *         And one required field:
      *
-     *     cell_id - the cell id
+     *         cell_id - the cell id
      */
     CellOp: {
       cell_id: string;
@@ -3168,15 +3168,15 @@ export interface components {
      * CompletionConfig
      * @description Configuration for code completion.
      *
-     *     A dict with key/value pairs configuring code completion in the marimo
-     *     editor.
+     *         A dict with key/value pairs configuring code completion in the marimo
+     *         editor.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `activate_on_typing`: if `False`, completion won't activate
-     *     until the completion hotkey is entered
-     *     - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
-     *     - `codeium_api_key`: the Codeium API key
+     *         - `activate_on_typing`: if `False`, completion won't activate
+     *         until the completion hotkey is entered
+     *         - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
+     *         - `codeium_api_key`: the Codeium API key
      */
     CompletionConfig: {
       activate_on_typing: boolean;
@@ -3367,11 +3367,11 @@ export interface components {
      * DatasourcesConfig
      * @description Configuration for datasources panel.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `auto_discover_schemas`: if `True`, include schemas in the datasource
-     *     - `auto_discover_tables`: if `True`, include tables in the datasource
-     *     - `auto_discover_columns`: if `True`, include columns & table metadata in the datasource
+     *         - `auto_discover_schemas`: if `True`, include schemas in the datasource
+     *         - `auto_discover_tables`: if `True`, include tables in the datasource
+     *         - `auto_discover_columns`: if `True`, include columns & table metadata in the datasource
      */
     DatasourcesConfig: {
       auto_discover_columns?: boolean | "auto";
@@ -3403,10 +3403,10 @@ export interface components {
      * DiagnosticsConfig
      * @description Configuration options for diagnostics.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `enabled`: if `True`, diagnostics will be shown in the editor
-     *     - `sql_linter`: if `True`, SQL cells will have linting enabled
+     *         - `enabled`: if `True`, diagnostics will be shown in the editor
+     *         - `sql_linter`: if `True`, SQL cells will have linting enabled
      */
     DiagnosticsConfig: {
       enabled?: boolean;
@@ -3416,17 +3416,17 @@ export interface components {
      * DisplayConfig
      * @description Configuration for display.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `theme`: `"light"`, `"dark"`, or `"system"`
-     *     - `code_editor_font_size`: font size for the code editor
-     *     - `cell_output`: `"above"` or `"below"`
-     *     - `dataframes`: `"rich"` or `"plain"`
-     *     - `custom_css`: list of paths to custom CSS files
-     *     - `default_table_page_size`: default number of rows to display in tables
-     *     - `default_table_max_columns`: default maximum number of columns to display in tables
-     *     - `reference_highlighting`: if `True`, highlight reactive variable references
-     *     - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
+     *         - `theme`: `"light"`, `"dark"`, or `"system"`
+     *         - `code_editor_font_size`: font size for the code editor
+     *         - `cell_output`: `"above"` or `"below"`
+     *         - `dataframes`: `"rich"` or `"plain"`
+     *         - `custom_css`: list of paths to custom CSS files
+     *         - `default_table_page_size`: default number of rows to display in tables
+     *         - `default_table_max_columns`: default maximum number of columns to display in tables
+     *         - `reference_highlighting`: if `True`, highlight reactive variable references
+     *         - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
      */
     DisplayConfig: {
       /** @enum {unknown} */
@@ -3627,9 +3627,9 @@ export interface components {
      * FormattingConfig
      * @description Configuration for code formatting.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `line_length`: max line length
+     *         - `line_length`: max line length
      */
     FormattingConfig: {
       line_length: number;
@@ -3658,10 +3658,10 @@ export interface components {
      * GitHubConfig
      * @description Configuration options for GitHub.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `api_key`: the GitHub API token
-     *     - `base_url`: the base URL for the API
+     *         - `api_key`: the GitHub API token
+     *         - `base_url`: the base URL for the API
      */
     GitHubConfig: {
       api_key?: string;
@@ -3671,9 +3671,9 @@ export interface components {
      * GoogleAiConfig
      * @description Configuration options for Google AI.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `api_key`: the Google AI API key
+     *         - `api_key`: the Google AI API key
      */
     GoogleAiConfig: {
       api_key?: string;
@@ -3808,12 +3808,12 @@ export interface components {
      * KeymapConfig
      * @description Configuration for keymaps.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `preset`: one of `"default"` or `"vim"`
-     *     - `overrides`: a dict of keymap actions to their keymap override
-     *     - `vimrc`: path to a vimrc file to load keymaps from
-     *     - `destructive_delete`: if `True`, allows deleting cells with content.
+     *         - `preset`: one of `"default"` or `"vim"`
+     *         - `overrides`: a dict of keymap actions to their keymap override
+     *         - `vimrc`: path to a vimrc file to load keymaps from
+     *         - `destructive_delete`: if `True`, allows deleting cells with content.
      */
     KeymapConfig: {
       destructive_delete?: boolean;
@@ -3889,9 +3889,9 @@ export interface components {
      * LanguageServersConfig
      * @description Configuration options for language servers.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `pylsp`: the pylsp config
+     *         - `pylsp`: the pylsp config
      */
     LanguageServersConfig: {
       basedpyright?: components["schemas"]["BasedpyrightServerConfig"];
@@ -4082,14 +4082,14 @@ export interface components {
      * OpenAiConfig
      * @description Configuration options for OpenAI or OpenAI-compatible services.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `api_key`: the OpenAI API key
-     *     - `base_url`: the base URL for the API
-     *     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
-     *     - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
-     *     - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
-     *     - `extra_headers`: extra headers to be passed to the OpenAI client
+     *         - `api_key`: the OpenAI API key
+     *         - `base_url`: the base URL for the API
+     *         - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
+     *         - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
+     *         - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
+     *         - `extra_headers`: extra headers to be passed to the OpenAI client
      */
     OpenAiConfig: {
       api_key?: string;
@@ -4127,9 +4127,9 @@ export interface components {
      * PackageManagementConfig
      * @description Configuration options for package management.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `manager`: the package manager to use
+     *         - `manager`: the package manager to use
      */
     PackageManagementConfig: {
       /** @enum {unknown} */
@@ -4283,42 +4283,42 @@ export interface components {
      * RuntimeConfig
      * @description Configuration for runtime.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `auto_instantiate`: if `False`, cells won't automatically
-     *         run on startup. This only applies when editing a notebook,
-     *         and not when running as an application.
-     *         The default is `True`.
-     *     - `auto_reload`: if `lazy`, cells importing modified modules will marked
-     *       as stale; if `autorun`, affected cells will be automatically run. similar
-     *       to IPython's %autoreload extension but with more code intelligence.
-     *     - `reactive_tests`: if `True`, marimo will automatically run pytest on cells containing only test functions and test classes.
-     *       execution.
-     *     - `on_cell_change`: if `lazy`, cells will be marked stale when their
-     *       ancestors run but won't autorun; if `autorun`, cells will automatically
-     *       run when their ancestors run.
-     *     - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
-     *       if `strict` marimo will clone cell declarations by default, avoiding
-     *       hidden potential state build up.
-     *     - `watcher_on_save`: how to handle file changes when saving. `"lazy"` marks
-     *         affected cells as stale, `"autorun"` automatically runs affected cells.
-     *     - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
-     *         values may affect frontend performance
-     *     - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
-     *       larger values may affect frontend performance
-     *     - `pythonpath`: a list of directories to add to the Python search path.
-     *         Directories will be added to the head of sys.path. Similar to the
-     *         `PYTHONPATH` environment variable, the directories will be included in
-     *         where Python will look for imported modules.
-     *     - `dotenv`: a list of paths to `.env` files to load.
-     *         If the file does not exist, it will be silently ignored.
-     *         The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
-     *     - `default_sql_output`: the default output format for SQL queries. Can be one of:
-     *         `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
-     *         The default is `"auto"`.
-     *     - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
-     *        `html`, `markdown`, `ipynb`.
-     *        The default is None.
+     *         - `auto_instantiate`: if `False`, cells won't automatically
+     *             run on startup. This only applies when editing a notebook,
+     *             and not when running as an application.
+     *             The default is `True`.
+     *         - `auto_reload`: if `lazy`, cells importing modified modules will marked
+     *           as stale; if `autorun`, affected cells will be automatically run. similar
+     *           to IPython's %autoreload extension but with more code intelligence.
+     *         - `reactive_tests`: if `True`, marimo will automatically run pytest on cells containing only test functions and test classes.
+     *           execution.
+     *         - `on_cell_change`: if `lazy`, cells will be marked stale when their
+     *           ancestors run but won't autorun; if `autorun`, cells will automatically
+     *           run when their ancestors run.
+     *         - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
+     *           if `strict` marimo will clone cell declarations by default, avoiding
+     *           hidden potential state build up.
+     *         - `watcher_on_save`: how to handle file changes when saving. `"lazy"` marks
+     *             affected cells as stale, `"autorun"` automatically runs affected cells.
+     *         - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
+     *             values may affect frontend performance
+     *         - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
+     *           larger values may affect frontend performance
+     *         - `pythonpath`: a list of directories to add to the Python search path.
+     *             Directories will be added to the head of sys.path. Similar to the
+     *             `PYTHONPATH` environment variable, the directories will be included in
+     *             where Python will look for imported modules.
+     *         - `dotenv`: a list of paths to `.env` files to load.
+     *             If the file does not exist, it will be silently ignored.
+     *             The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
+     *         - `default_sql_output`: the default output format for SQL queries. Can be one of:
+     *             `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
+     *             The default is `"auto"`.
+     *         - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
+     *            `html`, `markdown`, `ipynb`.
+     *            The default is None.
      */
     RuntimeConfig: {
       auto_instantiate: boolean;
@@ -4375,11 +4375,11 @@ export interface components {
      * SaveConfig
      * @description Configuration for saving.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `autosave`: one of `"off"` or `"after_delay"`
-     *     - `delay`: number of milliseconds to wait before autosaving
-     *     - `format_on_save`: if `True`, format the code on save
+     *         - `autosave`: one of `"off"` or `"after_delay"`
+     *         - `delay`: number of milliseconds to wait before autosaving
+     *         - `format_on_save`: if `True`, format the code on save
      */
     SaveConfig: {
       /** @enum {unknown} */
@@ -4453,12 +4453,12 @@ export interface components {
      * ServerConfig
      * @description Configuration for the server.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `browser`: the web browser to use. `"default"` or a browser registered
-     *         with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
-     *     - `follow_symlink`: if true, the server will follow symlinks it finds
-     *         inside its static assets directory.
+     *         - `browser`: the web browser to use. `"default"` or a browser registered
+     *             with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
+     *         - `follow_symlink`: if true, the server will follow symlinks it finds
+     *             inside its static assets directory.
      */
     ServerConfig: {
       browser: "default" | string;
@@ -4499,10 +4499,10 @@ export interface components {
      * SharingConfig
      * @description Configuration for sharing features.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `html`: if `False`, HTML sharing options will be hidden from the UI
-     *     - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
+     *         - `html`: if `False`, HTML sharing options will be hidden from the UI
+     *         - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
      */
     SharingConfig: {
       html?: boolean;
@@ -4533,9 +4533,9 @@ export interface components {
      * SnippetsConfig
      * @description Configuration for snippets.
      *
-     *     **Keys.**
+     *         **Keys.**
      *
-     *     - `custom_path`: the path to the custom snippets directory
+     *         - `custom_path`: the path to the custom snippets directory
      */
     SnippetsConfig: {
       custom_paths?: string[];
@@ -4736,8 +4736,8 @@ export interface components {
      * _AppConfig
      * @description Program-specific configuration.
      *
-     *     Configuration for frontends or runtimes that is specific to
-     *     a single marimo program.
+     *         Configuration for frontends or runtimes that is specific to
+     *         a single marimo program.
      */
     _AppConfig: {
       /** @default null */
