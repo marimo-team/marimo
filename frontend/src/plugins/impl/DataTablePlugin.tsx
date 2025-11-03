@@ -51,7 +51,10 @@ import {
   toFieldTypes,
   type ValueCounts,
 } from "@/components/data-table/types";
-import { loadTableData } from "@/components/data-table/utils";
+import {
+  getPageIndexForRow,
+  loadTableData,
+} from "@/components/data-table/utils";
 import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -847,6 +850,23 @@ const DataTableComponent = ({
     },
   );
 
+  const setViewedRow = useEvent((rowIdx: number) => {
+    setViewedRowIdx(rowIdx);
+    // If the rowIdx moves to the next / previous page, update the pagination state
+    const newPageIndex = getPageIndexForRow(
+      rowIdx,
+      paginationState.pageIndex,
+      paginationState.pageSize,
+    );
+
+    if (newPageIndex !== null) {
+      setPaginationState((prev) => ({
+        ...prev,
+        pageIndex: newPageIndex,
+      }));
+    }
+  });
+
   const cellSelection = value.filter(
     (v) => v instanceof Object && v.columnName !== undefined,
   ) as CellSelectionState;
@@ -902,7 +922,7 @@ const DataTableComponent = ({
             fieldTypes={memoizedUnclampedFieldTypes}
             totalRows={totalRows}
             rowIdx={viewedRowIdx}
-            setRowIdx={setViewedRowIdx}
+            setRowIdx={setViewedRow}
             isSelectable={isSelectable}
             isRowSelected={rowSelection[viewedRowIdx]}
             handleRowSelectionChange={handleRowSelectionChange}
