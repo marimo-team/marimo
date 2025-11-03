@@ -107,8 +107,6 @@ class ColumnSummaries:
 
 ShowColumnSummaries = Union[bool, Literal["stats", "chart"]]
 CHART_MAX_ROWS_STRING_VALUE_COUNTS = 20_000
-# only show charts when value_counts size is <= this
-MAX_UNIQUE_VALUES_TO_SHOW = 5
 
 DEFAULT_MAX_COLUMNS = 50
 
@@ -990,7 +988,7 @@ class table(
                         val_counts = self._get_value_counts(
                             column, DEFAULT_VALUE_COUNTS_SIZE, total_rows
                         )
-                        if 0 < len(val_counts) <= MAX_UNIQUE_VALUES_TO_SHOW:
+                        if len(val_counts) > 0:
                             value_counts[column] = val_counts
                             cols_to_drop.append(column)
                         continue
