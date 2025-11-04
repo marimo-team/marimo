@@ -17,8 +17,7 @@ import {
   Trash2Icon,
   X,
 } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
-import { Streamdown } from "streamdown";
+import React, { lazy, useEffect, useRef, useState } from "react";
 import { convertToFileUIPart } from "@/components/chat/chat-utils";
 import {
   type AdditionalCompletions,
@@ -51,6 +50,10 @@ import { Objects } from "@/utils/objects";
 import { ErrorBanner } from "../common/error-banner";
 import type { PluginFunctions } from "./ChatPlugin";
 import type { ChatConfig, ChatMessage } from "./types";
+
+const LazyStreamdown = lazy(() =>
+  import("streamdown").then((module) => ({ default: module.Streamdown })),
+);
 
 interface Props extends PluginFunctions {
   prompts: string[];
@@ -195,7 +198,9 @@ export const Chatbot: React.FC<Props> = (props) => {
     const textContent = textParts?.map((p) => p.text).join("\n");
     const content =
       message.role === "assistant" ? (
-        <Streamdown className="mo-markdown-renderer">{textContent}</Streamdown>
+        <LazyStreamdown className="mo-markdown-renderer">
+          {textContent}
+        </LazyStreamdown>
       ) : (
         textContent
       );
