@@ -5,7 +5,7 @@ from typing import Any
 from unittest.mock import patch
 
 from marimo._ast.cell import RuntimeStateType
-from marimo._data.models import DataTable, DataTableColumn
+from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.ops import (
@@ -15,6 +15,9 @@ from marimo._messaging.ops import (
     DataSourceConnections,
     InstallingPackageAlert,
     SendUIElementMessage,
+    SQLMetadata,
+    SQLTableListPreview,
+    SQLTablePreview,
     StartupLogs,
     UpdateCellCodes,
     UpdateCellIdsRequest,
@@ -32,7 +35,7 @@ from marimo._runtime.requests import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
-from marimo._types.ids import CellId_t, WidgetModelId
+from marimo._types.ids import CellId_t, RequestId, VariableName, WidgetModelId
 from marimo._utils.parse_dataclass import parse_raw
 
 cell_id = CellId_t("cell_1")
@@ -556,6 +559,125 @@ def test_add_data_source_connections(session_view: SessionView) -> None:
     ]
     assert "mysql1" in session_view_names
     assert INTERNAL_DUCKDB_ENGINE in session_view_names
+
+
+def test_add_sql_table_previews() -> None:
+    session_view = SessionView()
+
+    # Add initial connections
+    session_view.add_raw_operation(
+        serialize_kernel_message(
+            DataSourceConnections(
+                connections=[
+                    DataSourceConnection(
+                        source="duckdb",
+                        name="connection1",
+                        dialect="duckdb",
+                        display_name="duckdb (connection1)",
+                        databases=[
+                            Database(
+                                name="db1",
+                                dialect="duckdb",
+                                schemas=[
+                                    Schema(
+                                        name="db1",
+                                        tables=[
+                                            DataTable(
+                                                name="table1",
+                                                source_type="connection",
+                                                source="db1",
+                                                columns=[],
+                                                num_rows=0,
+                                                num_columns=0,
+                                                variable_name=None,
+                                            )
+                                        ],
+                                    )
+                                ],
+                            )
+                        ],
+                    )
+                ],
+            )
+        )
+    )
+
+    session_view_connections = session_view.data_connectors.connections
+    assert session_view_connections[0].databases[0].schemas[0].tables == [
+        DataTable(
+            source_type="connection",
+            source="db1",
+            name="table1",
+            num_rows=0,
+            num_columns=0,
+            variable_name=None,
+            columns=[],
+        )
+    ]
+
+    session_view.add_raw_operation(
+        serialize_kernel_message(
+            SQLTablePreview(
+                metadata=SQLMetadata(
+                    connection="connection1", database="db1", schema="db1"
+                ),
+                request_id=RequestId("request_id"),
+                table=DataTable(
+                    name="table1",
+                    source_type="connection",
+                    source="db1",
+                    num_rows=10,  # Updated
+                    num_columns=0,
+                    variable_name=None,
+                    columns=[],
+                ),
+            )
+        )
+    )
+    session_view_connections = session_view.data_connectors.connections
+    assert (
+        session_view_connections[0].databases[0].schemas[0].tables[0].num_rows
+        == 10
+    )
+
+    # Add sql table preview list
+    session_view.add_raw_operation(
+        serialize_kernel_message(
+            SQLTableListPreview(
+                metadata=SQLMetadata(
+                    connection="connection1", database="db1", schema="db1"
+                ),
+                request_id=RequestId("request_id"),
+                tables=[
+                    DataTable(
+                        name="table2",
+                        source_type="connection",
+                        source="db1",
+                        num_rows=20,
+                        num_columns=10,
+                        variable_name=VariableName("var"),
+                        columns=[],
+                    )
+                ],
+            )
+        )
+    )
+
+    assert session_view_connections[0].databases[0].schemas[0].tables == [
+        DataTable(
+            source_type="connection",
+            source="db1",
+            name="table2",
+            num_rows=20,
+            num_columns=10,
+            variable_name=VariableName("var"),
+            columns=[],
+            engine=None,
+            type="table",
+            primary_keys=None,
+            indexes=None,
+        )
+    ]
 
 
 def test_add_cell_op(session_view: SessionView) -> None:

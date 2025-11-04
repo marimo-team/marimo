@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it } from "vitest";
+import { SETUP_CELL_ID } from "@/core/cells/ids";
 import {
   type CellColumnId,
   type CellIndex,
@@ -1137,6 +1138,16 @@ describe("MultiColumn", () => {
       ["C1", "D1", "C2"],
       ["A1"],
     ]);
+  });
+
+  it("handles setup cell existence", () => {
+    const multiColumn = MultiColumn.from([["A1"], ["B1"], ["C1"]]);
+    const columnIds = multiColumn.getColumnIds();
+    expect(multiColumn.setupCellExists()).toBe(false);
+    const multiColumn2 = multiColumn.insertId(SETUP_CELL_ID, columnIds[0], 0);
+    expect(multiColumn2.setupCellExists()).toBe(true);
+    const multiColumn3 = multiColumn2.deleteById(SETUP_CELL_ID);
+    expect(multiColumn3.setupCellExists()).toBe(false);
   });
 
   it("handles get method", () => {

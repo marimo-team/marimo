@@ -29,7 +29,7 @@ import type { CellConfig } from "../network/types";
 import { isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { CellId } from "./ids";
+import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
   focusAndScrollCellIntoView,
@@ -51,13 +51,6 @@ import {
   notebookNeedsRun,
   notebookQueueOrRunningCount,
 } from "./utils";
-
-export const SCRATCH_CELL_ID = "__scratch__" as CellId;
-export const SETUP_CELL_ID = "setup" as CellId;
-
-export function isSetupCell(cellId: CellId): boolean {
-  return cellId === SETUP_CELL_ID;
-}
 
 /**
  * The state of the notebook.
@@ -1335,8 +1328,7 @@ const {
       code = "# Initialization code that runs before all other cells";
     }
 
-    // First check if setup cell already exists
-    if (SETUP_CELL_ID in state.cellIds) {
+    if (state.cellIds.setupCellExists()) {
       // Just focus on the existing setup cell
       return {
         ...state,

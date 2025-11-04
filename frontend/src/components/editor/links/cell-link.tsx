@@ -1,13 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { JSX } from "react"; /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  SCRATCH_CELL_ID,
-  useCellActions,
-  useCellIds,
-  useCellNames,
-} from "@/core/cells/cells";
-import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import { useCellActions, useCellIds, useCellNames } from "@/core/cells/cells";
+import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";
 import { goToCellLine } from "@/core/codemirror/go-to-definition/utils";
 import { useFilename } from "@/core/saving/filename";

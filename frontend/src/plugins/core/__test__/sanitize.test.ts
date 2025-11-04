@@ -130,6 +130,21 @@ describe("sanitizeHtml", () => {
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(`"Content"`);
   });
 
+  test("preserves marimo elements with simple data attribute", () => {
+    const html = '<marimo-test data-value="simple">Test</marimo-test>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<marimo-test data-value="simple">Test</marimo-test>"`,
+    );
+  });
+
+  test("preserves marimo-mermaid with data-diagram attribute", () => {
+    const html =
+      "<marimo-mermaid data-diagram='&quot;sequenceDiagram&#92;n    Alice-&gt;&gt;John&#92;n    John--&gt;&gt;Alice&#92;n    &quot;'></marimo-mermaid>";
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<marimo-mermaid></marimo-mermaid>"`,
+    );
+  });
+
   test("keeps style tags with FORCE_BODY", () => {
     const html = "<style>body { color: red; }</style><p>Text</p>";
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(

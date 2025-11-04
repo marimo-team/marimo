@@ -15,6 +15,8 @@ from marimo._messaging.ops import (
     Interrupted,
     MessageOperation,
     SendUIElementMessage,
+    SQLTableListPreview,
+    SQLTablePreview,
     StartupLogs,
     UpdateCellCodes,
     UpdateCellIdsRequest,
@@ -31,6 +33,10 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
     SyncGraphRequest,
+)
+from marimo._sql.connection_utils import (
+    update_table_in_connection,
+    update_table_list_in_connection,
 )
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, WidgetModelId
@@ -246,6 +252,27 @@ class SessionView:
 
             self.data_connectors = DataSourceConnections(
                 connections=list(connections.values())
+            )
+
+        elif isinstance(operation, SQLTablePreview):
+            sql_table_preview = operation
+            sql_metadata = sql_table_preview.metadata
+            table_preview_connections = self.data_connectors.connections
+            if sql_table_preview.table is not None:
+                update_table_in_connection(
+                    table_preview_connections,
+                    sql_metadata,
+                    sql_table_preview.table,
+                )
+
+        elif isinstance(operation, SQLTableListPreview):
+            sql_table_list_preview = operation
+            sql_metadata = sql_table_list_preview.metadata
+            table_list_connections = self.data_connectors.connections
+            update_table_list_in_connection(
+                table_list_connections,
+                sql_metadata,
+                sql_table_list_preview.tables,
             )
 
         elif isinstance(operation, UpdateCellIdsRequest):

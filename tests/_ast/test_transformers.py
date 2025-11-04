@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-import sys
 
 import pytest
 
@@ -22,9 +21,6 @@ from marimo._ast.transformers import (
 )
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
-)
 def test_name_transformer() -> None:
     # Name transformer should naively remap all occurrences of names in an AST,
     # without taking scoping into account.
@@ -83,9 +79,6 @@ new_global = 'world'
     assert transformer.made_changes
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
-)
 def test_name_transformer_no_changes() -> None:
     code = "x = 1"
     tree = ast.parse(code)

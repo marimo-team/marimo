@@ -95,8 +95,9 @@ components:
         \ OpenAI config\n    - `anthropic`: the Anthropic config\n    - `google`:\
         \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
         \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
-        \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `open_ai_compatible`:\
-        \ the OpenAI-compatible config"
+        \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `wandb`:\
+        \ the Weights & Biases config\n    - `open_ai_compatible`: the OpenAI-compatible\
+        \ config"
       properties:
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
@@ -129,6 +130,8 @@ components:
           $ref: '#/components/schemas/OpenAiConfig'
         rules:
           type: string
+        wandb:
+          $ref: '#/components/schemas/OpenAiConfig'
       required: []
       title: AiConfig
       type: object
@@ -797,7 +800,6 @@ components:
           - type: 'null'
           default: null
         column_name:
-          default: ''
           type: string
         error:
           anyOf:
@@ -820,10 +822,11 @@ components:
           - $ref: '#/components/schemas/ColumnStats'
           default: null
         table_name:
-          default: ''
           type: string
       required:
       - op
+      - table_name
+      - column_name
       title: DataColumnPreview
       type: object
     DataSourceConnection:
@@ -2449,13 +2452,14 @@ components:
     OpenAiConfig:
       description: "Configuration options for OpenAI or OpenAI-compatible services.\n\
         \n    **Keys.**\n\n    - `api_key`: the OpenAI API key\n    - `base_url`:\
-        \ the base URL for the API\n    - `ssl_verify` : Boolean argument for httpx\
-        \ passed to open ai client. httpx defaults to true, but some use cases to\
-        \ let users override to False in some testing scenarios\n    - `ca_bundle_path`:\
-        \ custom ca bundle to be used for verifying SSL certificates. Used to create\
-        \ custom SSL context for httpx client\n    - `client_pem` : custom path of\
-        \ a client .pem cert used for verifying identity of client server\n    - `extra_headers`:\
-        \ extra headers to be passed to the OpenAI client"
+        \ the base URL for the API\n    - `project`: the project ID for the OpenAI\
+        \ API\n    - `ssl_verify` : Boolean argument for httpx passed to open ai client.\
+        \ httpx defaults to true, but some use cases to let users override to False\
+        \ in some testing scenarios\n    - `ca_bundle_path`: custom ca bundle to be\
+        \ used for verifying SSL certificates. Used to create custom SSL context for\
+        \ httpx client\n    - `client_pem` : custom path of a client .pem cert used\
+        \ for verifying identity of client server\n    - `extra_headers`: extra headers\
+        \ to be passed to the OpenAI client"
       properties:
         api_key:
           type: string
@@ -2470,6 +2474,8 @@ components:
             type: string
           type: object
         model:
+          type: string
+        project:
           type: string
         ssl_verify:
           type: boolean
@@ -2896,6 +2902,25 @@ components:
       - watcher_on_save
       title: RuntimeConfig
       type: object
+    SQLMetadata:
+      description: Metadata for a SQL database.
+      properties:
+        connection:
+          type: string
+        database:
+          type: string
+        schema:
+          type: string
+        type:
+          enum:
+          - sql-metadata
+      required:
+      - type
+      - connection
+      - database
+      - schema
+      title: SQLMetadata
+      type: object
     SQLTableListPreview:
       description: Preview of a list of tables in a schema.
       properties:
@@ -2904,6 +2929,8 @@ components:
           - type: string
           - type: 'null'
           default: null
+        metadata:
+          $ref: '#/components/schemas/SQLMetadata'
         op:
           enum:
           - sql-table-list-preview
@@ -2917,6 +2944,7 @@ components:
       required:
       - op
       - request_id
+      - metadata
       title: SQLTableListPreview
       type: object
     SQLTablePreview:
@@ -2927,6 +2955,8 @@ components:
           - type: string
           - type: 'null'
           default: null
+        metadata:
+          $ref: '#/components/schemas/SQLMetadata'
         op:
           enum:
           - sql-table-preview
@@ -2939,6 +2969,7 @@ components:
       required:
       - op
       - request_id
+      - metadata
       - table
       title: SQLTablePreview
       type: object
@@ -3719,7 +3750,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.16.5
+  version: 0.17.6
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

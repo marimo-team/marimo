@@ -485,6 +485,25 @@ export const DatabricksConnectionSchema = z
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
+export const SupabaseConnectionSchema = z
+  .object({
+    type: z.literal("supabase"),
+    host: hostField(),
+    port: portField(5432).optional(),
+    database: databaseField(),
+    username: usernameField(),
+    password: passwordField(),
+    disable_client_pooling: z
+      .boolean()
+      .default(false)
+      .describe(
+        FieldOptions.of({
+          label: "Disable Client-Side Pooling",
+        }),
+      ),
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
 export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   PostgresConnectionSchema,
   MySQLConnectionSchema,
@@ -502,6 +521,7 @@ export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   PySparkConnectionSchema,
   RedshiftConnectionSchema,
   DatabricksConnectionSchema,
+  SupabaseConnectionSchema,
 ]);
 
 export type DatabaseConnection = z.infer<typeof DatabaseConnectionSchema>;

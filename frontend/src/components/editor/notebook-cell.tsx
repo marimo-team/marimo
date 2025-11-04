@@ -41,13 +41,12 @@ import type { Milliseconds, Seconds } from "@/utils/time";
 import {
   type CellActions,
   createUntouchedCellAtom,
-  SETUP_CELL_ID,
   useCellActions,
   useCellData,
   useCellHandle,
   useCellRuntime,
 } from "../../core/cells/cells";
-import type { CellId } from "../../core/cells/ids";
+import { type CellId, SETUP_CELL_ID } from "../../core/cells/ids";
 import { isUninstantiated } from "../../core/cells/utils";
 import type { UserConfig } from "../../core/config/config-schema";
 import {

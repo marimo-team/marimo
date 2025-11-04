@@ -3,8 +3,8 @@
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { type Extension, Prec } from "@codemirror/state";
 import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
-import { createTracebackInfoAtom, SCRATCH_CELL_ID } from "@/core/cells/cells";
-import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import { createTracebackInfoAtom } from "@/core/cells/cells";
+import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";

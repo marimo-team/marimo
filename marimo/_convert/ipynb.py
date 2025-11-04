@@ -404,17 +404,17 @@ class Renamer:
             name = node.name
             new_name = self._maybe_rename(cell, name, is_reference)
             node.name = new_name
-        if sys.version_info >= (3, 10):
-            if isinstance(node, (ast.MatchAs, ast.MatchStar)):
-                name = node.name
-                if name is not None:
-                    new_name = self._maybe_rename(cell, name, is_reference)
-                    node.name = new_name
-            elif isinstance(node, ast.MatchMapping):
-                name = node.rest
-                if name is not None:
-                    new_name = self._maybe_rename(cell, name, is_reference)
-                    node.rest = new_name
+
+        if isinstance(node, (ast.MatchAs, ast.MatchStar)):
+            name = node.name
+            if name is not None:
+                new_name = self._maybe_rename(cell, name, is_reference)
+                node.name = new_name
+        elif isinstance(node, ast.MatchMapping):
+            name = node.rest
+            if name is not None:
+                new_name = self._maybe_rename(cell, name, is_reference)
+                node.rest = new_name
         if sys.version_info >= (3, 12):
             if isinstance(
                 node, (ast.TypeVar, ast.ParamSpec, ast.TypeVarTuple)

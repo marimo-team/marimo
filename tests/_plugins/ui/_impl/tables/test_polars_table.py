@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import unittest
+from enum import Enum
 from math import isnan
 from typing import Any
 
@@ -995,3 +996,35 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
         data_list = pl.DataFrame(data, schema={"A": pl.List(pl.Categorical())})
         data_list.write_json()
+
+    @pytest.mark.xfail(
+        reason="Polars does not properly order sliced data to json when enums in list"
+    )
+    def test_failing_enums_list(self) -> None:
+        import polars as pl
+
+        class MyEnum(Enum):
+            A = 1
+            B = 2
+            C = 3
+            D = 4
+
+        # Create 10 rows cycling through enum values B, C, D, A...
+        enum_names = [e.name for e in MyEnum]
+        rows = [
+            {"value": [enum_names[i % len(enum_names)]]} for i in range(1, 11)
+        ]
+
+        expected_first_five = '[{"value":["B"]},{"value":["C"]},{"value":["D"]},{"value":["A"]},{"value":["B"]}]'
+        expected_second_five = '[{"value":["C"]},{"value":["D"]},{"value":["A"]},{"value":["B"]},{"value":["C"]}]'
+
+        # Test without schema - works fine
+        df = pl.DataFrame(rows)
+        assert df[0:5].write_json() == expected_first_five
+        assert df[5:10].write_json() == expected_second_five
+
+        # Test with schema - second slice fails
+        schema = {"value": pl.List(pl.Enum(enum_names))}
+        df_schema = pl.DataFrame(rows, schema=schema)
+        assert df_schema[0:5].write_json() == expected_first_five
+        assert df_schema[5:10].write_json() == expected_second_five  # fails
