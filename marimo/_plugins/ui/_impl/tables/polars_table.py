@@ -118,6 +118,15 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = self._convert_time_to_string(
                                 result, column
                             )
+                        # https://github.com/marimo-team/marimo/issues/7032
+                        # Polars issue with ordering and write_json for enums, so we convert to strings
+                        elif isinstance(dtype, pl.List) and isinstance(
+                            dtype.inner, (pl.Enum, pl.Categorical)
+                        ):
+                            # Convert each element in the list to a string
+                            result = result.with_columns(
+                                pl.col(column.name).cast(pl.List(pl.String))
+                            )
                     return sanitize_json_bigint(result.write_json())
                 except (
                     BaseException
@@ -154,16 +163,6 @@ class PolarsTableManagerFactory(TableManagerFactory):
                                 result, column
                             )
                             converted_columns.append(column.name)
-                        # https://github.com/marimo-team/marimo/issues/5562
-                        elif isinstance(dtype, pl.List) and isinstance(
-                            dtype.inner, (pl.Enum, pl.Categorical)
-                        ):
-                            # Convert each element in the list to a string
-                            result = result.with_columns(
-                                pl.col(column.name).cast(pl.List(pl.String))
-                            )
-                            converted_columns.append(column.name)
-
                     if converted_columns:
                         LOGGER.info(
                             "Converted columns %s to safe values.",
