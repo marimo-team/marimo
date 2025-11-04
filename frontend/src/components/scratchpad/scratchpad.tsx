@@ -11,13 +11,9 @@ import {
 import type React from "react";
 import { Suspense, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
-import {
-  SCRATCH_CELL_ID,
-  useCellActions,
-  useNotebook,
-} from "@/core/cells/cells";
+import { useCellActions, useNotebook } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
-import { HTMLCellId } from "@/core/cells/ids";
+import { HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { useResolvedMarimoConfig } from "@/core/config/config";
