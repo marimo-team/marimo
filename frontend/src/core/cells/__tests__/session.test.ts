@@ -397,14 +397,8 @@ describe("notebookStateFromSession", () => {
         },
         serializedEditorState: null,
       });
-      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([
-        {
-          channel: "stdout",
-          data: "output",
-          mimetype: "text/plain",
-          timestamp: 0,
-        },
-      ]);
+      // Null result means no output.
+      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
     });
 
     it("creates state when cell order differs but same cells", () => {
