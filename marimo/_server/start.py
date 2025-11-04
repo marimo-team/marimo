@@ -220,7 +220,7 @@ def start(
                 }
             }
         )
-        LOGGER.info("Watch mode enabled, auto-save is disabled")
+        LOGGER.warning("Watch mode enabled, auto-save is disabled")
 
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         config_reader = config_reader.with_overrides(
