@@ -208,8 +208,19 @@ def start(
             min_port=DEFAULT_PORT + 400,
         )
 
-    if watch and config_reader.is_auto_save_enabled:
-        LOGGER.warning("Enabling watch mode may interfere with auto-save.")
+    # If watch is true, disable auto-save and format-on-save,
+    # watch is enabled when they are editing in another editor
+    if watch:
+        config_reader = config_reader.with_overrides(
+            {
+                "save": {
+                    "autosave": "off",
+                    "format_on_save": False,
+                    "autosave_delay": 1000,
+                }
+            }
+        )
+        LOGGER.info("Watch mode enabled, auto-save is disabled")
 
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         config_reader = config_reader.with_overrides(
