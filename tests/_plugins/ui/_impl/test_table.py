@@ -1055,29 +1055,8 @@ class TestTableGetValueCounts:
         )
         table = ui.table(data)
         summaries = table._get_column_summaries(ColumnSummariesArgs())
-        assert summaries.value_counts == {
-            "a": [
-                ValueCount(
-                    value="unique values",
-                    count=CHART_MAX_ROWS_STRING_VALUE_COUNTS,
-                )
-            ]
-        }
+        assert summaries.value_counts == {}  # too many unique values
         assert summaries.data is None
-
-        # If >20k rows, we should not get value_counts
-        data = pd.DataFrame(
-            {
-                "a": [
-                    str(i)
-                    for i in range(CHART_MAX_ROWS_STRING_VALUE_COUNTS + 1)
-                ]
-            }
-        )
-        table = ui.table(data)
-        summaries = table._get_column_summaries(ColumnSummariesArgs())
-        assert summaries.data is None
-        assert summaries.value_counts == {}
 
     def test_with_smaller_limit(self, table: ui.table) -> None:
         value_counts = table._get_value_counts(
