@@ -876,10 +876,14 @@ class Kernel:
                 syntax_error[0] = syntax_error[0][
                     syntax_error[0].find("line") :
                 ]
+
+                lineno = getattr(e, "lineno", None)
                 if isinstance(e, ImportStarError):
-                    error = MarimoImportStarError(msg=str(e))
+                    error = MarimoImportStarError(msg=str(e), lineno=lineno)
                 else:
-                    error = MarimoSyntaxError(msg="\n".join(syntax_error))
+                    error = MarimoSyntaxError(
+                        msg="\n".join(syntax_error), lineno=lineno
+                    )
             else:
                 tmpio = io.StringIO()
                 traceback.print_exc(file=tmpio)

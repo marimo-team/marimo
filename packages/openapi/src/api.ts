@@ -3718,6 +3718,8 @@ export interface components {
     };
     /** ImportStarError */
     ImportStarError: {
+      /** @default null */
+      lineno?: number | null;
       msg: string;
       /** @enum {unknown} */
       type: "import-star";
@@ -4057,6 +4059,8 @@ export interface components {
     };
     /** MarimoSyntaxError */
     MarimoSyntaxError: {
+      /** @default null */
+      lineno?: number | null;
       msg: string;
       /** @enum {unknown} */
       type: "syntax";
