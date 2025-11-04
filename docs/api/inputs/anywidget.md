@@ -37,7 +37,7 @@ For additional examples, see
 
 ## Custom widget
 
-Anywidget let's you write custom widgets by adding javascript to your Python code. Below is an example of a counter widget. 
+Anywidget let's you write custom widgets by adding JavaScript to your Python code. Below is an example of a counter widget. 
 
 ```python
 import anywidget
