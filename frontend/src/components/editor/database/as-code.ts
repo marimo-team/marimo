@@ -765,6 +765,42 @@ class DatabricksGenerator extends CodeGenerator<"databricks"> {
   }
 }
 
+class SupabaseGenerator extends CodeGenerator<"supabase"> {
+  generateImports(): string[] {
+    if (this.connection.disable_client_pooling) {
+      return ["from sqlalchemy.pool import NullPool"];
+    }
+    return [];
+  }
+
+  generateConnectionCode(): string {
+    const password = this.secrets.printPassword(
+      this.connection.password,
+      "SUPABASE_PASSWORD",
+      true,
+    );
+    const username = this.secrets.printInFString(
+      "username",
+      this.connection.username,
+    );
+    const host = this.secrets.printInFString("host", this.connection.host);
+    const port = this.secrets.printInFString("port", this.connection.port);
+    const database = this.secrets.printInFString(
+      "database",
+      this.connection.database,
+    );
+
+    const poolClass = this.connection.disable_client_pooling
+      ? ", poolclass=NullPool"
+      : "";
+
+    return dedent(`
+      DATABASE_URL = f"postgresql+psycopg2://${username}:${password}@${host}:${port}/${database}?sslmode=require"
+      engine = ${this.orm}.create_engine(DATABASE_URL${poolClass})
+    `);
+  }
+}
+
 class CodeGeneratorFactory {
   public secrets = new SecretContainer();
 
@@ -805,6 +841,8 @@ class CodeGeneratorFactory {
         return new RedshiftGenerator(connection, orm, this.secrets);
       case "databricks":
         return new DatabricksGenerator(connection, orm, this.secrets);
+      case "supabase":
+        return new SupabaseGenerator(connection, orm, this.secrets);
       default:
         assertNever(connection);
     }
