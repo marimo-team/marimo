@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.6"
 app = marimo.App(width="medium")
 
 
@@ -19,6 +19,7 @@ def _():
     import polars as pl
     import marimo as mo
     import os
+    import altair
 
     has_api_key = os.environ.get("OPENAI_API_KEY") is not None
     mo.stop(

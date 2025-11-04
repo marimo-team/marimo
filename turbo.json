@@ -3,7 +3,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build", "codegen"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "env": ["NODE_ENV", "VITE_MARIMO_VERSION", "VITE_MARIMO_ISLANDS"]
     },
     "typecheck": {
       "dependsOn": ["codegen", "^codegen"]
