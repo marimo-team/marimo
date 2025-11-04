@@ -27,7 +27,6 @@ import {
   flattenTopLevelNotebookCells,
   type NotebookState,
   notebookAtom,
-  SETUP_CELL_ID,
 } from "../cells";
 import {
   focusAndScrollCellIntoView,
