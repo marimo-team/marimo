@@ -55,9 +55,9 @@ describe("FrontendToolRegistry", () => {
     expect(typeof response.error).toBe("string");
 
     // Verify error message contains expected prefix
-    expect(response.error).toContain("Error invoking tool ToolExecutionError:");
-    expect(response.error).toContain('"code":"TOOL_ERROR"');
-    expect(response.error).toContain('"is_retryable":false');
+    expect(response.error).toMatchInlineSnapshot(
+      `"Error invoking tool ToolExecutionError: {"message":"Tool test_frontend_tool returned invalid input: ✖ Invalid input: expected string, received undefined\\n  → at name","code":"INVALID_ARGUMENTS","is_retryable":true,"suggested_fix":"Please check the arguments and try again."}"`,
+    );
   });
 
   it("returns tool schemas with expected shape and memoizes the result", () => {
