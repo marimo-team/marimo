@@ -173,8 +173,18 @@ def serialize_session_view(
     )
 
 
-def deserialize_session(session: NotebookSessionV1) -> SessionView:
-    """Convert a NotebookSession schema to a SessionView."""
+def deserialize_session(
+    session: NotebookSessionV1,
+    code_hash_to_cell_id: dict[str, CellId_t],
+) -> SessionView:
+    """Convert a NotebookSession schema to a SessionView.
+
+    Args:
+        session: The serialized notebook session
+        code_hash_to_cell_id: Mapping from code hash to current cell ID.
+            Cells are matched by code hash instead of using the stored cell_id,
+            which handles cases where cells were added/deleted.
+    """
     view = SessionView()
 
     for cell in session["cells"]:
@@ -266,7 +276,22 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
                     )
                 )
 
-        cell_id = CellId_t(cell["id"])
+        # Match cell by code_hash
+        if cell["code_hash"] is None:
+            # No code hash available - skip this cell
+            LOGGER.debug(
+                f"Skipping cached output for cell {cell['id']} - no code_hash"
+            )
+            continue
+
+        cell_id = code_hash_to_cell_id.get(cell["code_hash"])
+        if cell_id is None:
+            # No matching cell found by code hash - skip this cell
+            LOGGER.debug(
+                f"Skipping cached output for cell with hash "
+                f"{cell['code_hash'][:8]}... - no matching cell found"
+            )
+            continue
 
         view.cell_operations[cell_id] = CellOp(
             cell_id=cell_id,
@@ -391,6 +416,7 @@ class SessionCacheWriter(AsyncBackgroundTask):
 class SessionCacheKey:
     codes: tuple[str | None, ...]
     marimo_version: str
+    cell_ids: tuple[CellId_t, ...]
 
 
 class SessionCacheManager:
@@ -475,5 +501,16 @@ class SessionCacheManager:
             LOGGER.info("Session view cache miss")
             return self.session_view
 
-        self.session_view = deserialize_session(notebook_session)
+        # Build mapping from code_hash to cell_id based on current cell IDs
+        # This handles cases where cell_ids have changed even though code matches
+        code_hash_to_cell_id: dict[str, CellId_t] = {}
+        for code, cell_id in zip(key.codes, key.cell_ids):
+            code_hash = _hash_code(code)
+            if code_hash is not None:
+                # Map the code_hash to the current cell_id from the key
+                code_hash_to_cell_id[code_hash] = cell_id
+
+        self.session_view = deserialize_session(
+            notebook_session, code_hash_to_cell_id
+        )
         return self.session_view

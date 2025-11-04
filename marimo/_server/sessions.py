@@ -740,7 +740,10 @@ class Session:
         codes = tuple(
             cell_data.code for cell_data in app.cell_manager.cell_data()
         )
-        key = SessionCacheKey(codes=codes, marimo_version=__version__)
+        cell_ids = tuple(app.cell_manager.cell_ids())
+        key = SessionCacheKey(
+            codes=codes, marimo_version=__version__, cell_ids=cell_ids
+        )
         self.session_view = self.session_cache_manager.read_session_view(key)
         self.session_cache_manager.start()
 
