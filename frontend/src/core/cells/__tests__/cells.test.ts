@@ -2847,6 +2847,13 @@ describe("createTracebackInfoAtom", () => {
         },
       }),
     );
+
+    const tracebackAtom = exportedForTesting.createTracebackInfoAtom(
+      "cell1" as CellId,
+    );
+    const traceback = store.get(tracebackAtom);
+
+    expect(traceback).toBeUndefined();
   });
 
   it("returns undefined when cell is running", () => {
