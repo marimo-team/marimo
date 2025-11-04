@@ -67,6 +67,7 @@ from marimo._messaging.ops import (
     PackageStatusType,
     RemoveUIElements,
     SecretKeysResult,
+    SQLMetadata,
     SQLTableListPreview,
     SQLTablePreview,
     ValidateSQLResult,
@@ -2454,11 +2455,19 @@ class DatasetCallbacks:
         database_name = request.database
         schema_name = request.schema
         table_name = request.table_name
+        sql_metadata = SQLMetadata(
+            connection=variable_name,
+            database=database_name,
+            schema=schema_name,
+        )
 
         engine, error = self.get_engine_catalog(variable_name)
         if error is not None or engine is None:
             SQLTablePreview(
-                request_id=request.request_id, table=None, error=error
+                request_id=request.request_id,
+                table=None,
+                error=error,
+                metadata=sql_metadata,
             ).broadcast()
             return
 
@@ -2470,7 +2479,9 @@ class DatasetCallbacks:
             )
 
             SQLTablePreview(
-                request_id=request.request_id, table=table
+                request_id=request.request_id,
+                table=table,
+                metadata=sql_metadata,
             ).broadcast()
         except Exception as e:
             LOGGER.exception(
@@ -2482,6 +2493,7 @@ class DatasetCallbacks:
                 request_id=request.request_id,
                 table=None,
                 error="Failed to get table details: " + str(e),
+                metadata=sql_metadata,
             ).broadcast()
 
     @kernel_tracer.start_as_current_span("preview_sql_table_list")
@@ -2499,11 +2511,19 @@ class DatasetCallbacks:
         variable_name = cast(VariableName, request.engine)
         database_name = request.database
         schema_name = request.schema
+        sql_metadata = SQLMetadata(
+            connection=variable_name,
+            database=database_name,
+            schema=schema_name,
+        )
 
         engine, error = self.get_engine_catalog(variable_name)
         if error is not None or engine is None:
             SQLTableListPreview(
-                request_id=request.request_id, tables=[], error=error
+                request_id=request.request_id,
+                tables=[],
+                error=error,
+                metadata=sql_metadata,
             ).broadcast()
             return
 
@@ -2514,7 +2534,9 @@ class DatasetCallbacks:
                 include_table_details=False,
             )
             SQLTableListPreview(
-                request_id=request.request_id, tables=table_list
+                request_id=request.request_id,
+                tables=table_list,
+                metadata=sql_metadata,
             ).broadcast()
         except Exception as e:
             LOGGER.exception(
@@ -2524,7 +2546,8 @@ class DatasetCallbacks:
                 request_id=request.request_id,
                 tables=[],
                 error="Failed to get table list: " + str(e),
-            )
+                metadata=sql_metadata,
+            ).broadcast()
 
     @kernel_tracer.start_as_current_span("preview_datasource_connection")
     async def preview_datasource_connection(

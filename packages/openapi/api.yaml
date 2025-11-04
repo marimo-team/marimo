@@ -2897,6 +2897,25 @@ components:
       - watcher_on_save
       title: RuntimeConfig
       type: object
+    SQLMetadata:
+      description: Metadata for a SQL database.
+      properties:
+        connection:
+          type: string
+        database:
+          type: string
+        schema:
+          type: string
+        type:
+          enum:
+          - sql-metadata
+      required:
+      - type
+      - connection
+      - database
+      - schema
+      title: SQLMetadata
+      type: object
     SQLTableListPreview:
       description: Preview of a list of tables in a schema.
       properties:
@@ -2905,6 +2924,8 @@ components:
           - type: string
           - type: 'null'
           default: null
+        metadata:
+          $ref: '#/components/schemas/SQLMetadata'
         op:
           enum:
           - sql-table-list-preview
@@ -2918,6 +2939,7 @@ components:
       required:
       - op
       - request_id
+      - metadata
       title: SQLTableListPreview
       type: object
     SQLTablePreview:
@@ -2928,6 +2950,8 @@ components:
           - type: string
           - type: 'null'
           default: null
+        metadata:
+          $ref: '#/components/schemas/SQLMetadata'
         op:
           enum:
           - sql-table-preview
@@ -2940,6 +2964,7 @@ components:
       required:
       - op
       - request_id
+      - metadata
       - table
       title: SQLTablePreview
       type: object

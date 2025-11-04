@@ -4347,12 +4347,24 @@ export interface components {
       watcher_on_save: "autorun" | "lazy";
     };
     /**
+     * SQLMetadata
+     * @description Metadata for a SQL database.
+     */
+    SQLMetadata: {
+      connection: string;
+      database: string;
+      schema: string;
+      /** @enum {unknown} */
+      type: "sql-metadata";
+    };
+    /**
      * SQLTableListPreview
      * @description Preview of a list of tables in a schema.
      */
     SQLTableListPreview: {
       /** @default null */
       error?: string | null;
+      metadata: components["schemas"]["SQLMetadata"];
       /** @enum {unknown} */
       op: "sql-table-list-preview";
       request_id: string;
@@ -4366,6 +4378,7 @@ export interface components {
     SQLTablePreview: {
       /** @default null */
       error?: string | null;
+      metadata: components["schemas"]["SQLMetadata"];
       /** @enum {unknown} */
       op: "sql-table-preview";
       request_id: string;
