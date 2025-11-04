@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
+import { Streamdown } from "streamdown";
 import { convertToFileUIPart } from "@/components/chat/chat-utils";
 import {
   type AdditionalCompletions,
@@ -43,7 +44,6 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { renderHTML } from "@/plugins/core/RenderHTML";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
@@ -194,9 +194,11 @@ export const Chatbot: React.FC<Props> = (props) => {
     const textParts = message.parts?.filter((p) => p.type === "text");
     const textContent = textParts?.map((p) => p.text).join("\n");
     const content =
-      message.role === "assistant"
-        ? renderHTML({ html: textContent })
-        : textContent;
+      message.role === "assistant" ? (
+        <Streamdown className="mo-markdown-renderer">{textContent}</Streamdown>
+      ) : (
+        textContent
+      );
 
     const attachments = message.parts?.filter((p) => p.type === "file");
 
