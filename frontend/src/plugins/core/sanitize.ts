@@ -2,6 +2,7 @@
 import DOMPurify, { type Config } from "dompurify";
 import { atom, useAtomValue } from "jotai";
 import { hasRunAnyCellAtom } from "@/components/editor/cell/useRunCells";
+import { autoInstantiateAtom } from "@/core/config/config";
 import { getInitialAppMode } from "@/core/mode";
 
 /**
@@ -11,10 +12,11 @@ import { getInitialAppMode } from "@/core/mode";
  */
 const sanitizeHtmlAtom = atom<boolean>((get) => {
   const hasRunAnyCell = get(hasRunAnyCellAtom);
+  const autoInstantiate = get(autoInstantiateAtom);
 
-  // If a user has specifically run at least one cell, we don't need to sanitize.
+  // If a user has specifically run at least one cell or auto_instantiate is enabled, we don't need to sanitize.
   // HTML needs to be rich to allow for interactive widgets and other dynamic content.
-  if (hasRunAnyCell) {
+  if (hasRunAnyCell || autoInstantiate) {
     return false;
   }
 
