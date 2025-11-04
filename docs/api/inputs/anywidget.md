@@ -21,6 +21,7 @@ Here is an example using `drawdata`:
 # pip install drawdata
 from drawdata import ScatterWidget
 
+# Don't forget to wrap the widget with marimo.ui.anywidget
 widget = mo.ui.anywidget(ScatterWidget())
 
 # In another cell, you can access the widget's value
@@ -32,9 +33,11 @@ widget.data_as_polars
 ```
 
 For additional examples, see
-[our repo](https://github.com/marimo-team/marimo/tree/main/examples/third_party/anywidget).
+[our repo](https://github.com/marimo-team/marimo/tree/main/examples/third_party/anywidget) or our [widgets gallery](https://marimo.io/gallery/widgets).
 
 ## Custom widget
+
+You can also write your own custom widget. You can see a counter widget example below. 
 
 ```python
 import anywidget
@@ -84,6 +87,10 @@ widget.value
 # You can also access the widget's specific properties
 widget.count
 ```
+
+### More examples
+
+If you're eager to dive deeper you want seek some more elaborate examples as a source of inspiration. The [wigglystuff repository](https://github.com/koaning/wigglystuff) has many smaller widgets that could serve as an excellent starting point. Alternately, we've seen that coding agents are getting better at generating these anywidgets on the fly. If you're keen to explore that you can check out our [prompts](/guides/generate_with_ai/prompts/#anywidget). Finally, you may also enjoy [this livestream](https://www.youtube.com/watch?v=3V1r5sKnyz8) on building anywidgets. 
 
 ---
 
