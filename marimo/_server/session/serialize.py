@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -42,6 +41,7 @@ from marimo._server.session.session_view import SessionView
 from marimo._types.ids import CellId_t
 from marimo._utils.async_path import AsyncPath
 from marimo._utils.background_task import AsyncBackgroundTask
+from marimo._utils.code import hash_code
 from marimo._utils.lists import as_list
 from marimo._version import __version__
 
@@ -361,7 +361,7 @@ def get_session_cache_file(path: Path) -> Path:
 def _hash_code(code: Optional[str]) -> Optional[str]:
     if code is None or code == "":
         return None
-    return hashlib.md5(code.encode("utf-8"), usedforsecurity=False).hexdigest()
+    return hash_code(code)
 
 
 class SessionCacheWriter(AsyncBackgroundTask):
