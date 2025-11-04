@@ -4057,6 +4057,8 @@ export interface components {
     };
     /** MarimoSyntaxError */
     MarimoSyntaxError: {
+      /** @default null */
+      lineno?: number | null;
       msg: string;
       /** @enum {unknown} */
       type: "syntax";
