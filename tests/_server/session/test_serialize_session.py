@@ -20,7 +20,6 @@ from marimo._server.session.serialize import (
     SessionCacheKey,
     SessionCacheManager,
     SessionCacheWriter,
-    _hash_code,
     deserialize_session,
     get_session_cache_file,
     serialize_notebook,
@@ -28,6 +27,7 @@ from marimo._server.session.serialize import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._types.ids import CellId_t
+from marimo._utils.code import hash_code
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -570,9 +570,9 @@ def test_get_session_cache_file():
 
 def test_hash_code():
     """Test _hash_code function"""
-    assert _hash_code(None) is None
-    assert _hash_code("print('hello')") == "e73b48e8e00d36304ea7204a0683c814"
-    assert _hash_code("") is None
+    assert hash_code(None) is None
+    assert hash_code("print('hello')") == "e73b48e8e00d36304ea7204a0683c814"
+    assert hash_code("") is None
 
 
 def test_deserialize_mime_bundle():
