@@ -54,6 +54,17 @@ class TestErrorClasses:
         assert serialized["type"] == "import-star"
         assert error.describe() == "Cannot use import * in this context"
 
+    def test_import_star_error_with_lineno(self) -> None:
+        error = ImportStarError(
+            msg="Cannot use import * in this context", lineno=3
+        )
+
+        # Test properties
+        serialized = msgspec.to_builtins(error)
+        assert serialized["type"] == "import-star"
+        assert error.describe() == "Cannot use import * in this context"
+        assert error.lineno == 3
+
     def test_marimo_interruption_error(self) -> None:
         error = MarimoInterruptionError()
 
@@ -119,6 +130,27 @@ class TestErrorClasses:
         serialized = msgspec.to_builtins(error)
         assert serialized["type"] == "syntax"
         assert error.describe() == "Invalid syntax"
+        assert error.lineno is None
+
+    def test_marimo_syntax_error_with_line_zero(self) -> None:
+        # Edge case: line 0 should be treated as valid
+        error = MarimoSyntaxError(msg="Invalid syntax", lineno=0)
+
+        # Test properties
+        serialized = msgspec.to_builtins(error)
+        assert serialized["type"] == "syntax"
+        assert error.describe() == "Invalid syntax"
+        assert error.lineno == 0
+
+    def test_marimo_syntax_error_with_large_lineno(self) -> None:
+        # Test with larger line numbers
+        error = MarimoSyntaxError(msg="Invalid syntax", lineno=100)
+
+        # Test properties
+        serialized = msgspec.to_builtins(error)
+        assert serialized["type"] == "syntax"
+        assert error.describe() == "Invalid syntax"
+        assert error.lineno == 100
 
     def test_unknown_error(self) -> None:
         error = UnknownError(msg="Something went wrong")

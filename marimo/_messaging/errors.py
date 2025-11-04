@@ -33,6 +33,7 @@ class MultipleDefinitionError(msgspec.Struct, tag="multiple-defs"):
 
 class ImportStarError(msgspec.Struct, tag="import-star"):
     msg: str
+    lineno: Optional[int] = None
 
     def describe(self) -> str:
         return self.msg

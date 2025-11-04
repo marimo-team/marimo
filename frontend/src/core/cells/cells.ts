@@ -1723,7 +1723,7 @@ export function createTracebackInfoAtom(
       const errors = output.data;
       if (Array.isArray(errors)) {
         for (const error of errors) {
-          if (error.type === "syntax" && error.lineno) {
+          if (error.type === "syntax" && error.lineno != null) {
             tracebackInfo.push({
               kind: "cell",
               cellId: cellId,
@@ -1763,4 +1763,5 @@ export const exportedForTesting = {
   cellDataAtom,
   cellRuntimeAtom,
   cellHandleAtom,
+  createTracebackInfoAtom,
 };

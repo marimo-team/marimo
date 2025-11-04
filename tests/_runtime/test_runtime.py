@@ -869,6 +869,41 @@ except NameError:
         assert k.errors["1"][0].lineno == 1
         assert not cell.stale
 
+    async def test_syntax_error_multiline_code(
+        self, lazy_kernel: Kernel
+    ) -> None:
+        """Test that syntax errors on different lines report correct line numbers"""
+        k = lazy_kernel
+
+        # Syntax error on line 3 of multiline code
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0", code="x = 1\ny = 2\nz ^ !\nw = 4"
+                ),
+            ]
+        )
+        assert set(k.errors.keys()) == {"0"}
+        assert isinstance(k.errors["0"][0], MarimoSyntaxError)
+        assert k.errors["0"][0].lineno is not None
+        assert k.errors["0"][0].lineno == 3
+
+    async def test_syntax_error_line_zero(self, lazy_kernel: Kernel) -> None:
+        """Test edge case where syntax error might be on line 0"""
+        k = lazy_kernel
+
+        # Single line syntax error (should be line 1)
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="!"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"0"}
+        assert isinstance(k.errors["0"][0], MarimoSyntaxError)
+        assert k.errors["0"][0].lineno is not None
+        # Python reports line numbers starting from 1
+        assert k.errors["0"][0].lineno >= 1
+
     async def test_child_of_errored_cell_with_error_not_stale(
         self,
         any_kernel: Kernel,

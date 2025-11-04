@@ -878,7 +878,7 @@ class Kernel:
 
                 lineno = getattr(e, "lineno", None)
                 if isinstance(e, ImportStarError):
-                    error = MarimoImportStarError(msg=str(e))
+                    error = MarimoImportStarError(msg=str(e), lineno=lineno)
                 else:
                     error = MarimoSyntaxError(
                         msg="\n".join(syntax_error), lineno=lineno
