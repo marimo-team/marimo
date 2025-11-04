@@ -1708,6 +1708,11 @@ components:
       type: object
     ImportStarError:
       properties:
+        lineno:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
         msg:
           type: string
         type:

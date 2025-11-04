@@ -3718,6 +3718,8 @@ export interface components {
     };
     /** ImportStarError */
     ImportStarError: {
+      /** @default null */
+      lineno?: number | null;
       msg: string;
       /** @enum {unknown} */
       type: "import-star";

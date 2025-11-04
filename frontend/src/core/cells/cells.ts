@@ -1722,6 +1722,13 @@ export function createTracebackInfoAtom(
               lineNumber: error.lineno,
             });
           }
+          if (error.type === "import-star" && error.lineno != null) {
+            tracebackInfo.push({
+              kind: "cell",
+              cellId: cellId,
+              lineNumber: error.lineno,
+            });
+          }
         }
       }
     }
