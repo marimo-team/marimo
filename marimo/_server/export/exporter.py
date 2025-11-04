@@ -33,7 +33,12 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
+from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.serialization import NotebookSerializationV1
+from marimo._schemas.session import NotebookSessionV1
+from marimo._server.export.dom_traversal import (
+    replace_virtual_files_with_data_uris,
+)
 from marimo._server.export.utils import (
     format_filename_title,
     get_download_filename,
@@ -70,6 +75,10 @@ if TYPE_CHECKING:
 
 
 class Exporter:
+    # Virtual file URL format constants
+    _VIRTUAL_FILE_PATTERN = "./@file/"
+    _VIRTUAL_FILE_PREFIX_WITH_SLASH = "/@file/"
+
     def export_as_html(
         self,
         *,
@@ -80,56 +89,34 @@ class Exporter:
         request: ExportAsHTMLRequest,
     ) -> tuple[str, str]:
         index_html = get_html_contents()
-
         filename = get_filename(filename)
 
-        virtual_files: dict[str, str] = {}
-        for filename_and_length in request.files:
-            if "@file/" in filename_and_length:
-                virtual_file = filename_and_length[7:]
-                try:
-                    byte_length, basename = virtual_file.split("-", 1)
-                    buffer_contents = read_virtual_file(
-                        basename, int(byte_length)
-                    )
-                except Exception as e:
-                    LOGGER.warning(
-                        "File not found in export: %s. Error: %s",
-                        filename_and_length,
-                        e,
-                    )
-                    continue
-                mime_type = mimetypes.guess_type(basename)[0] or "text/plain"
-                virtual_files[filename_and_length] = build_data_url(
-                    cast(KnownMimeType, mime_type),
-                    base64.b64encode(buffer_contents),
-                )
+        # Configure notebook with display settings
+        config = self._prepare_display_config(display_config)
 
-        # We only want pass the display config in the static notebook,
-        # since we use:
-        # - display.theme
-        # - display.cell_output
-        config = deep_copy(DEFAULT_CONFIG)
-        config["display"] = display_config
-
+        # Serialize notebook state
         session_snapshot = serialize_session_view(
             session_view, cell_ids=app.cell_manager.cell_ids()
         )
         notebook_snapshot = serialize_notebook(session_view, app.cell_manager)
-        if not request.include_code:
-            code = ""
-            # Clear code and console outputs
-            for cell in notebook_snapshot["cells"]:
-                cell["code"] = ""
-                cell["name"] = ""
-            for output in session_snapshot["cells"]:
-                output["console"] = []
-        else:
-            code = app.to_py()
 
-        # We include the code hash regardless of whether we include the code
+        # Replace virtual files in HTML outputs with data URIs
+        session_snapshot, replaced_files = self._inline_virtual_files(
+            session_snapshot
+        )
+
+        # Prepare code for export
+        code = self._prepare_code(
+            request.include_code, app, notebook_snapshot, session_snapshot
+        )
+
+        # Build fallback virtual_files dict for files not in HTML outputs
+        virtual_files = self._build_virtual_files_dict(
+            request.files, replaced_files
+        )
+
+        # Generate final HTML
         code_hash = hash_code(app.to_py())
-
         html = static_notebook_template(
             html=index_html,
             user_config=config,
@@ -147,6 +134,139 @@ class Exporter:
 
         download_filename = get_download_filename(filename, "html")
         return html, download_filename
+
+    def _prepare_display_config(
+        self, display_config: DisplayConfig
+    ) -> MarimoConfig:
+        """Prepare config with display settings for static notebook."""
+        # We only want pass the display config in the static notebook,
+        # since we use:
+        # - display.theme
+        # - display.cell_output
+        config = deep_copy(DEFAULT_CONFIG)
+        config["display"] = display_config
+        return config
+
+    def _inline_virtual_files(
+        self, session_snapshot: NotebookSessionV1
+    ) -> tuple[NotebookSessionV1, set[str]]:
+        """Replace virtual file URLs with data URIs in session outputs.
+
+        Returns:
+            Tuple of (modified_snapshot, set_of_replaced_files)
+        """
+        replaced_files: set[str] = set()
+
+        for cell in session_snapshot["cells"]:
+            for output in cell["outputs"]:
+                if output["type"] != "data":
+                    continue
+
+                for mime_type, data in output["data"].items():
+                    if not isinstance(data, str):
+                        continue
+                    if self._VIRTUAL_FILE_PATTERN not in data:
+                        continue
+
+                    processed, files = replace_virtual_files_with_data_uris(
+                        data
+                    )
+                    replaced_files.update(files)
+                    output["data"][mime_type] = processed
+
+        return session_snapshot, replaced_files
+
+    def _prepare_code(
+        self,
+        include_code: bool,
+        app: InternalApp,
+        notebook_snapshot: NotebookV1,
+        session_snapshot: NotebookSessionV1,
+    ) -> str:
+        """Prepare code for export, optionally clearing it."""
+        if not include_code:
+            # Clear code and console outputs
+            for cell in notebook_snapshot["cells"]:
+                cell["code"] = ""
+                cell["name"] = DEFAULT_CELL_NAME
+            for cell in session_snapshot["cells"]:
+                cell["console"] = []
+            return ""
+
+        return app.to_py()
+
+    def _normalize_virtual_file_url(self, url: str) -> str:
+        """Normalize virtual file URL format from /@file/ to ./@file/."""
+        if url.startswith(self._VIRTUAL_FILE_PATTERN):
+            return url
+        return url.replace(
+            self._VIRTUAL_FILE_PREFIX_WITH_SLASH,
+            self._VIRTUAL_FILE_PATTERN,
+            1,
+        )
+
+    def _build_virtual_files_dict(
+        self, file_urls: list[str], replaced_files: set[str]
+    ) -> dict[str, str]:
+        """Build dict of virtual files not already inlined in HTML.
+
+        Args:
+            file_urls: List of virtual file URLs from request
+            replaced_files: Set of URLs already replaced in HTML outputs
+
+        Returns:
+            Dict mapping file URLs to data URIs
+        """
+        virtual_files: dict[str, str] = {}
+
+        for file_url in file_urls:
+            # Skip files already replaced in HTML outputs
+            normalized_url = self._normalize_virtual_file_url(file_url)
+            if normalized_url in replaced_files:
+                LOGGER.debug(
+                    "Skipping virtual file %s (already inlined in HTML)",
+                    file_url,
+                )
+                continue
+
+            # Process virtual file URLs
+            if self._VIRTUAL_FILE_PREFIX_WITH_SLASH not in file_url:
+                continue
+
+            data_uri = self._read_virtual_file_as_data_uri(file_url)
+            if data_uri:
+                virtual_files[file_url] = data_uri
+
+        return virtual_files
+
+    def _read_virtual_file_as_data_uri(self, file_url: str) -> Optional[str]:
+        """Read a virtual file and convert it to a data URI.
+
+        Args:
+            file_url: Virtual file URL in format /@file/{byte_length}-{filename}
+
+        Returns:
+            Data URI string, or None if file cannot be read
+        """
+        # Extract byte_length and filename from URL
+        # Format: /@file/{byte_length}-{filename}
+        prefix_len = len(self._VIRTUAL_FILE_PREFIX_WITH_SLASH)
+        virtual_file = file_url[prefix_len:]
+
+        try:
+            byte_length_str, basename = virtual_file.split("-", 1)
+            buffer_contents = read_virtual_file(basename, int(byte_length_str))
+        except Exception as e:
+            LOGGER.warning(
+                "File not found in export: %s. Error: %s", file_url, e
+            )
+            return None
+
+        mime_type = mimetypes.guess_type(basename)[0] or "text/plain"
+        return build_data_url(
+            cast(KnownMimeType, mime_type),
+            base64.b64encode(buffer_contents),
+        )
 
     def export_as_script(
         self,
