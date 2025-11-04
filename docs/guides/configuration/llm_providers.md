@@ -86,7 +86,6 @@ edit_model = "openai/gpt-4o"
 [ai.open_ai]
 # Get an API key at https://platform.openai.com/account/api-keys
 api_key = "sk-proj-..."
-project = "proj_..."  # Optional, specify a project ID for tracking and organization
 ```
 
 !!! note "OpenAI-compatible providers"
@@ -287,7 +286,6 @@ edit_model = "wandb/gpt-4o"
 [ai.wandb]
 api_key = "your-wandb-api-key"
 base_url = "https://api.inference.wandb.ai/v1/"  # Optional, this is the default
-project = "my-project"  # Optional, specify a project for tracking
 ```
 
 See available models at the [Weights & Biases documentation](https://docs.wandb.ai/inference). Make sure to prepend `wandb/` to the model name.
