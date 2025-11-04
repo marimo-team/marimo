@@ -69,7 +69,7 @@ class Cell(BaseDict):
     """Code cell specific structure"""
 
     id: str
-    code_hash: Optional[str]
+    code_hash: str
     outputs: list[OutputType]
     console: list[ConsoleType]
 

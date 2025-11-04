@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 
-def hash_code(code: str) -> str:
+def hash_code(code: str | None) -> str:
     import hashlib
 
-    return hashlib.sha256(code.encode("utf-8")).hexdigest()
+    if code is None or code == "":
+        # Return null hash for empty/missing code
+        return "0" * 32  # MD5 hash length
+    return hashlib.md5(code.encode("utf-8"), usedforsecurity=False).hexdigest()

@@ -34,7 +34,7 @@ def convert_from_ir_to_notebook_v1(
             NotebookCell(
                 id=None,
                 code=data.code,
-                code_hash=hash_code(data.code) if data.code else None,
+                code_hash=hash_code(data.code or ""),
                 name=data.name,
                 config=NotebookCellConfig(
                     column=data.options.get("column", None),

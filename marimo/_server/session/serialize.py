@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -42,6 +41,7 @@ from marimo._server.session.session_view import SessionView
 from marimo._types.ids import CellId_t
 from marimo._utils.async_path import AsyncPath
 from marimo._utils.background_task import AsyncBackgroundTask
+from marimo._utils.code import hash_code
 from marimo._utils.lists import as_list
 from marimo._version import __version__
 
@@ -105,8 +105,10 @@ def serialize_session_view(
         cell_op = view.cell_operations.get(cell_id)
         if cell_op is None:
             # We haven't seen any outputs or operations for this cell.
+            # Use the last executed code or empty string for hash
+            code_hash = hash_code(view.last_executed_code.get(cell_id))
             cells.append(
-                Cell(id=cell_id, code_hash=None, outputs=[], console=[])
+                Cell(id=cell_id, code_hash=code_hash, outputs=[], console=[])
             )
             continue
         outputs: list[OutputType] = []
@@ -155,7 +157,7 @@ def serialize_session_view(
                     )
                 )
 
-        code_hash = _hash_code(view.last_executed_code.get(cell_id))
+        code_hash = hash_code(view.last_executed_code.get(cell_id))
 
         cells.append(
             Cell(
@@ -311,7 +313,7 @@ def serialize_notebook(
             NotebookCell(
                 id=cell_id,
                 code=code,
-                code_hash=_hash_code(code),
+                code_hash=hash_code(code),
                 name=name,
                 config=config,
             )
@@ -331,12 +333,6 @@ def get_session_cache_file(path: Path) -> Path:
     `foo/bar/__marimo__/session/baz.py.json`.
     """
     return path.parent / "__marimo__" / "session" / f"{path.name}.json"
-
-
-def _hash_code(code: Optional[str]) -> Optional[str]:
-    if code is None or code == "":
-        return None
-    return hashlib.md5(code.encode("utf-8"), usedforsecurity=False).hexdigest()
 
 
 class SessionCacheWriter(AsyncBackgroundTask):
@@ -442,7 +438,7 @@ class SessionCacheManager:
         self, notebook_session: NotebookSessionV1, key: SessionCacheKey
     ) -> bool:
         if (len(key.codes) != len(notebook_session["cells"])) or any(
-            _hash_code(code) != cell["code_hash"]
+            hash_code(code) != cell["code_hash"]
             for code, cell in zip(key.codes, notebook_session["cells"])
         ):
             return False
