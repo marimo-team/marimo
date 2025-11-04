@@ -2836,6 +2836,7 @@ export interface components {
      *         - `ollama`: the Ollama config
      *         - `github`: the GitHub config
      *         - `openrouter`: the OpenRouter config
+     *         - `wandb`: the Weights & Biases config
      *         - `open_ai_compatible`: the OpenAI-compatible config
      */
     AiConfig: {
@@ -2854,6 +2855,7 @@ export interface components {
       open_ai_compatible?: components["schemas"]["OpenAiConfig"];
       openrouter?: components["schemas"]["OpenAiConfig"];
       rules?: string;
+      wandb?: components["schemas"]["OpenAiConfig"];
     };
     /** AiInlineCompletionRequest */
     AiInlineCompletionRequest: {
@@ -4086,6 +4088,7 @@ export interface components {
      *
      *         - `api_key`: the OpenAI API key
      *         - `base_url`: the base URL for the API
+     *         - `project`: the project ID for the OpenAI API
      *         - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
      *         - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
      *         - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
@@ -4100,6 +4103,7 @@ export interface components {
         [key: string]: string;
       };
       model?: string;
+      project?: string;
       ssl_verify?: boolean;
     };
     /** OpenTutorialRequest */

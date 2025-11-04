@@ -95,8 +95,9 @@ components:
         \ OpenAI config\n    - `anthropic`: the Anthropic config\n    - `google`:\
         \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
         \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
-        \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `open_ai_compatible`:\
-        \ the OpenAI-compatible config"
+        \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `wandb`:\
+        \ the Weights & Biases config\n    - `open_ai_compatible`: the OpenAI-compatible\
+        \ config"
       properties:
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
@@ -129,6 +130,8 @@ components:
           $ref: '#/components/schemas/OpenAiConfig'
         rules:
           type: string
+        wandb:
+          $ref: '#/components/schemas/OpenAiConfig'
       required: []
       title: AiConfig
       type: object
@@ -2444,13 +2447,14 @@ components:
     OpenAiConfig:
       description: "Configuration options for OpenAI or OpenAI-compatible services.\n\
         \n    **Keys.**\n\n    - `api_key`: the OpenAI API key\n    - `base_url`:\
-        \ the base URL for the API\n    - `ssl_verify` : Boolean argument for httpx\
-        \ passed to open ai client. httpx defaults to true, but some use cases to\
-        \ let users override to False in some testing scenarios\n    - `ca_bundle_path`:\
-        \ custom ca bundle to be used for verifying SSL certificates. Used to create\
-        \ custom SSL context for httpx client\n    - `client_pem` : custom path of\
-        \ a client .pem cert used for verifying identity of client server\n    - `extra_headers`:\
-        \ extra headers to be passed to the OpenAI client"
+        \ the base URL for the API\n    - `project`: the project ID for the OpenAI\
+        \ API\n    - `ssl_verify` : Boolean argument for httpx passed to open ai client.\
+        \ httpx defaults to true, but some use cases to let users override to False\
+        \ in some testing scenarios\n    - `ca_bundle_path`: custom ca bundle to be\
+        \ used for verifying SSL certificates. Used to create custom SSL context for\
+        \ httpx client\n    - `client_pem` : custom path of a client .pem cert used\
+        \ for verifying identity of client server\n    - `extra_headers`: extra headers\
+        \ to be passed to the OpenAI client"
       properties:
         api_key:
           type: string
@@ -2465,6 +2469,8 @@ components:
             type: string
           type: object
         model:
+          type: string
+        project:
           type: string
         ssl_verify:
           type: boolean

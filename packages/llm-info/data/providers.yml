@@ -72,3 +72,8 @@
   id: xai
   description: xAI's API for GPT models.
   url: https://x.ai/
+
+- name: Weights & Biases
+  id: wandb
+  description: Weights & Biases' hosted models for ML development and AI inference.
+  url: https://wandb.ai/
