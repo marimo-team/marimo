@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from enum import Enum
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -2399,3 +2400,41 @@ def test_cell_search_df_hover_texts_sorted(df: Any):
         "4": {"column_0": "hover:carrots"},
         "5": {"column_0": "hover:carrots"},
     }
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_polars_enums_in_list():
+    import polars as pl
+
+    class MyEnum(Enum):
+        A = 1
+        B = 2
+        C = 3
+        D = 4
+
+    # Create 10 rows cycling through enum values B, C, D, A...
+    enum_names = [e.name for e in MyEnum]
+    rows = [{"value": [enum_names[i % len(enum_names)]]} for i in range(1, 11)]
+
+    schema = {"value": pl.List(pl.Enum(enum_names))}
+    df = pl.DataFrame(rows, schema=schema)
+
+    table = ui.table(df, selection=None)
+
+    # First page
+    response = table._search(SearchTableArgs(page_size=5, page_number=0))
+    assert (
+        response.data
+        == '[{"value":["B"]},{"value":["C"]},{"value":["D"]},{"value":["A"]},{"value":["B"]}]'
+    )
+
+    # Second page
+    response_next_page = table._search(
+        SearchTableArgs(page_size=5, page_number=1)
+    )
+    assert (
+        response_next_page.data
+        == '[{"value":["C"]},{"value":["D"]},{"value":["A"]},{"value":["B"]},{"value":["C"]}]'
+    )
