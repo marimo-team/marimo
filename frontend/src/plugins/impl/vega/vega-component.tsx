@@ -31,6 +31,7 @@ export interface Data {
   spec: VegaLiteSpec;
   chartSelection: boolean | "point" | "interval";
   fieldSelection: boolean | string[];
+  embedOptions?: Record<string, unknown>;
 }
 
 export interface VegaComponentState {
@@ -58,6 +59,7 @@ const VegaComponent = ({
   chartSelection,
   fieldSelection,
   spec,
+  embedOptions,
 }: VegaComponentProps<VegaComponentState>) => {
   const { data: resolvedSpec, error } = useAsyncData(async () => {
     // We try to resolve the data before passing it to Vega
@@ -82,6 +84,7 @@ const VegaComponent = ({
       chartSelection={chartSelection}
       fieldSelection={fieldSelection}
       spec={resolvedSpec}
+      embedOptions={embedOptions}
     />
   );
 };
@@ -92,10 +95,26 @@ const LoadedVegaComponent = ({
   chartSelection,
   fieldSelection,
   spec,
+  embedOptions,
 }: VegaComponentProps<VegaComponentState>): JSX.Element => {
   const { theme } = useTheme();
   const vegaView = useRef<View>(undefined);
   const [error, setError] = useState<Error>();
+
+  // Merge default actions with user-provided embed options
+  const actions = useMemo(() => {
+    // If embedOptions contains 'actions', use it directly
+    if (embedOptions && "actions" in embedOptions) {
+      return embedOptions.actions;
+    }
+
+    // Otherwise use defaults
+    return {
+      source: false,
+      compiled: false,
+      ...embedOptions,
+    };
+  }, [embedOptions]);
 
   // Aggressively memoize the spec, so Vega doesn't re-render/re-mount the component
   const specMemo = useDeepCompareMemoize(spec);
@@ -240,11 +259,6 @@ const LoadedVegaComponent = ({
       </div>
     </>
   );
-};
-
-const actions = {
-  source: false,
-  compiled: false,
 };
 
 /**

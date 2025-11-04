@@ -323,17 +323,12 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     ) -> None:
         DependencyManager.altair.require(why="to use `mo.ui.altair_chart`")
 
-        altair_settings = {}
-        if "altair" in sys.modules:
-            altair_settings = altair.renderers.options
-            altair.renderers.enable("default")
-
         import altair as alt
 
-        if altair_settings.get("embed_options"):
-            altair.renderers.set_embed_options(
-                **altair_settings["embed_options"]
-            )
+        # Capture any global altair embed options that may have been set
+        embed_options = {}
+        if alt.renderers.options.get("embed_options"):
+            embed_options = alt.renderers.options["embed_options"]
 
         register_transformers()
 
@@ -440,6 +435,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                 "spec": vega_spec,
                 "chart-selection": chart_selection,
                 "field-selection": legend_selection,
+                "embed-options": embed_options,
             },
             on_change=on_change,
         )
