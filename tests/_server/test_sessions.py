@@ -601,14 +601,23 @@ def __():
 
 
 @save_and_restore_main
-def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
-    """Test that watch mode does not override config settings."""
+def test_watch_mode_config_override(tmp_path: Path) -> None:
+    """Test that watch mode properly overrides config settings."""
     # Create a temporary file
     tmp_file = tmp_path / "test_watch_mode_config_override.py"
     tmp_file.write_text("import marimo as mo")
 
-    # Create a default config (autosave enabled by default)
+    # Create a config with autosave enabled
     config_reader = get_default_config_manager(current_path=None)
+    config_reader_watch = config_reader.with_overrides(
+        {
+            "save": {
+                "autosave": "off",
+                "format_on_save": False,
+                "autosave_delay": 2000,
+            }
+        }
+    )
 
     # Create a session manager with watch mode enabled
     file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_file)))
@@ -619,7 +628,7 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
         quiet=True,
         include_code=True,
         lsp_server=MagicMock(),
-        config_manager=config_reader,
+        config_manager=config_reader_watch,
         cli_args={},
         argv=None,
         auth_token=None,
@@ -645,8 +654,13 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
     )
 
     try:
-        # Verify that the config was not overridden for watch mode
+        # Verify that the config was overridden
         config = session_manager._config_manager.get_config()
+        assert config["save"]["autosave"] == "off"
+        assert config["save"]["format_on_save"] is False
+
+        # Verify that the config was not overridden
+        config = session_manager_no_watch._config_manager.get_config()
         assert config["save"]["autosave"] == "after_delay"
         assert config["save"]["format_on_save"] is True
 
