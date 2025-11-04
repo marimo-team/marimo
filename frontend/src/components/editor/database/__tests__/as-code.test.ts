@@ -210,6 +210,26 @@ describe("generateDatabaseCode", () => {
     schema: "my_schema",
   };
 
+  const supabaseConnection: DatabaseConnection = {
+    type: "supabase",
+    host: "db.example.supabase.co",
+    port: 5432,
+    database: "postgres",
+    username: "postgres",
+    password: "my_password",
+    disable_client_pooling: false,
+  };
+
+  const supabaseWithPooling: DatabaseConnection = {
+    type: "supabase",
+    host: "db.example.supabase.co",
+    port: 6543,
+    database: "postgres",
+    username: "postgres.session",
+    password: "my_password",
+    disable_client_pooling: true,
+  };
+
   describe("basic connections", () => {
     const testCases: [string, DatabaseConnection, ConnectionLibrary][] = [
       ["postgres with SQLModel", basePostgres, "sqlmodel"],
@@ -243,6 +263,12 @@ describe("generateDatabaseCode", () => {
         "sqlalchemy",
       ],
       ["databricks with ibis", databricksConnection, "ibis"],
+      ["supabase with SQLModel", supabaseConnection, "sqlmodel"],
+      [
+        "supabase with client-side pooling disabled",
+        supabaseWithPooling,
+        "sqlalchemy",
+      ],
     ];
 
     it.each(testCases)("%s", (_name, connection, orm) => {
@@ -316,6 +342,17 @@ describe("generateDatabaseCode", () => {
           token: prefixSecret("ENV_TOKEN"),
         },
         "duckdb",
+      ],
+      [
+        "supabase with all connection details as secrets",
+        {
+          ...supabaseConnection,
+          host: prefixSecret("SUPABASE_HOST"),
+          username: prefixSecret("SUPABASE_USER"),
+          password: prefixSecret("SUPABASE_PASSWORD"),
+          database: prefixSecret("SUPABASE_DB"),
+        },
+        "sqlalchemy",
       ],
     ])("%s", (_name, connection, orm) => {
       expect(
