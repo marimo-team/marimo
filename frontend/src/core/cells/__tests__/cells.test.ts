@@ -13,7 +13,7 @@ import {
   vi,
 } from "vitest";
 import type { CellHandle } from "@/components/editor/notebook-cell";
-import { CellId } from "@/core/cells/ids";
+import { CellId, SETUP_CELL_ID } from "@/core/cells/ids";
 import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -24,7 +24,6 @@ import {
   exportedForTesting,
   flattenTopLevelNotebookCells,
   type NotebookState,
-  SETUP_CELL_ID,
 } from "../cells";
 import {
   focusAndScrollCellIntoView,
@@ -2108,8 +2107,8 @@ describe("cell reducer", () => {
     // Update the setup cell
     actions.addSetupCellIfDoesntExist({ code: "# Updated setup code" });
 
-    // Check that the same setup cell was updated, not duplicated
-    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Updated setup code");
+    // Check that the setup cell did not change, since it already exists
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
     expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
     expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
   });
