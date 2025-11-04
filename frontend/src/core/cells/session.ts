@@ -82,9 +82,10 @@ function mergeSessionAndNotebookCells(
     notebook.cells,
     (sessionCell, notebookCell) => {
       const sessionCodeHash = sessionCell.code_hash;
-      // If the code hash is null, default to comparing ids
+      // If the code hash is null, always return false, since reordering the
+      // cells can get things out of sync, and creates a poor user experience.
       if (!sessionCodeHash) {
-        return sessionCell.id === notebookCell.id;
+        return false;
       }
       // Compare session cell code_hash with notebook cell code
       const notebookCodeHash = notebookCell.code_hash;
