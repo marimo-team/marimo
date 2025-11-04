@@ -31,12 +31,12 @@ const description: ToolDescription = {
   additionalInfo: `
   Args:
     edit (object): The editing operation to perform. Must be one of:
-    - update_cell: Update the code of an existing cell, pass CellId and the new code.
-    - add_cell: Add a new cell to the notebook. The position of the new cell is specified by the position argument.
-        Pass "end" to add the new cell at the end of the notebook. 
-        Pass { cellId: cellId, before: true } to add the new cell before the specified cell. And before: false if after the specified cell.
-        Pass { type: "end", columnIndex: number } to add the new cell at the end of a specified column index. The column index is 0-based.
-    - delete_cell: Delete an existing cell, pass CellId. For deleting cells, the user needs to accept the deletion to actually delete the cell, so you may still see the cell in the notebook on subsequent edits which is fine.
+    - update_cell: Update the code of an existing cell, pass cellId and the new code.
+    - add_cell: Add a new cell to the notebook. The position is specified by the position object with a "type" field:
+        { type: "notebook_end" } - Add at the end of the notebook
+        { type: "relative", cellId: "...", before: true } - Add before the specified cell (before: false for after)
+        { type: "column_end", columnIndex: 0 } - Add at the end of a specific column (0-based index)
+    - delete_cell: Delete an existing cell, pass cellId. For deleting cells, the user needs to accept the deletion to actually delete the cell, so you may still see the cell in the notebook on subsequent edits which is fine.
 
     For adding code, use the following guidelines:
     - Markdown cells: use mo.md(f"""{content}""") function to insert content.
@@ -47,9 +47,9 @@ const description: ToolDescription = {
 };
 
 type CellPosition =
-  | { cellId: CellId; before: boolean }
-  | { type: "end"; columnIndex: number }
-  | "end";
+  | { type: "relative"; cellId: CellId; before: boolean }
+  | { type: "column_end"; columnIndex: number }
+  | { type: "notebook_end" };
 
 const editNotebookSchema = z.object({
   edit: z.discriminatedUnion("type", [
@@ -60,16 +60,19 @@ const editNotebookSchema = z.object({
     }),
     z.object({
       type: z.literal("add_cell"),
-      position: z.union([
+      position: z.discriminatedUnion("type", [
         z.object({
+          type: z.literal("relative"),
           cellId: z.string() as unknown as z.ZodType<CellId>,
           before: z.boolean(),
         }),
         z.object({
-          type: z.literal("end"),
+          type: z.literal("column_end"),
           columnIndex: z.number(),
         }),
-        z.literal("end"),
+        z.object({
+          type: z.literal("notebook_end"),
+        }),
       ]) satisfies z.ZodType<CellPosition>,
       code: z.string(),
     }),
@@ -135,21 +138,25 @@ export class EditNotebookTool
       case "add_cell": {
         const { position, code } = edit;
 
-        // By default, add the new cell to the end of the notebook
         let notebookPosition: NotebookCellPosition = "__end__";
         let before = false;
         const newCellId = CellId.create();
+        const notebook = store.get(notebookAtom);
 
-        if (typeof position === "object") {
-          const notebook = store.get(notebookAtom);
-          if ("cellId" in position) {
+        switch (position.type) {
+          case "relative":
             this.validateCellIdExists(position.cellId, notebook);
             notebookPosition = position.cellId;
             before = position.before;
-          } else if ("columnIndex" in position) {
+            break;
+          case "column_end": {
             const columnId = this.getColumnId(position.columnIndex, notebook);
             notebookPosition = { type: "__end__", columnId };
+            break;
           }
+          case "notebook_end":
+            // Use default: notebookPosition = "__end__"
+            break;
         }
 
         createNewCell({

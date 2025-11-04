@@ -67,7 +67,12 @@ export class FrontendToolRegistry {
       const inputResponse = await inputSchema.safeParseAsync(rawArgs);
       if (inputResponse.error) {
         const strError = z.prettifyError(inputResponse.error);
-        throw new Error(`Tool ${toolName} returned invalid input: ${strError}`);
+        throw new ToolExecutionError(
+          `Tool ${toolName} returned invalid input: ${strError}`,
+          "INVALID_ARGUMENTS",
+          true,
+          "Please check the arguments and try again.",
+        );
       }
       const args = inputResponse.data;
 
