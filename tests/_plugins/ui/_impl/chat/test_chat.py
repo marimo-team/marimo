@@ -11,7 +11,6 @@ from marimo._ai._types import (
     ChatModelConfig,
     ChatModelConfigDict,
 )
-from marimo._output.md import md
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.chat.chat import (
     DEFAULT_CONFIG,
@@ -83,7 +82,7 @@ async def test_chat_send_prompt():
     )
     response: str = await chat._send_prompt(request)
 
-    assert response == md("Response to: Hello").text
+    assert response == "Response to: Hello"
     assert len(chat._chat_history) == 2
     assert chat._chat_history[0].role == "user"
     assert chat._chat_history[0].content == "Hello"
@@ -106,7 +105,7 @@ async def test_chat_send_prompt_async_function():
     )
     response: str = await chat._send_prompt(request)
 
-    assert response == md("Response to: Hello").text
+    assert response == "Response to: Hello"
     assert len(chat._chat_history) == 2
     assert chat._chat_history[0].role == "user"
     assert chat._chat_history[0].content == "Hello"
@@ -132,7 +131,7 @@ async def test_chat_send_prompt_async_generator():
     response: str = await chat._send_prompt(request)
 
     # the last yielded value is the response
-    assert response == md("2").text
+    assert response == "2"
     assert len(chat._chat_history) == 2
     assert chat._chat_history[0].role == "user"
     assert chat._chat_history[0].content == "Hello"
