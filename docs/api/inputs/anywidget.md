@@ -37,7 +37,7 @@ For additional examples, see
 
 ## Custom widget
 
-You can also write your own custom widget. You can see a counter widget example below. 
+Anywidget let's you write custom widgets by adding javascript to your Python code. Below is an example of a counter widget. 
 
 ```python
 import anywidget
@@ -76,6 +76,7 @@ class CounterWidget(anywidget.AnyWidget):
   """
 
   # Stateful property that can be accessed by JavaScript & Python
+
   count = traitlets.Int(0).tag(sync=True)
 
 widget = mo.ui.anywidget(CounterWidget())
@@ -87,10 +88,13 @@ widget.value
 # You can also access the widget's specific properties
 widget.count
 ```
-
 ### More examples
 
-If you're eager to dive deeper you want seek some more elaborate examples as a source of inspiration. The [wigglystuff repository](https://github.com/koaning/wigglystuff) has many smaller widgets that could serve as an excellent starting point. Alternately, we've seen that coding agents are getting better at generating these anywidgets on the fly. If you're keen to explore that you can check out our [prompts](/guides/generate_with_ai/prompts/#anywidget). Finally, you may also enjoy [this livestream](https://www.youtube.com/watch?v=3V1r5sKnyz8) on building anywidgets. 
+If you're eager to build your own widgets and want to dive deeper you may enjoy these resources:
+
+- The [wigglystuff repository](https://github.com/koaning/wigglystuff) has many smaller widgets that could serve as an excellent starting point. 
+- We've noticed that coding agents are getting better at generating these anywidgets on the fly. If you're keen to explore that you can check out our [prompts section](/guides/generate_with_ai/prompts/#anywidget) for a quickstart. 
+- You may also enjoy [this livestream on the marimo YouTube channel](https://www.youtube.com/watch?v=3V1r5sKnyz8) on building anywidgets. 
 
 ---
 
