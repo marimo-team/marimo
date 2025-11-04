@@ -92,6 +92,7 @@ widget.count
 
 If you're eager to build your own widgets and want to dive deeper you may enjoy these resources:
 
+- Before making your own widget, it would be best to check and see if the widget already exists. The [widgets section on the marimo gallery](https://marimo.io/gallery/widgets) as well as the [gallery on anywidget.dev](https://anywidget.dev/en/community/) give you a good overview of what's out there. 
 - The [wigglystuff repository](https://github.com/koaning/wigglystuff) has many smaller widgets that could serve as an excellent starting point. 
 - We've noticed that coding agents are getting better at generating these anywidgets on the fly. If you're keen to explore that you can check out our [prompts section](/guides/generate_with_ai/prompts/#anywidget) for a quickstart. 
 - You may also enjoy [this livestream on the marimo YouTube channel](https://www.youtube.com/watch?v=3V1r5sKnyz8) on building anywidgets. 
