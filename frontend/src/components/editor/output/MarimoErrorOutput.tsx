@@ -9,6 +9,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { ExternalLink } from "@/components/ui/links";
 import type { CellId } from "@/core/cells/ids";
 import type { MarimoError } from "../../../core/kernel/messages";
@@ -260,6 +261,7 @@ export const MarimoErrorOutput = ({
     }
 
     if (multipleDefsErrors.length > 0) {
+      const firstName = multipleDefsErrors[0].name;
       messages.push(
         <div key="multiple-defs">
           <p className="text-muted-foreground font-medium">
@@ -294,7 +296,8 @@ export const MarimoErrorOutput = ({
             <p className="py-2">
               Try merging this cell with the mentioned cells or wrapping it in a
               function. Alternatively, rename variables to make them private to
-              this cell by prefixing them with an underscore.
+              this cell by prefixing them with an underscore (e.g.{" "}
+              <Kbd className="inline">_{firstName}</Kbd>).
             </p>
 
             <p className="py-2">
