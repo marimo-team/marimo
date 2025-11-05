@@ -83,7 +83,9 @@ async def test_base_lsp_server_start_stop(
     alert = await server.start()
     assert alert is None
     mock_popen.assert_called_once()
-    assert server.is_running() is False  # Process exists but not running
+    assert (
+        server.is_running() is True
+    )  # Process exists and is running (returncode is None)
 
     # Test stop
     server.stop()
