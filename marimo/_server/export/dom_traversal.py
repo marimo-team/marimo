@@ -268,7 +268,7 @@ def _virtual_file_to_data_uri(virtual_file_url: str) -> Optional[str]:
 
 def replace_virtual_files_with_data_uris(
     html: str,
-    allowed_tags: Optional[set[str]] = None,
+    allowed_tags: set[str],
     allowed_attributes: Optional[set[str]] = None,
 ) -> tuple[str, set[str]]:
     """Replace virtual file URLs with data URIs in HTML.
@@ -278,7 +278,7 @@ def replace_virtual_files_with_data_uris(
 
     Args:
         html: The HTML string to process
-        allowed_tags: Set of HTML tag names to process. Defaults to {"img", "a", "video", "audio", "source"}
+        allowed_tags: Set of HTML tag names to process
         allowed_attributes: Set of attribute names to process. Defaults to {"src", "href"}
 
     Returns:
@@ -289,20 +289,12 @@ def replace_virtual_files_with_data_uris(
     Example:
     ```python
     html = '<img src="./@file/29676-25241121-ZSE6dgpj.png">'
-    result, replaced = replace_virtual_files_with_data_uris(html)
+    result, replaced = replace_virtual_files_with_data_uris(
+        html, allowed_tags={"img"}
+    )
     # replaced = {"./@file/29676-25241121-ZSE6dgpj.png"}
     ```
     """
-    if allowed_tags is None:
-        allowed_tags = {
-            "img",
-            "a",
-            "video",
-            "audio",
-            "source",
-            "embed",
-            "object",
-        }
 
     if allowed_attributes is None:
         allowed_attributes = {"src", "href", "data"}

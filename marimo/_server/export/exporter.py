@@ -73,6 +73,9 @@ ROOT = (marimo_package_path() / "_static").resolve()
 if TYPE_CHECKING:
     from nbformat.notebooknode import NotebookNode  # type: ignore
 
+VIRTUAL_FILE_ALLOWED_ATTRIBUTES = {"src"}
+VIRTUAL_FILE_ALLOWED_TAGS = {"img"}
+
 
 class Exporter:
     # Virtual file URL format constants
@@ -169,7 +172,9 @@ class Exporter:
                         continue
 
                     processed, files = replace_virtual_files_with_data_uris(
-                        data
+                        data,
+                        allowed_tags=VIRTUAL_FILE_ALLOWED_TAGS,
+                        allowed_attributes=VIRTUAL_FILE_ALLOWED_ATTRIBUTES,
                     )
                     replaced_files.update(files)
                     output["data"][mime_type] = processed
