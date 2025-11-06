@@ -70,12 +70,14 @@ class FileState(PathState):
 
     def read_text(self) -> str:
         """Read the file as a string."""
+        self._verify_access()
         text = self._value.read_text()
         write_side_effect(f"read_text:{text}")
         return text
 
     def write_text(self, value: str) -> int:
         """Write the file as a string."""
+        self._verify_access()
         response = self._value.write_text(value)
         text = self._value.read_text()
         write_side_effect(f"write_text:{text}")
@@ -86,12 +88,14 @@ class FileState(PathState):
 
     def read_bytes(self) -> bytes:
         """Read the file as bytes."""
+        self._verify_access()
         data = self._value.read_bytes()
         write_side_effect(f"read_bytes:{data!r}")
         return data
 
     def write_bytes(self, value: bytes) -> int:
         """Write the file as bytes."""
+        self._verify_access()
         response = self._value.write_bytes(value)
         data = self._value.read_bytes()
         write_side_effect(f"write_bytes:{data!r}")

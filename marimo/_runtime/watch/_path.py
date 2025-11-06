@@ -7,8 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 from marimo._runtime.context import (
-    ContextNotInitializedError,
-    get_context,
+    safe_get_context,
     runtime_context_installed,
 )
 from marimo._runtime.side_effect import SideEffect
@@ -28,10 +27,9 @@ WATCHER_SLEEP_INTERVAL = 1.0
 
 def write_side_effect(data: str | bytes) -> None:
     """Write side effect to the context."""
-    try:
-        ctx = get_context()
-    except ContextNotInitializedError:
-        # Context is not initialized, nothing we can do
+    ctx = safe_get_context()
+    # Context is not initialized, nothing we can do
+    if ctx is None:
         return
     ctx.cell_lifecycle_registry.add(SideEffect(data))
 
@@ -57,6 +55,11 @@ class PathState(State[Path]):
             raise ValueError(
                 "The 'allow_self_loops' argument is not supported for this class."
             )
+
+        # Set the calling id to prevent in cell reference
+        self._init_id = None
+        if ctx := safe_get_context():
+            self._init_id = ctx.execution_context.cell_id
 
         # Mypy seems to think we could provide multiple kwargs definitions here
         # but we can't.
@@ -85,11 +88,13 @@ class PathState(State[Path]):
                 f"'{self.__class__.__name__}' does not "
                 f"expose attribute '{name}'"
             )
-        if hasattr(self._value, name):
-            return getattr(self._value, name)
-        raise AttributeError(
-            f"'{self.__class__.__name__}' object has no attribute '{name}'"
-        )
+        if not hasattr(self._value, name):
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            )
+
+        self._verify_access()
+        return getattr(self._value, name)
 
     def __del__(self) -> None:
         self._should_exit.set()
@@ -99,9 +104,23 @@ class PathState(State[Path]):
 
     def exists(self) -> bool:
         """Check if the path exists."""
+        self._verify_access()
         exists = self._value.exists()
         if not exists:
             write_side_effect(f"doesn't exists:{self._value}")
         else:
             _ = self.read_text()
         return exists
+
+    def _verify_access(self) -> None:
+        ctx = safe_get_context()
+        if (
+            ctx is not None
+            and ctx.execution_context is not None
+            and (ctx.execution_context.cell_id == self._init_id)
+        ):
+            raise RuntimeError(
+                "Accessing or modifying a watched value in the cell that "
+                "created it is not allowed. Fix: move the value access to "
+                "another cell."
+            )

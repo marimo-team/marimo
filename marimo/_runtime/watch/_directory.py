@@ -89,6 +89,7 @@ class DirectoryState(PathState):
 
     def walk(self) -> Iterable[tuple[Path, list[str], list[str]]]:
         """Walk the directory."""
+        self._verify_access()
         items = walk(self._value)
         as_list = list(_hashable_walk(items))
         write_side_effect(f"walk:{sorted(as_list)}")
@@ -96,18 +97,21 @@ class DirectoryState(PathState):
 
     def iterdir(self) -> Iterable[Path]:
         """Iterate over the directory."""
+        self._verify_access()
         items = list(self._value.iterdir())
         write_side_effect(f"iterdir:{items}")
         return iter(items)
 
     def glob(self, pattern: str) -> Iterable[Path]:
         """Glob the directory."""
+        self._verify_access()
         items = list(self._value.glob(pattern))
         write_side_effect(f"glob:{items}")
         return iter(items)
 
     def rglob(self, pattern: str) -> Iterable[Path]:
         """Recursive glob the directory."""
+        self._verify_access()
         items = list(self._value.rglob(pattern))
         write_side_effect(f"rglob:{items}")
         return iter(items)
