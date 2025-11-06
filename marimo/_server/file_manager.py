@@ -47,6 +47,8 @@ class AppFileManager:
         )
         self._default_sql_output: SqlOutputType | None = default_sql_output
         self.app = self._load_app(self.path)
+        # Track the last saved content to avoid reloading our own writes
+        self._last_saved_content: Optional[str] = None
 
     @staticmethod
     def from_app(app: InternalApp) -> AppFileManager:
@@ -128,6 +130,7 @@ class AppFileManager:
     def _save_file(
         self,
         filename: str,
+        *,
         notebook: NotebookSerializationV1,
         # Whether or not to persist the app to the file system
         persist: bool,
@@ -180,6 +183,8 @@ class AppFileManager:
 
         if persist:
             self._create_file(filename, contents)
+            # Record the last saved content to avoid reloading our own writes
+            self._last_saved_content = contents.strip()
 
         if self._is_unnamed():
             self.rename(filename)
@@ -241,7 +246,7 @@ class AppFileManager:
         if needs_save:
             self._save_file(
                 self.filename,
-                self.app.to_ir(),
+                notebook=self.app.to_ir(),
                 persist=True,
                 previous_filename=previous_filename,
             )
@@ -286,7 +291,7 @@ class AppFileManager:
         if self.filename is not None:
             return self._save_file(
                 self.filename,
-                self.app.to_ir(),
+                notebook=self.app.to_ir(),
                 persist=True,
             )
         return ""
@@ -330,7 +335,7 @@ class AppFileManager:
             self.app.update_config({"layout_file": None})
         return self._save_file(
             filename,
-            self.app.to_ir(),
+            notebook=self.app.to_ir(),
             persist=request.persist,
         )
 
@@ -359,6 +364,26 @@ class AppFileManager:
                 detail="Cannot read code from an unnamed notebook",
             )
         return Path(self.filename).read_text(encoding="utf-8")
+
+    def file_content_matches_last_save(self) -> bool:
+        """Check if the current file content matches the last saved content.
+
+        This is used to avoid reloading the file when we detect our own writes.
+
+        Returns:
+            bool: True if the file content matches the last save, False otherwise.
+        """
+        if self.filename is None or self._last_saved_content is None:
+            return False
+
+        try:
+            current_content = Path(self.filename).read_text(encoding="utf-8")
+            return current_content.strip() == self._last_saved_content
+        except Exception as e:
+            LOGGER.debug(
+                f"Error reading file to check if content matches: {e}"
+            )
+            return False
 
 
 def read_css_file(css_file: str, filename: Optional[str]) -> Optional[str]:
