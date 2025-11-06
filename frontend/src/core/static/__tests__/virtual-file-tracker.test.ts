@@ -65,8 +65,8 @@ describe("findVirtualFiles", () => {
   });
 
   it("should not match virtual files with mismatched quotes", () => {
-    const input = "'@file/938947-3587525-4XcHZISt.csv\"'";
-    const expected = new Set();
+    const input = "'/@file/938947-3587525-4XcHZISt.csv\"'";
+    const expected = new Set(["/@file/938947-3587525-4XcHZISt.csv"]);
     const result = findVirtualFiles(input);
     expect(result).toEqual(expected);
   });
@@ -88,6 +88,13 @@ describe("findVirtualFiles", () => {
   it("should extremely long greedy matching", () => {
     const input = `/@file/test-file.csv&quot;,&quot;format&quot;:{&quot;type&quot;:&quot;csv&quot;}},&quot;mark&quot;:{&quot;type&quot;:&quot;circle&quot;,&quot;size&quot;:4},&quot;encoding&quot;:{&quot;color&quot;:{&quot;field&quot;:&quot;digit&quot;,&quot;type&quot;:&quot;nominal&quot;},&quot;x&quot;:{&quot;field&quot;:&quot;x&quot;,&quot;scale&quot;:{&quot;domain&quot;:[-2.5,2.5]},&quot;type&quot;:&quot;quantitative&quot;},&quot;y&quot;:{&quot;field&quot;:&quot;y&quot;,&quot;scale&quot;:{&quot;domain&quot;:[-2.5,2.5. Error: [Errno 63] File name too long: '/3587525-4XcHZISt.csv&quot;,&quot;format&quot;:{&quot;type&quot;:&quot;csv&quot;}},&quot;mark&quot;:{&quot;type&quot;:&quot;circle&quot;,&quot;size&quot;:4},&quot;encoding&quot;:{&quot;color&quot;:{&quot;field&quot;:&quot;digit&quot;,&quot;type&quot;:&quot;nominal&quot;},&quot;x&quot;:{&quot;field&quot;:&quot;x&quot;,&quot;scale&quot;:{&quot;domain&quot;:[-2.5,2.5]},&quot;type&quot;:&quot;quantitative&quot;},&quot;y&quot;:{&quot;field&quot;:&quot;y&quot;,&quot;scale&quot;:{&quot;domain&quot;:[-2.5,2.5'`;
     const expected = new Set(["/@file/test-file.csv"]);
+    const result = findVirtualFiles(input);
+    expect(result).toEqual(expected);
+  });
+
+  it("should not match virtual files with quotes in the filename", () => {
+    const input = '/@file/file".csv';
+    const expected = new Set();
     const result = findVirtualFiles(input);
     expect(result).toEqual(expected);
   });
