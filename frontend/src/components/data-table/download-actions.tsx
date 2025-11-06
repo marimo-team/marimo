@@ -8,6 +8,7 @@ import {
   TableIcon,
 } from "lucide-react";
 import React from "react";
+import { useLocale } from "react-aria";
 import { logNever } from "@/utils/assertNever";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadByURL } from "@/utils/download";
@@ -71,6 +72,8 @@ const clipboardOptions = [
 ] as const;
 
 export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
+  const { locale } = useLocale();
+
   const button = (
     <Button data-testid="download-as-button" size="xs" variant="link">
       Download <ChevronDownIcon className="w-3 h-3 ml-1" />
@@ -96,7 +99,7 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
       case "tsv": {
         const downloadUrl = await getDownloadUrl("json");
         const json = await fetchJson(downloadUrl);
-        text = jsonToTSV(json);
+        text = jsonToTSV(json, locale);
         break;
       }
       case "json": {
