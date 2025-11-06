@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import json
-import struct
 
 import pytest
 
@@ -73,22 +72,15 @@ async def test_matplotlib_rc_dark(
 
 def _extract_png_dimensions(data_url: str) -> tuple[int, int]:
     """Extract width and height from a PNG data URL."""
-    # Remove data URL prefix
+    from marimo._output.mpl import _extract_png_dimensions as extract_dims
+
     if data_url.startswith("data:image/png;base64,"):
         base64_data = data_url[len("data:image/png;base64,") :]
     else:
         raise ValueError("Not a PNG data URL")
 
-    # Decode base64 to bytes
     png_bytes = base64.b64decode(base64_data)
-
-    # Find IHDR chunk and extract dimensions
-    ihdr_index = png_bytes.index(b"IHDR")
-    # Next 8 bytes after IHDR are width (4 bytes) and height (4 bytes)
-    width, height = struct.unpack(
-        ">II", png_bytes[ihdr_index + 4 : ihdr_index + 12]
-    )
-    return width, height
+    return extract_dims(png_bytes)
 
 
 @pytest.mark.skipif(not HAS_MPL, reason="optional dependencies not installed")

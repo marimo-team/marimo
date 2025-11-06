@@ -25,71 +25,14 @@ class MatplotlibFormatter(FormatterFactory):
         if running_in_notebook():
             matplotlib.use("module://marimo._output.mpl")
 
-        import base64
-        import io
-        import json
-        import struct
-
         from matplotlib.artist import Artist  # type: ignore
         from matplotlib.container import BarContainer  # type: ignore
 
         from marimo._output import formatting
-        from marimo._utils.data_uri import build_data_url
-
-        def _extract_png_dimensions(png_bytes: bytes) -> tuple[int, int]:
-            """Extract width and height from PNG binary data.
-
-            Implements the same logic as Jupyter's _pngxy function.
-            """
-            # Find IHDR chunk and extract dimensions
-            ihdr_index = png_bytes.index(b"IHDR")
-            # Next 8 bytes after IHDR are width (4 bytes) and height (4 bytes)
-            width, height = struct.unpack(
-                ">II", png_bytes[ihdr_index + 4 : ihdr_index + 12]
-            )
-            return width, height
+        from marimo._output.mpl import _render_figure_mimebundle
 
         def mime_data_artist(artist: Artist) -> tuple[KnownMimeType, str]:
-            buf = io.BytesIO()
-            fig = artist.figure  # type: ignore
-
-            # Get current DPI and double it for retina display
-            original_dpi = fig.dpi
-            retina_dpi = original_dpi * 2
-
-            # Save figure at 2x DPI for retina displays
-            fig.savefig(buf, format="png", bbox_inches="tight", dpi=retina_dpi)
-
-            # Get the PNG bytes
-            png_bytes = buf.getvalue()
-            plot_bytes = base64.b64encode(png_bytes)
-
-            # Build the data URL
-            mimetype: KnownMimeType = "image/png"
-            data_url = build_data_url(mimetype=mimetype, data=plot_bytes)
-
-            try:
-                # Extract dimensions from the PNG
-                width, height = _extract_png_dimensions(png_bytes)
-                # Create a mimebundle with metadata
-                # The metadata includes halved dimensions so the browser displays
-                # the 2x image at 1x size for crisp retina rendering
-                mimebundle = {
-                    "image/png": data_url,
-                    "__metadata__": {
-                        "image/png": {
-                            "width": width // 2,
-                            "height": height // 2,
-                        }
-                    },
-                }
-                return (
-                    "application/vnd.marimo+mimebundle",
-                    json.dumps(mimebundle),
-                )
-            except (ValueError, struct.error, IndexError):
-                # If dimension extraction fails, return simple image without metadata
-                return (mimetype, data_url)
+            return _render_figure_mimebundle(artist.figure.canvas)  # type: ignore
 
         # monkey-patch a _mime_ method, instead of using a formatter, because
         # we want all subclasses of Artist to inherit this renderer.
