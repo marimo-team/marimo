@@ -74,6 +74,8 @@ if TYPE_CHECKING:
     from nbformat.notebooknode import NotebookNode  # type: ignore
 
 VIRTUAL_FILE_ALLOWED_ATTRIBUTES = {"src"}
+# We don't include video/audio as it can potentially be too much data
+# and the current use-cases are for images.
 VIRTUAL_FILE_ALLOWED_TAGS = {"img"}
 
 
