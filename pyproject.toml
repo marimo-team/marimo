@@ -169,7 +169,7 @@ dependencies = [
     "loro>=1.5.0",
     "pandas-stubs>=1.5.3.230321",
     "pyiceberg>=0.9.0",
-    "litellm==1.70.0",
+    "litellm>=1.70.0",
     "python-dotenv>=1.0.1",
     "jupytext>=1.17.2",
     "types-Pillow~=10.2.0.20240520",
@@ -273,7 +273,7 @@ extra-dependencies = [
     "anthropic==0.52.2",
     "google-genai>=0.2.0",
     "boto3>=1.38.46",
-    "litellm==1.70.0",
+    "litellm>=1.70.0",
     # exporting as ipynb
     "nbformat>=5.10.4",
     "sympy>=1.13.3",
