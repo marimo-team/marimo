@@ -49,7 +49,11 @@ async def test_matplotlib_special_case(
         formatter = executing_kernel.globals["formatter"]
         lines = executing_kernel.globals["lines"]
         assert formatter is not None
-        assert formatter(lines)[0].startswith("image")
+        mimetype = formatter(lines)[0]
+        assert (
+            mimetype.startswith("image")
+            or mimetype == "application/vnd.marimo+mimebundle"
+        )
 
 
 def test_format_structure_types() -> None:

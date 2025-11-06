@@ -793,3 +793,63 @@ if __name__ == "__main__":
     deleted_cell_ids = set(original_cell_ids) - set(reloaded_cell_ids)
     assert len(deleted_cell_ids) == 2
     assert deleted_cell_ids.issubset(changed_cell_ids)
+
+
+def test_file_content_matches_last_save(tmp_path: Path) -> None:
+    """Test that file_content_matches_last_save correctly identifies own writes."""
+    # Create a temporary file
+    temp_file = tmp_path / "test_match_save.py"
+    temp_file.write_text(
+        """
+import marimo
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    # Initialize AppFileManager
+    manager = AppFileManager(filename=str(temp_file))
+
+    # Initially, no save has been made by the manager
+    assert manager.file_content_matches_last_save() is False
+
+    # Save the file
+    manager.save(
+        SaveNotebookRequest(
+            cell_ids=[CellId_t("1")],
+            filename=str(temp_file),
+            codes=["x = 1"],
+            names=["cell1"],
+            configs=[CellConfig()],
+            persist=True,
+        )
+    )
+
+    # Now the file should match the last save
+    assert manager.file_content_matches_last_save() is True
+
+    # Externally modify the file
+    temp_file.write_text(
+        """
+import marimo
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 2  # Changed
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    # Now the file should not match the last save
+    assert manager.file_content_matches_last_save() is False

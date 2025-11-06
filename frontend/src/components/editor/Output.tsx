@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
-import type { OutputMessage } from "@/core/kernel/messages";
+import type { CellOutput, OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { logNever } from "../../utils/assertNever";
 import { ErrorBoundary } from "./boundary/ErrorBoundary";
@@ -44,7 +44,16 @@ import { CsvViewer } from "./file-tree/renderers";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { renderMimeIcon } from "./renderMimeIcon";
 
-type MimeBundle = Record<OutputMessage["mimetype"], { [key: string]: unknown }>;
+const METADATA_KEY = "__metadata__";
+
+type MimeBundleWithoutMetadata = Record<
+  OutputMessage["mimetype"],
+  { [key: string]: unknown }
+>;
+
+type MimeBundle = MimeBundleWithoutMetadata & {
+  [METADATA_KEY]?: Record<string, { width?: number; height?: number }>;
+};
 type MimeBundleOrTuple = MimeBundle | [MimeBundle, { [key: string]: unknown }];
 
 export type OnRefactorWithAI = (opts: {
@@ -60,8 +69,9 @@ export const OutputRenderer: React.FC<{
   cellId?: CellId;
   onRefactorWithAI?: OnRefactorWithAI;
   wrapText?: boolean;
+  metadata?: { width?: number; height?: number };
 }> = memo((props) => {
-  const { message, onRefactorWithAI, cellId, wrapText } = props;
+  const { message, onRefactorWithAI, cellId, wrapText, metadata } = props;
   const { theme } = useTheme();
 
   // Memoize parsing the json data
@@ -123,7 +133,15 @@ export const OutputRenderer: React.FC<{
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
-      return <ImageOutput className={channel} src={data} alt="" />;
+      return (
+        <ImageOutput
+          className={channel}
+          src={data}
+          alt=""
+          width={metadata?.width}
+          height={metadata?.height}
+        />
+      );
     case "image/svg+xml":
       invariant(
         typeof data === "string",
@@ -230,14 +248,25 @@ const MimeBundleOutputRenderer: React.FC<{
 }> = memo(({ data, channel, cellId }) => {
   const mimebundle = Array.isArray(data) ? data[0] : data;
 
+  // Extract metadata if present (e.g., for retina image rendering)
+  const metadata = mimebundle[METADATA_KEY];
+
+  // Filter out metadata from the mime entries and type narrow
+  const mimeEntries = Objects.entries(mimebundle as Record<string, unknown>)
+    .filter(([key]) => key !== METADATA_KEY)
+    .map(
+      ([mime, data]) =>
+        [mime, data] as [OutputMessage["mimetype"], CellOutput["data"]],
+    );
+
   // If there is none, return null
-  const first = Objects.keys(mimebundle)[0];
+  const first = mimeEntries[0]?.[0];
   if (!first) {
     return null;
   }
 
   // If there is only one mime type, render it directly
-  if (Object.keys(mimebundle).length === 1) {
+  if (mimeEntries.length === 1) {
     return (
       <OutputRenderer
         cellId={cellId}
@@ -246,11 +275,11 @@ const MimeBundleOutputRenderer: React.FC<{
           data: mimebundle[first],
           mimetype: first,
         }}
+        metadata={metadata?.[first]}
       />
     );
   }
 
-  const mimeEntries = Objects.entries(mimebundle);
   // Sort HTML first
   mimeEntries.sort(([mimeA], [_mimeB]) => {
     if (mimeA === "text/html") {
@@ -286,6 +315,7 @@ const MimeBundleOutputRenderer: React.FC<{
                     data: output,
                     mimetype: mime,
                   }}
+                  metadata={metadata?.[mime]}
                 />
               </ErrorBoundary>
             </TabsContent>
