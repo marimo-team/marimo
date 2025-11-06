@@ -399,8 +399,7 @@ async def mcp_status(
                     schema:
                         $ref: "#/components/schemas/MCPStatusResponse"
     """
-    app_state = AppState(request)
-
+    del request
     try:
         # Try to get MCP client
         mcp_client = get_mcp_client()
