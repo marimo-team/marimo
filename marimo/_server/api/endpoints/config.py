@@ -95,7 +95,7 @@ async def save_user_config(
         try:
             from marimo._server.ai.mcp import get_mcp_client
 
-            if mcp_config:
+            if mcp_config.get("mcp_servers") or mcp_config.get("presets"):
                 LOGGER.debug("Reconfiguring MCP servers with updated config")
                 mcp_client = get_mcp_client()
                 await mcp_client.configure(mcp_config)

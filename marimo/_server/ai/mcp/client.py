@@ -879,14 +879,6 @@ def get_mcp_client() -> MCPClient:
     """
     global _MCP_CLIENT
     if _MCP_CLIENT is None:
-        if not DependencyManager.mcp.has():
-            msg = "MCP dependencies not available. Install with `pip install marimo[mcp]` or `uv add marimo[mcp]`"
-            LOGGER.info(msg)
-            raise ModuleNotFoundError(
-                msg,
-                name="mcp",
-            )
-
         _MCP_CLIENT = MCPClient()
         LOGGER.info("MCP client initialized")
     return _MCP_CLIENT
