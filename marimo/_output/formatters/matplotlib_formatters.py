@@ -29,9 +29,10 @@ class MatplotlibFormatter(FormatterFactory):
         from matplotlib.container import BarContainer  # type: ignore
 
         from marimo._output import formatting
-        from marimo._output.mpl import _render_figure_mimebundle
 
         def mime_data_artist(artist: Artist) -> tuple[KnownMimeType, str]:
+            from marimo._output.mpl import _render_figure_mimebundle
+
             return _render_figure_mimebundle(artist.figure.canvas)  # type: ignore
 
         # monkey-patch a _mime_ method, instead of using a formatter, because
