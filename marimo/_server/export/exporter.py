@@ -150,7 +150,7 @@ class Exporter:
         # - display.cell_output
         config = deep_copy(DEFAULT_CONFIG)
         config["display"] = display_config
-        return config
+        return cast(MarimoConfig, config)
 
     def _inline_virtual_files(
         self, session_snapshot: NotebookSessionV1
@@ -193,11 +193,11 @@ class Exporter:
         """Prepare code for export, optionally clearing it."""
         if not include_code:
             # Clear code and console outputs
-            for cell in notebook_snapshot["cells"]:
-                cell["code"] = ""
-                cell["name"] = DEFAULT_CELL_NAME
-            for cell in session_snapshot["cells"]:
-                cell["console"] = []
+            for nb_cell in notebook_snapshot["cells"]:
+                nb_cell["code"] = ""
+                nb_cell["name"] = DEFAULT_CELL_NAME
+            for snapshot_cell in session_snapshot["cells"]:
+                snapshot_cell["console"] = []
             return ""
 
         return app.to_py()
