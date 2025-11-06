@@ -1186,6 +1186,14 @@ class SessionFileChangeHandler:
     ) -> None:
         LOGGER.debug(f"{file_path} was modified, handling {session}")
 
+        # Check if the file content matches the last save
+        # to avoid reloading our own writes
+        if session.app_file_manager.file_content_matches_last_save():
+            LOGGER.debug(
+                f"File {file_path} content matches last save, skipping reload"
+            )
+            return
+
         # Reload the file manager to get the latest code
         try:
             changed_cell_ids = session.app_file_manager.reload()
