@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from marimo import _loggers
 from marimo._config.config import MCPConfig
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.mcp.config import (
     MCPConfigComparator,
     MCPServerDefinition,
