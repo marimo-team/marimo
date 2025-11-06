@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from marimo._server.api.status import HTTPException
-from marimo._server.file_manager import AppFileManager
+from marimo._server.notebook import AppFileManager
 from tests.mocks import EDGE_CASE_FILENAMES
 
 

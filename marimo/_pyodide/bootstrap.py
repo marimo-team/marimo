@@ -18,9 +18,9 @@ from marimo._runtime.requests import (
     SerializedQueryParams,
     SetUIElementValueRequest,
 )
-from marimo._server.file_manager import AppFileManager
 from marimo._server.model import SessionMode
 from marimo._server.models.models import SaveNotebookRequest
+from marimo._server.notebook import AppFileManager
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:

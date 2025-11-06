@@ -60,11 +60,11 @@ from marimo._runtime.requests import (
     SyncGraphRequest,
 )
 from marimo._server.exceptions import InvalidSessionException
-from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
 from marimo._server.lsp import LspServer
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
+from marimo._server.notebook import AppFileManager
 from marimo._server.recents import RecentFilesManager
 from marimo._server.session.serialize import (
     SessionCacheKey,
