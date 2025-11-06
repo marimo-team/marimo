@@ -83,7 +83,6 @@ class FileState(PathState):
         write_side_effect(f"write_text:{text}")
         with self._debounce_lock:
             self._debounced = True
-            self._set_value(self._value)
         return response
 
     def read_bytes(self) -> bytes:
@@ -101,15 +100,20 @@ class FileState(PathState):
         write_side_effect(f"write_bytes:{data!r}")
         with self._debounce_lock:
             self._debounced = True
-            self._set_value(self._value)
         return response
 
     def __repr__(self) -> str:
         """Return a string representation of the file state."""
         if not self._value.exists():
             return f"FileState({self._value}: File not found)"
-        _hash = hashlib.sha256(self._value.read_bytes()).hexdigest()
-        return f"FileState({self._value}: {_hash})"
+        return f"FileState({self._value}: {self._hash})"
+
+    @property
+    def _hash(self) -> str:
+        with self._debounce_lock:
+            return hashlib.sha256(
+                self._value.read_bytes(), usedforsecurity=False
+            ).hexdigest()
 
 
 @mddoc
