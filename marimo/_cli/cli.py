@@ -500,7 +500,7 @@ def edit(
     else:
         name = os.getcwd()
 
-    # We check this after name validation, because this will convert 
+    # We check this after name validation, because this will convert
     # URLs into local file paths
     if should_run_in_sandbox(
         sandbox=sandbox, dangerous_sandbox=dangerous_sandbox, name=name
@@ -962,7 +962,7 @@ def run(
                 + message.strip()
             )
 
-    # We check this after name validation, because this will convert 
+    # We check this after name validation, because this will convert
     # URLs into local file paths
     if should_run_in_sandbox(
         sandbox=sandbox, dangerous_sandbox=None, name=name
