@@ -256,9 +256,7 @@ def _get_object_title(obj: object) -> tuple[str, str]:
 
 def _get_signature(obj: object) -> str | None:
     try:
-        sig = inspect_.signature(obj)  # type: ignore
-        prefix = "async " if inspect_.iscoroutinefunction(obj) else ""
-        return f"{prefix}{sig}"
+        return str(inspect_.signature(obj))  # type: ignore
     except (ValueError, TypeError):
         return None
 
