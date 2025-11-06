@@ -41,7 +41,7 @@ def watch_file(
         if current_mtime != last_mtime:
             last_mtime = current_mtime
             with state._debounce_lock:
-                if not state._debounced:
+                if state._debounced:
                     state._set_value(path)
                 state._debounced = False
 

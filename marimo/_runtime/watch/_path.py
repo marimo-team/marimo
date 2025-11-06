@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 from marimo._runtime.context import (
-    safe_get_context,
     runtime_context_installed,
+    safe_get_context,
 )
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
@@ -59,7 +59,8 @@ class PathState(State[Path]):
         # Set the calling id to prevent in cell reference
         self._init_id = None
         if ctx := safe_get_context():
-            self._init_id = ctx.execution_context.cell_id
+            if ctx.execution_context:
+                self._init_id = ctx.execution_context.cell_id
 
         # Mypy seems to think we could provide multiple kwargs definitions here
         # but we can't.
