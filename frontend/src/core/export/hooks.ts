@@ -17,9 +17,10 @@ export function useAutoExport() {
   const htmlEnabled = appConfig.auto_download.includes("html");
   const ipynbEnabled = appConfig.auto_download.includes("ipynb");
 
-  const markdownDisabled = !markdownEnabled || state !== WebSocketState.OPEN;
-  const htmlDisabled = !htmlEnabled || state !== WebSocketState.OPEN;
-  const ipynbDisabled = !ipynbEnabled || state !== WebSocketState.OPEN;
+  const isConnected = state === WebSocketState.OPEN;
+  const markdownDisabled = !markdownEnabled || !isConnected;
+  const htmlDisabled = !htmlEnabled || !isConnected;
+  const ipynbDisabled = !ipynbEnabled || !isConnected;
   const { autoExportAsHTML, autoExportAsIPYNB, autoExportAsMarkdown } =
     useRequestClient();
 

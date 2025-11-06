@@ -400,7 +400,6 @@ async def mcp_status(
                         $ref: "#/components/schemas/MCPStatusResponse"
     """
     app_state = AppState(request)
-    app_state.require_current_session()
 
     try:
         # Try to get MCP client
