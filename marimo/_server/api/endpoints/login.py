@@ -128,7 +128,7 @@ async def login_submit(request: Request) -> Response:
     elif request.user.is_authenticated:
         return RedirectResponse(redirect_url, 302)
 
-    base_url = AppState(request).base_url
+    base_url = _with_trailing_slash(AppState(request).base_url or "/")
     html = LOGIN_PAGE.format(error=error, base_url=base_url)
     return HTMLResponse(
         content=html,
