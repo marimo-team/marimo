@@ -79,7 +79,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             # This will set invalid values to null rather than failing
             try:
                 # Try casting with null handling for errors
-                casted = col(transform.column_id).cast(narwhals_dtype)
+                casted = col(transform.column_id).cast(narwhals_dtype)  # type: ignore[arg-type]
                 result = df.with_columns(casted)
             except Exception:
                 # If cast fails entirely, return original dataframe
@@ -87,7 +87,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         else:
             # For raise mode, let exceptions propagate
             result = df.with_columns(
-                col(transform.column_id).cast(narwhals_dtype)
+                col(transform.column_id).cast(narwhals_dtype)  # type: ignore[arg-type]
             )
         return result
 

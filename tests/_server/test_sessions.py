@@ -30,9 +30,9 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
     SyncGraphRequest,
 )
-from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionMode
+from marimo._server.notebook import AppFileManager
 from marimo._server.session.session_view import SessionView
 from marimo._server.sessions import (
     KernelManager,
@@ -601,14 +601,23 @@ def __():
 
 
 @save_and_restore_main
-def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
-    """Test that watch mode does not override config settings."""
+def test_watch_mode_config_override(tmp_path: Path) -> None:
+    """Test that watch mode properly overrides config settings."""
     # Create a temporary file
     tmp_file = tmp_path / "test_watch_mode_config_override.py"
     tmp_file.write_text("import marimo as mo")
 
-    # Create a default config (autosave enabled by default)
+    # Create a config with autosave enabled
     config_reader = get_default_config_manager(current_path=None)
+    config_reader_watch = config_reader.with_overrides(
+        {
+            "save": {
+                "autosave": "off",
+                "format_on_save": False,
+                "autosave_delay": 2000,
+            }
+        }
+    )
 
     # Create a session manager with watch mode enabled
     file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_file)))
@@ -619,7 +628,7 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
         quiet=True,
         include_code=True,
         lsp_server=MagicMock(),
-        config_manager=config_reader,
+        config_manager=config_reader_watch,
         cli_args={},
         argv=None,
         auth_token=None,
@@ -645,8 +654,13 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
     )
 
     try:
-        # Verify that the config was not overridden for watch mode
+        # Verify that the config was overridden
         config = session_manager._config_manager.get_config()
+        assert config["save"]["autosave"] == "off"
+        assert config["save"]["format_on_save"] is False
+
+        # Verify that the config was not overridden
+        config = session_manager_no_watch._config_manager.get_config()
         assert config["save"]["autosave"] == "after_delay"
         assert config["save"]["format_on_save"] is True
 
@@ -1077,6 +1091,134 @@ def test_session_with_script_config_overrides(
             "line_length"
         ]
         == 999
+    )
+
+    # Cleanup
+    session.close()
+
+
+@save_and_restore_main
+async def test_file_change_handler_skips_own_writes(tmp_path: Path) -> None:
+    """Test that file change handler skips reloading when it detects its own writes."""
+    from marimo._ast.cell import CellConfig
+    from marimo._server.models.models import SaveNotebookRequest
+    from marimo._types.ids import CellId_t
+
+    # Create a temporary file with initial content
+    temp_file = tmp_path / "test_own_writes.py"
+    temp_file.write_text(
+        dedent(
+            """
+            import marimo
+            app = marimo.App()
+
+            @app.cell
+            def cell1():
+                x = 1
+                return x
+
+            if __name__ == "__main__":
+                app.run()
+            """
+        )
+    )
+
+    # Set up session with minimal dependencies
+    session_consumer = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
+    app_file_manager = AppFileManager(filename=str(temp_file))
+
+    session = Session.create(
+        initialization_id="test_id",
+        session_consumer=session_consumer,
+        mode=SessionMode.EDIT,
+        app_metadata=app_metadata,
+        app_file_manager=app_file_manager,
+        config_manager=get_default_config_manager(current_path=None),
+        virtual_files_supported=True,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+    )
+
+    # Save the file to track the last saved content
+    session.app_file_manager.save(
+        SaveNotebookRequest(
+            cell_ids=[CellId_t("1")],
+            filename=str(temp_file),
+            codes=["x = 1"],
+            names=["cell1"],
+            configs=[CellConfig()],
+            persist=True,
+        )
+    )
+
+    # Create a minimal session manager for the file change handler
+    file_router = AppFileRouter.from_filename(MarimoPath(str(temp_file)))
+    session_manager = SessionManager(
+        file_router=file_router,
+        mode=SessionMode.EDIT,
+        development_mode=False,
+        quiet=False,
+        include_code=True,
+        lsp_server=MagicMock(),
+        config_manager=get_default_config_manager(current_path=None),
+        watch=False,
+        cli_args={},
+        argv=None,
+        auth_token=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+    )
+
+    # Create file change handler
+    file_change_handler = session_manager.file_change_handler
+
+    # Mock the reload method to verify it's not called
+    original_reload = session.app_file_manager.reload
+    reload_called = False
+
+    def mock_reload():
+        nonlocal reload_called
+        reload_called = True
+        return original_reload()
+
+    session.app_file_manager.reload = mock_reload
+
+    # Call _handle_file_change - should skip reload because content matches
+    file_change_handler._handle_file_change(str(temp_file), session)
+
+    # Verify reload was NOT called (early return triggered)
+    assert not reload_called, (
+        "reload() should not have been called for own writes"
+    )
+
+    # Now externally modify the file
+    temp_file.write_text(
+        dedent(
+            """
+            import marimo
+            app = marimo.App()
+
+            @app.cell
+            def cell1():
+                x = 2  # Changed by external editor
+                return x
+
+            if __name__ == "__main__":
+                app.run()
+            """
+        )
+    )
+
+    # Reset the flag
+    reload_called = False
+
+    # Call _handle_file_change again - should now trigger reload
+    file_change_handler._handle_file_change(str(temp_file), session)
+
+    # Verify reload WAS called (content changed externally)
+    assert reload_called, (
+        "reload() should have been called for external changes"
     )
 
     # Cleanup

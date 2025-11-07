@@ -534,11 +534,13 @@ class OpenAIProvider(
 
         # if client is created, either with a custom context or with verify=False, use it as the http_client object in `AsyncOpenAI`
         extra_headers = extra_headers or {}
+        project = config.project or None
         if client:
             return AsyncOpenAI(
                 default_headers={"api-key": key, **extra_headers},
                 api_key=key,
                 base_url=base_url,
+                project=project,
                 http_client=client,
             )
 
@@ -547,6 +549,7 @@ class OpenAIProvider(
             default_headers={"api-key": key, **extra_headers},
             api_key=key,
             base_url=base_url,
+            project=project,
         )
 
     async def stream_completion(

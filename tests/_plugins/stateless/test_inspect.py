@@ -28,6 +28,11 @@ def simple_function(x: int, y: str = "default") -> str:
     return f"{x} - {y}"
 
 
+async def async_function(a: int) -> int:
+    """Double the value."""
+    return a * 2
+
+
 def test_inspect_basic_object() -> None:
     obj = SimpleClass()
     result = inspect(obj)
@@ -57,6 +62,13 @@ def test_inspect_function() -> None:
     assert "int" in html
     assert "y:" in html
     assert "str" in html
+
+
+def test_inspect_async_function() -> None:
+    result = inspect(async_function)
+    html = result.text
+
+    assert "async def async_function(" in html
 
 
 def test_inspect_with_methods() -> None:

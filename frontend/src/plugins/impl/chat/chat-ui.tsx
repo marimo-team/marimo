@@ -17,7 +17,7 @@ import {
   Trash2Icon,
   X,
 } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { lazy, useEffect, useRef, useState } from "react";
 import { convertToFileUIPart } from "@/components/chat/chat-utils";
 import {
   type AdditionalCompletions,
@@ -43,7 +43,6 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { renderHTML } from "@/plugins/core/RenderHTML";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
@@ -51,6 +50,10 @@ import { Objects } from "@/utils/objects";
 import { ErrorBanner } from "../common/error-banner";
 import type { PluginFunctions } from "./ChatPlugin";
 import type { ChatConfig, ChatMessage } from "./types";
+
+const LazyStreamdown = lazy(() =>
+  import("streamdown").then((module) => ({ default: module.Streamdown })),
+);
 
 interface Props extends PluginFunctions {
   prompts: string[];
@@ -194,9 +197,13 @@ export const Chatbot: React.FC<Props> = (props) => {
     const textParts = message.parts?.filter((p) => p.type === "text");
     const textContent = textParts?.map((p) => p.text).join("\n");
     const content =
-      message.role === "assistant"
-        ? renderHTML({ html: textContent })
-        : textContent;
+      message.role === "assistant" ? (
+        <LazyStreamdown className="mo-markdown-renderer">
+          {textContent}
+        </LazyStreamdown>
+      ) : (
+        textContent
+      );
 
     const attachments = message.parts?.filter((p) => p.type === "file");
 

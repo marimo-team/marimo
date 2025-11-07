@@ -66,6 +66,7 @@ def test_serialize_cell_output():
             {
                 "msg": "Syntax Error!",
                 "type": "syntax",
+                "lineno": None,
             }
         ],
         "timestamp": 0,

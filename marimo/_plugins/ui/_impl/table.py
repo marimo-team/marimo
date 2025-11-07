@@ -980,14 +980,10 @@ class table(
 
                 # For now, we only compute value counts for categorical columns and small tables
                 external_type = external_type.lower()
-                if (
-                    column_type == "string"
-                    and ("cat" in external_type or "enum" in external_type)
-                    or (
-                        column_type == "string"
-                        and total_rows <= CHART_MAX_ROWS_STRING_VALUE_COUNTS
-                    )
-                ):
+                categorical_type = (
+                    "cat" in external_type or "enum" in external_type
+                )
+                if column_type == "string" and categorical_type:
                     try:
                         val_counts = self._get_value_counts(
                             column, DEFAULT_VALUE_COUNTS_SIZE, total_rows
@@ -1060,7 +1056,7 @@ class table(
             LOGGER.warning("Total rows and size is not valid")
             return []
 
-        top_k_rows = self._manager.calculate_top_k_rows(column, size)
+        top_k_rows = self._searched_manager.calculate_top_k_rows(column, size)
         if len(top_k_rows) == 0:
             return []
 

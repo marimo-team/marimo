@@ -51,6 +51,7 @@ const AiConfigSchema = z
   .object({
     api_key: z.string().optional(),
     base_url: z.string().optional(),
+    project: z.string().optional(),
   })
   .loose();
 
@@ -161,6 +162,7 @@ export const UserConfigSchema = z
         google: AiConfigSchema.optional(),
         ollama: AiConfigSchema.optional(),
         openrouter: AiConfigSchema.optional(),
+        wandb: AiConfigSchema.optional(),
         open_ai_compatible: AiConfigSchema.optional(),
         azure: AiConfigSchema.optional(),
         bedrock: z

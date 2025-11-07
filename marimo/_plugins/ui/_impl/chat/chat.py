@@ -11,7 +11,6 @@ from marimo._ai._types import (
     ChatModelConfigDict,
 )
 from marimo._output.formatting import as_html
-from marimo._output.md import md
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -270,7 +269,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         # Return the response as HTML
         # If the response is a string, convert it to markdown
         if isinstance(response, str):
-            return md(response).text
+            return response
         return as_html(response).text
 
     def _convert_value(self, value: dict[str, Any]) -> list[ChatMessage]:

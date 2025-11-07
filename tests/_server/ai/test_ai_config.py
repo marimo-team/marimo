@@ -195,6 +195,61 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-openrouter-key"
         assert provider_config.base_url == "https://openrouter.ai/api/v1/"
 
+    def test_for_wandb(self):
+        """Test Weights & Biases configuration."""
+        config: AiConfig = {
+            "wandb": {
+                "api_key": "test-wandb-key",
+                "base_url": "https://api.inference.wandb.ai/v1/",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_wandb(config)
+
+        assert provider_config.api_key == "test-wandb-key"
+        assert provider_config.base_url == "https://api.inference.wandb.ai/v1/"
+
+    def test_for_wandb_with_fallback_base_url(self):
+        """Test Weights & Biases configuration uses fallback base URL when not specified."""
+        config: AiConfig = {
+            "wandb": {
+                "api_key": "test-wandb-key",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_wandb(config)
+
+        assert provider_config.api_key == "test-wandb-key"
+        assert provider_config.base_url == "https://api.inference.wandb.ai/v1/"
+
+    def test_for_wandb_with_project(self):
+        """Test Weights & Biases configuration with project field."""
+        config: AiConfig = {
+            "wandb": {
+                "api_key": "test-wandb-key",
+                "project": "my-project",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_wandb(config)
+
+        assert provider_config.api_key == "test-wandb-key"
+        assert provider_config.project == "my-project"
+
+    def test_for_openai_with_project(self):
+        """Test OpenAI configuration with project field."""
+        config: AiConfig = {
+            "open_ai": {
+                "api_key": "test-openai-key",
+                "project": "my-openai-project",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_openai(config)
+
+        assert provider_config.api_key == "test-openai-key"
+        assert provider_config.project == "my-openai-project"
+
     def test_for_anthropic(self):
         """Test Anthropic configuration."""
         config: AiConfig = {
@@ -286,6 +341,15 @@ class TestAnyProviderConfig:
 
         assert provider_config.api_key == "test-openrouter-key"
         assert provider_config.base_url == "https://openrouter.ai/api/v1/"
+
+    def test_for_model_wandb(self) -> None:
+        """Test for_model with Weights & Biases model."""
+        config: AiConfig = {"wandb": {"api_key": "test-wandb-key"}}
+
+        provider_config = AnyProviderConfig.for_model("wandb/llama-3", config)
+
+        assert provider_config.api_key == "test-wandb-key"
+        assert provider_config.base_url == "https://api.inference.wandb.ai/v1/"
 
     def test_for_model_unknown_defaults_to_ollama(self) -> None:
         """Test for_model with unknown provider defaults to Ollama."""
@@ -571,6 +635,32 @@ class TestProviderConfigWithFallback:
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
         assert "OpenRouter API key not configured" in str(
+            exc_info.value.detail
+        )
+
+    @patch.dict(os.environ, {"WANDB_API_KEY": "env-wandb-token"})
+    def test_for_wandb_with_fallback_key(self) -> None:
+        """Test Weights & Biases config uses fallback key when config is missing api_key."""
+        config: AiConfig = {"wandb": {}}
+        provider_config = AnyProviderConfig.for_wandb(config)
+        assert provider_config.api_key == "env-wandb-token"
+
+    @patch.dict(os.environ, {"WANDB_API_KEY": "env-wandb-token"})
+    def test_for_wandb_config_key_takes_precedence(self) -> None:
+        """Test Weights & Biases config key takes precedence over environment variable."""
+        config: AiConfig = {"wandb": {"api_key": "config-wandb-token"}}
+        provider_config = AnyProviderConfig.for_wandb(config)
+        assert provider_config.api_key == "config-wandb-token"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_for_wandb_no_fallback_available(self) -> None:
+        """Test Weights & Biases config fails when no config key and no env var."""
+        config: AiConfig = {"wandb": {}}
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_wandb(config)
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "Weights & Biases API key not configured" in str(
             exc_info.value.detail
         )
 

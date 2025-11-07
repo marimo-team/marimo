@@ -29,7 +29,7 @@ import type { CellConfig } from "../network/types";
 import { isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { CellId } from "./ids";
+import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
   focusAndScrollCellIntoView,
@@ -51,13 +51,6 @@ import {
   notebookNeedsRun,
   notebookQueueOrRunningCount,
 } from "./utils";
-
-export const SCRATCH_CELL_ID = "__scratch__" as CellId;
-export const SETUP_CELL_ID = "setup" as CellId;
-
-export function isSetupCell(cellId: CellId): boolean {
-  return cellId === SETUP_CELL_ID;
-}
 
 /**
  * The state of the notebook.
@@ -1335,8 +1328,7 @@ const {
       code = "# Initialization code that runs before all other cells";
     }
 
-    // First check if setup cell already exists
-    if (SETUP_CELL_ID in state.cellIds) {
+    if (state.cellIds.setupCellExists()) {
       // Just focus on the existing setup cell
       return {
         ...state,
@@ -1689,40 +1681,59 @@ export function createUntouchedCellAtom(cellId: CellId): Atom<boolean> {
 export function createTracebackInfoAtom(
   cellId: CellId,
 ): Atom<TracebackInfo[] | undefined> {
-  // We create an intermediate atom that just computes the string
-  // so it prevents downstream recomputations.
-  const tracebackStringAtom = atom<string | undefined>((get) => {
-    const notebook = get(notebookAtom);
-    const data = notebook.cellRuntime[cellId];
+  //use existing cellRuntimeAtom for intermediate computation
+  const cellRuntime = cellRuntimeAtom(cellId);
+
+  return atom((get) => {
+    const data = get(cellRuntime);
+
     if (!data) {
       return undefined;
     }
-    // Must be errored and idle
-    if (data.status !== "idle") {
+
+    if (data.status === "queued" || data.status === "running") {
       return undefined;
     }
+
+    const tracebackInfo: TracebackInfo[] = [];
+
+    // Runtime errors (ZeroDivisionError, etc.)
     const outputs = data.consoleOutputs;
-    // console.warn(notebook);
-    if (!outputs || outputs.length === 0) {
-      return undefined;
+    if (outputs && outputs.length > 0) {
+      const firstTraceback = outputs.find(
+        (output) => output.mimetype === "application/vnd.marimo+traceback",
+      );
+      if (firstTraceback) {
+        const traceback = firstTraceback.data as string;
+        tracebackInfo.push(...extractAllTracebackInfo(traceback));
+      }
     }
 
-    const firstTraceback = outputs.find(
-      (output) => output.mimetype === "application/vnd.marimo+traceback",
-    );
-    if (!firstTraceback) {
-      return undefined;
+    // Syntax errors
+    const output = data.output;
+    if (output?.mimetype === "application/vnd.marimo+error") {
+      const errors = output.data;
+      if (Array.isArray(errors)) {
+        for (const error of errors) {
+          if (error.type === "syntax" && error.lineno != null) {
+            tracebackInfo.push({
+              kind: "cell",
+              cellId: cellId,
+              lineNumber: error.lineno,
+            });
+          }
+          if (error.type === "import-star" && error.lineno != null) {
+            tracebackInfo.push({
+              kind: "cell",
+              cellId: cellId,
+              lineNumber: error.lineno,
+            });
+          }
+        }
+      }
     }
-    const traceback = firstTraceback.data;
-    return traceback as string;
-  });
 
-  return atom((get) => {
-    const traceback = get(tracebackStringAtom);
-    if (!traceback) {
-      return undefined;
-    }
-    return extractAllTracebackInfo(traceback);
+    return tracebackInfo.length > 0 ? tracebackInfo : undefined;
   });
 }
 
@@ -1751,4 +1762,5 @@ export const exportedForTesting = {
   cellDataAtom,
   cellRuntimeAtom,
   cellHandleAtom,
+  createTracebackInfoAtom,
 };

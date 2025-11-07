@@ -31,11 +31,13 @@ Code only runs when you explicitly execute cells.
 marimo behaves differently depending on how you run it:
 
 **Edit mode** (`marimo edit`):
-- Content is sanitized until you run your first cell
+
+- Content is sanitized until you run your first cell or `auto_instantiate` is enabled (by default it is `disabled`)
 - After you run code, subsequent outputs are trusted (you created them)
 - Token authentication enabled by default for remote access
 
 **Run mode** (`marimo run`):
+
 - Notebooks run as web applications
 - Content is treated as a trusted website (no sanitization)
 - Token authentication can be configured via CLI flags or custom middleware
@@ -129,7 +131,7 @@ For general questions about marimo, see our [FAQ](faq.md) or join us on [Discord
 
 <ul>
   <li><strong><a href="https://github.com/marimo-team/marimo/security/advisories/GHSA-xjv7-6w92-42r7">[GHSA-xjv7-6w92-42r7]</a></strong>: Unauthenticated proxy vulnerability in matplotlib endpoint. The <code>/mpl/[port]/[route]</code> endpoint allowed external attackers to reach internal services. Affected versions 0.9.20 through 0.16.3. Fixed in 0.16.4. </li>
- 
+
   <li><strong>[molab-0]</strong>: iframe sandbox escape via markdown render. In molab, an attacker could exploit a vulnerability in the iframe sandboxing to escape the iframe and execute code in the parent context. Fixed in molab deployment on 2025-10-19.</li>
 </ul>
 

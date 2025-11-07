@@ -462,15 +462,6 @@ def edit(
         )
         return
 
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=dangerous_sandbox, name=name
-    ):
-        from marimo._cli.sandbox import run_in_sandbox
-
-        # TODO: consider adding recommended as well
-        run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
-        return
-
     GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
     if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
         GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
@@ -508,6 +499,17 @@ def edit(
                 raise
     else:
         name = os.getcwd()
+
+    # We check this after name validation, because this will convert
+    # URLs into local file paths
+    if should_run_in_sandbox(
+        sandbox=sandbox, dangerous_sandbox=dangerous_sandbox, name=name
+    ):
+        from marimo._cli.sandbox import run_in_sandbox
+
+        # TODO: consider adding recommended as well
+        run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
+        return
 
     start(
         file_router=AppFileRouter.infer(name),
@@ -940,12 +942,6 @@ def run(
         )
         return
 
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=None, name=name
-    ):
-        run_in_sandbox(sys.argv[1:], name=name)
-        return
-
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
@@ -965,6 +961,14 @@ def run(
                 + ": The notebook has errors, fix them before running.\n"
                 + message.strip()
             )
+
+    # We check this after name validation, because this will convert
+    # URLs into local file paths
+    if should_run_in_sandbox(
+        sandbox=sandbox, dangerous_sandbox=None, name=name
+    ):
+        run_in_sandbox(sys.argv[1:], name=name)
+        return
 
     start(
         file_router=AppFileRouter.from_filename(file),

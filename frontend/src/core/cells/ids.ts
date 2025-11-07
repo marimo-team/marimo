@@ -9,6 +9,9 @@ const uppercase = lowercase.toUpperCase();
 const alphabet = lowercase + uppercase;
 const seen = new Set<CellId>();
 
+export const SCRATCH_CELL_ID = "__scratch__" as CellId;
+export const SETUP_CELL_ID = "setup" as CellId;
+
 /**
  * A typed CellId
  */

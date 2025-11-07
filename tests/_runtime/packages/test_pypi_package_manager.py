@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 from functools import partial
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 from marimo._ast import compiler
@@ -11,6 +12,9 @@ from marimo._runtime.packages.pypi_package_manager import (
     PipPackageManager,
     UvPackageManager,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 parse_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -525,3 +529,54 @@ def test_uv_pip_list_uses_utf8_encoding(mock_run: MagicMock):
     call_kwargs = mock_run.call_args[1]
     assert call_kwargs.get("encoding") == "utf-8"
     assert call_kwargs.get("text") is True
+
+
+def test_has_script_metadata_with_metadata(tmp_path: Path):
+    """Test that _has_script_metadata returns True when script has metadata"""
+    script_file = tmp_path / "script_with_metadata.py"
+    script_file.write_text(
+        """# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "requests",
+#   "pandas",
+# ]
+# ///
+
+import marimo as mo
+"""
+    )
+
+    mgr = UvPackageManager()
+    assert mgr._has_script_metadata(str(script_file)) is True
+
+
+def test_has_script_metadata_without_metadata(tmp_path: Path):
+    """Test that _has_script_metadata returns False when script has no metadata"""
+    script_file = tmp_path / "script_without_metadata.py"
+    script_file.write_text(
+        """import marimo as mo
+import pandas as pd
+
+# This is a regular comment
+# Not a script metadata block
+"""
+    )
+
+    mgr = UvPackageManager()
+    assert mgr._has_script_metadata(str(script_file)) is False
+
+
+def test_has_script_metadata_nonexistent_file():
+    """Test that _has_script_metadata returns False for nonexistent files"""
+    mgr = UvPackageManager()
+    assert mgr._has_script_metadata("/nonexistent/path/to/file.py") is False
+
+
+def test_has_script_metadata_binary_file(tmp_path: Path):
+    """Test that _has_script_metadata returns False for binary files"""
+    binary_file = tmp_path / "binary.bin"
+    binary_file.write_bytes(b"\x00\x01\x02\x03\xff\xfe\xfd")
+
+    mgr = UvPackageManager()
+    assert mgr._has_script_metadata(str(binary_file)) is False

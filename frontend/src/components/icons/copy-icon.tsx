@@ -11,6 +11,7 @@ import { toast } from "../ui/use-toast";
 interface Props {
   value: string | ((event: React.MouseEvent) => string);
   className?: string;
+  buttonClassName?: string;
   tooltip?: React.ReactNode | false;
   toastTitle?: string;
   ariaLabel?: string;
@@ -19,6 +20,7 @@ interface Props {
 export const CopyClipboardIcon: React.FC<Props> = ({
   value,
   className,
+  buttonClassName,
   tooltip,
   toastTitle,
   ariaLabel,
@@ -41,6 +43,7 @@ export const CopyClipboardIcon: React.FC<Props> = ({
       type="button"
       onClick={handleCopy}
       aria-label={ariaLabel ?? "Copy to clipboard"}
+      className={buttonClassName}
     >
       {isCopied ? (
         <CheckIcon className={cn(className, "text-(--grass-11)")} />

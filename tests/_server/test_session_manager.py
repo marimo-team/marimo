@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, Mock
 import pytest
 
 from marimo._config.manager import get_default_config_manager
-from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
+from marimo._server.notebook import AppFileManager
 from marimo._server.sessions import (
     KernelManager,
     LspServer,

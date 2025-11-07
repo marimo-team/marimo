@@ -62,6 +62,7 @@ You can configure the following providers:
 * Ollama
 * OpenAI
 * OpenRouter
+* Weights & Biases
 * Together AI
 * Vercel v0
 * and any OpenAI-compatible provider
@@ -264,6 +265,30 @@ base_url = "https://openrouter.ai/api/v1/"
 ```
 
 See available models at `https://openrouter.ai/models`. Make sure to prepend `openrouter/` to the model slug (e.g., `openrouter/deepseek/deepseek-chat`, `openrouter/meta-llama/llama-3.1-8b-instruct`).
+
+### Weights & Biases
+
+Access hosted AI models through Weights & Biases Weave for ML development and inference.
+
+**Requirements**
+
+* Create an API key: [Weights & Biases Settings](https://wandb.ai/authorize)
+* `pip install openai` or `uv add openai` (Weights & Biases is OpenAI‑compatible)
+
+**Configuration**
+
+```toml title="marimo.toml"
+[ai.models]
+# Use wandb/ prefix for Weights & Biases models. Examples:
+chat_model = "wandb/meta-llama/llama-3-70b-instruct"
+edit_model = "wandb/gpt-4o"
+
+[ai.wandb]
+api_key = "your-wandb-api-key"
+base_url = "https://api.inference.wandb.ai/v1/"  # Optional, this is the default
+```
+
+See available models at the [Weights & Biases documentation](https://docs.wandb.ai/inference). Make sure to prepend `wandb/` to the model name.
 
 ### Local models with Ollama { #using-ollama }
 

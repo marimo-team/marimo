@@ -764,6 +764,36 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         </AccordionFormItem>
 
         <AccordionFormItem
+          title="Weights & Biases"
+          provider="wandb"
+          isConfigured={hasValue("ai.wandb.api_key")}
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.wandb.api_key"
+            placeholder="your-wandb-api-key"
+            testId="ai-wandb-api-key-input"
+            description={
+              <>
+                Your Weights & Biases API key from{" "}
+                <ExternalLink href="https://wandb.ai/authorize">
+                  wandb.ai
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.wandb.base_url"
+            placeholder="https://api.inference.wandb.ai/v1/"
+            testId="ai-wandb-base-url-input"
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
           title="Azure"
           provider="azure"
           isConfigured={

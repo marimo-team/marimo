@@ -249,7 +249,7 @@ describe("EditNotebookTool", () => {
         {
           edit: {
             type: "add_cell",
-            position: "end",
+            position: { type: "notebook_end" },
             code: newCode,
           },
         },
@@ -280,7 +280,7 @@ describe("EditNotebookTool", () => {
         {
           edit: {
             type: "add_cell",
-            position: { cellId: cellId2, before: true },
+            position: { type: "relative", cellId: cellId2, before: true },
             code: newCode,
           },
         },
@@ -310,7 +310,7 @@ describe("EditNotebookTool", () => {
         {
           edit: {
             type: "add_cell",
-            position: { cellId: cellId2, before: false },
+            position: { type: "relative", cellId: cellId2, before: false },
             code: newCode,
           },
         },
@@ -340,7 +340,7 @@ describe("EditNotebookTool", () => {
         {
           edit: {
             type: "add_cell",
-            position: { type: "end", columnIndex: 1 },
+            position: { type: "column_end", columnIndex: 1 },
             code: newCode,
           },
         },
@@ -367,7 +367,11 @@ describe("EditNotebookTool", () => {
           {
             edit: {
               type: "add_cell",
-              position: { cellId: "nonexistent" as CellId, before: true },
+              position: {
+                type: "relative",
+                cellId: "nonexistent" as CellId,
+                before: true,
+              },
               code: "y = 2",
             },
           },
@@ -390,7 +394,7 @@ describe("EditNotebookTool", () => {
             edit: {
               type: "add_cell",
               position: {
-                type: "end",
+                type: "column_end",
                 columnIndex: -1,
               },
               code: "y = 2",
@@ -540,7 +544,7 @@ describe("EditNotebookTool", () => {
         {
           edit: {
             type: "add_cell",
-            position: "end",
+            position: { type: "notebook_end" },
             code: "y = 2",
           },
         },

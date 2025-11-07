@@ -4,8 +4,9 @@ import type { EditorView } from "@codemirror/view";
 import { atom, useAtomValue } from "jotai";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { CellConfig, RuntimeState } from "../network/types";
-import { type NotebookState, notebookAtom, SCRATCH_CELL_ID } from "./cells";
+import { type NotebookState, notebookAtom } from "./cells";
 import type { CellId } from "./ids";
+import { SCRATCH_CELL_ID } from "./ids";
 export interface CellFocusState {
   focusedCellId: CellId | null;
   lastFocusedCellId: CellId | null;

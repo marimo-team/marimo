@@ -156,6 +156,8 @@ class UvPackageManager(PypiPackageManager):
     name = "uv"
     docs_url = "https://docs.astral.sh/uv/"
 
+    SCRIPT_METADATA_MARKER = "# /// script"
+
     @cached_property
     def _uv_bin(self) -> str:
         return find_uv_bin()
@@ -465,10 +467,20 @@ class UvPackageManager(PypiPackageManager):
         cmd = [self._uv_bin, "pip", "list", "--format=json", "-p", PY_EXE]
         return self._list_packages_from_cmd(cmd)
 
+    def _has_script_metadata(self, filename: str) -> bool:
+        """Check if a file contains PEP 723 inline script metadata."""
+        try:
+            file = Path(filename)
+            return self.SCRIPT_METADATA_MARKER in file.read_text(
+                encoding="utf-8"
+            )
+        except (OSError, UnicodeDecodeError):
+            return False
+
     def dependency_tree(
         self, filename: Optional[str] = None
     ) -> Optional[DependencyTreeNode]:
-        """Return the project’s dependency tree using the `uv tree` command."""
+        """Return the project's dependency tree using the `uv tree` command."""
 
         # Skip if not a script and not inside a uv-managed project
         if filename is None and not self.is_in_uv_project:
@@ -496,7 +508,9 @@ class UvPackageManager(PypiPackageManager):
             return tree
 
         except subprocess.CalledProcessError:
-            LOGGER.error(f"Failed to get dependency tree for {filename}")
+            # Only log error if the script has dependency metadata
+            if filename and self._has_script_metadata(filename):
+                LOGGER.error(f"Failed to get dependency tree for {filename}")
             return None
 
 

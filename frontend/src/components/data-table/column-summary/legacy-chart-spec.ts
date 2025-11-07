@@ -285,9 +285,9 @@ export function getDataSpecAndSourceName<T>(data: string | T[]): {
 
       // eslint-disable-next-line unicorn/prefer-ternary
       if (decoded.startsWith(ARROW_MAGIC_NUMBER)) {
-        // @ts-expect-error vega-typings does not include arrow format
         dataSpec = {
           values: byteStringToBinary(decoded),
+          // @ts-expect-error vega-typings does not include arrow format
           format: { type: "arrow" },
         };
       } else {

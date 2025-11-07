@@ -51,8 +51,8 @@ export class ToolExecutionError extends Error {
       message: this.message,
       code: this.code,
       is_retryable: this.isRetryable,
-      suggested_fix: this.suggestedFix,
-      meta: this.meta ?? {},
+      ...(this.suggestedFix && { suggested_fix: this.suggestedFix }),
+      ...(this.meta && { meta: this.meta }),
     });
     return `Error invoking tool ${this.name}: ${stringError}`;
   }

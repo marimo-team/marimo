@@ -2,6 +2,7 @@
 
 import { Memoize } from "typescript-memoize";
 import { reorderColumnSizes } from "@/components/editor/columns/storage";
+import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { arrayDelete, arrayInsert, arrayInsertMany, arrayMove } from "./arrays";
 import { Logger } from "./Logger";
 
@@ -956,6 +957,10 @@ export class MultiColumn<T> {
     }
 
     return new MultiColumn(columns);
+  }
+
+  setupCellExists(): boolean {
+    return this.columns.some((c) => c.topLevelIds.includes(SETUP_CELL_ID as T));
   }
 
   insertId(id: T, col: CellColumnId, index: CellIndex): MultiColumn<T> {

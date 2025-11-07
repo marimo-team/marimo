@@ -221,6 +221,9 @@ class VirtualFileRegistry:
             return
 
         buffer = virtual_file.buffer
+        # Skip adding if buffer is empty
+        if len(buffer) == 0:
+            return
         # Immediately writes the contents of the file to an in-memory
         # buffer; not lazy.
         #

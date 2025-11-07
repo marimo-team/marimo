@@ -57,7 +57,7 @@ def _maybe_contents(filename: Optional[Union[str, Path]]) -> Optional[str]:
 
 
 # Used in tests and current fallback
-def _dynamic_load(filename: str) -> Optional[App]:
+def _dynamic_load(filename: str | Path) -> Optional[App]:
     """Create and execute a module with the provided filename."""
     contents = _maybe_contents(filename)
     if not contents:
@@ -225,7 +225,7 @@ FAILED_LOAD_NOTEBOOK_MESSAGE = (
 )
 
 
-def load_app(filename: Optional[str]) -> Optional[App]:
+def load_app(filename: Optional[str | Path]) -> Optional[App]:
     """Load and return app from a marimo-generated module.
 
     Args:

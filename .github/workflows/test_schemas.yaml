@@ -3,8 +3,8 @@ name: Schema Breaking Changes Check
 on:
   pull_request:
     paths:
-      - 'marimo/_schemas/**/*.yaml'
-      - 'packages/openapi/api.yaml'
+      - "marimo/_schemas/**/*.yaml"
+      - "packages/openapi/api.yaml"
 
 permissions:
   contents: read

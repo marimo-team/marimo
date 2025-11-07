@@ -587,11 +587,20 @@ class Datasets(Op, tag="datasets"):
     clear_channel: Optional[DataTableSource] = None
 
 
+class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
+    """Metadata for a SQL database."""
+
+    connection: str
+    database: str
+    schema: str
+
+
 class SQLTablePreview(Op, tag="sql-table-preview"):
     """Preview of a table in a SQL database."""
 
     name: ClassVar[str] = "sql-table-preview"
     request_id: RequestId
+    metadata: SQLMetadata
     table: Optional[DataTable]
     error: Optional[str] = None
 
@@ -601,6 +610,7 @@ class SQLTableListPreview(Op, tag="sql-table-list-preview"):
 
     name: ClassVar[str] = "sql-table-list-preview"
     request_id: RequestId
+    metadata: SQLMetadata
     tables: list[DataTable] = msgspec.field(default_factory=list)
     error: Optional[str] = None
 
@@ -613,14 +623,14 @@ class ColumnPreview(msgspec.Struct):
     stats: Optional[ColumnStats] = None
 
 
-# We shouldn't need to make table_name and column_name have default values.
-# We can use kw_only=True once we drop support for Python 3.9 (25-11-01).
-class DataColumnPreview(Op, ColumnPreview, tag="data-column-preview"):
+class DataColumnPreview(
+    Op, ColumnPreview, kw_only=True, tag="data-column-preview"
+):
     """Preview of a column in a dataset."""
 
     name: ClassVar[str] = "data-column-preview"
-    table_name: str = ""
-    column_name: str = ""
+    table_name: str
+    column_name: str
 
 
 class DataSourceConnections(Op, tag="data-source-connections"):
