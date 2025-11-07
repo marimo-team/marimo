@@ -157,7 +157,7 @@ To install with additional dependencies that unlock SQL cells, AI completion, an
 run
 
 ```bash
-pip install marimo[recommended]
+pip install "marimo[recommended]"
 ```
 
 **Create notebooks.**
