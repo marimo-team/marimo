@@ -49,7 +49,6 @@ dependencies = [
     # for packaging.version; not sure what the lower bound is.
     "packaging",
     "msgspec_m>=0.19.2",
-    "openai>=2.7.1",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
