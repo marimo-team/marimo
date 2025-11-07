@@ -109,7 +109,7 @@
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",
     "@zed-industries/agent-client-protocol": "^0.3.1",
-    "ai": "^5.0.30",
+    "ai": "^5.0.52",
     "ansi_up": "^6.0.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
