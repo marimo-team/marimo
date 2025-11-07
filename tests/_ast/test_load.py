@@ -318,7 +318,6 @@ class TestGetStatus:
             ("test_generate_filecontents_single_cell", "valid"),
             ("test_generate_filecontents_toplevel", "valid"),
             ("test_generate_filecontents_toplevel_pytest", "valid"),
-            ("test_decorators", "valid"),
             ("test_get_codes_multiline_string", "valid"),
             ("test_get_codes_messy", "valid"),
             ("test_get_codes_single_line_fn", "valid"),
@@ -365,6 +364,8 @@ class TestGetStatus:
             ),  # no body
             ("test_generate_filecontents_empty", "has_errors"),  # no body
             ("test_app_with_no_cells", "has_errors"),  # No body is an error
+            # Invalid decorator order creates an error.
+            ("test_decorators", "has_errors"),
             # Syntax errors in code
             ("_test_not_parsable", "broken"),
             ("_test_parse_error_in_notebook", "broken"),
