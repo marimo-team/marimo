@@ -25,11 +25,11 @@ from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
 from marimo._server.export.exporter import Exporter
-from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.models import InstantiateRequest
+from marimo._server.notebook import AppFileManager
 from marimo._server.session.session_view import SessionView
 from marimo._types.ids import ConsumerId
 from marimo._utils.marimo_path import MarimoPath

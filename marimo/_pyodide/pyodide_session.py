@@ -43,7 +43,6 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
 )
 from marimo._server.export.exporter import Exporter
-from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.model import SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
@@ -69,6 +68,7 @@ from marimo._server.models.models import (
     SaveAppConfigurationRequest,
     SaveNotebookRequest,
 )
+from marimo._server.notebook import AppFileManager
 from marimo._server.session.session_view import SessionView
 from marimo._snippets.snippets import read_snippets
 from marimo._types.ids import CellId_t

@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING, Optional
 from marimo import _loggers
 from marimo._config.config import ExportType, SqlOutputType, WidthType
 from marimo._server.api.status import HTTPException, HTTPStatus
-from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import natural_sort_file
 from marimo._server.models.files import FileInfo
 from marimo._server.models.home import MarimoFile
+from marimo._server.notebook import AppFileManager
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:

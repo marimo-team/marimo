@@ -30,8 +30,8 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
     StopRequest,
 )
-from marimo._server.file_manager import AppFileManager
 from marimo._server.model import SessionMode
+from marimo._server.notebook import AppFileManager
 from marimo._types.ids import CellId_t, UIElementId
 
 if TYPE_CHECKING:

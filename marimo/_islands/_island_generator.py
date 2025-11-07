@@ -14,8 +14,8 @@ from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
-from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
+from marimo._server.notebook import AppFileManager
 from marimo._types.ids import CellId_t
 from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__
