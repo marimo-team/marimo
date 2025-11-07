@@ -159,3 +159,41 @@ def test_login_submit_with_malformed_data(client: TestClient):
 def test_login_page_method_not_allowed(client: TestClient):
     response = client.put("/login")
     assert response.status_code == 405
+
+
+def test_login_submit_multiple_invalid_attempts(client: TestClient):
+    """Test that multiple failed login attempts still show the login form correctly."""
+    # First invalid attempt
+    response = client.post("/login", data={"password": "wrong_password"})
+    assert response.status_code == 200
+    assert "Invalid password" in response.text
+    assert 'action="/auth/login"' in response.text
+
+    # Second invalid attempt - this should still work
+    response = client.post("/login", data={"password": "wrong_password2"})
+    assert response.status_code == 200
+    assert "Invalid password" in response.text
+    assert 'action="/auth/login"' in response.text
+
+    # Third attempt with correct password should succeed
+    response = client.post("/login", data={"password": str(AUTH_TOKEN)})
+    assert response.status_code == 302
+    assert response.headers["location"] == "/"
+
+
+def test_login_submit_invalid_password_with_base_url():
+    """Test that invalid login with base_url shows correct form action."""
+    app = create_app(base_url="/app")
+    client = TestClient(app, follow_redirects=False)
+
+    # First invalid attempt
+    response = client.post("/app/login", data={"password": "wrong_password"})
+    assert response.status_code == 200
+    assert "Invalid password" in response.text
+    assert 'action="/app/auth/login"' in response.text
+
+    # Second invalid attempt
+    response = client.post("/app/login", data={"password": "wrong_password2"})
+    assert response.status_code == 200
+    assert "Invalid password" in response.text
+    assert 'action="/app/auth/login"' in response.text
