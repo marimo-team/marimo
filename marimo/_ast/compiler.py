@@ -580,7 +580,7 @@ def cell_factory(
 
     extractor = parse.Extractor(contents=function_code)
     func_ast = parse.ast_parse(function_code).body[0]
-    cell_def = extractor.to_cell(func_ast, attribute="cell")
+    cell_def = extractor.to_cell(func_ast, attribute="cell").unwrap()
 
     # anonymous file is required for deterministic testing.
     source_position = None

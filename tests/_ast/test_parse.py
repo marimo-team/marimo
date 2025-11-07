@@ -105,7 +105,8 @@ class TestParser:
         )
         assert notebook
         # unexpected statements and a missing run guard
-        assert len(notebook.violations) == 3
+        # + bad decorator
+        assert len(notebook.violations) == 4
         assert "generated" in notebook.violations[0].description
         assert "statement" in notebook.violations[1].description
         assert "run guard" in notebook.violations[2].description
@@ -117,7 +118,6 @@ class TestParser:
         )
         assert notebook
         # Valid currently
-        # TODO: Propagate decorators violations.
         assert len(notebook.violations) == 0
         assert [cell.name for cell in notebook.cells] == [
             "global_error",
@@ -129,8 +129,7 @@ class TestParser:
         notebook = parse_notebook(get_filepath("test_decorators").read_text())
         assert notebook
         # Valid currently
-        # TODO: Propagate decorators violations.
-        assert len(notebook.violations) == 0
+        assert len(notebook.violations) == 4
 
     @staticmethod
     def test_eval_kwargs_with_list_constants() -> None:
