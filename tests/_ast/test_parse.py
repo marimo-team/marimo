@@ -109,7 +109,7 @@ class TestParser:
         assert len(notebook.violations) == 4
         assert "generated" in notebook.violations[0].description
         assert "statement" in notebook.violations[1].description
-        assert "run guard" in notebook.violations[2].description
+        assert "run guard" in notebook.violations[-1].description
 
     @staticmethod
     def test_parse_syntax_errors() -> None:

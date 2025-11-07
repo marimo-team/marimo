@@ -872,7 +872,8 @@ def is_app_def(node: Node, import_alias: str = "marimo") -> bool:
 
 def is_cell_decorator(
     decorator: ast.expr,
-    allowed: tuple[str, ...] = ("cell", "function", "class_definition"),
+    *,
+    allowed: tuple[str, ...],
 ) -> bool:
     if isinstance(decorator, ast.Attribute):
         return (
@@ -902,7 +903,9 @@ def is_body_cell(node: Node) -> bool:
     return (
         isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef))
         and (decorator := get_valid_decorator(node))
-        and is_cell_decorator(decorator)
+        and is_cell_decorator(
+            decorator, allowed=("cell", "function", "class_definition")
+        )
     ) or is_unparsable_cell(node)
 
 
