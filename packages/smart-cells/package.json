@@ -18,11 +18,11 @@
     "@codemirror/lang-python": "^6.2.1",
     "@lezer/common": "^1.2.1",
     "@lezer/python": "^1.1.14",
-    "string-dedent": "^3.0.1"
+    "string-dedent": "^3.0.2"
   },
   "devDependencies": {
     "@marimo-team/tsconfig": "workspace:*",
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.24",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },

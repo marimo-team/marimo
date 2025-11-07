@@ -22,6 +22,6 @@
     "@marimo-team/tsconfig": "workspace:*",
     "yaml": "^2.8.1",
     "vitest": "^3.2.4",
-    "zod": "^4.1.11"
+    "zod": "^4.1.12"
   }
 }
