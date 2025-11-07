@@ -1456,36 +1456,41 @@ class Kernel:
                 self.state_updates
             )
             self.state_updates.clear()
-        self.state_updates.clear()
         return cells_with_stale_state
 
     def register_state_update(self, state: State[Any]) -> None:
         """Register a state object as having been updated.
 
-        Should be called when a state's setter is called.
+        Should be called when a state's setter is called
         """
-        # store the state and the currently executing cell
+        from marimo._runtime.threads import is_marimo_thread
+
         ctx = get_context()
         assert ctx.execution_context is not None
-        cell_id = ctx.execution_context.cell_id
-        with self._state_lock:
-            self.state_updates[state] = cell_id
-        # TODO(akshayka): State should not be updated eagerly like this,
-        # the runner already handles state execution. This is a hack
-        # until we figure out how to clean this up.
-        names = ctx.state_registry.bound_names(state)
-        if len(names) == 1 and not (name := list(names)[0]).isidentifier():
-            LOGGER.warning(
-                f"Found 'name' for state object is not an identifier; got name {name}"
-            )
+        setter_cell_id = ctx.execution_context.cell_id
+
+        # When running on the main thread of execution, state updates
+        # are just logged in a data structure; it is the runner's
+        # job to process these later.
+        if not is_marimo_thread():
+            with self._state_lock:
+                self.state_updates[state] = setter_cell_id
             return
 
-        to_update = self.update_stateful_values(
-            ctx.state_registry.bound_names(state), state._value
-        )
-        if self.reactive_execution_mode == "autorun":
-            # If autorun, run the cells that depend on the state
-            self.graph.set_stale(to_update)
+        # Otherwise, when running in a mo.Thread, we eagerly process
+        # state updates.
+        cells_with_stale_state = set()
+        for cid, cell in self.graph.cells.items():
+            # No self-loops
+            if cid == setter_cell_id and not state.allow_self_loops:
+                continue
+            for ref in cell.refs:
+                # run this cell if any of its refs match the state object
+                # by object ID (via is operator)
+                if ref in self.globals and self.globals[ref] is state:
+                    cells_with_stale_state.add(cid)
+        self.graph.set_stale(cells_with_stale_state, prune_imports=True)
+        if not self.lazy():
             self._execute_stale_cells_callback()
 
     @kernel_tracer.start_as_current_span("delete_cell")
@@ -1886,9 +1891,38 @@ class Kernel:
                 for name in ctx.ui_element_registry.bound_names(object_id)
                 if not is_local(name)
             }
-            referring_cells.update(
-                self.update_stateful_values(bound_names, value)
-            )
+            variable_values: list[VariableValue] = []
+            for name in bound_names:
+                # TODO update variable values even for namespaces? lenses? etc
+                variable_values.append(
+                    VariableValue.create(name=name, value=value)
+                )
+                try:
+                    # subtracting self.graph.definitions[name]: never rerun the
+                    # cell that created the name
+                    referring_cells |= self.graph.get_referring_cells(
+                        name, language="python"
+                    ) - self.graph.get_defining_cells(name)
+                except Exception:
+                    # This is a serious bug that should never be triggered;
+                    # it means that we couldn't find a UIElement object
+                    # that should exist.
+                    sys.stderr.write(
+                        "An exception was raised when finding cells that "
+                        f"refer to a UIElement value, for bound name {name}. "
+                        "This is a bug in marimo. "
+                        "Please copy the below traceback and paste it in an "
+                        "issue: https://github.com/marimo-team/marimo/issues\n"
+                    )
+                    tmpio = io.StringIO()
+                    traceback.print_exc(file=tmpio)
+                    tmpio.seek(0)
+                    write_traceback(tmpio.read())
+                    # Entering undefined behavior territory ...
+                    continue
+
+            if variable_values:
+                VariableValues(variables=variable_values).broadcast()
 
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)
@@ -1936,43 +1970,6 @@ class Kernel:
 
     def reset_ui_initializers(self) -> None:
         self.ui_initializers = {}
-
-    def update_stateful_values(
-        self, bound_names: set[str], value: Any
-    ) -> set[CellId_t]:
-        variable_values: list[VariableValue] = []
-        referring_cells: set[CellId_t] = set()
-        for name in bound_names:
-            # TODO update variable values even for namespaces? lenses? etc
-            variable_values.append(
-                VariableValue.create(name=name, value=value)
-            )
-            try:
-                # subtracting self.graph.definitions[name]: never rerun the
-                # cell that created the name
-                referring_cells |= self.graph.get_referring_cells(
-                    name, language="python"
-                ) - self.graph.get_defining_cells(name)
-            except Exception:
-                # Internal marimo error
-                sys.stderr.write(
-                    "An exception was raised when finding cells that "
-                    f"refer to a UIElement value, for bound name {name}. "
-                    "This is a bug in marimo. "
-                    "Please copy the below traceback and paste it in an "
-                    "issue: https://github.com/marimo-team/marimo/issues\n"
-                )
-                tmpio = io.StringIO()
-                traceback.print_exc(file=tmpio)
-                tmpio.seek(0)
-                write_traceback(tmpio.read())
-                # Entering undefined behavior territory ...
-                continue
-
-        if variable_values:
-            VariableValues(variables=variable_values).broadcast()
-
-        return referring_cells
 
     @kernel_tracer.start_as_current_span("function_call_request")
     async def function_call_request(

@@ -5,6 +5,7 @@ import threading
 from typing import Any
 
 from marimo._messaging.streams import ThreadSafeStream
+from marimo._output.rich_help import mddoc
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.script_context import ScriptRuntimeContext
@@ -21,6 +22,7 @@ from marimo._runtime.context.types import (
 THREADS: set[int] = set()
 
 
+@mddoc
 class Thread(threading.Thread):
     """A Thread subclass that can communicate with the frontend.
 
@@ -40,24 +42,23 @@ class Thread(threading.Thread):
     `should_exit` property will evaluate to `True`, at which point it
     is the developer's responsibility to clean up their thread.
 
-    **Example.**
+    Examples:
+        ```python
+        def target():
+            import time
+            import marimo as mo
 
-    ```python
-    def target():
-        import time
+            thread = mo.current_thread()
+            while not thread.should_exit:
+                time.sleep(1)
+                print("hello")
+        ```
+
+        ```python
         import marimo as mo
 
-        thread = mo.current_thread()
-        while not thread.should_exit:
-            time.sleep(1)
-            print("hello")
-    ```
-
-    ```python
-    import marimo as mo
-
-    mo.Thread(target=target).start()
-    ```
+        mo.Thread(target=target).start()
+        ```
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -174,3 +175,11 @@ def current_thread() -> Thread:
             "thread created with mo.Thread."
         )
     return thread
+
+
+def is_marimo_thread() -> bool:
+    try:
+        current_thread()
+        return True
+    except RuntimeError:
+        return False

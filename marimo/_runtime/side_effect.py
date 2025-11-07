@@ -31,11 +31,14 @@ class SideEffect(CellLifecycleItem):
         Typically hook to expose the object to the context, but the existence of
         the object is enough for side effect tracking.
         """
+        del context
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:  # noqa: ARG002
         """Clean up and mark the object for deletion"""
         # Side effects can always be disposed since they are just a cell level
         # marker that some event has occurred.
+        del context
+        del deletion
         return True
 
 
