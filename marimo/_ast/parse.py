@@ -860,7 +860,7 @@ def is_cell_decorator(
             and decorator.attr in allowed
         )
     elif isinstance(decorator, ast.Call):
-        return is_cell_decorator(decorator.func)
+        return is_cell_decorator(decorator.func, allowed=allowed)
     return False
 
 

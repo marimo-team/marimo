@@ -200,21 +200,13 @@ class TestParser:
 
     @staticmethod
     def test_function_decorator_call_preserves_other_decorators() -> None:
-        """Test that @app.function() with call syntax preserves other decorators.
-
-        This demonstrates a bug where when @app.function is used with call syntax
-        (e.g., @app.function()), the extract_from_code method incorrectly skips
-        past other decorators, causing them to be dropped from the extracted code.
-        """
         notebook = parse_notebook(
-            get_filepath("test_function_decorator_call_bug").read_text()
+            get_filepath("test_function_decorator_call").read_text()
         )
         assert notebook is not None
         assert len(notebook.cells) == 2  # setup + my_function
 
         function_cell = notebook.cells[1]
-        # The extracted code should include the @my_decorator decorator
-        # Currently this fails because the decorator is dropped
         assert "@my_decorator" in function_cell.code, (
             f"Expected @my_decorator in extracted code, but got: {function_cell.code!r}"
         )
