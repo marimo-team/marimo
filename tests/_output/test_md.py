@@ -472,6 +472,51 @@ def test_md_mime_type_with_script():
     assert "Title" in content
 
 
+def test_md_caret_superscript() -> None:
+    # Test superscript conversion
+    superscript_input = "H^2^O"
+    expected_output = '<span class="paragraph">H<sup>2</sup>O</span>'
+    assert (
+        _md(superscript_input, apply_markdown_class=False).text
+        == expected_output
+    )
+
+    # Test superscript with spaces
+    superscript_spaces = "text^a\\ superscript^"
+    expected_spaces = (
+        '<span class="paragraph">text<sup>a superscript</sup></span>'
+    )
+    assert (
+        _md(superscript_spaces, apply_markdown_class=False).text
+        == expected_spaces
+    )
+
+
+def test_md_caret_insert() -> None:
+    # Test insert (underline) conversion
+    insert_input = "^^Insert me^^"
+    expected_output = '<span class="paragraph"><ins>Insert me</ins></span>'
+    assert (
+        _md(insert_input, apply_markdown_class=False).text == expected_output
+    )
+
+    # Test insert with markdown formatting
+    insert_bold = "This is ^^important^^ text"
+    expected_bold = (
+        '<span class="paragraph">This is <ins>important</ins> text</span>'
+    )
+    assert _md(insert_bold, apply_markdown_class=False).text == expected_bold
+
+
+def test_md_caret_combined() -> None:
+    # Test caret combined with tilde (subscript/strikethrough)
+    combined_input = "CH~3~CH~2~OH with H^2^O"
+    expected_output = '<span class="paragraph">CH<sub>3</sub>CH<sub>2</sub>OH with H<sup>2</sup>O</span>'
+    assert (
+        _md(combined_input, apply_markdown_class=False).text == expected_output
+    )
+
+
 @patch("marimo._runtime.output")
 def test_latex_via_path(output: MagicMock, tmp_path: Path) -> None:
     filename = tmp_path / "macros.tex"
