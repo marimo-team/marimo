@@ -1470,6 +1470,16 @@ class Kernel:
         cell_id = ctx.execution_context.cell_id
         with self._state_lock:
             self.state_updates[state] = cell_id
+        # TODO(akshayka): State should not be updated eagerly like this,
+        # the runner already handles state execution. This is a hack
+        # until we figure out how to clean this up.
+        names = ctx.state_registry.bound_names(state)
+        if len(names) == 1 and not (name := list(names)[0]).isidentifier():
+            LOGGER.warning(
+                f"Found 'name' for state object is not an identifier; got name {name}"
+            )
+            return
+
         to_update = self.update_stateful_values(
             ctx.state_registry.bound_names(state), state._value
         )
