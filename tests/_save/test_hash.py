@@ -9,6 +9,7 @@ import pytest
 
 from marimo._ast.app import App
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._runtime.requests import ExecuteStaleRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -1389,6 +1390,8 @@ class TestSideEffects:
     async def test_side_effect_file(
         k: Kernel, exec_req: ExecReqProvider, tmp_path
     ) -> None:
+        control_requests = []
+        k.enqueue_control_request = lambda req: control_requests.append(req)  # type: ignore
         await k.run(
             [
                 exec_req.get(
@@ -1402,7 +1405,7 @@ class TestSideEffects:
 
                 hashes = []
                 """),
-                exec_req.get("""
+                r := exec_req.get("""
                 f = mo.watch.file(tmp_path_fixture / "test.txt")
                 """),
             ]
@@ -1434,7 +1437,11 @@ class TestSideEffects:
         )
         (tmp_path / "test.txt").touch()
         await asyncio.sleep(0.25)
-        await k.run([])
+        assert len(control_requests) == 1
+        assert isinstance(control_requests[0], ExecuteStaleRequest)
+        assert k.graph.cells[r.cell_id].stale
+        await k.run_stale_cells()
+
         assert not k.stdout.messages, k.stdout
         assert not k.stderr.messages, k.stderr
         v = k.globals["v"]
@@ -1448,6 +1455,8 @@ class TestSideEffects:
     async def test_side_effect_directory(
         k: Kernel, exec_req: ExecReqProvider, tmp_path
     ) -> None:
+        control_requests = []
+        k.enqueue_control_request = lambda req: control_requests.append(req)  # type: ignore
         await k.run(
             [
                 exec_req.get(
@@ -1493,6 +1502,11 @@ class TestSideEffects:
         )
         (tmp_path / "test_dir" / "test.txt").write_text("test")
         await asyncio.sleep(0.25)
+        assert len(control_requests) == 1
+        assert isinstance(control_requests[0], ExecuteStaleRequest)
+        assert k.graph.cells[r.cell_id].stale
+        await k.run_stale_cells()
+
         await k.run([])
         assert not k.stdout.messages, k.stdout
         assert not k.stderr.messages, k.stderr
