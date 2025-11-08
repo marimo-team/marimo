@@ -6,6 +6,12 @@
   margin-block-start: 0;
 }
 
+/* tailwind-typography adds 2em, but we want to remove it for images */
+.markdown img {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 .markdown p:last-child,
 /* This is needed when markdown is used inside buttons or labels  */
 .markdown .paragraph:last-child {
