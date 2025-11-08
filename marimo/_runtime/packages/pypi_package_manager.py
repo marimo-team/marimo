@@ -593,11 +593,11 @@ class PoetryPackageManager(PypiPackageManager):
 
     def _generate_list_packages_cmd(self, version: int) -> list[str]:
         """Poetry 1.x and 2.x handle the "show" command differently
-            In poetry 1.x, "poetry show --no-dev" works perfectly fine but is deprecated. This
-                shouldn't matter if 1.8.x is still installed.
-            In poetry 2.x the preferred command is "poetry show --without dev" but will throw
-                an error if there are no dev packages installed. We will capture that error and
-                adjust the cmd accordingly.
+        In poetry 1.x, "poetry show --no-dev" works perfectly fine but is deprecated. This
+            shouldn't matter if 1.8.x is still installed.
+        In poetry 2.x the preferred command is "poetry show --without dev" but will throw
+            an error if there are no dev packages installed. We will capture that error and
+            adjust the cmd accordingly.
         """
         if version == 1:
             return ["poetry", "show", "--no-dev"]
