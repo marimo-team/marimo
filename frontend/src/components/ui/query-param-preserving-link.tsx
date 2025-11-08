@@ -20,6 +20,9 @@ export const QueryParamPreservingLink: React.FC<
     currentUrl.hash = href;
     globalThis.history.pushState({}, "", currentUrl.toString());
 
+    //manually dispatch hashchange event
+    globalThis.dispatchEvent(new HashChangeEvent("hashchange"));
+
     // Scroll to the anchor
     const targetId = href.slice(1);
     const targetElement = document.getElementById(targetId);
