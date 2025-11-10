@@ -7,6 +7,7 @@ from typing import (
     Callable,
     Final,
     Optional,
+    TypeVar,
 )
 
 from marimo._output.hypertext import Html
@@ -16,6 +17,30 @@ from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
     from collections.abc import ItemsView, Iterator, ValuesView
+
+U = TypeVar("U")
+V = TypeVar("V")
+
+
+# Explicit type check, since the api has led to some confusion.
+def validate_and_clone(
+    elements: dict[str, UIElement[U, V]],
+) -> dict[str, UIElement[U, V]]:
+    invalid: list[str] = []
+    new_elements = {}
+    for key, element in elements.items():
+        if not isinstance(element, UIElement):
+            invalid.append(key)
+        else:
+            new_elements[key] = element._clone()
+
+    if invalid:
+        invalid_keys = ", ".join(f"'{k}'" for k in invalid)
+        raise ValueError(
+            f"`.batch` only accepts UIElements as arguments. "
+            f"Invalid keys: {invalid_keys}"
+        )
+    return new_elements
 
 
 # - Frontend type is a dict {label => value update}
@@ -188,7 +213,7 @@ class batch(_batch_base):
         on_change: Optional[Callable[[dict[str, object]], None]] = None,
     ) -> None:
         self._html = html
-        elements = {key: element._clone() for key, element in elements.items()}
+        elements = validate_and_clone(elements)
         super().__init__(
             html=Html(self._html.text.format(**elements)),
             elements=elements,
