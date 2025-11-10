@@ -4,17 +4,42 @@ marimo islands are a way to render HTML "islands" each with static outputs and c
 
 ## Development
 
-**Islands demo page**
+**Quick start - Run the demo**
 
 ```bash
 pnpm dev:islands
 ```
 
-**Generate an HTML page with islands**
+This will:
+
+- Auto-generate the demo HTML from `generate.py`
+- Start Vite dev server with HMR
+- Watch `generate.py` for changes and auto-reload
+
+**Update the demo islands**
+
+Just edit `islands/generate.py`, save, and the browser will automatically reload with your changes.
+
+**Generate production HTML**
 
 ```bash
-# Generate
+# Generate with CDN links (default - for deployment)
 uv run ./islands/generate.py > islands/__demo__/index.html
-# Run the Vite server
-pnpm dev:islands
+
+# Generate for local production build testing
+MODE=local uv run ./islands/generate.py > islands/__demo__/index.html
+
+# Generate for Vite dev server (auto-done by pnpm dev:islands)
+MODE=dev uv run ./islands/generate.py > islands/__demo__/index.html
+```
+
+## Build for Production
+
+```bash
+# Build the islands bundle
+pnpm build:islands
+
+# Output:
+# - frontend/islands/dist/main.js
+# - frontend/islands/dist/style.css
 ```

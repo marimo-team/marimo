@@ -1,6 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { MarimoIslandElement } from "@/core/islands/components/web-components";
+import {
+  ISLAND_DATA_ATTRIBUTES,
+  ISLAND_TAG_NAMES,
+} from "@/core/islands/constants";
 import { Logger } from "@/utils/Logger";
 
 /**
@@ -41,51 +44,84 @@ interface MarimoIslandCell {
   idx: number;
 }
 
-export function parseMarimoIslandApps(): MarimoIslandApp[] {
-  const apps = new Map<string, MarimoIslandApp>();
-
-  const embeds = document.querySelectorAll<HTMLElement>(
-    MarimoIslandElement.tagName,
-  );
+/**
+ * Parses marimo island apps from the DOM
+ * @param root - Root element to search within (defaults to document)
+ */
+export function parseMarimoIslandApps(
+  root: Document | Element = document,
+): MarimoIslandApp[] {
+  const embeds = root.querySelectorAll<HTMLElement>(ISLAND_TAG_NAMES.ISLAND);
   if (embeds.length === 0) {
     Logger.warn("No embedded marimo apps found.");
     return [];
   }
 
+  return parseIslandElementsIntoApps(Array.from(embeds));
+}
+
+/**
+ * Pure function to parse island elements into app structures
+ * @param embeds - Array of island HTML elements
+ */
+export function parseIslandElementsIntoApps(
+  embeds: HTMLElement[],
+): MarimoIslandApp[] {
+  const apps = new Map<string, MarimoIslandApp>();
+
   for (const embed of embeds) {
-    const id = embed.dataset.appId;
-    if (!id) {
+    const appId = embed.getAttribute(ISLAND_DATA_ATTRIBUTES.APP_ID);
+    if (!appId) {
       Logger.warn("Embedded marimo cell missing data-app-id attribute.");
       continue;
     }
 
-    const cellOutput = embed.querySelector<HTMLElement>(
-      MarimoIslandElement.outputTagName,
-    );
-    const code = extractIslandCodeFromEmbed(embed);
-
-    if (!cellOutput || !code) {
-      Logger.warn(`Embedded marimo app ${id} missing cell output or code.`);
+    const cellData = parseIslandElement(embed);
+    if (!cellData) {
+      Logger.warn(`Embedded marimo app ${appId} missing cell output or code.`);
       continue;
     }
 
-    if (!apps.has(id)) {
-      apps.set(id, { id, cells: [] });
+    if (!apps.has(appId)) {
+      apps.set(appId, { id: appId, cells: [] });
     }
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const app = apps.get(id)!;
+
+    const app = apps.get(appId)!;
     const idx = app.cells.length;
     app.cells.push({
-      output: cellOutput.innerHTML,
-      code: code,
+      output: cellData.output,
+      code: cellData.code,
       idx: idx,
     });
 
     // Add data-cell-idx attribute to the island element
-    embed.dataset.cellIdx = idx.toString();
+    embed.setAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX, idx.toString());
   }
 
   return [...apps.values()];
+}
+
+/**
+ * Parses a single island element into cell data
+ * @param embed - The island HTML element
+ * @returns Cell data or null if invalid
+ */
+export function parseIslandElement(
+  embed: HTMLElement,
+): { output: string; code: string } | null {
+  const cellOutput = embed.querySelector<HTMLElement>(
+    ISLAND_TAG_NAMES.CELL_OUTPUT,
+  );
+  const code = extractIslandCodeFromEmbed(embed);
+
+  if (!cellOutput || !code) {
+    return null;
+  }
+
+  return {
+    output: cellOutput.innerHTML,
+    code: code,
+  };
 }
 
 export function createMarimoFile(app: { cells: { code: string }[] }): string {
@@ -134,7 +170,8 @@ export function parseIslandCode(code: string | undefined | null): string {
 }
 
 export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
-  const reactive = embed.dataset.reactive === "true";
+  const reactive =
+    embed.getAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE) === "true";
   // Non-reactive cells are not guaranteed to have code, and should be treated as
   // such.
   if (!reactive) {
@@ -142,17 +179,19 @@ export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
   }
 
   const cellCodeElement = embed.querySelector<HTMLElement>(
-    MarimoIslandElement.codeTagName,
+    ISLAND_TAG_NAMES.CELL_CODE,
   );
   if (cellCodeElement) {
     return parseIslandCode(cellCodeElement.textContent);
   }
 
   const editorCodeElement = embed.querySelector<HTMLElement>(
-    MarimoIslandElement.editorTagName,
+    ISLAND_TAG_NAMES.CODE_EDITOR,
   );
   if (editorCodeElement) {
-    return parseIslandEditor(editorCodeElement.dataset.initialValue);
+    return parseIslandEditor(
+      editorCodeElement.getAttribute("data-initial-value"),
+    );
   }
 
   return "";
