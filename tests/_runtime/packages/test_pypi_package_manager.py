@@ -10,6 +10,7 @@ from marimo._ast import compiler
 from marimo._runtime.packages.pypi_package_manager import (
     PackageDescription,
     PipPackageManager,
+    PoetryPackageManager,
     UvPackageManager,
 )
 
@@ -118,6 +119,78 @@ def test_list_packages_failure(mock_run: MagicMock):
     packages = manager.list_packages()
 
     assert len(packages) == 0
+
+
+# Poetry Package Manager Tests
+
+
+def test_poetry_generate_cmd_version_one():
+    mgr = PoetryPackageManager()
+    assert mgr._generate_list_packages_cmd(1) == [
+        "poetry",
+        "show",
+        "--no-dev",
+    ]
+
+
+@patch("subprocess.run")
+def test_poetry_generate_cmd_version_two_prefers_without_dev(
+    mock_run: MagicMock,
+):
+    mock_run.return_value = MagicMock(returncode=0, stderr="")
+    mgr = PoetryPackageManager()
+
+    cmd = mgr._generate_list_packages_cmd(2)
+
+    assert cmd == ["poetry", "show", "--without", "dev"]
+    mock_run.assert_called_once_with(
+        ["poetry", "show", "--without", "dev"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@patch("subprocess.run")
+def test_poetry_generate_cmd_version_two_falls_back_when_missing_group(
+    mock_run: MagicMock,
+):
+    mock_run.return_value = MagicMock(
+        returncode=1, stderr="Group(s) not found"
+    )
+    mgr = PoetryPackageManager()
+
+    cmd = mgr._generate_list_packages_cmd(2)
+
+    assert cmd == ["poetry", "show"]
+
+
+@patch("subprocess.run")
+def test_poetry_list_packages_parses_output(mock_run: MagicMock):
+    mock_run.side_effect = [
+        MagicMock(returncode=0, stdout="Poetry (1.8.2)"),
+        MagicMock(
+            returncode=0,
+            stdout="package-1    1.0.0\npackage-two    2.0.0\n",
+        ),
+    ]
+    mgr = PoetryPackageManager()
+
+    with patch.object(
+        PoetryPackageManager, "is_manager_installed", return_value=True
+    ):
+        packages = mgr.list_packages()
+
+    assert packages == [
+        PackageDescription(name="package-1", version="1.0.0"),
+        PackageDescription(name="package-two", version="2.0.0"),
+    ]
+
+    # Last subprocess call should be the list invocation with UTF-8 encoding
+    cmd_args, cmd_kwargs = mock_run.call_args_list[-1]
+    assert cmd_args[0] == ["poetry", "show", "--no-dev"]
+    assert cmd_kwargs.get("encoding") == "utf-8"
+    assert cmd_kwargs.get("text") is True
 
 
 # UV Package Manager Tests
