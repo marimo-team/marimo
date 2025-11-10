@@ -1,5 +1,5 @@
 # /// script
-# dependencies = ['transformers', 'pandas', 'numpy', 'matplotlib', 'scikit-learn', 'seaborn']
+# dependencies = ["transformers", "pandas", "numpy", "matplotlib", "scikit-learn", "seaborn"]
 # ///
 
 import marimo
