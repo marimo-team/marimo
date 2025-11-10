@@ -264,8 +264,8 @@ def test_transform_exclamation_mark():
     ]
     result = transform_exclamation_mark(sources)
     assert result.transformed_sources == [
-        "# (use marimo's built-in package management features instead) !pip install package",  # noqa: E501
-        "subprocess.call(['ls', '-l'])",
+        "# packages added via marimo's package management: package !pip install package",
+        "#! ls -l\nsubprocess.call(['ls', '-l'])",
     ]
     assert result.pip_packages == ["package"]
     assert result.needs_subprocess is True
@@ -391,10 +391,10 @@ def test_transform_exclamation_mark_complex():
     ]
     result = transform_exclamation_mark(sources)
     assert result.transformed_sources == [
-        "# (use marimo's built-in package management features instead) !pip install package1 package2",  # noqa: E501
-        "subprocess.call(['ls', '-l'])",
-        "subprocess.call(['echo', 'Hello, World!'])",
-        "subprocess.call(['python', 'script.py', 'arg1', 'arg2'])",
+        "# packages added via marimo's package management: package1 package2 !pip install package1 package2",
+        "#! ls -l\nsubprocess.call(['ls', '-l'])",
+        "#! echo 'Hello, World!'\nsubprocess.call(['echo', 'Hello, World!'])",
+        "#! python script.py arg1 arg2\nsubprocess.call(['python', 'script.py', 'arg1', 'arg2'])",
     ]
 
 
@@ -405,8 +405,8 @@ def test_transform_exclamation_mark_with_indentation():
     ]
     result = transform_exclamation_mark(sources)
     assert result.transformed_sources == [
-        "if True:\n    # (use marimo's built-in package management features instead) !pip install numpy",  # noqa: E501
-        "for i in range(10):\n    subprocess.call(['echo', 'test'])",
+        "if True:\n    # packages added via marimo's package management: numpy !pip install numpy",
+        "for i in range(10):\n    #! echo test\n    subprocess.call(['echo', 'test'])",
     ]
 
 
@@ -430,8 +430,18 @@ def test_transform_exclamation_mark_pip_variants():
         "!pip install --upgrade seaborn",
     ]
     result = transform_exclamation_mark(sources)
+    assert all("# packages" in r for r in result.transformed_sources)
+
+
+def test_transform_exclamation_mark_pip_non_install():
+    sources = [
+        "!pip upgrade",
+        "!pip --version",
+        "!pip",
+    ]
+    result = transform_exclamation_mark(sources)
     assert all(
-        "# (use marimo's built-in package management features instead)" in r
+        "# packages" not in r and "#!pip" in r
         for r in result.transformed_sources
     )
 
@@ -455,7 +465,7 @@ def test_transform_exclamation_mark_multiline_cell():
     ]
     result = transform_exclamation_mark(sources)
     assert (
-        "# (use marimo's built-in package management features instead)"
+        "# packages added via marimo's package management:"
         in result.transformed_sources[0]
     )
     assert "print('done')" in result.transformed_sources[0]
@@ -471,8 +481,8 @@ def test_transform_exclamation_mark_quoted_args():
     ]
     result = transform_exclamation_mark(sources)
     assert result.transformed_sources == [
-        "subprocess.call(['echo', 'hello world'])",
-        "subprocess.call(['grep', 'pattern', 'file.txt'])",
+        "#! echo \"hello world\"\nsubprocess.call(['echo', 'hello world'])",
+        "#! grep 'pattern' file.txt\nsubprocess.call(['grep', 'pattern', 'file.txt'])",
     ]
 
 
@@ -484,6 +494,17 @@ def test_transform_exclamation_mark_empty_command():
     result = transform_exclamation_mark(sources)
     # Should handle gracefully
     assert len(result.transformed_sources) == 2
+
+
+def test_transform_exclamation_in_multiline_string():
+    sources = [
+        """'''
+! this is just a string'''
+"""
+    ]
+    result = transform_exclamation_mark(sources)
+    # Should handle gracefully
+    assert len(result.transformed_sources) == 0
 
 
 def test_transform_duplicate_definitions_complex():
@@ -554,8 +575,8 @@ def test_transform_exclamation_mark_with_variables():
     result = transform_exclamation_mark(sources)
     # These get transformed (the {var} syntax won't work in subprocess.call anyway)
     assert result.transformed_sources == [
-        "package = 'numpy'\n# (use marimo's built-in package management features instead) !pip install {package}",  # noqa: E501
-        "command = 'echo \"Hello, World!\"'\nsubprocess.call(['{command}'])",
+        "package = 'numpy'\n# packages added via marimo's package management: {package} !pip install {package}",
+        "command = 'echo \"Hello, World!\"'\n#! {command}\nsubprocess.call(['{command}'])",
     ]
 
 
@@ -1032,7 +1053,7 @@ def test_transform_add_subprocess_import_not_needed():
 
     cells = [
         CodeCell(
-            "# (use marimo's built-in package management features instead) !pip install numpy"
+            "# packages added via marimo's package management: numpy !pip install numpy"
         ),
     ]
     result = transform_add_subprocess_import(cells, exclamation_result)
@@ -1150,6 +1171,6 @@ def test_integration_exclamation_marks_full_pipeline():
     # Check transformations applied
     assert any("subprocess.call" in s for s in sources)
     assert any(
-        "# (use marimo's built-in package management features instead)" in s
+        "# packages added via marimo's package management:" in s
         for s in sources
     )

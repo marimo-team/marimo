@@ -388,30 +388,57 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
 
 
 @dataclass
+class ExclamationCommandResult:
+    """Result of processing a single exclamation command."""
+
+    replacement: str
+    pip_packages: list[str]
+    needs_subprocess: bool
+
+
+@dataclass
 class ExclamationMarkResult:
-    """Result of processing exclamation mark commands."""
+    """Result of processing all exclamation mark commands in sources."""
 
     transformed_sources: list[str]
     pip_packages: list[str]
     needs_subprocess: bool
 
 
-def _shlex_to_subprocess_call(command_line: str) -> str:
-    """Convert a shell command to subprocess.call([...])"""
-    import shlex
+def _extract_pip_install(
+    command_line: str, command_tokens: list[str]
+) -> ExclamationCommandResult:
+    pip_packages: list[str] = []
+    if "install" not in command_tokens:
+        return _shlex_to_subprocess_call(command_line, command_tokens)
 
-    try:
-        cmd_list = shlex.split(command_line)
-        return f"subprocess.call({cmd_list!r})"
-    except ValueError:
-        # If shlex parsing fails, fall back to simple split
-        cmd_list = command_line.split()
-        return f"subprocess.call({cmd_list!r})"
+    install_idx = command_tokens.index("install")
+    packages = [
+        p for p in command_tokens[install_idx + 1 :] if not p.startswith("-")
+    ]
+    pip_packages = packages
+
+    # Comment out the pip command
+    replacement = (
+        "# packages added via marimo's package management: "
+        f"{' '.join(packages)} !{command_line}"
+    )
+    return ExclamationCommandResult(replacement, pip_packages, False)
+
+
+def _shlex_to_subprocess_call(
+    command_line: str, command_tokens: list[str]
+) -> ExclamationCommandResult:
+    """Convert a shell command to subprocess.call([...])"""
+    command = "\n".join(
+        [f"#! {command_line}", f"subprocess.call({command_tokens!r})"]
+    )
+    return ExclamationCommandResult(command, [], True)
 
 
 def _handle_exclamation_command(
     command_line: str,
-) -> tuple[str, list[str], bool]:
+) -> ExclamationCommandResult:
     """
     Process an exclamation command line.
 
@@ -426,29 +453,12 @@ def _handle_exclamation_command(
         command_tokens = command_line.split()
 
     if not command_tokens:
-        return f"# !{command_line}", [], False
+        return ExclamationCommandResult(f"# !{command_line}", [], False)
 
     if command_tokens[0].startswith("pip"):
-        # Extract pip install arguments
-        pip_packages = []
-        if "install" in command_tokens:
-            install_idx = command_tokens.index("install")
-            packages = [
-                p
-                for p in command_tokens[install_idx + 1 :]
-                if not p.startswith("-")
-            ]
-            pip_packages = packages
-
-        # Comment out the pip command
-        return (
-            f"# (use marimo's built-in package management features instead) !{command_line}",
-            pip_packages,
-            False,
-        )
-    else:
-        # Replace with subprocess.call()
-        return _shlex_to_subprocess_call(command_line), [], True
+        return _extract_pip_install(command_line, command_tokens)
+    # Replace with subprocess.call()
+    return _shlex_to_subprocess_call(command_line, command_tokens)
 
 
 def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
@@ -466,7 +476,7 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
         NEWLINE,
         NL,
         OP,
-        Token,
+        TokenInfo,
         tokenize,
     )
 
@@ -483,9 +493,9 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
             continue
 
         # Track which lines have ! commands and their replacements
-        line_replacements = {}  # line_num -> replacement_text
+        line_replacements: dict[int, str] = {}  # line_num -> replacement_text
         in_exclaim = False
-        exclaim_tokens = []
+        exclaim_tokens: list[TokenInfo] = []
         trailing_comment = None
         exclaim_line_num = None
 
@@ -525,19 +535,20 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
                     else:
                         command_line = ""
 
-                    replacement, pip_packages, needs_subprocess = (
-                        _handle_exclamation_command(command_line)
-                    )
+                    result = _handle_exclamation_command(command_line)
 
-                    all_pip_packages.extend(pip_packages)
-                    any_needs_subprocess = (
-                        any_needs_subprocess or needs_subprocess
-                    )
+                    all_pip_packages.extend(result.pip_packages)
+                    any_needs_subprocess |= result.needs_subprocess
 
-                    # Store replacement for this line
-                    if trailing_comment:
-                        replacement += "\n" + trailing_comment.string
-                    line_replacements[exclaim_line_num] = replacement
+                    if exclaim_line_num is not None:
+                        line_replacements[exclaim_line_num] = (
+                            result.replacement
+                        )
+                        # Store replacement for this line
+                        if trailing_comment:
+                            line_replacements[exclaim_line_num] += (
+                                "\n" + trailing_comment.string
+                            )
 
                     in_exclaim = False
                 else:
@@ -551,11 +562,13 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
             for line_num, line in enumerate(lines, start=1):
                 if line_num in line_replacements:
                     # Preserve indentation from original line
-                    indent = len(line) - len(line.lstrip())
-                    replacement = line_replacements[line_num]
+                    indent = (len(line) - len(line.lstrip())) * " "
+                    replacements = line_replacements[line_num].split("\n")
                     # Add indentation to replacement
-                    indented_replacement = " " * indent + replacement
-                    new_lines.append(indented_replacement)
+                    indented_replacement = [
+                        indent + replacement for replacement in replacements
+                    ]
+                    new_lines.extend(indented_replacement)
                 else:
                     new_lines.append(line)
             transformed_sources.append("\n".join(new_lines))
