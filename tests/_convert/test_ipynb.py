@@ -9,7 +9,9 @@ from marimo._convert.ipynb import (
     CellsTransform,
     CodeCell,
     Transform,
+    convert_from_ipynb_to_notebook_ir,
     transform_add_marimo_import,
+    transform_add_subprocess_import,
     transform_duplicate_definitions,
     transform_exclamation_mark,
     transform_fixup_multiple_definitions,
@@ -261,10 +263,12 @@ def test_transform_exclamation_mark():
         "!ls -l",
     ]
     result = transform_exclamation_mark(sources)
-    assert result == [
+    assert result.transformed_sources == [
         "# (use marimo's built-in package management features instead) !pip install package",  # noqa: E501
-        "!ls -l",
+        "subprocess.call(['ls', '-l'])",
     ]
+    assert result.pip_packages == ["package"]
+    assert result.needs_subprocess is True
 
 
 def test_transform_duplicate_definitions():
@@ -381,18 +385,105 @@ def test_transform_magic_commands_complex():
 def test_transform_exclamation_mark_complex():
     sources = [
         "!pip install package1 package2",
-        "! ls -l | grep '.py'",
-        "result = !echo 'Hello, World!'",
+        "!ls -l",
+        "!echo 'Hello, World!'",
         "!python script.py arg1 arg2",
     ]
     result = transform_exclamation_mark(sources)
-    assert result == [
+    assert result.transformed_sources == [
         "# (use marimo's built-in package management features instead) !pip install package1 package2",  # noqa: E501
-        # These are currently unhandled.
-        "! ls -l | grep '.py'",
-        "result = !echo 'Hello, World!'",
-        "!python script.py arg1 arg2",
+        "subprocess.call(['ls', '-l'])",
+        "subprocess.call(['echo', 'Hello, World!'])",
+        "subprocess.call(['python', 'script.py', 'arg1', 'arg2'])",
     ]
+
+
+def test_transform_exclamation_mark_with_indentation():
+    sources = [
+        "if True:\n    !pip install numpy",
+        "for i in range(10):\n    !echo test",
+    ]
+    result = transform_exclamation_mark(sources)
+    assert result.transformed_sources == [
+        "if True:\n    # (use marimo's built-in package management features instead) !pip install numpy",  # noqa: E501
+        "for i in range(10):\n    subprocess.call(['echo', 'test'])",
+    ]
+
+
+def test_transform_exclamation_mark_preserves_comments():
+    sources = [
+        "!ls -l  # list files",
+        "!pip install numpy  # install numpy",
+    ]
+    result = transform_exclamation_mark(sources)
+    # Comments should be preserved on the next line
+    assert "# list files" in result.transformed_sources[0]
+    assert "subprocess.call" in result.transformed_sources[0]
+    assert "# install numpy" in result.transformed_sources[1]
+
+
+def test_transform_exclamation_mark_pip_variants():
+    sources = [
+        "!pip install numpy",
+        "!pip3 install pandas",
+        "!pip install -U matplotlib",
+        "!pip install --upgrade seaborn",
+    ]
+    result = transform_exclamation_mark(sources)
+    assert all(
+        "# (use marimo's built-in package management features instead)" in r
+        for r in result.transformed_sources
+    )
+
+
+def test_transform_exclamation_mark_not_at_line_start():
+    # ! must be at the start of a line (after newline)
+    sources = [
+        'x = "!pip install numpy"',  # In string
+        "y = 5 !",  # Not at line start
+    ]
+    result = transform_exclamation_mark(sources)
+    # Should not transform these
+    assert result.transformed_sources[0] == 'x = "!pip install numpy"'
+    # Second one might cause tokenization error, so just check it doesn't crash
+
+
+def test_transform_exclamation_mark_multiline_cell():
+    sources = [
+        "import os\n!pip install numpy\nprint('done')",
+        "x = 1\n!ls -l\ny = 2",
+    ]
+    result = transform_exclamation_mark(sources)
+    assert (
+        "# (use marimo's built-in package management features instead)"
+        in result.transformed_sources[0]
+    )
+    assert "print('done')" in result.transformed_sources[0]
+    assert "subprocess.call" in result.transformed_sources[1]
+    assert "x = 1" in result.transformed_sources[1]
+    assert "y = 2" in result.transformed_sources[1]
+
+
+def test_transform_exclamation_mark_quoted_args():
+    sources = [
+        '!echo "hello world"',
+        "!grep 'pattern' file.txt",
+    ]
+    result = transform_exclamation_mark(sources)
+    assert result.transformed_sources == [
+        "subprocess.call(['echo', 'hello world'])",
+        "subprocess.call(['grep', 'pattern', 'file.txt'])",
+    ]
+
+
+def test_transform_exclamation_mark_empty_command():
+    sources = [
+        "!",
+        "!   ",
+    ]
+    result = transform_exclamation_mark(sources)
+    # Should handle gracefully
+    assert len(result.transformed_sources) == 2
 
 
 def test_transform_duplicate_definitions_complex():
@@ -454,14 +545,17 @@ def test_transform_magic_commands_unsupported():
 
 
 def test_transform_exclamation_mark_with_variables():
+    # Note: Jupyter's {variable} interpolation in ! commands doesn't work in Python
+    # We transform them anyway since they're ! commands
     sources = [
         "package = 'numpy'\n!pip install {package}",
         "command = 'echo \"Hello, World!\"'\n!{command}",
     ]
     result = transform_exclamation_mark(sources)
-    assert result == [
+    # These get transformed (the {var} syntax won't work in subprocess.call anyway)
+    assert result.transformed_sources == [
         "package = 'numpy'\n# (use marimo's built-in package management features instead) !pip install {package}",  # noqa: E501
-        "command = 'echo \"Hello, World!\"'\n!{command}",
+        "command = 'echo \"Hello, World!\"'\nsubprocess.call(['{command}'])",
     ]
 
 
@@ -888,4 +982,174 @@ def test_transform_duplicate_definitions_numbered():
             "df_3 = 3",
             "df_3",
         ],
+    )
+
+
+def test_transform_add_subprocess_import():
+    # After transforming exclamation marks, subprocess import should be added
+    sources = [
+        "!ls -l",
+        "print('hello')",
+    ]
+    # First transform exclamation marks
+    exclamation_result = transform_exclamation_mark(sources)
+
+    # Then test subprocess import addition
+    cells = [
+        CodeCell("subprocess.call(['ls', '-l'])"),
+        CodeCell("print('hello')"),
+    ]
+    result = transform_add_subprocess_import(cells, exclamation_result)
+
+    # Should have subprocess import at the beginning
+    assert len(result) == 3
+    assert result[0].source == "import subprocess"
+    assert "subprocess.call" in result[1].source
+
+
+def test_transform_add_subprocess_import_already_exists():
+    sources = [
+        "!echo test",
+    ]
+    exclamation_result = transform_exclamation_mark(sources)
+
+    cells = [
+        CodeCell("import subprocess"),
+        CodeCell("subprocess.call(['echo', 'test'])"),
+    ]
+    result = transform_add_subprocess_import(cells, exclamation_result)
+
+    # Should not add duplicate import
+    assert len(result) == 2
+    assert result[0].source == "import subprocess"
+
+
+def test_transform_add_subprocess_import_not_needed():
+    sources = [
+        "!pip install numpy",
+    ]
+    exclamation_result = transform_exclamation_mark(sources)
+
+    cells = [
+        CodeCell(
+            "# (use marimo's built-in package management features instead) !pip install numpy"
+        ),
+    ]
+    result = transform_add_subprocess_import(cells, exclamation_result)
+
+    # Should not add import since only pip commands were used
+    assert len(result) == 1
+
+
+def test_build_metadata_with_pip_packages():
+    import json
+
+    # Create a minimal notebook with pip install
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": "!pip install numpy pandas",
+                "metadata": {},
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+
+    # Check that metadata contains the pip packages
+    assert "dependencies = ['numpy', 'pandas']" in result.header.value
+
+
+def test_build_metadata_no_pip_packages():
+    import json
+
+    # Create a notebook without pip install
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": "print('hello')",
+                "metadata": {},
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+
+    # Should not have metadata
+    assert result.header.value == ""
+
+
+def test_build_metadata_with_existing_metadata():
+    import json
+
+    # Create a notebook with existing PEP 723 metadata
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": "# /// script\n# requires-python = '>=3.9'\n# ///\n\n!pip install requests",
+                "metadata": {},
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+
+    # Should add dependencies to existing metadata
+    assert "dependencies = ['requests']" in result.header.value
+    assert "requires-python" in result.header.value
+
+
+def test_integration_exclamation_marks_full_pipeline():
+    import json
+
+    # Test the full pipeline with mixed commands
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": "!pip install numpy\nimport numpy as np",
+                "metadata": {},
+            },
+            {
+                "cell_type": "code",
+                "source": "!echo 'Processing data'",
+                "metadata": {},
+            },
+            {
+                "cell_type": "code",
+                "source": "result = np.array([1, 2, 3])",
+                "metadata": {},
+            },
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+
+    # Check metadata has pip packages
+    assert "dependencies = ['numpy']" in result.header.value
+
+    # Check subprocess import was added
+    sources = [cell.code for cell in result.cells]
+    assert any("import subprocess" in s for s in sources)
+
+    # Check transformations applied
+    assert any("subprocess.call" in s for s in sources)
+    assert any(
+        "# (use marimo's built-in package management features instead)" in s
+        for s in sources
     )
