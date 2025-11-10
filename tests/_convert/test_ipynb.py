@@ -440,8 +440,9 @@ def test_transform_exclamation_mark_pip_non_install():
         "!pip",
     ]
     result = transform_exclamation_mark(sources)
+    # Non-install pip commands should be treated as subprocess calls
     assert all(
-        "# packages" not in r and "#!pip" in r
+        "# packages" not in r and "#! pip" in r and "subprocess.call" in r
         for r in result.transformed_sources
     )
 
@@ -503,8 +504,9 @@ def test_transform_exclamation_in_multiline_string():
 """
     ]
     result = transform_exclamation_mark(sources)
-    # Should handle gracefully
-    assert len(result.transformed_sources) == 0
+    # Should handle gracefully - returns unchanged source
+    assert len(result.transformed_sources) == 1
+    assert result.transformed_sources[0] == sources[0]
 
 
 def test_transform_duplicate_definitions_complex():
@@ -1082,7 +1084,7 @@ def test_build_metadata_with_pip_packages():
     result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
 
     # Check that metadata contains the pip packages
-    assert "dependencies = ['numpy', 'pandas']" in result.header.value
+    assert 'dependencies = ["numpy", "pandas"]' in result.header.value
 
 
 def test_build_metadata_no_pip_packages():
@@ -1128,7 +1130,7 @@ def test_build_metadata_with_existing_metadata():
     result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
 
     # Should add dependencies to existing metadata
-    assert "dependencies = ['requests']" in result.header.value
+    assert 'dependencies = ["requests"]' in result.header.value
     assert "requires-python" in result.header.value
 
 
@@ -1162,7 +1164,7 @@ def test_integration_exclamation_marks_full_pipeline():
     result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
 
     # Check metadata has pip packages
-    assert "dependencies = ['numpy']" in result.header.value
+    assert 'dependencies = ["numpy"]' in result.header.value
 
     # Check subprocess import was added
     sources = [cell.code for cell in result.cells]

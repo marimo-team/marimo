@@ -932,32 +932,36 @@ def build_metadata(
 ) -> str:
     """
     Build PEP 723 metadata, adding pip packages if found.
+
+    Uses PyProjectReader utilities to parse existing metadata and properly
+    merge dependencies.
     """
+    from marimo._utils.inline_script_metadata import PyProjectReader
+    from marimo._utils.scripts import write_pyproject_to_script
+
     # If no exclamation mark processing happened or no packages found
     if not extra_metadata or not extra_metadata.pip_packages:
         return old_metadata or ""
 
     pip_packages = extra_metadata.pip_packages
 
-    # If there's existing metadata, try to merge
+    # Parse existing metadata if present
     if old_metadata:
-        # Check if it already has dependencies
-        if "dependencies = [" in old_metadata:
-            # TODO: Could parse and merge dependencies
-            return old_metadata
-        # Add dependencies section
-        lines = old_metadata.split("\n")
-        # Find the closing /// and insert before it
-        for i in range(len(lines) - 1, -1, -1):
-            if lines[i].strip() == "# ///":
-                lines.insert(i, f"# dependencies = {pip_packages!r}")
-                return "\n".join(lines)
-        return old_metadata
+        reader = PyProjectReader.from_script(old_metadata)
+        existing_deps = reader.dependencies
 
-    # Create new PEP 723 metadata
-    return f"""# /// script
-# dependencies = {pip_packages!r}
-# ///"""
+        # Merge new pip packages with existing dependencies
+        merged_deps = list(set(existing_deps + pip_packages))
+
+        # Update the project dict with merged dependencies
+        project = reader.project.copy()
+        project["dependencies"] = merged_deps
+    else:
+        # Create new project dict
+        project = {"dependencies": pip_packages}
+
+    # Convert project dict to PEP 723 format using utility
+    return write_pyproject_to_script(project)
 
 
 def _transform_sources(
