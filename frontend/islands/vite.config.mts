@@ -1,24 +1,54 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { exec } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { promisify } from "node:util";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import topLevelAwait from "vite-plugin-top-level-await";
 import wasm from "vite-plugin-wasm";
 import packageJson from "../package.json";
 
+const execAsync = promisify(exec);
+
 const htmlDevPlugin = (): Plugin => {
-  return {
-    apply: "serve",
-    name: "html-transform",
-    transformIndexHtml: async () => {
+  const generateHtml = async (): Promise<string> => {
+    // Auto-regenerate HTML in dev mode by running the Python script
+    const scriptPath = path.resolve(__dirname, "generate.py");
+    try {
+      const { stdout } = await execAsync(`MODE=dev uv run ${scriptPath}`);
+      return stdout;
+    } catch (error) {
+      console.error("Failed to generate demo HTML:", error);
+      // Fallback to existing file if generation fails
       const indexHtml = await fs.promises.readFile(
         path.resolve(__dirname, "__demo__", "index.html"),
         "utf-8",
       );
-
       return `<!DOCTYPE html>\n${indexHtml}`;
+    }
+  };
+
+  return {
+    apply: "serve",
+    name: "html-transform",
+    transformIndexHtml: async () => {
+      return await generateHtml();
+    },
+    // Watch the generate.py file and trigger HMR on changes
+    configureServer(server) {
+      const scriptPath = path.resolve(__dirname, "generate.py");
+      server.watcher.add(scriptPath);
+      server.watcher.on("change", (file) => {
+        if (file === scriptPath) {
+          console.log("Demo script changed, regenerating HTML...");
+          server.ws.send({
+            type: "full-reload",
+            path: "*",
+          });
+        }
+      });
     },
   };
 };

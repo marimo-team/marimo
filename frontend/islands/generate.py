@@ -6,15 +6,58 @@
 # [tool.uv.sources]
 # marimo = { path = "../../", editable = true }
 # ///
+"""
+Generate demo HTML for marimo islands.
+
+Usage:
+    # Generate and save to file (for production)
+    uv run ./islands/generate.py > islands/__demo__/index.html
+
+    # Generate for local development (auto-injected by Vite)
+    pnpm dev:islands
+
+    # Generate with specific mode
+    MODE=cdn uv run ./islands/generate.py      # Use CDN (default)
+    MODE=local uv run ./islands/generate.py    # Use local build
+    MODE=dev uv run ./islands/generate.py      # Use Vite dev server
+"""
 
 import asyncio
+import os
 from textwrap import dedent
 import marimo
 
 generator = marimo.MarimoIslandGenerator()
 
 
-def run():
+def get_script_tags(mode: str) -> str:
+    """Generate appropriate script tags based on mode.
+
+    Args:
+        mode: One of 'cdn', 'local', or 'dev'
+    """
+    if mode == "dev":
+        # Vite dev server with HMR
+        return """
+            <!-- Vite development mode -->
+            <script type="module" src="/src/core/islands/main.ts"></script>"""
+    elif mode == "local":
+        # Local production build
+        return """
+            <!-- Local production build -->
+            <script type="module" src="http://127.0.0.1:8001/main.js"></script>
+            <link
+              href="http://127.0.0.1:8001/style.css"
+              rel="stylesheet"
+              crossorigin="anonymous"
+            />"""
+    else:
+        # CDN (default)
+        return f"""
+            {generator.render_head()}"""
+
+
+def run(mode: str):
 
     stubs = [
         # Basic
@@ -127,6 +170,9 @@ def run():
 
     app = asyncio.run(generator.build())
 
+
+    script_tags = get_script_tags(mode)
+
     NEW_LINE = "\n"
     output = f"""
     <!doctype html>
@@ -136,20 +182,9 @@ def run():
             <meta name="viewport" content="width=device-width, initial-scale=1" />
             <meta name="theme-color" content="#000000" />
             <meta name="description" content="a marimo app" />
-            <title>🏝️</title>
+            <title>🏝️ marimo islands demo</title>
 
-            {generator.render_head()}
-
-            <!-- If running a local server of the production build -->
-            <!-- <script type="module" src="http://127.0.0.1:8001/main.js"></script>
-            <link
-              href="http://127.0.0.1:8001/style.css"
-              rel="stylesheet"
-              crossorigin="anonymous"
-            /> -->
-
-            <!-- If running from Vite -->
-            <!-- <script type="module" src="/src/core/islands/main.ts"></script> -->
+            {script_tags}
         </head>
         <body>
 
@@ -186,4 +221,4 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    run(os.environ.get("MODE", "cdn"))
