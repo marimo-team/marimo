@@ -105,10 +105,11 @@ class TestParser:
         )
         assert notebook
         # unexpected statements and a missing run guard
-        assert len(notebook.violations) == 3
+        # + bad decorator
+        assert len(notebook.violations) == 4
         assert "generated" in notebook.violations[0].description
         assert "statement" in notebook.violations[1].description
-        assert "run guard" in notebook.violations[2].description
+        assert "run guard" in notebook.violations[-1].description
 
     @staticmethod
     def test_parse_syntax_errors() -> None:
@@ -117,7 +118,6 @@ class TestParser:
         )
         assert notebook
         # Valid currently
-        # TODO: Propagate decorators violations.
         assert len(notebook.violations) == 0
         assert [cell.name for cell in notebook.cells] == [
             "global_error",
@@ -129,8 +129,7 @@ class TestParser:
         notebook = parse_notebook(get_filepath("test_decorators").read_text())
         assert notebook
         # Valid currently
-        # TODO: Propagate decorators violations.
-        assert len(notebook.violations) == 0
+        assert len(notebook.violations) == 4
 
     @staticmethod
     def test_eval_kwargs_with_list_constants() -> None:
@@ -197,3 +196,16 @@ class TestParser:
             MarimoFileError, match="`marimo.App` definition expected."
         ):
             parse_notebook(get_filepath("test_non_marimo").read_text())
+
+    @staticmethod
+    def test_function_decorator_call_preserves_other_decorators() -> None:
+        notebook = parse_notebook(
+            get_filepath("test_function_decorator_call").read_text()
+        )
+        assert notebook is not None
+        assert len(notebook.cells) == 2  # setup + my_function
+
+        function_cell = notebook.cells[1]
+        assert "@my_decorator" in function_cell.code, (
+            f"Expected @my_decorator in extracted code, but got: {function_cell.code!r}"
+        )

@@ -171,6 +171,8 @@ def _get_extensions() -> list[Union[str, markdown.Extension]]:
         # "pymdownx.b64",
         # Subscripts and strikethrough
         "pymdownx.tilde",
+        # Superscripts and insert
+        "pymdownx.caret",
         # Better code blocks
         "pymdownx.superfences",
         # Task lists

@@ -9,7 +9,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.json_output import json_output
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._plugins.ui._impl.batch import _batch_base
+from marimo._plugins.ui._impl.batch import _batch_base, validate_and_clone
 
 
 @mddoc
@@ -120,7 +120,7 @@ class dictionary(_batch_base):
         # additional logic were added to the frontend DictPlugin to spy on
         # marimoValueUpdateEvents of children), and in any case will not
         # trigger cells that ref the dictionary to run, leading to confusion
-        elements = {key: element._clone() for key, element in elements.items()}
+        elements = validate_and_clone(elements)
 
         self._label = label
         # slot a JSON tree viewer as the contents of this element

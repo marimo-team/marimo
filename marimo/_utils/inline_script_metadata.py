@@ -217,14 +217,15 @@ def get_headers_from_markdown(contents: str) -> dict[str, str]:
 def get_headers_from_frontmatter(
     frontmatter: dict[str, Any],
 ) -> dict[str, str]:
+    from marimo._utils.scripts import wrap_script_metadata
+
     headers = {"pyproject": "", "header": ""}
 
     pyproject = frontmatter.get("pyproject", "")
     if pyproject:
         if not pyproject.startswith("#"):
-            pyproject = "\n# ".join(
-                [r"# /// script", *pyproject.splitlines(), r"///"]
-            )
+            # Wrap raw TOML content in PEP 723 format
+            pyproject = wrap_script_metadata(pyproject)
         headers["pyproject"] = pyproject
     headers["header"] = frontmatter.get("header", "")
     return headers

@@ -98,7 +98,15 @@ def execute_duckdb_query(
             return duckdb.execute(query).fetchall()
 
         return connection.execute(query).fetchall()
-    except Exception:
+    except Exception as e:
+        if DependencyManager.duckdb.has():
+            import duckdb
+
+            # Connection is closed, return empty result
+            if isinstance(e, duckdb.ConnectionException):
+                LOGGER.debug("Skipping query on closed DuckDB connection")
+                return []
+
         LOGGER.exception("Failed to execute DuckDB query %s", query)
         return []
 
@@ -155,6 +163,14 @@ def _get_databases_from_duckdb_internal(
     except Exception as e:
         if DependencyManager.duckdb.has():
             import duckdb
+
+            # Connection is closed, skip gracefully
+            if isinstance(e, duckdb.ConnectionException):
+                LOGGER.debug(
+                    "Skipping closed DuckDB connection for engine %s",
+                    engine_name,
+                )
+                return []
 
             # Certain ducklakes don't support SHOW ALL TABLES
             if isinstance(e, duckdb.NotImplementedException):
@@ -424,7 +440,15 @@ def _get_duckdb_database_names(
             if not internal:
                 database_names.append(database_name)
         return database_names
-    except Exception:
+    except Exception as e:
+        if DependencyManager.duckdb.has():
+            import duckdb
+
+            # Connection is closed, skip gracefully
+            if isinstance(e, duckdb.ConnectionException):
+                LOGGER.debug("Skipping closed DuckDB connection")
+                return []
+
         LOGGER.debug("Failed to get database names from DuckDB")
         return []
 

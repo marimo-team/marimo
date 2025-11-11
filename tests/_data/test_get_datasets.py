@@ -571,3 +571,44 @@ def test_get_databases_agg_query() -> None:
     ]
 
     connection.execute(cleanup_query)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_databases_with_closed_connection() -> None:
+    """Test that closed connections are handled gracefully without errors."""
+    import duckdb
+
+    # Create a connection, add tables, then close it
+    connection = duckdb.connect(":memory:")
+    connection.execute("CREATE TABLE test_table (id INTEGER, name VARCHAR)")
+    connection.close()
+
+    # This should not raise an exception
+    result = get_databases_from_duckdb(
+        connection=connection, engine_name=VariableName("closed_engine")
+    )
+
+    # Should return empty list for closed connection
+    assert result == []
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_databases_with_context_manager_closed_connection() -> None:
+    """Test that connections closed via context manager are handled gracefully."""
+    import duckdb
+
+    # Use context manager to automatically close connection
+    with duckdb.connect(":memory:") as connection:
+        connection.execute(
+            "CREATE TABLE test_table (id INTEGER, name VARCHAR)"
+        )
+        # Store reference to connection
+        closed_conn = connection
+
+    # Connection is now closed, this should not raise an exception
+    result = get_databases_from_duckdb(
+        connection=closed_conn, engine_name=VariableName("closed_engine")
+    )
+
+    # Should return empty list for closed connection
+    assert result == []
