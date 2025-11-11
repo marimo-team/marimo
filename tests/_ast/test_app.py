@@ -1017,6 +1017,139 @@ class TestAppComposition:
         assert result.output.text == vstack(["hello", "world"]).text
         assert not result.defs
 
+    async def test_app_embed_with_defs(self) -> None:
+        """Test embed() with defs parameter to override cell definitions."""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            x = 10
+            return (x,)
+
+        @app.cell
+        def __(x: int) -> tuple[int]:
+            y = x * 2
+            return (y,)
+
+        @app.cell
+        def __(y: int) -> None:
+            f"Result: {y}"
+
+        # Test without override
+        result = await app.embed()
+        assert result.defs["x"] == 10
+        assert result.defs["y"] == 20
+        assert "Result: 20" in result.output.text
+
+        # Test with override - cell defining x should be pruned
+        result = await app.embed(defs={"x": 100})
+        assert result.defs["x"] == 100
+        assert result.defs["y"] == 200
+        assert "Result: 200" in result.output.text
+
+    async def test_app_embed_with_defs_multiple_vars(self) -> None:
+        """Test embed() with defs overriding a cell that defines multiple variables."""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int, int]:
+            a = 5
+            b = 10
+            return a, b
+
+        @app.cell
+        def __(a: int, b: int) -> None:
+            f"Sum: {a + b}"
+
+        # Test without override
+        result = await app.embed()
+        assert result.defs["a"] == 5
+        assert result.defs["b"] == 10
+        assert "Sum: 15" in result.output.text
+
+        # Test with override - must provide both a and b
+        result = await app.embed(defs={"a": 100, "b": 200})
+        assert result.defs["a"] == 100
+        assert result.defs["b"] == 200
+        assert "Sum: 300" in result.output.text
+
+    async def test_app_embed_with_defs_incomplete_refs_error(self) -> None:
+        """Test that embed() raises IncompleteRefsError for partial overrides."""
+        from marimo._ast.errors import IncompleteRefsError
+
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int, int]:
+            x = 1
+            y = 2
+            return x, y
+
+        @app.cell
+        def __(x: int, y: int) -> None:
+            f"{x} + {y}"
+
+        # Should raise error when only providing x but not y
+        with pytest.raises(IncompleteRefsError) as exc_info:
+            await app.embed(defs={"x": 100})
+
+        assert "y" in str(exc_info.value)
+        assert "Missing: ['y']" in str(exc_info.value)
+
+    async def test_app_embed_with_defs_multiple_cells(self) -> None:
+        """Test embed() with defs pruning multiple cells."""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            a = 1
+            return (a,)
+
+        @app.cell
+        def __() -> tuple[int]:
+            b = 2
+            return (b,)
+
+        @app.cell
+        def __(a: int, b: int) -> tuple[int]:
+            c = a + b
+            return (c,)
+
+        @app.cell
+        def __(c: int) -> None:
+            f"Result: {c}"
+
+        # Override both a and b - should prune first two cells
+        result = await app.embed(defs={"a": 10, "b": 20})
+        assert result.defs["a"] == 10
+        assert result.defs["b"] == 20
+        assert result.defs["c"] == 30
+        assert "Result: 30" in result.output.text
+
+    async def test_app_embed_with_defs_partial_pruning(self) -> None:
+        """Test embed() with defs pruning only some cells."""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            x = 5
+            return (x,)
+
+        @app.cell
+        def __() -> tuple[int]:
+            y = 10
+            return (y,)
+
+        @app.cell
+        def __(x: int, y: int) -> None:
+            f"x={x}, y={y}"
+
+        # Override only x - should prune only first cell
+        result = await app.embed(defs={"x": 100})
+        assert result.defs["x"] == 100
+        assert result.defs["y"] == 10  # y cell still ran
+        assert "x=100, y=10" in result.output.text
+
     @pytest.mark.xfail(
         True, reason="Flaky in CI, can't repro locally", strict=False
     )
