@@ -1,14 +1,14 @@
 #!/bin/sh
 
 echo "[check: typos]"
-hatch run typos -w
+uvx hatch run typos -w
 echo "[check: copyright]"
 ./scripts/pycopyright.sh
 echo "[check: lint]"
-hatch run ruff check --fix
+uvx hatch run ruff check --fix
 echo "[check: format]"
-hatch run ruff format
+uvx hatch run ruff format
 echo "[check: typecheck]"
-hatch run typecheck:check
+uvx hatch run typecheck:check
 echo "[check: update-lock]"
-hatch run pixi lock
+uvx hatch run pixi lock
