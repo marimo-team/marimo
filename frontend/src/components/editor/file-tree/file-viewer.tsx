@@ -3,18 +3,22 @@
 import { EditorView, keymap } from "@codemirror/view";
 import { useAtomValue } from "jotai";
 import {
+  AlertTriangleIcon,
   CopyIcon,
   DownloadIcon,
   ExternalLinkIcon,
+  RefreshCwIcon,
   SaveIcon,
 } from "lucide-react";
 import type React from "react";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip } from "@/components/ui/tooltip";
 import { hotkeysAtom } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
 import type { FileInfo } from "@/core/network/types";
+import { filenameAtom } from "@/core/saving/file-state";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
@@ -45,15 +49,17 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   const { theme } = useTheme();
   const { sendFileDetails, sendUpdateFile } = useRequestClient();
   const hotkeys = useAtomValue(hotkeysAtom);
+  const currentNotebookFilename = useAtomValue(filenameAtom);
   // undefined value means not modified yet
   const [internalValue, setInternalValue] = useState<string>("");
 
-  const { data, isPending, error, setData } = useAsyncData(async () => {
-    const details = await sendFileDetails({ path: file.path });
-    const contents = details.contents || "";
-    setInternalValue(unsavedContentsForFile.get(file.path) || contents);
-    return details;
-  }, [file.path]);
+  const { data, isPending, error, setData, refetch } =
+    useAsyncData(async () => {
+      const details = await sendFileDetails({ path: file.path });
+      const contents = details.contents || "";
+      setInternalValue(unsavedContentsForFile.get(file.path) || contents);
+      return details;
+    }, [file.path]);
 
   const handleSaveFile = async () => {
     if (internalValue === data?.contents) {
@@ -99,6 +105,13 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
 
   const mimeType = data.mimeType || "text/plain";
   const isEditable = mimeType in mimeToLanguage;
+  const isActiveNotebook =
+    currentNotebookFilename &&
+    data.file.isMarimoFile &&
+    (file.path === currentNotebookFilename ||
+      // This may capture other notebook files in subdirectories
+      // but this is an okay heuristic for now.
+      file.path.endsWith(`/${currentNotebookFilename}`));
 
   if (!data.contents && !isEditable) {
     // Show details instead of contents
@@ -127,6 +140,11 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
 
   const header = (
     <div className="text-xs text-muted-foreground p-1 flex justify-end gap-2 border-b">
+      <Tooltip content="Refresh">
+        <Button size="small" onClick={refetch}>
+          <RefreshCwIcon />
+        </Button>
+      </Tooltip>
       {file.isMarimoFile && !isWasm() && (
         <Tooltip content="Open notebook">
           <Button size="small" onClick={(evt) => onOpenNotebook(evt)}>
@@ -221,9 +239,20 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     );
   }
 
+  const warningBanner = isActiveNotebook && (
+    <Alert variant="warning" className="rounded-none">
+      <AlertTriangleIcon className="h-4 w-4" />
+      <AlertDescription>
+        Editing the notebook file directly while running in marimo's editor may
+        cause unintended changes. Please use with caution.
+      </AlertDescription>
+    </Alert>
+  );
+
   return (
     <>
       {header}
+      {warningBanner}
       <div className="flex-1 overflow-auto">
         <Suspense>
           <LazyAnyLanguageCodeMirror
