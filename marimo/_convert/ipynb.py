@@ -143,8 +143,6 @@ def transform_add_subprocess_import(
             stripped = line.strip()
             if stripped.startswith("import subprocess"):
                 return True
-            if stripped.startswith("from subprocess"):
-                return True
             return False
 
         # Slow check
