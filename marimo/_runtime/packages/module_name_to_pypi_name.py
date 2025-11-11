@@ -663,6 +663,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "rsbackends": "RSFile",
         "ruamel": "ruamel.base",
         "saga": "saga-python",
+        "sage": "passagemath-standard",
         "samtranslator": "aws-sam-translator",
         "sassutils": "libsass",
         "sayhi": "alex-sayhi",
