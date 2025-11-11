@@ -756,7 +756,11 @@ class App:
         return await app_kernel_runner.function_call(request)
 
     @mddoc
-    async def embed(self) -> AppEmbedResult:
+    async def embed(
+        self,
+        defs: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> AppEmbedResult:
         """Embed a notebook into another notebook.
 
         The `embed` method lets you embed the output of a notebook
@@ -813,12 +817,22 @@ class App:
             two = app.clone()
             r2 = await two.embed()
 
+        Args:
+            defs (dict[str, Any]):
+                You may pass values for any variable definitions as keyword
+                arguments. marimo will use these values instead of executing
+                the cells that would normally define them. Cells that depend
+                on these variables will use your provided values.
+            **kwargs (Any):
+                For forward-compatibility with future arguments.
+
         Returns:
             An object `result` with two attributes: `result.output` (visual
             output of the notebook) and `result.defs` (a dictionary mapping
             variable names defined by the notebook to their values).
 
         """
+        del kwargs
         from marimo._plugins.stateless.flex import vstack
         from marimo._runtime.context.utils import running_in_notebook
 
@@ -832,9 +846,16 @@ class App:
             outputs: dict[CellId_t, Any]
             glbls: dict[str, Any]
             if not app_kernel_runner.outputs:
-                outputs, glbls = await app_kernel_runner.run(
-                    set(self._execution_order)
+                # Inject provided defs into the kernel's globals
+                if defs:
+                    app_kernel_runner.globals.update(defs)
+
+                cells_to_run = set(
+                    dataflow.prune_cells_for_overrides(
+                        self._graph, self._execution_order, defs or {}
+                    )
                 )
+                outputs, glbls = await app_kernel_runner.run(cells_to_run)
             else:
                 outputs, glbls = (
                     app_kernel_runner.outputs,
@@ -851,10 +872,10 @@ class App:
                 defs=self._globals_to_defs(glbls),
             )
         else:
-            flat_outputs, defs = self.run()
+            flat_outputs, computed_defs = self.run(defs=defs or {})
             return AppEmbedResult(
                 output=vstack([o for o in flat_outputs if o is not None]),
-                defs=defs,
+                defs=computed_defs,
             )
 
 
