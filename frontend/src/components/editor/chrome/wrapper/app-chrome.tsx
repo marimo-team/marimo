@@ -1,10 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, {
-  type PropsWithChildren,
-  Suspense,
-  useEffect,
-  useId,
-} from "react";
+import React, { type PropsWithChildren, Suspense, useEffect } from "react";
 import {
   type ImperativePanelHandle,
   Panel,
@@ -64,9 +59,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { setIsSidebarOpen, setIsTerminalOpen } = useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
-
-  const helperPanelId = useId();
-  const terminalPanelId = useId();
 
   // sync sidebar
   useEffect(() => {
@@ -188,7 +180,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const helperPanel = (
     <Panel
       ref={sidebarRef}
-      id={`helper-${helperPanelId}`}
+      id="app-chrome-sidebar"
       data-testid="helper"
       key={"helper"}
       collapsedSize={0}
@@ -219,7 +211,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const terminalPanel = (
     <Panel
       ref={terminalRef}
-      id={`terminal-${terminalPanelId}`}
+      id="app-chrome-terminal"
       data-testid="terminal"
       key={"terminal"}
       collapsedSize={0}
