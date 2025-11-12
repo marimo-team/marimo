@@ -180,6 +180,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const helperPanel = (
     <Panel
       ref={sidebarRef}
+      // This cannot by dynamic and must be constant
+      // so that the size is preserved between page loads
       id="app-chrome-sidebar"
       data-testid="helper"
       key={"helper"}
@@ -211,6 +213,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const terminalPanel = (
     <Panel
       ref={terminalRef}
+      // This cannot by dynamic and must be constant
+      // so that the size is preserved between page loads
       id="app-chrome-terminal"
       data-testid="terminal"
       key={"terminal"}
