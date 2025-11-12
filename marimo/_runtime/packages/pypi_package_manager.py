@@ -544,7 +544,7 @@ class PoetryPackageManager(PypiPackageManager):
             ["poetry", "--version"], capture_output=True, text=True
         )
         if proc.returncode != 0:
-            return -1 # and raise on the impl side
+            return -1  # and raise on the impl side
         version_str = proc.stdout.split()[-1].strip("()")
         major, *_ = map(int, version_str.split("."))
         return major
