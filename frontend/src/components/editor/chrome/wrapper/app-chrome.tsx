@@ -21,7 +21,6 @@ import { useChromeActions, useChromeState } from "../state";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
 import { PendingAICells } from "./pending-ai-cells";
-import { createStorage } from "./storage";
 import { handleDragging } from "./utils";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
@@ -251,16 +250,12 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   return (
     <PanelsWrapper>
-      <PanelGroup
-        autoSaveId="marimo:chrome:v1:l2"
-        direction={"horizontal"}
-        storage={createStorage("left")}
-      >
+      <PanelGroup autoSaveId="marimo:chrome:v1:l2" direction={"horizontal"}>
         <TooltipProvider>
           <Sidebar />
         </TooltipProvider>
         {helperPanel}
-        <Panel>
+        <Panel id="app-chrome-body">
           <PanelGroup autoSaveId="marimo:chrome:v1:l1" direction="vertical">
             {appBodyPanel}
             <IfCapability capability="terminal">{terminalPanel}</IfCapability>
