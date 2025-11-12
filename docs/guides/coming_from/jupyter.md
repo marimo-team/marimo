@@ -125,6 +125,10 @@ augmented_df = df
 augmented_df["another_column"] = [3, 4]
 ```
 
+To learn how to write Pandas/Polars code in a functional style, 
+which is more amenable to marimo's execution model, check out 
+[this YouTube video](https://youtu.be/J0PJpdU7c4g).
+
 ## marimo's file format
 
 marimo stores notebooks as Python, not JSON. This lets you version notebooks
