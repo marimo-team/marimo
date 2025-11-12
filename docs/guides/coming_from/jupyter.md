@@ -125,7 +125,7 @@ augmented_df = df
 augmented_df["another_column"] = [3, 4]
 ```
 
-If you're keen to learn more about how to write Pandas/Polars code in a functional style, 
+To learn how to write Pandas/Polars code in a functional style, 
 which is more amenable to marimo's execution model, check out 
 [this YouTube video](https://youtu.be/J0PJpdU7c4g).
 

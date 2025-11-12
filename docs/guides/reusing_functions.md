@@ -6,7 +6,7 @@ your definitions satisfy the simple criteria described on this page. This makes
 your notebook code reusable, testable, and easier to edit in text editors
 of your choice.
 
-> Our YouTube channel also features a full video tutorial on this feature, which you can view [here](https://youtu.be/4AFcgd-s3Fg).
+> Prefer learning by video? Watch our [tutorial on YouTube](https://youtu.be/4AFcgd-s3Fg).
 
 ## Overview
 

@@ -26,6 +26,6 @@ including AI, ML, data engineering, and more. You can also get started with the
 
 <iframe width="700" height="393" src="https://www.youtube.com/embed/videoseries?si=tucu4Wz8z3ckHc5m&amp;list=PLNJXGo8e1XT9jP7gPbRdm1XwloZVFvLEq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-You may also enjoy this video, which lightlights some of the more advanced features that can really help you get the most out of marimo.
+You may also enjoy this video, which highlights some of the more advanced features that can really help you get the most out of marimo.
 
 <iframe width="700" height="393" src="https://www.youtube.com/embed/OM7utZeQ1GY?si=4FD52JXlUCtEbQNL" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
