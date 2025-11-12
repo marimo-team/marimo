@@ -11,6 +11,9 @@
 _marimo integrates with [Pandas](https://pandas.pydata.org/) and
 [Polars](https://pola.rs) dataframes natively_.
 
+If you're keen to see an overview of our interactive dataframes in video format, 
+check out our [YouTube tutorial](https://www.youtube.com/watch?v=ZTs7vHzsqlQ).
+
 ## Displaying dataframes
 
 marimo lets you page through, search, sort, and filter dataframes, making it
