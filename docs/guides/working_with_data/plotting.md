@@ -7,7 +7,7 @@ use it as you normally would.
 For Altair and Plotly plots, marimo does something special: use
 [`mo.ui.altair_chart`][marimo.ui.altair_chart] or
 [`mo.ui.plotly`][marimo.ui.plotly] to connect frontend
-selections to Python!
+selections to Python! If you're keen to see an overview of our reactive plots in video format, check out our [YouTube tutorial](https://youtu.be/KFXsm1wr408).
 
 !!! important "Reactive plots!"
 
