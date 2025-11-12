@@ -70,7 +70,10 @@ def can_narwhalify(
     try:
         nw.from_native(obj, pass_through=False, eager_only=eager_only)  # type: ignore[call-overload]
         return True
-    except TypeError:
+    except (TypeError, AttributeError):
+        # TypeError: object is not a supported type
+        # AttributeError: object has __module__ = None (e.g., SymPy dynamic classes)
+        # See: https://github.com/marimo-team/marimo/issues/7158
         return False
 
 
