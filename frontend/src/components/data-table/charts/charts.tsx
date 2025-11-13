@@ -17,6 +17,7 @@ import React, { useMemo, useState } from "react";
 import { type UseFormReturn, useForm } from "react-hook-form";
 import useResizeObserver from "use-resize-observer";
 import { PythonIcon } from "@/components/editor/cell/code/icons";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -330,19 +331,25 @@ export const ChartPanel: React.FC<{
     }
     if (!renderLargeCharts) {
       return (
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex flex-row gap-2 items-center">
-            <AlertTriangle className="inline" size={18} />
-            <span>Rendering a large dataset may crash the browser.</span>
-          </div>
-          <Button
-            variant="warn"
-            onClick={() => setRenderLargeCharts(true)}
-            className="h-8"
-          >
-            Proceed
-          </Button>
-        </div>
+        <Alert
+          variant="warning"
+          className="flex flex-row gap-2 items-center w-2/3 mx-auto"
+        >
+          <AlertTriangle className="h-4 w-4 mt-1" />
+          <AlertDescription className="flex flex-row justify-between items-center w-full">
+            <span>
+              Rendering large datasets is not well supported and may crash the
+              browser
+            </span>
+            <Button
+              variant="warn"
+              onClick={() => setRenderLargeCharts(true)}
+              className="h-8"
+            >
+              Proceed
+            </Button>
+          </AlertDescription>
+        </Alert>
       );
     }
     return (
