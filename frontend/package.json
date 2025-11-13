@@ -251,7 +251,7 @@
     "stylelint-config-standard": "^36.0.1",
     "tailwindcss": "^4.1.15",
     "vega-typings": "^2.1.0",
-    "vite": "npm:rolldown-vite@^7.1.19",
+    "vite": "npm:rolldown-vite@7.2.2",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.5.0",
     "vitest": "^3.2.4"
