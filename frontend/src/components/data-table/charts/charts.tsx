@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
 import {
+  AlertTriangle,
   ChartColumnIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -169,6 +170,11 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     setSelectedTab(newTabs[tabIndex].tabName);
   };
 
+  const isLargeDataset =
+    totalRows === TOO_MANY_ROWS ||
+    totalRows > CHART_MAX_ROWS ||
+    columns > CHART_MAX_COLUMNS;
+
   return (
     <Tabs value={selectedTab} className="-mt-1">
       <TabsList>
@@ -230,8 +236,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
               saveChartType={saveChartType}
               getDataUrl={getDataUrl}
               fieldTypes={fieldTypes ?? inferFieldTypes(dataTable.props.data)}
-              totalRows={totalRows}
-              columns={columns}
+              isLargeDataset={isLargeDataset}
             />
           </TabsContent>
         );
@@ -250,8 +255,7 @@ export const ChartPanel: React.FC<{
   saveChartType: (chartType: ChartType) => void;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
-  totalRows: number | TooManyRows;
-  columns: number;
+  isLargeDataset: boolean;
 }> = ({
   tableData,
   chartConfig,
@@ -260,8 +264,7 @@ export const ChartPanel: React.FC<{
   saveChartType,
   getDataUrl,
   fieldTypes,
-  totalRows,
-  columns,
+  isLargeDataset,
 }) => {
   const { theme } = useTheme();
   const form = useForm<ChartSchemaType>({
@@ -273,23 +276,13 @@ export const ChartPanel: React.FC<{
     useState<ChartType>(chartType);
   const [formCollapsed, setFormCollapsed] = useState(false);
 
+  const [renderLargeCharts, setRenderLargeCharts] = useState(!isLargeDataset);
+
   const { ref: chartContainerRef } = useResizeObserver();
 
   const { data, isPending, error } = useAsyncData(async () => {
-    if (!getDataUrl || tableData.length === 0) {
+    if (!getDataUrl || tableData.length === 0 || !renderLargeCharts) {
       return [];
-    }
-
-    if (totalRows === TOO_MANY_ROWS || totalRows > CHART_MAX_ROWS) {
-      throw new Error(
-        "Rendering datasets with more than 50,000 rows is not yet supported",
-      );
-    }
-
-    if (columns > CHART_MAX_COLUMNS) {
-      throw new Error(
-        "Rendering datasets with more than 50 columns is not yet supported",
-      );
     }
 
     const response = await getDataUrl({});
@@ -310,7 +303,7 @@ export const ChartPanel: React.FC<{
     );
     return chartData;
     // Re-run when the data table changes
-  }, [tableData]);
+  }, [tableData, renderLargeCharts]);
 
   const formValues = form.watch();
 
@@ -335,10 +328,27 @@ export const ChartPanel: React.FC<{
     if (error) {
       return <ChartErrorState error={error} />;
     }
+    if (!renderLargeCharts) {
+      return (
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-row gap-2 items-center">
+            <AlertTriangle className="inline" size={18} />
+            <span>Rendering a large dataset may crash the browser.</span>
+          </div>
+          <Button
+            variant="warn"
+            onClick={() => setRenderLargeCharts(true)}
+            className="h-8"
+          >
+            Proceed
+          </Button>
+        </div>
+      );
+    }
     return (
       <LazyChart baseSpec={specWithoutData} data={data} height={CHART_HEIGHT} />
     );
-  }, [isPending, error, specWithoutData, data]);
+  }, [isPending, error, renderLargeCharts, specWithoutData, data]);
 
   const developmentMode = import.meta.env.DEV;
 
