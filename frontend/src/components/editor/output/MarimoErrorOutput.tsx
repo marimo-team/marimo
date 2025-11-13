@@ -386,23 +386,42 @@ export const MarimoErrorOutput = ({
     if (exceptionErrors.length > 0) {
       messages.push(
         <ul key="exception">
-          {exceptionErrors.map((error, idx) => (
-            <li className="my-2" key={`exception-${idx}`}>
-              {error.raising_cell == null ? (
-                <div>
-                  <p className="text-muted-foreground">{error.msg}</p>
-                  <div className="text-muted-foreground mt-2">
-                    See the console area for a traceback.
+          {exceptionErrors.map((error, idx) => {
+            if (
+              error.exception_type === "NameError" &&
+              error.msg.startsWith("name 'mo'")
+            ) {
+              return (
+                <li className="my-2" key={`exception-${idx}`}>
+                  <div>
+                    <p className="text-muted-foreground">
+                      The marimo module (imported as{" "}
+                      <Kbd className="inline">mo</Kbd>) is required for
+                      markdown, SQL, and UI elements.
+                    </p>
                   </div>
-                </div>
-              ) : (
-                <div>
-                  {error.msg}
-                  <CellLinkError cellId={error.raising_cell as CellId} />
-                </div>
-              )}
-            </li>
-          ))}
+                </li>
+              );
+            }
+
+            return (
+              <li className="my-2" key={`exception-${idx}`}>
+                {error.raising_cell == null ? (
+                  <div>
+                    <p className="text-muted-foreground">{error.msg}</p>
+                    <div className="text-muted-foreground mt-2">
+                      See the console area for a traceback.
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {error.msg}
+                    <CellLinkError cellId={error.raising_cell as CellId} />
+                  </div>
+                )}
+              </li>
+            );
+          })}
           {exceptionErrors.some((e) => e.raising_cell != null) && (
             <Tip>
               Fix the error in the mentioned cells, or handle the exceptions
