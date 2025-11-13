@@ -380,4 +380,13 @@ export class StatefulOutputMessage implements OutputMessage {
       this.ansiReducer,
     );
   }
+
+  toJSON(): StringOutputMessage {
+    return {
+      mimetype: this.mimetype,
+      channel: this.channel,
+      timestamp: this.timestamp,
+      data: this.data,
+    };
+  }
 }
