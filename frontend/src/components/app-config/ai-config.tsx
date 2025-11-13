@@ -133,6 +133,7 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
                 rootClassName="flex-1"
                 className="m-0 inline-flex h-7"
                 placeholder={placeholder}
+                type="password"
                 {...field}
                 value={asStringOrUndefined(field.value)}
                 onChange={(e) => {

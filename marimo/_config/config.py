@@ -632,6 +632,8 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
+    # dotenv's default value is set at runtime, depending on whether a
+    # pyproject.toml is found.
     "runtime": {
         "auto_instantiate": False,
         "auto_reload": "off",

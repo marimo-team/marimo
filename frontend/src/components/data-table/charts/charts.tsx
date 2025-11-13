@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
 import {
+  AlertTriangle,
   ChartColumnIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -16,6 +17,7 @@ import React, { useMemo, useState } from "react";
 import { type UseFormReturn, useForm } from "react-hook-form";
 import useResizeObserver from "use-resize-observer";
 import { PythonIcon } from "@/components/editor/cell/code/icons";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,7 +28,11 @@ import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import { useTheme } from "@/theme/useTheme";
 import { inferFieldTypes } from "../columns";
-import type { FieldTypesWithExternalType } from "../types";
+import {
+  type FieldTypesWithExternalType,
+  TOO_MANY_ROWS,
+  type TooManyRows,
+} from "../types";
 import { generateAltairChartSnippet } from "./chart-spec/altair-generator";
 import { createSpecWithoutData } from "./chart-spec/spec";
 import { ChartTypeSelect } from "./components/chart-items";
@@ -45,11 +51,15 @@ import { ChartType } from "./types";
 const NEW_CHART_TYPE = "bar" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
 const CHART_HEIGHT = 290;
+const CHART_MAX_ROWS = 50_000;
+const CHART_MAX_COLUMNS = 50;
 
 export interface TablePanelProps {
   cellId: CellId | null;
   data: unknown[];
   dataTable: JSX.Element;
+  totalRows: number | TooManyRows;
+  columns: number;
   displayHeader: boolean;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
@@ -59,6 +69,8 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   cellId,
   data,
   dataTable,
+  totalRows,
+  columns,
   getDataUrl,
   fieldTypes,
   displayHeader,
@@ -159,6 +171,11 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     setSelectedTab(newTabs[tabIndex].tabName);
   };
 
+  const isLargeDataset =
+    totalRows === TOO_MANY_ROWS ||
+    totalRows > CHART_MAX_ROWS ||
+    columns > CHART_MAX_COLUMNS;
+
   return (
     <Tabs value={selectedTab} className="-mt-1">
       <TabsList>
@@ -220,6 +237,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
               saveChartType={saveChartType}
               getDataUrl={getDataUrl}
               fieldTypes={fieldTypes ?? inferFieldTypes(dataTable.props.data)}
+              isLargeDataset={isLargeDataset}
             />
           </TabsContent>
         );
@@ -238,6 +256,7 @@ export const ChartPanel: React.FC<{
   saveChartType: (chartType: ChartType) => void;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
+  isLargeDataset: boolean;
 }> = ({
   tableData,
   chartConfig,
@@ -246,6 +265,7 @@ export const ChartPanel: React.FC<{
   saveChartType,
   getDataUrl,
   fieldTypes,
+  isLargeDataset,
 }) => {
   const { theme } = useTheme();
   const form = useForm<ChartSchemaType>({
@@ -257,10 +277,12 @@ export const ChartPanel: React.FC<{
     useState<ChartType>(chartType);
   const [formCollapsed, setFormCollapsed] = useState(false);
 
+  const [renderLargeCharts, setRenderLargeCharts] = useState(!isLargeDataset);
+
   const { ref: chartContainerRef } = useResizeObserver();
 
   const { data, isPending, error } = useAsyncData(async () => {
-    if (!getDataUrl || tableData.length === 0) {
+    if (!getDataUrl || tableData.length === 0 || !renderLargeCharts) {
       return [];
     }
 
@@ -282,7 +304,7 @@ export const ChartPanel: React.FC<{
     );
     return chartData;
     // Re-run when the data table changes
-  }, [tableData]);
+  }, [tableData, renderLargeCharts]);
 
   const formValues = form.watch();
 
@@ -307,10 +329,33 @@ export const ChartPanel: React.FC<{
     if (error) {
       return <ChartErrorState error={error} />;
     }
+    if (!renderLargeCharts) {
+      return (
+        <Alert
+          variant="warning"
+          className="flex flex-row gap-2 items-center w-2/3 mx-auto"
+        >
+          <AlertTriangle className="h-4 w-4 mt-1" />
+          <AlertDescription className="flex flex-row justify-between items-center w-full">
+            <span>
+              Rendering large datasets is not well supported and may crash the
+              browser
+            </span>
+            <Button
+              variant="warn"
+              onClick={() => setRenderLargeCharts(true)}
+              className="h-8"
+            >
+              Proceed
+            </Button>
+          </AlertDescription>
+        </Alert>
+      );
+    }
     return (
       <LazyChart baseSpec={specWithoutData} data={data} height={CHART_HEIGHT} />
     );
-  }, [isPending, error, specWithoutData, data]);
+  }, [isPending, error, renderLargeCharts, specWithoutData, data]);
 
   const developmentMode = import.meta.env.DEV;
 

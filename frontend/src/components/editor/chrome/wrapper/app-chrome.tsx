@@ -1,10 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, {
-  type PropsWithChildren,
-  Suspense,
-  useEffect,
-  useId,
-} from "react";
+import React, { type PropsWithChildren, Suspense, useEffect } from "react";
 import {
   type ImperativePanelHandle,
   Panel,
@@ -26,7 +21,6 @@ import { useChromeActions, useChromeState } from "../state";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
 import { PendingAICells } from "./pending-ai-cells";
-import { createStorage } from "./storage";
 import { handleDragging } from "./utils";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
@@ -64,9 +58,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { setIsSidebarOpen, setIsTerminalOpen } = useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
-
-  const helperPanelId = useId();
-  const terminalPanelId = useId();
 
   // sync sidebar
   useEffect(() => {
@@ -188,7 +179,9 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const helperPanel = (
     <Panel
       ref={sidebarRef}
-      id={`helper-${helperPanelId}`}
+      // This cannot by dynamic and must be constant
+      // so that the size is preserved between page loads
+      id="app-chrome-sidebar"
       data-testid="helper"
       key={"helper"}
       collapsedSize={0}
@@ -219,7 +212,9 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const terminalPanel = (
     <Panel
       ref={terminalRef}
-      id={`terminal-${terminalPanelId}`}
+      // This cannot by dynamic and must be constant
+      // so that the size is preserved between page loads
+      id="app-chrome-terminal"
       data-testid="terminal"
       key={"terminal"}
       collapsedSize={0}
@@ -255,16 +250,12 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   return (
     <PanelsWrapper>
-      <PanelGroup
-        autoSaveId="marimo:chrome:v1:l2"
-        direction={"horizontal"}
-        storage={createStorage("left")}
-      >
+      <PanelGroup autoSaveId="marimo:chrome:v1:l2" direction={"horizontal"}>
         <TooltipProvider>
           <Sidebar />
         </TooltipProvider>
         {helperPanel}
-        <Panel>
+        <Panel id="app-chrome-body">
           <PanelGroup autoSaveId="marimo:chrome:v1:l1" direction="vertical">
             {appBodyPanel}
             <IfCapability capability="terminal">{terminalPanel}</IfCapability>

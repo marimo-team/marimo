@@ -4,6 +4,8 @@ marimo lets you mix and match **Python and SQL**: Use SQL to query
 Python dataframes (or databases like SQLite and Postgres), and get
 the query result back as a Python dataframe.
 
+> For a video overview on how to use SQL in marimo, watch our [YouTube tutorial](https://youtu.be/IHEf5HwU7R0).
+
 To create a SQL cell, you first need to install additional dependencies,
 including [duckdb](https://duckdb.org/):
 
