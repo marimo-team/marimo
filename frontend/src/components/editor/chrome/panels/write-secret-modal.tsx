@@ -121,7 +121,7 @@ export const WriteSecretModal: React.FC<{
             <Label htmlFor="value">Value</Label>
             <Input
               id="value"
-              type="text"
+              type="password"
               value={value}
               onChange={(e) => setValue(e.target.value)}
               required={true}
