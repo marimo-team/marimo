@@ -9,6 +9,8 @@ For Altair and Plotly plots, marimo does something special: use
 [`mo.ui.plotly`][marimo.ui.plotly] to connect frontend
 selections to Python!
 
+> For a video overview of reactive plots, check out our [YouTube tutorial](https://youtu.be/KFXsm1wr408).
+
 !!! important "Reactive plots!"
 
     marimo supports reactive plots via

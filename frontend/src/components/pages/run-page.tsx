@@ -9,7 +9,6 @@ import { isWasm } from "@/core/wasm/utils";
 import marimoIcon from "../../assets/icon-32x32.png";
 import { ContextAwarePanel } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { PanelsWrapper } from "../editor/chrome/wrapper/panels";
-import { createStorage } from "../editor/chrome/wrapper/storage";
 import { StaticBanner } from "../static-html/static-banner";
 
 interface Props {
@@ -21,11 +20,7 @@ const showWatermark = isWasm() || isStaticNotebook();
 const RunPage = (props: Props) => {
   return (
     <PanelsWrapper>
-      <PanelGroup
-        direction="horizontal"
-        autoSaveId="marimo:chrome:v1:run1"
-        storage={createStorage("left")}
-      >
+      <PanelGroup direction="horizontal" autoSaveId="marimo:chrome:v1:run1">
         <Panel>
           <StaticBanner />
           <RunApp appConfig={props.appConfig} />
