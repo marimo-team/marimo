@@ -80,6 +80,24 @@ def test_can_narwhalify():
     assert can_narwhalify(pl.DataFrame({"a": [1, 2, 3]})) is True
 
 
+def test_can_narwhalify_with_none_module():
+    """Test that can_narwhalify handles objects with __module__ = None gracefully.
+
+    This reproduces the issue with SymPy's dynamically created function classes
+    which have __module__ = None
+    See: https://github.com/marimo-team/marimo/issues/7158
+    """
+
+    # Create a class with __module__ = None
+    class DynamicClass:
+        pass
+
+    obj = DynamicClass()
+    obj.__class__.__module__ = None  # type: ignore[misc]
+
+    assert can_narwhalify(obj) is False
+
+
 @pytest.mark.parametrize(
     "df", create_dataframes({"a": [1, 2], "b": ["x", "y"]})
 )
