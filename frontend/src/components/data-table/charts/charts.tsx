@@ -26,7 +26,11 @@ import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import { useTheme } from "@/theme/useTheme";
 import { inferFieldTypes } from "../columns";
-import type { FieldTypesWithExternalType } from "../types";
+import {
+  type FieldTypesWithExternalType,
+  TOO_MANY_ROWS,
+  type TooManyRows,
+} from "../types";
 import { generateAltairChartSnippet } from "./chart-spec/altair-generator";
 import { createSpecWithoutData } from "./chart-spec/spec";
 import { ChartTypeSelect } from "./components/chart-items";
@@ -45,11 +49,13 @@ import { ChartType } from "./types";
 const NEW_CHART_TYPE = "bar" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
 const CHART_HEIGHT = 290;
+const CHART_MAX_ROWS = 50_000;
 
 export interface TablePanelProps {
   cellId: CellId | null;
   data: unknown[];
   dataTable: JSX.Element;
+  totalRows?: number | TooManyRows;
   displayHeader: boolean;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
@@ -59,6 +65,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   cellId,
   data,
   dataTable,
+  totalRows,
   getDataUrl,
   fieldTypes,
   displayHeader,
@@ -214,6 +221,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
           <TabsContent key={idx} value={tab.tabName} className="h-[400px] mt-1">
             <ChartPanel
               tableData={data}
+              totalRows={totalRows}
               chartConfig={tab.config}
               chartType={tab.chartType}
               saveChart={saveChart}
@@ -238,6 +246,7 @@ export const ChartPanel: React.FC<{
   saveChartType: (chartType: ChartType) => void;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
+  totalRows?: number | TooManyRows;
 }> = ({
   tableData,
   chartConfig,
@@ -246,6 +255,7 @@ export const ChartPanel: React.FC<{
   saveChartType,
   getDataUrl,
   fieldTypes,
+  totalRows,
 }) => {
   const { theme } = useTheme();
   const form = useForm<ChartSchemaType>({
@@ -262,6 +272,13 @@ export const ChartPanel: React.FC<{
   const { data, isPending, error } = useAsyncData(async () => {
     if (!getDataUrl || tableData.length === 0) {
       return [];
+    }
+
+    if (
+      totalRows &&
+      (totalRows === TOO_MANY_ROWS || totalRows >= CHART_MAX_ROWS)
+    ) {
+      throw new Error("Rendering large datasets is not yet supported");
     }
 
     const response = await getDataUrl({});
