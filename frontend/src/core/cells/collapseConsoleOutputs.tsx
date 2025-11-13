@@ -1,4 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import {
+  StatefulOutputMessage,
+  type StringOutputMessage,
+} from "@/components/editor/output/ansi-reduce";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { invariant } from "@/utils/invariant";
 
@@ -13,21 +17,27 @@ export function collapseConsoleOutputs(
   const newConsoleOutputs = [...consoleOutputs];
 
   if (newConsoleOutputs.length < 2) {
-    return truncateHead(handleCarriageReturns(newConsoleOutputs), maxLines);
+    return truncateHead(
+      newConsoleOutputs.map(maybeMakeOutputStateful),
+      maxLines,
+    );
   }
 
   const lastOutput = newConsoleOutputs[newConsoleOutputs.length - 1];
   const secondLastOutput = newConsoleOutputs[newConsoleOutputs.length - 2];
 
   if (shouldCollapse(lastOutput, secondLastOutput)) {
-    invariant(typeof lastOutput.data === "string", "expected string");
-    invariant(typeof secondLastOutput.data === "string", "expected string");
+    assertStringOutputMessage(lastOutput);
+    assertStringOutputMessage(secondLastOutput);
 
-    secondLastOutput.data += lastOutput.data;
+    newConsoleOutputs[newConsoleOutputs.length - 2] = mergeLeft(
+      secondLastOutput,
+      lastOutput,
+    );
     newConsoleOutputs.pop();
   }
 
-  return truncateHead(handleCarriageReturns(newConsoleOutputs), maxLines);
+  return truncateHead(newConsoleOutputs, maxLines);
 }
 
 function shouldCollapse(
@@ -46,51 +56,31 @@ function shouldCollapse(
   return isTextPlain && isSameChannel && isNotStdin;
 }
 
-function handleCarriageReturns(
-  consoleOutputs: OutputMessage[],
-): OutputMessage[] {
-  const newConsoleOutputs = [...consoleOutputs];
-  if (newConsoleOutputs.length === 0) {
-    return newConsoleOutputs;
+export function maybeMakeOutputStateful(output: OutputMessage): OutputMessage {
+  if (output instanceof StatefulOutputMessage) {
+    return output;
+  }
+  if (typeof output.data === "string") {
+    return StatefulOutputMessage.create(output as StringOutputMessage);
+  }
+  return output;
+}
+
+function mergeLeft(
+  first: StringOutputMessage | StatefulOutputMessage,
+  second: StringOutputMessage,
+): StatefulOutputMessage {
+  if (first instanceof StatefulOutputMessage) {
+    return first.appendData(second.data);
   }
 
-  const lastOutput = newConsoleOutputs[newConsoleOutputs.length - 1];
-  if (lastOutput.mimetype !== "text/plain") {
-    return newConsoleOutputs;
-  }
+  return StatefulOutputMessage.create(first).appendData(second.data);
+}
 
-  // eslint-disable-next-line no-control-regex
-  const carriagePattern = /\r[^\n]/g;
-  // collapse carriage returns in the final output's data
-  let text = lastOutput.data;
-  invariant(typeof text === "string", "expected string");
-  let carriageIdx = text.search(carriagePattern);
-  while (carriageIdx > -1) {
-    // find the newline character preceding the carriage return, if any
-    let newlineIdx = -1;
-    for (let i = carriageIdx - 1; i >= 0; i--) {
-      if (text.at(i) === "\n") {
-        newlineIdx = i;
-        break;
-      }
-    }
-    const postCarriageText: string = text.slice(carriageIdx + 1);
-    const prefix = text.slice(0, newlineIdx + 1);
-    const intermediateText: string = text.slice(newlineIdx + 1, carriageIdx);
-    text =
-      intermediateText.length <= postCarriageText.length
-        ? prefix + postCarriageText
-        : prefix +
-          postCarriageText +
-          intermediateText.slice(postCarriageText.length);
-    carriageIdx = text.search(carriagePattern);
-  }
-
-  newConsoleOutputs[newConsoleOutputs.length - 1] = {
-    ...lastOutput,
-    data: text,
-  };
-  return newConsoleOutputs;
+function assertStringOutputMessage(
+  output: OutputMessage,
+): asserts output is StringOutputMessage {
+  invariant(typeof output.data === "string", "expected string output");
 }
 
 function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
