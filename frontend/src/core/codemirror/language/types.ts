@@ -24,6 +24,11 @@ export interface LanguageAdapter<M = Record<string, any>> {
   readonly defaultMetadata: Readonly<M>;
 
   transformIn(code: string): [string, number, M];
+  /**
+   * Wraps code into the target language. Eg. 'hello' to mo.sql('hello') or mo.md('hello')
+   * @param code - The code to transform
+   * @returns The transformed code and the offset from the original position
+   */
   transformOut(code: string, metadata: M): [string, number];
   isSupported(code: string): boolean;
   getExtension(

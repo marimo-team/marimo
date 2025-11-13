@@ -82,7 +82,10 @@ export function useStagedCells(store: JotaiStore) {
 
   const cellCreationStream = useRef<CellCreationStream | null>(null);
 
-  const createStagedCell = (code: string): CellId => {
+  const createStagedCell = (
+    code: string,
+    payload?: Partial<CreateNewCellAction>,
+  ): CellId => {
     const newCellId = CellId.create();
     addStagedCell({ cellId: newCellId, edit: { type: "add_cell" } });
     createNewCell({
@@ -90,6 +93,7 @@ export function useStagedCells(store: JotaiStore) {
       code,
       before: false,
       newCellId: newCellId,
+      ...payload,
     });
     return newCellId;
   };

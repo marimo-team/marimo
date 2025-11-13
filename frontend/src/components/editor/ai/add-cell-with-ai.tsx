@@ -47,6 +47,7 @@ import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { useCellActions } from "@/core/cells/cells";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
+import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { useRequestClient } from "@/core/network/requests";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { useRuntimeManager } from "@/core/runtime/config";
@@ -56,6 +57,7 @@ import { prettyError } from "@/utils/errors";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { ZodLocalStorage } from "@/utils/storage/typed";
 import { PythonIcon } from "../cell/code/icons";
+import { useRunCells } from "../cell/useRunCells";
 import {
   CompletionActions,
   createAiCompletionOnKeydown,
@@ -83,11 +85,17 @@ export const AddCellWithAI: React.FC<{
   const store = useStore();
   const [input, setInput] = useState("");
 
-  const { deleteAllStagedCells, clearStagedCells, onStream, addStagedCell } =
-    useStagedCells(store);
+  const {
+    deleteAllStagedCells,
+    clearStagedCells,
+    onStream,
+    addStagedCell,
+    createStagedCell,
+  } = useStagedCells(store);
   const [language, setLanguage] = useAtom(languageAtom);
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool, sendRun } = useRequestClient();
+  const runCells = useRunCells();
 
   const stagedAICells = useAtomValue(stagedAICellsAtom);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
@@ -161,6 +169,12 @@ export const AddCellWithAI: React.FC<{
       // TODO: When we have conversations, don't delete existing cells
       deleteAllStagedCells();
       sendMessage({ text: input });
+
+      const markdown = prettifyPromptToMarkdown(input);
+      const promptCell = createStagedCell(markdown, {
+        hideCode: true,
+      });
+      runCells([promptCell]);
     }
   };
 
@@ -450,3 +464,13 @@ export const PromptInput = ({
     />
   );
 };
+
+/** Converts a prompt to a markdown cell. Used to display the prompt in the UI. */
+export function prettifyPromptToMarkdown(prompt: string): string {
+  const footer = '<p align="center"><i>Generating with AI...</i></p>';
+  const wrappedPrompt = `\`\`\`md\n${prompt}\n\`\`\`\n${footer}`;
+  const [markdownCode] = LanguageAdapters.markdown.transformOut(wrappedPrompt, {
+    quotePrefix: "f",
+  });
+  return markdownCode;
+}
