@@ -50,12 +50,14 @@ const NEW_CHART_TYPE = "bar" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
 const CHART_HEIGHT = 290;
 const CHART_MAX_ROWS = 50_000;
+const CHART_MAX_COLUMNS = 50;
 
 export interface TablePanelProps {
   cellId: CellId | null;
   data: unknown[];
   dataTable: JSX.Element;
-  totalRows?: number | TooManyRows;
+  totalRows: number | TooManyRows;
+  columns: number;
   displayHeader: boolean;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
@@ -66,6 +68,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   data,
   dataTable,
   totalRows,
+  columns,
   getDataUrl,
   fieldTypes,
   displayHeader,
@@ -221,13 +224,14 @@ export const TablePanel: React.FC<TablePanelProps> = ({
           <TabsContent key={idx} value={tab.tabName} className="h-[400px] mt-1">
             <ChartPanel
               tableData={data}
-              totalRows={totalRows}
               chartConfig={tab.config}
               chartType={tab.chartType}
               saveChart={saveChart}
               saveChartType={saveChartType}
               getDataUrl={getDataUrl}
               fieldTypes={fieldTypes ?? inferFieldTypes(dataTable.props.data)}
+              totalRows={totalRows}
+              columns={columns}
             />
           </TabsContent>
         );
@@ -246,7 +250,8 @@ export const ChartPanel: React.FC<{
   saveChartType: (chartType: ChartType) => void;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
-  totalRows?: number | TooManyRows;
+  totalRows: number | TooManyRows;
+  columns: number;
 }> = ({
   tableData,
   chartConfig,
@@ -256,6 +261,7 @@ export const ChartPanel: React.FC<{
   getDataUrl,
   fieldTypes,
   totalRows,
+  columns,
 }) => {
   const { theme } = useTheme();
   const form = useForm<ChartSchemaType>({
@@ -274,11 +280,16 @@ export const ChartPanel: React.FC<{
       return [];
     }
 
-    if (
-      totalRows &&
-      (totalRows === TOO_MANY_ROWS || totalRows >= CHART_MAX_ROWS)
-    ) {
-      throw new Error("Rendering large datasets is not yet supported");
+    if (totalRows === TOO_MANY_ROWS || totalRows > CHART_MAX_ROWS) {
+      throw new Error(
+        "Rendering datasets with more than 50,000 rows is not yet supported",
+      );
+    }
+
+    if (columns > CHART_MAX_COLUMNS) {
+      throw new Error(
+        "Rendering datasets with more than 50 columns is not yet supported",
+      );
     }
 
     const response = await getDataUrl({});
