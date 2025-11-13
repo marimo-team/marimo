@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import type { OutputMessage } from "@/core/kernel/messages";
 
 export interface Cursor {
@@ -13,7 +14,7 @@ export class TerminalBuffer {
   private lines: string[] = [""];
   private cursor: Cursor = { row: 0, col: 0 };
   // biome-ignore lint/suspicious/noControlCharactersInRegex: Needed for ANSI parsing
-  private static readonly ESCAPE_REGEX = /\x1B\[([0-9;]*)([A-DJKH])/u;
+  private static readonly ESCAPE_REGEX = /\u001B\[([0-9;]*)([A-DJKH])/u;
 
   /** Ensure the internal lines array is large enough. */
   private ensureLine(row: number) {
@@ -94,7 +95,7 @@ export class TerminalBuffer {
 
     const params = match[1]
       .split(";")
-      .map((p) => (p === "" ? 1 : parseInt(p, 10)));
+      .map((p) => (p === "" ? 1 : Number.parseInt(p, 10)));
     const code = match[2];
 
     switch (code) {
@@ -121,20 +122,31 @@ export class TerminalBuffer {
         break;
       case "K": // Erase line
         this.ensureLine(this.cursor.row);
-        if (params[0] === 0) {
-          // Clear to end of line
-          this.lines[this.cursor.row] = this.lines[this.cursor.row].slice(
-            0,
-            this.cursor.col,
-          );
-        } else if (params[0] === 1) {
-          // Clear to start of line
-          const len = this.lines[this.cursor.row].length;
-          this.lines[this.cursor.row] =
-            " ".repeat(this.cursor.col) +
-            this.lines[this.cursor.row].slice(this.cursor.col, len);
-        } else if (params[0] === 2) {
-          this.lines[this.cursor.row] = "";
+        switch (params[0]) {
+          case 0:
+            // Clear to end of line
+            this.lines[this.cursor.row] = this.lines[this.cursor.row].slice(
+              0,
+              this.cursor.col,
+            );
+
+            break;
+
+          case 1: {
+            // Clear to start of line
+            const len = this.lines[this.cursor.row].length;
+            this.lines[this.cursor.row] =
+              " ".repeat(this.cursor.col) +
+              this.lines[this.cursor.row].slice(this.cursor.col, len);
+
+            break;
+          }
+          case 2:
+            this.lines[this.cursor.row] = "";
+
+            break;
+
+          // No default
         }
         break;
     }
@@ -151,10 +163,10 @@ export class TerminalBuffer {
  */
 export class AnsiParser {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: Needed for ANSI parsing
-  private ESC_REGEX = /\x1B\[[0-9;]*[A-Za-z]/gu;
+  private ESC_REGEX = /\u001B\[[0-9;]*[A-Za-z]/gu;
 
-  parse(input: string): Array<{ type: "text" | "escape"; value: string }> {
-    const tokens: Array<{ type: "text" | "escape"; value: string }> = [];
+  parse(input: string): { type: "text" | "escape"; value: string }[] {
+    const tokens: { type: "text" | "escape"; value: string }[] = [];
     let lastIndex = 0;
 
     for (const match of input.matchAll(this.ESC_REGEX)) {
@@ -239,8 +251,8 @@ export class AnsiReducer {
 
   /** Check if text contains control characters that need special handling. */
   private hasControlChars(text: string): boolean {
-    for (let i = 0; i < text.length; i++) {
-      if (text[i] < " ") {
+    for (const element of text) {
+      if (element < " ") {
         return true;
       }
     }
@@ -294,8 +306,8 @@ export class AnsiReducer {
   private filterControlChars(text: string): string {
     // Fast path: if no control chars, return as-is
     let hasControlChars = false;
-    for (let i = 0; i < text.length; i++) {
-      if (text[i] < " ") {
+    for (const element of text) {
+      if (element < " ") {
         hasControlChars = true;
         break;
       }
@@ -307,9 +319,9 @@ export class AnsiReducer {
 
     // Slow path: filter out control chars
     let result = "";
-    for (let i = 0; i < text.length; i++) {
-      if (text[i] >= " ") {
-        result += text[i];
+    for (const element of text) {
+      if (element >= " ") {
+        result += element;
       }
     }
     return result;

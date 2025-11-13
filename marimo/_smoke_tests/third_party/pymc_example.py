@@ -12,11 +12,6 @@ def _():
 
 @app.cell
 def _():
-    return
-
-
-@app.cell
-def _():
     import pymc as pm
     import numpy as np
     import time
