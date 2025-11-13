@@ -395,9 +395,12 @@ export const MarimoErrorOutput = ({
                 <li className="my-2" key={`exception-${idx}`}>
                   <div>
                     <p className="text-muted-foreground">
+                      name 'mo' is not defined.
+                    </p>
+                    <p className="text-muted-foreground mt-2">
                       The marimo module (imported as{" "}
                       <Kbd className="inline">mo</Kbd>) is required for
-                      markdown, SQL, and UI elements.
+                      Markdown, SQL, and UI elements.
                     </p>
                   </div>
                 </li>
