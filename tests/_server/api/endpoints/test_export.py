@@ -478,7 +478,7 @@ def test_auto_export_ipynb_with_new_cell(
     # Wait for the ipynb file to be created
     time.sleep(0.2)
     notebook = ipynb_path.read_text()
-    assert "<pre class='text-sm'>3.14</pre>" in notebook
+    assert "<pre class='text-xs'>3.14</pre>" in notebook
 
 
 @with_session(SESSION_ID)

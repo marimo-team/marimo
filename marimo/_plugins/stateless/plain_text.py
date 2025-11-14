@@ -18,5 +18,5 @@ def plain_text(text: str) -> Html:
     Returns:
         An `Html` object representing the text.
     """
-    img = h.pre(child=html.escape(text), class_="text-sm")
+    img = h.pre(child=html.escape(text), class_="text-xs")
     return Html(img)
