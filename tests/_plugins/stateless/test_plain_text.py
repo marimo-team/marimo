@@ -43,4 +43,4 @@ def test_plain_text_preserves_whitespace() -> None:
 def test_plain_text_empty_string() -> None:
     """Test plain_text with empty string."""
     result = plain_text("")
-    assert result.text == "<pre style='font-size: 12px'></pre>"
+    assert result.text == "<pre class='text-sm'></pre>"

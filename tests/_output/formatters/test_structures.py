@@ -193,7 +193,7 @@ def test_format_structure_subclasses_with_different_built_in_repr() -> None:
     custom_list = CustomList()
     assert get_and_format(custom_list) == (
         "text/html",
-        "<pre style='font-size: 12px'>CustomList(a=1, b=2, c=3)</pre>",
+        "<pre class='text-sm'>CustomList(a=1, b=2, c=3)</pre>",
     )
 
     class CustomDict(dict):
@@ -206,7 +206,7 @@ def test_format_structure_subclasses_with_different_built_in_repr() -> None:
     custom_dict = CustomDict()
     assert get_and_format(custom_dict) == (
         "text/html",
-        "<pre style='font-size: 12px'>CustomDict(a=1, b=2, c=3)</pre>",
+        "<pre class='text-sm'>CustomDict(a=1, b=2, c=3)</pre>",
     )
 
     class CustomTuple(tuple):
@@ -219,11 +219,11 @@ def test_format_structure_subclasses_with_different_built_in_repr() -> None:
     custom_tuple = CustomTuple()
     assert get_and_format(custom_tuple) == (
         "text/html",
-        "<pre style='font-size: 12px'>CustomTuple(a=1, b=2, c=3)</pre>",
+        "<pre class='text-sm'>CustomTuple(a=1, b=2, c=3)</pre>",
     )
 
     assert get_and_format(sys.version_info)[1].startswith(
-        "<pre style='font-size: 12px'>sys.version_info(major=3"
+        "<pre class='text-sm'>sys.version_info(major=3"
     )
 
 

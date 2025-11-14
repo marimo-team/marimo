@@ -64,7 +64,7 @@
     {
      "data": {
       "text/html": [
-       "<pre style='font-size: 12px'>22</pre>"
+       "<pre class='text-sm'>22</pre>"
       ]
      },
      "metadata": {},

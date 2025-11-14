@@ -78,37 +78,28 @@ def is_html(output: FormattedOutput) -> bool:
 
 def test_primitives():
     # 1 and "1" are different
-    assert try_format(1).data == "<pre style='font-size: 12px'>1</pre>"
-    assert (
-        try_format("1").data
-        == "<pre style='font-size: 12px'>&#x27;1&#x27;</pre>"
-    )
+    assert try_format(1).data == "<pre class='text-sm'>1</pre>"
+    assert try_format("1").data == "<pre class='text-sm'>&#x27;1&#x27;</pre>"
     assert (
         try_format("hello").data
-        == "<pre style='font-size: 12px'>&#x27;hello&#x27;</pre>"
+        == "<pre class='text-sm'>&#x27;hello&#x27;</pre>"
     )
-    assert (
-        try_format("").data
-        == "<pre style='font-size: 12px'>&#x27;&#x27;</pre>"
-    )
+    assert try_format("").data == "<pre class='text-sm'>&#x27;&#x27;</pre>"
     assert try_format(None).data == ""
     # True and 'True' are different
-    assert try_format(True).data == "<pre style='font-size: 12px'>True</pre>"
+    assert try_format(True).data == "<pre class='text-sm'>True</pre>"
     assert (
         try_format("True").data
-        == "<pre style='font-size: 12px'>&#x27;True&#x27;</pre>"
+        == "<pre class='text-sm'>&#x27;True&#x27;</pre>"
     )
-    assert try_format(False).data == "<pre style='font-size: 12px'>False</pre>"
-    assert try_format(1.0).data == "<pre style='font-size: 12px'>1.0</pre>"
-    assert (
-        try_format(1.0 + 1.0j).data
-        == "<pre style='font-size: 12px'>(1+1j)</pre>"
-    )
+    assert try_format(False).data == "<pre class='text-sm'>False</pre>"
+    assert try_format(1.0).data == "<pre class='text-sm'>1.0</pre>"
+    assert try_format(1.0 + 1.0j).data == "<pre class='text-sm'>(1+1j)</pre>"
     assert try_format([1, 2, 3]).data == "[1, 2, 3]"
     assert try_format({"a": 1, "b": 2}).data == '{"a": 1, "b": 2}'
     assert (
         try_format(set([1, 2, 3])).data
-        == "<pre style='font-size: 12px'>{1, 2, 3}</pre>"
+        == "<pre class='text-sm'>{1, 2, 3}</pre>"
     )
 
 
@@ -160,7 +151,7 @@ def test_plain_object():
     result = try_format(obj)
     # Should fall back to string representation since we opted out of opinionated formatter
     assert is_html(result)
-    assert result.data.startswith("<pre style='font-size: 12px'>Plain(")
+    assert result.data.startswith("<pre class='text-sm'>Plain(")
 
 
 def test_opinionated_formatter():
@@ -188,7 +179,7 @@ def test_does_not_use_only_str_repr():
     obj = NoFormatter()
     result = try_format(obj)
     assert is_html(result)
-    assert result.data.startswith("<pre style='font-size: 12px'>")
+    assert result.data.startswith("<pre class='text-sm'>")
     assert "test_does_not_use_only_str_repr" in result.data.lower()
 
 
@@ -235,7 +226,7 @@ def test_repr_is_used_over_str():
     obj = StrErrorTest()
     result = try_format(obj)
     assert is_html(result)
-    assert result.data == "<pre style='font-size: 12px'>repr_value</pre>"
+    assert result.data == "<pre class='text-sm'>repr_value</pre>"
 
 
 @pytest.mark.skipif(
@@ -248,4 +239,4 @@ def test_numpy_array():
     obj = np.array([1, 2, 3])
     result = try_format(obj)
     assert is_html(result)
-    assert result.data == "<pre style='font-size: 12px'>array([1, 2, 3])</pre>"
+    assert result.data == "<pre class='text-sm'>array([1, 2, 3])</pre>"

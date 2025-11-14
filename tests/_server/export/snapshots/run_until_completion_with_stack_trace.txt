@@ -7,7 +7,7 @@
     "status": "idle"
   },
   {
-    "output": "<pre style='font-size: 12px'>15</pre>",
+    "output": "<pre class='text-sm'>15</pre>",
     "console": [
       "internal error\n"
     ],
