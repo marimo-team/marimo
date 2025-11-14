@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import datetime
+from typing import TYPE_CHECKING, Any, Callable, TypeIs
 
 import narwhals.stable.v2 as nw
 from narwhals.stable.v2 import col
@@ -32,6 +33,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
+    import polars as pl
     from narwhals.expr import Expr
 
 
@@ -117,11 +119,32 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
         filter_expr: nw.Expr | None = None
 
+        def convert_value(v: Any, converter: Callable[[str], Any]) -> Any:
+            # Convert a value whether it's a list or single value
+            if isinstance(v, (tuple, list)):
+                return [converter(str(item)) for item in v]
+            return converter(str(v))
+
         for condition in transform.where:
             # Don't convert to string if already a string or int
             # Narwhals col() can handle both strings and integers
             column = col(condition.column_id)
             value = condition.value
+
+            # For polars, we need to convert the values based on dtype
+            native_df = df.to_native()
+            if _is_polars_dataframe_or_lazyframe(native_df):
+                import polars as pl
+
+                dtype = native_df.collect_schema()[str(condition.column_id)]
+                if dtype == pl.Datetime:
+                    value = convert_value(
+                        value, datetime.datetime.fromisoformat
+                    )
+                elif dtype == pl.Date:
+                    value = convert_value(value, datetime.date.fromisoformat)
+                elif dtype == pl.Time:
+                    value = convert_value(value, datetime.time.fromisoformat)
 
             # Build the expression based on the operator
             condition_expr: nw.Expr
@@ -344,3 +367,11 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 # In case it is not a SQL backend
                 return None
         return None
+
+
+def _is_polars_dataframe_or_lazyframe(
+    df: Any,
+) -> TypeIs[pl.DataFrame | pl.LazyFrame]:
+    return nw.dependencies.is_polars_dataframe(
+        df
+    ) or nw.dependencies.is_polars_lazyframe(df)
