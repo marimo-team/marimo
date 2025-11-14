@@ -164,6 +164,21 @@ def test_with_multiple_overrides() -> None:
     assert manager.get_config()["package_management"]["manager"] == "pixi"
 
 
+def test_project_config_default_dotenv(tmp_path: Path) -> None:
+    # Even if the pyproject.toml does not have a marimo section,
+    # at runtime the dotenv default should be injected.
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = ""
+    pyproject_path.write_text(textwrap.dedent(pyproject_content))
+
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = "import marimo as mo"
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+
+
 def test_project_config_manager_with_script_metadata(tmp_path: Path) -> None:
     # Create a notebook file with script metadata
     notebook_path = tmp_path / "notebook.py"

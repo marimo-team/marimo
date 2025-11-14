@@ -714,9 +714,9 @@ def test_combine_console_outputs(
         )
     )
 
+    # Consecutive text/plain stdout outputs are merged
     assert session_view.cell_operations[cell_id].console == [
-        CellOutput.stdout("one"),
-        CellOutput.stdout("two"),
+        CellOutput.stdout("onetwo"),
     ]
 
     # Moves to queued
@@ -729,8 +729,7 @@ def test_combine_console_outputs(
     )
 
     assert session_view.cell_operations[cell_id].console == [
-        CellOutput.stdout("one"),
-        CellOutput.stdout("two"),
+        CellOutput.stdout("onetwo"),
     ]
 
     # Moves to running clears console
@@ -785,6 +784,145 @@ def test_stdin(time_mock: Any, session_view: SessionView) -> None:
         CellOutput.stdout("Hello"),
         CellOutput.stdout("What is your name? marimo\n"),
     ]
+
+
+@patch("time.time", return_value=123)
+def test_merge_consecutive_text_plain_outputs(
+    time_mock: Any, session_view: SessionView
+) -> None:
+    """Test that consecutive text/plain outputs with same channel are merged."""
+    del time_mock
+
+    # Add multiple consecutive stdout outputs
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("Hello "),
+            status="running",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("World"),
+            status="running",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("!"),
+            status="running",
+        )
+    )
+
+    # Should be merged into a single output
+    assert len(session_view.cell_operations[cell_id].console) == 1
+    assert (
+        session_view.cell_operations[cell_id].console[0].data == "Hello World!"
+    )
+    assert (
+        session_view.cell_operations[cell_id].console[0].channel
+        == CellChannel.STDOUT
+    )
+
+
+@patch("time.time", return_value=123)
+def test_merge_different_channels_not_merged(
+    time_mock: Any, session_view: SessionView
+) -> None:
+    """Test that outputs with different channels are not merged."""
+    del time_mock
+
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("stdout message"),
+            status="running",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stderr("stderr message"),
+            status="running",
+        )
+    )
+
+    # Should remain separate
+    assert len(session_view.cell_operations[cell_id].console) == 2
+    assert (
+        session_view.cell_operations[cell_id].console[0].channel
+        == CellChannel.STDOUT
+    )
+    assert (
+        session_view.cell_operations[cell_id].console[1].channel
+        == CellChannel.STDERR
+    )
+
+
+@patch("time.time", return_value=123)
+def test_merge_different_mimetypes_not_merged(
+    time_mock: Any, session_view: SessionView
+) -> None:
+    """Test that outputs with different mimetypes are not merged."""
+    del time_mock
+
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("plain text", mimetype="text/plain"),
+            status="running",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("html content", mimetype="text/html"),
+            status="running",
+        )
+    )
+
+    # Should remain separate
+    assert len(session_view.cell_operations[cell_id].console) == 2
+    assert (
+        session_view.cell_operations[cell_id].console[0].mimetype
+        == "text/plain"
+    )
+    assert (
+        session_view.cell_operations[cell_id].console[1].mimetype
+        == "text/html"
+    )
+
+
+@patch("time.time", return_value=123)
+def test_merge_with_non_string_data_not_merged(
+    time_mock: Any, session_view: SessionView
+) -> None:
+    """Test that outputs with non-string data are not merged."""
+    del time_mock
+
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("text"),
+            status="running",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput(
+                channel=CellChannel.STDOUT,
+                mimetype="text/plain",
+                data={"key": "value"},  # dict, not string
+            ),
+            status="running",
+        )
+    )
+
+    # Should remain separate
+    assert len(session_view.cell_operations[cell_id].console) == 2
 
 
 @patch("time.time", return_value=123)
@@ -877,8 +1015,9 @@ def test_get_cell_console_outputs(
         )
     )
 
+    # Consecutive text/plain stdout outputs are merged
     assert session_view.get_cell_console_outputs([cell_id, cell_2_id]) == {
-        cell_id: [CellOutput.stdout("one"), CellOutput.stdout("two")],
+        cell_id: [CellOutput.stdout("onetwo")],
         cell_2_id: [CellOutput.stdout("two")],
     }
 

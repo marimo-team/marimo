@@ -111,6 +111,10 @@ class MarimoConfigReader:
         return {}
 
     @property
+    def is_auto_save_enabled(self) -> bool:
+        return self._config["save"]["autosave"] == "after_delay"
+
+    @property
     def experimental(self) -> ExperimentalConfigType:
         if "experimental" in self._config:
             return self._config["experimental"]
@@ -193,7 +197,10 @@ class ProjectConfigManager(PartialMarimoConfigReader):
                 return {}
             project_config = read_pyproject_marimo_config(self.pyproject_path)
             if project_config is None:
-                return {}
+                # Some project configuration defaults (dotenv in particular)
+                # are resolved at runtime, even in the absence of marimo
+                # section in the pyproject.toml.
+                project_config = cast(PartialMarimoConfig, {})
             project_config = self._resolve_pythonpath(project_config)
             project_config = self._resolve_dotenv(project_config)
             project_config = self._resolve_custom_css(project_config)

@@ -690,6 +690,8 @@ export const LoadingDataTableComponent = memo(
           <TablePanel
             displayHeader={displayHeader}
             data={data?.rows || []}
+            columns={props.totalColumns}
+            totalRows={props.totalRows}
             dataTable={dataTable}
             getDataUrl={props.get_data_url}
             fieldTypes={props.fieldTypes}

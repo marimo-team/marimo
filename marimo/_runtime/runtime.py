@@ -2100,8 +2100,13 @@ class Kernel:
             self.reset_ui_initializers()
         else:
             self._uninstantiated_execution_requests = execution_requests
-            for cell_id in self._uninstantiated_execution_requests.keys():
-                CellOp.broadcast_stale(cell_id=cell_id, stale=True)
+            for (
+                cell_id,
+                cell_request,
+            ) in self._uninstantiated_execution_requests.items():
+                # Only mark non-empty cells as stale
+                if cell_request.code.strip():
+                    CellOp.broadcast_stale(cell_id=cell_id, stale=True)
 
     def _handle_markdown_cells_on_instantiate(
         self, execution_requests: dict[CellId_t, ExecutionRequest]

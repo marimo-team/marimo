@@ -46,7 +46,7 @@ export const MockNotebook = {
       })),
       cellIds: MultiColumn.from([Object.keys(cellData) as CellId[]]),
       cellRuntime: Objects.mapValues(cellData, (_data, cellId) =>
-        createCellRuntimeState({ ...(cellRuntime[cellId] || {}) }),
+        createCellRuntimeState({ ...cellRuntime[cellId] }),
       ),
       cellHandles: Objects.mapValues(cellData, (_data) => createRef()),
       cellLogs: [],
