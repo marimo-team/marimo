@@ -16,7 +16,7 @@ def stat(
     caption: Optional[str] = None,
     direction: Optional[Literal["increase", "decrease"]] = None,
     bordered: bool = False,
-    color: Optional[Literal["green", "red"]] = None,
+    color: Optional[Literal["positive", "negative"]] = None,
 ) -> Html:
     """Display a statistic.
 
@@ -30,9 +30,9 @@ def stat(
             either `increase` or `decrease`
         bordered: whether to display a border around the statistic
         color: the color of the statistic,
-            either `green` or `red`.
+            either `positive` (green) or `negative` (red).
             by default, the color is determined by the direction,
-            with `green` for `increase` and `red` for `decrease`
+            with `positive` for `increase` and `negative` for `decrease`
 
     Returns:
         An `Html` object representing the statistic.
