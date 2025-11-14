@@ -35,7 +35,7 @@ from marimo._utils.assert_never import assert_never
 if TYPE_CHECKING:
     import polars as pl
     from narwhals.expr import Expr
-    from narwhals.stable.v2.dtypes import TypeIs
+    from typing_extensions import TypeIs
 
 
 __all__ = [
