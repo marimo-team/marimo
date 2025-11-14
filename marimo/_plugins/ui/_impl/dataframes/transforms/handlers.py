@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, Callable, TypeIs
+from typing import TYPE_CHECKING, Any, Callable
 
 import narwhals.stable.v2 as nw
 from narwhals.stable.v2 import col
@@ -35,6 +35,7 @@ from marimo._utils.assert_never import assert_never
 if TYPE_CHECKING:
     import polars as pl
     from narwhals.expr import Expr
+    from narwhals.stable.v2.dtypes import TypeIs
 
 
 __all__ = [
