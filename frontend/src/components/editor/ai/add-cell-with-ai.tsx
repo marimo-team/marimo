@@ -170,7 +170,9 @@ export const AddCellWithAI: React.FC<{
       deleteAllStagedCells();
       sendMessage({ text: input });
 
-      const markdown = prettifyPromptToMarkdown(input);
+      const [markdown] = LanguageAdapters.markdown.transformOut(input, {
+        quotePrefix: "f",
+      });
       const promptCell = createStagedCell(markdown, {
         hideCode: true,
       });
@@ -464,13 +466,3 @@ export const PromptInput = ({
     />
   );
 };
-
-/** Converts a prompt to a markdown cell. Used to display the prompt in the UI. */
-export function prettifyPromptToMarkdown(prompt: string): string {
-  const footer = '<p align="center"><i>Generating with AI...</i></p>';
-  const wrappedPrompt = `\`\`\`md\n${prompt}\n\`\`\`\n${footer}`;
-  const [markdownCode] = LanguageAdapters.markdown.transformOut(wrappedPrompt, {
-    quotePrefix: "f",
-  });
-  return markdownCode;
-}
