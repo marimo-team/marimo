@@ -166,6 +166,18 @@ def test_poetry_generate_cmd_version_two_falls_back_when_missing_group(
 
 
 @patch("subprocess.run")
+def test_poetry_generate_cmd_default_for_other_versions(
+    mock_run: MagicMock,
+):
+    mock_run.return_value = MagicMock(returncode=1, stderr="")
+    mgr = PoetryPackageManager()
+
+    cmd = mgr._generate_list_packages_cmd(3)
+
+    assert cmd == ["poetry", "show"]
+
+
+@patch("subprocess.run")
 def test_poetry_list_packages_parses_output(mock_run: MagicMock):
     mock_run.side_effect = [
         MagicMock(returncode=0, stdout="Poetry (1.8.2)"),
