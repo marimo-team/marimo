@@ -17,6 +17,7 @@ interface Data {
   caption?: string;
   bordered?: boolean;
   direction?: "increase" | "decrease";
+  reverse_color?: boolean;
 }
 
 export class StatPlugin implements IStatelessPlugin<Data> {
@@ -28,6 +29,7 @@ export class StatPlugin implements IStatelessPlugin<Data> {
     caption: z.string().optional(),
     bordered: z.boolean().default(false),
     direction: z.enum(["increase", "decrease"]).optional(),
+    reverse_color: z.boolean().default(false),
   });
 
   render({ data }: IStatelessPluginProps<Data>): JSX.Element {
@@ -41,6 +43,7 @@ export const StatComponent: React.FC<Data> = ({
   caption,
   bordered,
   direction,
+  reverse_color,
 }) => {
   const { locale } = useLocale();
 
@@ -64,6 +67,16 @@ export const StatComponent: React.FC<Data> = ({
     return String(value);
   };
 
+  const fillColors = {
+    increase: "var(--grass-8)",
+    decrease: "var(--red-8)",
+  };
+
+  const strokeColors = {
+    increase: "var(--grass-9)",
+    decrease: "var(--red-9)",
+  };
+
   return (
     <div
       className={cn(
@@ -83,15 +96,19 @@ export const StatComponent: React.FC<Data> = ({
             {direction === "increase" && (
               <TriangleIcon
                 className="w-4 h-4 mr-1 p-0.5"
-                fill="var(--grass-8)"
-                stroke="var(--grass-9)"
+                fill={reverse_color ? fillColors.decrease : fillColors.increase}
+                stroke={
+                  reverse_color ? strokeColors.decrease : strokeColors.increase
+                }
               />
             )}
             {direction === "decrease" && (
               <TriangleIcon
                 className="w-4 h-4 mr-1 p-0.5 transform rotate-180"
-                fill="var(--red-8)"
-                stroke="var(--red-9)"
+                fill={reverse_color ? fillColors.increase : fillColors.decrease}
+                stroke={
+                  reverse_color ? strokeColors.increase : strokeColors.decrease
+                }
               />
             )}
             {caption}
