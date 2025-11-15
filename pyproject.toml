@@ -48,7 +48,7 @@ dependencies = [
     "narwhals>=2.0.0",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
-    "msgspec_m>=0.19.2",
+    "msgspec-m>=0.19.2",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -313,6 +313,7 @@ dependencies = [
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }
+msgspec-m = { git = "https://github.com/marimo-team/msgspec", branch = "fix-python-3.14-support" }
 
 [tool.uv.build-backend]
 module-name = "marimo"
