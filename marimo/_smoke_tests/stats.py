@@ -21,7 +21,7 @@ def _(mo):
             label="Marketing spend",
             caption="+ 10%",
             direction="increase",
-            color="negative",
+            reverse_color=True,
         ),
         mo.stat("$80", label="Profit", caption="- 10%", direction="decrease"),
         mo.stat(
@@ -29,7 +29,7 @@ def _(mo):
             label="Churn",
             caption="- 2%",
             direction="decrease",
-            color="positive",
+            reverse_color=True,
         ),
     ]
     mo.hstack(_stats)
@@ -52,7 +52,7 @@ def _(mo):
             caption="+ 10%",
             direction="increase",
             bordered=True,
-            color="negative",
+            reverse_color=True,
         ),
         mo.stat(
             "$80",
@@ -67,7 +67,7 @@ def _(mo):
             caption="- 2%",
             direction="decrease",
             bordered=True,
-            color="positive",
+            reverse_color=True,
         ),
     ]
     mo.hstack(_stats, widths="equal", gap=1)

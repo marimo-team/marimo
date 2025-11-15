@@ -17,7 +17,7 @@ interface Data {
   caption?: string;
   bordered?: boolean;
   direction?: "increase" | "decrease";
-  color?: "negative" | "positive";
+  reverse_color?: boolean;
 }
 
 export class StatPlugin implements IStatelessPlugin<Data> {
@@ -29,7 +29,7 @@ export class StatPlugin implements IStatelessPlugin<Data> {
     caption: z.string().optional(),
     bordered: z.boolean().default(false),
     direction: z.enum(["increase", "decrease"]).optional(),
-    color: z.enum(["negative", "positive"]).optional(),
+    reverse_color: z.boolean().default(false),
   });
 
   render({ data }: IStatelessPluginProps<Data>): JSX.Element {
@@ -43,7 +43,7 @@ export const StatComponent: React.FC<Data> = ({
   caption,
   bordered,
   direction,
-  color,
+  reverse_color,
 }) => {
   const { locale } = useLocale();
 
@@ -67,24 +67,24 @@ export const StatComponent: React.FC<Data> = ({
     return String(value);
   };
 
-  if (color === undefined) {
-    if (direction === "increase") {
-      color = "positive";
-    } else if (direction === "decrease") {
-      color = "negative";
-    }
+  var color = undefined;
+
+  if (direction === "increase") {
+    color = reverse_color ? "red" : "green";
+  } else if (direction === "decrease") {
+    color = reverse_color ? "green" : "red";
   }
 
   const fillColor =
-    color === "positive"
+    color === "green"
       ? "var(--grass-8)"
-      : color === "negative"
+      : color === "red"
         ? "var(--red-8)"
         : undefined;
   const strokeColor =
-    color === "positive"
+    color === "green"
       ? "var(--grass-9)"
-      : color === "negative"
+      : color === "red"
         ? "var(--red-9)"
         : undefined;
 
