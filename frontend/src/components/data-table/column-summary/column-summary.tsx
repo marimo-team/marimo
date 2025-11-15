@@ -93,7 +93,7 @@ export const TableColumnSummary = <TData, TValue>({
         }
 
         return (
-          <div className="flex justify-between w-full px-2 whitespace-pre">
+          <div className="flex justify-between w-full px-2 whitespace-pre -mt-1.5">
             <span>{renderDate(stats.min, type)}</span>
             {stats.min === stats.max ? null : (
               <span>-{renderDate(stats.max, type)}</span>
@@ -145,15 +145,20 @@ export const TableColumnSummary = <TData, TValue>({
         return null;
       case "time":
         return null;
-      case "string":
-        if (!spec) {
-          return (
-            <div className="flex flex-col whitespace-pre">
-              <span>unique: {prettyNumber(stats.unique, locale)}</span>
-            </div>
-          );
+      case "string": {
+        const lessThan5Categories =
+          typeof stats.unique === "number" && stats.unique <= 5;
+        // Number of categories will be easily visible from the chart, so don't show it here.
+        if (spec && lessThan5Categories) {
+          return null;
         }
-        return null;
+
+        return (
+          <div className="flex flex-col whitespace-pre -mt-1.5">
+            <span>categories: {prettyNumber(stats.unique, locale)}</span>
+          </div>
+        );
+      }
       case "unknown":
         return (
           <div className="flex flex-col whitespace-pre">
