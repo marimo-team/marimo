@@ -67,7 +67,7 @@ export const StatComponent: React.FC<Data> = ({
     return String(value);
   };
 
-  var color = undefined;
+  var color;
 
   if (direction === "increase") {
     color = reverse_color ? "red" : "green";
