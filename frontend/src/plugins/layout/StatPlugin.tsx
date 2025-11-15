@@ -97,14 +97,18 @@ export const StatComponent: React.FC<Data> = ({
               <TriangleIcon
                 className="w-4 h-4 mr-1 p-0.5"
                 fill={reverse_color ? fillColors.decrease : fillColors.increase}
-                stroke={reverse_color ? strokeColors.decrease : strokeColors.increase}
+                stroke={
+                  reverse_color ? strokeColors.decrease : strokeColors.increase
+                }
               />
             )}
             {direction === "decrease" && (
               <TriangleIcon
                 className="w-4 h-4 mr-1 p-0.5 transform rotate-180"
                 fill={reverse_color ? fillColors.increase : fillColors.decrease}
-                stroke={reverse_color ? strokeColors.increase : strokeColors.decrease}
+                stroke={
+                  reverse_color ? strokeColors.increase : strokeColors.decrease
+                }
               />
             )}
             {caption}
