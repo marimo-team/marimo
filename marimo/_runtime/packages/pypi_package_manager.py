@@ -603,7 +603,9 @@ class PoetryPackageManager(PypiPackageManager):
             return ["poetry", "show", "--no-dev"]
 
         elif version != 2:
-            LOGGER.warning(f"Unknown poetry version {version}, attempting fallback")
+            LOGGER.warning(
+                f"Unknown poetry version {version}, attempting fallback"
+            )
 
         try:
             cmd = ["poetry", "show", "--without", "dev"]
