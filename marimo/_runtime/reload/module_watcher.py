@@ -13,6 +13,7 @@ from marimo._messaging.types import Stream
 from marimo._runtime import dataflow
 from marimo._runtime.reload.autoreload import (
     ModuleReloader,
+    get_downstream_dependents,
     modules_imported_by_cell,
     safe_getattr,
 )
@@ -23,6 +24,8 @@ if TYPE_CHECKING:
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
+
+GRAPH_MODE = True
 
 
 def is_submodule(src_name: str, target_name: str) -> bool:
@@ -47,13 +50,36 @@ def _depends_on(
     if src_module in target_modules:
         return True
 
+    if len(target_modules) == 0:
+        return False
+
+    # Not sure how this can happen, but guard against it
+    if not (
+        hasattr(src_module, "__file__") and src_module.__file__ is not None
+    ):
+        return False
+
+    src_module_filename = str(pathlib.Path(src_module.__file__).resolve())
+    target_filenames = [
+        str(pathlib.Path(t.__file__).resolve())
+        for t in target_modules
+        if hasattr(t, "__file__") and t.__file__ is not None
+    ]
+
+    if GRAPH_MODE:
+        graph = reloader.get_module_dependency_graph(src_module)
+        if src_module_filename in get_downstream_dependents(
+            graph, target_filenames
+        ):
+            return True
+        else:
+            return False
+
+    # Legacy way
     module_dependencies = reloader.get_module_dependencies(
         src_module, excludes=excludes
     )
 
-    target_filenames = set(
-        t.__file__ for t in target_modules if hasattr(t, "__file__")
-    )
     for found_module in itertools.chain(
         [src_module], module_dependencies.values()
     ):
@@ -97,7 +123,7 @@ def _check_modules(
     reloader: ModuleReloader,
     sys_modules: dict[str, types.ModuleType],
 ) -> dict[str, types.ModuleType]:
-    """Returns the set of modules used by the graph that have been modified"""
+    """Return modules that were modified or depend on modified ones."""
     stale_modules: dict[str, types.ModuleType] = {}
     modified_modules = reloader.check(modules=sys_modules, reload=False)
     # TODO(akshayka): could also exclude modules part of the standard library;
@@ -181,7 +207,6 @@ def watch_modules(
                         modname_to_cell_id[modname]
                         for modname in stale_modules
                     ),
-                    relatives=dataflow.import_block_relatives,
                 )
                 for cid in stale_cell_ids:
                     graph.cells[cid].set_stale(stale=True, stream=stream)
