@@ -6,7 +6,6 @@ import html
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
-from marimo._output.utils import create_style
 
 
 @mddoc
@@ -19,6 +18,5 @@ def plain_text(text: str) -> Html:
     Returns:
         An `Html` object representing the text.
     """
-    styles = create_style({"font-size": "12px"})
-    img = h.pre(child=html.escape(text), style=styles)
+    img = h.pre(child=html.escape(text), class_="text-xs")
     return Html(img)
