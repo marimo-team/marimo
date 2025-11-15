@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.17.6"
 app = marimo.App(width="medium")
 
 
@@ -174,15 +174,13 @@ def _(df, mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Stress testing
 
     We can use a large dataset to stress test our rendering, charting. Notebook credit to Vincent: [WoW Dataset](https://github.com/koaning/wow-avatar-datasets)
 
     ~36 million rows, 7 columns
-    """
-    )
+    """)
     return
 
 
@@ -194,7 +192,6 @@ def _():
     # wow_data
     # wow_data.collect()
     return
-
 
 
 if __name__ == "__main__":
