@@ -168,7 +168,7 @@
     "typescript-memoize": "^1.1.1",
     "use-acp": "0.2.5",
     "use-resize-observer": "^9.1.0",
-    "vega-lite": "6.2.0",
+    "vega-lite": "6.4.0",
     "vega-loader": "^5.1.0",
     "vega-parser": "^7.1.0",
     "vega-tooltip": "^1.1.0",
