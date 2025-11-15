@@ -16,10 +16,13 @@ from uuid import uuid4
 
 import msgspec
 
+from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
 from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
+
+LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -229,6 +232,11 @@ class SetUIElementValueRequest(msgspec.Struct, rename="camel"):
         assert len(self.object_ids) == len(self.values), (
             "Mismatched object_ids and values"
         )
+        # Empty token is not valid (but let's not fail)
+        if not self.token:
+            LOGGER.warning(
+                "SetUIElementValueRequest with empty token is invalid"
+            )
 
     @staticmethod
     def from_ids_and_values(
