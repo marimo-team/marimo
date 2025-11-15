@@ -67,26 +67,15 @@ export const StatComponent: React.FC<Data> = ({
     return String(value);
   };
 
-  var color;
+  const fillColors = {
+    increase: "var(--grass-8)",
+    decrease: "var(--red-8)",
+  };
 
-  if (direction === "increase") {
-    color = reverse_color ? "red" : "green";
-  } else if (direction === "decrease") {
-    color = reverse_color ? "green" : "red";
-  }
-
-  const fillColor =
-    color === "green"
-      ? "var(--grass-8)"
-      : color === "red"
-        ? "var(--red-8)"
-        : undefined;
-  const strokeColor =
-    color === "green"
-      ? "var(--grass-9)"
-      : color === "red"
-        ? "var(--red-9)"
-        : undefined;
+  const strokeColors = {
+    increase: "var(--grass-9)",
+    decrease: "var(--red-9)",
+  };
 
   return (
     <div
@@ -107,15 +96,15 @@ export const StatComponent: React.FC<Data> = ({
             {direction === "increase" && (
               <TriangleIcon
                 className="w-4 h-4 mr-1 p-0.5"
-                fill={fillColor}
-                stroke={strokeColor}
+                fill={reverse_color ? fillColors.decrease : fillColors.increase}
+                stroke={reverse_color ? strokeColors.decrease : strokeColors.increase}
               />
             )}
             {direction === "decrease" && (
               <TriangleIcon
                 className="w-4 h-4 mr-1 p-0.5 transform rotate-180"
-                fill={fillColor}
-                stroke={strokeColor}
+                fill={reverse_color ? fillColors.increase : fillColors.decrease}
+                stroke={reverse_color ? strokeColors.increase : strokeColors.decrease}
               />
             )}
             {caption}
