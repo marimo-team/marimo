@@ -96,7 +96,7 @@ class openai(ChatModel):
             "set OPENAI_API_KEY as an environment variable"
         )
 
-    def __call__(
+    async def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.openai.require(
@@ -135,7 +135,9 @@ class openai(ChatModel):
             [ChatMessage(role="system", content=self.system_message)]
             + messages
         )
-        response = client.chat.completions.create(
+        
+        # Stream the response
+        stream = client.chat.completions.create(
             model=self.model,
             messages=openai_messages,
             max_completion_tokens=config.max_tokens,
@@ -143,12 +145,17 @@ class openai(ChatModel):
             top_p=config.top_p,
             frequency_penalty=config.frequency_penalty,
             presence_penalty=config.presence_penalty,
-            stream=False,
+            stream=True,
         )
 
-        choice = response.choices[0]
-        content = choice.message.content
-        return content or ""
+        # Yield accumulated content as it streams
+        accumulated = ""
+        for chunk in stream:
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    accumulated += delta.content
+                    yield accumulated
 
 
 class anthropic(ChatModel):

@@ -8,6 +8,7 @@ import { rpc } from "@/plugins/core/rpc";
 import { Arrays } from "@/utils/arrays";
 import { Chatbot } from "./chat-ui";
 import type { ChatMessage, SendMessageRequest } from "./types";
+import type { IPluginProps } from "@/plugins/types";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type PluginFunctions = {
@@ -74,7 +75,7 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
       )
       .output(z.string()),
   })
-  .renderer((props) => (
+  .renderer((props: IPluginProps<{ messages: ChatMessage[] }, typeof props.data, PluginFunctions>) => (
     <TooltipProvider>
       <Suspense>
         <Chatbot
@@ -89,6 +90,7 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
           send_prompt={props.functions.send_prompt}
           value={props.value?.messages || Arrays.EMPTY}
           setValue={(messages) => props.setValue({ messages })}
+          host={props.host}
         />
       </Suspense>
     </TooltipProvider>

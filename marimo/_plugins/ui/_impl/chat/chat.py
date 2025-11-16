@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import inspect
+import uuid
 from dataclasses import dataclass
 from typing import Any, Callable, Final, Optional, Union, cast
 
@@ -84,9 +85,8 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         ```
 
         The last value yielded by the async generator is treated as the model
-        response. ui.chat does not yet support streaming responses to the frontend.
-        Please file a GitHub issue if this is important to you:
-        https://github.com/marimo-team/marimo/issues
+        response. Streaming responses are automatically streamed to the frontend
+        as they are generated.
 
         Using a built-in model:
         ```python
@@ -227,15 +227,38 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             # We support functions that stream the response with an async
             # generator; each yielded value is the latest representation of the
             # response, and the last value is the full value
+            message_id = str(uuid.uuid4())
             latest_response = None
+            accumulated_text = ""
+            
             async for latest_response in response:  # noqa: B007
-                # TODO(akshayka, mscolnick): Stream response to frontend
-                # once bidirectional communication is implemented.
-                #
-                # RPCs don't yet support bidirectional communication, so we
-                # just ignore all the initial responses; ideally we'd stream
-                # the response back to the frontend.
-                pass
+                # Convert the response to string for streaming
+                chunk_text = str(latest_response)
+                
+                # Send incremental update to frontend
+                self._send_message(
+                    {
+                        "type": "stream_chunk",
+                        "message_id": message_id,
+                        "content": chunk_text,
+                        "is_final": False,
+                    },
+                    buffers=None,
+                )
+                accumulated_text = chunk_text
+            
+            # Send final message to indicate streaming is complete
+            if latest_response is not None:
+                self._send_message(
+                    {
+                        "type": "stream_chunk",
+                        "message_id": message_id,
+                        "content": accumulated_text,
+                        "is_final": True,
+                    },
+                    buffers=None,
+                )
+            
             response = latest_response
 
         response_message = ChatMessage(role="assistant", content=response)
