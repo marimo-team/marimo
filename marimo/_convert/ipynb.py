@@ -453,8 +453,12 @@ def _handle_exclamation_command(
     if not command_tokens:
         return ExclamationCommandResult(f"# !{command_line}", [], False)
 
-    if command_tokens[0].startswith("pip"):
-        return _extract_pip_install(command_line, command_tokens)
+    # scrub past tokens until pip
+    # For instance in the case `uv pip install ...`
+    for i, token in enumerate(command_tokens):
+        if token.startswith("pip"):
+            return _extract_pip_install(command_line, command_tokens[i:])
+
     # Replace with subprocess.call()
     return _shlex_to_subprocess_call(command_line, command_tokens)
 
