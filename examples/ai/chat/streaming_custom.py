@@ -36,23 +36,23 @@ def _(asyncio, mo):
         """This chatbot echoes what the user says, word by word."""
         # Get the user's message
         user_message = messages[-1].content
-        
+
         # Stream the response word by word
         response = f"You said: '{user_message}'. Here's my response streaming word by word!"
         words = response.split()
         accumulated = ""
-        
+
         for word in words:
             accumulated += word + " "
             yield accumulated
             await asyncio.sleep(0.2)  # Delay to make streaming visible
-    
+
     chatbot = mo.ui.chat(
         streaming_echo_model,
         prompts=["Hello", "Tell me a story", "What is streaming?"],
         show_configuration_controls=True
     )
-    return chatbot, streaming_echo_model
+    return (chatbot,)
 
 
 @app.cell
@@ -67,17 +67,17 @@ def _(mo):
     ## How it works
 
     The key is to make your model function an **async generator**:
-    
+
     ```python
     async def my_model(messages, config):
-        response = "Building up text..."
-        accumulated = ""
+        response = 'Building up text...'
+        accumulated = ''
         for part in response.split():
-            accumulated += part + " "
+            accumulated += part + ' '
             yield accumulated  # Each yield updates the UI
             await asyncio.sleep(0.1)
     ```
-    
+
     Each `yield` sends an update to the frontend, creating a smooth streaming effect!
     """)
     return
@@ -100,4 +100,3 @@ def _(chatbot):
 
 if __name__ == "__main__":
     app.run()
-
