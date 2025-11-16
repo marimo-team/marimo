@@ -142,7 +142,7 @@ async def test_chat_send_prompt_async_generator():
 async def test_chat_streaming_sends_messages():
     """Test that streaming async generators send messages via _send_message"""
     sent_messages = []
-    
+
     async def mock_streaming_model(
         messages: list[ChatMessage], config: ChatModelConfig
     ) -> AsyncIterator[str]:
@@ -152,38 +152,39 @@ async def test_chat_streaming_sends_messages():
         for word in ["Hello", "world", "!"]:
             accumulated += word + " "
             yield accumulated.strip()
-    
+
     chat = ui.chat(mock_streaming_model)
-    
+
     # Mock _send_message to capture calls
     original_send_message = chat._send_message
+
     def capture_send_message(message: dict[str, object], buffers):
         sent_messages.append(message)
         # Don't actually send to avoid needing kernel context
-    
+
     chat._send_message = capture_send_message
-    
+
     request = SendMessageRequest(
         messages=[ChatMessage(role="user", content="Test")],
         config=ChatModelConfig(),
     )
-    
+
     response: str = await chat._send_prompt(request)
-    
+
     # Verify final response
     assert response == "Hello world !"
-    
+
     # Verify streaming messages were sent
     # Should have sent chunks for each yield, plus final message
     assert len(sent_messages) >= 3
-    
+
     # Check that messages have streaming structure
     for msg in sent_messages[:-1]:  # All but last
         assert msg["type"] == "stream_chunk"
         assert "message_id" in msg
         assert "content" in msg
         assert msg["is_final"] == False
-    
+
     # Last message should be final
     assert sent_messages[-1]["type"] == "stream_chunk"
     assert sent_messages[-1]["is_final"] == True

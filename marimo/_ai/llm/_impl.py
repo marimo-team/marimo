@@ -138,7 +138,7 @@ class openai(ChatModel):
             [ChatMessage(role="system", content=self.system_message)]
             + messages
         )
-        
+
         if self.stream:
             # Stream the response
             stream = client.chat.completions.create(
@@ -172,7 +172,7 @@ class openai(ChatModel):
                 presence_penalty=config.presence_penalty,
                 stream=False,
             )
-            
+
             choice = response.choices[0]
             content = choice.message.content
             yield content or ""

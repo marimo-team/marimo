@@ -230,11 +230,11 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             message_id = str(uuid.uuid4())
             latest_response = None
             accumulated_text = ""
-            
+
             async for latest_response in response:  # noqa: B007
                 # Convert the response to string for streaming
                 chunk_text = str(latest_response)
-                
+
                 # Send incremental update to frontend
                 self._send_message(
                     {
@@ -246,7 +246,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                     buffers=None,
                 )
                 accumulated_text = chunk_text
-            
+
             # Send final message to indicate streaming is complete
             if latest_response is not None:
                 self._send_message(
@@ -258,7 +258,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                     },
                     buffers=None,
                 )
-            
+
             response = latest_response
 
         response_message = ChatMessage(role="assistant", content=response)
