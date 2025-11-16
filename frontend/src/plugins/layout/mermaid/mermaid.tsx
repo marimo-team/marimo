@@ -22,6 +22,7 @@ const DEFAULT_CONFIG: MermaidConfig = {
   flowchart: {
     htmlLabels: true,
     curve: "linear",
+    useMaxWidth: false,
   },
   sequence: {
     diagramMarginX: 50,
