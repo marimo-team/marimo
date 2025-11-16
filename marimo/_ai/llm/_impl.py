@@ -175,7 +175,7 @@ class openai(ChatModel):
             
             choice = response.choices[0]
             content = choice.message.content
-            return content or ""
+            yield content or ""
 
 
 class anthropic(ChatModel):
