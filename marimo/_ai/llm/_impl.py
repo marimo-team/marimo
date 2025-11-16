@@ -565,7 +565,11 @@ class bedrock(ChatModel):
                 response = litellm_completion(
                     model=self.model,
                     messages=convert_to_openai_messages(
-                        [ChatMessage(role="system", content=self.system_message)]
+                        [
+                            ChatMessage(
+                                role="system", content=self.system_message
+                            )
+                        ]
                         + messages
                     ),
                     max_tokens=config.max_tokens,
@@ -588,7 +592,11 @@ class bedrock(ChatModel):
                 response = litellm_completion(
                     model=self.model,
                     messages=convert_to_openai_messages(
-                        [ChatMessage(role="system", content=self.system_message)]
+                        [
+                            ChatMessage(
+                                role="system", content=self.system_message
+                            )
+                        ]
                         + messages
                     ),
                     max_tokens=config.max_tokens,
