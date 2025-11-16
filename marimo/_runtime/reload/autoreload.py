@@ -11,14 +11,18 @@ from __future__ import annotations
 
 import gc
 import io
+import json
 import modulefinder
 import os
+import pathlib
+import subprocess
 import sys
 import threading
 import traceback
 import types
 import warnings
 import weakref
+from collections import deque
 from dataclasses import dataclass
 from importlib import reload
 from importlib.util import source_from_cache
@@ -89,10 +93,35 @@ def modules_imported_by_cell(
     return modules
 
 
+def get_downstream_dependents(
+    dependents_map: dict[str, list[str]], changed_files: list[str]
+) -> set[str]:
+    visited = set()
+    queue = deque(changed_files)
+
+    while queue:
+        current = queue.popleft()
+        if current not in visited:
+            visited.add(current)
+            for neighbor in dependents_map.get(current, []):
+                queue.append(neighbor)
+
+    return visited
+
+
+def get_full_path(p: str) -> str:
+    p_path = pathlib.Path(p)
+    if p_path.is_absolute():
+        return str(p_path.resolve())
+    else:
+        return str((pathlib.Path.cwd() / p_path).resolve())
+
+
 class ModuleDependencyFinder:
     def __init__(self) -> None:
         # __file__ ->
         self._module_dependencies: dict[str, dict[str, types.ModuleType]] = {}
+        self._module_dependency_graph: dict[str, dict[str, list[str]]] = {}
         self._failed_module_filenames: set[str] = set()
 
     def find_dependencies(
@@ -130,6 +159,51 @@ class ModuleDependencyFinder:
             self._module_dependencies[file] = finder.modules  # type: ignore[assignment]
             return finder.modules  # type: ignore[return-value]
 
+    def get_dependency_graph(
+        self, module: types.ModuleType
+    ) -> dict[str, list[str]]:
+        if not hasattr(module, "__file__") or module.__file__ is None:
+            return {}
+
+        file = pathlib.Path(module.__file__).resolve()
+
+        # Ruff analyze graph requires a project root to build the full graph
+        package_root = file
+        while (package_root.parent / "__init__.py").exists():
+            package_root = package_root.parent
+
+        LOGGER.debug(
+            f"Running ruff analyze graph for package root: {package_root}"
+        )
+        res = subprocess.run(
+            [
+                "ruff",
+                "analyze",
+                "graph",
+                "--direction=dependents",
+                package_root,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if res.returncode != 0:
+            LOGGER.debug("Failed to get module dependency graph with ruff")
+            return {}
+
+        if res.stdout.strip() == "":
+            LOGGER.debug("Ruff returned empty module dependency graph")
+            return {}
+
+        raw_graph = json.loads(res.stdout)
+
+        graph = {
+            get_full_path(k): [get_full_path(v) for v in v]
+            for k, v in raw_graph.items()
+        }
+
+        self._module_dependency_graph[str(file)] = graph
+        return graph
+
     def cached(self, module: types.ModuleType) -> bool:
         if not hasattr(module, "__file__") or module.__file__ is None:
             return False
@@ -140,6 +214,11 @@ class ModuleDependencyFinder:
         file = module.__file__
         if file in self._module_dependencies:
             del self._module_dependencies[file]
+
+        if file is not None:
+            file_full_path = get_full_path(file)
+            if file_full_path in self._module_dependency_graph:
+                del self._module_dependency_graph[file_full_path]
 
 
 class ModuleReloader:
@@ -212,6 +291,13 @@ class ModuleReloader:
         Returns a set of modules that were found to have been modified.
         """
 
+        modules_copy = modules.copy()
+        modules_paths = {
+            get_full_path(v.__file__): v
+            for k, v in modules_copy.items()
+            if hasattr(v, "__file__") and v.__file__ is not None
+        }
+
         # module watcher thread and kernel thread might try to use the
         # reloader at the same time, but reloader mutates state
         #
@@ -249,10 +335,10 @@ class ModuleReloader:
             if not reload:
                 return modified_modules
 
-            for modname in self.stale_modules:
+            for stale_modname in self.stale_modules:
                 # Reload after the check loop: if there are any
                 # previously discovered stale modules, reload those as well
-                m = modules.get(modname, None)
+                m = modules.get(stale_modname, None)
                 if m is None:
                     continue
 
@@ -261,20 +347,38 @@ class ModuleReloader:
                     continue
                 py_filename, pymtime = module_mtime.name, module_mtime.mtime
 
-                LOGGER.debug(f"Reloading '{modname}'.")
-                try:
-                    superreload(m, self.old_objects)
-                    if py_filename in self.failed:
-                        del self.failed[py_filename]
-                except Exception:
-                    msg = "[autoreload of {} failed: {}]"
-                    LOGGER.debug(
-                        msg.format(modname, traceback.format_exc(10)),
-                    )
-                    self.failed[py_filename] = pymtime
-                else:
-                    # TODO or always evict?
-                    self._module_dependency_finder.evict_from_cache(m)
+                graph = self.get_module_dependency_graph(m)
+                downstream_dependents = get_downstream_dependents(
+                    graph, [get_full_path(m.__file__)]
+                )
+                downstream_dependents_modules = [
+                    modules_paths[dep]
+                    for dep in downstream_dependents
+                    if dep in modules_paths
+                ]
+
+                LOGGER.debug(
+                    f"Reloading '{stale_modname}' and its downstream dependents {downstream_dependents}."
+                )
+                for module in [m] + downstream_dependents_modules:
+                    if module is None:
+                        continue
+
+                    try:
+                        superreload(module, self.old_objects)
+                        if py_filename in self.failed:
+                            del self.failed[py_filename]
+                    except Exception:
+                        msg = "[autoreload of {} failed: {}]"
+                        LOGGER.debug(
+                            msg.format(
+                                stale_modname, traceback.format_exc(10)
+                            ),
+                        )
+                        self.failed[py_filename] = pymtime
+                    else:
+                        # TODO or always evict?
+                        self._module_dependency_finder.evict_from_cache(module)
 
             self.stale_modules.clear()
         return modified_modules
@@ -285,6 +389,11 @@ class ModuleReloader:
         return self._module_dependency_finder.find_dependencies(
             module, excludes
         )
+
+    def get_module_dependency_graph(
+        self, module: types.ModuleType
+    ) -> dict[str, list[str]]:
+        return self._module_dependency_finder.get_dependency_graph(module)
 
 
 def update_function(old: object, new: object) -> None:
