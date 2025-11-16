@@ -139,7 +139,7 @@ similar to ChatGPT where you see the response appear word-by-word as it's genera
 
 ### With Built-in Models
 
-For built-in models like OpenAI, set `stream=True` in the model constructor:
+For built-in models (OpenAI, Anthropic, Google, Groq, Bedrock), set `stream=True` in the model constructor:
 
 ```python
 import marimo as mo
@@ -154,6 +154,14 @@ chat = mo.ui.chat(
 )
 chat
 ```
+
+This works for all built-in models:
+
+- `mo.ai.llm.openai("gpt-4o", stream=True)`
+- `mo.ai.llm.anthropic("claude-3-5-sonnet-20240620", stream=True)`  
+- `mo.ai.llm.google("gemini-1.5-pro-latest", stream=True)`
+- `mo.ai.llm.groq("llama-3.1-70b-versatile", stream=True)`
+- `mo.ai.llm.bedrock("anthropic.claude-3-7-sonnet-20250219-v1:0", stream=True)`
 
 ### With Custom Models
 

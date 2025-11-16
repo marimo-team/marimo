@@ -191,6 +191,7 @@ class anthropic(ChatModel):
             from the ANTHROPIC_API_KEY environment variable
             or the user's config.
         base_url: The base URL to use
+        stream: Whether to stream the response. Defaults to False.
     """
 
     def __init__(
@@ -200,11 +201,13 @@ class anthropic(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = False,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -251,7 +254,7 @@ class anthropic(ChatModel):
             "system": self.system_message,
             "max_tokens": config.max_tokens or 4096,
             "messages": anthropic_messages,
-            "stream": False,
+            "stream": self.stream,
         }
         if config.top_p is not None:
             params["top_p"] = config.top_p
@@ -260,15 +263,25 @@ class anthropic(ChatModel):
         if config.temperature is not None:
             params["temperature"] = config.temperature
 
-        response = client.messages.create(**params)
+        if self.stream:
+            # Stream the response
+            accumulated = ""
+            with client.messages.stream(**params) as stream:
+                for text in stream.text_stream:
+                    accumulated += text
+                    yield accumulated
+        else:
+            # Non-streaming response
+            response = client.messages.create(**params)
 
-        content = response.content
-        if len(content) > 0:
-            if content[0].type == "text":
-                return content[0].text
-            elif content[0].type == "tool_use":
-                return content
-        return ""
+            content = response.content
+            if len(content) > 0:
+                if content[0].type == "text":
+                    yield content[0].text
+                elif content[0].type == "tool_use":
+                    yield content
+            else:
+                yield ""
 
 
 class google(ChatModel):
@@ -283,6 +296,7 @@ class google(ChatModel):
             If not provided, the API key will be retrieved
             from the GOOGLE_AI_API_KEY environment variable
             or the user's config.
+        stream: Whether to stream the response. Defaults to False.
     """
 
     def __init__(
@@ -291,10 +305,12 @@ class google(ChatModel):
         *,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
+        stream: bool = False,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -333,22 +349,45 @@ class google(ChatModel):
         client = genai.Client(api_key=self._require_api_key)
 
         google_messages = convert_to_google_messages(messages)
-        response = client.models.generate_content(
-            model=self.model,
-            contents=google_messages,
-            config={
-                "system_instruction": self.system_message,
-                "max_output_tokens": config.max_tokens,
-                "temperature": config.temperature,
-                "top_p": config.top_p,
-                "top_k": config.top_k,
-                "frequency_penalty": config.frequency_penalty,
-                "presence_penalty": config.presence_penalty,
-            },
-        )
 
-        content = response.text
-        return content or ""
+        if self.stream:
+            # Stream the response
+            accumulated = ""
+            response = client.models.generate_content_stream(
+                model=self.model,
+                contents=google_messages,
+                config={
+                    "system_instruction": self.system_message,
+                    "max_output_tokens": config.max_tokens,
+                    "temperature": config.temperature,
+                    "top_p": config.top_p,
+                    "top_k": config.top_k,
+                    "frequency_penalty": config.frequency_penalty,
+                    "presence_penalty": config.presence_penalty,
+                },
+            )
+            for chunk in response:
+                if chunk.text:
+                    accumulated += chunk.text
+                    yield accumulated
+        else:
+            # Non-streaming response
+            response = client.models.generate_content(
+                model=self.model,
+                contents=google_messages,
+                config={
+                    "system_instruction": self.system_message,
+                    "max_output_tokens": config.max_tokens,
+                    "temperature": config.temperature,
+                    "top_p": config.top_p,
+                    "top_k": config.top_k,
+                    "frequency_penalty": config.frequency_penalty,
+                    "presence_penalty": config.presence_penalty,
+                },
+            )
+
+            content = response.text
+            yield content or ""
 
 
 class groq(ChatModel):
@@ -363,6 +402,7 @@ class groq(ChatModel):
             If not provided, the API key will be retrieved
             from the GROQ_API_KEY environment variable or the user's config.
         base_url: The base URL to use
+        stream: Whether to stream the response. Defaults to False.
     """
 
     def __init__(
@@ -372,11 +412,13 @@ class groq(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = False,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -419,19 +461,41 @@ class groq(ChatModel):
             [ChatMessage(role="system", content=self.system_message)]
             + messages
         )
-        response = client.chat.completions.create(
-            model=self.model,
-            messages=groq_messages,
-            max_tokens=config.max_tokens,
-            temperature=config.temperature,
-            top_p=config.top_p,
-            stop=None,
-            stream=False,
-        )
 
-        choice = response.choices[0]
-        content = choice.message.content
-        return content or ""
+        if self.stream:
+            # Stream the response
+            stream = client.chat.completions.create(
+                model=self.model,
+                messages=groq_messages,
+                max_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                stop=None,
+                stream=True,
+            )
+
+            accumulated = ""
+            for chunk in stream:
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        accumulated += delta.content
+                        yield accumulated
+        else:
+            # Non-streaming response
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=groq_messages,
+                max_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                stop=None,
+                stream=False,
+            )
+
+            choice = response.choices[0]
+            content = choice.message.content
+            yield content or ""
 
 
 class bedrock(ChatModel):
@@ -448,6 +512,7 @@ class bedrock(ChatModel):
             Dict with keys: "aws_access_key_id" and "aws_secret_access_key"
             If not provided, credentials will be retrieved from the environment
             or the AWS configuration files.
+        stream: Whether to stream the response. Defaults to False.
     """
 
     def __init__(
@@ -459,6 +524,7 @@ class bedrock(ChatModel):
         profile_name: Optional[str] = None,
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
+        stream: bool = False,
     ):
         if not model.startswith("bedrock/"):
             model = f"bedrock/{model}"
@@ -468,6 +534,7 @@ class bedrock(ChatModel):
         self.profile_name = profile_name
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
+        self.stream = stream
 
     def _setup_credentials(self) -> None:
         # Use profile name if provided, otherwise use API key
@@ -493,22 +560,46 @@ class bedrock(ChatModel):
         self._setup_credentials()
 
         try:
-            # Make API call
-            response = litellm_completion(
-                model=self.model,
-                messages=convert_to_openai_messages(
-                    [ChatMessage(role="system", content=self.system_message)]
-                    + messages
-                ),
-                max_tokens=config.max_tokens,
-                temperature=config.temperature,
-                top_p=config.top_p,
-                frequency_penalty=config.frequency_penalty,
-                presence_penalty=config.presence_penalty,
-                stream=False,
-            )
+            if self.stream:
+                # Stream the response
+                response = litellm_completion(
+                    model=self.model,
+                    messages=convert_to_openai_messages(
+                        [ChatMessage(role="system", content=self.system_message)]
+                        + messages
+                    ),
+                    max_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    top_p=config.top_p,
+                    frequency_penalty=config.frequency_penalty,
+                    presence_penalty=config.presence_penalty,
+                    stream=True,
+                )
 
-            return response.choices[0].message.content
+                accumulated = ""
+                for chunk in response:
+                    if chunk.choices and len(chunk.choices) > 0:
+                        delta = chunk.choices[0].delta
+                        if delta.content:
+                            accumulated += delta.content
+                            yield accumulated
+            else:
+                # Non-streaming response
+                response = litellm_completion(
+                    model=self.model,
+                    messages=convert_to_openai_messages(
+                        [ChatMessage(role="system", content=self.system_message)]
+                        + messages
+                    ),
+                    max_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    top_p=config.top_p,
+                    frequency_penalty=config.frequency_penalty,
+                    presence_penalty=config.presence_penalty,
+                    stream=False,
+                )
+
+                yield response.choices[0].message.content
 
         except Exception as e:
             # Handle common AWS exceptions with helpful messages
