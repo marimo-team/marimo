@@ -158,7 +158,7 @@ async def test_chat_streaming_sends_messages():
     # Mock _send_message to capture calls
     original_send_message = chat._send_message
 
-    def capture_send_message(message: dict[str, object], buffers):
+    def capture_send_message(message: dict[str, object], buffers):  # noqa: ARG001
         sent_messages.append(message)
         # Don't actually send to avoid needing kernel context
 
@@ -183,11 +183,11 @@ async def test_chat_streaming_sends_messages():
         assert msg["type"] == "stream_chunk"
         assert "message_id" in msg
         assert "content" in msg
-        assert msg["is_final"] == False
+        assert not msg["is_final"]
 
     # Last message should be final
     assert sent_messages[-1]["type"] == "stream_chunk"
-    assert sent_messages[-1]["is_final"] == True
+    assert sent_messages[-1]["is_final"]
     assert sent_messages[-1]["content"] == "Hello world !"
 
 
