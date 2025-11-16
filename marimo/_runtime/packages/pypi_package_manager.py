@@ -539,6 +539,16 @@ class PoetryPackageManager(PypiPackageManager):
     name = "poetry"
     docs_url = "https://python-poetry.org/docs/"
 
+    def _get_poetry_version(self) -> int:
+        proc = subprocess.run(
+            ["poetry", "--version"], capture_output=True, text=True
+        )
+        if proc.returncode != 0:
+            return -1  # and raise on the impl side
+        version_str = proc.stdout.split()[-1].strip("()")
+        major, *_ = map(int, version_str.split("."))
+        return major
+
     def install_command(self, package: str, *, upgrade: bool) -> list[str]:
         return [
             "poetry",
@@ -558,6 +568,7 @@ class PoetryPackageManager(PypiPackageManager):
     ) -> list[PackageDescription]:
         if not self.is_manager_installed():
             return []
+
         proc = subprocess.run(
             cmd, capture_output=True, text=True, encoding="utf-8"
         )
@@ -580,6 +591,43 @@ class PoetryPackageManager(PypiPackageManager):
             )
         return packages
 
+    def _generate_list_packages_cmd(self, version: int) -> list[str]:
+        """Poetry 1.x and 2.x handle the "show" command differently
+        In poetry 1.x, "poetry show --no-dev" works perfectly fine but is deprecated. This
+            shouldn't matter if 1.8.x is still installed.
+        In poetry 2.x the preferred command is "poetry show --without dev" but will throw
+            an error if there are no dev packages installed. We will capture that error and
+            adjust the cmd accordingly.
+        """
+        if version == 1:
+            return ["poetry", "show", "--no-dev"]
+
+        elif version != 2:
+            LOGGER.warning(
+                f"Unknown poetry version {version}, attempting fallback"
+            )
+
+        try:
+            cmd = ["poetry", "show", "--without", "dev"]
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=False
+            )
+
+            # If Poetry 2.x throws "Group(s) not found"
+            if "Group(s) not found" in result.stderr:
+                return ["poetry", "show"]
+
+            # Otherwise, if the command succeeded
+            if result.returncode == 0:
+                return cmd
+
+        except FileNotFoundError:
+            return []
+
+        # Default fallback
+        return ["poetry", "show"]
+
     def list_packages(self) -> list[PackageDescription]:
-        cmd = ["poetry", "show", "--no-dev"]
+        version = self._get_poetry_version()
+        cmd = self._generate_list_packages_cmd(version)
         return self._list_packages_from_cmd(cmd)
