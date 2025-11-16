@@ -45,8 +45,8 @@ import { moveToEndOfEditor } from "@/core/codemirror/utils";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import {
-  useEventListener,
   type HTMLElementNotDerivedFromRef,
+  useEventListener,
 } from "@/hooks/useEventListener";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -79,7 +79,7 @@ export const Chatbot: React.FC<Props> = (props) => {
   const formRef = useRef<HTMLFormElement>(null);
   const codeMirrorInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
+
   // Track streaming state - maps backend message_id to frontend message index
   const streamingStateRef = useRef<{
     backendMessageId: string | null;
@@ -125,10 +125,10 @@ export const Chatbot: React.FC<Props> = (props) => {
               .join("\n"),
             parts: m.parts,
           }));
-          
+
           // Create a placeholder message for streaming
           const messageId = Date.now().toString();
-          
+
           setMessages((prev) => [
             ...prev,
             {
@@ -137,7 +137,7 @@ export const Chatbot: React.FC<Props> = (props) => {
               parts: [{ type: "text", text: "" }],
             },
           ]);
-          
+
           const response = await props.send_prompt({
             messages: messages,
             config: {
@@ -149,7 +149,7 @@ export const Chatbot: React.FC<Props> = (props) => {
               presence_penalty: config.presence_penalty,
             },
           });
-          
+
           // If streaming didn't happen (non-generator response), update the message
           // Check if streaming state is still set (meaning no chunks were received)
           if (
@@ -168,7 +168,7 @@ export const Chatbot: React.FC<Props> = (props) => {
               return updated;
             });
           }
-          
+
           return new Response(response);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
@@ -177,7 +177,7 @@ export const Chatbot: React.FC<Props> = (props) => {
             backendMessageId: null,
             frontendMessageIndex: null,
           };
-          
+
           // HACK: strip the error message to clean up the response
           const strippedError = error.message
             .split("failed with exception ")
@@ -194,7 +194,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         fileInputRef.current.value = "";
       }
       Logger.debug("Finished streaming message:", message);
-      
+
       // Clear streaming state
       streamingStateRef.current = {
         backendMessageId: null,
@@ -210,7 +210,7 @@ export const Chatbot: React.FC<Props> = (props) => {
       };
     },
   });
-  
+
   // Listen for streaming chunks from backend
   useEventListener(
     props.host as HTMLElementNotDerivedFromRef,
@@ -229,7 +229,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           content: string;
           is_final: boolean;
         };
-        
+
         // Initialize streaming state on first chunk if not already set
         if (streamingStateRef.current.backendMessageId === null) {
           // Find the last assistant message (which should be the placeholder we created)
@@ -248,16 +248,17 @@ export const Chatbot: React.FC<Props> = (props) => {
             return updated;
           });
         }
-        
+
         // Only process chunks for the current streaming message
         if (
-          streamingStateRef.current.backendMessageId === chunkMessage.message_id &&
+          streamingStateRef.current.backendMessageId ===
+            chunkMessage.message_id &&
           streamingStateRef.current.frontendMessageIndex !== null
         ) {
           setMessages((prev) => {
             const updated = [...prev];
             const index = streamingStateRef.current.frontendMessageIndex!;
-            
+
             // Update the message at the tracked index
             if (index < updated.length) {
               const messageToUpdate = updated[index];
@@ -268,10 +269,10 @@ export const Chatbot: React.FC<Props> = (props) => {
                 };
               }
             }
-            
+
             return updated;
           });
-          
+
           // Clear streaming state when final chunk arrives
           if (chunkMessage.is_final) {
             streamingStateRef.current = {

@@ -5,10 +5,10 @@ import { z } from "zod";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
+import type { IPluginProps } from "@/plugins/types";
 import { Arrays } from "@/utils/arrays";
 import { Chatbot } from "./chat-ui";
 import type { ChatMessage, SendMessageRequest } from "./types";
-import type { IPluginProps } from "@/plugins/types";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type PluginFunctions = {
@@ -75,23 +75,31 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
       )
       .output(z.string()),
   })
-  .renderer((props: IPluginProps<{ messages: ChatMessage[] }, typeof props.data, PluginFunctions>) => (
-    <TooltipProvider>
-      <Suspense>
-        <Chatbot
-          prompts={props.data.prompts}
-          showConfigurationControls={props.data.showConfigurationControls}
-          maxHeight={props.data.maxHeight}
-          allowAttachments={props.data.allowAttachments}
-          config={props.data.config}
-          get_chat_history={props.functions.get_chat_history}
-          delete_chat_history={props.functions.delete_chat_history}
-          delete_chat_message={props.functions.delete_chat_message}
-          send_prompt={props.functions.send_prompt}
-          value={props.value?.messages || Arrays.EMPTY}
-          setValue={(messages) => props.setValue({ messages })}
-          host={props.host}
-        />
-      </Suspense>
-    </TooltipProvider>
-  ));
+  .renderer(
+    (
+      props: IPluginProps<
+        { messages: ChatMessage[] },
+        typeof props.data,
+        PluginFunctions
+      >,
+    ) => (
+      <TooltipProvider>
+        <Suspense>
+          <Chatbot
+            prompts={props.data.prompts}
+            showConfigurationControls={props.data.showConfigurationControls}
+            maxHeight={props.data.maxHeight}
+            allowAttachments={props.data.allowAttachments}
+            config={props.data.config}
+            get_chat_history={props.functions.get_chat_history}
+            delete_chat_history={props.functions.delete_chat_history}
+            delete_chat_message={props.functions.delete_chat_message}
+            send_prompt={props.functions.send_prompt}
+            value={props.value?.messages || Arrays.EMPTY}
+            setValue={(messages) => props.setValue({ messages })}
+            host={props.host}
+          />
+        </Suspense>
+      </TooltipProvider>
+    ),
+  );
