@@ -55,6 +55,7 @@ class openai(ChatModel):
             If not provided, the API key will be retrieved
             from the OPENAI_API_KEY environment variable or the user's config.
         base_url: The base URL to use
+        stream: Whether to stream the response. Defaults to False.
     """
 
     def __init__(
@@ -64,11 +65,13 @@ class openai(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = False,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -136,26 +139,43 @@ class openai(ChatModel):
             + messages
         )
         
-        # Stream the response
-        stream = client.chat.completions.create(
-            model=self.model,
-            messages=openai_messages,
-            max_completion_tokens=config.max_tokens,
-            temperature=config.temperature,
-            top_p=config.top_p,
-            frequency_penalty=config.frequency_penalty,
-            presence_penalty=config.presence_penalty,
-            stream=True,
-        )
+        if self.stream:
+            # Stream the response
+            stream = client.chat.completions.create(
+                model=self.model,
+                messages=openai_messages,
+                max_completion_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                frequency_penalty=config.frequency_penalty,
+                presence_penalty=config.presence_penalty,
+                stream=True,
+            )
 
-        # Yield accumulated content as it streams
-        accumulated = ""
-        for chunk in stream:
-            if chunk.choices and len(chunk.choices) > 0:
-                delta = chunk.choices[0].delta
-                if delta.content:
-                    accumulated += delta.content
-                    yield accumulated
+            # Yield accumulated content as it streams
+            accumulated = ""
+            for chunk in stream:
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        accumulated += delta.content
+                        yield accumulated
+        else:
+            # Non-streaming response
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=openai_messages,
+                max_completion_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                frequency_penalty=config.frequency_penalty,
+                presence_penalty=config.presence_penalty,
+                stream=False,
+            )
+            
+            choice = response.choices[0]
+            content = choice.message.content
+            return content or ""
 
 
 class anthropic(ChatModel):
