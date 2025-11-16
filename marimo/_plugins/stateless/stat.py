@@ -29,7 +29,7 @@ def stat(
         direction: the direction of the statistic,
             either `increase` or `decrease`
         bordered: whether to display a border around the statistic
-        target_direction: The target direction of the statistic, 
+        target_direction: The target direction of the statistic,
             either `increase` or `decrease`
 
     Returns:

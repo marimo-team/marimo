@@ -67,9 +67,9 @@ export const StatComponent: React.FC<Data> = ({
     return String(value);
   };
 
-  const on_target = direction === target_direction;
-  const fillColor = on_target ? "var(--grass-8)" : "var(--red-8)";
-  const strokeColor = on_target ? "var(--grass-9)" : "var(--red-9)";
+  const onTarget = direction === target_direction;
+  const fillColor = onTarget ? "var(--grass-8)" : "var(--red-8)";
+  const strokeColor = onTarget ? "var(--grass-9)" : "var(--red-9)";
 
   return (
     <div
