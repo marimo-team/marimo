@@ -56,6 +56,7 @@ def _(key, mo):
             "claude-3-7-sonnet-20250219",
             system_message="You are a helpful assistant.",
             api_key=key,
+            # stream=True,  # Uncomment to enable streaming responses
         ),
         allow_attachments=[
             "image/png",

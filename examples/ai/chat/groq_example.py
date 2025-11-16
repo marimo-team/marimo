@@ -73,6 +73,7 @@ def _(key, mo):
            model="llama-3.1-70b-versatile",
            system_message="You are a helpful assistant.",
            api_key=key,
+           # stream=True,  # Uncomment to enable streaming responses
        ),
         prompts=[
             "Hello",

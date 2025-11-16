@@ -55,6 +55,7 @@ def _(key, mo):
             "gemini-1.5-pro-latest",
             system_message="You are a helpful assistant.",
             api_key=key,
+            # stream=True,  # Uncomment to enable streaming responses
        ),
         prompts=[
             "Hello",

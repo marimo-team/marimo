@@ -56,6 +56,7 @@ def _(mo, openai_key):
             "gpt-4o",
             system_message="You are a helpful assistant.",
             api_key=openai_key,
+            # stream=True,  # Uncomment to enable streaming responses
        ),
         prompts=[
             "Hello",
