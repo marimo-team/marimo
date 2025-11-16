@@ -17,7 +17,7 @@ interface Data {
   caption?: string;
   bordered?: boolean;
   direction?: "increase" | "decrease";
-  reverse_color?: boolean;
+  target_direction?: "increase" | "decrease";
 }
 
 export class StatPlugin implements IStatelessPlugin<Data> {
@@ -29,7 +29,7 @@ export class StatPlugin implements IStatelessPlugin<Data> {
     caption: z.string().optional(),
     bordered: z.boolean().default(false),
     direction: z.enum(["increase", "decrease"]).optional(),
-    reverse_color: z.boolean().default(false),
+    target_direction: z.enum(["increase", "decrease"]).default("increase"),
   });
 
   render({ data }: IStatelessPluginProps<Data>): JSX.Element {
@@ -43,7 +43,7 @@ export const StatComponent: React.FC<Data> = ({
   caption,
   bordered,
   direction,
-  reverse_color,
+  target_direction,
 }) => {
   const { locale } = useLocale();
 
@@ -67,15 +67,9 @@ export const StatComponent: React.FC<Data> = ({
     return String(value);
   };
 
-  const fillColors = {
-    increase: "var(--grass-8)",
-    decrease: "var(--red-8)",
-  };
-
-  const strokeColors = {
-    increase: "var(--grass-9)",
-    decrease: "var(--red-9)",
-  };
+  const on_target = direction === target_direction;
+  const fillColor = on_target ? "var(--grass-8)" : "var(--red-8)";
+  const strokeColor = on_target ? "var(--grass-9)" : "var(--red-9)";
 
   return (
     <div
@@ -96,19 +90,15 @@ export const StatComponent: React.FC<Data> = ({
             {direction === "increase" && (
               <TriangleIcon
                 className="w-4 h-4 mr-1 p-0.5"
-                fill={reverse_color ? fillColors.decrease : fillColors.increase}
-                stroke={
-                  reverse_color ? strokeColors.decrease : strokeColors.increase
-                }
+                fill={fillColor}
+                stroke={strokeColor}
               />
             )}
             {direction === "decrease" && (
               <TriangleIcon
                 className="w-4 h-4 mr-1 p-0.5 transform rotate-180"
-                fill={reverse_color ? fillColors.increase : fillColors.decrease}
-                stroke={
-                  reverse_color ? strokeColors.increase : strokeColors.decrease
-                }
+                fill={fillColor}
+                stroke={strokeColor}
               />
             )}
             {caption}
