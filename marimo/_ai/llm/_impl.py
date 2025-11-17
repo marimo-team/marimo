@@ -139,22 +139,21 @@ class openai(ChatModel):
             + messages
         )
 
-        if self.stream:
-            # Stream the response
-            stream = client.chat.completions.create(
-                model=self.model,
-                messages=openai_messages,
-                max_completion_tokens=config.max_tokens,
-                temperature=config.temperature,
-                top_p=config.top_p,
-                frequency_penalty=config.frequency_penalty,
-                presence_penalty=config.presence_penalty,
-                stream=True,
-            )
+        response = client.chat.completions.create(
+            model=self.model,
+            messages=openai_messages,
+            max_completion_tokens=config.max_tokens,
+            temperature=config.temperature,
+            top_p=config.top_p,
+            frequency_penalty=config.frequency_penalty,
+            presence_penalty=config.presence_penalty,
+            stream=self.stream,
+        )
 
+        if self.stream:
             # Yield accumulated content as it streams
             accumulated = ""
-            for chunk in stream:
+            for chunk in response:
                 if chunk.choices and len(chunk.choices) > 0:
                     delta = chunk.choices[0].delta
                     if delta.content:
@@ -162,17 +161,6 @@ class openai(ChatModel):
                         yield accumulated
         else:
             # Non-streaming response
-            response = client.chat.completions.create(
-                model=self.model,
-                messages=openai_messages,
-                max_completion_tokens=config.max_tokens,
-                temperature=config.temperature,
-                top_p=config.top_p,
-                frequency_penalty=config.frequency_penalty,
-                presence_penalty=config.presence_penalty,
-                stream=False,
-            )
-
             choice = response.choices[0]
             content = choice.message.content
             yield content or ""
@@ -350,21 +338,24 @@ class google(ChatModel):
 
         google_messages = convert_to_google_messages(messages)
 
+        # Build config once to avoid duplication
+        generation_config = {
+            "system_instruction": self.system_message,
+            "max_output_tokens": config.max_tokens,
+            "temperature": config.temperature,
+            "top_p": config.top_p,
+            "top_k": config.top_k,
+            "frequency_penalty": config.frequency_penalty,
+            "presence_penalty": config.presence_penalty,
+        }
+
         if self.stream:
             # Stream the response
             accumulated = ""
             response = client.models.generate_content_stream(
                 model=self.model,
                 contents=google_messages,
-                config={
-                    "system_instruction": self.system_message,
-                    "max_output_tokens": config.max_tokens,
-                    "temperature": config.temperature,
-                    "top_p": config.top_p,
-                    "top_k": config.top_k,
-                    "frequency_penalty": config.frequency_penalty,
-                    "presence_penalty": config.presence_penalty,
-                },
+                config=generation_config,
             )
             for chunk in response:
                 if chunk.text:
@@ -375,15 +366,7 @@ class google(ChatModel):
             response = client.models.generate_content(
                 model=self.model,
                 contents=google_messages,
-                config={
-                    "system_instruction": self.system_message,
-                    "max_output_tokens": config.max_tokens,
-                    "temperature": config.temperature,
-                    "top_p": config.top_p,
-                    "top_k": config.top_k,
-                    "frequency_penalty": config.frequency_penalty,
-                    "presence_penalty": config.presence_penalty,
-                },
+                config=generation_config,
             )
 
             content = response.text
@@ -560,26 +543,25 @@ class bedrock(ChatModel):
         self._setup_credentials()
 
         try:
-            if self.stream:
-                # Stream the response
-                response = litellm_completion(
-                    model=self.model,
-                    messages=convert_to_openai_messages(
-                        [
-                            ChatMessage(
-                                role="system", content=self.system_message
-                            )
-                        ]
-                        + messages
-                    ),
-                    max_tokens=config.max_tokens,
-                    temperature=config.temperature,
-                    top_p=config.top_p,
-                    frequency_penalty=config.frequency_penalty,
-                    presence_penalty=config.presence_penalty,
-                    stream=True,
-                )
+            response = litellm_completion(
+                model=self.model,
+                messages=convert_to_openai_messages(
+                    [
+                        ChatMessage(
+                            role="system", content=self.system_message
+                        )
+                    ]
+                    + messages
+                ),
+                max_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                frequency_penalty=config.frequency_penalty,
+                presence_penalty=config.presence_penalty,
+                stream=self.stream,
+            )
 
+            if self.stream:
                 accumulated = ""
                 for chunk in response:
                     if chunk.choices and len(chunk.choices) > 0:
@@ -588,25 +570,6 @@ class bedrock(ChatModel):
                             accumulated += delta.content
                             yield accumulated
             else:
-                # Non-streaming response
-                response = litellm_completion(
-                    model=self.model,
-                    messages=convert_to_openai_messages(
-                        [
-                            ChatMessage(
-                                role="system", content=self.system_message
-                            )
-                        ]
-                        + messages
-                    ),
-                    max_tokens=config.max_tokens,
-                    temperature=config.temperature,
-                    top_p=config.top_p,
-                    frequency_penalty=config.frequency_penalty,
-                    presence_penalty=config.presence_penalty,
-                    stream=False,
-                )
-
                 yield response.choices[0].message.content
 
         except Exception as e:
