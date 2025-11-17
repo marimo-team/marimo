@@ -55,7 +55,10 @@ class openai(ChatModel):
             If not provided, the API key will be retrieved
             from the OPENAI_API_KEY environment variable or the user's config.
         base_url: The base URL to use
-        stream: Whether to stream the response. Defaults to False.
+        stream: Whether to stream the response token-by-token as it's generated.
+            When True, the response appears progressively (like ChatGPT), creating
+            a more responsive user experience. When False, the complete response
+            is returned all at once. Defaults to False for backward compatibility.
     """
 
     def __init__(
@@ -179,7 +182,10 @@ class anthropic(ChatModel):
             from the ANTHROPIC_API_KEY environment variable
             or the user's config.
         base_url: The base URL to use
-        stream: Whether to stream the response. Defaults to False.
+        stream: Whether to stream the response token-by-token as it's generated.
+            When True, the response appears progressively (like ChatGPT), creating
+            a more responsive user experience. When False, the complete response
+            is returned all at once. Defaults to False for backward compatibility.
     """
 
     def __init__(
@@ -284,7 +290,10 @@ class google(ChatModel):
             If not provided, the API key will be retrieved
             from the GOOGLE_AI_API_KEY environment variable
             or the user's config.
-        stream: Whether to stream the response. Defaults to False.
+        stream: Whether to stream the response token-by-token as it's generated.
+            When True, the response appears progressively (like ChatGPT), creating
+            a more responsive user experience. When False, the complete response
+            is returned all at once. Defaults to False for backward compatibility.
     """
 
     def __init__(
@@ -385,7 +394,10 @@ class groq(ChatModel):
             If not provided, the API key will be retrieved
             from the GROQ_API_KEY environment variable or the user's config.
         base_url: The base URL to use
-        stream: Whether to stream the response. Defaults to False.
+        stream: Whether to stream the response token-by-token as it's generated.
+            When True, the response appears progressively (like ChatGPT), creating
+            a more responsive user experience. When False, the complete response
+            is returned all at once. Defaults to False for backward compatibility.
     """
 
     def __init__(
@@ -495,7 +507,10 @@ class bedrock(ChatModel):
             Dict with keys: "aws_access_key_id" and "aws_secret_access_key"
             If not provided, credentials will be retrieved from the environment
             or the AWS configuration files.
-        stream: Whether to stream the response. Defaults to False.
+        stream: Whether to stream the response token-by-token as it's generated.
+            When True, the response appears progressively (like ChatGPT), creating
+            a more responsive user experience. When False, the complete response
+            is returned all at once. Defaults to False for backward compatibility.
     """
 
     def __init__(
