@@ -12,6 +12,7 @@ import {
   DownloadIcon,
   HelpCircleIcon,
   PaperclipIcon,
+  RotateCwIcon,
   SendIcon,
   SettingsIcon,
   Trash2Icon,
@@ -410,13 +411,14 @@ export const Chatbot: React.FC<Props> = (props) => {
         <Button
           variant="text"
           size="icon"
+          disabled={messages.length === 0}
           onClick={() => {
             setMessages([]);
             props.setValue([]);
             props.delete_chat_history({});
           }}
         >
-          <Trash2Icon className="h-3 w-3" />
+          <RotateCwIcon className="h-3 w-3" />
         </Button>
       </div>
       <div
