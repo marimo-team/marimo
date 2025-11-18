@@ -114,6 +114,12 @@ class PandasTableManagerFactory(TableManagerFactory):
                         ) or is_timedelta64_ns_dtype(dtype):
                             result[col] = result[col].apply(str)
                         if is_object_dtype(dtype):
+                            # Check if column contains date objects (not datetime), and convert them to string
+                            # Typically, this will change to YYYY-MM-DD format
+                            inferred_dtype = self._infer_dtype(col)
+                            if inferred_dtype == "date":
+                                result[col] = result[col].apply(str)
+
                             result[col] = result[col].apply(
                                 self._sanitize_table_value
                             )

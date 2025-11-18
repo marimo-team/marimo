@@ -1309,6 +1309,39 @@ class TestPandasTableManager(unittest.TestCase):
             "Original DataFrame columns should still be Timestamps"
         )
 
+    def test_to_json_date_objects_from_dt_date(self) -> None:
+        import pandas as pd
+
+        date_df = pd.DataFrame(
+            {"dates": ["10/6/2025 14:17", "10/7/2025 14:18"]}
+        )
+        date_df["date_only"] = pd.to_datetime(date_df.dates).dt.date
+
+        manager = self.factory.create()(date_df)
+        json_str = manager.to_json_str()
+        json_data = json.loads(json_str)
+
+        assert json_data[0]["date_only"] == "2025-10-06"
+        assert json_data[1]["date_only"] == "2025-10-07"
+
+    @pytest.mark.xfail(reason="date_series is recognized as datetime object")
+    def test_to_json_date_series_objects(self) -> None:
+        import pandas as pd
+
+        date_df = pd.DataFrame(
+            {
+                "date_series": pd.Series(
+                    pd.date_range("2000", freq="D", periods=2)
+                ),
+            }
+        )
+        manager = self.factory.create()(date_df)
+        json_str = manager.to_json_str()
+        json_data = json.loads(json_str)
+
+        assert json_data[0]["date_series"] == "2000-01-01"
+        assert json_data[1]["date_series"] == "2000-01-02"
+
     def test_handle_integer_column_names_no_mutation(self) -> None:
         import pandas as pd
 
