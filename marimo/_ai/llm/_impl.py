@@ -241,7 +241,9 @@ class anthropic(ChatModel):
             "set ANTHROPIC_API_KEY as an environment variable"
         )
 
-    def _stream_response(self, client: Any, params: Any) -> Generator[str, None, None]:
+    def _stream_response(
+        self, client: Any, params: Any
+    ) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         accumulated = ""
         with client.messages.stream(**params) as stream:
@@ -585,7 +587,9 @@ class bedrock(ChatModel):
         else:
             pass  # Use default credential chain
 
-    def _stream_response(self, messages: list[ChatMessage], config: ChatModelConfig) -> Generator[str, None, None]:
+    def _stream_response(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         from litellm import completion as litellm_completion
 

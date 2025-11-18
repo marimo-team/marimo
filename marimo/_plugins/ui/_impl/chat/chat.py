@@ -258,7 +258,11 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 buffers=None,
             )
 
-        return str(latest_response) if latest_response is not None else accumulated_text
+        return (
+            str(latest_response)
+            if latest_response is not None
+            else accumulated_text
+        )
 
     async def _send_prompt(self, args: SendMessageRequest) -> str:
         messages = args.messages
