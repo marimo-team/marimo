@@ -259,6 +259,40 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 )
 
             response = latest_response
+        elif inspect.isgenerator(response):
+            # We also support regular (sync) generators for streaming
+            message_id = str(uuid.uuid4())
+            latest_response = None
+            accumulated_text = ""
+
+            for latest_response in response:  # noqa: B007
+                # Convert the response to string for streaming
+                accumulated_text = str(latest_response)
+
+                # Send incremental update to frontend
+                self._send_message(
+                    {
+                        "type": "stream_chunk",
+                        "message_id": message_id,
+                        "content": accumulated_text,
+                        "is_final": False,
+                    },
+                    buffers=None,
+                )
+
+            # Send final message to indicate streaming is complete
+            if latest_response is not None:
+                self._send_message(
+                    {
+                        "type": "stream_chunk",
+                        "message_id": message_id,
+                        "content": accumulated_text,
+                        "is_final": True,
+                    },
+                    buffers=None,
+                )
+
+            response = latest_response
 
         response_message = ChatMessage(role="assistant", content=response)
         self._chat_history = messages + [response_message]

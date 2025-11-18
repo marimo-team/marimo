@@ -191,6 +191,53 @@ async def test_chat_streaming_sends_messages():
     assert sent_messages[-1]["content"] == "Hello world !"
 
 
+async def test_chat_sync_generator_streaming():
+    """Test that sync generators also work for streaming"""
+    sent_messages = []
+
+    def mock_streaming_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ):
+        del config, messages
+        # Simulate streaming response with sync generator
+        accumulated = ""
+        for word in ["Hello", "world", "!"]:
+            accumulated += word + " "
+            yield accumulated.strip()
+
+    chat = ui.chat(mock_streaming_model)
+
+    def capture_send_message(message: dict[str, object], buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture_send_message
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Test")],
+        config=ChatModelConfig(),
+    )
+
+    response: str = await chat._send_prompt(request)
+
+    # Verify final response
+    assert response == "Hello world !"
+
+    # Verify streaming messages were sent
+    assert len(sent_messages) >= 3
+
+    # Check that messages have streaming structure
+    for msg in sent_messages[:-1]:  # All but last
+        assert msg["type"] == "stream_chunk"
+        assert "message_id" in msg
+        assert "content" in msg
+        assert not msg["is_final"]
+
+    # Last message should be final
+    assert sent_messages[-1]["type"] == "stream_chunk"
+    assert sent_messages[-1]["is_final"]
+    assert sent_messages[-1]["content"] == "Hello world !"
+
+
 def test_chat_get_history():
     def mock_model(
         messages: list[ChatMessage], config: ChatModelConfig

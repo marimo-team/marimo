@@ -102,7 +102,17 @@ class openai(ChatModel):
             "set OPENAI_API_KEY as an environment variable"
         )
 
-    async def __call__(
+    def _stream_response(self, response):
+        """Helper method for streaming - separate to avoid mixing yield/return."""
+        accumulated = ""
+        for chunk in response:
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    accumulated += delta.content
+                    yield accumulated
+
+    def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.openai.require(
@@ -154,19 +164,13 @@ class openai(ChatModel):
         )
 
         if self.stream:
-            # Yield accumulated content as it streams
-            accumulated = ""
-            for chunk in response:
-                if chunk.choices and len(chunk.choices) > 0:
-                    delta = chunk.choices[0].delta
-                    if delta.content:
-                        accumulated += delta.content
-                        yield accumulated
+            # Return generator for streaming
+            return self._stream_response(response)
         else:
-            # Non-streaming response
+            # Non-streaming response - return string directly
             choice = response.choices[0]
             content = choice.message.content
-            yield content or ""
+            return content or ""
 
 
 class anthropic(ChatModel):
@@ -229,6 +233,14 @@ class anthropic(ChatModel):
             "set ANTHROPIC_API_KEY as an environment variable"
         )
 
+    def _stream_response(self, client, params):
+        """Helper method for streaming - separate to avoid mixing yield/return."""
+        accumulated = ""
+        with client.messages.stream(**params) as stream:
+            for text in stream.text_stream:
+                accumulated += text
+                yield accumulated
+
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
@@ -258,24 +270,20 @@ class anthropic(ChatModel):
             params["temperature"] = config.temperature
 
         if self.stream:
-            # Stream the response
-            accumulated = ""
-            with client.messages.stream(**params) as stream:
-                for text in stream.text_stream:
-                    accumulated += text
-                    yield accumulated
+            # Return generator for streaming
+            return self._stream_response(client, params)
         else:
-            # Non-streaming response
+            # Non-streaming response - return directly
             response = client.messages.create(**params)
 
             content = response.content
             if len(content) > 0:
                 if content[0].type == "text":
-                    yield content[0].text
+                    return content[0].text
                 elif content[0].type == "tool_use":
-                    yield content
+                    return content
             else:
-                yield ""
+                return ""
 
 
 class google(ChatModel):
@@ -359,19 +367,10 @@ class google(ChatModel):
         }
 
         if self.stream:
-            # Stream the response
-            accumulated = ""
-            response = client.models.generate_content_stream(
-                model=self.model,
-                contents=google_messages,
-                config=generation_config,
-            )
-            for chunk in response:
-                if chunk.text:
-                    accumulated += chunk.text
-                    yield accumulated
+            # Return generator for streaming
+            return self._stream_response(client, google_messages, generation_config)
         else:
-            # Non-streaming response
+            # Non-streaming response - return directly
             response = client.models.generate_content(
                 model=self.model,
                 contents=google_messages,
@@ -379,7 +378,20 @@ class google(ChatModel):
             )
 
             content = response.text
-            yield content or ""
+            return content or ""
+
+    def _stream_response(self, client, google_messages, generation_config):
+        """Helper method for streaming - separate to avoid mixing yield/return."""
+        accumulated = ""
+        response = client.models.generate_content_stream(
+            model=self.model,
+            contents=google_messages,
+            config=generation_config,
+        )
+        for chunk in response:
+            if chunk.text:
+                accumulated += chunk.text
+                yield accumulated
 
 
 class groq(ChatModel):
@@ -442,6 +454,26 @@ class groq(ChatModel):
             "set GROQ_API_KEY as an environment variable"
         )
 
+    def _stream_response(self, client, groq_messages, config):
+        """Helper method for streaming - separate to avoid mixing yield/return."""
+        stream = client.chat.completions.create(
+            model=self.model,
+            messages=groq_messages,
+            max_tokens=config.max_tokens,
+            temperature=config.temperature,
+            top_p=config.top_p,
+            stop=None,
+            stream=True,
+        )
+
+        accumulated = ""
+        for chunk in stream:
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    accumulated += delta.content
+                    yield accumulated
+
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
@@ -458,26 +490,10 @@ class groq(ChatModel):
         )
 
         if self.stream:
-            # Stream the response
-            stream = client.chat.completions.create(
-                model=self.model,
-                messages=groq_messages,
-                max_tokens=config.max_tokens,
-                temperature=config.temperature,
-                top_p=config.top_p,
-                stop=None,
-                stream=True,
-            )
-
-            accumulated = ""
-            for chunk in stream:
-                if chunk.choices and len(chunk.choices) > 0:
-                    delta = chunk.choices[0].delta
-                    if delta.content:
-                        accumulated += delta.content
-                        yield accumulated
+            # Return generator for streaming
+            return self._stream_response(client, groq_messages, config)
         else:
-            # Non-streaming response
+            # Non-streaming response - return directly
             response = client.chat.completions.create(
                 model=self.model,
                 messages=groq_messages,
@@ -490,7 +506,7 @@ class groq(ChatModel):
 
             choice = response.choices[0]
             content = choice.message.content
-            yield content or ""
+            return content or ""
 
 
 class bedrock(ChatModel):
@@ -544,6 +560,32 @@ class bedrock(ChatModel):
         else:
             pass  # Use default credential chain
 
+    def _stream_response(self, messages, config):
+        """Helper method for streaming - separate to avoid mixing yield/return."""
+        from litellm import completion as litellm_completion
+
+        response = litellm_completion(
+            model=self.model,
+            messages=convert_to_openai_messages(
+                [ChatMessage(role="system", content=self.system_message)]
+                + messages
+            ),
+            max_tokens=config.max_tokens,
+            temperature=config.temperature,
+            top_p=config.top_p,
+            frequency_penalty=config.frequency_penalty,
+            presence_penalty=config.presence_penalty,
+            stream=True,
+        )
+
+        accumulated = ""
+        for chunk in response:
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    accumulated += delta.content
+                    yield accumulated
+
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
@@ -558,30 +600,25 @@ class bedrock(ChatModel):
         self._setup_credentials()
 
         try:
-            response = litellm_completion(
-                model=self.model,
-                messages=convert_to_openai_messages(
-                    [ChatMessage(role="system", content=self.system_message)]
-                    + messages
-                ),
-                max_tokens=config.max_tokens,
-                temperature=config.temperature,
-                top_p=config.top_p,
-                frequency_penalty=config.frequency_penalty,
-                presence_penalty=config.presence_penalty,
-                stream=self.stream,
-            )
-
             if self.stream:
-                accumulated = ""
-                for chunk in response:
-                    if chunk.choices and len(chunk.choices) > 0:
-                        delta = chunk.choices[0].delta
-                        if delta.content:
-                            accumulated += delta.content
-                            yield accumulated
+                # Return generator for streaming
+                return self._stream_response(messages, config)
             else:
-                yield response.choices[0].message.content
+                # Non-streaming response - return directly
+                response = litellm_completion(
+                    model=self.model,
+                    messages=convert_to_openai_messages(
+                        [ChatMessage(role="system", content=self.system_message)]
+                        + messages
+                    ),
+                    max_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    top_p=config.top_p,
+                    frequency_penalty=config.frequency_penalty,
+                    presence_penalty=config.presence_penalty,
+                    stream=False,
+                )
+                return response.choices[0].message.content
 
         except Exception as e:
             # Handle common AWS exceptions with helpful messages
