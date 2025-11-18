@@ -16,6 +16,7 @@ def stat(
     caption: Optional[str] = None,
     direction: Optional[Literal["increase", "decrease"]] = None,
     bordered: bool = False,
+    target_direction: Optional[Literal["increase", "decrease"]] = "increase",
 ) -> Html:
     """Display a statistic.
 
@@ -28,6 +29,12 @@ def stat(
         direction: the direction of the statistic,
             either `increase` or `decrease`
         bordered: whether to display a border around the statistic
+        target_direction: the direction of the statistic
+            corresponding to a positive or desirable outcome. Set to
+            `increase` when higher values are better, or `decrease`
+            when lower values are better. By default the target
+            direction is `increase`.
+
 
     Returns:
         An `Html` object representing the statistic.
@@ -42,6 +49,7 @@ def stat(
                     "caption": caption,
                     "direction": direction,
                     "bordered": bordered,
+                    "target_direction": target_direction,
                 }
             ),
         )
