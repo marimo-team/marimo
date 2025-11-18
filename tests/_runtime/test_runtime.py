@@ -3556,8 +3556,8 @@ class TestMarkdownHandling:
 
         # Create execution requests with markdown and regular cells
         r_markdown_cell_code = "mo.md(r'\\n')"
-        f_markdown_cell_code = "mo.md(f'{mo}')"
-        t_markdown_cell_code = "mo.md(t'{mo}')"
+        f_markdown_cell_code = "mo.md(f'{10*10}')"
+        t_markdown_cell_code = "mo.md(t'{10*10}')"
         f_markdown_cell_code_escaped = "mo.md(f'{{mo}}')"
         t_markdown_cell_code_escaped = "mo.md(t'{{mo}}')"
 
@@ -3574,8 +3574,6 @@ class TestMarkdownHandling:
             ExecutionRequest(cell_id="mo_import", code="import marimo as mo"),
         ]
 
-        # Add a cell that exports 'mo' to enable markdown processing
-        # This simulates the scenario where marimo has been imported
         creation_request = CreationRequest(
             execution_requests=execution_requests,
             auto_run=False,
@@ -3588,11 +3586,11 @@ class TestMarkdownHandling:
         # Instantiate the kernel
         await k.instantiate(creation_request)
 
-        # Check that markdown cell is also in uninstantiated requests-
-        # since it does not contain a string
+        # Check that interpolated markdown cells are not matched
         assert "md_cell_f" in k._uninstantiated_execution_requests
         assert "md_cell_t" in k._uninstantiated_execution_requests
 
+        # Without any interpolation can match for rendering
         assert "md_cell_fe" not in k._uninstantiated_execution_requests
         assert "md_cell_te" not in k._uninstantiated_execution_requests
         assert "md_cell_r" not in k._uninstantiated_execution_requests
@@ -3614,8 +3612,6 @@ class TestMarkdownHandling:
             ExecutionRequest(cell_id="mo_import", code="import marimo as mo"),
         ]
 
-        # Add a cell that exports 'mo' to enable markdown processing
-        # This simulates the scenario where marimo has been imported
         creation_request = CreationRequest(
             execution_requests=execution_requests,
             auto_run=False,
