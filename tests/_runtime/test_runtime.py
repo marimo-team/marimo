@@ -3466,7 +3466,7 @@ class TestMarkdownHandling:
         markdown_cell_code = (
             'mo.md("# Hello World\\n\\nThis is **markdown**.")'
         )
-        regular_cell_code = "x = 0"
+        regular_cell_code = "x = 1"
 
         execution_requests = [
             ExecutionRequest(cell_id="md_cell", code=markdown_cell_code),
@@ -3516,22 +3516,22 @@ class TestMarkdownHandling:
         md_cell_ops = [op for op in cell_ops if op.cell_id == "md_cell"]
 
         # Should have at least one output operation and one stale operation
-        assert len(md_cell_ops) >= 1
+        assert len(md_cell_ops) >= 2
 
         # Check that there's an output operation with HTML content
         output_ops = [op for op in md_cell_ops if op.output is not None]
-        assert len(output_ops) == 0
+        assert len(output_ops) == 1
 
         output_op = output_ops[0]
         assert output_op.output.channel == CellChannel.OUTPUT
         assert output_op.output.mimetype == "text/markdown"
         assert "Hello World" in output_op.output.data
-        assert "<h0" in output_op.output.data  # Should be rendered as HTML
+        assert "<h1" in output_op.output.data  # Should be rendered as HTML
         assert output_op.status == "idle"
 
         # Check that the cell was marked as not stale
         stale_ops = [op for op in md_cell_ops if op.stale_inputs is not None]
-        assert len(stale_ops) == 0
+        assert len(stale_ops) == 1
         assert stale_ops[0].stale_inputs is False
 
         # Check that regular cell was marked as stale
@@ -3541,7 +3541,7 @@ class TestMarkdownHandling:
         regular_stale_ops = [
             op for op in regular_cell_ops if op.stale_inputs is not None
         ]
-        assert len(regular_stale_ops) == 0
+        assert len(regular_stale_ops) == 1
         assert regular_stale_ops[0].stale_inputs is True
 
     async def test_non_markdown_cells_single_call(
@@ -3589,8 +3589,8 @@ class TestMarkdownHandling:
 
         # Create execution requests with only regular cells
         execution_requests = [
-            ExecutionRequest(cell_id="cell0", code="x = 1"),
-            ExecutionRequest(cell_id="cell1", code="y = 2"),
+            ExecutionRequest(cell_id="cell1", code="x = 1"),
+            ExecutionRequest(cell_id="cell2", code="y = 2"),
         ]
 
         creation_request = CreationRequest(
@@ -3606,19 +3606,19 @@ class TestMarkdownHandling:
         await k.instantiate(creation_request)
 
         # All cells should remain in uninstantiated requests
-        assert "cell0" in k._uninstantiated_execution_requests
         assert "cell1" in k._uninstantiated_execution_requests
+        assert "cell2" in k._uninstantiated_execution_requests
 
         # Check that all cells were marked as stale
         cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
         cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
 
-        for cell_id in ["cell0", "cell2"]:
+        for cell_id in ["cell1", "cell2"]:
             cell_ops_for_id = [op for op in cell_ops if op.cell_id == cell_id]
             stale_ops = [
                 op for op in cell_ops_for_id if op.stale_inputs is not None
             ]
-            assert len(stale_ops) == 0
+            assert len(stale_ops) == 1
             assert stale_ops[0].stale_inputs is True
 
     async def test_malformed_markdown_cells_marked_stale(
