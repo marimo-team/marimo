@@ -150,7 +150,9 @@ def const_string(args: list[ast.stmt]) -> str:
     (inner,) = args
     if hasattr(inner, "values"):
         (inner,) = inner.values
-    return f"{inner.value}"  # type: ignore[attr-defined]
+    assert hasattr(inner, "value")
+    assert isinstance(inner.value, str)
+    return f"{inner.value}"
 
 
 def const_or_id(args: ast.stmt) -> str:
