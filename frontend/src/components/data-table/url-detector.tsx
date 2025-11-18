@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { marked } from "marked";
 import { useState } from "react";
 import {
   Popover,
@@ -80,6 +81,35 @@ export function parseContent(text: string): ContentPart[] {
     }
     return { type: "text", value: part };
   });
+}
+
+export function isMarkdown(text: string): boolean {
+  const tokens = marked.lexer(text);
+
+  const commonMarkdownIndicators = [
+    "space",
+    "code",
+    "fences",
+    "heading",
+    "hr",
+    "link",
+    "blockquote",
+    "list",
+    "html",
+    "def",
+    "table",
+    "lheading",
+    "escape",
+    "tag",
+    "reflink",
+    "strong",
+    "codespan",
+    "url",
+  ];
+
+  return commonMarkdownIndicators.some((type) =>
+    tokens.some((token) => token.type === type),
+  );
 }
 
 export const UrlDetector = ({ parts }: { parts: ContentPart[] }) => {

@@ -13,6 +13,7 @@ import { type DateFormat, exactDateTime, getDateFormat } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
 import { Objects } from "@/utils/objects";
+import { MarkdownRenderer } from "../chat/markdown-renderer";
 import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { JsonOutput } from "../editor/output/JsonOutput";
 import { Button } from "../ui/button";
@@ -33,7 +34,7 @@ import {
   INDEX_COLUMN_NAME,
 } from "./types";
 import { uniformSample } from "./uniformSample";
-import { parseContent, UrlDetector } from "./url-detector";
+import { isMarkdown, parseContent, UrlDetector } from "./url-detector";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;
@@ -531,7 +532,11 @@ export function renderCellValue<TData, TValue>({
         buttonText="X"
         wrapped={isWrapped}
       >
-        <UrlDetector parts={parts} />
+        {isMarkdown(stringValue) ? (
+          <MarkdownRenderer content={stringValue} />
+        ) : (
+          <UrlDetector parts={parts} />
+        )}
       </PopoutColumn>
     );
   }
