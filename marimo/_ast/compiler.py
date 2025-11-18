@@ -146,13 +146,13 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
     return node
 
 
-def const_string(args: list[ast.stmt]) -> str:
+def _extract_const_string(args: list[ast.stmt]) -> str:
     (inner,) = args
     if hasattr(inner, "values"):
         (inner,) = inner.values
-    assert hasattr(inner, "value")
+    assert isinstance(inner, ast.Constant)
     assert isinstance(inner.value, str)
-    return f"{inner.value}"
+    return inner.value
 
 
 def const_or_id(args: ast.stmt) -> str:
@@ -173,7 +173,7 @@ def _extract_markdown(tree: ast.Module) -> Optional[str]:
         assert value.func.value.id == "mo"
         if not value.args:  # Handle mo.md() with no arguments
             return None
-        md_lines = const_string(value.args).split("\n")
+        md_lines = _extract_const_string(value.args).split("\n")
     except (AssertionError, AttributeError, ValueError):
         # No reason to explicitly catch exceptions if we can't parse out
         # markdown. Just handle it as a code block.
