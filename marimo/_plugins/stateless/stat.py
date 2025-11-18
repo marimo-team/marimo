@@ -29,12 +29,12 @@ def stat(
         direction: the direction of the statistic,
             either `increase` or `decrease`
         bordered: whether to display a border around the statistic
-        target_direction: the direction of the statistic 
-            corresponding to a positive or desirable outcome. Set to 
-            `increase` when higher values are better, or `decrease` 
+        target_direction: the direction of the statistic
+            corresponding to a positive or desirable outcome. Set to
+            `increase` when higher values are better, or `decrease`
             when lower values are better. By default the target
             direction is `increase`.
-            
+
 
     Returns:
         An `Html` object representing the statistic.
